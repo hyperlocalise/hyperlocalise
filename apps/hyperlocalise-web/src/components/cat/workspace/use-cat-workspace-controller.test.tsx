@@ -284,6 +284,66 @@ describe("useCatWorkspaceController", () => {
     expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
   });
 
+  it("invokes the onReviewWithAi review override before AI review", async () => {
+    const onReviewWithAi = vi.fn();
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+    const { result } = renderController(undefined, {
+      review: { onReviewWithAi },
+      services: { generateAiRecommendation },
+    });
+
+    await act(async () => {
+      await result.current.dependencies.review.onReviewWithAi("seg-02");
+    });
+
+    expect(onReviewWithAi).toHaveBeenCalledWith("seg-02");
+    expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs generateAiRecommendation once when Review with AI is triggered twice during concordance", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        generateAiRecommendation,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    await waitFor(() => expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      const firstReview = result.current.dependencies.review.onReviewWithAi("seg-02");
+      const secondReview = result.current.dependencies.review.onReviewWithAi("seg-02");
+      resolveConcordance?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+      });
+      await concordancePromise;
+      await Promise.all([firstReview, secondReview]);
+    });
+
+    expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
+  });
+
   it("does not refetch concordance when AI review runs after intelligence panel loaded it", async () => {
     const lookupSegmentConcordance = vi.fn().mockResolvedValue({
       glossaryTerms: [

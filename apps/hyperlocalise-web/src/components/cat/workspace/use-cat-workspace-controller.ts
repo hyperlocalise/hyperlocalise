@@ -118,6 +118,7 @@ export function useCatWorkspaceController({
   const onAddComment = reviewOverrides?.onAddComment;
   const onResolveComment = reviewOverrides?.onResolveComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
+  const onReviewWithAiOverride = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
   const onBulkApprove = reviewOverrides?.onBulkApprove;
   const onBulkSkip = reviewOverrides?.onBulkSkip;
@@ -322,15 +323,20 @@ export function useCatWorkspaceController({
         return;
       }
 
-      if (includeAi && lookupSegmentConcordance) {
-        await runConcordanceLookupRef.current(segmentId, { autoFill: false });
-      }
-
-      const intelligenceForRecommendation =
-        store.segmentIntelligence[segmentId] ?? store.intelligence;
+      await onReviewWithAiOverride?.(segmentId);
 
       const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
       try {
+        if (includeAi && lookupSegmentConcordance) {
+          await runConcordanceLookupRef.current(segmentId, { autoFill: false });
+          if (!store.isReviewCurrent(sequence)) {
+            return;
+          }
+        }
+
+        const intelligenceForRecommendation =
+          store.segmentIntelligence[segmentId] ?? store.intelligence;
+
         let recommendation: CatAiRecommendationResult | undefined;
         let aiFailureCheck: CatFormatCheck | undefined;
 
@@ -400,7 +406,15 @@ export function useCatWorkspaceController({
         store.setReviewPhaseLoading(sequence, "formatChecks", false);
       }
     },
-    [generateAiRecommendation, intl, lookupSegmentConcordance, runQaChecks, store, validateFormat],
+    [
+      generateAiRecommendation,
+      intl,
+      lookupSegmentConcordance,
+      onReviewWithAiOverride,
+      runQaChecks,
+      store,
+      validateFormat,
+    ],
   );
 
   const runSegmentReviewRef = useRef(runSegmentReview);
