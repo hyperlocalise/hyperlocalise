@@ -1,6 +1,7 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
 import { initialize, mswLoader } from "msw-storybook-addon";
+import "@pierre/trees/web-components";
 
 import "../src/app/globals.css";
 import { I18nProvider } from "../src/components/i18n/i18n-provider";

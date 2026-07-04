@@ -258,7 +258,7 @@ export function ProjectFilesPageContentView({
   filesTree?: (selectedFile: ProjectFileRecord | null) => ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const displayFiles = filesTree ? (resolvedFiles ?? []) : files;
+  const displayFiles = filesTree ? (resolvedFiles ?? files) : files;
   const selectedFile = useMemo(
     () => displayFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [displayFiles, selectedSourcePath],

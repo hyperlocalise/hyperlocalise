@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, waitFor } from "storybook/test";
 
 import { TypographyP } from "@/components/ui/typography";
 
@@ -72,6 +72,7 @@ const meta = {
     organizationSlug: "acme",
     projectId: "project_website",
     files: projectFilesFixture,
+    resolvedFiles: projectFilesFixture,
     isFilesLoading: false,
     isFilesFetching: false,
     selectedSourcePath: selectedFile.sourcePath,
@@ -97,12 +98,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RepositoryFiles: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Files" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Project files" })).toBeInTheDocument();
-    await expect(canvas.getByRole("tree", { name: "Project files" })).toBeInTheDocument();
+    await expect(canvas.getByText("3 files")).toBeInTheDocument();
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
     await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+    });
   },
 };
 
@@ -127,6 +131,7 @@ export const ProviderFiles: Story = {
   args: {
     projectId: "crowdin:project_website",
     files: providerProjectFilesFixture,
+    resolvedFiles: providerProjectFilesFixture,
     selectedSourcePath: providerProjectFilesFixture[0]?.sourcePath ?? null,
     selectedFiles: [],
     filesTree: storyFilesTree({
