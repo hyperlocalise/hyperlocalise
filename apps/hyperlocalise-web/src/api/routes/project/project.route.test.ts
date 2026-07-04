@@ -276,16 +276,17 @@ describe("project file provider routes", () => {
       { name: "release/ios", title: null },
     ]);
 
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files
-      .branches.$get(
-        {
-          param: {
-            organizationSlug: admin.organization.slug ?? "missing-slug",
-            projectId,
-          },
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.branches.$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
         },
-        { headers },
-      );
+      },
+      { headers },
+    );
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectProviderBranchesResponse;
@@ -307,16 +308,17 @@ describe("project file provider routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
 
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files
-      .branches.$get(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            projectId: project.id,
-          },
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.branches.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
         },
-        { headers },
-      );
+      },
+      { headers },
+    );
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectProviderBranchesResponse;
@@ -332,16 +334,17 @@ describe("project file provider routes", () => {
       externalProjectId: "902810",
     });
 
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files
-      .branches.$get(
-        {
-          param: {
-            organizationSlug: admin.organization.slug ?? "missing-slug",
-            projectId,
-          },
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.branches.$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
         },
-        { headers },
-      );
+      },
+      { headers },
+    );
 
     expect(response.status).toBe(404);
     const body = (await response.json()) as { error: string; message: string };
