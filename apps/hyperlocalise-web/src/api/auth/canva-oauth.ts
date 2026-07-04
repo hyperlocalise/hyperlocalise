@@ -102,8 +102,7 @@ export function generateCanvaOAuthToken(): string {
 }
 
 export function hashCanvaOAuthToken(token: string): string {
-  const pepper = env.CANVA_OAUTH_CLIENT_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
-  return scryptSync(token, pepper, 32).toString("hex");
+  return scryptSync(token, CANVA_OAUTH_SCRYPT_SALT, 32).toString("hex");
 }
 
 export function isCanvaOAuthAccessToken(token: string): boolean {
@@ -217,7 +216,6 @@ export async function exchangeCanvaAuthorizationCode(input: {
     return { ok: false as const, error: "invalid_grant" };
   }
 
-  const { verifyPkceChallenge } = await import("@/api/auth/mcp");
   if (
     !verifyPkceChallenge({
       codeVerifier: input.codeVerifier,
@@ -229,16 +227,7 @@ export async function exchangeCanvaAuthorizationCode(input: {
   }
 
   const isFirstCodeUse = await markAuthorizationCodeUsed(input.code, {
-    clientId: payload.clientId,
-    redirectUri: payload.redirectUri,
-    codeChallenge: payload.codeChallenge,
-    codeChallengeMethod: payload.codeChallengeMethod,
-    scope: payload.scope,
-    state: payload.state,
-    userId: payload.userId,
-    organizationId: payload.userId,
     expiresAt: payload.expiresAt,
-    nonce: payload.nonce,
   });
 
   if (!isFirstCodeUse) {

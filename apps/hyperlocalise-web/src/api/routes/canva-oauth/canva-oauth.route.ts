@@ -31,6 +31,13 @@ const authorizationQuerySchema = z.object({
   state: z.string().max(128).optional(),
 });
 
+const revokeRequestSchema = z.object({
+  token: z.string().min(1).max(8192),
+  token_type_hint: z.enum(["access_token", "refresh_token"]).optional(),
+  client_id: z.string().min(1).max(128),
+  client_secret: z.string().min(1).max(512).optional(),
+});
+
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
   z.object({
     grant_type: z.literal("authorization_code"),
@@ -400,12 +407,25 @@ export function createCanvaOAuthRoutes(options: { apiBasePath?: string } = {}) {
         onError: (c) => c.json({ error: "payload_too_large" }, 413),
       }),
       async (c) => {
-        const body = (await readTokenRequestBody(c.req.raw)) as { token?: string };
-        if (!body.token || typeof body.token !== "string") {
+        const body = await readTokenRequestBody(c.req.raw);
+        const parsed = revokeRequestSchema.safeParse({
+          ...body,
+          client_secret:
+            typeof body.client_secret === "string" ? body.client_secret : readClientSecret(c),
+        });
+
+        if (!parsed.success) {
           return c.json({ error: "invalid_request" }, 400);
         }
 
-        await revokeCanvaOAuthToken(body.token);
+        const clientSecret =
+          parsed.data.client_secret ?? readClientSecret(c) ?? env.CANVA_OAUTH_CLIENT_SECRET;
+
+        if (!isValidCanvaOAuthClient(parsed.data.client_id, clientSecret)) {
+          return c.json({ error: "invalid_client" }, 401);
+        }
+
+        await revokeCanvaOAuthToken(parsed.data.token);
         return c.body(null, 200);
       },
     );
