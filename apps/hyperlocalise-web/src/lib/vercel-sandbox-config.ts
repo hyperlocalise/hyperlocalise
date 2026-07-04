@@ -1,7 +1,5 @@
 import { Sandbox } from "@vercel/sandbox";
 
-export const defaultVercelSandboxRuntime = "node26" as const;
-
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
@@ -49,7 +47,6 @@ export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
   const sandbox = await Sandbox.create({
-    runtime: defaultVercelSandboxRuntime,
     ...options,
   });
 
