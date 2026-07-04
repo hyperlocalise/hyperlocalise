@@ -48,6 +48,6 @@ We are building Hyperlocalise in that direction: a translation intelligence laye
 
 This recognition belongs to everyone who has helped shape Hyperlocalise so far — early customers, advisors, collaborators, and the team building the product every day.
 
-If you are exploring how to move beyond translation-as-a-handoff and toward localisation that understands your product, we would love to hear from you. [Join the waitlist](https://www.hyperlocalise.com/en) or [read more about translation intelligence](/en/blog/what-is-translation-intelligence).
+If you are exploring how to move beyond translation-as-a-handoff and toward localisation that understands your product, we would love to hear from you. [Join the waitlist](/) or [read more about translation intelligence](/blog/what-is-translation-intelligence).
 
 And thank you to [Slator](https://slator.com/) for including us in the 2026 Language AI 50 Under 50.
