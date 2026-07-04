@@ -65,6 +65,7 @@ export function CatWorkspaceView({
   isQueueFetchingPage = false,
   isQueueLoading = false,
   isCommentsLoading = false,
+  isSegmentTargetLoading = false,
   queuePagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -79,6 +80,7 @@ export function CatWorkspaceView({
   onBulkSkip,
   isBulkActionPending = false,
   buildSegmentShareUrl,
+  onIntelligencePanelVisible,
 }: CatWorkspaceViewProps) {
   const fullState = editorState ?? state;
   const navigationSegments = editorState ? state.segments : fullState.segments;
@@ -93,19 +95,18 @@ export function CatWorkspaceView({
     ) ?? navigationSegments[selectedSegmentIndex >= 0 ? selectedSegmentIndex : 0];
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
+  const selectedSegmentIdForIntelligence = selectedSegment?.id ?? null;
+  const isIntelligencePanelVisible = Boolean(
+    selectedSegmentIdForIntelligence && (!isCompact || activePanel === "ai"),
+  );
 
-  if (!selectedSegment && !isQueueLoading) {
-    return (
-      <div
-        className={cn(
-          "flex h-full items-center justify-center text-sm text-muted-foreground",
-          className,
-        )}
-      >
-        <FormattedMessage {...catWorkspaceMessages.emptyQueue} />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!selectedSegmentIdForIntelligence || !isIntelligencePanelVisible) {
+      return;
+    }
+
+    onIntelligencePanelVisible?.(selectedSegmentIdForIntelligence);
+  }, [isIntelligencePanelVisible, onIntelligencePanelVisible, selectedSegmentIdForIntelligence]);
 
   if (!selectedSegment && isQueueLoading) {
     return (
@@ -138,7 +139,40 @@ export function CatWorkspaceView({
   }
 
   if (!selectedSegment) {
-    return null;
+    return (
+      <div
+        className={cn(
+          "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+          className,
+        )}
+      >
+        <CatPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
+          <CatQueuePanel
+            segments={state.segments}
+            selectedSegmentId=""
+            onSelectSegment={dependencies.navigation.onSelectSegment}
+            search={queueSearch}
+            onSearchChange={onQueueSearchChange}
+            isSearching={isQueueSearchPending}
+            queueFilter={queueFilter}
+            onQueueFilterChange={onQueueFilterChange}
+            availableQueueFilters={availableQueueFilters}
+            checkedSegmentIds={checkedSegmentIds}
+            onToggleSegmentChecked={onToggleSegmentChecked}
+            onSelectAllVisible={onSelectAllVisible}
+            onClearChecked={onClearChecked}
+            onBulkApprove={onBulkApprove}
+            onBulkSkip={onBulkSkip}
+            isBulkActionPending={isBulkActionPending}
+            isFetchingPage={isQueueFetchingPage}
+            isQueueLoading={isQueueLoading}
+            pagination={queuePagination}
+            hasMoreQueue={hasMoreQueue}
+            onLoadMoreQueue={onLoadMoreQueue}
+          />
+        </CatPanelErrorBoundary>
+      </div>
+    );
   }
 
   const segmentPosition =
@@ -187,6 +221,7 @@ export function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isCommentsLoading={isCommentsLoading}
+          isSegmentTargetLoading={isSegmentTargetLoading}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
@@ -355,7 +390,7 @@ export function CatWorkspaceView({
               value="ai"
               className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
             >
-              {renderIntelligencePanel()}
+              {activePanel === "ai" ? renderIntelligencePanel() : null}
             </TabsContent>
           </Tabs>
         </div>

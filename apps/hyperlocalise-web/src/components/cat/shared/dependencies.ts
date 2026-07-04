@@ -126,6 +126,7 @@ export interface CatWorkspaceViewProps {
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
+  isSegmentTargetLoading?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];
@@ -138,6 +139,7 @@ export interface CatWorkspaceViewProps {
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   editorState?: CatWorkspaceState;
+  onIntelligencePanelVisible?: (segmentId: string) => void;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

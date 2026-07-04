@@ -298,13 +298,7 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
 
   if (kind === "cat") {
     return (
-      <Button
-        nativeButton={false}
-        render={<a href={href} />}
-        variant="outline"
-        size="sm"
-        className="w-fit"
-      >
+      <Button nativeButton={false} render={<a href={href} />} size="sm" className="w-fit">
         <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
         {children}
       </Button>

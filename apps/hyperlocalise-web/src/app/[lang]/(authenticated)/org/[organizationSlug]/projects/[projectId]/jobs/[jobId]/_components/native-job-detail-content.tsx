@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AiMagicIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
-  StopCircleIcon,
-} from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, RefreshIcon, StopCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +19,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
@@ -39,12 +33,7 @@ import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
-import {
-  canMarkJobFailed,
-  canRetryJob,
-  canRunAgentOnNativeFileJob,
-  isProviderBackedJob,
-} from "./job-detail-types";
+import { canMarkJobFailed, canRetryJob, isProviderBackedJob } from "./job-detail-types";
 
 async function parseActionError(response: Response, fallback: string) {
   let error: string | undefined;
@@ -57,10 +46,6 @@ async function parseActionError(response: Response, fallback: string) {
   }
 
   return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
-}
-
-function providerTranslateAction(job: JobDetailRecord) {
-  return (job.providerActions ?? []).find((action) => action.id === "translate_with_agent") ?? null;
 }
 
 export function NativeJobDetailContent({
@@ -92,30 +77,6 @@ export function NativeJobDetailContent({
         throw new Error("Job does not belong to this project");
       }
       return body.job;
-    },
-  });
-
-  const runAgentJob = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-        "run-agent"
-      ].$post({
-        param: { organizationSlug, jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent on job"));
-      }
-
-      await response.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Translation agent is running");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent on job");
     },
   });
 
@@ -176,7 +137,6 @@ export function NativeJobDetailContent({
     job && isProviderBackedJob(job)
       ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
       : "";
-  const translateAction = job && isProviderBackedJob(job) ? providerTranslateAction(job) : null;
   useAppShellBreadcrumbAppend({
     id: "job-detail",
     label: layout?.title,
@@ -196,45 +156,6 @@ export function NativeJobDetailContent({
           size="sm"
           variant="outline"
         />
-      ) : null}
-      {showCatAction && catHref ? (
-        <Button size="sm" variant="outline" render={<Link href={catHref} />}>
-          <ListIcon />
-          View strings
-        </Button>
-      ) : null}
-      {translateAction?.visible ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                disabled={
-                  !translateAction.enabled ||
-                  runAgentJob.isPending ||
-                  retryJob.isPending ||
-                  markJobFailed.isPending
-                }
-                onClick={() => runAgentJob.mutate()}
-              >
-                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-                {runAgentJob.isPending ? "Starting agent..." : translateAction.label}
-              </Button>
-            }
-          />
-          {translateAction.disabledReason ? (
-            <TooltipContent>{translateAction.disabledReason}</TooltipContent>
-          ) : null}
-        </Tooltip>
-      ) : canRunAgentOnNativeFileJob(job) ? (
-        <Button
-          size="sm"
-          disabled={runAgentJob.isPending || retryJob.isPending || markJobFailed.isPending}
-          onClick={() => runAgentJob.mutate()}
-        >
-          <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-          {runAgentJob.isPending ? "Starting agent..." : "Translate with agent"}
-        </Button>
       ) : null}
       {canRetryJob(job) ? (
         <Button
@@ -256,6 +177,12 @@ export function NativeJobDetailContent({
         >
           <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
           Mark as failed
+        </Button>
+      ) : null}
+      {showCatAction && catHref ? (
+        <Button size="sm" render={<Link href={catHref} />}>
+          <ListIcon />
+          View strings
         </Button>
       ) : null}
     </>

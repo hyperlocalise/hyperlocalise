@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import type {
   ProjectFileCatComment,
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
@@ -14,7 +14,7 @@ import type { CrowdinIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
-import { useInvalidateCatSegmentDetail } from "./use-cat-segment-detail";
+import { useInvalidateCatSegmentTarget } from "./use-cat-segment-target";
 
 export function useCatMutations(input: {
   organizationSlug: string;
@@ -22,11 +22,11 @@ export function useCatMutations(input: {
   sourcePath: string;
   targetLocale: string;
   repositoryFullName?: string | null;
-  catFile: ProjectFileCatResponse["catFile"] | null | undefined;
+  catFile: ProjectFileCatQueueFile | null | undefined;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
-  const invalidateSegmentDetail = useInvalidateCatSegmentDetail();
+  const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
   const repositoryFullName = input.repositoryFullName ?? null;
 
@@ -70,7 +70,24 @@ export function useCatMutations(input: {
         variables.text,
         translation.isApproved,
       );
-      await input.invalidateQueue();
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateSegmentTarget({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+          repositoryFullName,
+        }),
+      ]);
     },
   });
 
@@ -111,12 +128,19 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentDetail({
+        invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
           repositoryFullName,
@@ -125,6 +149,8 @@ export function useCatMutations(input: {
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
         }),
@@ -160,12 +186,19 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentDetail({
+        invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
           repositoryFullName,
@@ -174,6 +207,8 @@ export function useCatMutations(input: {
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
         }),

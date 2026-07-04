@@ -49,6 +49,7 @@ export interface CatWorkspaceContainerProps {
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
+  isSegmentTargetLoading?: boolean;
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
@@ -76,6 +77,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   hasMoreQueue,
   onLoadMoreQueue,
   isCommentsLoading,
+  isSegmentTargetLoading,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
 }: CatWorkspaceContainerProps & { store: ReturnType<typeof createCatWorkspaceStore> }) {
@@ -136,6 +138,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           isCommentsLoading={isCommentsLoading}
+          isSegmentTargetLoading={isSegmentTargetLoading}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
@@ -154,6 +157,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           onBulkSkip={() => void controller.handleBulkSkip()}
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
+          onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
         />
       </CatPanelErrorBoundary>
 

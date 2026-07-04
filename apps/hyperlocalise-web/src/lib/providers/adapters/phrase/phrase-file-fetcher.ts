@@ -22,6 +22,7 @@ export const fetchPhraseFileKeys: ExternalTmsFileKeyFetcher = async ({
   externalProjectId,
   project,
   secretMaterial,
+  branch: branchFilter,
 }) => {
   const client = new PhraseApiClient({
     token: secretMaterial,
@@ -46,7 +47,8 @@ export const fetchPhraseFileKeys: ExternalTmsFileKeyFetcher = async ({
 
   const { sourceLocale, targetLocales, targetLocaleRefs, sourceLocaleRef } =
     partitionPhraseLocales(locales);
-  const branchScopes = buildBranchScopes(branches);
+  const trimmedBranchFilter = branchFilter?.trim() ?? "";
+  const branchScopes = trimmedBranchFilter ? [trimmedBranchFilter] : buildBranchScopes(branches);
   const projectMetadata = readProjectMetadata(project);
   const mainFormat =
     typeof projectMetadata.mainFormat === "string" ? projectMetadata.mainFormat : null;

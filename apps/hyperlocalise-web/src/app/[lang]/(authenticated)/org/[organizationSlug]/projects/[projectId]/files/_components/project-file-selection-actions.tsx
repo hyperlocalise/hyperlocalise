@@ -16,14 +16,31 @@ export function ProjectFileSelectionActions({
   projectId,
   file,
   highlightLocale,
+  layout = "default",
 }: {
   organizationSlug: string;
   projectId: string;
   file: ProjectFileRecord;
   highlightLocale: string | null;
+  layout?: "default" | "compact";
 }) {
   const canOpenCat = canOpenProjectFileCat(file);
   const catHref = buildProjectFileCatHref(organizationSlug, projectId, file, highlightLocale);
+
+  if (layout === "compact") {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        className="shrink-0"
+        disabled={!canOpenCat || !catHref}
+        render={canOpenCat && catHref ? <Link href={catHref} /> : undefined}
+      >
+        <ListIcon />
+        View strings
+      </Button>
+    );
+  }
 
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

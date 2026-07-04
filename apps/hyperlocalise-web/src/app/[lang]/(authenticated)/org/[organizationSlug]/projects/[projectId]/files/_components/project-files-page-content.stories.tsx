@@ -1,20 +1,25 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useState } from "react";
 import { expect, waitFor } from "storybook/test";
 
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import { ProjectFilesBranchFilterView } from "./project-files-branch-filter-view";
 import { ProjectFilesPageContentView } from "./project-files-page-content";
 import { ProjectFilesTree } from "./project-files-tree";
 import {
   createProjectFileRecord,
   projectFilesFixture,
+  providerProjectBranchesFixture,
   providerProjectFilesFixture,
   selectedUploadFiles,
 } from "./project-files.fixture";
 
+const providerProjectId = "ext:crowdin:project_website";
 const selectedFile = projectFilesFixture[0] ?? createProjectFileRecord();
+const selectedProviderFile = providerProjectFilesFixture[0] ?? createProjectFileRecord();
 
 function storyFilesTree({
   files,
@@ -23,6 +28,9 @@ function storyFilesTree({
   organizationSlug,
   projectId,
   highlightLocale,
+  showBranchFilter = false,
+  selectedBranch = null,
+  onSelectBranch,
 }: {
   files: typeof projectFilesFixture;
   selectedSourcePath: string | null;
@@ -30,26 +38,38 @@ function storyFilesTree({
   organizationSlug: string;
   projectId: string;
   highlightLocale: string | null;
+  showBranchFilter?: boolean;
+  selectedBranch?: string | null;
+  onSelectBranch?: (branch: string | null) => void;
 }) {
   return (selectedFileRecord: ReturnType<typeof createProjectFileRecord> | null) => (
     <>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="min-w-0">
           <ProjectSectionTitle>Project files</ProjectSectionTitle>
           <TypographyP className="mt-0.5 text-sm text-muted-foreground">
             {files.length} file{files.length === 1 ? "" : "s"}
           </TypographyP>
         </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {showBranchFilter ? (
+            <ProjectFilesBranchFilterView
+              branches={providerProjectBranchesFixture}
+              selectedBranch={selectedBranch}
+              onSelectedBranchChange={onSelectBranch ?? (() => undefined)}
+            />
+          ) : null}
+          {selectedFileRecord ? (
+            <ProjectFileSelectionActions
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              file={selectedFileRecord}
+              highlightLocale={highlightLocale}
+              layout="compact"
+            />
+          ) : null}
+        </div>
       </header>
-
-      {selectedFileRecord ? (
-        <ProjectFileSelectionActions
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          file={selectedFileRecord}
-          highlightLocale={highlightLocale}
-        />
-      ) : null}
 
       <div className="min-h-0 flex-1 p-2">
         <ProjectFilesTree
@@ -105,7 +125,7 @@ export const RepositoryFiles: Story = {
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
     await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+      void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
     });
   },
 };
@@ -129,19 +149,72 @@ export const Uploading: Story = {
 
 export const ProviderFiles: Story = {
   args: {
-    projectId: "crowdin:project_website",
+    projectId: providerProjectId,
+    isProviderProject: true,
     files: providerProjectFilesFixture,
     resolvedFiles: providerProjectFilesFixture,
-    selectedSourcePath: providerProjectFilesFixture[0]?.sourcePath ?? null,
+    selectedSourcePath: selectedProviderFile.sourcePath,
     selectedFiles: [],
     filesTree: storyFilesTree({
       files: providerProjectFilesFixture,
-      selectedSourcePath: providerProjectFilesFixture[0]?.sourcePath ?? null,
+      selectedSourcePath: selectedProviderFile.sourcePath,
       onSelectSourcePath: () => undefined,
       organizationSlug: "acme",
-      projectId: "crowdin:project_website",
+      projectId: providerProjectId,
       highlightLocale: "fr-FR",
+      showBranchFilter: true,
     }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
+  },
+};
+
+export const ProviderFilesBranchSelected: Story = {
+  render: (args) => {
+    const [selectedBranch, setSelectedBranch] = useState<string | null>("main");
+
+    return (
+      <ProjectFilesPageContentView
+        {...args}
+        selectedBranch={selectedBranch}
+        filesTree={storyFilesTree({
+          files: providerProjectFilesFixture,
+          selectedSourcePath: selectedProviderFile.sourcePath,
+          onSelectSourcePath: () => undefined,
+          organizationSlug: "acme",
+          projectId: providerProjectId,
+          highlightLocale: "fr-FR",
+          showBranchFilter: true,
+          selectedBranch,
+          onSelectBranch: setSelectedBranch,
+        })}
+      />
+    );
+  },
+  args: {
+    organizationSlug: "acme",
+    projectId: providerProjectId,
+    isProviderProject: true,
+    files: providerProjectFilesFixture,
+    resolvedFiles: providerProjectFilesFixture,
+    selectedSourcePath: selectedProviderFile.sourcePath,
+    highlightLocale: "fr-FR",
+    selectedBranch: "main",
+    selectedFiles: [],
+    isUploading: false,
+    isFilesLoading: false,
+    isFilesFetching: false,
+    onSelectSourcePath: () => undefined,
+    onAddSelectedFiles: () => undefined,
+    onRemoveSelectedFile: () => undefined,
+    onUploadSelectedFiles: () => undefined,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toHaveTextContent("Main (main)");
   },
 };
 

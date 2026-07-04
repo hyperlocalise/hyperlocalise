@@ -30,10 +30,11 @@ import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
-  getTmsProviderLiveCatSegmentDetail,
+  getTmsProviderLiveCatSegmentTarget,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
+  listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
   resolveTmsProviderLiveCatComment,
@@ -42,7 +43,7 @@ import { listOrganizationProjects } from "@/lib/projects/organization/organizati
 import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
-  getNativeProjectCatSegmentDetail,
+  getNativeProjectCatSegmentTarget,
   resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
@@ -601,6 +602,8 @@ async function loadProjectFileCatQueue(
       {
         actorUserId: auth.user.localUserId,
         canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+        externalResourceId: query.externalResourceId,
+        resourceType: query.resourceType,
         pagination,
       },
     );
@@ -728,7 +731,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .get(
-      "/:projectId/files/detail/cat/segments/:externalStringId",
+      "/:projectId/files/detail/cat/segments/:externalStringId/target",
       validateProjectParams,
       validateProjectFileCatSegmentParams,
       validateProjectFileCatSegmentQuery,
@@ -746,36 +749,39 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          const segment = await getNativeProjectCatSegmentDetail({
+          const segmentTarget = await getNativeProjectCatSegmentTarget({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: query.sourcePath,
             targetLocale: query.targetLocale,
             externalStringId: params.externalStringId,
-            preferredRepositoryFullName: query.repositoryFullName ?? null,
           });
 
-          if (!segment) {
+          if (segmentTarget === "not_found") {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ segment }, 200);
+          return c.json({ target: segmentTarget }, 200);
         }
 
         try {
-          const segment = await getTmsProviderLiveCatSegmentDetail(
+          const segmentTarget = await getTmsProviderLiveCatSegmentTarget(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
             query.sourcePath,
             query.targetLocale,
             params.externalStringId,
-            { actorUserId: c.var.auth.user.localUserId },
+            {
+              actorUserId: c.var.auth.user.localUserId,
+              externalResourceId: query.externalResourceId,
+              resourceType: query.resourceType,
+            },
           );
-          if (!segment) {
+          if (segmentTarget === "not_found") {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ segment }, 200);
+          return c.json({ target: segmentTarget }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
@@ -818,7 +824,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             query.sourcePath,
             query.targetLocale,
             params.externalStringId,
-            { actorUserId: c.var.auth.user.localUserId },
+            {
+              actorUserId: c.var.auth.user.localUserId,
+              externalResourceId: query.externalResourceId,
+              resourceType: query.resourceType,
+            },
           );
 
           return c.json({ comments }, 200);
@@ -1433,6 +1443,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
       },
     )
+    .get("/:projectId/files/branches", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind !== "provider") {
+        return c.json({ branches: [] }, 200);
+      }
+
+      try {
+        const branches = await listTmsProviderLiveProjectBranches(
+          c.var.auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ branches }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
@@ -1446,7 +1478,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const files = await listTmsProviderLiveFilesForProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
-            { limit: query.limit, actorUserId: c.var.auth.user.localUserId },
+            { limit: query.limit, branch: query.branch, actorUserId: c.var.auth.user.localUserId },
           );
           return c.json({ files }, 200);
         } catch (error) {

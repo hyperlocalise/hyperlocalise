@@ -20,7 +20,7 @@ import type {
   ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
   ProjectFileCatSegmentCommentsResponse,
-  ProjectFileCatSegmentResponse,
+  ProjectFileCatSegmentTargetResponse,
   ProjectFileCatTranslationResponse,
 } from "./project.schema";
 
@@ -375,9 +375,9 @@ describe("project file CAT routes", () => {
     expect(body.catFile.segments[0]?.comments).toEqual([]);
     expect(body.catFile.segments[0]?.commentCount).toBe(1);
 
-    const detailResponse = await client.api.orgs[":organizationSlug"].projects[
+    const targetResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
-    ].files.detail.cat.segments[":externalStringId"].$get(
+    ].files.detail.cat.segments[":externalStringId"].target.$get(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -389,9 +389,9 @@ describe("project file CAT routes", () => {
       { headers },
     );
 
-    expect(detailResponse.status).toBe(200);
-    const detailBody = (await detailResponse.json()) as ProjectFileCatSegmentResponse;
-    expect(detailBody.segment.comments).toEqual([]);
+    expect(targetResponse.status).toBe(200);
+    const targetBody = (await targetResponse.json()) as ProjectFileCatSegmentTargetResponse;
+    expect(targetBody.target).toBeNull();
 
     const commentsResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"

@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { type ReactNode } from "react";
-import { AiMagicIcon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ListIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
@@ -21,7 +23,7 @@ import {
   type JobDetailTaskDescriptionRenderer,
   type JobDetailTaskFilesRenderer,
 } from "./job-detail-task-view";
-import { buildJobsListHref, type ProviderActionAvailability } from "./job-detail-types";
+import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailTaskLayoutFromLiveJob } from "./job-detail-layout-helpers";
 
 export type ProviderLiveDescriptionFieldRenderer = JobDetailTaskDescriptionRenderer;
@@ -39,13 +41,11 @@ export function ProviderLiveJobDetailView({
   error,
   isLoading,
   isRefreshing = false,
-  isTranslateWithAgentPending = false,
   job,
   jobId,
   localeReadinessLoading = false,
   localeReadinessOverride,
   onRefresh,
-  onTranslateWithAgent,
   organizationSlug,
   projectId,
   renderBackLink = defaultRenderBackLink,
@@ -54,20 +54,17 @@ export function ProviderLiveJobDetailView({
   renderExternalLink,
   renderFilesSection,
   showComments = false,
-  translateWithAgentAction,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
   canEditProviderJobDescription?: boolean;
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
-  isTranslateWithAgentPending?: boolean;
   job?: TmsProviderLiveJobDetail;
   jobId: string;
   localeReadinessLoading?: boolean;
   localeReadinessOverride?: Record<string, unknown> | null;
   onRefresh?: () => void;
-  onTranslateWithAgent?: () => void;
   organizationSlug: string;
   projectId: string;
   renderBackLink?: JobDetailBackLinkRenderer;
@@ -76,7 +73,6 @@ export function ProviderLiveJobDetailView({
   renderExternalLink?: (props: { href: string; label: string }) => ReactNode;
   renderFilesSection?: ProviderLiveFilesSectionRenderer;
   showComments?: boolean;
-  translateWithAgentAction?: ProviderActionAvailability | null;
 }) {
   const providerDescription = job
     ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
@@ -84,12 +80,8 @@ export function ProviderLiveJobDetailView({
   const canEditProviderDescription = Boolean(
     job && canEditProviderJobDescription && job.id.startsWith("ext:"),
   );
-  const showTranslateWithAgent = translateWithAgentAction?.visible ?? false;
-  const translateWithAgentDisabled =
-    !translateWithAgentAction?.enabled || isTranslateWithAgentPending || !onTranslateWithAgent;
-  const translateWithAgentLabel = isTranslateWithAgentPending
-    ? "Starting agent..."
-    : (translateWithAgentAction?.label ?? "Translate with agent");
+  const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
+  const showViewStrings = job ? canOpenJobCat(job) && Boolean(catHref) : false;
   const layout = job
     ? jobDetailTaskLayoutFromLiveJob(job, {
         localeReadinessLoading,
@@ -125,24 +117,11 @@ export function ProviderLiveJobDetailView({
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
       ) : null}
-      {showTranslateWithAgent ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                disabled={translateWithAgentDisabled}
-                onClick={onTranslateWithAgent}
-              >
-                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-                {translateWithAgentLabel}
-              </Button>
-            }
-          />
-          {translateWithAgentAction?.disabledReason ? (
-            <TooltipContent>{translateWithAgentAction.disabledReason}</TooltipContent>
-          ) : null}
-        </Tooltip>
+      {showViewStrings && catHref ? (
+        <Button size="sm" render={<Link href={catHref} />}>
+          <ListIcon />
+          View strings
+        </Button>
       ) : null}
     </>
   ) : null;

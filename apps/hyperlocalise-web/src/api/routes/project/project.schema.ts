@@ -207,7 +207,17 @@ export const projectFilesQuerySchema = z.object({
   providerKind: projectFilesFilterProviderKindSchema.optional(),
   locale: z.string().trim().max(32).optional(),
   syncState: z.string().trim().max(64).optional(),
+  branch: z.string().trim().min(1).max(256).optional(),
   projectId: optionalProjectIdSchema,
+});
+
+export const projectProviderBranchesResponseSchema = z.object({
+  branches: z.array(
+    z.object({
+      name: z.string(),
+      title: z.string().nullable().optional(),
+    }),
+  ),
 });
 
 export const workspaceFileRecordSchema = projectFileRecordSchema.extend({
@@ -235,6 +245,8 @@ export const projectFileCatQueueFilterSchema = z.enum([
 export const projectFileCatQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
@@ -558,6 +570,9 @@ export const projectFileCatSegmentSchema = z.object({
   repositoryContext: z.string().nullable().optional(),
 });
 
+/** Queue list items omit target text — the editor lazy-loads translation via segment target. */
+export const projectFileCatQueueSegmentSchema = projectFileCatSegmentSchema.omit({ target: true });
+
 export const projectFileCatSegmentParamsSchema = z.object({
   organizationSlug: z.string().trim().min(1).max(128),
   projectId: z.string().trim().min(1).max(128),
@@ -567,6 +582,8 @@ export const projectFileCatSegmentParamsSchema = z.object({
 export const projectFileCatSegmentQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
 });
 
@@ -576,6 +593,10 @@ export const projectFileCatSegmentResponseSchema = z.object({
 
 export const projectFileCatSegmentCommentsResponseSchema = z.object({
   comments: z.array(projectFileCatCommentSchema),
+});
+
+export const projectFileCatSegmentTargetResponseSchema = z.object({
+  target: projectFileCatTranslationSchema.nullable(),
 });
 
 export const projectFileCatResponseSchema = z.object({
@@ -591,8 +612,12 @@ export const projectFileCatResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatQueueFileSchema = projectFileCatResponseSchema.shape.catFile.extend({
+  segments: z.array(projectFileCatQueueSegmentSchema),
+});
+
 export const projectFileCatQueueResponseSchema = z.object({
-  catQueue: projectFileCatResponseSchema.shape.catFile,
+  catQueue: projectFileCatQueueFileSchema,
 });
 
 export const projectFileCatTranslationResponseSchema = z.object({
@@ -608,6 +633,7 @@ export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
+export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
@@ -646,13 +672,18 @@ export type ProjectFileCatCommentResolveResponse = z.infer<
 >;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileCatQueueSegment = z.infer<typeof projectFileCatQueueSegmentSchema>;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
 export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
 export type ProjectFileCatSegmentCommentsResponse = z.infer<
   typeof projectFileCatSegmentCommentsResponseSchema
 >;
+export type ProjectFileCatSegmentTargetResponse = z.infer<
+  typeof projectFileCatSegmentTargetResponseSchema
+>;
 export type ProjectFileCatQueueResponse = z.infer<typeof projectFileCatQueueResponseSchema>;
+export type ProjectFileCatQueueFile = z.infer<typeof projectFileCatQueueFileSchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
 export type ProjectFileCatTranslationResponse = z.infer<
   typeof projectFileCatTranslationResponseSchema

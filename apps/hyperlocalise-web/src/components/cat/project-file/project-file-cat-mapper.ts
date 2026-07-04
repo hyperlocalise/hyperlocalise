@@ -1,5 +1,5 @@
 import type {
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
   ProjectFileCatSegment,
 } from "@/api/routes/project/project.schema";
 import {
@@ -23,9 +23,13 @@ import type {
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
 
-type CatFile = ProjectFileCatResponse["catFile"];
+type CatFile = ProjectFileCatQueueFile;
 
-function countOpenIssues(segment: ProjectFileCatSegment) {
+function segmentTarget(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
+  return "target" in segment ? segment.target : null;
+}
+
+function countOpenIssues(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
   if (segment.comments.length > 0) {
     return segment.comments.filter(
       (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
@@ -35,7 +39,9 @@ function countOpenIssues(segment: ProjectFileCatSegment) {
   return segment.unresolvedIssueCount ?? 0;
 }
 
-function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[] {
+function mapSegmentComments(
+  segment: CatFile["segments"][number] | ProjectFileCatSegment,
+): CatSegmentComment[] {
   return segment.comments.map((comment) => ({
     id: comment.externalCommentId,
     type: comment.type,
@@ -47,8 +53,12 @@ function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[]
   }));
 }
 
-export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["status"] {
-  if (segment.target?.isApproved) {
+export function segmentStatusFor(
+  segment: CatFile["segments"][number] | ProjectFileCatSegment,
+): CatSegment["status"] {
+  const target = segmentTarget(segment);
+
+  if (target?.isApproved) {
     return "reviewed";
   }
 
@@ -58,7 +68,7 @@ export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["st
     return "needs_review";
   }
 
-  return segment.target?.text.trim() ? "needs_review" : "pending";
+  return target?.text.trim() ? "needs_review" : "pending";
 }
 
 export function formatCheckFromParityIssue(
@@ -227,7 +237,7 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
 
 function segmentIntelligenceFor(
   catFile: CatFile,
-  segment: ProjectFileCatSegment,
+  segment: CatFile["segments"][number],
 ): CatSegmentIntelligence {
   const comments = segment.comments.length || segment.commentCount || 0;
   const issues = countOpenIssues(segment);
@@ -285,7 +295,7 @@ export function projectFileCatToWorkspaceState(
       index: segmentOffset + index + 1,
       key: segment.key,
       sourceText: segment.sourceText,
-      targetText: segment.target?.text ?? "",
+      targetText: segmentTarget(segment)?.text ?? "",
       sourceLocale,
       targetLocale: catFile.targetLocale,
       contextLabel: segment.context ?? undefined,
@@ -319,49 +329,47 @@ export function projectFileCatToWorkspaceState(
   };
 }
 
-export function applyCatSegmentDetailToWorkspaceState(
+export function applyCatSegmentTargetToWorkspaceState(
   state: CatWorkspaceState,
   catFile: CatFile,
-  segmentDetail: ProjectFileCatSegment,
+  segmentId: string,
+  target: ProjectFileCatSegment["target"],
   intl: CatFormatMessageIntl,
 ): CatWorkspaceState {
-  const mergedSegment = {
-    ...catFile.segments.find(
-      (segment) => segment.externalStringId === segmentDetail.externalStringId,
-    ),
-    ...segmentDetail,
-  };
-
-  if (!mergedSegment.externalStringId) {
+  const queueSegment = catFile.segments.find((segment) => segment.externalStringId === segmentId);
+  if (!queueSegment) {
     return state;
   }
+
+  const mergedSegment: ProjectFileCatSegment = {
+    ...queueSegment,
+    externalStringId: segmentId,
+    key: queueSegment.key,
+    sourceText: queueSegment.sourceText,
+    context: queueSegment.context,
+    type: queueSegment.type,
+    comments: [],
+    target,
+  };
 
   const nextCatFile: CatFile = {
     ...catFile,
     segments: catFile.segments.map((segment) =>
-      segment.externalStringId === segmentDetail.externalStringId ? mergedSegment : segment,
+      segment.externalStringId === segmentId ? mergedSegment : segment,
     ),
   };
-  const detailState = projectFileCatToWorkspaceState(nextCatFile, intl);
-  const detailSegment = detailState.segments.find(
-    (segment) => segment.id === segmentDetail.externalStringId,
-  );
+  const targetState = projectFileCatToWorkspaceState(nextCatFile, intl);
+  const targetSegment = targetState.segments.find((segment) => segment.id === segmentId);
 
-  if (!detailSegment) {
+  if (!targetSegment) {
     return state;
   }
 
   return {
     ...state,
     segments: state.segments.map((segment) =>
-      segment.id === detailSegment.id ? detailSegment : segment,
+      segment.id === targetSegment.id ? targetSegment : segment,
     ),
-    segmentIntelligence: {
-      ...state.segmentIntelligence,
-      [detailSegment.id]: detailState.segmentIntelligence?.[detailSegment.id] ?? {
-        ...state.intelligence,
-      },
-    },
   };
 }
 
@@ -420,4 +428,16 @@ export function requireProviderExternalResourceId(catFile: CatFile | null | unde
   }
 
   return externalResourceId;
+}
+
+export function resolveCatFileIdentity(input: {
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key" | null;
+  catFile?: CatFile | null;
+}) {
+  return {
+    externalResourceId:
+      input.externalResourceId ?? input.catFile?.provider?.externalResourceId ?? null,
+    resourceType: input.resourceType ?? input.catFile?.provider?.resourceType,
+  };
 }

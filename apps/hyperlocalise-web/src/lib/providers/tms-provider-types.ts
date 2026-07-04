@@ -53,6 +53,8 @@ export type ExternalTmsFileKeyFetcher = (input: {
   credential: ExternalTmsCredential;
   project: ExternalTmsProject;
   secretMaterial: string;
+  /** When set, only files for this provider branch are listed (Crowdin, Phrase). */
+  branch?: string | null;
 }) => Promise<ExternalTmsFileKeyMetadata[]>;
 
 export type ExternalTmsJobTaskMetadata = {

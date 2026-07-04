@@ -21,6 +21,51 @@ function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale
   return highlightLocale;
 }
 
+export type ProjectFileCatUrlParams = {
+  sourcePath: string;
+  locale?: string | null;
+  segment?: string | null;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key" | null;
+};
+
+export function parseProjectFileCatSearchParams(searchParams: {
+  sourcePath?: string;
+  locale?: string;
+  segment?: string;
+  externalResourceId?: string;
+  resourceType?: string;
+}): {
+  sourcePath: string | null;
+  highlightLocale: string | null;
+  initialSegmentKey: string | null;
+  externalResourceId: string | null;
+  resourceType: "file" | "key" | null;
+} {
+  const resourceType =
+    searchParams.resourceType === "file" || searchParams.resourceType === "key"
+      ? searchParams.resourceType
+      : null;
+
+  return {
+    sourcePath: searchParams.sourcePath?.trim() ? searchParams.sourcePath.trim() : null,
+    highlightLocale: searchParams.locale?.trim() ? searchParams.locale.trim() : null,
+    initialSegmentKey: searchParams.segment?.trim() ? searchParams.segment.trim() : null,
+    externalResourceId: searchParams.externalResourceId?.trim()
+      ? searchParams.externalResourceId.trim()
+      : null,
+    resourceType,
+  };
+}
+
+export function hasProjectFileCatIdentityFromUrl(params: {
+  sourcePath: string | null;
+  externalResourceId: string | null;
+  highlightLocale: string | null;
+}) {
+  return Boolean(params.sourcePath && params.externalResourceId && params.highlightLocale);
+}
+
 export function buildProjectFileCatHref(
   organizationSlug: string,
   projectId: string,
@@ -38,6 +83,13 @@ export function buildProjectFileCatHref(
   const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale);
   if (targetLocale) {
     params.set("locale", targetLocale);
+  }
+
+  if (file.provider?.externalResourceId) {
+    params.set("externalResourceId", file.provider.externalResourceId);
+    if (file.provider.resourceType !== "file") {
+      params.set("resourceType", file.provider.resourceType);
+    }
   }
 
   const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat`;

@@ -35,13 +35,14 @@ import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-s
 
 import {
   applyCatSegmentCommentsToWorkspaceState,
-  applyCatSegmentDetailToWorkspaceState,
+  applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
+  resolveCatFileIdentity,
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
 import { useCatMutations } from "./use-cat-mutations";
 import { useCatSegmentComments } from "./use-cat-segment-comments";
-import { useCatSegmentDetail } from "./use-cat-segment-detail";
+import { useCatSegmentTarget } from "./use-cat-segment-target";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
@@ -56,6 +57,8 @@ export function ProjectFileCatWorkspace({
   organizationSlug,
   projectId,
   sourcePath,
+  externalResourceId = null,
+  resourceType,
   targetLocale: targetLocaleProp,
   targetLocales,
   highlightLocale = null,
@@ -67,6 +70,8 @@ export function ProjectFileCatWorkspace({
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale?: string;
   targetLocales?: string[];
   highlightLocale?: string | null;
@@ -117,6 +122,8 @@ export function ProjectFileCatWorkspace({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId,
+    resourceType,
     targetLocale,
     repositoryFullName,
     enabled: Boolean(targetLocale),
@@ -176,10 +183,19 @@ export function ProjectFileCatWorkspace({
     });
   }, [initialSegmentKey, workspaceState]);
 
-  const segmentDetailQuery = useCatSegmentDetail({
+  const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
+    resolveCatFileIdentity({
+      externalResourceId,
+      resourceType,
+      catFile,
+    });
+
+  const segmentTargetQuery = useCatSegmentTarget({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId: resolvedExternalResourceId,
+    resourceType: resolvedResourceType,
     targetLocale,
     externalStringId: activeSegmentId,
     repositoryFullName,
@@ -190,6 +206,8 @@ export function ProjectFileCatWorkspace({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId: resolvedExternalResourceId,
+    resourceType: resolvedResourceType,
     targetLocale,
     externalStringId: activeSegmentId,
     enabled: Boolean(catFile),
@@ -198,6 +216,11 @@ export function ProjectFileCatWorkspace({
   const isCommentsLoading =
     Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
 
+  const isSegmentTargetLoading =
+    Boolean(activeSegmentId) &&
+    segmentTargetQuery.isFetching &&
+    segmentTargetQuery.data === undefined;
+
   const enrichedWorkspaceState = useMemo(() => {
     if (!workspaceState) {
       return null;
@@ -205,11 +228,12 @@ export function ProjectFileCatWorkspace({
 
     let nextState = workspaceState;
 
-    if (catFile && segmentDetailQuery.data) {
-      nextState = applyCatSegmentDetailToWorkspaceState(
+    if (catFile && activeSegmentId && segmentTargetQuery.data !== undefined) {
+      nextState = applyCatSegmentTargetToWorkspaceState(
         nextState,
         catFile,
-        segmentDetailQuery.data,
+        activeSegmentId,
+        segmentTargetQuery.data,
         intl,
       );
     }
@@ -228,7 +252,7 @@ export function ProjectFileCatWorkspace({
     catFile,
     intl,
     segmentCommentsQuery.data,
-    segmentDetailQuery.data,
+    segmentTargetQuery.data,
     workspaceState,
   ]);
 
@@ -468,24 +492,6 @@ export function ProjectFileCatWorkspace({
     );
   }
 
-  if (
-    (!enrichedWorkspaceState || enrichedWorkspaceState.segments.length === 0) &&
-    !isQueueLoading &&
-    !catQuery.isFetching
-  ) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-        <TypographyP className="text-sm">
-          {search.trim()
-            ? "No strings match your search."
-            : queueFilter !== "all"
-              ? "No segments match this filter."
-              : "No source strings are available for this file."}
-        </TypographyP>
-      </div>
-    );
-  }
-
   const workspaceForRender = enrichedWorkspaceState ?? workspaceState;
   if (!workspaceForRender) {
     return null;
@@ -526,7 +532,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
+        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
         initialState={workspaceForRender}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         navigation={{
@@ -562,6 +568,7 @@ export function ProjectFileCatWorkspace({
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
         isCommentsLoading={isCommentsLoading}
+        isSegmentTargetLoading={isSegmentTargetLoading}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}

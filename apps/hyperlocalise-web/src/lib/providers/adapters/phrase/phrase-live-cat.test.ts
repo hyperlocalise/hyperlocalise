@@ -152,13 +152,9 @@ describe("buildPhraseLiveCatFile", () => {
       key: "home.hero.title",
       sourceText: "Hello",
       context: "Hero headline",
-      target: {
-        text: "Bonjour",
-        externalTranslationId: "tr-fr",
-        isApproved: true,
-      },
       comments: [],
     });
+    expect(catFile.segments[0]).not.toHaveProperty("target");
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/keys/key-1/comments"),
       expect.anything(),

@@ -132,9 +132,7 @@ export function useCatWorkspaceController({
     lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
   );
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
-  const canRunSegmentReview = Boolean(
-    lookupSegmentConcordance || generateAiRecommendation || validateFormat || runQaChecks,
-  );
+  const canRunSegmentReview = Boolean(validateFormat || runQaChecks);
 
   const isInitialHydrationRef = useRef(true);
 
@@ -213,7 +211,7 @@ export function useCatWorkspaceController({
   );
 
   const runSegmentReview = useCallback(
-    async (segmentId: string, options?: { includeAi?: boolean }) => {
+    async (segmentId: string, options?: { includeAi?: boolean; includeConcordance?: boolean }) => {
       await onReviewWithAi?.(segmentId);
 
       const segment = store.segments.find((item) => item.id === segmentId);
@@ -223,7 +221,8 @@ export function useCatWorkspaceController({
 
       const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
-      const includeConcordance = Boolean(lookupSegmentConcordance);
+      const includeConcordance =
+        Boolean(lookupSegmentConcordance) && (options?.includeConcordance === true || includeAi);
       const showFormatChecksLoading = includeFormatChecks && !includeAi;
 
       if (!includeAi && !includeFormatChecks && !includeConcordance) {
@@ -238,7 +237,7 @@ export function useCatWorkspaceController({
         let aiFailureCheck: CatFormatCheck | undefined;
         let intelligenceForRecommendation = currentIntelligence;
 
-        if (lookupSegmentConcordance) {
+        if (includeConcordance && lookupSegmentConcordance) {
           store.setReviewPhaseLoading(sequence, "concordance", true);
           try {
             const concordance = await lookupSegmentConcordance(segment);
@@ -386,109 +385,107 @@ export function useCatWorkspaceController({
     void runSegmentReviewRef.current(segmentId, { includeAi: false });
   }, [canRunSegmentReview, store.selectedSegmentId]);
 
+  const concordanceLookupAttemptedRef = useRef(new Set<string>());
   const cachedContextLookupAttemptedRef = useRef(new Set<string>());
+  const visualContextLookupAttemptedRef = useRef(new Set<string>());
+  const visualContextLoadingSegmentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    concordanceLookupAttemptedRef.current.clear();
+  }, [lookupSegmentConcordance]);
 
   useEffect(() => {
     cachedContextLookupAttemptedRef.current.clear();
   }, [lookupSegmentContext]);
 
   useEffect(() => {
-    const segmentId = store.selectedSegmentId;
-    if (!segmentId || !lookupSegmentContext) {
-      return;
-    }
+    visualContextLookupAttemptedRef.current.clear();
+  }, [lookupSegmentVisualContext]);
 
-    const segment = store.segments.find((item) => item.id === segmentId);
-    if (!segment) {
-      return;
-    }
+  const handleIntelligencePanelVisible = useCallback(
+    (segmentId: string) => {
+      const segment = store.segments.find((item) => item.id === segmentId);
+      if (!segment) {
+        return;
+      }
 
-    const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
-    if (
-      existingAgentContext !== undefined ||
-      cachedContextLookupAttemptedRef.current.has(segmentId)
-    ) {
-      return;
-    }
-
-    cachedContextLookupAttemptedRef.current.add(segmentId);
-
-    let cancelled = false;
-    void lookupSegmentContext(segment, { cachedOnly: true })
-      .then((agentContext) => {
-        if (cancelled || !agentContext?.trim()) {
-          return;
-        }
-
-        store.mergeSegmentIntelligence(segmentId, { agentContext });
-        store.revealAgentContext(segmentId);
-        store.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lookupSegmentContext, store, store.selectedSegmentId]);
-
-  useEffect(() => {
-    const segmentId = store.selectedSegmentId;
-    if (!segmentId || !lookupSegmentVisualContext || !canLoadVisualContext) {
-      return;
-    }
-
-    const segment = store.segments.find((item) => item.id === segmentId);
-    if (!segment) {
-      return;
-    }
-
-    const existingVisualContext = store.segmentIntelligence[segmentId]?.visualContext;
-    if (existingVisualContext) {
-      store.isLoadingVisualContext = false;
-      return;
-    }
-
-    let cancelled = false;
-    store.isLoadingVisualContext = true;
-
-    void lookupSegmentVisualContext(segment)
-      .then((visualContext) => {
-        if (cancelled) {
-          return;
-        }
-
-        store.mergeSegmentIntelligence(segmentId, { visualContext });
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-
-        store.upsertFormatCheck(segmentId, {
-          id: `visual-context-failed-${segmentId}`,
-          label: intl.formatMessage(catIntelligencePanelMessages.panelTitle),
-          status: "warn",
-          message: intl.formatMessage(catWorkspaceContainerMessages.visualContextLoadFailed),
-          category: "qa",
+      if (lookupSegmentConcordance && !concordanceLookupAttemptedRef.current.has(segmentId)) {
+        concordanceLookupAttemptedRef.current.add(segmentId);
+        void runSegmentReviewRef.current(segmentId, {
+          includeAi: false,
+          includeConcordance: true,
         });
-      })
-      .finally(() => {
-        if (!cancelled) {
-          store.isLoadingVisualContext = false;
-        }
-      });
+      }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    canLoadVisualContext,
-    intl,
-    lookupSegmentVisualContext,
-    store,
-    store.providerKind,
-    store.selectedSegmentId,
-  ]);
+      if (lookupSegmentContext) {
+        const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
+        if (
+          existingAgentContext === undefined &&
+          !cachedContextLookupAttemptedRef.current.has(segmentId)
+        ) {
+          cachedContextLookupAttemptedRef.current.add(segmentId);
+          void lookupSegmentContext(segment, { cachedOnly: true })
+            .then((agentContext) => {
+              if (!agentContext?.trim()) {
+                return;
+              }
+
+              store.mergeSegmentIntelligence(segmentId, { agentContext });
+              store.revealAgentContext(segmentId);
+              store.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
+            })
+            .catch(() => undefined);
+        }
+      }
+
+      if (!lookupSegmentVisualContext || !canLoadVisualContext) {
+        return;
+      }
+
+      const existingVisualContext = store.segmentIntelligence[segmentId]?.visualContext;
+      if (existingVisualContext) {
+        store.isLoadingVisualContext = false;
+        visualContextLoadingSegmentIdRef.current = null;
+        return;
+      }
+
+      if (visualContextLookupAttemptedRef.current.has(segmentId)) {
+        return;
+      }
+
+      visualContextLookupAttemptedRef.current.add(segmentId);
+      store.isLoadingVisualContext = true;
+      visualContextLoadingSegmentIdRef.current = segmentId;
+
+      void lookupSegmentVisualContext(segment)
+        .then((visualContext) => {
+          store.mergeSegmentIntelligence(segmentId, { visualContext });
+        })
+        .catch(() => {
+          store.upsertFormatCheck(segmentId, {
+            id: `visual-context-failed-${segmentId}`,
+            label: intl.formatMessage(catIntelligencePanelMessages.panelTitle),
+            status: "warn",
+            message: intl.formatMessage(catWorkspaceContainerMessages.visualContextLoadFailed),
+            category: "qa",
+          });
+        })
+        .finally(() => {
+          if (segmentId === visualContextLoadingSegmentIdRef.current) {
+            store.isLoadingVisualContext = false;
+            visualContextLoadingSegmentIdRef.current = null;
+          }
+        });
+    },
+    [
+      canLoadVisualContext,
+      intl,
+      lookupSegmentConcordance,
+      lookupSegmentContext,
+      lookupSegmentVisualContext,
+      store,
+    ],
+  );
 
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const editing: CatWorkspaceEditing = {
@@ -836,5 +833,6 @@ export function useCatWorkspaceController({
     canLookupContext,
     canLoadVisualContext,
     canUseAiRecommendation,
+    handleIntelligencePanelVisible,
   };
 }

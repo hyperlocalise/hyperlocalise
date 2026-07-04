@@ -30,6 +30,7 @@ export function CatEditorPanel({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isCommentsLoading = false,
+  isSegmentTargetLoading = false,
   canApprove = true,
   canAddComment = false,
   canEditTranslations = true,
@@ -73,7 +74,8 @@ export function CatEditorPanel({
       isPostingComment ||
       isLookingUpContext ||
       isAiSuggestionLoading ||
-      isFormatChecksLoading;
+      isFormatChecksLoading ||
+      isSegmentTargetLoading;
     const hasTargetText = segment.targetText.trim().length > 0;
 
     return {
@@ -138,6 +140,7 @@ export function CatEditorPanel({
           <CatEditorTargetSection
             segment={segment}
             canEditTarget={actionState.canEditTarget}
+            isLoading={isSegmentTargetLoading}
             onTargetChange={onTargetChange}
             onCopySource={onCopySource}
             onClearTarget={onClearTarget}

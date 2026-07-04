@@ -451,6 +451,8 @@ export function JobCatPageContent({
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourcePath={selectedFile.sourcePath}
+          externalResourceId={selectedFile.provider.externalResourceId}
+          resourceType={selectedFile.provider.resourceType}
           targetLocale={selectedTargetLocale}
           repositoryFullName={selectedRepositoryFullName}
           initialSegmentKey={initialSegmentKey}
