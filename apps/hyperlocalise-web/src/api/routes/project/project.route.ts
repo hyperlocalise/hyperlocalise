@@ -1088,7 +1088,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return badRequestResponse(
             c,
             "visual_context_unavailable",
-            "In-context preview is only available for connected TMS provider projects.",
+            "Visual Context is only available for connected TMS provider projects.",
           );
         }
 
