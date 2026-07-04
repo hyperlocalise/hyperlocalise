@@ -105,7 +105,6 @@ export function ProjectFileCatWorkspace({
     setSearch,
     queueFilter,
     setQueueFilter,
-    debouncedSearch,
     isSearchPending,
     pagination,
     loadNextPage,
@@ -429,7 +428,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
+        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}`}
         initialState={workspaceForRender}
         queueSnapshot={workspaceState}
         lazySegment={{

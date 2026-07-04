@@ -207,6 +207,34 @@ describe("CatWorkspaceStore hydration", () => {
     expect([...store.dirtySegmentIds]).toEqual([]);
   });
 
+  it("does not overwrite unsaved target edits when lazy target sync refetches", () => {
+    const store = createCatWorkspaceStore(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
+      }),
+    );
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+    store.setTargetText("seg-01", "Bonjour modifié");
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: true,
+    });
+
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour modifié",
+      status: "needs_review",
+    });
+    expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
+  });
+
   it("keeps lazy-loaded comments when queue snapshots omit comment bodies", () => {
     const queueState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",

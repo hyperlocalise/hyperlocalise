@@ -387,6 +387,10 @@ export class CatWorkspaceStore {
     const existingDraft = this.drafts.get(segmentId);
 
     if (existingDraft) {
+      if (existingDraft.isDirty) {
+        return;
+      }
+
       existingDraft.applyServerTarget(targetText, status);
       return;
     }
