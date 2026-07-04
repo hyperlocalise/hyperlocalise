@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
@@ -66,6 +67,10 @@ export function ProviderLiveJobDetailContent({
     providerKind: jobQuery.data?.externalProviderKind,
     providerPayload: jobQuery.data?.externalProviderPayload,
     enabled: Boolean(jobQuery.data),
+  });
+  useAppShellBreadcrumbAppend({
+    id: "job-detail",
+    label: jobQuery.data?.externalTitle ?? jobId,
   });
 
   const translateWithAgent = useMutation({

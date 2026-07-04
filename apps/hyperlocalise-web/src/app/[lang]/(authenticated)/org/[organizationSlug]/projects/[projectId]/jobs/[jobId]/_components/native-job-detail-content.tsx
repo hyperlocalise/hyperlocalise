@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 
@@ -176,6 +177,10 @@ export function NativeJobDetailContent({
       ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
       : "";
   const translateAction = job && isProviderBackedJob(job) ? providerTranslateAction(job) : null;
+  useAppShellBreadcrumbAppend({
+    id: "job-detail",
+    label: layout?.title ?? jobId,
+  });
 
   const headerActions = job ? (
     <>

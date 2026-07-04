@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectPageShell } from "../../_components/project-page-shell";
@@ -35,6 +36,7 @@ export function ProjectFileCatPageContent({
     queryFn: () => fetchProjectFiles(organizationSlug, projectId),
     enabled: Boolean(sourcePath),
   });
+  useAppShellSidebar({ forceCollapsed: Boolean(sourcePath) });
 
   if (!sourcePath) {
     return (
