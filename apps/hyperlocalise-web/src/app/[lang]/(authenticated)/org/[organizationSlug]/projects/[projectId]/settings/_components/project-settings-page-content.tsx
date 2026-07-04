@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+import { useAppShellHeaderAction } from "@/components/app-shell/store/use-app-shell-header-action";
 
 import {
   createProjectFormFromRow,
@@ -175,6 +176,19 @@ export function ProjectSettingsPageContent({
     },
   });
 
+  const isSaving = updateProject.isPending;
+  const settingsEditable = project?.source === "native";
+  useAppShellHeaderAction({
+    id: "project-settings-save",
+    visible: Boolean(settingsEditable),
+    render: () => (
+      <Button type="submit" form="project-settings-form" disabled={isSaving}>
+        {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
+        {isSaving ? "Saving..." : "Save settings"}
+      </Button>
+    ),
+  });
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!values || !project) return;
@@ -211,9 +225,7 @@ export function ProjectSettingsPageContent({
     );
   }
 
-  const isSaving = updateProject.isPending;
   const localesEditable = project.source === "native";
-  const settingsEditable = project.source === "native";
 
   return (
     <ProjectPageShell>
@@ -224,14 +236,6 @@ export function ProjectSettingsPageContent({
           settingsEditable
             ? "Edit project metadata, translation guidance, locales, and source connection details."
             : "View provider-managed project metadata, locales, and source connection details."
-        }
-        actions={
-          settingsEditable ? (
-            <Button type="submit" form="project-settings-form" disabled={isSaving}>
-              {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
-              {isSaving ? "Saving..." : "Save settings"}
-            </Button>
-          ) : null
         }
       />
 
