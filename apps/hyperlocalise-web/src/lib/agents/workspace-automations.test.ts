@@ -311,7 +311,7 @@ describe("workspace automations", () => {
     };
     const now = new Date("2099-06-15T12:00:00.000Z");
 
-    const githubAutomation = expectOk(
+    expectOk(
       await createWorkspaceAutomation({
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
@@ -389,20 +389,19 @@ describe("workspace automations", () => {
     const dueAutomations = await listDueContentfulWorkspaceAutomations({
       now,
       limit: 1,
+      organizationId: scope.organizationId,
     });
 
     expect(dueAutomations).toHaveLength(1);
-    expect(dueAutomations[0]?.id).not.toBe(githubAutomation.id);
-    expect(dueAutomations[0]?.toolConfig.contentful?.enabled).toBe(true);
+    expect(dueAutomations[0]?.id).toBe(earlierContentfulAutomation.id);
 
-    const dueAutomationsForOrg = (
-      await listDueContentfulWorkspaceAutomations({
-        now,
-        limit: 100,
-      })
-    ).filter((automation) => automation.organizationId === scope.organizationId);
+    const bothDueAutomations = await listDueContentfulWorkspaceAutomations({
+      now,
+      limit: 2,
+      organizationId: scope.organizationId,
+    });
 
-    expect(dueAutomationsForOrg.map((automation) => automation.id)).toEqual([
+    expect(bothDueAutomations.map((automation) => automation.id)).toEqual([
       earlierContentfulAutomation.id,
       laterContentfulAutomation.id,
     ]);

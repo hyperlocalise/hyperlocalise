@@ -867,6 +867,7 @@ export async function listDueWorkspaceAutomations(input: {
 export async function listDueContentfulWorkspaceAutomations(input: {
   now?: Date;
   limit?: number;
+  organizationId?: string;
 }): Promise<WorkspaceAutomationRecord[]> {
   const now = input.now ?? new Date();
   const limit = input.limit ?? 100;
@@ -881,6 +882,9 @@ export async function listDueContentfulWorkspaceAutomations(input: {
         lte(schema.workspaceAutomations.nextRunAt, now),
         sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
         sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
+        ...(input.organizationId
+          ? [eq(schema.workspaceAutomations.organizationId, input.organizationId)]
+          : []),
       ),
     )
     .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
