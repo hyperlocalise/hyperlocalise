@@ -13,6 +13,7 @@ import type { CatWorkspaceViewProps } from "@/components/cat/shared/dependencies
 import { catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
+import { resolveSegmentIntelligenceForDisplay } from "./store/cat-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
 
@@ -191,8 +192,13 @@ export function CatWorkspaceView({
       ? segmentPosition < totalSegments
       : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
-  const selectedSegmentIntelligence =
-    shell.segmentIntelligence?.[editorSegment.id] ?? shell.intelligence;
+  const selectedSegmentIntelligence = resolveSegmentIntelligenceForDisplay(
+    {
+      intelligence: shell.intelligence,
+      segmentIntelligence: shell.segmentIntelligence,
+    },
+    editorSegment.id,
+  );
   const selectedSegmentFormatChecks =
     shell.segmentFormatChecks?.[editorSegment.id] ?? shell.formatChecks;
   const aiRecommendationError = selectedSegmentFormatChecks.find(

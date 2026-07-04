@@ -43,6 +43,22 @@ export function getAiSuggestionForSegment(
   return state.segmentIntelligence?.[segmentId]?.aiSuggestion ?? state.intelligence.aiSuggestion;
 }
 
+export function resolveSegmentIntelligenceForDisplay(
+  state: Pick<CatWorkspaceState, "intelligence" | "segmentIntelligence">,
+  segmentId: string,
+): CatSegmentIntelligence {
+  const segmentIntelligence = state.segmentIntelligence?.[segmentId];
+  if (!segmentIntelligence) {
+    return state.intelligence;
+  }
+
+  return {
+    ...segmentIntelligence,
+    aiSuggestion: getAiSuggestionForSegment(state, segmentId),
+    aiReasoning: segmentIntelligence.aiReasoning ?? state.intelligence.aiReasoning,
+  };
+}
+
 export function collectSegmentsWithAgentContext(
   state: Pick<CatWorkspaceState, "segmentIntelligence">,
 ): ReadonlySet<string> {

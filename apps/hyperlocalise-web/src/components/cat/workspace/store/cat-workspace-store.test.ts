@@ -3,7 +3,11 @@ import { describe, expect, it } from "vite-plus/test";
 import { createCatWorkspaceState } from "@/components/cat/shared/cat.fixture";
 
 import { createCatWorkspaceStore } from "./cat-workspace-store";
-import { addSaveFailureFormatCheck, getAiSuggestionForSegment } from "./cat-workspace-store-utils";
+import {
+  addSaveFailureFormatCheck,
+  getAiSuggestionForSegment,
+  resolveSegmentIntelligenceForDisplay,
+} from "./cat-workspace-store-utils";
 
 describe("CatWorkspaceStore hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
@@ -390,5 +394,33 @@ describe("getAiSuggestionForSegment", () => {
     });
 
     expect(getAiSuggestionForSegment(state, "seg-02")).toBe("Use the segment-level suggestion.");
+  });
+});
+
+describe("resolveSegmentIntelligenceForDisplay", () => {
+  it("falls back to file-level AI fields when hydrated segment intelligence omits them", () => {
+    const state = createCatWorkspaceState({
+      intelligence: {
+        ...createCatWorkspaceState().intelligence,
+        aiSuggestion: "Use the file-level suggestion.",
+        aiReasoning: "File-level reasoning.",
+      },
+      segmentIntelligence: {
+        "seg-02": {
+          glossaryTerms: [],
+          productMeaning: "Card description",
+          maxLength: 80,
+        },
+      },
+    });
+
+    expect(resolveSegmentIntelligenceForDisplay(state, "seg-02")).toEqual(
+      expect.objectContaining({
+        productMeaning: "Card description",
+        maxLength: 80,
+        aiSuggestion: "Use the file-level suggestion.",
+        aiReasoning: "File-level reasoning.",
+      }),
+    );
   });
 });
