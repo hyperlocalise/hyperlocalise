@@ -9,7 +9,7 @@ import {
   TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
 } from "@/components/cat/intelligence/tm-match-quality";
 import {
-  resolveVisibleQueueSegments,
+  findSegmentIdByKeyOrIdInQueue,
   type CatQueueFilter,
 } from "@/components/cat/queue/cat-queue-filter";
 import { buildCatSegmentShareUrl } from "@/components/cat/segment/cat-segment-share-link";
@@ -43,21 +43,16 @@ import {
 } from "./store/cat-workspace-store-utils";
 import type { CatWorkspaceStore } from "./store/cat-workspace-store";
 
-function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
-  return segments.findIndex(
-    (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,
-  );
+function getSegmentQueueIndex(segments: Pick<CatSegment, "id" | "key">[], segmentIdOrKey: string) {
+  const resolvedId = findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey) ?? segmentIdOrKey;
+  return segments.findIndex((segment) => segment.id === resolvedId);
 }
 
-function getSegmentId(segments: CatSegment[], segmentIdOrKey: string) {
-  const segment = segments.find(
-    (item) => item.id === segmentIdOrKey || item.key === segmentIdOrKey,
-  );
-
-  return segment?.id;
-}
-
-function getAdjacentSegmentId(segments: CatSegment[], currentId: string, direction: -1 | 1) {
+function getAdjacentSegmentId(
+  segments: Pick<CatSegment, "id" | "key">[],
+  currentId: string,
+  direction: -1 | 1,
+) {
   const currentIndex = getSegmentQueueIndex(segments, currentId);
   if (currentIndex < 0) {
     return segments[0]?.id;
@@ -142,28 +137,31 @@ export function useCatWorkspaceController({
       return;
     }
 
-    store.hydrateFromServerSnapshot(initialState, initialSegmentKeyOrId);
+    store.ingestQueue(initialState, initialSegmentKeyOrId);
   }, [initialSegmentKeyOrId, initialState, store]);
 
-  const filteredSegments = useMemo(
-    () => resolveVisibleQueueSegments(store.segments, queueFilter, usesServerQueueFilter),
-    [queueFilter, store.segments, usesServerQueueFilter],
-  );
+  const filteredQueueSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+  const queuePanelSegments = store.getQueuePanelSegments(queueFilter, usesServerQueueFilter);
 
   useEffect(() => {
-    if (filteredSegments.some((segment) => segment.id === store.selectedSegmentId)) {
+    if (
+      filteredQueueSegments.some(
+        (segment) =>
+          segment.id === store.selectedSegmentId || segment.key === store.selectedSegmentId,
+      )
+    ) {
       return;
     }
 
-    const nextSelectedSegmentId = filteredSegments[0]?.id;
+    const nextSelectedSegmentId = filteredQueueSegments[0]?.id;
     if (nextSelectedSegmentId) {
       store.setSelectedSegmentId(nextSelectedSegmentId);
     }
-  }, [filteredSegments, store]);
+  }, [filteredQueueSegments, store]);
 
   useEffect(() => {
-    store.pruneCheckedToVisible(new Set(store.segments.map((segment) => segment.id)));
-  }, [store, store.segments]);
+    store.pruneCheckedToVisible(new Set(store.queueSegments.map((segment) => segment.id)));
+  }, [store, store.queueSegments]);
 
   useEffect(() => {
     if (store.dirtySegmentIds.size === 0) {
@@ -193,7 +191,7 @@ export function useCatWorkspaceController({
       const sequence = store.beginValidation();
       try {
         const glossaryTerms =
-          glossaryTermsOverride ?? glossaryTermsForSegment(store.workspaceState, segment.id);
+          glossaryTermsOverride ?? glossaryTermsForSegment(store.shellState, segment.id);
         const [formatChecks, qaChecks] = await Promise.all([
           validateFormat ? validateFormat(segment, value, glossaryTerms) : Promise.resolve([]),
           runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
@@ -214,7 +212,7 @@ export function useCatWorkspaceController({
     async (segmentId: string, options?: { includeAi?: boolean; includeConcordance?: boolean }) => {
       await onReviewWithAi?.(segmentId);
 
-      const segment = store.segments.find((item) => item.id === segmentId);
+      const segment = store.getSegmentView(segmentId);
       if (!segment) {
         return;
       }
@@ -256,7 +254,7 @@ export function useCatWorkspaceController({
               translationMemoryMatches: concordance.translationMemoryMatches,
             });
 
-            const currentSegment = store.segments.find((item) => item.id === segmentId);
+            const currentSegment = store.getSegmentView(segmentId);
             const bestTmMatch = selectBestTmMatchForAutoFill(
               concordance.translationMemoryMatches,
               tmAutoFillMinMatchPercent,
@@ -293,7 +291,7 @@ export function useCatWorkspaceController({
           }
         }
 
-        const segmentForReview = store.segments.find((item) => item.id === segmentId) ?? segment;
+        const segmentForReview = store.getSegmentView(segmentId) ?? segment;
 
         if (includeAi && generateAiRecommendation) {
           try {
@@ -404,7 +402,7 @@ export function useCatWorkspaceController({
 
   const handleIntelligencePanelVisible = useCallback(
     (segmentId: string) => {
-      const segment = store.segments.find((item) => item.id === segmentId);
+      const segment = store.getSegmentView(segmentId);
       if (!segment) {
         return;
       }
@@ -491,14 +489,14 @@ export function useCatWorkspaceController({
     const editing: CatWorkspaceEditing = {
       onTargetChange: (segmentId: string, value: string) => {
         store.setTargetText(segmentId, value);
-        const segmentToValidate = store.segments.find((item) => item.id === segmentId);
+        const segmentToValidate = store.getSegmentView(segmentId);
         if (segmentToValidate) {
           void runSegmentChecks(segmentToValidate, value);
         }
         onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
-        const aiSuggestion = getAiSuggestionForSegment(store.workspaceState, segmentId);
+        const aiSuggestion = getAiSuggestionForSegment(store.shellState, segmentId);
         if (!aiSuggestion) {
           return;
         }
@@ -509,7 +507,7 @@ export function useCatWorkspaceController({
         editing.onTargetChange(segmentId, match.targetText);
       },
       onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => {
-        const segment = store.segments.find((item) => item.id === segmentId);
+        const segment = store.getSegmentView(segmentId);
         const currentTarget = segment?.targetText ?? "";
         editing.onTargetChange(
           segmentId,
@@ -521,15 +519,14 @@ export function useCatWorkspaceController({
     const navigation: CatWorkspaceNavigation = {
       onSelectSegment: (segmentId: string) => {
         store.attemptSegmentNavigation(() => {
-          const selectedSegmentId = getSegmentId(store.segments, segmentId) ?? segmentId;
+          const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
           store.setSelectedSegmentId(selectedSegmentId);
           onSelectSegment?.(segmentId);
         });
       },
       onPreviousSegment: () => {
         store.attemptSegmentNavigation(() => {
-          const visibleSegments = resolveVisibleQueueSegments(
-            store.segments,
+          const visibleSegments = store.getFilteredQueueSegments(
             queueFilter,
             usesServerQueueFilter,
           );
@@ -542,8 +539,7 @@ export function useCatWorkspaceController({
       },
       onNextSegment: () => {
         store.attemptSegmentNavigation(() => {
-          const visibleSegments = resolveVisibleQueueSegments(
-            store.segments,
+          const visibleSegments = store.getFilteredQueueSegments(
             queueFilter,
             usesServerQueueFilter,
           );
@@ -565,8 +561,7 @@ export function useCatWorkspaceController({
         try {
           const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
           store.markSegmentSaved(segmentId, targetText, nextStatus as CatSegmentStatus);
-          const visibleSegments = resolveVisibleQueueSegments(
-            store.segments,
+          const visibleSegments = store.getFilteredQueueSegments(
             queueFilter,
             usesServerQueueFilter,
           );
@@ -658,7 +653,7 @@ export function useCatWorkspaceController({
           return;
         }
 
-        const segment = store.segments.find((item) => item.id === segmentId);
+        const segment = store.getSegmentView(segmentId);
         if (!segment) {
           return;
         }
@@ -760,7 +755,7 @@ export function useCatWorkspaceController({
       }
 
       for (const segmentId of segmentIds) {
-        const segment = store.segments.find((item) => item.id === segmentId);
+        const segment = store.getSegmentView(segmentId);
         if (!segment) {
           continue;
         }
@@ -812,17 +807,10 @@ export function useCatWorkspaceController({
       });
   }, [buildSegmentShareUrl]);
 
-  const queueViewState = useMemo(
-    () => ({
-      ...store.workspaceState,
-      segments: filteredSegments,
-    }),
-    [filteredSegments, store.workspaceState],
-  );
-
   return {
-    queueViewState,
-    editorState: store.workspaceState,
+    shell: store.shellState,
+    queueSegments: queuePanelSegments,
+    selectedSegment: store.selectedSegmentView ?? null,
     dependencies,
     dirtySegmentIds: store.dirtySegmentIds,
     queueFilter,

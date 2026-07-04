@@ -3,7 +3,6 @@ import { and, eq } from "drizzle-orm";
 import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,
-  ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
@@ -14,7 +13,6 @@ import {
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
-import { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 function filenameFromSourcePath(sourcePath: string) {
@@ -35,18 +33,15 @@ function toCatTranslation(row: {
 
 export class NativeCatService extends ProjectServiceBase {
   private readonly translations: ProjectTranslationService;
-  private readonly stringContext: ProjectStringContextService;
   private readonly comments: NativeCatCommentService;
 
   constructor(
     database: typeof db = db,
     translations: ProjectTranslationService = new ProjectTranslationService(database),
-    stringContext: ProjectStringContextService = new ProjectStringContextService(database),
     comments?: NativeCatCommentService,
   ) {
     super(database, "projects.cat");
     this.translations = translations;
-    this.stringContext = stringContext;
     this.comments = comments ?? new NativeCatCommentService(database, translations);
   }
 
@@ -143,14 +138,6 @@ export class NativeCatService extends ProjectServiceBase {
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
   }): Promise<ProjectFileCatQueueFile> {
-    const translationKeyIds = input.visibleKeys.map((key) => key.id);
-    const commentCounts = await this.comments.countByKeyIds({
-      organizationId: input.input.organizationId,
-      projectId: input.input.projectId,
-      translationKeyIds,
-      targetLocale: input.input.targetLocale,
-    });
-
     return {
       sourcePath: input.input.sourcePath,
       filename: filenameFromSourcePath(input.input.sourcePath),
@@ -159,24 +146,14 @@ export class NativeCatService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
-      segments: input.visibleKeys.map((key) => {
-        const counts = commentCounts.get(key.id);
-        return {
-          externalStringId: key.id,
-          key: key.key,
-          sourceText: key.sourceText,
-          context: key.context,
-          type: key.type,
-          ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
-          comments: [],
-          ...(counts
-            ? {
-                commentCount: counts.commentCount,
-                unresolvedIssueCount: counts.unresolvedIssueCount,
-              }
-            : {}),
-        };
-      }),
+      segments: input.visibleKeys.map((key) => ({
+        externalStringId: key.id,
+        key: key.key,
+        sourceText: key.sourceText,
+        context: key.context,
+        type: key.type,
+        ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
+      })),
     };
   }
 
@@ -334,84 +311,6 @@ export class NativeCatService extends ProjectServiceBase {
     return updated ? toCatTranslation(updated) : null;
   }
 
-  async getSegmentDetail(input: {
-    organizationId: string;
-    projectId: string;
-    sourcePath: string;
-    targetLocale: string;
-    externalStringId: string;
-    preferredRepositoryFullName?: string | null;
-  }): Promise<ProjectFileCatSegment | null> {
-    const sourceFile = await this.translations.getRepositorySourceFileByPath({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-    });
-
-    if (!sourceFile) {
-      return null;
-    }
-
-    const [key] = await this.database
-      .select({
-        id: schema.projectTranslationKeys.id,
-        key: schema.projectTranslationKeys.key,
-        sourceText: schema.projectTranslationKeys.sourceText,
-        context: schema.projectTranslationKeys.context,
-        type: schema.projectTranslationKeys.type,
-        maxLength: schema.projectTranslationKeys.maxLength,
-      })
-      .from(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.id, input.externalStringId),
-          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
-        ),
-      )
-      .limit(1);
-
-    if (!key) {
-      return null;
-    }
-
-    const translation = (
-      await this.translations.getTranslationsByKeyIds({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyIds: [key.id],
-        targetLocale: input.targetLocale,
-      })
-    )[0];
-    const segment: ProjectFileCatSegment = {
-      externalStringId: key.id,
-      key: key.key,
-      sourceText: key.sourceText,
-      context: key.context,
-      type: key.type,
-      ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
-      target: translation ? toCatTranslation(translation) : null,
-      comments: [],
-    };
-
-    const cachedSummaries = await this.stringContext.listCached({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      stringKeys: [key.key],
-      preferredRepositoryFullName: input.preferredRepositoryFullName,
-      sourceTextByKey: new Map([[key.key, key.sourceText]]),
-    });
-
-    const repositoryContext = cachedSummaries.get(key.key);
-    if (repositoryContext) {
-      segment.repositoryContext = repositoryContext;
-    }
-
-    return segment;
-  }
-
   async getSegmentTarget(input: {
     organizationId: string;
     projectId: string;
@@ -501,81 +400,12 @@ export class NativeCatService extends ProjectServiceBase {
 
     return commentsByKeyId.get(key.id) ?? [];
   }
-
-  async attachAgentContexts(input: {
-    organizationId: string;
-    projectId: string;
-    catFile: ProjectFileCatQueueFile;
-    preferredRepositoryFullName?: string | null;
-  }): Promise<ProjectFileCatQueueFile> {
-    const log = this.log.child({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      segmentCount: input.catFile.segments.length,
-    });
-
-    if (input.catFile.segments.length === 0) {
-      log.debug("skipping CAT context hydration for empty segment list");
-      return input.catFile;
-    }
-
-    log.debug("hydrating CAT file with cached repository context");
-
-    const sourceTextByKey = new Map(
-      input.catFile.segments.map((segment) => [segment.key, segment.sourceText] as const),
-    );
-    const cachedSummaries = await this.stringContext.listCached({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.catFile.sourcePath,
-      stringKeys: input.catFile.segments.map((segment) => segment.key),
-      preferredRepositoryFullName: input.preferredRepositoryFullName,
-      sourceTextByKey,
-    });
-
-    if (cachedSummaries.size === 0) {
-      log.debug("no cached repository context matched CAT segments");
-      return input.catFile;
-    }
-
-    const hydratedSegments = input.catFile.segments.map((segment) => {
-      const repositoryContext = cachedSummaries.get(segment.key);
-      if (!repositoryContext) {
-        return segment;
-      }
-
-      return {
-        ...segment,
-        repositoryContext,
-      };
-    });
-    const hydratedSegmentCount = hydratedSegments.filter((segment) =>
-      Boolean(segment.repositoryContext?.trim()),
-    ).length;
-
-    log.debug(
-      {
-        cachedKeyCount: cachedSummaries.size,
-        hydratedSegmentCount,
-      },
-      "hydrated CAT file with cached repository context",
-    );
-
-    return {
-      ...input.catFile,
-      segments: hydratedSegments,
-    };
-  }
 }
 
 export const nativeCatService = new NativeCatService();
 
 export const getNativeProjectCatFile = (input: Parameters<NativeCatService["getCatFile"]>[0]) =>
   nativeCatService.getCatFile(input);
-
-export const getNativeProjectCatSegmentDetail = (
-  input: Parameters<NativeCatService["getSegmentDetail"]>[0],
-) => nativeCatService.getSegmentDetail(input);
 
 export const getNativeProjectCatSegmentTarget = (
   input: Parameters<NativeCatService["getSegmentTarget"]>[0],
@@ -600,7 +430,3 @@ export const resolveNativeProjectCatComment = (
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],
 ) => nativeCatService.updateTranslationStatus(input);
-
-export const attachProjectFileCatAgentContexts = (
-  input: Parameters<NativeCatService["attachAgentContexts"]>[0],
-) => nativeCatService.attachAgentContexts(input);

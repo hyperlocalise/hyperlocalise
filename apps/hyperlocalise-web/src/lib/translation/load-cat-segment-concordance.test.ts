@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   crowdinClientOptions,
-  crowdinGetProjectMock,
   loadCrowdinProjectCredentialMock,
   resolveExternalTmsSecretMaterialForActorMock,
   searchCrowdinCatConcordanceMock,
 } = vi.hoisted(() => ({
   crowdinClientOptions: [] as unknown[],
-  crowdinGetProjectMock: vi.fn(),
   loadCrowdinProjectCredentialMock: vi.fn(),
   resolveExternalTmsSecretMaterialForActorMock: vi.fn(),
   searchCrowdinCatConcordanceMock: vi.fn(),
@@ -28,8 +26,6 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
     constructor(options: unknown) {
       crowdinClientOptions.push(options);
     }
-
-    getProject = crowdinGetProjectMock;
   },
 }));
 
@@ -66,10 +62,6 @@ describe("loadCatSegmentConcordance", () => {
       glossaryTerms: [],
       translationMemoryMatches: [],
     });
-    crowdinGetProjectMock.mockResolvedValue({
-      id: 42,
-      sourceLanguageId: "en",
-    });
   });
 
   it("resolves per-user Crowdin credentials for live concordance", async () => {
@@ -100,26 +92,6 @@ describe("loadCatSegmentConcordance", () => {
         sourceLocale: "en",
         targetLocale: "fr",
         sourceText: "Hello",
-      }),
-    );
-  });
-
-  it("resolves Crowdin project source locale when the segment locale is the queue placeholder", async () => {
-    await loadCatSegmentConcordance({
-      organizationId: "org_1",
-      projectId: "ext:crowdin:42",
-      providerKind: "crowdin",
-      actorUserId: "user_1",
-      sourceLocale: "source",
-      targetLocale: "ca",
-      sourceText: "Expand sync details",
-    });
-
-    expect(crowdinGetProjectMock).toHaveBeenCalledWith(42);
-    expect(searchCrowdinCatConcordanceMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourceLocale: "en",
-        targetLocale: "ca",
       }),
     );
   });

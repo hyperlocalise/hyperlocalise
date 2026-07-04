@@ -20,7 +20,7 @@ export function CatQueryBridge({
       return;
     }
 
-    store.hydrateFromServerSnapshot(snapshot, initialSegmentKeyOrId);
+    store.ingestQueue(snapshot, initialSegmentKeyOrId);
   }, [initialSegmentKeyOrId, snapshot, store]);
 
   return null;

@@ -28,8 +28,25 @@ export function collectDirtySegmentIds(
     .map((segment) => segment.id);
 }
 
+function hydrationSegments(state: CatWorkspaceState): CatSegment[] {
+  if (state.segments?.length) {
+    return state.segments;
+  }
+
+  const sourceLocale = state.fileContext?.sourceLocale ?? "en";
+  const targetLocale = state.fileContext?.targetLocale ?? "en";
+
+  return (state.queueSegments ?? []).map((meta) => ({
+    ...meta,
+    sourceLocale,
+    targetLocale,
+    targetText: "",
+    status: "pending" as const,
+  }));
+}
+
 function getSegmentsById(state: CatWorkspaceState) {
-  return new Map(state.segments.map((segment) => [segment.id, segment]));
+  return new Map(hydrationSegments(state).map((segment) => [segment.id, segment]));
 }
 
 export function syncSavedTargetTexts(input: {
@@ -42,7 +59,7 @@ export function syncSavedTargetTexts(input: {
   const currentSegments = getSegmentsById(input.currentState);
   const nextSavedTargetTexts = { ...input.savedTargetTexts };
 
-  for (const nextSegment of input.nextInitialState.segments) {
+  for (const nextSegment of hydrationSegments(input.nextInitialState)) {
     const previousSegment = previousSegments.get(nextSegment.id);
     const currentSegment = currentSegments.get(nextSegment.id);
 

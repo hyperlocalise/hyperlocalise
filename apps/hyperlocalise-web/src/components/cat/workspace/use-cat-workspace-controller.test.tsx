@@ -85,7 +85,7 @@ describe("useCatWorkspaceController", () => {
     });
 
     await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
-    expect(store.segments.find((segment) => segment.id === "seg-02")?.targetText).toBe("Deuxième");
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
   });
 
   it("applies AI suggestions through the editing pipeline", () => {
@@ -104,9 +104,7 @@ describe("useCatWorkspaceController", () => {
       result.current.dependencies.editing.onUseAiSuggestion("seg-02");
     });
 
-    expect(store.segments.find((segment) => segment.id === "seg-02")?.targetText).toBe(
-      "Suggestion IA",
-    );
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("Suggestion IA");
   });
 
   it("waits for the intelligence panel before running concordance lookup", async () => {
@@ -149,11 +147,7 @@ describe("useCatWorkspaceController", () => {
       result.current.handleIntelligencePanelVisible("seg-02");
     });
 
-    await waitFor(() =>
-      expect(store.segments.find((segment) => segment.id === "seg-02")?.targetText).toBe(
-        "Deuxième",
-      ),
-    );
+    await waitFor(() => expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième"));
     expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
   });
 
@@ -214,7 +208,7 @@ describe("useCatWorkspaceController", () => {
 
     expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième");
     expect(store.selectedSegmentId).toBe("seg-03");
-    expect(store.segments.find((segment) => segment.id === "seg-02")?.status).toBe("reviewed");
+    expect(store.getSegmentView("seg-02")?.status).toBe("reviewed");
   });
 
   it("adds save failure checks when approve fails", async () => {

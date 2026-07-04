@@ -798,33 +798,6 @@ function resolveLiveCatFileFromExternalResourceId(input: {
   });
 }
 
-async function enrichLiveCatFileWithProjectLocales(
-  file: TmsProviderLiveFile,
-  context: ActiveTmsProviderContext,
-  externalProjectId: string,
-): Promise<TmsProviderLiveFile> {
-  if (!file.provider || file.provider.sourceLocale) {
-    return file;
-  }
-
-  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
-  if (!projectMetadata?.sourceLocale) {
-    return file;
-  }
-
-  return {
-    ...file,
-    provider: {
-      ...file.provider,
-      sourceLocale: projectMetadata.sourceLocale,
-      targetLocales:
-        file.provider.targetLocales.length > 0
-          ? file.provider.targetLocales
-          : (projectMetadata.targetLocales ?? []),
-    },
-  };
-}
-
 async function resolveLiveCatFile(input: {
   organizationId: string;
   externalProjectId: string;
@@ -1059,14 +1032,6 @@ async function buildCrowdinLiveCatFile(input: {
       truncated = pagination.hasMore;
     }
 
-    const sourceStringIds = visibleStrings.map((sourceString) => sourceString.id);
-    const queueFilter = paginationInput.queueFilter ?? "all";
-    const inferIssuesFromFilter = queueFilter === "has_issues";
-
-    const unresolvedIssueStringIds = inferIssuesFromFilter
-      ? new Set(sourceStringIds)
-      : new Set<number>();
-
     return {
       sourcePath: input.file.sourcePath,
       filename: input.file.filename,
@@ -1075,18 +1040,13 @@ async function buildCrowdinLiveCatFile(input: {
       canEditTranslations: input.canEditTranslations,
       truncated,
       pagination,
-      segments: visibleStrings.map((sourceString) => {
-        const hasUnresolvedIssue = unresolvedIssueStringIds.has(sourceString.id);
-        return {
-          externalStringId: String(sourceString.id),
-          key: sourceString.identifier,
-          sourceText: crowdinCatSourceTextValue(sourceString.text),
-          context: sourceString.context,
-          type: sourceString.type ?? null,
-          comments: [],
-          ...(hasUnresolvedIssue ? { unresolvedIssueCount: 1 } : {}),
-        };
-      }),
+      segments: visibleStrings.map((sourceString) => ({
+        externalStringId: String(sourceString.id),
+        key: sourceString.identifier,
+        sourceText: crowdinCatSourceTextValue(sourceString.text),
+        context: sourceString.context,
+        type: sourceString.type ?? null,
+      })),
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
@@ -2014,9 +1974,7 @@ export async function getTmsProviderLiveCatFile(
     return null;
   }
 
-  const enrichedFile = await enrichLiveCatFileWithProjectLocales(file, context, externalProjectId);
-
-  if (!supportsLiveProviderCat(context.providerKind, enrichedFile)) {
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
@@ -2030,7 +1988,7 @@ export async function getTmsProviderLiveCatFile(
         region: context.credential.region,
         baseUrl: context.credential.baseUrl,
         externalProjectId,
-        file: enrichedFile,
+        file,
         targetLocale,
         canEditTranslations: options?.canEditTranslations ?? false,
         pagination: options?.pagination,
@@ -2042,7 +2000,7 @@ export async function getTmsProviderLiveCatFile(
 
   return buildCrowdinLiveCatFile({
     context,
-    file: enrichedFile,
+    file,
     targetLocale,
     canEditTranslations: options?.canEditTranslations ?? false,
     pagination: options?.pagination,

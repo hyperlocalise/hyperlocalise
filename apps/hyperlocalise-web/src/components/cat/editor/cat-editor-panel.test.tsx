@@ -12,12 +12,12 @@ import { CatEditorPanel } from "./cat-editor-panel";
 
 function renderEditorPanel(overrides: Partial<CatEditorPanelProps> = {}) {
   const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
-  const segment = state.segments.find((item) => item.id === "seg-02")!;
+  const segment = state.segments!.find((item) => item.id === "seg-02")!;
 
   const props: CatEditorPanelProps = {
     segment,
     segmentPosition: 2,
-    totalSegments: state.segments.length,
+    totalSegments: state.segments!.length,
     formatChecks: state.formatChecks,
     intelligence: state.intelligence,
     canApprove: true,
@@ -54,7 +54,7 @@ describe("CatEditorPanel UI", () => {
   it("disables approve when the target string is empty", () => {
     renderEditorPanel({
       segment: {
-        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments.find(
+        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
           (item) => item.id === "seg-02",
         )!,
         targetText: "",

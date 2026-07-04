@@ -76,18 +76,16 @@ describe("CatWorkspaceStore hydration", () => {
     store.hydrateFromServerSnapshot(nextInitialState);
 
     expect(store.selectedSegmentId).toBe("seg-02");
-    expect(store.segments).toMatchObject([
-      {
-        id: "seg-01",
-        targetText: "Saved first",
-        status: "reviewed",
-      },
-      {
-        id: "seg-02",
-        targetText: "Unsaved second",
-        status: "pending",
-      },
-    ]);
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      id: "seg-01",
+      targetText: "Saved first",
+      status: "reviewed",
+    });
+    expect(store.getSegmentView("seg-02")).toMatchObject({
+      id: "seg-02",
+      targetText: "Unsaved second",
+      status: "pending",
+    });
     expect(store.segmentFormatChecks["seg-02"]?.[0]).toMatchObject({
       id: "edited-check",
     });
@@ -163,7 +161,7 @@ describe("CatWorkspaceStore hydration", () => {
       ...initialState,
       segments: [
         {
-          ...initialState.segments[0]!,
+          ...initialState.segments![0]!,
           targetText: "Hola",
           status: "reviewed",
         },
@@ -174,17 +172,100 @@ describe("CatWorkspaceStore hydration", () => {
       ...initialState,
       segments: [
         {
-          ...initialState.segments[0]!,
+          ...initialState.segments![0]!,
           targetText: "",
           status: "pending",
         },
       ],
     });
 
-    expect(store.segments[0]).toMatchObject({
+    expect(store.getSegmentView("seg-01")).toMatchObject({
       targetText: "Hola",
     });
     expect([...store.dirtySegmentIds]).toEqual([]);
+  });
+
+  it("keeps lazy-loaded comments when queue snapshots omit comment bodies", () => {
+    const queueState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "hero.title",
+          sourceText: "Hello",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          status: "pending",
+        },
+      ],
+    });
+    const store = createCatWorkspaceStore(queueState);
+    const loadedComments = [
+      {
+        id: "comment-1",
+        type: "comment" as const,
+        status: null,
+        text: "Keep this concise.",
+        createdAt: "2026-07-04T00:00:00.000Z",
+        locale: "fr",
+      },
+    ];
+
+    store.hydrateFromServerSnapshot({
+      ...queueState,
+      segments: [{ ...queueState.segments![0]!, comments: loadedComments }],
+    });
+    store.hydrateFromServerSnapshot(queueState);
+
+    expect(store.getSegmentView("seg-01")?.comments).toEqual(loadedComments);
+    expect(store.getSegmentView("seg-01")?.tags).toEqual(["1 comment"]);
+    expect(store.segmentComments.has("seg-01")).toBe(true);
+  });
+
+  it("stores file locale context separately from queue segment metadata", () => {
+    const store = createCatWorkspaceStore(
+      createCatWorkspaceState({
+        fileContext: {
+          sourcePath: "locales/en.json",
+          filename: "en.json",
+          sourceLocale: "en-GB",
+          targetLocale: "fr-CA",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "hero.title",
+            sourceText: "Hello",
+            targetText: "",
+            sourceLocale: "en-GB",
+            targetLocale: "fr-CA",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    expect(store.fileContext).toMatchObject({
+      sourceLocale: "en-GB",
+      targetLocale: "fr-CA",
+      sourcePath: "locales/en.json",
+    });
+    expect(store.queueSegments[0]).toEqual({
+      id: "seg-01",
+      index: 1,
+      key: "hero.title",
+      sourceText: "Hello",
+    });
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      sourceLocale: "en-GB",
+      targetLocale: "fr-CA",
+    });
   });
 
   it("tracks dirty segment ids from draft baselines", () => {

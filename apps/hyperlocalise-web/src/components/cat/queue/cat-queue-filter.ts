@@ -4,6 +4,11 @@ import type { CatSegment } from "@/components/cat/shared/types";
 
 export type CatQueueFilter = ProjectFileCatQueueFilter | "skipped";
 
+export type CatSegmentFilterInput = {
+  status: CatSegment["status"];
+  hasOpenIssues?: boolean;
+};
+
 export const catQueueFilterValues: CatQueueFilter[] = [
   "all",
   "untranslated",
@@ -22,7 +27,7 @@ export function isQueueFilterSupportedForProvider(
   providerKind: string | null | undefined,
 ) {
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "phrase" || providerKind === null;
+    return providerKind === "crowdin" || providerKind === null;
   }
 
   if (
@@ -55,12 +60,19 @@ export function resolveVisibleQueueSegments(
   return filterCatQueueSegments(segments, queueFilter);
 }
 
-export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
+export function findSegmentIdByKeyOrIdInQueue(
+  segments: Pick<CatSegment, "id" | "key">[],
+  segmentIdOrKey: string,
+) {
   const match = segments.find(
     (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,
   );
 
   return match?.id ?? null;
+}
+
+export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
+  return findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey);
 }
 
 export function isOpenIssueStatus(status: string | null | undefined) {
@@ -79,23 +91,44 @@ export function segmentHasOpenIssues(segment: CatSegment) {
   );
 }
 
-export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueFilter) {
+export function segmentHasOpenIssuesFromInput(input: CatSegmentFilterInput) {
+  if (input.hasOpenIssues) {
+    return true;
+  }
+
+  return false;
+}
+
+export function segmentMatchesQueueFilterFromInput(
+  input: CatSegmentFilterInput,
+  filter: CatQueueFilter,
+) {
   switch (filter) {
     case "all":
       return true;
     case "untranslated":
-      return segment.status === "pending";
+      return input.status === "pending";
     case "needs_review":
-      return segment.status === "needs_review" && !segmentHasOpenIssues(segment);
+      return input.status === "needs_review" && !segmentHasOpenIssuesFromInput(input);
     case "reviewed":
-      return segment.status === "reviewed";
+      return input.status === "reviewed";
     case "has_issues":
-      return segmentHasOpenIssues(segment);
+      return segmentHasOpenIssuesFromInput(input);
     case "skipped":
-      return segment.status === "skipped";
+      return input.status === "skipped";
     default:
       return true;
   }
+}
+
+export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueFilter) {
+  return segmentMatchesQueueFilterFromInput(
+    {
+      status: segment.status,
+      hasOpenIssues: segmentHasOpenIssues(segment),
+    },
+    filter,
+  );
 }
 
 export function filterCatQueueSegments(segments: CatSegment[], filter: CatQueueFilter) {

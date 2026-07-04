@@ -45,7 +45,7 @@ describe("cat dirty state", () => {
     });
     const currentState = {
       ...previousInitialState,
-      segments: previousInitialState.segments.map((segment) => ({
+      segments: previousInitialState.segments!.map((segment) => ({
         ...segment,
         targetText: "Unsaved edit",
       })),
@@ -66,14 +66,14 @@ describe("cat dirty state", () => {
     });
 
     const synced = syncSavedTargetTexts({
-      savedTargetTexts: buildSavedTargetTextMap(previousInitialState.segments),
+      savedTargetTexts: buildSavedTargetTextMap(previousInitialState.segments!),
       previousInitialState,
       currentState,
       nextInitialState,
     });
 
     expect(synced["seg-1"]).toBe("Saved");
-    expect(collectDirtySegmentIds(currentState.segments, synced)).toEqual(["seg-1"]);
+    expect(collectDirtySegmentIds(currentState.segments!, synced)).toEqual(["seg-1"]);
   });
 
   it("updates saved baselines after approve", () => {

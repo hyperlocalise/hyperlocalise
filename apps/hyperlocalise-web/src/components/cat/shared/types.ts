@@ -32,6 +32,26 @@ export interface CatSegmentComment {
   author?: string | null;
 }
 
+/** Queue list identity — no locale, target, or editor metadata. */
+export interface CatQueueSegment {
+  id: string;
+  index: number;
+  key: string;
+  sourceText: string;
+}
+
+/** File and locale scope for the CAT editor, shared across all segments. */
+export interface CatFileContext {
+  sourcePath: string;
+  filename: string;
+  sourceLocale: string;
+  targetLocale: string;
+  providerKind: string | null;
+  canEditTranslations: boolean;
+  canAddComments: boolean;
+  truncated?: boolean;
+}
+
 export interface CatSegment {
   id: string;
   index: number;
@@ -82,6 +102,8 @@ export interface CatSegmentIntelligence {
   filePath?: string;
   componentName?: string;
   productMeaning?: string;
+  segmentType?: string;
+  maxLength?: number;
   agentContext?: string | null;
   reviewerPreference?: string;
   constraints?: string;
@@ -93,7 +115,8 @@ export interface CatSegmentIntelligence {
 }
 
 export interface CatWorkspaceState {
-  segments: CatSegment[];
+  fileContext: CatFileContext;
+  queueSegments: CatQueueSegment[];
   selectedSegmentId: string;
   formatChecks: CatFormatCheck[];
   segmentFormatChecks?: Record<string, CatFormatCheck[]>;
@@ -102,7 +125,17 @@ export interface CatWorkspaceState {
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
+  /** @deprecated Use fileContext.canEditTranslations */
   canEditTranslations?: boolean;
+  /** @deprecated Use fileContext.canAddComments */
   canAddComments?: boolean;
+  /** @deprecated Use fileContext.providerKind */
   providerKind?: string | null;
+  /**
+   * @deprecated Legacy hydrate input only. Prefer queueSegments.
+   * Full segments are split into queue meta, drafts, and intelligence on ingest.
+   */
+  segments?: CatSegment[];
 }
+
+export type CatWorkspaceShell = Omit<CatWorkspaceState, "queueSegments" | "segments">;

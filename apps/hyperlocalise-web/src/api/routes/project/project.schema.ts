@@ -563,15 +563,7 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
-  target: projectFileCatTranslationSchema.nullable(),
-  comments: z.array(projectFileCatCommentSchema),
-  commentCount: z.number().int().min(0).optional(),
-  unresolvedIssueCount: z.number().int().min(0).optional(),
-  repositoryContext: z.string().nullable().optional(),
 });
-
-/** Queue list items omit target text — the editor lazy-loads translation via segment target. */
-export const projectFileCatQueueSegmentSchema = projectFileCatSegmentSchema.omit({ target: true });
 
 export const projectFileCatSegmentParamsSchema = z.object({
   organizationSlug: z.string().trim().min(1).max(128),
@@ -585,10 +577,6 @@ export const projectFileCatSegmentQuerySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
-});
-
-export const projectFileCatSegmentResponseSchema = z.object({
-  segment: projectFileCatSegmentSchema,
 });
 
 export const projectFileCatSegmentCommentsResponseSchema = z.object({
@@ -613,7 +601,7 @@ export const projectFileCatResponseSchema = z.object({
 });
 
 export const projectFileCatQueueFileSchema = projectFileCatResponseSchema.shape.catFile.extend({
-  segments: z.array(projectFileCatQueueSegmentSchema),
+  segments: z.array(projectFileCatSegmentSchema),
 });
 
 export const projectFileCatQueueResponseSchema = z.object({
@@ -672,10 +660,9 @@ export type ProjectFileCatCommentResolveResponse = z.infer<
 >;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
-export type ProjectFileCatQueueSegment = z.infer<typeof projectFileCatQueueSegmentSchema>;
+export type ProjectFileCatQueueSegment = ProjectFileCatSegment;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
-export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
 export type ProjectFileCatSegmentCommentsResponse = z.infer<
   typeof projectFileCatSegmentCommentsResponseSchema
 >;

@@ -351,6 +351,15 @@ const heroDemoChecks: CatFormatCheck[] = [
 ];
 
 const heroDemoState: CatWorkspaceState = {
+  fileContext: {
+    sourcePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+    filename: "hero-section.tsx",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    providerKind: null,
+    canEditTranslations: true,
+    canAddComments: true,
+  },
   segments: heroDemoSegments,
   selectedSegmentId: "hero-title",
   formatChecks: heroDemoChecks,

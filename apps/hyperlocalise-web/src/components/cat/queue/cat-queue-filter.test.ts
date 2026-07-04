@@ -118,7 +118,7 @@ describe("resolveAvailableCatQueueFilters", () => {
   });
 
   it("includes has issues for Phrase projects", () => {
-    expect(resolveAvailableCatQueueFilters("phrase")).toContain("has_issues");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("has_issues");
   });
 
   it("omits translation status filters for Phrase projects", () => {

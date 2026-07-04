@@ -12,7 +12,7 @@ import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-s
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { hasProjectFileCatIdentityFromUrl } from "@/lib/projects/project-file-cat-routing";
 
-import { ProjectPageShell } from "../../_components/project-page-shell";
+import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
 import { selectJobCatTargetLocale } from "../../jobs/[jobId]/strings/_components/job-cat-target-locale";
 import {
   fetchProjectFiles,
@@ -38,6 +38,9 @@ export function ProjectFileCatPageContent({
   resourceType?: "file" | "key" | null;
 }) {
   const queryClient = useQueryClient();
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: Boolean(sourcePath),
+  });
   const filesHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
     sourcePath ? `?sourcePath=${encodeURIComponent(sourcePath)}` : ""
   }`;
@@ -74,7 +77,7 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  if (!canOpenFromUrlIdentity && filesQuery.isLoading) {
+  if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -85,14 +88,16 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  if (!canOpenFromUrlIdentity && filesQuery.isError) {
+  if (projectQuery.isError || (!canOpenFromUrlIdentity && filesQuery.isError)) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {filesQuery.error instanceof Error
-              ? filesQuery.error.message
-              : "Unable to load project files."}
+            {projectQuery.error instanceof Error
+              ? projectQuery.error.message
+              : filesQuery.error instanceof Error
+                ? filesQuery.error.message
+                : "Unable to load project files."}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
@@ -114,6 +119,19 @@ export function ProjectFileCatPageContent({
   const resolvedExternalResourceId =
     externalResourceId ?? file?.provider?.externalResourceId ?? null;
   const resolvedResourceType = resourceType ?? file?.provider?.resourceType;
+  const sourceLocale = projectQuery.data?.sourceLocale;
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            This project does not have a source locale.
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
 
   if (!canOpenFromUrlIdentity && !file) {
     return (
@@ -190,6 +208,7 @@ export function ProjectFileCatPageContent({
           key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
+          sourceLocale={sourceLocale}
           sourcePath={sourcePath}
           externalResourceId={resolvedExternalResourceId}
           resourceType={resolvedResourceType}
