@@ -4,6 +4,8 @@ import type {
   ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
 
+import type { ProviderProjectBranchOption } from "./project-files-branch-filter-view";
+
 export const projectFilesStoryNow = Date.UTC(2026, 5, 6, 12, 0, 0);
 
 function iso(offsetMs: number) {
@@ -134,6 +136,11 @@ export const providerProjectFilesFixture: ProjectFileRecord[] = [
       lastSyncedAt: iso(-600_000),
     },
   }),
+];
+
+export const providerProjectBranchesFixture: ProviderProjectBranchOption[] = [
+  { name: "main", title: "Main" },
+  { name: "feature-checkout", title: "Feature checkout" },
 ];
 
 export function createProjectFileDetail(

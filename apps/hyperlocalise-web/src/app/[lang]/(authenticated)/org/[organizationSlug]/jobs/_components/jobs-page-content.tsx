@@ -58,13 +58,7 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
 
   if (kind === "cat") {
     return (
-      <Button
-        nativeButton={false}
-        render={<Link href={href} />}
-        variant="outline"
-        size="sm"
-        className="w-fit"
-      >
+      <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
         <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
         {children}
       </Button>

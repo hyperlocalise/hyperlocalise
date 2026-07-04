@@ -171,7 +171,7 @@ export function ProjectFilesTreePanel({
   selectedSourcePath,
   onSelectSourcePath,
   onLoadedFilesChange,
-  toolbar,
+  headerActions,
   branch = null,
 }: {
   organizationSlug: string;
@@ -179,7 +179,7 @@ export function ProjectFilesTreePanel({
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
   onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
-  toolbar?: ReactNode;
+  headerActions?: ReactNode;
   branch?: string | null;
 }) {
   const queryClient = useQueryClient();
@@ -250,8 +250,8 @@ export function ProjectFilesTreePanel({
 
   return (
     <>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="min-w-0">
           <ProjectSectionTitle>Project files</ProjectSectionTitle>
           <TypographyP className="mt-0.5 text-sm text-muted-foreground">
             {filesQuery.isLoading
@@ -263,10 +263,14 @@ export function ProjectFilesTreePanel({
                   : `${files.length} file${files.length === 1 ? "" : "s"}`}
           </TypographyP>
         </div>
-        {filesQuery.isFetching && !filesQuery.isLoading ? <Spinner /> : null}
+        {headerActions ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {headerActions}
+          </div>
+        ) : filesQuery.isFetching && !filesQuery.isLoading ? (
+          <Spinner />
+        ) : null}
       </header>
-
-      {toolbar}
 
       {filesQuery.isLoading ? (
         <TypographyP className="p-4 text-sm text-muted-foreground">Loading files…</TypographyP>

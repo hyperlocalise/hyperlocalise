@@ -55,7 +55,6 @@ export function JobRowActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "View strings" }) : null}
       {detailHref ? (
         renderJobLink({ href: detailHref, kind: "details", children: "Details" })
       ) : (
@@ -63,6 +62,7 @@ export function JobRowActions({
           Details
         </Button>
       )}
+      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "View strings" }) : null}
     </div>
   );
 }

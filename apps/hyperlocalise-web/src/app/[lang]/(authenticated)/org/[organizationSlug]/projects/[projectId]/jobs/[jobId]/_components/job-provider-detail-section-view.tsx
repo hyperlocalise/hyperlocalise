@@ -145,7 +145,9 @@ export function JobProviderDetailSectionView({
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
-  const visibleActions = (job.providerActions ?? []).filter((action) => action.visible);
+  const visibleActions = (job.providerActions ?? []).filter(
+    (action) => action.visible && action.id !== "translate_with_agent",
+  );
   const crowdinDescription =
     getProviderPayloadString(job.externalProviderPayload, "description")?.trim() ?? "";
   const [sourceFilesExpanded, setSourceFilesExpanded] = useState(false);

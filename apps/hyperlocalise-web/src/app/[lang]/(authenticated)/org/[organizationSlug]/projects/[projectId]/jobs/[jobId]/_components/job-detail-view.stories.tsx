@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import Link from "next/link";
 import { expect, userEvent } from "storybook/test";
-import { AiMagicIcon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
-import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
+import { buildJobCatHref } from "@/lib/projects/job-cat-routing";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
 import {
@@ -48,9 +50,7 @@ const failedJob = createNativeJobDetail({
 const syncedJob = createProviderBackedJobDetail();
 const syncedJobFields = toProviderBackedJobFields(syncedJob);
 const liveJob = createLiveCrowdinJobDetail();
-const translateWithAgentAction = getJobProviderActionAvailability("crowdin").find(
-  (action) => action.id === "translate_with_agent",
-);
+const liveJobCatHref = buildJobCatHref(organizationSlug, projectId, liveJob);
 
 const liveSourceFiles: ProjectFileRecord[] = [
   {
@@ -153,10 +153,10 @@ function liveCrowdinHeaderActions() {
         <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
         Refresh
       </Button>
-      {translateWithAgentAction?.visible ? (
-        <Button size="sm" disabled={!translateWithAgentAction.enabled}>
-          <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-          {translateWithAgentAction.label}
+      {liveJobCatHref ? (
+        <Button size="sm" render={<Link href={liveJobCatHref} />}>
+          <ListIcon />
+          View strings
         </Button>
       ) : null}
     </>
@@ -318,7 +318,7 @@ export const LiveCrowdinTask: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
     await expect(canvas.getByText("68%")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();

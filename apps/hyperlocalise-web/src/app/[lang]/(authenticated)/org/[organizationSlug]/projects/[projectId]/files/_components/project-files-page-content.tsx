@@ -225,7 +225,7 @@ export function ProjectFilesPageContent({
           onSelectSourcePath={setSelectedSourcePath}
           onLoadedFilesChange={setLoadedFiles}
           branch={selectedBranch}
-          toolbar={
+          headerActions={
             <>
               {isProviderProject ? (
                 <ProjectFilesBranchFilter
@@ -241,6 +241,7 @@ export function ProjectFilesPageContent({
                   projectId={projectId}
                   file={selectedFile}
                   highlightLocale={highlightLocale}
+                  layout="compact"
                 />
               ) : null}
             </>
@@ -392,7 +393,7 @@ export function ProjectFilesPageContentView({
         </section>
       ) : null}
 
-      <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-border bg-muted">
+      <section className="flex min-h-64 flex-col overflow-hidden rounded-lg border border-border bg-muted">
         {filesTree ? (
           <div className="flex min-h-0 flex-1 flex-col">{filesTree(selectedFile)}</div>
         ) : (

@@ -1,10 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
@@ -12,19 +10,6 @@ import { ProviderJobDescriptionField } from "../../../../../jobs/_components/pro
 import { useCrowdinJobLocaleReadiness } from "../../../../../_hooks/use-crowdin-job-locale-readiness";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
-
-async function parseActionError(response: Response, fallback: string) {
-  let error: string | undefined;
-
-  try {
-    const body = (await response.json()) as { error?: string; message?: string };
-    error = body.message ?? body.error;
-  } catch {
-    error = undefined;
-  }
-
-  return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
-}
 
 export function ProviderLiveJobDetailContent({
   jobId,
@@ -68,39 +53,6 @@ export function ProviderLiveJobDetailContent({
     enabled: Boolean(jobQuery.data),
   });
 
-  const translateWithAgent = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ]["agent-runs"].$post({
-        param: { organizationSlug, encodedJobId: jobId },
-        json: {
-          projectId,
-          action: "translate_with_agent",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent translation"));
-      }
-
-      await response.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      toast.success("Translation agent is running");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent translation");
-    },
-  });
-
-  const translateAction = jobQuery.data?.externalProviderKind
-    ? getJobProviderActionAvailability(jobQuery.data.externalProviderKind).find(
-        (action) => action.id === "translate_with_agent",
-      )
-    : null;
-
   return (
     <ProviderLiveJobDetailView
       jobId={jobId}
@@ -113,9 +65,6 @@ export function ProviderLiveJobDetailContent({
       localeReadinessLoading={localeReadinessQuery.isLoading}
       localeReadinessOverride={localeReadinessQuery.data ?? null}
       isRefreshing={jobQuery.isFetching}
-      isTranslateWithAgentPending={translateWithAgent.isPending}
-      translateWithAgentAction={translateAction}
-      onTranslateWithAgent={() => translateWithAgent.mutate()}
       onRefresh={() => {
         void queryClient.invalidateQueries({ queryKey: jobQueryKey });
       }}
