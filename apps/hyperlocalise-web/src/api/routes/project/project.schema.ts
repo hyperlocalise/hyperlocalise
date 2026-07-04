@@ -207,7 +207,17 @@ export const projectFilesQuerySchema = z.object({
   providerKind: projectFilesFilterProviderKindSchema.optional(),
   locale: z.string().trim().max(32).optional(),
   syncState: z.string().trim().max(64).optional(),
+  branch: z.string().trim().min(1).max(256).optional(),
   projectId: optionalProjectIdSchema,
+});
+
+export const projectProviderBranchesResponseSchema = z.object({
+  branches: z.array(
+    z.object({
+      name: z.string(),
+      title: z.string().nullable().optional(),
+    }),
+  ),
 });
 
 export const workspaceFileRecordSchema = projectFileRecordSchema.extend({
@@ -623,6 +633,7 @@ export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
+export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;

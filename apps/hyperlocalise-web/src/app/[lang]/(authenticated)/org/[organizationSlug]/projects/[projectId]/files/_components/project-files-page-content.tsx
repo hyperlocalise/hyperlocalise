@@ -23,6 +23,7 @@ import {
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
 import {
   ProjectFilesTreePanel,
   projectFilesQueryKey,
@@ -115,6 +116,7 @@ export function ProjectFilesPageContent({
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
+  const selectedBranch = searchParams.get("branch");
 
   const setSelectedSourcePath = useCallback(
     (sourcePath: string | null) => {
@@ -124,6 +126,21 @@ export function ProjectFilesPageContent({
       } else {
         params.delete("sourcePath");
       }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const setSelectedBranch = useCallback(
+    (branch: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (branch) {
+        params.set("branch", branch);
+      } else {
+        params.delete("branch");
+      }
+      params.delete("sourcePath");
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     },
@@ -178,6 +195,8 @@ export function ProjectFilesPageContent({
   }, []);
 
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
+  const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
+  const isProviderProject = projectCapabilities.isProviderProject;
 
   return (
     <ProjectFilesPageContentView
@@ -189,9 +208,12 @@ export function ProjectFilesPageContent({
       isFilesFetching={false}
       selectedSourcePath={selectedSourcePath}
       highlightLocale={highlightLocale}
+      selectedBranch={selectedBranch}
+      isProviderProject={isProviderProject}
       selectedFiles={selectedFiles}
       isUploading={uploadFiles.isPending}
       onSelectSourcePath={setSelectedSourcePath}
+      onSelectBranch={setSelectedBranch}
       onAddSelectedFiles={addSelectedFiles}
       onRemoveSelectedFile={removeSelectedFile}
       onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
@@ -202,15 +224,26 @@ export function ProjectFilesPageContent({
           selectedSourcePath={selectedSourcePath}
           onSelectSourcePath={setSelectedSourcePath}
           onLoadedFilesChange={setLoadedFiles}
+          branch={selectedBranch}
           toolbar={
-            selectedFile ? (
-              <ProjectFileSelectionActions
-                organizationSlug={organizationSlug}
-                projectId={projectId}
-                file={selectedFile}
-                highlightLocale={highlightLocale}
-              />
-            ) : null
+            <>
+              {isProviderProject ? (
+                <ProjectFilesBranchFilter
+                  organizationSlug={organizationSlug}
+                  projectId={projectId}
+                  selectedBranch={selectedBranch}
+                  onSelectedBranchChange={setSelectedBranch}
+                />
+              ) : null}
+              {selectedFile ? (
+                <ProjectFileSelectionActions
+                  organizationSlug={organizationSlug}
+                  projectId={projectId}
+                  file={selectedFile}
+                  highlightLocale={highlightLocale}
+                />
+              ) : null}
+            </>
           }
         />
       )}
@@ -228,9 +261,12 @@ export function ProjectFilesPageContentView({
   filesError,
   selectedSourcePath,
   highlightLocale,
+  selectedBranch: _selectedBranch = null,
+  isProviderProject: isProviderProjectProp,
   selectedFiles,
   isUploading,
   onSelectSourcePath,
+  onSelectBranch: _onSelectBranch,
   onAddSelectedFiles,
   onRemoveSelectedFile,
   onUploadSelectedFiles,
@@ -247,9 +283,12 @@ export function ProjectFilesPageContentView({
   filesError?: unknown;
   selectedSourcePath: string | null;
   highlightLocale: string | null;
+  selectedBranch?: string | null;
+  isProviderProject?: boolean;
   selectedFiles: File[];
   isUploading: boolean;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onSelectBranch?: (branch: string | null) => void;
   onAddSelectedFiles: (files: File[]) => void;
   onRemoveSelectedFile: (file: File) => void;
   onUploadSelectedFiles: () => void;
@@ -264,7 +303,7 @@ export function ProjectFilesPageContentView({
     [displayFiles, selectedSourcePath],
   );
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
-  const isProviderProject = projectCapabilities.isProviderProject;
+  const isProviderProject = isProviderProjectProp ?? projectCapabilities.isProviderProject;
   const canUploadFiles = projectCapabilities.canUploadFiles;
 
   return (

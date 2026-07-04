@@ -47,6 +47,7 @@ import {
   savePhraseLiveCatComment,
   savePhraseLiveCatTranslation,
 } from "@/lib/providers/adapters/phrase/phrase-live-cat";
+import { PhraseApiClient, PhraseApiError } from "@/lib/providers/adapters/phrase/phrase-api";
 import {
   getLokaliseUserConnection,
   resolveLokaliseUserConnectionSecretMaterial,
@@ -1749,11 +1750,79 @@ export async function listTmsProviderLiveJobsForProject(
   );
 }
 
+export type TmsProviderLiveProjectBranch = {
+  name: string;
+  title: string | null;
+};
+
+export async function listTmsProviderLiveProjectBranches(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveProjectBranch[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  if (context.providerKind === "crowdin") {
+    const projectId = Number(externalProjectId);
+    if (!Number.isFinite(projectId) || projectId <= 0) {
+      return [];
+    }
+
+    const client = new CrowdinApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+    });
+
+    try {
+      const branches = await client.listBranches(projectId);
+      return branches.map((branch) => ({
+        name: branch.name,
+        title: branch.title ?? null,
+      }));
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 401) {
+        throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      }
+      throw error;
+    }
+  }
+
+  if (context.providerKind === "phrase") {
+    if (!externalProjectId.trim()) {
+      return [];
+    }
+
+    const client = new PhraseApiClient({
+      token: context.secretMaterial,
+      region: context.credential.region,
+      baseUrl: context.credential.baseUrl,
+    });
+
+    try {
+      const branches = await client.listBranches(externalProjectId);
+      return branches.map((branch) => ({
+        name: branch.name,
+        title: null,
+      }));
+    } catch (error) {
+      if (error instanceof PhraseApiError && error.status === 401) {
+        throw new TmsProviderLiveError("phrase_auth_invalid", "Phrase credentials are invalid.");
+      }
+      throw error;
+    }
+  }
+
+  return [];
+}
+
 export async function listTmsProviderLiveFilesForProject(
   organizationId: string,
   externalProjectId: string,
   options?: {
     limit?: number;
+    branch?: string | null;
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
     actorUserId?: string | null;
@@ -1800,6 +1869,7 @@ export async function listTmsProviderLiveFilesForProject(
       credential: context.credential,
       project: liveProviderProject,
       secretMaterial: context.secretMaterial,
+      branch: options?.branch ?? null,
     });
   } catch (error) {
     rethrowProviderFetcherError(error);

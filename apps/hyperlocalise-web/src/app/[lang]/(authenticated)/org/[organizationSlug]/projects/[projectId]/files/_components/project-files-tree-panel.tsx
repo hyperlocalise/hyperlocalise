@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -18,18 +19,66 @@ import { ProjectFilesTree } from "./project-files-tree";
 export const PROJECT_FILES_PAGE_SIZE = 50;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
 
-export function projectFilesQueryKey(organizationSlug: string, projectId: string, limit?: number) {
-  return limit === undefined
-    ? (["project-files", organizationSlug, projectId] as const)
+export function projectFilesQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  limit?: number,
+  branch?: string | null,
+) {
+  const branchKey = branch?.trim() ? branch.trim() : null;
+  if (limit === undefined) {
+    return branchKey
+      ? (["project-files", organizationSlug, projectId, branchKey] as const)
+      : (["project-files", organizationSlug, projectId] as const);
+  }
+
+  return branchKey
+    ? (["project-files", organizationSlug, projectId, branchKey, limit] as const)
     : (["project-files", organizationSlug, projectId, limit] as const);
+}
+
+export function findCachedProjectFiles(
+  queryClient: QueryClient,
+  organizationSlug: string,
+  projectId: string,
+  branch?: string | null,
+): ProjectFileRecord[] | undefined {
+  const exactKey = projectFilesQueryKey(organizationSlug, projectId, undefined, branch ?? null);
+  const exact = queryClient.getQueryData<ProjectFileRecord[]>(exactKey);
+  if (exact?.length) {
+    return exact;
+  }
+
+  const prefix = ["project-files", organizationSlug, projectId] as const;
+  const entries = queryClient.getQueriesData<ProjectFileRecord[]>({ queryKey: prefix });
+  let best: ProjectFileRecord[] | undefined;
+
+  for (const [, data] of entries) {
+    if (!data?.length) {
+      continue;
+    }
+
+    if (!best || data.length > best.length) {
+      best = data;
+    }
+  }
+
+  return best;
 }
 
 export async function fetchProjectFiles(
   organizationSlug: string,
   projectId: string,
   limit: number = PROJECT_FILES_PAGE_SIZE,
+  branch?: string | null,
 ) {
-  const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=${limit}`, {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const trimmedBranch = branch?.trim();
+  if (trimmedBranch) {
+    params.set("branch", trimmedBranch);
+  }
+
+  const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
     method: "GET",
   });
 
@@ -123,6 +172,7 @@ export function ProjectFilesTreePanel({
   onSelectSourcePath,
   onLoadedFilesChange,
   toolbar,
+  branch = null,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -130,15 +180,17 @@ export function ProjectFilesTreePanel({
   onSelectSourcePath: (sourcePath: string | null) => void;
   onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
   toolbar?: ReactNode;
+  branch?: string | null;
 }) {
   const queryClient = useQueryClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
   const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
   const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
-  const queryKey = projectFilesQueryKey(organizationSlug, projectId, fetchLimit);
+  const queryKey = projectFilesQueryKey(organizationSlug, projectId, fetchLimit, branch);
   const filesQuery = useQuery({
     queryKey,
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fetchLimit),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch),
+    placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
 
   const fetchedFiles = filesQuery.data ?? [];
@@ -150,7 +202,8 @@ export function ProjectFilesTreePanel({
 
   useEffect(() => {
     setAutoAdvanceExhausted(false);
-  }, [selectedSourcePath]);
+    setFileLimit(PROJECT_FILES_PAGE_SIZE);
+  }, [branch, selectedSourcePath]);
 
   useEffect(() => {
     onLoadedFilesChange?.(files);

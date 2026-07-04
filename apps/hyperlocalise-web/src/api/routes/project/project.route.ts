@@ -34,6 +34,7 @@ import {
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
+  listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
   resolveTmsProviderLiveCatComment,
@@ -1442,6 +1443,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
       },
     )
+    .get("/:projectId/files/branches", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind !== "provider") {
+        return c.json({ branches: [] }, 200);
+      }
+
+      try {
+        const branches = await listTmsProviderLiveProjectBranches(
+          c.var.auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ branches }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
@@ -1455,7 +1478,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const files = await listTmsProviderLiveFilesForProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
-            { limit: query.limit, actorUserId: c.var.auth.user.localUserId },
+            { limit: query.limit, branch: query.branch, actorUserId: c.var.auth.user.localUserId },
           );
           return c.json({ files }, 200);
         } catch (error) {

@@ -68,7 +68,36 @@ describe("buildProjectFileCatHref", () => {
     });
 
     expect(buildProjectFileCatHref("acme", "crowdin:project_website", file, "de-DE")).toBe(
-      "/org/acme/projects/crowdin%3Aproject_website/files/cat?sourcePath=crowdin%2Fhome.json&locale=de-DE",
+      "/org/acme/projects/crowdin%3Aproject_website/files/cat?sourcePath=crowdin%2Fhome.json&locale=de-DE&externalResourceId=file_home_json",
+    );
+  });
+
+  it("includes resourceType for non-file provider resources", () => {
+    const file = createProjectFileRecord({
+      origin: "provider",
+      sourcePath: "feature::welcome",
+      storedFileId: null,
+      provider: {
+        kind: "phrase",
+        resourceType: "key",
+        externalProjectId: "project_website",
+        externalResourceId: "key-welcome",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr-FR"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: new Date().toISOString(),
+      },
+    });
+
+    expect(buildProjectFileCatHref("acme", "phrase:project_website", file, null)).toContain(
+      "resourceType=key",
+    );
+    expect(buildProjectFileCatHref("acme", "phrase:project_website", file, null)).toContain(
+      "externalResourceId=key-welcome",
     );
   });
 

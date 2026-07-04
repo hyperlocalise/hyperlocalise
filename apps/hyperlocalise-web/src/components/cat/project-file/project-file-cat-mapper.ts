@@ -429,3 +429,15 @@ export function requireProviderExternalResourceId(catFile: CatFile | null | unde
 
   return externalResourceId;
 }
+
+export function resolveCatFileIdentity(input: {
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key" | null;
+  catFile?: CatFile | null;
+}) {
+  return {
+    externalResourceId:
+      input.externalResourceId ?? input.catFile?.provider?.externalResourceId ?? null,
+    resourceType: input.resourceType ?? input.catFile?.provider?.resourceType,
+  };
+}

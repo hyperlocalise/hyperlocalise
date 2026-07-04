@@ -8,6 +8,7 @@ import {
   applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
   formatCheckForSegment,
+  resolveCatFileIdentity,
 } from "./project-file-cat-mapper";
 
 const testIntl = getIntlShape("en");
@@ -363,5 +364,31 @@ describe("formatCheckForSegment", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("resolveCatFileIdentity", () => {
+  it("prefers the explicit external resource id over cat file metadata", () => {
+    expect(
+      resolveCatFileIdentity({
+        externalResourceId: "101",
+        resourceType: "file",
+        catFile: catFile(),
+      }),
+    ).toEqual({
+      externalResourceId: "101",
+      resourceType: "file",
+    });
+  });
+
+  it("falls back to cat file provider metadata", () => {
+    expect(
+      resolveCatFileIdentity({
+        catFile: catFile(),
+      }),
+    ).toEqual({
+      externalResourceId: "crowdin-file",
+      resourceType: "file",
+    });
   });
 });

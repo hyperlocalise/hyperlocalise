@@ -6,6 +6,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   credential,
   externalProjectId,
   secretMaterial,
+  branch: branchFilter,
 }) => {
   const client = new CrowdinApiClient({
     token: secretMaterial,
@@ -28,35 +29,27 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     throw error;
   }
 
-  // Include a synthetic "default" branch for files not scoped to any branch
   const branchMap = new Map<number, string>();
   branchMap.set(0, "");
   for (const branch of branches) {
     branchMap.set(branch.id, branch.name);
   }
 
-  // Build directory path lookups per branch
   const directoryPathById = new Map<number, string>();
-
-  // Also fetch directories not associated with any branch (default/root)
-  try {
-    const rootDirectories = await client.listDirectories(projectId);
-    buildDirectoryPaths(rootDirectories, directoryPathById);
-  } catch (error) {
-    if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new Error("crowdin_auth_invalid");
-    }
-    throw error;
-  }
-
   const allFiles: Awaited<ReturnType<typeof client.listFiles>> = [];
 
-  for (const branch of branches) {
+  const trimmedBranchFilter = branchFilter?.trim() ?? "";
+  if (trimmedBranchFilter) {
+    const targetBranch = branches.find((branch) => branch.name === trimmedBranchFilter);
+    if (!targetBranch) {
+      return [];
+    }
+
     try {
-      const directories = await client.listDirectories(projectId, branch.id);
+      const directories = await client.listDirectories(projectId, targetBranch.id);
       buildDirectoryPaths(directories, directoryPathById);
 
-      const files = await client.listFiles(projectId, branch.id);
+      const files = await client.listFiles(projectId, targetBranch.id);
       allFiles.push(...files);
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 401) {
@@ -64,17 +57,41 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
       }
       throw error;
     }
-  }
-
-  // Also fetch files not associated with any branch (default/root)
-  try {
-    const rootFiles = await client.listFiles(projectId);
-    allFiles.push(...rootFiles.filter((f) => f.branchId === null));
-  } catch (error) {
-    if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new Error("crowdin_auth_invalid");
+  } else {
+    try {
+      const rootDirectories = await client.listDirectories(projectId);
+      buildDirectoryPaths(rootDirectories, directoryPathById);
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 401) {
+        throw new Error("crowdin_auth_invalid");
+      }
+      throw error;
     }
-    throw error;
+
+    for (const branch of branches) {
+      try {
+        const directories = await client.listDirectories(projectId, branch.id);
+        buildDirectoryPaths(directories, directoryPathById);
+
+        const files = await client.listFiles(projectId, branch.id);
+        allFiles.push(...files);
+      } catch (error) {
+        if (error instanceof CrowdinApiError && error.status === 401) {
+          throw new Error("crowdin_auth_invalid");
+        }
+        throw error;
+      }
+    }
+
+    try {
+      const rootFiles = await client.listFiles(projectId);
+      allFiles.push(...rootFiles.filter((f) => f.branchId === null));
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 401) {
+        throw new Error("crowdin_auth_invalid");
+      }
+      throw error;
+    }
   }
 
   const results: Awaited<ReturnType<ExternalTmsFileKeyFetcher>> = [];

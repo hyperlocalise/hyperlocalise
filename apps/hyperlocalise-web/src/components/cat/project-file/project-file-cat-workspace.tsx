@@ -37,6 +37,7 @@ import {
   applyCatSegmentCommentsToWorkspaceState,
   applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
+  resolveCatFileIdentity,
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
 import { useCatMutations } from "./use-cat-mutations";
@@ -182,9 +183,12 @@ export function ProjectFileCatWorkspace({
     });
   }, [initialSegmentKey, workspaceState]);
 
-  const resolvedExternalResourceId =
-    externalResourceId ?? catFile?.provider?.externalResourceId ?? null;
-  const resolvedResourceType = resourceType ?? catFile?.provider?.resourceType;
+  const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
+    resolveCatFileIdentity({
+      externalResourceId,
+      resourceType,
+      catFile,
+    });
 
   const segmentTargetQuery = useCatSegmentTarget({
     organizationSlug,

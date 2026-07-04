@@ -379,4 +379,76 @@ describe("fetchCrowdinFileKeys", () => {
       }),
     ).rejects.toThrow("Crowdin API returned HTTP 503");
   });
+
+  it("lists files for a single branch when branch filter is set", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/branches?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              { data: { id: 10, name: "main", title: "Main" } },
+              { data: { id: 20, name: "feature", title: "Feature" } },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/directories?") && path.includes("branchId=20")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/files?") && path.includes("branchId=20")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 202,
+                  branchId: 20,
+                  directoryId: null,
+                  name: "app.json",
+                  title: "App",
+                  type: "json",
+                  path: "/app.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchCrowdinFileKeys({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "crowdin",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+      branch: "feature",
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        externalResourceId: "202",
+        sourcePath: "feature/app.json",
+      }),
+    ]);
+    const requestedPaths = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.map(([requestUrl]) =>
+      String(requestUrl),
+    );
+    expect(requestedPaths.some((path) => path.includes("branchId=10"))).toBe(false);
+    expect(requestedPaths.some((path) => path.includes("branchId=20"))).toBe(true);
+  });
 });
