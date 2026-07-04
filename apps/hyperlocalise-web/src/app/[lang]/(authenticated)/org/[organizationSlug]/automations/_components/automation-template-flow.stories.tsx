@@ -58,7 +58,7 @@ export const ContentfulTranslation: Story = {
   },
 };
 
-export const TriggerOnly: Story = {
+export const ScheduledSummary: Story = {
   ...templateStory("summarize-changes-daily"),
   play: async ({ canvas }) => {
     await expect(canvas.getByLabelText("Daily → GitHub → Slack")).toBeInTheDocument();

@@ -106,7 +106,7 @@ export const automationRunsFixture: WorkspaceAutomationRunRecord[] = [
   },
 ];
 
-export const createEmptyAutomationFormFixture = createDefaultWorkspaceAutomationFormState();
+export const createEmptyAutomationFormFixture = () => createDefaultWorkspaceAutomationFormState();
 
 export const createGithubAutomationFormFixture = () => {
   const form = createWorkspaceAutomationFormStateFromTemplate("validate-localisation-on-push");

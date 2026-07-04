@@ -53,6 +53,9 @@ export const automationEditorDisconnectedMswHandlers = [
   http.get("/api/orgs/:organizationSlug/github-installation", () =>
     HttpResponse.json({ installation: null }),
   ),
+  http.get("/api/orgs/:organizationSlug/github-installation/repositories", () =>
+    HttpResponse.json({ repositories: [] }),
+  ),
   http.get("/api/orgs/:organizationSlug/agent-slack", () =>
     HttpResponse.json({
       slackAgent: {
@@ -61,6 +64,9 @@ export const automationEditorDisconnectedMswHandlers = [
         teamName: null,
       },
     }),
+  ),
+  http.get("/api/orgs/:organizationSlug/agent-slack/channels", () =>
+    HttpResponse.json({ channels: [] }),
   ),
   http.get("/api/orgs/:organizationSlug/agent-email", () =>
     HttpResponse.json({

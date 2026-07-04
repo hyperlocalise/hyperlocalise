@@ -101,6 +101,6 @@ export const MarketingTemplates: Story = {
 export const ActivatableTemplate: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Add" }).length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("button", { name: "Add" })).not.toHaveLength(0);
   },
 };

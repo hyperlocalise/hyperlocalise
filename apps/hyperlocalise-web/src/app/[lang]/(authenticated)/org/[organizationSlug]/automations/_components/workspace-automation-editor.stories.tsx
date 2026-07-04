@@ -72,7 +72,7 @@ const meta = {
   args: {
     organizationSlug: "acme",
     mode: "create" as const,
-    form: createEmptyAutomationFormFixture,
+    form: createEmptyAutomationFormFixture(),
     errors: {},
     actions: (
       <Button type="button" onClick={fn()}>
