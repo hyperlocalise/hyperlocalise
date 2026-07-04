@@ -103,8 +103,8 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
     .get("/me", canvaOAuthAuthMiddleware, async (c) => {
       const session = c.var.canvaOAuth!;
       const organizations = await listCanvaUserOrganizations(session.user.localUserId);
-      const brandBinding = c.var.canvaUser
-        ? await getCanvaBrandOrgBinding(c.var.canvaUser.brandId)
+      const brandBinding = session.canvaBrandId
+        ? await getCanvaBrandOrgBinding(session.canvaBrandId)
         : null;
 
       return c.json(

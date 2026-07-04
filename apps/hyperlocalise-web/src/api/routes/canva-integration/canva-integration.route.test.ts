@@ -65,13 +65,14 @@ describe("canvaIntegrationRoutes", () => {
     await projectFixture.cleanup();
   });
 
-  async function createOAuthContext() {
+  async function createOAuthContext(input: { canvaBrandId?: string } = {}) {
     const stored = await projectFixture.createStoredProjectFixture();
     await projectFixture.authHeadersFor(stored.identity);
     const auth = globalThis.__testApiAuthContext!;
 
     const oauth = await createCanvaOAuthTestSession({
       userId: stored.user.id,
+      canvaBrandId: input.canvaBrandId,
     });
     cleanedUserIds.push(stored.user.id);
 
@@ -85,6 +86,28 @@ describe("canvaIntegrationRoutes", () => {
       },
     };
   }
+
+  it("returns the brand binding recorded on the OAuth session", async () => {
+    const canvaBrandId = "canva-brand-session";
+    const { stored, headers } = await createOAuthContext({ canvaBrandId });
+
+    await db.insert(schema.canvaBrandOrgBindings).values({
+      canvaBrandId,
+      organizationId: stored.organization.id,
+      boundByUserId: stored.user.id,
+    });
+
+    const response = await client.api.integrations.canva.me.$get({}, { headers });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      brandBinding: {
+        organizationId: stored.organization.id,
+        organizationName: stored.organization.name,
+        organizationSlug: stored.organization.slug,
+      },
+    });
+  });
 
   it("starts localization when the OAuth access token is valid", async () => {
     const { stored, auth, oauth, headers } = await createOAuthContext();
