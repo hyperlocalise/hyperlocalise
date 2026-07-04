@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { markAuthorizationCodeUsed, verifyPkceChallenge } from "@/api/auth/mcp";
 
 const TOKEN_PREFIX = "hl_canva_";
+const CANVA_OAUTH_SCRYPT_SALT = "hl-canva-oauth-hmac-v1";
 
 export type CanvaAuthorizationCodePayload = {
   clientId: string;
@@ -49,7 +50,7 @@ function getCanvaOAuthSecret(): Buffer {
     return decoded;
   }
 
-  return createHash("sha256").update(configuredKey).digest();
+  return scryptSync(configuredKey, CANVA_OAUTH_SCRYPT_SALT, 32);
 }
 
 function base64Url(input: Buffer | string): string {
@@ -101,7 +102,8 @@ export function generateCanvaOAuthToken(): string {
 }
 
 export function hashCanvaOAuthToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  const pepper = env.CANVA_OAUTH_CLIENT_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
+  return scryptSync(token, pepper, 32).toString("hex");
 }
 
 export function isCanvaOAuthAccessToken(token: string): boolean {
