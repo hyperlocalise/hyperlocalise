@@ -284,7 +284,7 @@ export async function refreshCanvaOAuthToken(input: { refreshToken: string; clie
   const newRefreshToken = generateCanvaOAuthToken();
   const { accessTokenExpiresAt, refreshTokenExpiresAt } = getCanvaOAuthTokenExpiry();
 
-  await db
+  const [rotatedSession] = await db
     .update(schema.canvaOauthSessions)
     .set({
       accessTokenHash: hashCanvaOAuthToken(accessToken),
@@ -293,7 +293,19 @@ export async function refreshCanvaOAuthToken(input: { refreshToken: string; clie
       refreshExpiresAt: refreshTokenExpiresAt,
       updatedAt: now,
     })
-    .where(eq(schema.canvaOauthSessions.id, session.id));
+    .where(
+      and(
+        eq(schema.canvaOauthSessions.id, session.id),
+        eq(schema.canvaOauthSessions.refreshTokenHash, refreshTokenHash),
+        isNull(schema.canvaOauthSessions.revokedAt),
+        gt(schema.canvaOauthSessions.refreshExpiresAt, now),
+      ),
+    )
+    .returning({ id: schema.canvaOauthSessions.id });
+
+  if (!rotatedSession) {
+    return { ok: false as const, error: "invalid_grant" };
+  }
 
   return {
     ok: true as const,
