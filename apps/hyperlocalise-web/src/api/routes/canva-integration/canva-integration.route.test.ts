@@ -42,7 +42,9 @@ vi.mock("@/lib/canva/auth", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
-import { db } from "@/lib/database";
+import { eq } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { cleanupCanvaOAuthTestSessions, createCanvaOAuthTestSession } from "./canva-oauth.fixture";
 
@@ -132,6 +134,44 @@ describe("canvaIntegrationRoutes", () => {
         }),
       }),
     );
+  });
+
+  it("does not store a brand-org binding when localization authorization fails", async () => {
+    const { stored, headers } = await createOAuthContext();
+
+    mocks.startCanvaLocalizationMock.mockRejectedValue(new Error("canva_project_not_found"));
+
+    const response = await client.api.integrations.canva.localize.$post(
+      {
+        json: {
+          organizationId: stored.organization.id,
+          projectId: stored.project.id,
+          designToken: "design-token",
+          sourceLocale: "en",
+          targetLocales: ["es"],
+          rememberBrandOrgBinding: true,
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(502);
+
+    const bindings = await db
+      .select({ id: schema.canvaBrandOrgBindings.id })
+      .from(schema.canvaBrandOrgBindings)
+      .where(eq(schema.canvaBrandOrgBindings.canvaBrandId, "canva-brand"));
+
+    expect(bindings).toHaveLength(0);
   });
 
   it("returns localization results for a completed job", async () => {

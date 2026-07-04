@@ -165,14 +165,6 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           });
         }
 
-        if (payload.rememberBrandOrgBinding) {
-          await upsertCanvaBrandOrgBinding({
-            canvaBrandId: canvaUser.brandId,
-            organizationId: payload.organizationId,
-            userId: session.user.localUserId,
-          });
-        }
-
         try {
           const designId = await resolveCanvaDesignId(payload.designToken, env.CANVA_APP_ID);
           const result = await startCanvaLocalization({
@@ -187,6 +179,14 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             jobQueue: options.jobQueue,
             fileStorageAdapter: options.fileStorageAdapter,
           });
+
+          if (payload.rememberBrandOrgBinding) {
+            await upsertCanvaBrandOrgBinding({
+              canvaBrandId: canvaUser.brandId,
+              organizationId: payload.organizationId,
+              userId: session.user.localUserId,
+            });
+          }
 
           return c.json(
             {

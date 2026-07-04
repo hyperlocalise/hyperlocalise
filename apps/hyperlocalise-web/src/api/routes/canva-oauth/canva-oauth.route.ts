@@ -19,7 +19,6 @@ import {
   revokeCanvaOAuthToken,
 } from "@/api/auth/canva-oauth";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
-import { env } from "@/lib/env";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -343,17 +342,18 @@ export function createCanvaOAuthRoutes(options: { apiBasePath?: string } = {}) {
         const parsed = tokenRequestSchema.safeParse({
           ...body,
           client_secret:
-            typeof body.client_secret === "string" ? body.client_secret : readClientSecret(c),
+            typeof body.client_secret === "string"
+              ? body.client_secret
+              : (readClientSecret(c) ?? undefined),
         });
 
         if (!parsed.success) {
           return c.json({ error: "invalid_request" }, 400);
         }
 
-        const clientSecret =
-          parsed.data.client_secret ?? readClientSecret(c) ?? env.CANVA_OAUTH_CLIENT_SECRET;
+        const clientSecret = parsed.data.client_secret ?? readClientSecret(c);
 
-        if (!isValidCanvaOAuthClient(parsed.data.client_id, clientSecret)) {
+        if (!clientSecret || !isValidCanvaOAuthClient(parsed.data.client_id, clientSecret)) {
           return c.json({ error: "invalid_client" }, 401);
         }
 
@@ -411,17 +411,18 @@ export function createCanvaOAuthRoutes(options: { apiBasePath?: string } = {}) {
         const parsed = revokeRequestSchema.safeParse({
           ...body,
           client_secret:
-            typeof body.client_secret === "string" ? body.client_secret : readClientSecret(c),
+            typeof body.client_secret === "string"
+              ? body.client_secret
+              : (readClientSecret(c) ?? undefined),
         });
 
         if (!parsed.success) {
           return c.json({ error: "invalid_request" }, 400);
         }
 
-        const clientSecret =
-          parsed.data.client_secret ?? readClientSecret(c) ?? env.CANVA_OAUTH_CLIENT_SECRET;
+        const clientSecret = parsed.data.client_secret ?? readClientSecret(c);
 
-        if (!isValidCanvaOAuthClient(parsed.data.client_id, clientSecret)) {
+        if (!clientSecret || !isValidCanvaOAuthClient(parsed.data.client_id, clientSecret)) {
           return c.json({ error: "invalid_client" }, 401);
         }
 
