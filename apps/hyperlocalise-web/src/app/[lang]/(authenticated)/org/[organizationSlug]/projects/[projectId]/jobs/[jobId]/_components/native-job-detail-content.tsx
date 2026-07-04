@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 
@@ -136,6 +137,10 @@ export function NativeJobDetailContent({
     job && isProviderBackedJob(job)
       ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
       : "";
+  useAppShellBreadcrumbAppend({
+    id: "job-detail",
+    label: layout?.title,
+  });
 
   const headerActions = job ? (
     <>

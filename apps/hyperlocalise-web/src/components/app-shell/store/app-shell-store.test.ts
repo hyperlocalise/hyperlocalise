@@ -56,6 +56,27 @@ describe("AppShellStore", () => {
     expect(store.headerActions.orderedSlots.map((slot) => slot.id)).toEqual(["a", "b"]);
   });
 
+  it("replaces header actions with the same id", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    store.headerActions.register({
+      id: "save",
+      order: 20,
+      visible: true,
+      render: () => "Save",
+    });
+    store.headerActions.register({
+      id: "save",
+      order: 10,
+      visible: true,
+      render: () => "Save changes",
+    });
+
+    expect(store.headerActions.orderedSlots).toHaveLength(1);
+    expect(store.headerActions.orderedSlots[0]?.order).toBe(10);
+    expect(store.headerActions.orderedSlots[0]?.render()).toBe("Save changes");
+  });
+
   it("applies breadcrumb overrides and appends", () => {
     const store = createAppShellStore(sampleGroups);
     const base = [
@@ -79,6 +100,29 @@ describe("AppShellStore", () => {
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
       { label: "Jobs" },
       { label: "Translate to Vietnamese", href: undefined },
+    ]);
+  });
+
+  it("replaces breadcrumb entries with the same id", () => {
+    const store = createAppShellStore(sampleGroups);
+    const base = [{ label: "Jobs", href: "/org/acme/projects/proj_1/jobs" }];
+
+    store.breadcrumb.registerAppend({ id: "job", label: "Old title" });
+    store.breadcrumb.registerAppend({ id: "job", label: "New title" });
+    store.breadcrumb.registerOverride({
+      id: "jobs-label",
+      matchSegment: "Jobs",
+      label: "Tasks",
+    });
+    store.breadcrumb.registerOverride({
+      id: "jobs-label",
+      matchSegment: "Jobs",
+      label: "Jobs",
+    });
+
+    expect(store.breadcrumb.applyOverrides(base)).toEqual([
+      { label: "Jobs", href: "/org/acme/projects/proj_1/jobs" },
+      { label: "New title", href: undefined },
     ]);
   });
 
@@ -109,6 +153,39 @@ describe("AppShellStore", () => {
       organizationSlug: "acme",
       projectId: "proj_1",
       projectName: "Checkout",
+    });
+  });
+
+  it("replaces custom navigation state", () => {
+    const store = createAppShellStore(sampleGroups);
+    const firstGroups = [
+      {
+        label: "First",
+        items: [{ label: "One", href: "/one", icon: Chat01Icon }],
+      },
+    ] as const;
+    const nextGroups = [
+      {
+        label: "Next",
+        items: [{ label: "Two", href: "/two", icon: Chat01Icon }],
+      },
+    ] as const;
+
+    store.navigation.setCustomNavigation(firstGroups, {
+      organizationSlug: "acme",
+      projectId: "proj_1",
+    });
+    store.navigation.setCustomNavigation(nextGroups, {
+      organizationSlug: "acme",
+      projectId: "proj_2",
+      projectName: "Checkout v2",
+    });
+
+    expect(store.navigation.activeGroups).toEqual(nextGroups);
+    expect(store.navigation.activeProjectContext).toEqual({
+      organizationSlug: "acme",
+      projectId: "proj_2",
+      projectName: "Checkout v2",
     });
   });
 
@@ -153,5 +230,15 @@ describe("AppShellStore", () => {
     store.sidebar.setPreferredOpen(true);
 
     expect(api.setOpenMobile).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps sidebar preference until an api binds", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.setPreferredOpen(false);
+    store.sidebar.bindSidebarApi(api);
+
+    expect(api.setOpen).toHaveBeenCalledWith(false);
   });
 });

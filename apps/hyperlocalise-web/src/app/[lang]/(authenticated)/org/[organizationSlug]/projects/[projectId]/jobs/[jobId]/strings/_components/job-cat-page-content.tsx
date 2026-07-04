@@ -17,6 +17,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
@@ -114,6 +115,7 @@ export function JobCatPageContent({
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const hasFileReference = Boolean(sourcePath || storedFileId);
   const isNativeJob = Boolean(storedFileId);
+  useAppShellSidebar({ forceCollapsed: hasFileReference });
   const targetFileQuery = useQuery({
     queryKey: projectJobCatTargetFileQueryKey(
       organizationSlug,

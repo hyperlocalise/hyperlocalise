@@ -19,7 +19,7 @@ overrides:
   form-data: 4.0.6
   dompurify: 3.4.11
   js-yaml@^3.0.0: 3.15.0
-  js-yaml@^4.0.0: 4.2.0
+  js-yaml@^4.0.0: 4.3.0
 
 importers:
 
@@ -38,20 +38,20 @@ importers:
         specifier: 1.6.0
         version: 1.6.0(@types/react@19.2.17)(date-fns@4.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@chat-adapter/github':
-        specifier: 4.31.0
-        version: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@chat-adapter/slack':
-        specifier: 4.31.0
-        version: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@chat-adapter/state-memory':
-        specifier: 4.31.0
-        version: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@chat-adapter/state-pg':
-        specifier: 4.31.0
-        version: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@chat-adapter/web':
-        specifier: 4.31.0
-        version: 4.31.0(@ai-sdk/react@3.0.220(react@19.2.7)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(react@19.2.7)(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(@ai-sdk/react@3.0.220(react@19.2.7)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(react@19.2.7)(zod@4.4.3)
       '@formatjs/icu-messageformat-parser':
         specifier: ^3.5.12
         version: 3.5.12
@@ -152,8 +152,8 @@ importers:
         specifier: ^1.2.34
         version: 1.2.34(express@5.2.1)(hono@4.12.27)(next@16.2.9(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       chat:
-        specifier: 4.31.0
-        version: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.32.0
+        version: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -836,28 +836,28 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@chat-adapter/github@4.31.0':
-    resolution: {integrity: sha512-yMKNR5WWMoCP1jGCxOigI6NrgC7Dm60zuy6ey1BgNPjgA6n769ZI8dvf+N6wgwqFHOeqSNIYhNnT/ojB6WsjtQ==}
+  '@chat-adapter/github@4.32.0':
+    resolution: {integrity: sha512-0HHSI2rd7XXE3rt37uUS+zWbTK6JSl1mAUtQk5hm1SBtyP23BV4B4pDCdR/X5Eo9e0i9sMNYR7CNwfab1+7g3Q==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/shared@4.31.0':
-    resolution: {integrity: sha512-vT/0S/LKSU5QTz5xJNWdiGp1jl55x0o8Z9I2VqlHfwjOKxVR87z++bQjXlE99w6BAxZjSYhWErlveyKo4LiDGg==}
+  '@chat-adapter/shared@4.32.0':
+    resolution: {integrity: sha512-ANXYe2dbSmr9A+yUAnV8TfFht4GM6f3zR5LnAYtQdNnRI9CJfXIUXuhRaVBe5RD8IEgGXyGi4BKj5qdjBtUumA==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/slack@4.31.0':
-    resolution: {integrity: sha512-b+nUizoTQac0gNEaZ+F4XAYcFtynXufpGUYMkeSwfiD9najoQEKXpvZya8PgqX1Ddn3SPddeJ/ip+RS2oQuBLA==}
+  '@chat-adapter/slack@4.32.0':
+    resolution: {integrity: sha512-QZ7KYV8K1w5O91JzMuz5qTCpUaWfEgcxr/UFrBKSp30ZdaHbLH7BqOXHYLoFVwFnoEwKpInCgCgpEl36IU9ffQ==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/state-memory@4.31.0':
-    resolution: {integrity: sha512-QsxWce5OaY+j980dRCfFZSIoVHtg+gOg6p4IOWVsB4vxwXFin8CNg/hd34kvnmzqizbD/tmLze0Pkq/sKC4NLg==}
+  '@chat-adapter/state-memory@4.32.0':
+    resolution: {integrity: sha512-fN91ZzjRUUhgeVReukvrDkaaQXC+x0jETR+77vg67y95g1LnUaqSFBz+WOyYLaTT7i7JGz9aEMlBNt6uYu66dg==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/state-pg@4.31.0':
-    resolution: {integrity: sha512-cKCjWh4q+w85TGZzTAXpQcDbRVzOy/M/ZEyax3y3/BSrjzy/fxNnhcsuvvNrGKR6605bf404b+tuPQ0wcmgNLA==}
+  '@chat-adapter/state-pg@4.32.0':
+    resolution: {integrity: sha512-8Ic3Qc+ddLQ4UaBY/ON7XfLPwDROEsd5hrzCNT0KWdCH4rAHrnXe2VUAY4yoO3lXLt6NQtUIIxV97+xPrmW09A==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/web@4.31.0':
-    resolution: {integrity: sha512-BGBm+tqinXd4kcYFcX5TgL0RkQXlneC1ReIcZEbPHMuBFbvzVC+/izb7FdjhYSScJ/UsY03ACp1cF+KN94olrw==}
+  '@chat-adapter/web@4.32.0':
+    resolution: {integrity: sha512-KN63/TrF/gZlQwZzNOAfUo1Rly6pSCRKnnVrTyrpnhEE7TqJBGVmY5cEqVGl+UvVqq8UMNlsTW5G/+UoGOi4dw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@ai-sdk/react': ^3
@@ -4755,8 +4755,8 @@ packages:
   character-reference-invalid@2.0.1:
     resolution: {integrity: sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw==}
 
-  chat@4.31.0:
-    resolution: {integrity: sha512-F6oJq9JUraLFkITS96/NKgwZwBfZX8aOwOj5qMs5NNwnOGHrSXZ5+osK+EA4HjzfyUEDfFTNiOSmyzgtFLpuWg==}
+  chat@4.32.0:
+    resolution: {integrity: sha512-0NlJcCLycTy8kytRsZEnW4Gzomm+SNh1Yg7y9GVYB5fTjyhOxCcnzqrythgXNn2dvv7VeihDIISpNU0WZdOKKg==}
     engines: {node: '>=20'}
     peerDependencies:
       ai: ^6.0.182
@@ -6382,8 +6382,8 @@ packages:
     resolution: {integrity: sha512-ttBQIIQPDeLjpPOohtUdXuXUVoA2uIB6fEH9HyJ7234s5mBJ5wTx20njxplLZQgLaOfpmPQA7X2t5AX6tIPbog==}
     hasBin: true
 
-  js-yaml@4.2.0:
-    resolution: {integrity: sha512-ePWsvanv0DWuDRsW8dnt+R4jQ31SCRCQ7hhNcPXZPsoBZiemuZNYGf7adZdqX2D86j6rvKp3RpCxVTSb8WQlOw==}
+  js-yaml@4.3.0:
+    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
     hasBin: true
 
   jsesc@3.1.0:
@@ -7364,9 +7364,6 @@ packages:
   pg-cloudflare@1.4.0:
     resolution: {integrity: sha512-Vo7z/6rrQYxpNRylp4Tlob2elzbh+N/MOQbxFVWCxS7oEx6jF53GTJFxK2WWpKuBRkmiin4Mt+xofFDjx09R0A==}
 
-  pg-connection-string@2.13.0:
-    resolution: {integrity: sha512-EMnU9E2fSULdsbErBbMaXJvFeD9B4+nPcM3f+4lsiCR0BHLPrLVjv3DbyM2hgQQviKJaTWIRRTjKjWlHg3p2ig==}
-
   pg-connection-string@2.14.0:
     resolution: {integrity: sha512-XwWDGcLRGCXAR8F/AM5bG7Q+A3Wm2s6QeEjlOKZLlH3UYcguiqCWKyWXVag5TLTIjR7oOJUY8kcADaZgWPyLeg==}
 
@@ -7382,24 +7379,12 @@ packages:
   pg-protocol@1.13.0:
     resolution: {integrity: sha512-zzdvXfS6v89r6v7OcFCHfHlyG/wvry1ALxZo4LqgUoy7W9xhBDMaqOuMiF3qEV45VqsN6rdlcehHrfDtlCPc8w==}
 
-  pg-protocol@1.14.0:
-    resolution: {integrity: sha512-n5taZ1kO3s9ngDTVxsEznOqCyToTgz0FLuPq0B33COy5pPpuWJpY3/2oRBVETuOgzdqRXfWpM9HIhp2LBBT1BA==}
-
   pg-protocol@1.15.0:
     resolution: {integrity: sha512-cq9sECI5s0+uPUXjbz8ioyPJni6RzsRib0US67i5IoTZKw8fNeYlVE7u8F4dG7vEJJtc5wdD1K189lCCUwqWTQ==}
 
   pg-types@2.2.0:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
-
-  pg@8.21.0:
-    resolution: {integrity: sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==}
-    engines: {node: '>= 16.0.0'}
-    peerDependencies:
-      pg-native: '>=3.0.1'
-    peerDependenciesMeta:
-      pg-native:
-        optional: true
 
   pg@8.22.0:
     resolution: {integrity: sha512-8wih1vVIBMxoUM2oB4soJsD9tDnDpLv4OXBJ+EJzFsvycD+lfyIreC2gGHq78f8jbLLt+bvlPTFdFZfJkOuzAA==}
@@ -9649,31 +9634,31 @@ snapshots:
   '@cbor-extract/cbor-extract-win32-x64@2.2.2':
     optional: true
 
-  '@chat-adapter/github@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/github@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@chat-adapter/shared': 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      '@chat-adapter/shared': 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@octokit/auth-app': 8.2.0
       '@octokit/rest': 22.0.1
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - supports-color
       - zod
 
-  '@chat-adapter/shared@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/shared@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - supports-color
       - zod
 
-  '@chat-adapter/slack@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/slack@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@chat-adapter/shared': 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      '@chat-adapter/shared': 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@slack/socket-mode': 2.0.7
       '@slack/web-api': 7.15.2
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - bufferutil
@@ -9682,29 +9667,29 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@chat-adapter/state-memory@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/state-memory@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - supports-color
       - zod
 
-  '@chat-adapter/state-pg@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/state-pg@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
-      pg: 8.21.0
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      pg: 8.22.0
     transitivePeerDependencies:
       - ai
       - pg-native
       - supports-color
       - zod
 
-  '@chat-adapter/web@4.31.0(@ai-sdk/react@3.0.220(react@19.2.7)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(react@19.2.7)(zod@4.4.3)':
+  '@chat-adapter/web@4.32.0(@ai-sdk/react@3.0.220(react@19.2.7)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(react@19.2.7)(zod@4.4.3)':
     dependencies:
-      '@chat-adapter/shared': 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      '@chat-adapter/shared': 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       ai: 6.0.217(zod@4.4.3)
-      chat: 4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
+      chat: 4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
     optionalDependencies:
       '@ai-sdk/react': 3.0.220(react@19.2.7)(zod@4.4.3)
       react: 19.2.7
@@ -13410,7 +13395,7 @@ snapshots:
 
   character-reference-invalid@2.0.1: {}
 
-  chat@4.31.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3):
+  chat@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3):
     dependencies:
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0
@@ -13575,7 +13560,7 @@ snapshots:
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
-      js-yaml: 4.2.0
+      js-yaml: 4.3.0
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 6.0.3
@@ -14956,7 +14941,7 @@ snapshots:
       argparse: 1.0.10
       esprima: 4.0.1
 
-  js-yaml@4.2.0:
+  js-yaml@4.3.0:
     dependencies:
       argparse: 2.0.1
 
@@ -16197,23 +16182,15 @@ snapshots:
   pg-cloudflare@1.4.0:
     optional: true
 
-  pg-connection-string@2.13.0: {}
-
   pg-connection-string@2.14.0: {}
 
   pg-int8@1.0.1: {}
-
-  pg-pool@3.14.0(pg@8.21.0):
-    dependencies:
-      pg: 8.21.0
 
   pg-pool@3.14.0(pg@8.22.0):
     dependencies:
       pg: 8.22.0
 
   pg-protocol@1.13.0: {}
-
-  pg-protocol@1.14.0: {}
 
   pg-protocol@1.15.0: {}
 
@@ -16224,16 +16201,6 @@ snapshots:
       postgres-bytea: 1.0.1
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
-
-  pg@8.21.0:
-    dependencies:
-      pg-connection-string: 2.13.0
-      pg-pool: 3.14.0(pg@8.21.0)
-      pg-protocol: 1.14.0
-      pg-types: 2.2.0
-      pgpass: 1.0.5
-    optionalDependencies:
-      pg-cloudflare: 1.4.0
 
   pg@8.22.0:
     dependencies:

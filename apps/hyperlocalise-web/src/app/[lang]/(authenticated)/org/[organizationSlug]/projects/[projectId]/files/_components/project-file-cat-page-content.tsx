@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { hasProjectFileCatIdentityFromUrl } from "@/lib/projects/project-file-cat-routing";
 
@@ -51,6 +52,10 @@ export function ProjectFileCatPageContent({
     queryFn: () => fetchProjectFiles(organizationSlug, projectId),
     enabled: Boolean(sourcePath) && !canOpenFromUrlIdentity,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId),
+  });
+  useAppShellSidebar({
+    forceCollapsed: Boolean(sourcePath),
+    preferredOpen: sourcePath ? false : null,
   });
 
   if (!sourcePath) {
