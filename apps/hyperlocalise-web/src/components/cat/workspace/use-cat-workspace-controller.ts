@@ -389,6 +389,10 @@ export function useCatWorkspaceController({
   const cachedContextLookupAttemptedRef = useRef(new Set<string>());
 
   useEffect(() => {
+    cachedContextLookupAttemptedRef.current.clear();
+  }, [lookupSegmentContext]);
+
+  useEffect(() => {
     const segmentId = store.selectedSegmentId;
     if (!segmentId || !lookupSegmentContext) {
       return;
@@ -399,8 +403,11 @@ export function useCatWorkspaceController({
       return;
     }
 
-    const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext?.trim();
-    if (existingAgentContext || cachedContextLookupAttemptedRef.current.has(segmentId)) {
+    const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
+    if (
+      existingAgentContext !== undefined ||
+      cachedContextLookupAttemptedRef.current.has(segmentId)
+    ) {
       return;
     }
 
@@ -659,9 +666,9 @@ export function useCatWorkspaceController({
           return;
         }
 
-        const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext?.trim();
+        const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
         store.revealAgentContext(segmentId);
-        if (existingAgentContext && !options?.forceRefresh) {
+        if (existingAgentContext !== undefined && !options?.forceRefresh) {
           return;
         }
 
@@ -671,7 +678,7 @@ export function useCatWorkspaceController({
             forceRefresh: options?.forceRefresh === true,
           });
           store.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
-          store.mergeSegmentIntelligence(segmentId, { agentContext: agentContext ?? "" });
+          store.mergeSegmentIntelligence(segmentId, { agentContext });
         } catch (error) {
           const message =
             error instanceof Error

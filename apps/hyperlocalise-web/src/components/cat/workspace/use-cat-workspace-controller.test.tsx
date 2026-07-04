@@ -340,6 +340,52 @@ describe("useCatWorkspaceController", () => {
     });
   });
 
+  it("retries cached agent context lookup when the lookup function changes", async () => {
+    const lookupSegmentContext = vi.fn().mockResolvedValue(null);
+    const nextLookupSegmentContext = vi.fn().mockResolvedValue("Cached context from another repo.");
+    const services = { lookupSegmentContext };
+    const { rerender, store } = renderController(undefined, { services });
+
+    await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(1));
+
+    services.lookupSegmentContext = nextLookupSegmentContext;
+    rerender();
+
+    await waitFor(() =>
+      expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
+        "Cached context from another repo.",
+      ),
+    );
+    expect(nextLookupSegmentContext).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      {
+        cachedOnly: true,
+      },
+    );
+  });
+
+  it("stores null from full agent context lookups as an attempted result", async () => {
+    const lookupSegmentContext = vi.fn().mockResolvedValue(null);
+    const nextLookupSegmentContext = vi
+      .fn()
+      .mockResolvedValue("Cached context from the repository.");
+    const services = { lookupSegmentContext };
+    const { result, rerender, store } = renderController(undefined, { services });
+
+    await act(async () => {
+      await result.current.dependencies.review.onAskQuestion("seg-02");
+    });
+
+    expect(store.segmentIntelligence["seg-02"]?.agentContext).toBeNull();
+
+    services.lookupSegmentContext = nextLookupSegmentContext;
+    rerender();
+
+    await Promise.resolve();
+
+    expect(nextLookupSegmentContext).not.toHaveBeenCalled();
+  });
+
   it("refreshes existing agent context when requested", async () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-02",
