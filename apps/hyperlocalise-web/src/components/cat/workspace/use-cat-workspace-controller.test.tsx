@@ -364,7 +364,7 @@ describe("useCatWorkspaceController", () => {
     );
   });
 
-  it("stores null from full agent context lookups as an attempted result", async () => {
+  it("stores null from full agent context lookups and allows retry", async () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue(null);
     const nextLookupSegmentContext = vi
       .fn()
@@ -381,9 +381,17 @@ describe("useCatWorkspaceController", () => {
     services.lookupSegmentContext = nextLookupSegmentContext;
     rerender();
 
-    await Promise.resolve();
+    await act(async () => {
+      await result.current.dependencies.review.onAskQuestion("seg-02");
+    });
 
-    expect(nextLookupSegmentContext).not.toHaveBeenCalled();
+    expect(nextLookupSegmentContext).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      { forceRefresh: false },
+    );
+    expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
+      "Cached context from the repository.",
+    );
   });
 
   it("refreshes existing agent context when requested", async () => {

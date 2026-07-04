@@ -668,7 +668,7 @@ export function useCatWorkspaceController({
 
         const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
         store.revealAgentContext(segmentId);
-        if (existingAgentContext !== undefined && !options?.forceRefresh) {
+        if (Boolean(existingAgentContext?.trim()) && !options?.forceRefresh) {
           return;
         }
 

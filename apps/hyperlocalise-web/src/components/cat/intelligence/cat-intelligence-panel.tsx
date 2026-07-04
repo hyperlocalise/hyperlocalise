@@ -236,7 +236,9 @@ export function CatIntelligencePanel({
     intelligence.filePath,
   ].filter(Boolean);
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
+  const hasAttemptedAgentLookup = intelligence.agentContext !== undefined;
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
+  const canRefreshAgentContext = hasAttemptedAgentLookup && onRefreshContext;
 
   function handleUseTmMatch(match: CatTranslationMemoryMatch) {
     if (!onUseTmMatch) {
@@ -298,7 +300,7 @@ export function CatIntelligencePanel({
             <PanelSection
               title={intl.formatMessage(catIntelligencePanelMessages.agentContextTitle)}
               action={
-                hasAgentInsight && onRefreshContext ? (
+                canRefreshAgentContext ? (
                   <Button
                     type="button"
                     variant="ghost"
