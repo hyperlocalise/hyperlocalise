@@ -56,7 +56,9 @@ describe("ProjectFileCatPageContent guard ordering", () => {
         "Choose a source file from the project files list to open it in the CAT workspace.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText("This project does not have a source locale.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This project does not have a source locale."),
+    ).not.toBeInTheDocument();
   });
 
   it("does not treat a disabled project query as a missing source locale", () => {
@@ -80,6 +82,8 @@ describe("ProjectFileCatPageContent guard ordering", () => {
     );
 
     expect(useProjectPageQueryMock).toHaveBeenCalledWith("acme", "proj_1", { enabled: false });
-    expect(screen.queryByText("This project does not have a source locale.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This project does not have a source locale."),
+    ).not.toBeInTheDocument();
   });
 });

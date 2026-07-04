@@ -31,9 +31,7 @@ vi.mock("@/components/app-shell/store/use-app-shell-sidebar", () => ({
 }));
 
 vi.mock("./job-cat-source-file-picker", () => ({
-  JobCatSourceFilePicker: () => (
-    <div>Choose a source file to open in the CAT workspace.</div>
-  ),
+  JobCatSourceFilePicker: () => <div>Choose a source file to open in the CAT workspace.</div>,
 }));
 
 vi.mock("./load-job-cat-files", () => ({
@@ -69,7 +67,9 @@ describe("JobCatPageContent guard ordering", () => {
     expect(
       screen.getByText("Choose a source file to open in the CAT workspace."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("This project does not have a source locale.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This project does not have a source locale."),
+    ).not.toBeInTheDocument();
   });
 
   it("does not treat a disabled project query as a missing source locale", () => {
@@ -95,6 +95,8 @@ describe("JobCatPageContent guard ordering", () => {
     );
 
     expect(useProjectPageQueryMock).toHaveBeenCalledWith("acme", "proj_1", { enabled: false });
-    expect(screen.queryByText("This project does not have a source locale.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This project does not have a source locale."),
+    ).not.toBeInTheDocument();
   });
 });

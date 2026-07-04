@@ -62,7 +62,7 @@ export function ProjectFileCatPageContent({
     preferredOpen: hasFileReference ? false : null,
   });
 
-  if (!hasFileReference) {
+  if (!sourcePath) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
