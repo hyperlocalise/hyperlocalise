@@ -7,6 +7,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4 } from "@/components/ui/typography";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { toast } from "sonner";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
 
@@ -71,6 +72,14 @@ function canOpenFileInCat(
   return isNativeCatFile;
 }
 
+function catOpenUnavailableMessage(targetLocale: string | null) {
+  if (!targetLocale) {
+    return "No target locale is available for this task file.";
+  }
+
+  return "This file can't be opened in the CAT workspace.";
+}
+
 export function JobSourceFilesPanel({
   organizationSlug,
   projectId,
@@ -116,6 +125,7 @@ export function JobSourceFilesPanel({
 
       const targetLocale = resolveTargetLocale(file, highlightLocale);
       if (!canOpenFileInCat(file, sourcePath, encodedJobId, targetLocale)) {
+        toast.error(catOpenUnavailableMessage(targetLocale));
         return;
       }
 
