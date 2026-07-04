@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
@@ -16,12 +16,7 @@ export function AppShellStoreProvider({
   defaultNavigationGroups: readonly NavigationGroup[];
   children: ReactNode;
 }) {
-  const store = useMemo(
-    () => createAppShellStore(defaultNavigationGroups),
-    // Store is scoped to shell mount; navigation groups are stable for the org layout.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const [store] = useState(() => createAppShellStore(defaultNavigationGroups));
   const pathname = usePathname();
 
   useEffect(() => {

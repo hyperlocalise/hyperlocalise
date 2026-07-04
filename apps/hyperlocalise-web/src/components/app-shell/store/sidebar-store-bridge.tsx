@@ -22,7 +22,7 @@ export const SidebarStoreBridge = observer(function SidebarStoreBridge() {
 
   useEffect(() => {
     store.sidebar.sync();
-  }, [store, sidebar, forceCollapsed, preferredOpen]);
+  }, [store, forceCollapsed, preferredOpen]);
 
   return null;
 });
