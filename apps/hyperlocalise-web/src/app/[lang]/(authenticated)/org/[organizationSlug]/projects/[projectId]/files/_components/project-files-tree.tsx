@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { FileTreeRowDecorationContext } from "@pierre/trees";
 import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
+import { preloadFileTree } from "@pierre/trees/ssr";
+import "@pierre/trees/web-components";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { formatBytes } from "./project-files-shared";
+
+const TREE_MIN_HEIGHT_PX = 320;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -14,7 +18,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 
 const projectFilesTreeStyle = {
   height: "100%",
-  minHeight: 0,
+  minHeight: `${TREE_MIN_HEIGHT_PX}px`,
   backgroundColor: "transparent",
   color: "var(--foreground)",
   borderColor: "var(--border)",
@@ -67,16 +71,30 @@ export function ProjectFilesTree({
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
   const latestStateRef = useRef({ fileByPath, onSelectFile });
+  const preloadedData = useMemo(
+    () =>
+      paths.length > 0
+        ? preloadFileTree({
+            id: "project-files-tree",
+            initialExpansion: "open",
+            paths,
+            initialVisibleRowCount: Math.max(paths.length, 8),
+          })
+        : null,
+    [paths],
+  );
 
   useEffect(() => {
     latestStateRef.current = { fileByPath, onSelectFile };
   }, [fileByPath, onSelectFile]);
 
   const { model } = useFileTree({
+    id: "project-files-tree",
     density: "compact",
     flattenEmptyDirectories: true,
     initialExpansion: "open",
     initialSelectedPaths: selectedPaths,
+    initialVisibleRowCount: Math.max(paths.length, 8),
     paths,
     renderRowDecoration: (context: FileTreeRowDecorationContext) => {
       if (context.item.kind !== "file") {
@@ -118,12 +136,20 @@ export function ProjectFilesTree({
     model.scrollToPath(selectedSourcePath, { offset: "nearest" });
   }, [fileByPath, model, selectedSourcePath]);
 
+  if (paths.length === 0) {
+    return null;
+  }
+
   return (
-    <PierreFileTree
-      aria-label={ariaLabel}
-      className="h-full min-h-0 border-0 bg-transparent"
-      model={model}
-      style={projectFilesTreeStyle}
-    />
+    <div className="h-full min-h-80 w-full">
+      <PierreFileTree
+        aria-label={ariaLabel}
+        className="size-full border-0 bg-transparent"
+        id="project-files-tree"
+        model={model}
+        preloadedData={preloadedData ?? undefined}
+        style={projectFilesTreeStyle}
+      />
+    </div>
   );
 }
