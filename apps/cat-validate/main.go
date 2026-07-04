@@ -4,7 +4,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
+
+const (
+	serverReadHeaderTimeout = 5 * time.Second
+	serverReadTimeout       = 15 * time.Second
+	serverWriteTimeout      = 15 * time.Second
+	serverIdleTimeout       = 60 * time.Second
+)
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
+		ReadTimeout:       serverReadTimeout,
+		WriteTimeout:      serverWriteTimeout,
+		IdleTimeout:       serverIdleTimeout,
+	}
+}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -24,7 +43,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("cat-validate listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := newHTTPServer(addr, mux).ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
