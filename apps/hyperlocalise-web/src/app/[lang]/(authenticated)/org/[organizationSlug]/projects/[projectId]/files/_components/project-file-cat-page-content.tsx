@@ -36,7 +36,10 @@ export function ProjectFileCatPageContent({
     queryFn: () => fetchProjectFiles(organizationSlug, projectId),
     enabled: Boolean(sourcePath),
   });
-  useAppShellSidebar({ forceCollapsed: Boolean(sourcePath) });
+  useAppShellSidebar({
+    forceCollapsed: Boolean(sourcePath),
+    preferredOpen: sourcePath ? false : null,
+  });
 
   if (!sourcePath) {
     return (

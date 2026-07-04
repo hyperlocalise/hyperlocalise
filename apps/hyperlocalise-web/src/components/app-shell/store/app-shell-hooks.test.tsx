@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { isValidElement, type ReactNode } from "react";
-import { act, render, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { Chat01Icon } from "@hugeicons/core-free-icons";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -152,6 +152,42 @@ describe("app shell page hooks", () => {
     );
   });
 
+  it("skips breadcrumb appends until a label is available", async () => {
+    const storeRef: { current: AppShellStore | null } = { current: null };
+    const baseBreadcrumbs = [{ label: "Jobs", href: "/org/acme/projects/proj_1/jobs" }];
+
+    function BreadcrumbAppendDemo({ label }: { label?: string }) {
+      useAppShellBreadcrumbAppend({
+        id: "job-name",
+        label,
+      });
+      return null;
+    }
+
+    const view = render(
+      <AppShellHookTestProvider onStore={(nextStore) => (storeRef.current = nextStore)}>
+        <BreadcrumbAppendDemo />
+      </AppShellHookTestProvider>,
+    );
+
+    await waitFor(() =>
+      expect(storeRef.current?.breadcrumb.applyOverrides(baseBreadcrumbs)).toEqual(baseBreadcrumbs),
+    );
+
+    view.rerender(
+      <AppShellHookTestProvider onStore={(nextStore) => (storeRef.current = nextStore)}>
+        <BreadcrumbAppendDemo label="Translate homepage" />
+      </AppShellHookTestProvider>,
+    );
+
+    await waitFor(() =>
+      expect(storeRef.current?.breadcrumb.applyOverrides(baseBreadcrumbs)).toEqual([
+        { label: "Jobs", href: "/org/acme/projects/proj_1/jobs" },
+        { label: "Translate homepage", href: undefined },
+      ]),
+    );
+  });
+
   it("registers custom navigation and restores route mode on cleanup", async () => {
     const storeRef: { current: AppShellStore | null } = { current: null };
 
@@ -199,7 +235,7 @@ describe("app shell page hooks", () => {
       expect(storeRef.current?.sidebar.preferredOpen).toBe(false);
     });
 
-    act(() => view.unmount());
+    view.unmount();
 
     await waitFor(() => {
       expect(storeRef.current?.sidebar.forceCollapsed).toBe(false);

@@ -179,7 +179,7 @@ export function NativeJobDetailContent({
   const translateAction = job && isProviderBackedJob(job) ? providerTranslateAction(job) : null;
   useAppShellBreadcrumbAppend({
     id: "job-detail",
-    label: layout?.title ?? jobId,
+    label: layout?.title,
   });
 
   const headerActions = job ? (

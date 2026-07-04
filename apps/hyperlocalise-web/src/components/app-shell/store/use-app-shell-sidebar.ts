@@ -16,6 +16,10 @@ export function useAppShellSidebar({
   const store = useAppShellStore();
 
   useEffect(() => {
+    if (!forceCollapsed && preferredOpen === null) {
+      return;
+    }
+
     store.sidebar.setPreferredOpen(preferredOpen);
     store.sidebar.setForceCollapsed(forceCollapsed);
 
