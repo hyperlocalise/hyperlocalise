@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 import type {
   CatFormatCheck,
   CatSegment,
@@ -351,7 +352,17 @@ const heroDemoChecks: CatFormatCheck[] = [
 ];
 
 const heroDemoState: CatWorkspaceState = {
+  fileContext: {
+    sourcePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+    filename: "hero-section.tsx",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    providerKind: null,
+    canEditTranslations: true,
+    canAddComments: true,
+  },
   segments: heroDemoSegments,
+  queueSegments: heroDemoSegments.map(toQueueSegment),
   selectedSegmentId: "hero-title",
   formatChecks: heroDemoChecks,
   segmentFormatChecks: {

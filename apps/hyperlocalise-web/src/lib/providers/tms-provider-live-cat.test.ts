@@ -333,13 +333,11 @@ describe("getTmsProviderLiveCatFile", () => {
       externalStringId: "1001",
       key: "hero.title",
       sourceText: "Hello",
-      comments: [],
     });
     expect(catFile?.segments[0]).not.toHaveProperty("target");
     expect(catFile?.segments[1]).toMatchObject({
       externalStringId: "1002",
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
-      comments: [],
     });
     expect(catFile?.segments[1]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
@@ -486,7 +484,6 @@ describe("getTmsProviderLiveCatFile", () => {
       externalStringId: "1001",
       key: "hero.title",
       sourceText: "Hello",
-      comments: [],
     });
     expect(catFile?.segments[0]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
@@ -568,7 +565,6 @@ describe("getTmsProviderLiveCatFile", () => {
       externalStringId: "1001",
       key: "hero.title",
       sourceText: "Hello",
-      comments: [],
     });
     expect(catFile?.segments[0]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
@@ -1267,7 +1263,7 @@ describe("getTmsProviderLiveCatFile", () => {
       hasMore: false,
     });
     expect(catFile?.segments).toHaveLength(2);
-    expect(catFile?.segments.every((segment) => segment.unresolvedIssueCount === 1)).toBe(true);
+    expect(catFile?.segments.every((segment) => !("unresolvedIssueCount" in segment))).toBe(true);
     expect(issueCommentRequests).toEqual([]);
   });
 });

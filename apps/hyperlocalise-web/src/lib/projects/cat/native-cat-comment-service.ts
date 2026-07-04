@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
@@ -129,60 +129,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
     }
 
     return commentsByKeyId;
-  }
-
-  async countByKeyIds(input: {
-    organizationId: string;
-    projectId: string;
-    translationKeyIds: string[];
-    targetLocale: string;
-  }) {
-    if (input.translationKeyIds.length === 0) {
-      return new Map<string, { commentCount: number; unresolvedIssueCount: number }>();
-    }
-
-    const rows = await this.database
-      .select({
-        translationKeyId: schema.projectTranslationComments.translationKeyId,
-        type: schema.projectTranslationComments.type,
-        status: schema.projectTranslationComments.status,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(schema.projectTranslationComments)
-      .where(
-        and(
-          eq(schema.projectTranslationComments.organizationId, input.organizationId),
-          eq(schema.projectTranslationComments.projectId, input.projectId),
-          eq(schema.projectTranslationComments.targetLocale, input.targetLocale),
-          inArray(schema.projectTranslationComments.translationKeyId, input.translationKeyIds),
-        ),
-      )
-      .groupBy(
-        schema.projectTranslationComments.translationKeyId,
-        schema.projectTranslationComments.type,
-        schema.projectTranslationComments.status,
-      );
-
-    const countsByKeyId = new Map<string, { commentCount: number; unresolvedIssueCount: number }>();
-
-    for (const row of rows) {
-      const existing = countsByKeyId.get(row.translationKeyId) ?? {
-        commentCount: 0,
-        unresolvedIssueCount: 0,
-      };
-      existing.commentCount += row.count;
-
-      if (
-        row.type === "issue" &&
-        (row.status === "open" || row.status === "unresolved" || row.status === null)
-      ) {
-        existing.unresolvedIssueCount += row.count;
-      }
-
-      countsByKeyId.set(row.translationKeyId, existing);
-    }
-
-    return countsByKeyId;
   }
 
   async save(input: {

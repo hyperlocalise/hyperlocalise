@@ -40,7 +40,6 @@ export function createCatQueueSegment(
     sourceText: "Sign in to your workspace",
     context: "Heading on the sign-in screen",
     type: "text",
-    comments: [],
     ...overrides,
   };
 }
@@ -54,12 +53,6 @@ export function createCatSegment(
     sourceText: "Sign in to your workspace",
     context: "Heading on the sign-in screen",
     type: "text",
-    target: {
-      text: "Connectez-vous à votre espace",
-      externalTranslationId: "translation-1",
-      isApproved: false,
-    },
-    comments: [],
     ...overrides,
   };
 }

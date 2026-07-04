@@ -3,9 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
+import { createCatWorkspaceStore } from "@/components/cat/workspace/store/cat-workspace-store";
+
 import {
-  applyCatSegmentCommentsToWorkspaceState,
-  applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
   formatCheckForSegment,
   resolveCatFileIdentity,
@@ -41,7 +41,6 @@ function catFile(overrides: Partial<ProjectFileCatQueueFile> = {}): ProjectFileC
         sourceText: "Sign in to your workspace",
         context: "Heading on the sign-in screen",
         type: "text",
-        comments: [],
       },
       {
         externalStringId: "issue-string",
@@ -49,16 +48,6 @@ function catFile(overrides: Partial<ProjectFileCatQueueFile> = {}): ProjectFileC
         sourceText: "{count, plural, one {# review pending} other {# reviews pending}}",
         context: null,
         type: "icu",
-        comments: [
-          {
-            externalCommentId: "comment-1",
-            type: "issue",
-            status: "unresolved",
-            text: "Needs product context",
-            createdAt: "2026-06-10T00:00:00.000Z",
-            locale: "vi",
-          },
-        ],
       },
     ],
     ...overrides,
@@ -67,73 +56,29 @@ function catFile(overrides: Partial<ProjectFileCatQueueFile> = {}): ProjectFileC
 
 describe("projectFileCatToWorkspaceState", () => {
   it("maps CAT content into workspace state without eager format checks", () => {
-    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+    const state = projectFileCatToWorkspaceState(catFile(), "en-GB", testIntl);
 
     expect(state.selectedSegmentId).toBe("approved-string");
     expect(state.formatChecks).toEqual([]);
     expect(state.segmentFormatChecks).toEqual({});
-    expect(state.segments[1]).toMatchObject({
+    expect(state.fileContext.sourceLocale).toBe("en-GB");
+    expect(state.fileContext.targetLocale).toBe("vi");
+    expect(state.queueSegments[1]).toMatchObject({
       id: "issue-string",
-      status: "needs_review",
-      tags: ["icu", "1 comment", "1 issue"],
-      comments: [
-        {
-          id: "comment-1",
-          type: "issue",
-          status: "unresolved",
-          text: "Needs product context",
-          createdAt: "2026-06-10T00:00:00.000Z",
-          locale: "vi",
-          author: null,
-        },
-      ],
     });
-  });
-
-  it("ignores resolved issues when computing segment status and tags", () => {
-    const state = projectFileCatToWorkspaceState(
-      catFile({
-        segments: [
-          {
-            externalStringId: "resolved-issue-string",
-            key: "dashboard.title",
-            sourceText: "Dashboard",
-            context: null,
-            type: "text",
-            comments: [
-              {
-                externalCommentId: "comment-resolved",
-                type: "issue",
-                status: "resolved",
-                text: "Fixed wording",
-                createdAt: "2026-06-10T00:00:00.000Z",
-                locale: "vi",
-              },
-            ],
-          },
-        ],
-      }),
-      testIntl,
-    );
-
-    expect(state.segments[0]).toMatchObject({
-      id: "resolved-issue-string",
-      status: "pending",
-      hasOpenIssues: false,
-      tags: ["text", "1 comment"],
-    });
+    expect(state.segmentIntelligence?.["issue-string"]?.segmentType).toBe("icu");
   });
 
   it("uses Approve as the primary action label for native projects", () => {
-    const state = projectFileCatToWorkspaceState(catFile({ provider: null }), testIntl);
+    const state = projectFileCatToWorkspaceState(catFile({ provider: null }), "en-US", testIntl);
 
     expect(state.primaryActionLabel).toBe("Approve");
-    expect(state.providerKind).toBeNull();
-    expect(state.canAddComments).toBe(true);
+    expect(state.fileContext.providerKind).toBeNull();
+    expect(state.fileContext.canAddComments).toBe(true);
   });
 
   it("uses Save to provider as the primary action label for TMS projects", () => {
-    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+    const state = projectFileCatToWorkspaceState(catFile(), "en-US", testIntl);
 
     expect(state.primaryActionLabel).toBe("Save to provider");
   });
@@ -149,10 +94,11 @@ describe("projectFileCatToWorkspaceState", () => {
           hasMore: true,
         },
       }),
+      "en-US",
       testIntl,
     );
 
-    expect(state.segments[0]?.index).toBe(51);
+    expect(state.queueSegments[0]?.index).toBe(51);
   });
 
   it("maps maxLength from CAT segments into workspace state", () => {
@@ -166,14 +112,14 @@ describe("projectFileCatToWorkspaceState", () => {
             context: null,
             type: "text",
             maxLength: 24,
-            comments: [],
           },
         ],
       }),
+      "en-US",
       testIntl,
     );
 
-    expect(state.segments[0]?.maxLength).toBe(24);
+    expect(state.segmentIntelligence?.["limited-string"]?.maxLength).toBe(24);
   });
 
   it("omits maxLength from workspace state when the CAT segment has a non-positive value", () => {
@@ -187,18 +133,18 @@ describe("projectFileCatToWorkspaceState", () => {
             context: null,
             type: "text",
             maxLength: 0,
-            comments: [],
           },
         ],
       }),
+      "en-US",
       testIntl,
     );
 
-    expect(state.segments[0]?.maxLength).toBeUndefined();
+    expect(state.segmentIntelligence?.["limited-string"]?.maxLength).toBeUndefined();
   });
 });
 
-describe("applyCatSegmentTargetToWorkspaceState", () => {
+describe("CatWorkspaceStore lazy segment ingest", () => {
   it("merges lazy segment target without clobbering queue-only metadata", () => {
     const file = catFile({
       pagination: {
@@ -215,9 +161,6 @@ describe("applyCatSegmentTargetToWorkspaceState", () => {
           sourceText: "Sign in to your workspace",
           context: null,
           type: "text",
-          comments: [],
-          commentCount: 3,
-          unresolvedIssueCount: 1,
         },
         {
           externalStringId: "untouched-segment",
@@ -225,61 +168,52 @@ describe("applyCatSegmentTargetToWorkspaceState", () => {
           sourceText: "Dashboard",
           context: null,
           type: "text",
-          comments: [],
         },
       ],
     });
-    const state = projectFileCatToWorkspaceState(file, testIntl);
-    const untouchedSegment = state.segments[1];
+    const state = projectFileCatToWorkspaceState(file, "en-US", testIntl);
+    const store = createCatWorkspaceStore(state);
+    const untouchedSegment = store.getQueuePanelSegments("all", false)[1];
 
-    const nextState = applyCatSegmentTargetToWorkspaceState(
-      state,
-      file,
-      "segment-with-detail",
-      {
-        text: "Dang nhap vao khong gian lam viec",
-        externalTranslationId: "translation-1",
-        isApproved: false,
-      },
-      testIntl,
-    );
+    store.applySegmentTarget("segment-with-detail", {
+      text: "Dang nhap vao khong gian lam viec",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
 
-    expect(nextState.segments[0]).toMatchObject({
+    expect(store.getSegmentView("segment-with-detail")).toMatchObject({
       id: "segment-with-detail",
       index: 51,
       targetText: "Dang nhap vao khong gian lam viec",
-      tags: ["text", "3 comments", "1 issue"],
-      hasOpenIssues: true,
+      status: "needs_review",
     });
-    expect(nextState.segments[1]).toBe(untouchedSegment);
+    expect(store.segmentIntelligence?.["segment-with-detail"]?.segmentType).toBe("text");
+    expect(store.getQueuePanelSegments("all", false)[1]).toEqual(untouchedSegment);
   });
 
-  it("returns the existing state when target does not match a queued segment", () => {
-    const file = catFile();
-    const state = projectFileCatToWorkspaceState(file, testIntl);
-
-    const nextState = applyCatSegmentTargetToWorkspaceState(
-      state,
-      file,
-      "missing-segment",
-      {
-        text: "Missing",
-        externalTranslationId: null,
-        isApproved: false,
-      },
-      testIntl,
+  it("ignores target updates for segments that are not in the queue", () => {
+    const store = createCatWorkspaceStore(
+      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
     );
 
-    expect(nextState).toBe(state);
+    store.applySegmentTarget("missing-segment", {
+      text: "Missing",
+      externalTranslationId: null,
+      isApproved: false,
+    });
+
+    expect(store.getSegmentView("missing-segment")).toBeUndefined();
   });
 });
 
-describe("applyCatSegmentCommentsToWorkspaceState", () => {
+describe("CatWorkspaceStore lazy comments ingest", () => {
   it("updates one segment's comments and issue tags while preserving other segments", () => {
-    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
-    const untouchedSegment = state.segments[0];
+    const store = createCatWorkspaceStore(
+      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
+    );
+    const untouchedSegment = store.getQueuePanelSegments("all", false)[0];
 
-    const nextState = applyCatSegmentCommentsToWorkspaceState(state, "issue-string", [
+    store.applySegmentComments("issue-string", [
       {
         externalCommentId: "comment-1",
         type: "comment",
@@ -299,8 +233,8 @@ describe("applyCatSegmentCommentsToWorkspaceState", () => {
       },
     ]);
 
-    expect(nextState.segments[0]).toBe(untouchedSegment);
-    expect(nextState.segments[1]).toMatchObject({
+    expect(store.getQueuePanelSegments("all", false)[0]).toEqual(untouchedSegment);
+    expect(store.getSegmentView("issue-string")).toMatchObject({
       id: "issue-string",
       hasOpenIssues: false,
       tags: ["icu", "2 comments"],
@@ -323,12 +257,14 @@ describe("applyCatSegmentCommentsToWorkspaceState", () => {
     });
   });
 
-  it("returns the existing state when comments target an unknown segment", () => {
-    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+  it("ignores comments for segments that are not in the queue", () => {
+    const store = createCatWorkspaceStore(
+      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
+    );
 
-    const nextState = applyCatSegmentCommentsToWorkspaceState(state, "missing-segment", []);
+    store.applySegmentComments("missing-segment", []);
 
-    expect(nextState).toBe(state);
+    expect(store.segmentComments.has("missing-segment")).toBe(false);
   });
 });
 

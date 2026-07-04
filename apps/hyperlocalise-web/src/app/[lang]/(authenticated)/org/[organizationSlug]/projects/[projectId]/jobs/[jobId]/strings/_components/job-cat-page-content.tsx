@@ -20,7 +20,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
-import { ProjectPageShell } from "../../../../_components/project-page-shell";
+import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
 import {
   catFileRepositoryPreferenceKey,
   readCatFileRepositoryPreference,
@@ -115,6 +115,9 @@ export function JobCatPageContent({
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const hasFileReference = Boolean(sourcePath || storedFileId);
   const isNativeJob = Boolean(storedFileId);
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: hasFileReference,
+  });
   useAppShellSidebar({ forceCollapsed: hasFileReference });
   const targetFileQuery = useQuery({
     queryKey: projectJobCatTargetFileQueryKey(
@@ -212,7 +215,7 @@ export function JobCatPageContent({
     );
   }
 
-  if (targetFileQuery.isLoading) {
+  if (targetFileQuery.isLoading || projectQuery.isLoading) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -223,14 +226,16 @@ export function JobCatPageContent({
     );
   }
 
-  if (targetFileQuery.isError) {
+  if (targetFileQuery.isError || projectQuery.isError) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {targetFileQuery.error instanceof Error
-              ? targetFileQuery.error.message
-              : "Unable to load task files."}
+            {projectQuery.error instanceof Error
+              ? projectQuery.error.message
+              : targetFileQuery.error instanceof Error
+                ? targetFileQuery.error.message
+                : "Unable to load task files."}
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -269,6 +274,30 @@ export function JobCatPageContent({
     );
   }
 
+  const sourceLocale = projectQuery.data?.sourceLocale;
+  if (projectQuery.isSuccess && !sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            This project does not have a source locale.
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
   if (isNativeFile) {
     return (
       <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
@@ -289,6 +318,7 @@ export function JobCatPageContent({
             key={selectedFile.sourcePath}
             organizationSlug={organizationSlug}
             projectId={projectId}
+            sourceLocale={sourceLocale}
             sourcePath={selectedFile.sourcePath}
             targetLocale={targetLocale ?? undefined}
             highlightLocale={targetLocale}
@@ -450,6 +480,7 @@ export function JobCatPageContent({
           key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
+          sourceLocale={sourceLocale}
           sourcePath={selectedFile.sourcePath}
           externalResourceId={selectedFile.provider.externalResourceId}
           resourceType={selectedFile.provider.resourceType}

@@ -1,4 +1,5 @@
 import type {
+  CatFileContext,
   CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
@@ -14,6 +15,7 @@ import {
 import type { CatMessageParityIssue } from "@/components/cat/message-format/cat-message-format";
 import { localizeCatMessageParityIssue } from "@/components/cat/message-format/cat-message-format-i18n";
 import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 
 const fixtureIntl = getIntlShape("en");
 
@@ -538,14 +540,27 @@ export function createCatWorkspaceState(
   overrides: Partial<CatWorkspaceState> = {},
 ): CatWorkspaceState {
   const segments = overrides.segments ?? catSegmentsFixture;
+  const queueSegments = overrides.queueSegments ?? segments.map(toQueueSegment);
+  const defaultFileContext: CatFileContext = {
+    sourcePath: "app/dashboard/index.tsx",
+    filename: "dashboard.tsx",
+    sourceLocale: SOURCE_LOCALE,
+    targetLocale: TARGET_LOCALE,
+    providerKind: null,
+    canEditTranslations: true,
+    canAddComments: true,
+  };
+  const { fileContext: fileContextOverride, ...restOverrides } = overrides;
 
   return {
+    queueSegments,
     segments,
     selectedSegmentId: overrides.selectedSegmentId ?? "seg-02",
     formatChecks: catFormatChecksFixture,
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],
-    ...overrides,
+    ...restOverrides,
+    fileContext: { ...defaultFileContext, ...fileContextOverride },
   };
 }
 

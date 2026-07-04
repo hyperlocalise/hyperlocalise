@@ -1,18 +1,35 @@
 import { makeAutoObservable, runInAction } from "mobx";
 
+import type {
+  ProjectFileCatComment,
+  ProjectFileCatTranslation,
+} from "@/api/routes/project/project.schema";
 import {
-  findSegmentIdByKeyOrId,
+  findSegmentIdByKeyOrIdInQueue,
+  isOpenIssueStatus,
+  isServerQueueFilter,
+  segmentMatchesQueueFilterFromInput,
   type CatQueueFilter,
 } from "@/components/cat/queue/cat-queue-filter";
 import type {
+  CatFileContext,
   CatFormatCheck,
+  CatQueueSegment,
   CatSegment,
+  CatSegmentComment,
   CatSegmentIntelligence,
   CatSegmentStatus,
+  CatWorkspaceShell,
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
 
+import {
+  segmentStatusFromTarget,
+  mapSegmentComments,
+} from "@/components/cat/project-file/project-file-cat-mapper";
+
 import { CatSegmentDraft } from "./cat-segment-draft";
+import { composeSegmentView, toQueueSegment } from "./cat-segment-view";
 import {
   collectSegmentsWithAgentContext,
   hasSaveFailureCheck,
@@ -24,24 +41,118 @@ type UnsavedNavigationPrompt = {
   proceed: () => void;
 };
 
+const defaultFileContext: CatFileContext = {
+  sourcePath: "",
+  filename: "",
+  sourceLocale: "en",
+  targetLocale: "en",
+  providerKind: null,
+  canEditTranslations: true,
+  canAddComments: false,
+};
+
 function getSegmentsById(state: CatWorkspaceState) {
-  return new Map(state.segments.map((segment) => [segment.id, segment]));
+  return new Map(normalizeHydrationSegments(state).map((segment) => [segment.id, segment]));
+}
+
+function normalizeHydrationSegments(state: CatWorkspaceState): CatSegment[] {
+  if (state.segments?.length) {
+    return state.segments;
+  }
+
+  const fileContext = resolveFileContext(state);
+  return (state.queueSegments ?? []).map((meta) => ({
+    ...meta,
+    sourceLocale: fileContext.sourceLocale,
+    targetLocale: fileContext.targetLocale,
+    targetText: "",
+    status: "pending" as const,
+  }));
+}
+
+function snapshotWithSegments(state: CatWorkspaceState): CatWorkspaceState {
+  const fileContext = resolveFileContext(state);
+  const segments = normalizeHydrationSegments(state);
+
+  return {
+    ...state,
+    fileContext,
+    segments,
+    queueSegments: state.queueSegments ?? segments.map(toQueueSegment),
+  };
+}
+
+export function resolveFileContext(state: CatWorkspaceState): CatFileContext {
+  if (state.fileContext) {
+    return state.fileContext;
+  }
+
+  const firstSegment =
+    state.segments?.[0] ??
+    (state.queueSegments?.[0]
+      ? {
+          sourceLocale: defaultFileContext.sourceLocale,
+          targetLocale: defaultFileContext.targetLocale,
+        }
+      : undefined);
+
+  return {
+    sourcePath: state.intelligence.filePath ?? "",
+    filename: state.breadcrumbs?.[1] ?? "",
+    sourceLocale: firstSegment?.sourceLocale ?? defaultFileContext.sourceLocale,
+    targetLocale: firstSegment?.targetLocale ?? defaultFileContext.targetLocale,
+    providerKind: state.providerKind ?? null,
+    canEditTranslations: state.canEditTranslations !== false,
+    canAddComments: state.canAddComments === true,
+    truncated: Boolean(state.intelligence.constraints),
+  };
+}
+
+function intelligenceFromHydratedSegment(
+  segment: CatSegment,
+  existing: CatSegmentIntelligence | undefined,
+): CatSegmentIntelligence | undefined {
+  const segmentType = segment.tags?.find(
+    (tag) => !tag.includes("comment") && !tag.includes("issue"),
+  );
+  const patch: Partial<CatSegmentIntelligence> = {};
+
+  if (segment.contextLabel?.trim()) {
+    patch.productMeaning = segment.contextLabel.trim();
+  }
+
+  if (segmentType) {
+    patch.segmentType = segmentType;
+  }
+
+  if (segment.maxLength != null && segment.maxLength > 0) {
+    patch.maxLength = segment.maxLength;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return existing;
+  }
+
+  return {
+    glossaryTerms: [],
+    ...existing,
+    ...patch,
+  };
 }
 
 export class CatWorkspaceStore {
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
-  canEditTranslations = true;
-  canAddComments = false;
-  providerKind: string | null = null;
+
+  fileContext: CatFileContext = defaultFileContext;
 
   selectedSegmentId = "";
   queueFilter: CatQueueFilter = "all";
   checkedSegmentIds = new Set<string>();
 
-  /** Server-owned segment fields excluding draft target/status */
-  segmentMeta = new Map<string, Omit<CatSegment, "targetText" | "status">>();
+  segmentMeta = new Map<string, CatQueueSegment>();
+  segmentComments = new Map<string, CatSegmentComment[]>();
   drafts = new Map<string, CatSegmentDraft>();
 
   formatChecks: CatFormatCheck[] = [];
@@ -64,6 +175,9 @@ export class CatWorkspaceStore {
   isRunningFormatChecks = false;
   isBulkActionPending = false;
 
+  isSegmentTargetLoading = false;
+  isCommentsLoading = false;
+
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
 
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
@@ -84,28 +198,31 @@ export class CatWorkspaceStore {
     );
   }
 
+  get canEditTranslations() {
+    return this.fileContext.canEditTranslations;
+  }
+
+  get canAddComments() {
+    return this.fileContext.canAddComments;
+  }
+
+  get providerKind() {
+    return this.fileContext.providerKind;
+  }
+
   get dirtySegmentIds(): ReadonlySet<string> {
     return new Set(
       [...this.drafts.values()].filter((draft) => draft.isDirty).map((draft) => draft.segmentId),
     );
   }
 
-  get segments(): CatSegment[] {
-    return [...this.segmentMeta.values()]
-      .map((meta) => {
-        const draft = this.drafts.get(meta.id);
-        return {
-          ...meta,
-          targetText: draft?.targetText ?? "",
-          status: draft?.status ?? "pending",
-        };
-      })
-      .sort((left, right) => left.index - right.index);
+  get queueSegments(): CatQueueSegment[] {
+    return [...this.segmentMeta.values()].sort((left, right) => left.index - right.index);
   }
 
-  get workspaceState(): CatWorkspaceState {
+  get shellState(): CatWorkspaceShell {
     return {
-      segments: this.segments,
+      fileContext: this.fileContext,
       selectedSegmentId: this.selectedSegmentId,
       formatChecks: this.formatChecks,
       segmentFormatChecks: this.segmentFormatChecks,
@@ -120,59 +237,131 @@ export class CatWorkspaceStore {
     };
   }
 
-  get selectedSegment(): CatSegment | undefined {
-    return this.segments.find(
-      (segment) => segment.id === this.selectedSegmentId || segment.key === this.selectedSegmentId,
+  getSegmentView(segmentId: string): CatSegment | undefined {
+    const meta = this.segmentMeta.get(segmentId);
+    if (!meta) {
+      return undefined;
+    }
+
+    return composeSegmentView({
+      fileContext: this.fileContext,
+      meta,
+      draft: this.drafts.get(segmentId),
+      comments: this.segmentComments.get(segmentId),
+      intelligence: this.segmentIntelligence[segmentId],
+    });
+  }
+
+  findSegmentIdByKeyOrId(segmentIdOrKey: string) {
+    return findSegmentIdByKeyOrIdInQueue(this.queueSegments, segmentIdOrKey);
+  }
+
+  segmentHasOpenIssues(segmentId: string) {
+    return (
+      this.segmentComments
+        .get(segmentId)
+        ?.some((comment) => comment.type === "issue" && isOpenIssueStatus(comment.status)) ?? false
     );
   }
 
+  matchesQueueFilter(segmentId: string, filter: CatQueueFilter) {
+    const draft = this.drafts.get(segmentId);
+    return segmentMatchesQueueFilterFromInput(
+      {
+        status: draft?.status ?? "pending",
+        hasOpenIssues: this.segmentHasOpenIssues(segmentId),
+      },
+      filter,
+    );
+  }
+
+  getFilteredQueueSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean) {
+    if (usesServerQueueFilter && isServerQueueFilter(filter)) {
+      return this.queueSegments;
+    }
+
+    if (filter === "all") {
+      return this.queueSegments;
+    }
+
+    return this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
+  }
+
+  getQueuePanelSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean): CatSegment[] {
+    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).map((meta) => ({
+      ...meta,
+      sourceLocale: this.fileContext.sourceLocale,
+      targetLocale: this.fileContext.targetLocale,
+      targetText: "",
+      status: this.drafts.get(meta.id)?.status ?? "pending",
+    }));
+  }
+
+  get selectedSegmentView(): CatSegment | undefined {
+    const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
+    return this.getSegmentView(segmentId);
+  }
+
   get selectedDraft(): CatSegmentDraft | undefined {
-    return this.drafts.get(this.selectedSegmentId);
+    const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
+    return this.drafts.get(segmentId);
   }
 
   reset(initialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
     this.autoFilledSegmentIds = new Set();
-    this.hydrateFromServerSnapshot(initialState, initialSegmentKeyOrId);
+    this.ingestQueue(initialState, initialSegmentKeyOrId);
+  }
+
+  ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
+    this.hydrateFromServerSnapshot(nextInitialState, initialSegmentKeyOrId);
   }
 
   hydrateFromServerSnapshot(
     nextInitialState: CatWorkspaceState,
     initialSegmentKeyOrId?: string | null,
   ) {
+    const normalizedNext = snapshotWithSegments(nextInitialState);
     const previousInitialState = this.lastHydratedSnapshot;
-    const currentState = this.workspaceState;
+    const currentShell = this.shellState;
+    const nextFileContext = resolveFileContext(normalizedNext);
 
     runInAction(() => {
-      this.jobTitle = nextInitialState.jobTitle;
-      this.breadcrumbs = nextInitialState.breadcrumbs;
-      this.primaryActionLabel = nextInitialState.primaryActionLabel;
-      this.canEditTranslations = nextInitialState.canEditTranslations !== false;
-      this.canAddComments = nextInitialState.canAddComments === true;
-      this.providerKind = nextInitialState.providerKind ?? null;
-      this.intelligence = nextInitialState.intelligence;
+      this.fileContext = nextFileContext;
+      this.jobTitle = normalizedNext.jobTitle;
+      this.breadcrumbs = normalizedNext.breadcrumbs;
+      this.primaryActionLabel = normalizedNext.primaryActionLabel;
+      this.intelligence = normalizedNext.intelligence;
 
       if (!previousInitialState) {
-        this.applySnapshotSegments(nextInitialState.segments);
-        this.segmentFormatChecks = { ...nextInitialState.segmentFormatChecks };
-        this.formatChecks = nextInitialState.formatChecks;
-        this.segmentIntelligence = { ...nextInitialState.segmentIntelligence };
+        this.applySnapshotSegments(
+          normalizedNext.segments ?? [],
+          normalizedNext.segmentIntelligence,
+        );
+        this.segmentFormatChecks = { ...normalizedNext.segmentFormatChecks };
+        this.formatChecks = normalizedNext.formatChecks;
+        this.segmentIntelligence = { ...normalizedNext.segmentIntelligence };
       } else {
-        this.mergeSegmentsFromHydration(previousInitialState, currentState, nextInitialState);
-        this.mergeFormatChecksFromHydration(previousInitialState, currentState, nextInitialState);
-        this.mergeIntelligenceFromHydration(currentState, nextInitialState);
+        this.mergeSegmentsFromHydration(
+          previousInitialState,
+          currentShell,
+          normalizedNext,
+          nextFileContext,
+        );
+        this.mergeFormatChecksFromHydration(previousInitialState, currentShell, normalizedNext);
+        this.mergeIntelligenceFromHydration(currentShell, normalizedNext);
       }
 
-      const nextSegmentIds = new Set(nextInitialState.segments.map((segment) => segment.id));
-      const selectedSegmentId = nextSegmentIds.has(currentState.selectedSegmentId)
-        ? currentState.selectedSegmentId
-        : (nextInitialState.selectedSegmentId ?? nextInitialState.segments[0]?.id ?? "");
+      const nextSegmentIds = new Set((normalizedNext.segments ?? []).map((segment) => segment.id));
+      const selectedSegmentId = nextSegmentIds.has(this.selectedSegmentId)
+        ? this.selectedSegmentId
+        : (normalizedNext.selectedSegmentId ?? normalizedNext.segments?.[0]?.id ?? "");
 
       this.selectedSegmentId = selectedSegmentId;
 
       const matchedSegmentId = initialSegmentKeyOrId
-        ? findSegmentIdByKeyOrId(this.segments, initialSegmentKeyOrId)
+        ? this.findSegmentIdByKeyOrId(initialSegmentKeyOrId)
         : null;
       if (matchedSegmentId && !this.initialSegmentJumpApplied) {
         this.initialSegmentJumpApplied = true;
@@ -181,58 +370,150 @@ export class CatWorkspaceStore {
 
       this.revealedAgentContextSegmentIds = new Set([
         ...this.revealedAgentContextSegmentIds,
-        ...collectSegmentsWithAgentContext(nextInitialState),
+        ...collectSegmentsWithAgentContext(normalizedNext),
       ]);
 
-      this.lastHydratedSnapshot = nextInitialState;
+      this.lastHydratedSnapshot = normalizedNext;
     });
   }
 
-  private applySnapshotSegments(segments: CatSegment[]) {
+  applySegmentTarget(segmentId: string, target: ProjectFileCatTranslation | null) {
+    if (!this.segmentMeta.has(segmentId)) {
+      return;
+    }
+
+    const targetText = target?.text ?? "";
+    const status = segmentStatusFromTarget(
+      { hasOpenIssues: this.segmentHasOpenIssues(segmentId) },
+      target,
+    );
+    const existingDraft = this.drafts.get(segmentId);
+
+    if (existingDraft) {
+      existingDraft.applyServerTarget(targetText, status);
+      return;
+    }
+
+    this.drafts.set(segmentId, new CatSegmentDraft(segmentId, targetText, status));
+  }
+
+  applySegmentComments(segmentId: string, comments: ProjectFileCatComment[]) {
+    if (!this.segmentMeta.has(segmentId)) {
+      return;
+    }
+
+    const mappedComments = mapSegmentComments(comments);
+    this.segmentComments.set(segmentId, mappedComments);
+
+    const hasOpenIssues = mappedComments.some(
+      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
+    );
+    const draft = this.drafts.get(segmentId);
+    if (draft && hasOpenIssues && draft.status !== "reviewed") {
+      draft.applyServerStatus("needs_review");
+    }
+  }
+
+  setSegmentTargetLoading(loading: boolean) {
+    this.isSegmentTargetLoading = loading;
+  }
+
+  setCommentsLoading(loading: boolean) {
+    this.isCommentsLoading = loading;
+  }
+
+  private applySnapshotSegments(
+    segments: CatSegment[],
+    segmentIntelligence: CatWorkspaceState["segmentIntelligence"],
+  ) {
     this.segmentMeta.clear();
+    this.segmentComments.clear();
     this.drafts.clear();
+    this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
-      const { targetText, status, ...meta } = segment;
-      this.segmentMeta.set(segment.id, meta);
-      this.drafts.set(segment.id, new CatSegmentDraft(segment.id, targetText, status));
+      this.segmentMeta.set(segment.id, toQueueSegment(segment));
+      if (segment.comments !== undefined) {
+        this.segmentComments.set(segment.id, segment.comments);
+      }
+      this.drafts.set(
+        segment.id,
+        new CatSegmentDraft(segment.id, segment.targetText, segment.status),
+      );
+
+      const mergedIntelligence = intelligenceFromHydratedSegment(
+        segment,
+        this.segmentIntelligence[segment.id],
+      );
+      if (mergedIntelligence) {
+        this.segmentIntelligence[segment.id] = mergedIntelligence;
+      }
     }
   }
 
   private mergeSegmentsFromHydration(
     previousInitialState: CatWorkspaceState,
-    currentState: CatWorkspaceState,
+    currentShell: CatWorkspaceShell,
     nextInitialState: CatWorkspaceState,
+    nextFileContext: CatFileContext,
   ) {
     const previousSegments = getSegmentsById(previousInitialState);
-    const currentSegments = getSegmentsById(currentState);
+    const nextSegments = nextInitialState.segments ?? [];
 
-    for (const nextSegment of nextInitialState.segments) {
-      const { targetText, status, ...meta } = nextSegment;
+    for (const nextSegment of nextSegments) {
       const previousSegment = previousSegments.get(nextSegment.id);
-      const currentSegment = currentSegments.get(nextSegment.id);
+      const currentDraft = this.drafts.get(nextSegment.id);
+      const currentTargetText = currentDraft?.targetText ?? "";
       const existingDraft = this.drafts.get(nextSegment.id);
 
-      this.segmentMeta.set(nextSegment.id, meta);
+      this.segmentMeta.set(nextSegment.id, toQueueSegment(nextSegment));
+      if (nextSegment.comments !== undefined) {
+        this.segmentComments.set(nextSegment.id, nextSegment.comments);
+      }
 
-      if (!previousSegment || !currentSegment || !existingDraft) {
-        this.drafts.set(nextSegment.id, new CatSegmentDraft(nextSegment.id, targetText, status));
+      const mergedIntelligence = intelligenceFromHydratedSegment(
+        nextSegment,
+        this.segmentIntelligence[nextSegment.id] ??
+          nextInitialState.segmentIntelligence?.[nextSegment.id],
+      );
+      if (mergedIntelligence) {
+        this.segmentIntelligence[nextSegment.id] = mergedIntelligence;
+      }
+
+      if (!previousSegment || !existingDraft) {
+        if (nextSegment.comments === undefined) {
+          this.segmentComments.delete(nextSegment.id);
+        }
+        this.drafts.set(
+          nextSegment.id,
+          new CatSegmentDraft(nextSegment.id, nextSegment.targetText, nextSegment.status),
+        );
         continue;
       }
 
-      if (currentSegment.targetText === previousSegment.targetText) {
-        existingDraft.applyServerTarget(targetText, status);
+      if (currentTargetText === previousSegment.targetText) {
+        if (!nextSegment.targetText.trim() && previousSegment.targetText.trim()) {
+          existingDraft.applyServerStatus(nextSegment.status);
+        } else {
+          existingDraft.applyServerTarget(nextSegment.targetText, nextSegment.status);
+        }
       } else {
-        existingDraft.applyServerStatus(status);
+        existingDraft.applyServerStatus(nextSegment.status);
       }
     }
 
+    this.fileContext = {
+      ...this.fileContext,
+      ...nextFileContext,
+    };
+
     for (const segmentId of this.drafts.keys()) {
-      if (!nextInitialState.segments.some((segment) => segment.id === segmentId)) {
+      if (!nextSegments.some((segment) => segment.id === segmentId)) {
         const draft = this.drafts.get(segmentId);
         if (!draft?.isDirty) {
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
+          this.segmentComments.delete(segmentId);
         }
       }
     }
@@ -240,55 +521,53 @@ export class CatWorkspaceStore {
 
   private mergeFormatChecksFromHydration(
     previousInitialState: CatWorkspaceState,
-    currentState: CatWorkspaceState,
+    currentShell: CatWorkspaceShell,
     nextInitialState: CatWorkspaceState,
   ) {
     const previousSegments = getSegmentsById(previousInitialState);
-    const currentSegments = getSegmentsById(currentState);
     const segmentFormatChecks: Record<string, CatFormatCheck[]> = {
       ...nextInitialState.segmentFormatChecks,
     };
 
-    for (const segment of this.segments) {
-      const previousSegment = previousSegments.get(segment.id);
-      const currentSegment = currentSegments.get(segment.id);
-      const currentChecks = currentState.segmentFormatChecks?.[segment.id];
+    for (const segmentId of this.segmentMeta.keys()) {
+      const previousSegment = previousSegments.get(segmentId);
+      const currentDraft = this.drafts.get(segmentId);
+      const currentTargetText = currentDraft?.targetText ?? "";
+      const currentChecks = currentShell.segmentFormatChecks?.[segmentId];
 
       if (
         previousSegment &&
-        currentSegment &&
         currentChecks &&
-        (currentSegment.targetText !== previousSegment.targetText ||
-          hasSaveFailureCheck(currentChecks))
+        (currentTargetText !== previousSegment.targetText || hasSaveFailureCheck(currentChecks))
       ) {
-        segmentFormatChecks[segment.id] = currentChecks;
+        segmentFormatChecks[segmentId] = currentChecks;
       }
     }
 
     this.segmentFormatChecks = segmentFormatChecks;
     this.formatChecks =
-      currentState.selectedSegmentId === this.selectedSegmentId
-        ? currentState.formatChecks
+      currentShell.selectedSegmentId === this.selectedSegmentId
+        ? currentShell.formatChecks
         : nextInitialState.formatChecks;
   }
 
   private mergeIntelligenceFromHydration(
-    currentState: CatWorkspaceState,
+    currentShell: CatWorkspaceShell,
     nextInitialState: CatWorkspaceState,
   ) {
     const segmentIntelligence: Record<string, CatSegmentIntelligence> = {
       ...nextInitialState.segmentIntelligence,
     };
 
-    for (const segment of this.segments) {
+    for (const segmentId of this.segmentMeta.keys()) {
       const merged = mergeSegmentIntelligenceOnHydrate({
         nextInitialState,
-        currentState,
-        segmentId: segment.id,
-        existing: segmentIntelligence[segment.id],
+        currentState: currentShell,
+        segmentId,
+        existing: segmentIntelligence[segmentId],
       });
       if (merged) {
-        segmentIntelligence[segment.id] = merged;
+        segmentIntelligence[segmentId] = merged;
       }
     }
 

@@ -7,7 +7,7 @@ import type {
   CatSegmentIntelligence,
   CatSegmentStatus,
   CatTranslationMemoryMatch,
-  CatWorkspaceState,
+  CatWorkspaceShell,
 } from "./types";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
@@ -90,8 +90,12 @@ export type PartialCatWorkspaceDependencies = {
   services?: CatWorkspaceServices;
 };
 
+export type { CatWorkspaceShell };
+
 export interface CatWorkspaceViewProps {
-  state: CatWorkspaceState;
+  shell: CatWorkspaceShell;
+  queueSegments: CatSegment[];
+  selectedSegment: CatSegment | null;
   dependencies: CatWorkspaceDependencies;
   isValidating?: boolean;
   isApproving?: boolean;
@@ -138,7 +142,6 @@ export interface CatWorkspaceViewProps {
   onBulkSkip?: () => void;
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
-  editorState?: CatWorkspaceState;
   onIntelligencePanelVisible?: (segmentId: string) => void;
 }
 

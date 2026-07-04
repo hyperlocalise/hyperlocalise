@@ -36,19 +36,27 @@ export function addSaveFailureFormatCheck(
   };
 }
 
-export function getAiSuggestionForSegment(state: CatWorkspaceState, segmentId: string) {
+export function getAiSuggestionForSegment(
+  state: Pick<CatWorkspaceState, "intelligence" | "segmentIntelligence">,
+  segmentId: string,
+) {
   return state.segmentIntelligence?.[segmentId]?.aiSuggestion ?? state.intelligence.aiSuggestion;
 }
 
-export function collectSegmentsWithAgentContext(state: CatWorkspaceState): ReadonlySet<string> {
+export function collectSegmentsWithAgentContext(
+  state: Pick<CatWorkspaceState, "segmentIntelligence">,
+): ReadonlySet<string> {
   return new Set(
-    state.segments
-      .filter((segment) => Boolean(state.segmentIntelligence?.[segment.id]?.agentContext?.trim()))
-      .map((segment) => segment.id),
+    Object.entries(state.segmentIntelligence ?? {})
+      .filter(([, intelligence]) => Boolean(intelligence.agentContext?.trim()))
+      .map(([segmentId]) => segmentId),
   );
 }
 
-export function glossaryTermsForSegment(state: CatWorkspaceState, segmentId: string) {
+export function glossaryTermsForSegment(
+  state: Pick<CatWorkspaceState, "intelligence" | "segmentIntelligence">,
+  segmentId: string,
+) {
   return (
     state.segmentIntelligence?.[segmentId]?.glossaryTerms ?? state.intelligence.glossaryTerms ?? []
   );
@@ -56,7 +64,7 @@ export function glossaryTermsForSegment(state: CatWorkspaceState, segmentId: str
 
 export function mergeSegmentIntelligenceOnHydrate(input: {
   nextInitialState: CatWorkspaceState;
-  currentState: CatWorkspaceState;
+  currentState: Pick<CatWorkspaceState, "intelligence" | "segmentIntelligence">;
   segmentId: string;
   existing: CatSegmentIntelligence | undefined;
 }): CatSegmentIntelligence | undefined {

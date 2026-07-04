@@ -12,7 +12,7 @@ import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-s
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { hasProjectFileCatIdentityFromUrl } from "@/lib/projects/project-file-cat-routing";
 
-import { ProjectPageShell } from "../../_components/project-page-shell";
+import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
 import { selectJobCatTargetLocale } from "../../jobs/[jobId]/strings/_components/job-cat-target-locale";
 import {
   fetchProjectFiles,
@@ -38,6 +38,10 @@ export function ProjectFileCatPageContent({
   resourceType?: "file" | "key" | null;
 }) {
   const queryClient = useQueryClient();
+  const hasFileReference = Boolean(sourcePath);
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: hasFileReference,
+  });
   const filesHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
     sourcePath ? `?sourcePath=${encodeURIComponent(sourcePath)}` : ""
   }`;
@@ -50,12 +54,12 @@ export function ProjectFileCatPageContent({
   const filesQuery = useQuery({
     queryKey: projectFilesQueryKey(organizationSlug, projectId),
     queryFn: () => fetchProjectFiles(organizationSlug, projectId),
-    enabled: Boolean(sourcePath) && !canOpenFromUrlIdentity,
+    enabled: hasFileReference && !canOpenFromUrlIdentity,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId),
   });
   useAppShellSidebar({
-    forceCollapsed: Boolean(sourcePath),
-    preferredOpen: sourcePath ? false : null,
+    forceCollapsed: hasFileReference,
+    preferredOpen: hasFileReference ? false : null,
   });
 
   if (!sourcePath) {
@@ -74,7 +78,7 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  if (!canOpenFromUrlIdentity && filesQuery.isLoading) {
+  if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -85,14 +89,16 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  if (!canOpenFromUrlIdentity && filesQuery.isError) {
+  if (projectQuery.isError || (!canOpenFromUrlIdentity && filesQuery.isError)) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {filesQuery.error instanceof Error
-              ? filesQuery.error.message
-              : "Unable to load project files."}
+            {projectQuery.error instanceof Error
+              ? projectQuery.error.message
+              : filesQuery.error instanceof Error
+                ? filesQuery.error.message
+                : "Unable to load project files."}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
@@ -171,6 +177,30 @@ export function ProjectFileCatPageContent({
     );
   }
 
+  const sourceLocale = projectQuery.data?.sourceLocale;
+  if (projectQuery.isSuccess && !sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            This project does not have a source locale.
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
   return (
     <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
@@ -190,6 +220,7 @@ export function ProjectFileCatPageContent({
           key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
+          sourceLocale={sourceLocale}
           sourcePath={sourcePath}
           externalResourceId={resolvedExternalResourceId}
           resourceType={resolvedResourceType}

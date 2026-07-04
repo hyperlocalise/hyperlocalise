@@ -372,8 +372,7 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFileCatResponse;
-    expect(body.catFile.segments[0]?.comments).toEqual([]);
-    expect(body.catFile.segments[0]?.commentCount).toBe(1);
+    expect(body.catFile.segments[0]).not.toHaveProperty("comments");
 
     const targetResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -530,9 +529,6 @@ describe("project file CAT routes", () => {
           sourceText: "Hello",
           context: null,
           type: "text",
-          target: { text: "Bonjour", externalTranslationId: "9001", isApproved: true },
-          comments: [],
-          unresolvedIssueCount: 1,
         },
       ],
     });
@@ -552,11 +548,9 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFileCatResponse;
-    expect(body.catFile.segments[0]).toMatchObject({
-      externalStringId: "1001",
-      target: { text: "Bonjour", isApproved: true },
-      comments: [],
-    });
+    expect(body.catFile.segments[0]).toMatchObject({ externalStringId: "1001" });
+    expect(body.catFile.segments[0]).not.toHaveProperty("target");
+    expect(body.catFile.segments[0]).not.toHaveProperty("comments");
     expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
       expect.any(String),
       "42",
@@ -616,9 +610,6 @@ describe("project file CAT routes", () => {
           sourceText: "Goodbye",
           context: null,
           type: "text",
-          target: null,
-          comments: [],
-          commentCount: 2,
         },
       ],
     });
@@ -659,8 +650,6 @@ describe("project file CAT routes", () => {
       segments: [
         {
           externalStringId: "1002",
-          comments: [],
-          commentCount: 2,
         },
       ],
     });
@@ -723,8 +712,6 @@ describe("project file CAT routes", () => {
           sourceText: "Goodbye",
           context: null,
           type: "text",
-          target: null,
-          comments: [],
         },
       ],
     });

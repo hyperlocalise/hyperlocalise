@@ -38,8 +38,9 @@ function useIsCompactWorkspace() {
 }
 
 export function CatWorkspaceView({
-  state,
-  editorState,
+  shell,
+  queueSegments,
+  selectedSegment,
   dependencies,
   isValidating: _isValidating = false,
   isApproving = false,
@@ -82,17 +83,13 @@ export function CatWorkspaceView({
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
 }: CatWorkspaceViewProps) {
-  const fullState = editorState ?? state;
-  const navigationSegments = editorState ? state.segments : fullState.segments;
-  const selectedSegmentIndex = navigationSegments.findIndex(
-    (segment) =>
-      segment.id === fullState.selectedSegmentId || segment.key === fullState.selectedSegmentId,
-  );
-  const selectedSegment =
-    fullState.segments.find(
-      (segment) =>
-        segment.id === fullState.selectedSegmentId || segment.key === fullState.selectedSegmentId,
-    ) ?? navigationSegments[selectedSegmentIndex >= 0 ? selectedSegmentIndex : 0];
+  const navigationSegments = queueSegments;
+  const selectedSegmentIndex = selectedSegment
+    ? navigationSegments.findIndex(
+        (segment) =>
+          segment.id === shell.selectedSegmentId || segment.key === shell.selectedSegmentId,
+      )
+    : -1;
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
   const selectedSegmentIdForIntelligence = selectedSegment?.id ?? null;
@@ -148,7 +145,7 @@ export function CatWorkspaceView({
       >
         <CatPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
           <CatQueuePanel
-            segments={state.segments}
+            segments={queueSegments}
             selectedSegmentId=""
             onSelectSegment={dependencies.navigation.onSelectSegment}
             search={queueSearch}
@@ -175,8 +172,10 @@ export function CatWorkspaceView({
     );
   }
 
+  const editorSegment = selectedSegment;
+
   const segmentPosition =
-    selectedSegment.index ??
+    editorSegment.index ??
     (queuePagination
       ? queuePagination.offset + (selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1)
       : selectedSegmentIndex >= 0
@@ -193,23 +192,23 @@ export function CatWorkspaceView({
       : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
   const selectedSegmentIntelligence =
-    fullState.segmentIntelligence?.[selectedSegment.id] ?? fullState.intelligence;
+    shell.segmentIntelligence?.[editorSegment.id] ?? shell.intelligence;
   const selectedSegmentFormatChecks =
-    fullState.segmentFormatChecks?.[selectedSegment.id] ?? fullState.formatChecks;
+    shell.segmentFormatChecks?.[editorSegment.id] ?? shell.formatChecks;
   const aiRecommendationError = selectedSegmentFormatChecks.find(
-    (check) => check.id === `ai-recommendation-failed-${selectedSegment.id}`,
+    (check) => check.id === `ai-recommendation-failed-${editorSegment.id}`,
   )?.message;
   const isEditorBusy = isApproving || isSavingDraft;
-  const canApprove = fullState.canEditTranslations !== false;
-  const canAddComment = fullState.canAddComments === true;
-  const isTargetDirty = dirtySegmentIds?.has(selectedSegment.id) ?? false;
-  const segmentShareUrl = buildSegmentShareUrl?.(selectedSegment) ?? null;
+  const canApprove = shell.fileContext.canEditTranslations !== false;
+  const canAddComment = shell.fileContext.canAddComments === true;
+  const isTargetDirty = dirtySegmentIds?.has(editorSegment.id) ?? false;
+  const segmentShareUrl = buildSegmentShareUrl?.(editorSegment) ?? null;
 
   function renderEditorPanel() {
     return (
-      <CatPanelErrorBoundary scope="editor" resetKeys={[selectedSegment.id]}>
+      <CatPanelErrorBoundary scope="editor" resetKeys={[editorSegment.id]}>
         <CatEditorPanel
-          segment={selectedSegment}
+          segment={editorSegment}
           segmentPosition={segmentPosition}
           totalSegments={totalSegments ?? navigationSegments.length}
           formatChecks={selectedSegmentFormatChecks}
@@ -226,7 +225,7 @@ export function CatWorkspaceView({
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
-          providerKind={fullState.providerKind ?? null}
+          providerKind={shell.fileContext.providerKind ?? null}
           canApprove={canApprove}
           canAddComment={canAddComment}
           canEditTranslations={canApprove}
@@ -234,34 +233,30 @@ export function CatWorkspaceView({
           canLookupContext={canLookupContext}
           canUseAiRecommendation={canUseAiRecommendation}
           segmentShareUrl={segmentShareUrl}
-          onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
-          onCopySource={() =>
-            editing.onTargetChange(selectedSegment.id, selectedSegment.sourceText)
-          }
-          onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
-          onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
-          onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
+          onTargetChange={(value) => editing.onTargetChange(editorSegment.id, value)}
+          onCopySource={() => editing.onTargetChange(editorSegment.id, editorSegment.sourceText)}
+          onClearTarget={() => editing.onTargetChange(editorSegment.id, "")}
+          onUseAiSuggestion={() => editing.onUseAiSuggestion(editorSegment.id)}
+          onApprove={() => void review.onApprove(editorSegment.id, editorSegment.targetText)}
           onSaveDraft={
             review.onSaveDraft
-              ? () => void review.onSaveDraft?.(selectedSegment.id, selectedSegment.targetText)
+              ? () => void review.onSaveDraft?.(editorSegment.id, editorSegment.targetText)
               : undefined
           }
           onAddComment={
             review.onAddComment
-              ? (input) => review.onAddComment?.(selectedSegment.id, input)
+              ? (input) => review.onAddComment?.(editorSegment.id, input)
               : undefined
           }
           onResolveComment={
             review.onResolveComment
-              ? (commentId) => review.onResolveComment?.(selectedSegment.id, commentId)
+              ? (commentId) => review.onResolveComment?.(editorSegment.id, commentId)
               : undefined
           }
-          primaryActionLabel={fullState.primaryActionLabel}
-          onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
+          primaryActionLabel={shell.primaryActionLabel}
+          onAskQuestion={() => review.onAskQuestion(editorSegment.id)}
           onGenerateAiRecommendation={
-            canUseAiRecommendation
-              ? () => void review.onReviewWithAi(selectedSegment.id)
-              : undefined
+            canUseAiRecommendation ? () => void review.onReviewWithAi(editorSegment.id) : undefined
           }
           aiRecommendationError={aiRecommendationError}
           onPrevious={navigation.onPreviousSegment}
@@ -277,11 +272,11 @@ export function CatWorkspaceView({
     return (
       <CatPanelErrorBoundary
         scope="queue"
-        resetKeys={[state.segments.length, selectedSegment.id, queueSearch, queueFilter]}
+        resetKeys={[queueSegments.length, editorSegment.id, queueSearch, queueFilter]}
       >
         <CatQueuePanel
-          segments={state.segments}
-          selectedSegmentId={selectedSegment.id}
+          segments={queueSegments}
+          selectedSegmentId={editorSegment.id}
           dirtySegmentIds={dirtySegmentIds}
           onSelectSegment={(segmentId) => {
             navigation.onSelectSegment(segmentId);
@@ -316,21 +311,21 @@ export function CatWorkspaceView({
     return (
       <CatPanelErrorBoundary
         scope="intelligence"
-        resetKeys={[selectedSegment.id, selectedSegment.targetText]}
+        resetKeys={[editorSegment.id, editorSegment.targetText]}
       >
         <CatIntelligencePanel
           intelligence={selectedSegmentIntelligence}
-          targetText={selectedSegment.targetText}
+          targetText={editorSegment.targetText}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
-          canEditTranslations={fullState.canEditTranslations !== false}
-          onRefreshContext={() => review.onAskQuestion(selectedSegment.id, { forceRefresh: true })}
-          onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
+          canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
+          onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
           onUseGlossaryTerm={(term) =>
-            editing.onUseGlossaryTerm(selectedSegment.id, term, selectedSegment.sourceText)
+            editing.onUseGlossaryTerm(editorSegment.id, term, editorSegment.sourceText)
           }
         />
       </CatPanelErrorBoundary>
@@ -353,7 +348,7 @@ export function CatWorkspaceView({
                 {totalSegments != null ? ` / ${String(totalSegments).padStart(2, "0")}` : "+"}
               </p>
               <p className="truncate font-mono text-sm font-medium text-foreground">
-                {selectedSegment.key}
+                {editorSegment.key}
               </p>
             </div>
           </div>

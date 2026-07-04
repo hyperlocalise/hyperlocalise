@@ -33,16 +33,8 @@ import type {
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
 
-import {
-  applyCatSegmentCommentsToWorkspaceState,
-  applyCatSegmentTargetToWorkspaceState,
-  projectFileCatToWorkspaceState,
-  resolveCatFileIdentity,
-  validateSegmentFormat,
-} from "./project-file-cat-mapper";
+import { projectFileCatToWorkspaceState, validateSegmentFormat } from "./project-file-cat-mapper";
 import { useCatMutations } from "./use-cat-mutations";
-import { useCatSegmentComments } from "./use-cat-segment-comments";
-import { useCatSegmentTarget } from "./use-cat-segment-target";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
@@ -56,6 +48,7 @@ function initialTargetLocale(targetLocales: string[], highlightLocale: string | 
 export function ProjectFileCatWorkspace({
   organizationSlug,
   projectId,
+  sourceLocale,
   sourcePath,
   externalResourceId = null,
   resourceType,
@@ -69,6 +62,7 @@ export function ProjectFileCatWorkspace({
 }: {
   organizationSlug: string;
   projectId: string;
+  sourceLocale: string;
   sourcePath: string;
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
@@ -81,7 +75,6 @@ export function ProjectFileCatWorkspace({
   className?: string;
 }) {
   const intl = useIntl();
-  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -157,104 +150,8 @@ export function ProjectFileCatWorkspace({
       return null;
     }
 
-    return projectFileCatToWorkspaceState(catFile, intl);
-  }, [catFile, intl]);
-
-  useEffect(() => {
-    if (!workspaceState) {
-      return;
-    }
-
-    setActiveSegmentId((current) => {
-      if (current && workspaceState.segments.some((segment) => segment.id === current)) {
-        return current;
-      }
-
-      if (initialSegmentKey) {
-        const matched = workspaceState.segments.find(
-          (segment) => segment.id === initialSegmentKey || segment.key === initialSegmentKey,
-        );
-        if (matched) {
-          return matched.id;
-        }
-      }
-
-      return workspaceState.segments[0]?.id ?? null;
-    });
-  }, [initialSegmentKey, workspaceState]);
-
-  const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
-    resolveCatFileIdentity({
-      externalResourceId,
-      resourceType,
-      catFile,
-    });
-
-  const segmentTargetQuery = useCatSegmentTarget({
-    organizationSlug,
-    projectId,
-    sourcePath,
-    externalResourceId: resolvedExternalResourceId,
-    resourceType: resolvedResourceType,
-    targetLocale,
-    externalStringId: activeSegmentId,
-    repositoryFullName,
-    enabled: Boolean(catFile),
-  });
-
-  const segmentCommentsQuery = useCatSegmentComments({
-    organizationSlug,
-    projectId,
-    sourcePath,
-    externalResourceId: resolvedExternalResourceId,
-    resourceType: resolvedResourceType,
-    targetLocale,
-    externalStringId: activeSegmentId,
-    enabled: Boolean(catFile),
-  });
-
-  const isCommentsLoading =
-    Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
-
-  const isSegmentTargetLoading =
-    Boolean(activeSegmentId) &&
-    segmentTargetQuery.isFetching &&
-    segmentTargetQuery.data === undefined;
-
-  const enrichedWorkspaceState = useMemo(() => {
-    if (!workspaceState) {
-      return null;
-    }
-
-    let nextState = workspaceState;
-
-    if (catFile && activeSegmentId && segmentTargetQuery.data !== undefined) {
-      nextState = applyCatSegmentTargetToWorkspaceState(
-        nextState,
-        catFile,
-        activeSegmentId,
-        segmentTargetQuery.data,
-        intl,
-      );
-    }
-
-    if (activeSegmentId && segmentCommentsQuery.data) {
-      nextState = applyCatSegmentCommentsToWorkspaceState(
-        nextState,
-        activeSegmentId,
-        segmentCommentsQuery.data,
-      );
-    }
-
-    return nextState;
-  }, [
-    activeSegmentId,
-    catFile,
-    intl,
-    segmentCommentsQuery.data,
-    segmentTargetQuery.data,
-    workspaceState,
-  ]);
+    return projectFileCatToWorkspaceState(catFile, sourceLocale, intl);
+  }, [catFile, intl, sourceLocale]);
 
   const validateFormat = useCallback(
     (segment: CatSegment, value: string, glossaryTerms: CatGlossaryTerm[] = []) =>
@@ -492,7 +389,7 @@ export function ProjectFileCatWorkspace({
     );
   }
 
-  const workspaceForRender = enrichedWorkspaceState ?? workspaceState;
+  const workspaceForRender = workspaceState;
   if (!workspaceForRender) {
     return null;
   }
@@ -534,12 +431,20 @@ export function ProjectFileCatWorkspace({
       <CatWorkspaceContainer
         key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
         initialState={workspaceForRender}
-        className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
-        navigation={{
-          onSelectSegment: (segmentId) => {
-            setActiveSegmentId(segmentId);
-          },
+        queueSnapshot={workspaceState}
+        lazySegment={{
+          organizationSlug,
+          projectId,
+          sourcePath,
+          targetLocale,
+          externalResourceId,
+          resourceType,
+          repositoryFullName,
+          catFile,
+          enabled: Boolean(catFile),
         }}
+        className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
+        navigation={{}}
         services={{
           validateFormat,
           lookupSegmentConcordance,
@@ -567,8 +472,6 @@ export function ProjectFileCatWorkspace({
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
-        isCommentsLoading={isCommentsLoading}
-        isSegmentTargetLoading={isSegmentTargetLoading}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}

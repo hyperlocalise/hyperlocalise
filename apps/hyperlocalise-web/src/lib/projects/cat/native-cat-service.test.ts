@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
 import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { NativeCatCommentService } from "./native-cat-comment-service";
@@ -11,16 +10,12 @@ describe("NativeCatService.getCatFile", () => {
   const listKeysForFile = vi.fn();
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
-  const countCommentsByKeyIds = vi.fn();
-  const listCached = vi.fn();
-
   let service: NativeCatService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
-    countCommentsByKeyIds.mockResolvedValue(new Map());
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -44,15 +39,7 @@ describe("NativeCatService.getCatFile", () => {
       getTranslationsByKeyIds,
     } as unknown as ProjectTranslationService;
 
-    const stringContext = {
-      listCached,
-    } as unknown as ProjectStringContextService;
-
-    const comments = {
-      countByKeyIds: countCommentsByKeyIds,
-    } as unknown as NativeCatCommentService;
-
-    service = new NativeCatService(undefined as never, translations, stringContext, comments);
+    service = new NativeCatService(undefined as never, translations, {} as NativeCatCommentService);
   });
 
   it("returns null when the source file is missing", async () => {
