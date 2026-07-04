@@ -247,8 +247,10 @@ export const env = createEnv({
       process.env.CANVA_OAUTH_REDIRECT_URIS ??
       (isTestEnv ? "https://www.canva.com/apps/oauth/authorized" : undefined),
     CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES:
-      process.env.CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES,
-    CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS: process.env.CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS,
+      process.env.CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES ??
+      (isTestEnv || isCI ? "60" : undefined),
+    CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS:
+      process.env.CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS ?? (isTestEnv || isCI ? "90" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

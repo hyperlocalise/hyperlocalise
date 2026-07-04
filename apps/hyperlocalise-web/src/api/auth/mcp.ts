@@ -60,10 +60,7 @@ type AuthorizationCodePayload = {
 const TOKEN_PREFIX = "hl_mcp_";
 
 function getMcpSecret(): Buffer {
-  return deriveSha256KeyMaterial(env.MCP_ENCRYPTION_KEY ?? env.PROVIDER_CREDENTIALS_MASTER_KEY);
-}
-
-export function deriveSha256KeyMaterial(configuredKey: string): Buffer {
+  const configuredKey = env.MCP_ENCRYPTION_KEY ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
   const decoded = Buffer.from(configuredKey, "base64");
 
   if (decoded.length === 32) {
