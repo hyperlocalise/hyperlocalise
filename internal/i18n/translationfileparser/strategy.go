@@ -33,33 +33,38 @@ type Strategy struct {
 
 // NewDefaultStrategy returns a strategy preconfigured for supported locale file formats.
 func NewDefaultStrategy() *Strategy {
-	s := &Strategy{parsersByExt: map[string]Parser{}}
-	s.Register(".json", JSONParser{})
-	s.Register(".jsonc", JSONCParser{})
+	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
+	// during initialization. We use assignments for static extensions and
+	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
+	parsers := make(map[string]Parser, 22+len(JSTSLocaleModuleExts))
+	parsers[".json"] = JSONParser{}
+	parsers[".jsonc"] = JSONCParser{}
+	parsers[".yaml"] = YAMLParser{}
+	parsers[".yml"] = YAMLParser{}
+	parsers[".arb"] = ARBParser{}
+	parsers[".xlf"] = XLIFFParser{}
+	parsers[".xlif"] = XLIFFParser{}
+	parsers[".xliff"] = XLIFFParser{}
+	parsers[".po"] = POFileParser{}
+	parsers[".html"] = HTMLParser{}
+	parsers[".liquid"] = LiquidParser{}
+	parsers[".md"] = MarkdownParser{MDX: false}
+	parsers[".mdx"] = MarkdownParser{MDX: true}
+	parsers[".strings"] = AppleStringsParser{}
+	parsers[".stringsdict"] = AppleStringsdictParser{}
+	parsers[".xcstrings"] = XCStringsParser{}
+	parsers[".csv"] = CSVParser{}
+	parsers[".php"] = PHPArrayParser{}
+	parsers[".ftl"] = FluentParser{}
+	parsers[".xml"] = XMLParser{}
+	parsers[".resx"] = GenericXMLParser{}
+	parsers[".properties"] = JavaPropertiesParser{}
+
 	for _, ext := range JSTSLocaleModuleExts {
-		s.Register(ext, JSTSLocaleModuleParser{})
+		parsers[ext] = JSTSLocaleModuleParser{}
 	}
-	s.Register(".yaml", YAMLParser{})
-	s.Register(".yml", YAMLParser{})
-	s.Register(".arb", ARBParser{})
-	s.Register(".xlf", XLIFFParser{})
-	s.Register(".xlif", XLIFFParser{})
-	s.Register(".xliff", XLIFFParser{})
-	s.Register(".po", POFileParser{})
-	s.Register(".html", HTMLParser{})
-	s.Register(".liquid", LiquidParser{})
-	s.Register(".md", MarkdownParser{MDX: false})
-	s.Register(".mdx", MarkdownParser{MDX: true})
-	s.Register(".strings", AppleStringsParser{})
-	s.Register(".stringsdict", AppleStringsdictParser{})
-	s.Register(".xcstrings", XCStringsParser{})
-	s.Register(".csv", CSVParser{})
-	s.Register(".php", PHPArrayParser{})
-	s.Register(".ftl", FluentParser{})
-	s.Register(".xml", XMLParser{})
-	s.Register(".resx", GenericXMLParser{})
-	s.Register(".properties", JavaPropertiesParser{})
-	return s
+
+	return &Strategy{parsersByExt: parsers}
 }
 
 // XMLParser routes Android string resource XML files to the Android-specific
