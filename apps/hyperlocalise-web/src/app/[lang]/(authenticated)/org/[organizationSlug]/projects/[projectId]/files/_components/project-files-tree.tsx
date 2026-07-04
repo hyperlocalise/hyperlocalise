@@ -14,7 +14,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 
 const projectFilesTreeStyle = {
   height: "100%",
-  minHeight: 0,
+  minHeight: "20rem",
   backgroundColor: "transparent",
   color: "var(--foreground)",
   borderColor: "var(--border)",
@@ -121,7 +121,7 @@ export function ProjectFilesTree({
   return (
     <PierreFileTree
       aria-label={ariaLabel}
-      className="h-full min-h-0 border-0 bg-transparent"
+      className="h-full min-h-80 border-0 bg-transparent"
       model={model}
       style={projectFilesTreeStyle}
     />
