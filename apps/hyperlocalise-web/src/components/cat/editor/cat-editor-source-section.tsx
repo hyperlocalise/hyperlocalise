@@ -31,7 +31,7 @@ export function CatEditorSourceSection({
           />
         </h3>
       </div>
-      <p className="text-pretty text-base leading-relaxed text-foreground/92 lg:text-lg">
+      <p className="text-pretty text-base leading-relaxed text-foreground lg:text-lg">
         <CatMessagePreview message={sourceText} />
       </p>
     </section>

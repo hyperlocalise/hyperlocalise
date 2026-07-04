@@ -29,7 +29,7 @@ const navigationLinks: { href: string; label: string; active?: boolean }[] = [
 const signInHref = "/auth/sign-in";
 
 const mobileNavLinkClassName =
-  "flex min-h-11 items-center rounded-3xl px-4 py-3 text-base font-medium text-foreground/88 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground";
+  "flex min-h-11 items-center rounded-3xl px-4 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground";
 
 function Logo() {
   return (
@@ -79,9 +79,9 @@ function MobileNavigation() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-[min(90vw,22rem)] border-s border-border/70 bg-background/98 px-0"
+        className="w-[min(90vw,22rem)] border-s border-border bg-background/98 px-0"
       >
-        <SheetHeader className="gap-4 border-b border-border/70 px-5 pb-5 pt-6 text-left">
+        <SheetHeader className="gap-4 border-b border-border px-5 pb-5 pt-6 text-left">
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
             Navigation
@@ -104,7 +104,7 @@ function MobileNavigation() {
             ))}
           </nav>
         </div>
-        <SheetFooter className="gap-2 border-t border-border/70 px-5 py-5">
+        <SheetFooter className="gap-2 border-t border-border px-5 py-5">
           <SheetClose render={<Link href={signInHref} prefetch={false} />} className="w-full">
             <Button
               variant="ghost"
@@ -129,7 +129,7 @@ function MobileNavigation() {
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
           <Logo />

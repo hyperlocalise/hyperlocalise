@@ -55,9 +55,9 @@ function MemberAvatar({
   avatarUrl: string | null | undefined;
 }) {
   return (
-    <Avatar className="size-11 border border-foreground/10 bg-background/60">
+    <Avatar className="size-11 border border-border bg-background/60">
       {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
-      <AvatarFallback className="bg-foreground/8 text-xs font-medium text-foreground/72">
+      <AvatarFallback className="bg-skeleton text-xs font-medium text-subtle-foreground">
         {memberInitials(displayName)}
       </AvatarFallback>
     </Avatar>
@@ -99,7 +99,7 @@ function RoleSelectItem({ role }: { role: OrganizationMembershipRole }) {
     >
       <div className="flex min-w-0 flex-col gap-0.5 text-start">
         <span className="font-medium">{getRoleLabel(role)}</span>
-        <p className="text-pretty text-xs leading-5 wrap-break-word text-foreground/52">
+        <p className="text-pretty text-xs leading-5 wrap-break-word text-muted-foreground">
           {getRoleDescription(role)}
         </p>
       </div>
@@ -129,7 +129,7 @@ function MembersTableHeader() {
   return (
     <div
       role="row"
-      className="hidden grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] gap-4 border-b border-foreground/8 px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-foreground/36 uppercase md:grid"
+      className="hidden grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid"
     >
       <div role="columnheader">Member</div>
       <div role="columnheader">Status</div>
@@ -268,13 +268,15 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
       <section aria-label="Workspace members" className="min-w-0">
         {membersQuery.isLoading ? (
-          <TypographyP className="py-8 text-sm text-foreground/52">Loading members...</TypographyP>
+          <TypographyP className="py-8 text-sm text-muted-foreground">
+            Loading members...
+          </TypographyP>
         ) : membersQuery.isError ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
               Members failed to load.
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-foreground/48">
+            <TypographyP className="mt-1 text-xs text-muted-foreground">
               {membersQuery.error instanceof Error
                 ? membersQuery.error.message
                 : "Refresh the page to try again."}
@@ -285,7 +287,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
             <TypographyP className="text-sm font-medium text-foreground">
               No workspace members yet
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-foreground/52">
+            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Invite teammates to assign localization ownership before work moves through the
               workspace.
             </TypographyP>
@@ -302,7 +304,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                 <div
                   key={member.email}
                   role="row"
-                  className="grid gap-4 border-t border-foreground/8 px-1 py-4 md:grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] md:items-center"
+                  className="grid gap-4 border-t border-border px-1 py-4 md:grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] md:items-center"
                 >
                   <div role="cell" className="flex min-w-0 items-start gap-3">
                     <MemberAvatar displayName={member.displayName} avatarUrl={member.avatarUrl} />
@@ -312,12 +314,12 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                           {member.displayName}
                         </TypographyP>
                         {member.isCurrentUser ? (
-                          <span className="rounded-full border border-foreground/10 bg-foreground/4 px-2 py-0.5 text-xs font-medium text-foreground/58">
+                          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                             You
                           </span>
                         ) : null}
                       </div>
-                      <TypographyP className="mt-0.5 truncate text-sm text-foreground/56">
+                      <TypographyP className="mt-0.5 truncate text-sm text-muted-foreground">
                         {member.email}
                       </TypographyP>
                     </div>
@@ -325,7 +327,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
-                      <span className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase md:hidden">
+                      <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
                         Status
                       </span>
                       <StatusBadge status={status} />
@@ -334,7 +336,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
-                      <span className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase md:hidden">
+                      <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
                         Role
                       </span>
                       {member.canUpdateRole ? (
@@ -352,7 +354,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                           }}
                           disabled={updateRole.isPending}
                         >
-                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-foreground/10 bg-background/60 text-foreground/78 hover:bg-foreground/4">
+                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
                             <SelectValue>{getRoleLabel(member.role)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent className="max-w-sm">
@@ -383,7 +385,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                       )}
                     </div>
                     {member.canUpdateRole ? (
-                      <TypographyP className="mt-1 hidden truncate text-xs text-foreground/42 lg:block">
+                      <TypographyP className="mt-1 hidden truncate text-xs text-muted-foreground lg:block">
                         {roleDescription}
                       </TypographyP>
                     ) : null}
@@ -398,7 +400,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="border-foreground/10 bg-transparent text-foreground/52 hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
+                              className="border-border bg-transparent text-muted-foreground hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => setRemovingMember(member)}
                               disabled={removeMember.isPending}
                               aria-label={
@@ -425,7 +427,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       </section>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Invite member</DialogTitle>
             <DialogDescription>
@@ -440,7 +442,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="border-foreground/10 bg-foreground/4"
+                className="border-border bg-muted"
                 required
               />
             </Field>
@@ -450,7 +452,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as OrganizationMembershipRole)}
               >
-                <SelectTrigger className="border-foreground/10 bg-foreground/4">
+                <SelectTrigger className="border-border bg-muted">
                   <SelectValue>{getRoleLabel(inviteRole)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-w-sm">
@@ -477,7 +479,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         open={removingMember !== null}
         onOpenChange={(open) => !open && setRemovingMember(null)}
       >
-        <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {removingMember?.status === "invited" ? "Revoke invitation" : "Remove member"}

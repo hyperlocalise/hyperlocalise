@@ -52,7 +52,7 @@ function ProjectFilesPanelFallback({
           <TypographyP className="text-sm font-medium text-flame-100">
             {scope === "tree" ? "Files failed to load." : "File preview failed to load."}
           </TypographyP>
-          <TypographyP className="text-sm text-foreground/58">{errorMessage}</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">{errorMessage}</TypographyP>
         </div>
       </div>
       <Button

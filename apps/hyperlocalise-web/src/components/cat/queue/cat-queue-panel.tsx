@@ -23,6 +23,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CatQueueSkeletonList } from "./cat-queue-skeleton-list";
 import { CatQueueVirtualList } from "./cat-queue-virtual-list";
 import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
+import { useCatQueueSelectionMode } from "./use-cat-queue-selection-mode";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
@@ -94,9 +95,11 @@ export function CatQueuePanel({
   onLoadMoreQueue?: () => void;
 }) {
   const intl = useIntl();
+  const [selectionMode, setSelectionMode] = useCatQueueSelectionMode();
   const loadedCount = segments.length;
   const selectedCount = checkedSegmentIds?.size ?? 0;
-  const hasBulkActions = Boolean(onBulkApprove || onBulkSkip);
+  const hasBulkActions = Boolean(onToggleSegmentChecked && (onBulkApprove || onBulkSkip));
+  const showSelection = selectionMode && Boolean(onToggleSegmentChecked);
   const hasActiveFilter = queueFilter !== "all";
   const emptyMessage =
     hasActiveFilter && !search.trim()
@@ -104,8 +107,8 @@ export function CatQueuePanel({
       : catQueuePanelMessages.emptySearchResults;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-foreground/8">
-      <div className="shrink-0 space-y-3 border-b border-foreground/8 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-border">
+      <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
@@ -131,8 +134,8 @@ export function CatQueuePanel({
           </div>
         ) : null}
 
-        {onQueueFilterChange || hasBulkActions ? (
-          <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {onQueueFilterChange ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -172,74 +175,88 @@ export function CatQueuePanel({
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <span />
-            )}
+            ) : null}
 
             {hasBulkActions ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="size-8"
-                      aria-label={intl.formatMessage(catQueuePanelMessages.queueActionsAria)}
-                      disabled={isBulkActionPending}
-                    />
-                  }
-                >
-                  {isBulkActionPending ? (
-                    <Spinner className="size-3.5" />
-                  ) : (
-                    <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
-                  )}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>
-                      {selectedCount > 0 ? (
-                        <FormattedMessage
-                          {...catQueuePanelMessages.bulkSelectionSummary}
-                          values={{ count: selectedCount }}
-                        />
-                      ) : (
-                        <FormattedMessage {...catQueuePanelMessages.queueActionsAria} />
-                      )}
-                    </DropdownMenuLabel>
-                    {onSelectAllVisible ? (
-                      <DropdownMenuItem
-                        onClick={onSelectAllVisible}
-                        disabled={segments.length === 0}
-                      >
-                        <FormattedMessage {...catQueuePanelMessages.bulkSelectAll} />
-                      </DropdownMenuItem>
-                    ) : null}
-                    {onClearChecked ? (
-                      <DropdownMenuItem onClick={onClearChecked} disabled={selectedCount === 0}>
-                        <FormattedMessage {...catQueuePanelMessages.bulkClearSelection} />
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    {onBulkApprove ? (
-                      <DropdownMenuItem onClick={onBulkApprove} disabled={selectedCount === 0}>
-                        <FormattedMessage {...catQueuePanelMessages.bulkApprove} />
-                      </DropdownMenuItem>
-                    ) : null}
-                    {onBulkSkip ? (
-                      <DropdownMenuItem onClick={onBulkSkip} disabled={selectedCount === 0}>
-                        <FormattedMessage {...catQueuePanelMessages.bulkSkip} />
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <input
+                  type="checkbox"
+                  className="size-3.5 rounded border-input accent-foreground"
+                  checked={selectionMode}
+                  aria-label={intl.formatMessage(catQueuePanelMessages.showSelectionAria)}
+                  onChange={(event) => {
+                    const enabled = event.currentTarget.checked;
+                    setSelectionMode(enabled);
+                    if (!enabled) {
+                      onClearChecked?.();
+                    }
+                  }}
+                />
+                <FormattedMessage {...catQueuePanelMessages.showSelection} />
+              </label>
             ) : null}
           </div>
-        ) : null}
+
+          {showSelection && hasBulkActions ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    className="size-8 shrink-0"
+                    aria-label={intl.formatMessage(catQueuePanelMessages.queueActionsAria)}
+                    disabled={isBulkActionPending}
+                  />
+                }
+              >
+                {isBulkActionPending ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    {selectedCount > 0 ? (
+                      <FormattedMessage
+                        {...catQueuePanelMessages.bulkSelectionSummary}
+                        values={{ count: selectedCount }}
+                      />
+                    ) : (
+                      <FormattedMessage {...catQueuePanelMessages.queueActionsAria} />
+                    )}
+                  </DropdownMenuLabel>
+                  {onSelectAllVisible ? (
+                    <DropdownMenuItem onClick={onSelectAllVisible} disabled={segments.length === 0}>
+                      <FormattedMessage {...catQueuePanelMessages.bulkSelectAll} />
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onClearChecked ? (
+                    <DropdownMenuItem onClick={onClearChecked} disabled={selectedCount === 0}>
+                      <FormattedMessage {...catQueuePanelMessages.bulkClearSelection} />
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {onBulkApprove ? (
+                    <DropdownMenuItem onClick={onBulkApprove} disabled={selectedCount === 0}>
+                      <FormattedMessage {...catQueuePanelMessages.bulkApprove} />
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onBulkSkip ? (
+                    <DropdownMenuItem onClick={onBulkSkip} disabled={selectedCount === 0}>
+                      <FormattedMessage {...catQueuePanelMessages.bulkSkip} />
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </div>
 
       {isQueueLoading ? (
@@ -254,6 +271,7 @@ export function CatQueuePanel({
           selectedSegmentId={selectedSegmentId}
           dirtySegmentIds={dirtySegmentIds}
           checkedSegmentIds={checkedSegmentIds}
+          showSelection={showSelection}
           onToggleSegmentChecked={onToggleSegmentChecked}
           onSelectSegment={onSelectSegment}
           hasMore={hasMoreQueue}
@@ -263,7 +281,7 @@ export function CatQueuePanel({
       )}
 
       {pagination ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-foreground/8 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3">
           <p className="text-xs text-muted-foreground">
             <FormattedMessage
               {...catQueuePanelMessages.paginationSummary}

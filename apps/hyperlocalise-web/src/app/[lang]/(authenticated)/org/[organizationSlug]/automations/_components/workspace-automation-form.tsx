@@ -138,12 +138,7 @@ function EditorSection({ title, children }: { title: string; children: ReactNode
 
 function EditorPanel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-xl border border-foreground/10 bg-foreground/2.5",
-        className,
-      )}
-    >
+    <div className={cn("overflow-hidden rounded-xl border border-border bg-muted", className)}>
       {children}
     </div>
   );
@@ -167,7 +162,7 @@ function EditorRow({
   return (
     <div
       className={cn(
-        "flex min-h-12 flex-col gap-3 border-b border-foreground/8 px-3 py-3 last:border-b-0 md:flex-row md:items-center",
+        "flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 last:border-b-0 md:flex-row md:items-center",
         className,
       )}
     >
@@ -430,11 +425,7 @@ function HeaderProjectSelector({
         }
       >
         <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
-        {isLoading ? (
-          <Skeleton className="h-3.5 w-20 rounded-full bg-muted-foreground/20" />
-        ) : (
-          triggerLabel
-        )}
+        {isLoading ? <Skeleton className="h-3.5 w-20 rounded-full bg-muted" /> : triggerLabel}
         <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-56" align="start">
@@ -605,7 +596,7 @@ function AddTriggerMenu({
               type="button"
               variant="ghost"
               disabled={disabled}
-              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
             />
           }
         >
@@ -949,7 +940,7 @@ function AddToolMenu({
               type="button"
               variant="ghost"
               disabled={disabled}
-              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
             />
           }
         >
@@ -1279,7 +1270,7 @@ function ToolsSettings({
                 repositories={repositories}
               />
               <div className="grid gap-2 md:grid-cols-3">
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Push source</span>
                   <Switch
                     size="sm"
@@ -1288,7 +1279,7 @@ function ToolsSettings({
                     onCheckedChange={(checked) => onChange({ ...form, pushSourceEnabled: checked })}
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Pull translations</span>
                   <Switch
                     size="sm"
@@ -1302,7 +1293,7 @@ function ToolsSettings({
                     }
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Validation</span>
                   <Switch
                     size="sm"
@@ -1591,7 +1582,7 @@ function ToolsSettings({
                 />
               </div>
               <div className="grid gap-2 md:grid-cols-3">
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Run QA</span>
                   <Switch
                     size="sm"
@@ -1600,7 +1591,7 @@ function ToolsSettings({
                     onCheckedChange={(checked) => onChange({ ...form, contentfulRunQa: checked })}
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Write drafts</span>
                   <Switch
                     size="sm"
@@ -1611,7 +1602,7 @@ function ToolsSettings({
                     }
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="text-xs text-foreground">Overwrite targets</span>
                   <Switch
                     size="sm"
@@ -1649,7 +1640,7 @@ function ToolsSettings({
             }
           >
             <div className="grid gap-3">
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+              <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                 <span className="text-xs text-foreground">Use project target locales</span>
                 <Switch
                   size="sm"
@@ -1715,7 +1706,7 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
 
   return (
     <EditorPanel>
-      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
         <span>Status</span>
         <span>Trigger</span>
         <span>Summary</span>
@@ -1724,7 +1715,7 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
       {runs.map((run) => (
         <div
           key={run.id}
-          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-foreground/10 px-4 py-4 text-sm last:border-b-0"
+          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-4 text-sm last:border-b-0"
         >
           <Badge variant="outline" className="w-fit">
             {run.status}
@@ -1921,7 +1912,7 @@ export function WorkspaceAutomationEditor({
           (form.githubEnabled && form.githubMode === "sync") ||
           form.triggerMode === "source_upload" ? (
             <>
-              <span className="text-foreground/20">|</span>
+              <span className="text-border">|</span>
               <HeaderProjectSelector
                 disabled={disabled}
                 form={form}
@@ -1934,11 +1925,11 @@ export function WorkspaceAutomationEditor({
           ) : null}
           {form.triggerMode !== "manual" ? (
             <>
-              <span className="text-foreground/20">|</span>
+              <span className="text-border">|</span>
               <span>{triggerSummary(form, repositories, projectsQuery.data ?? [])}</span>
             </>
           ) : null}
-          <span className="text-foreground/20">|</span>
+          <span className="text-border">|</span>
           <span>
             {toolCount(form)} tool{toolCount(form) === 1 ? "" : "s"}
           </span>
@@ -1976,13 +1967,13 @@ export function WorkspaceAutomationEditor({
                 id="automation-instructions"
                 value={form.instructions}
                 disabled={disabled}
-                className="relative z-0 min-h-80 resize-y rounded-xl border-foreground/10 bg-foreground/[0.025] pb-10 font-sans text-sm leading-6"
+                className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
                 placeholder="Tell the automation what to do, what to inspect, and what to ignore."
                 onChange={(event) => onChange({ ...form, instructions: event.target.value })}
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-x-px bottom-px z-10 h-11 rounded-b-[calc(0.75rem-1px)] bg-linear-to-t from-foreground/[0.06] via-foreground/[0.02] to-transparent backdrop-blur-sm"
+                className="pointer-events-none absolute inset-x-px bottom-px z-10 h-11 rounded-b-[calc(0.75rem-1px)] bg-linear-to-t from-gray-alpha-200 via-gray-alpha-100 to-transparent backdrop-blur-sm"
               />
             </div>
             <FieldError message={errors.instructions} />

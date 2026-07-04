@@ -311,7 +311,7 @@ export function CatWorkspaceView({
     >
       {isCompact ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-foreground/8 px-4 py-3">
+          <div className="shrink-0 border-b border-border px-4 py-3">
             <div className="min-w-0 space-y-1">
               <p className="font-mono text-xs text-muted-foreground tabular-nums">
                 {String(segmentPosition).padStart(2, "0")}

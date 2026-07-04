@@ -30,7 +30,7 @@ import {
 } from "./automations-page-view-model";
 
 const TEMPLATE_FILTER_TABS_CLASS =
-  "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-foreground/10 data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-foreground/10";
+  "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
 
 const AUTOMATION_LIST_GRID_CLASS =
   "grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4";
@@ -41,7 +41,7 @@ function AutomationListSkeleton() {
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={index}
-          className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-4 last:border-b-0`}
+          className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-4 last:border-b-0`}
         >
           <div className="flex min-w-0 flex-col gap-2">
             <Skeleton className="h-4 w-3/5 rounded-full bg-muted" />
@@ -188,9 +188,9 @@ export function AutomationsPageView({
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="overflow-hidden rounded-xl border border-foreground/10">
+        <div className="overflow-hidden rounded-xl border border-border">
           <div
-            className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground`}
+            className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground`}
           >
             <span>Automation</span>
             <span>Tools</span>
@@ -204,7 +204,7 @@ export function AutomationsPageView({
               <TypographyP className="text-sm font-medium text-flame-100">
                 Automations failed to load.
               </TypographyP>
-              <TypographyP className="mt-1 text-xs text-foreground/48">
+              <TypographyP className="mt-1 text-xs text-muted-foreground">
                 {error instanceof Error ? error.message : "Refresh the page to try again."}
               </TypographyP>
             </div>
@@ -217,7 +217,7 @@ export function AutomationsPageView({
               <Fragment key={automation.id}>
                 {renderAutomationLink({
                   href: `/org/${organizationSlug}/automations/${automation.id}`,
-                  className: `${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-4 transition-colors last:border-b-0 hover:bg-foreground/5`,
+                  className: `${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted`,
                   children: (
                     <>
                       <div className="min-w-0">

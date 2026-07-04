@@ -42,14 +42,11 @@ export function ProviderJobDescriptionFieldView({
 
   if (!editable) {
     if (!description.trim()) {
-      return <p className="text-sm text-foreground/42">No description</p>;
+      return <p className="text-sm text-muted-foreground">No description</p>;
     }
 
     return (
-      <MarkdownDescriptionPreview
-        value={description}
-        className="border-foreground/8 bg-transparent"
-      />
+      <MarkdownDescriptionPreview value={description} className="border-border bg-transparent" />
     );
   }
 
@@ -59,14 +56,14 @@ export function ProviderJobDescriptionFieldView({
         <MarkdownDescriptionPreview
           value={description}
           emptyMessage="No description"
-          className="border-foreground/8 bg-transparent pr-12"
+          className="border-border bg-transparent pr-12"
         />
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
           aria-label="Edit description"
-          className="absolute top-2 right-2 text-foreground/54 hover:text-foreground"
+          className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
           onClick={() => {
             setDraftState({ baseDescription: description, draft: description });
             setIsEditing(true);

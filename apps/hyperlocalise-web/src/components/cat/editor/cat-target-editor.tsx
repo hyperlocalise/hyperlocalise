@@ -229,7 +229,7 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-foreground/8 bg-foreground/3 px-3 py-2.5">
+    <div className="space-y-2 rounded-xl border border-border bg-muted px-3 py-2.5">
       <p className="text-xs font-medium text-muted-foreground">
         <FormattedMessage {...catTargetEditorMessages.icuStructure} />
       </p>
@@ -247,7 +247,7 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
               {block.options.map((option) => (
                 <span
                   key={option}
-                  className="rounded border border-foreground/8 bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground/72"
+                  className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] text-subtle-foreground"
                 >
                   {option}
                 </span>
@@ -300,7 +300,7 @@ export function CatTargetEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground/92 focus:outline-none md:text-lg",
+          "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
         "aria-label": intl.formatMessage(catTargetEditorMessages.targetTranslationAria),
@@ -349,13 +349,13 @@ export function CatTargetEditor({
     <div className="space-y-2">
       <div
         className={cn(
-          "rounded-2xl border border-foreground/12 bg-background shadow-sm transition-colors",
+          "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
           "[&_.cat-mf-placeholder]:bg-dew-500/10 [&_.cat-mf-placeholder]:text-dew-100",
           "[&_.cat-mf-icu]:bg-bud-500/10 [&_.cat-mf-icu]:text-bud-100",
           "[&_.cat-mf-pound]:bg-grove-500/10 [&_.cat-mf-pound]:text-grove-100",
-          "[&_.cat-mf-tag]:bg-foreground/8 [&_.cat-mf-tag]:text-foreground/82",
+          "[&_.cat-mf-tag]:bg-skeleton [&_.cat-mf-tag]:text-foreground",
           "[&_.cat-mf-error]:rounded-md [&_.cat-mf-error]:bg-flame-700/20 [&_.cat-mf-error]:text-flame-100",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
@@ -373,26 +373,37 @@ export function CatTargetEditor({
         )}
       </div>
 
-      {maxLength !== undefined ? (
-        <div className="flex justify-end px-1">
-          <p
-            className={cn(
-              "text-xs tabular-nums",
-              isOverMaxLength ? "font-medium text-flame-100" : "text-muted-foreground",
-            )}
-            aria-live="polite"
-            aria-label={intl.formatMessage(catTargetEditorMessages.characterCountAria, {
-              count: characterCount,
-              maxLength,
-            })}
-          >
+      <div className="flex justify-end px-1">
+        <p
+          className={cn(
+            "text-xs tabular-nums",
+            isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
+          )}
+          aria-live="polite"
+          aria-label={
+            maxLength !== undefined
+              ? intl.formatMessage(catTargetEditorMessages.characterCountAria, {
+                  count: characterCount,
+                  maxLength,
+                })
+              : intl.formatMessage(catTargetEditorMessages.characterCountOnlyAria, {
+                  count: characterCount,
+                })
+          }
+        >
+          {maxLength !== undefined ? (
             <FormattedMessage
               {...catTargetEditorMessages.characterCount}
               values={{ count: characterCount, maxLength }}
             />
-          </p>
-        </div>
-      ) : null}
+          ) : (
+            <FormattedMessage
+              {...catTargetEditorMessages.characterCountOnly}
+              values={{ count: characterCount }}
+            />
+          )}
+        </p>
+      </div>
 
       {sourceTokens.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">

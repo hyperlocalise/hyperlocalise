@@ -100,21 +100,21 @@ export function KnowledgeMemoryEditor({
   });
 
   return (
-    <section className="space-y-5 rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+    <section className="space-y-5 rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-sm font-medium text-foreground">Workspace memory</h2>
-          <p className="max-w-2xl text-sm leading-6 text-foreground/58">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             A short shared note agents read during translation and review.
           </p>
         </div>
-        <p className="text-xs text-foreground/48">
+        <p className="text-xs text-muted-foreground">
           Last updated {formatUpdatedAt(knowledgeMemoryQuery.data?.updatedAt ?? null)}
         </p>
       </div>
 
       {knowledgeMemoryQuery.isLoading ? (
-        <div className="flex min-h-48 items-center justify-center text-foreground/48">
+        <div className="flex min-h-48 items-center justify-center text-muted-foreground">
           <Spinner />
         </div>
       ) : (
@@ -135,7 +135,7 @@ export function KnowledgeMemoryEditor({
               readOnly={!canUpdateKnowledgeMemory}
               aria-invalid={currentEditorState.isOverLimit}
               onChange={(event) => setContent(event.target.value)}
-              className="min-h-64 resize-y border-foreground/10 bg-background font-mono text-sm leading-6"
+              className="min-h-64 resize-y border-border bg-background font-mono text-sm leading-6"
               placeholder="Example: Use a concise product tone. Keep feature names in English unless a locale-specific glossary says otherwise."
             />
             {currentEditorState.isOverLimit ? (
@@ -146,7 +146,7 @@ export function KnowledgeMemoryEditor({
           </Field>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-foreground/48">
+            <p className="text-xs text-muted-foreground">
               {currentEditorState.characterCount}/{currentEditorState.characterLimit} characters
             </p>
             {canUpdateKnowledgeMemory ? (

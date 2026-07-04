@@ -1,5 +1,6 @@
 import type {
   CatFormatCheckStatus,
+  CatGlossaryTerm,
   CatRiskLevel,
   CatSegmentStatus,
 } from "@/components/cat/shared/types";
@@ -9,13 +10,13 @@ export type CatTone = "safe" | "watch" | "risk" | "info";
 export function catToneClass(tone: CatTone) {
   switch (tone) {
     case "safe":
-      return "border-grove-300/25 bg-grove-300/10 text-grove-300";
+      return "border-grove-700/25 bg-grove-100 text-grove-900 dark:border-grove-500/30 dark:bg-grove-100 dark:text-grove-900";
     case "watch":
-      return "border-bud-500/25 bg-bud-500/10 text-bud-300";
+      return "border-warning/25 bg-warning/10 text-warning-foreground dark:border-warning/30 dark:bg-warning/20 dark:text-warning-foreground";
     case "risk":
-      return "border-flame-700/25 bg-flame-700/10 text-flame-100";
+      return "border-destructive/25 bg-destructive/10 text-destructive dark:border-destructive/30 dark:bg-destructive/20 dark:text-destructive";
     default:
-      return "border-dew-500/25 bg-dew-500/10 text-dew-100";
+      return "border-blue-700/25 bg-blue-100 text-blue-1000 dark:border-blue-600/30 dark:bg-blue-100 dark:text-blue-900";
   }
 }
 
@@ -70,6 +71,48 @@ export function formatCheckTone(status: CatFormatCheckStatus): CatTone {
     default:
       return "info";
   }
+}
+
+export function formatCheckRowBackgroundClass(status: CatFormatCheckStatus) {
+  switch (formatCheckTone(status)) {
+    case "safe":
+      return "bg-grove-500/10 dark:bg-grove-500/15";
+    case "watch":
+      return "bg-warning/10 dark:bg-warning/20";
+    case "risk":
+      return "bg-destructive/10 dark:bg-destructive/20";
+    default:
+      return "bg-muted";
+  }
+}
+
+export function formatCheckStatusClass(status: CatFormatCheckStatus) {
+  switch (formatCheckTone(status)) {
+    case "safe":
+      return "text-grove-900 dark:text-grove-300";
+    case "watch":
+      return "text-beam-900 dark:text-warning-foreground";
+    case "risk":
+      return "text-destructive";
+    default:
+      return "text-info";
+  }
+}
+
+export function glossaryTermStatusClass(term: CatGlossaryTerm, forbiddenInTarget: boolean) {
+  if (forbiddenInTarget) {
+    return "text-destructive";
+  }
+
+  if (term.approved && !term.forbidden) {
+    return "text-grove-900 dark:text-grove-300";
+  }
+
+  if (term.forbidden) {
+    return "text-beam-900 dark:text-warning-foreground";
+  }
+
+  return "text-muted-foreground";
 }
 
 export function suggestionSourceLabel(source: string) {

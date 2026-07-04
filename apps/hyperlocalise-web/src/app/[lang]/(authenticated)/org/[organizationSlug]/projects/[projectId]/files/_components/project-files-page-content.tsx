@@ -92,7 +92,7 @@ function defaultRenderFilesError({
       <TypographyP className="text-sm font-medium text-flame-100">
         Files failed to load.
       </TypographyP>
-      <TypographyP className="mt-1 text-sm text-foreground/58">
+      <TypographyP className="mt-1 text-sm text-muted-foreground">
         {error instanceof Error ? error.message : "Failed to load files."}
       </TypographyP>
     </>
@@ -308,11 +308,11 @@ export function ProjectFilesPageContentView({
       ) : null}
 
       {canUploadFiles && selectedFiles.length > 0 ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+        <section className="rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <ProjectSectionTitle>Ready to upload</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
                 {selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected (max{" "}
                 {MAX_UPLOAD_FILES}).
               </TypographyP>
@@ -327,14 +327,14 @@ export function ProjectFilesPageContentView({
               {isUploading ? "Uploading…" : "Upload"}
             </Button>
           </div>
-          <ul className="mt-3 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background">
+          <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-background">
             {selectedFiles.map((file) => (
               <li key={fileKey(file)} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
                   <TypographyP className="truncate font-mono text-sm text-foreground">
                     {sourcePathForFile(file)}
                   </TypographyP>
-                  <TypographyP className="text-xs text-foreground/42">
+                  <TypographyP className="text-xs text-muted-foreground">
                     {formatBytes(file.size)}
                   </TypographyP>
                 </div>
@@ -353,7 +353,7 @@ export function ProjectFilesPageContentView({
         </section>
       ) : null}
 
-      <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+      <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-border bg-muted">
         {filesTree ? (
           <div className="flex min-h-0 flex-1 flex-col">{filesTree(selectedFile)}</div>
         ) : (
@@ -366,10 +366,10 @@ export function ProjectFilesPageContentView({
                 highlightLocale={highlightLocale}
               />
             ) : null}
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
                 <ProjectSectionTitle>Project files</ProjectSectionTitle>
-                <TypographyP className="mt-0.5 text-sm text-foreground/52">
+                <TypographyP className="mt-0.5 text-sm text-muted-foreground">
                   {isFilesLoading
                     ? "Loading…"
                     : filesError
@@ -382,7 +382,9 @@ export function ProjectFilesPageContentView({
 
             <div className="flex min-h-0 flex-1 flex-col">
               {isFilesLoading ? (
-                <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
+                <TypographyP className="p-4 text-sm text-muted-foreground">
+                  Loading files…
+                </TypographyP>
               ) : filesError ? (
                 <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
               ) : files.length === 0 ? (
@@ -390,7 +392,7 @@ export function ProjectFilesPageContentView({
                   <TypographyP className="text-sm font-medium text-foreground">
                     No files yet
                   </TypographyP>
-                  <TypographyP className="text-sm text-foreground/52">
+                  <TypographyP className="text-sm text-muted-foreground">
                     {isProviderProject
                       ? "No provider files were found for this project."
                       : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}

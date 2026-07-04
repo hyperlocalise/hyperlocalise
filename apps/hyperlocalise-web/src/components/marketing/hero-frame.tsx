@@ -541,7 +541,7 @@ export function HeroFrame() {
   return (
     <div className="relative left-1/2 w-screen max-w-[calc(100vw-2.5rem)] -translate-x-1/2 lg:max-w-[min(92rem,calc(100vw-5rem))]">
       <motion.div
-        className="relative overflow-hidden rounded-2xl border border-foreground/10 bg-background shadow-2xl shadow-foreground/8"
+        className="relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200"
         initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{

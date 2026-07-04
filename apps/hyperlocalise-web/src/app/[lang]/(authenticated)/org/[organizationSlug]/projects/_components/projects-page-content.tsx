@@ -60,7 +60,7 @@ function ProjectsSectionHeader({ title, description }: { title: string; descript
   return (
     <div className="space-y-1">
       <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
-      <TypographyP className="text-sm leading-6 text-foreground/52">{description}</TypographyP>
+      <TypographyP className="text-sm leading-6 text-muted-foreground">{description}</TypographyP>
     </div>
   );
 }
@@ -266,12 +266,12 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       ) : null}
 
       {hasAnyProjects && !hasFilteredResults ? (
-        <div className="border-t border-foreground/8 px-1 py-8 text-sm text-foreground/52">
+        <div className="border-t border-border px-1 py-8 text-sm text-muted-foreground">
           No projects match your search.{" "}
           <button
             type="button"
             onClick={() => setSearchQuery("")}
-            className="text-foreground/72 underline hover:text-foreground"
+            className="text-subtle-foreground underline hover:text-foreground"
           >
             Clear search
           </button>

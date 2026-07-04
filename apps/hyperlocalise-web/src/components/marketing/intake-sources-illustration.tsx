@@ -20,7 +20,7 @@ function DetailPill({
           ? "inline-flex items-center rounded-full border border-background/16 bg-background/12 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-background/78"
           : tone === "slack"
             ? "inline-flex items-center rounded-full border border-slate-300/80 bg-white/95 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-slate-700"
-            : "inline-flex items-center rounded-full border border-foreground/8 bg-foreground/5 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-foreground/55"
+            : "inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-muted-foreground"
       }
     >
       {children}
@@ -40,7 +40,7 @@ function GithubSourceCard() {
         </TypographySmall>
       </div>
 
-      <div className="mt-8 rounded-[1.2rem] border border-background/8 bg-foreground/50 p-4 shadow-[inset_0_1px_0_color-mix(in_srgb,var(--background)_3%,transparent)] mask-radial-from-35% mask-radial-at-left sm:mt-10 sm:rounded-[1.35rem] sm:p-5 lg:mt-14 lg:rounded-[1.45rem] lg:p-6">
+      <div className="mt-8 rounded-[1.2rem] border border-background/8 bg-muted0 p-4 shadow-[inset_0_1px_0_color-mix(in_srgb,var(--background)_3%,transparent)] mask-radial-from-35% mask-radial-at-left sm:mt-10 sm:rounded-[1.35rem] sm:p-5 lg:mt-14 lg:rounded-[1.45rem] lg:p-6">
         <TypographySmall className="text-[0.72rem] tracking-[0.18em] uppercase text-background/58">
           Changed files
         </TypographySmall>
@@ -74,7 +74,7 @@ function SlackSourceCard() {
         <TypographyH2 className="pb-0 text-[2.4rem] leading-none tracking-[-0.07em] text-slate-950 sm:text-[2.7rem] lg:text-[3rem]">
           Slack
         </TypographyH2>
-        <TypographySmall className="inline-flex w-fit items-center rounded-full border border-slate-400/70 bg-slate-900/78 px-3 py-1 text-[0.68rem] tracking-[0.18em] uppercase text-foreground/72">
+        <TypographySmall className="inline-flex w-fit items-center rounded-full border border-slate-400/70 bg-slate-900/78 px-3 py-1 text-[0.68rem] tracking-[0.18em] uppercase text-subtle-foreground">
           Request
         </TypographySmall>
       </div>

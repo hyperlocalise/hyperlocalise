@@ -31,7 +31,7 @@ export function BlogPostCard({ post, lang }: BlogPostCardProps) {
         />
       </div>
       <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-tight text-foreground transition-colors group-hover:text-foreground/90">
+        <h2 className="text-lg font-medium tracking-tight text-foreground transition-colors group-hover:text-foreground">
           {post.title}
         </h2>
         <p className="text-sm text-muted-foreground">

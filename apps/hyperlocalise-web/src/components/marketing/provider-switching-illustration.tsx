@@ -62,7 +62,7 @@ function ProviderTile({ label, src, accentClassName, tileAccentClassName }: Prov
   return (
     <div
       className={cn(
-        "group flex min-h-16 items-center justify-center rounded-[0.95rem] border border-border/60 bg-muted/80 px-3 py-3 text-center shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_4%,transparent)] transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted hover:shadow-[0_8px_20px_color-mix(in_srgb,var(--foreground)_7%,transparent)] sm:min-h-20 sm:rounded-[1.05rem] sm:bg-muted sm:px-4 sm:py-4 sm:hover:shadow-[0_10px_24px_color-mix(in_srgb,var(--foreground)_8%,transparent)]",
+        "group flex min-h-16 items-center justify-center rounded-[0.95rem] border border-border bg-muted px-3 py-3 text-center shadow-[0_1px_2px_var(--color-gray-alpha-200)] transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted hover:shadow-[0_8px_20px_var(--color-gray-alpha-300)] sm:min-h-20 sm:rounded-[1.05rem] sm:px-4 sm:py-4 sm:hover:shadow-[0_10px_24px_var(--color-gray-alpha-300)]",
         tileAccentClassName,
       )}
     >
@@ -91,7 +91,7 @@ function ProviderTile({ label, src, accentClassName, tileAccentClassName }: Prov
 
 export function ProviderSwitchingIllustration() {
   return (
-    <div className="rounded-[1.5rem] border border-border/60 bg-background p-4 shadow-[0_18px_56px_color-mix(in_srgb,var(--foreground)_7%,transparent)] sm:rounded-[1.8rem] sm:p-7 sm:shadow-[0_24px_80px_color-mix(in_srgb,var(--foreground)_8%,transparent)] mask-radial-from-65% mask-radial-at-top">
+    <div className="rounded-[1.5rem] border border-border bg-background p-4 shadow-[0_18px_56px_var(--color-gray-alpha-300)] sm:rounded-[1.8rem] sm:p-7 sm:shadow-[0_24px_80px_var(--color-gray-alpha-300)] mask-radial-from-65% mask-radial-at-top">
       <div className="flex items-center justify-between gap-3">
         <TypographyH4 className="text-[1.05rem] font-semibold tracking-[-0.02em] sm:text-inherit sm:tracking-[inherit]">
           Providers

@@ -96,7 +96,7 @@ function SurfaceCard({ children, className = "" }: { children: ReactNode; classN
   return (
     <Card
       className={cn(
-        "rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0",
+        "rounded-lg border border-border bg-muted py-0 text-foreground ring-0",
         className,
       )}
     >
@@ -134,7 +134,7 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
       <Input
         readOnly
         value={value}
-        className="h-10 rounded-lg border-foreground/10 bg-foreground/4 text-foreground"
+        className="h-10 rounded-lg border-border bg-muted text-foreground"
       />
     </div>
   );

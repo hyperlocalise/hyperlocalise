@@ -5,7 +5,15 @@ import { expect } from "storybook/test";
 
 import { Badge } from "./badge";
 
-const badgeVariants = ["default", "secondary", "outline", "ghost", "destructive", "link"] as const;
+const badgeVariants = [
+  "default",
+  "secondary",
+  "outline",
+  "ghost",
+  "destructive",
+  "warning",
+  "link",
+] as const;
 
 const meta = {
   title: "UI/Badge",
@@ -43,6 +51,10 @@ export const Overview: Story = {
           <Badge variant="destructive">
             <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} data-icon="inline-start" />
             Blocked
+          </Badge>
+          <Badge variant="warning">
+            <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} data-icon="inline-start" />
+            Needs review
           </Badge>
         </div>
       </section>

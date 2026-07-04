@@ -12,7 +12,7 @@ import { cn } from "@/lib/primitives/cn";
 import { markdownDescriptionEditorMessages } from "./markdown-description-editor.messages";
 
 const markdownDescriptionContentClassName = cn(
-  "max-w-none px-3 py-2 text-sm text-foreground/74 focus:outline-none",
+  "max-w-none px-3 py-2 text-sm text-subtle-foreground focus:outline-none",
   "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_h1]:mb-3 [&_h1]:mt-5 [&_h1]:font-heading [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:text-foreground",
   "[&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:text-foreground",
@@ -20,10 +20,10 @@ const markdownDescriptionContentClassName = cn(
   "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
   "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
   "[&_li]:my-1 [&_li>p]:my-0",
-  "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-foreground/16 [&_blockquote]:pl-3 [&_blockquote]:text-foreground/62",
-  "[&_a]:text-foreground [&_a]:underline [&_a]:decoration-foreground/24 [&_a]:underline-offset-4 [&_a:hover]:decoration-foreground/48",
-  "[&_code]:rounded [&_code]:bg-foreground/8 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em]",
-  "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-foreground/8 [&_pre]:p-3",
+  "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-subtle-foreground",
+  "[&_a]:text-foreground [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-muted-foreground",
+  "[&_code]:rounded [&_code]:bg-skeleton [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em]",
+  "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-skeleton [&_pre]:p-3",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
 );
 
@@ -66,11 +66,11 @@ function MarkdownToolbarButton({
         onClick();
       }}
       className={cn(
-        "inline-flex h-7 min-w-7 items-center justify-center rounded border border-transparent px-2 text-xs font-medium text-foreground/62 transition-colors",
-        "hover:border-foreground/10 hover:bg-foreground/5 hover:text-foreground",
+        "inline-flex h-7 min-w-7 items-center justify-center rounded border border-transparent px-2 text-xs font-medium text-subtle-foreground transition-colors",
+        "hover:border-border hover:bg-muted hover:text-foreground",
         "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-40",
-        pressed && "border-foreground/12 bg-foreground/8 text-foreground",
+        pressed && "border-border bg-skeleton text-foreground",
       )}
     >
       {label}
@@ -83,7 +83,7 @@ function MarkdownDescriptionToolbar({ editor, disabled }: { editor: Editor; disa
   const isDisabled = disabled || !editor.isEditable;
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-foreground/8 bg-foreground/2 px-2 py-1.5">
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted px-2 py-1.5">
       <MarkdownToolbarButton
         label={intl.formatMessage(markdownDescriptionEditorMessages.boldLabel)}
         title={intl.formatMessage(markdownDescriptionEditorMessages.boldTitle)}
@@ -223,7 +223,7 @@ export function MarkdownDescriptionEditor({
     return (
       <div
         className={cn(
-          "min-h-[8rem] rounded-lg border border-foreground/12 bg-foreground/2.5",
+          "min-h-[8rem] rounded-lg border border-border bg-muted",
           "resize-y overflow-auto",
           className,
         )}
@@ -234,9 +234,9 @@ export function MarkdownDescriptionEditor({
   return (
     <div
       className={cn(
-        "rounded-lg border border-foreground/12 bg-foreground/2.5",
+        "rounded-lg border border-border bg-muted",
         "[&_.tiptap]:min-h-[8rem]",
-        "[&_.tiptap_p.is-editor-empty:first-child::before]:text-foreground/34",
+        "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
         "[&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
         "[&_.tiptap_p.is-editor-empty:first-child::before]:float-left",
         "[&_.tiptap_p.is-editor-empty:first-child::before]:h-0",
@@ -350,7 +350,7 @@ export function MarkdownDescriptionPreview({
     return (
       <div
         className={cn(
-          "rounded-lg border border-foreground/8 bg-foreground/2.5 px-3 py-2 text-sm text-foreground/42",
+          "rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground",
           className,
         )}
       >
@@ -362,7 +362,7 @@ export function MarkdownDescriptionPreview({
   return (
     <MarkdownContent
       value={value}
-      className={cn("rounded-lg border border-foreground/8 bg-foreground/2.5", className)}
+      className={cn("rounded-lg border border-border bg-muted", className)}
       contentClassName={cn("min-h-[5rem]", contentClassName)}
       ariaLabel={previewAriaLabel}
     />

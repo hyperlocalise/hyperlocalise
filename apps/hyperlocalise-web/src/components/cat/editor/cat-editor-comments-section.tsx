@@ -68,7 +68,7 @@ function CatEditorCommentItem({
   onResolveComment?: (commentId: string) => void | Promise<void>;
 }) {
   return (
-    <li className="space-y-1 rounded-lg border border-foreground/8 p-3">
+    <li className="space-y-1 rounded-lg border border-border p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {comment.type === "issue" ? (
           <Badge variant="outline" className="border-flame-200/40 text-flame-100">
@@ -76,12 +76,12 @@ function CatEditorCommentItem({
           </Badge>
         ) : null}
         {comment.author ? (
-          <span className="font-medium text-foreground/78">{comment.author}</span>
+          <span className="font-medium text-subtle-foreground">{comment.author}</span>
         ) : null}
         {comment.createdAt ? <span>{formatCommentTimestamp(intl, comment.createdAt)}</span> : null}
         {comment.status ? <span className="capitalize">{comment.status}</span> : null}
       </div>
-      <p className="text-sm leading-relaxed text-foreground/88">{comment.text}</p>
+      <p className="text-sm leading-relaxed text-foreground">{comment.text}</p>
       {comment.type === "issue" && isOpenIssueStatus(comment.status) && onResolveComment ? (
         <div className="flex justify-end pt-1">
           <Button
@@ -132,11 +132,11 @@ function CatEditorCommentsList({
         {Array.from({ length: 2 }, (_, index) => (
           <li
             key={`comment-skeleton-${index}`}
-            className="space-y-2 rounded-lg border border-foreground/8 p-3"
+            className="space-y-2 rounded-lg border border-border p-3"
           >
-            <Skeleton className="h-3 w-24 rounded-full bg-foreground/8" />
-            <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
-            <Skeleton className="h-3 w-32 rounded-full bg-foreground/8" />
+            <Skeleton className="h-3 w-24 rounded-full bg-skeleton" />
+            <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
+            <Skeleton className="h-3 w-32 rounded-full bg-skeleton" />
           </li>
         ))}
       </ul>
@@ -246,13 +246,13 @@ export function CatEditorCommentsSection({
   }
 
   return (
-    <section className="space-y-3 border-t border-foreground/8 pt-5">
+    <section className="space-y-3 border-t border-border pt-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...catEditorPanelMessages.comments} />
         </h3>
         {isLoading ? (
-          <Skeleton className="h-3 w-6 rounded-full bg-foreground/8" />
+          <Skeleton className="h-3 w-6 rounded-full bg-skeleton" />
         ) : (
           <span className="text-xs text-muted-foreground tabular-nums">
             {segmentComments.length}
@@ -271,7 +271,7 @@ export function CatEditorCommentsSection({
       <Textarea
         value={commentDraft}
         onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
-        className="min-h-20 resize-y rounded-xl border-foreground/12 bg-background px-3 py-3 text-sm leading-relaxed"
+        className="min-h-20 resize-y rounded-xl border-border bg-background px-3 py-3 text-sm leading-relaxed"
         placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
         disabled={!canAddComment || isPostingComment || isResolvingComment}
         data-cat-comment-input="true"

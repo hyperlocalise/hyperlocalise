@@ -20,7 +20,7 @@ export default async function KnowledgePage({
         <TypographyH1 className="font-heading text-4xl font-semibold text-foreground md:text-5xl">
           Knowledge
         </TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-foreground/58">
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Store shared notes and context that Hyperlocalise can use across your workspace.
         </TypographyP>
       </div>

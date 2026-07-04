@@ -69,7 +69,7 @@ function ProjectFilesTreeBody({
     return (
       <div className="flex flex-col gap-2 p-4">
         <TypographyP className="text-sm font-medium text-foreground">No files yet</TypographyP>
-        <TypographyP className="text-sm text-foreground/52">
+        <TypographyP className="text-sm text-muted-foreground">
           {isProviderProject
             ? "No provider files were found for this project."
             : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
@@ -197,10 +197,10 @@ export function ProjectFilesTreePanel({
 
   return (
     <>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
           <ProjectSectionTitle>Project files</ProjectSectionTitle>
-          <TypographyP className="mt-0.5 text-sm text-foreground/52">
+          <TypographyP className="mt-0.5 text-sm text-muted-foreground">
             {filesQuery.isLoading
               ? "Loading…"
               : filesQuery.isError
@@ -216,7 +216,7 @@ export function ProjectFilesTreePanel({
       {toolbar}
 
       {filesQuery.isLoading ? (
-        <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
+        <TypographyP className="p-4 text-sm text-muted-foreground">Loading files…</TypographyP>
       ) : (
         <ProjectFilesErrorBoundary
           organizationSlug={organizationSlug}
@@ -233,7 +233,7 @@ export function ProjectFilesTreePanel({
             onSelectSourcePath={onSelectSourcePath}
           />
           {hasMoreFiles ? (
-            <div className="shrink-0 border-t border-foreground/8 p-2">
+            <div className="shrink-0 border-t border-border p-2">
               <Button
                 type="button"
                 variant="ghost"

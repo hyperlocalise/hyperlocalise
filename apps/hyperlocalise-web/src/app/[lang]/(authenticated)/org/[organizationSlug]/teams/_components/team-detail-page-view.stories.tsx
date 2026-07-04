@@ -11,6 +11,11 @@ const meta = {
   component: TeamDetailPageView,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      navigation: {
+        pathname: "/org/acme/teams/11111111-1111-4111-8111-111111111111",
+      },
+    },
   },
   args: {
     organizationSlug: "acme",

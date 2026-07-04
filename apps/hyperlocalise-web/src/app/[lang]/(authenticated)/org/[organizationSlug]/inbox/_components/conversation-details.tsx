@@ -104,7 +104,7 @@ export const ConversationDetails = memo(function ConversationDetails({
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="uppercase">{formatJobKind(job)}</span>
-                    <span className="size-1 rounded-full bg-muted-foreground/20" />
+                    <span className="size-1 rounded-full bg-muted" />
                     <span>{formatRelativeTime(job.createdAt)}</span>
                   </div>
                 </>

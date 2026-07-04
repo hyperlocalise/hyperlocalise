@@ -189,7 +189,7 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
-      <Card className="w-full max-w-lg border-border/70 bg-background shadow-2xl shadow-foreground/12">
+      <Card className="w-full max-w-lg border-border bg-background shadow-2xl shadow-gray-alpha-200">
         <CardHeader>
           <CardTitle className="font-heading text-2xl">{copy.title}</CardTitle>
           <CardDescription className="text-muted-foreground">{copy.description}</CardDescription>

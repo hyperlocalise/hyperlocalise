@@ -17,8 +17,16 @@ const meta = {
     isLoading: false,
     isCreateOpen: false,
     isCreating: false,
+    editingTeam: null,
+    isUpdatingTeam: false,
+    deletingTeam: null,
+    isDeletingTeam: false,
     onCreateOpenChange: fn(),
     onCreateTeam: fn(),
+    onEditingTeamChange: fn(),
+    onUpdateTeam: fn(),
+    onDeletingTeamChange: fn(),
+    onDeleteTeam: fn(),
   },
 } satisfies Meta<typeof TeamsPageView>;
 
@@ -62,6 +70,24 @@ export const CreateDialogOpen: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("dialog", { name: "Create team" })).toBeInTheDocument();
+  },
+};
+
+export const EditDialogOpen: Story = {
+  args: {
+    editingTeam: teamsFixture[0],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("dialog", { name: "Edit team" })).toBeInTheDocument();
+  },
+};
+
+export const DeleteDialogOpen: Story = {
+  args: {
+    deletingTeam: teamsFixture[0],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("dialog", { name: "Delete team" })).toBeInTheDocument();
   },
 };
 

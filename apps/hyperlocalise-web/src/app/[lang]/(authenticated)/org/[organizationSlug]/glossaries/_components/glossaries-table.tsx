@@ -19,14 +19,14 @@ import { providerLabel } from "./glossary-list";
 
 function SourceLabel({ glossary }: { glossary: GlossaryListRow }) {
   if (glossary.source === "native") {
-    return <span className="text-xs text-foreground/48">Workspace</span>;
+    return <span className="text-xs text-muted-foreground">Workspace</span>;
   }
 
   if (glossary.externalProviderKind) {
     return <ProviderKindBadge kind={glossary.externalProviderKind} />;
   }
 
-  return <span className="text-xs text-foreground/48">External TMS</span>;
+  return <span className="text-xs text-muted-foreground">External TMS</span>;
 }
 
 function SyncHealthBadge({ glossary }: { glossary: GlossaryListRow }) {
@@ -52,7 +52,7 @@ function SyncHealthBadge({ glossary }: { glossary: GlossaryListRow }) {
   }
 
   return (
-    <Badge variant="outline" className="text-[10px] text-foreground/58">
+    <Badge variant="outline" className="text-[10px] text-muted-foreground">
       Not synced
     </Badge>
   );
@@ -108,7 +108,7 @@ function GlossaryRow({
           <HugeiconsIcon
             icon={BookOpenTextIcon}
             strokeWidth={1.7}
-            className="size-4 shrink-0 text-foreground/42"
+            className="size-4 shrink-0 text-muted-foreground"
           />
           <Link
             href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
@@ -119,7 +119,7 @@ function GlossaryRow({
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>
-        <TypographyP className="mt-1 text-xs text-foreground/42">{sourceDetail}</TypographyP>
+        <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
         {glossary.lastSyncErrorAt ? (
           <Tooltip>
             <TooltipTrigger
@@ -139,19 +139,19 @@ function GlossaryRow({
             <>
               <Link
                 href={`/org/${organizationSlug}/projects/${glossary.projectLinkId}`}
-                className="text-xs text-foreground/58 underline-offset-2 hover:text-foreground hover:underline"
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
                 View linked project
               </Link>
               <Link
                 href={`/org/${organizationSlug}/jobs`}
-                className="text-xs text-foreground/58 underline-offset-2 hover:text-foreground hover:underline"
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
                 View jobs
               </Link>
             </>
           ) : glossary.externalProjectId ? (
-            <span className="text-xs text-foreground/42">
+            <span className="text-xs text-muted-foreground">
               External project {glossary.externalProjectId}
             </span>
           ) : null}
@@ -160,7 +160,7 @@ function GlossaryRow({
               href={glossary.externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-foreground/58 hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               Open in provider
               <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.7} className="size-3.5" />
@@ -168,8 +168,8 @@ function GlossaryRow({
           ) : null}
         </div>
       </div>
-      <TypographyP className="text-sm text-foreground/58">{glossary.localeSummary}</TypographyP>
-      <TypographyP className="text-sm text-foreground/58">
+      <TypographyP className="text-sm text-muted-foreground">{glossary.localeSummary}</TypographyP>
+      <TypographyP className="text-sm text-muted-foreground">
         {glossary.termCountLabel} terms
       </TypographyP>
       <div className="flex flex-wrap gap-2">
@@ -201,7 +201,9 @@ export function GlossariesTable({
   return (
     <section aria-label="Glossaries" className="min-w-0">
       {glossariesQuery.isLoading ? (
-        <TypographyP className="py-8 text-sm text-foreground/52">Loading glossaries...</TypographyP>
+        <TypographyP className="py-8 text-sm text-muted-foreground">
+          Loading glossaries...
+        </TypographyP>
       ) : null}
 
       {glossariesQuery.isError ? (
@@ -209,7 +211,7 @@ export function GlossariesTable({
           <TypographyP className="text-sm font-medium text-flame-100">
             Glossaries failed to load.
           </TypographyP>
-          <TypographyP className="mt-1 text-xs text-foreground/42">
+          <TypographyP className="mt-1 text-xs text-muted-foreground">
             {glossariesQuery.error instanceof Error
               ? glossariesQuery.error.message
               : "Try refreshing the page."}
@@ -220,7 +222,7 @@ export function GlossariesTable({
       {glossariesQuery.isSuccess && glossaries.length === 0 ? (
         <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             {emptyDescription}
           </TypographyP>
           {emptyAction}
@@ -228,11 +230,11 @@ export function GlossariesTable({
       ) : null}
 
       {glossariesQuery.isSuccess && glossaries.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {glossaries.map((glossary, index) => (
             <div key={glossary.id}>
               <GlossaryRow glossary={glossary} organizationSlug={organizationSlug} />
-              {index < glossaries.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+              {index < glossaries.length - 1 ? <Separator className="bg-skeleton" /> : null}
             </div>
           ))}
         </div>

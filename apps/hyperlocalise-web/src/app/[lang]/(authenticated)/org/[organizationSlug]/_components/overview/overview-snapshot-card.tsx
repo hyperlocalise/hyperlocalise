@@ -29,7 +29,7 @@ export function OverviewSnapshotCard({
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0",
+        "rounded-2xl border border-border bg-muted py-0 text-foreground ring-0",
         className,
       )}
     >

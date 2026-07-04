@@ -28,27 +28,27 @@ export function UseCasePage({ content }: UseCasePageProps) {
           <UseCaseOverviewSection content={content} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           <UseCaseWorkflowSection content={content.workflow} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           <UseCaseCapabilitiesSection content={content.capabilities} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           <UseCaseDifferentiatorSection content={content.differentiator} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           <UseCaseScenarioSection content={content.scenario} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-24 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-24 sm:px-8 lg:px-10">
           <UseCaseCtaSection content={content.cta} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

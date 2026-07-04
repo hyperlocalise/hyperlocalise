@@ -156,12 +156,12 @@ export function TranslationFlowIllustration({
   return (
     <div
       ref={inViewRef}
-      className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top"
+      className="relative overflow-hidden rounded-[1.8rem] border border-border bg-background mask-radial-from-65% mask-radial-at-top"
     >
       <div className="relative">
-        <div className="flex items-center justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl border border-border/70 bg-card text-card-foreground">
+            <div className="flex size-10 items-center justify-center rounded-2xl border border-border bg-card text-card-foreground">
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-5" />
             </div>
             <div>
@@ -234,7 +234,7 @@ export function TranslationFlowIllustration({
                     >
                       <span>{line.label}</span>
                       {line.showAgentModel ? (
-                        <span className="text-[0.98rem] text-muted-foreground/50">
+                        <span className="text-[0.98rem] text-muted-foreground">
                           {activeAgent} - {flagshipModelsByAgent[activeAgent] ?? ""}
                         </span>
                       ) : null}
@@ -276,7 +276,7 @@ export function TranslationFlowIllustration({
                               {target.name}
                             </TypographySmall>
                             {target.role ? (
-                              <span className="rounded-[0.7rem] border border-border/70 bg-secondary/60 px-2.5 py-1 text-[0.72rem] text-muted-foreground">
+                              <span className="rounded-[0.7rem] border border-border bg-secondary/60 px-2.5 py-1 text-[0.72rem] text-muted-foreground">
                                 {target.role}
                               </span>
                             ) : null}

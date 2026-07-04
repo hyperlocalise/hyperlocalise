@@ -2,12 +2,34 @@ import * as React from "react";
 import { cn } from "@/lib/primitives/cn";
 
 export type ColorTokenCssVariable =
-  | "--color-gray-900"
-  | "--color-gray-700"
-  | "--color-gray-500"
-  | "--color-gray-300"
-  | "--color-gray-100"
+  | "--color-background-100"
+  | "--color-background-200"
   | "--color-gray-50"
+  | "--color-gray-100"
+  | "--color-gray-200"
+  | "--color-gray-300"
+  | "--color-gray-400"
+  | "--color-gray-500"
+  | "--color-gray-600"
+  | "--color-gray-700"
+  | "--color-gray-800"
+  | "--color-gray-900"
+  | "--color-gray-1000"
+  | "--color-blue-100"
+  | "--color-blue-500"
+  | "--color-blue-700"
+  | "--color-blue-900"
+  | "--color-red-500"
+  | "--color-red-600"
+  | "--color-red-800"
+  | "--color-amber-500"
+  | "--color-amber-700"
+  | "--color-green-500"
+  | "--color-green-600"
+  | "--color-teal-500"
+  | "--color-purple-500"
+  | "--color-pink-500"
+  | "--color-pink-700"
   | "--color-grove-900"
   | "--color-grove-700"
   | "--color-grove-500"
@@ -73,7 +95,7 @@ function HeadingContent({
           "pointer-events-none absolute top-[-0.01em] right-[-0.1em] z-0 h-4 w-4 rounded-full",
           blobOptions?.className,
         )}
-        style={{ backgroundColor: `var(${blobOptions?.colorToken ?? "--color-flame-500"})` }}
+        style={{ backgroundColor: `var(${blobOptions?.colorToken ?? "--color-red-600"})` }}
       />
     </span>
   );

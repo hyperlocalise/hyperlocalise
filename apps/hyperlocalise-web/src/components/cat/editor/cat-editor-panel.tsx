@@ -74,9 +74,10 @@ export function CatEditorPanel({
       isLookingUpContext ||
       isAiSuggestionLoading ||
       isFormatChecksLoading;
+    const hasTargetText = segment.targetText.trim().length > 0;
 
     return {
-      canTriggerApprove: canApprove && !isActionBlocked,
+      canTriggerApprove: canApprove && hasTargetText && !isActionBlocked,
       canTriggerFindContext:
         canLookupContext &&
         !isApproving &&
@@ -97,6 +98,7 @@ export function CatEditorPanel({
     isLookingUpContext,
     isPostingComment,
     isSavingDraft,
+    segment.targetText,
   ]);
 
   useCatEditorHotkeys({

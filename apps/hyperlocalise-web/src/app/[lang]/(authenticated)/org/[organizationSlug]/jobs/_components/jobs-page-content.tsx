@@ -49,7 +49,7 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
         nativeButton={false}
         render={<Link href={href} />}
         variant="ghost"
-        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
+        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-muted"
       >
         {children}
       </Button>

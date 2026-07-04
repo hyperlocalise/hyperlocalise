@@ -277,7 +277,7 @@ export function ProjectOverviewPageContentView({
                   />
                 ))
               ) : (
-                <Card className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/2 py-0 ring-0">
+                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
                   <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
                     <div>
                       <TypographyP className="text-sm font-medium text-foreground">
@@ -314,7 +314,7 @@ export function ProjectOverviewPageContentView({
                   />
                 ))
               ) : (
-                <Card className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/2 py-0 ring-0">
+                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
                   <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
                     <div>
                       <TypographyP className="text-sm font-medium text-foreground">
@@ -346,7 +346,7 @@ export function ProjectOverviewPageContentView({
       </section>
 
       {project && project.source === "native" && readyToPullCount > 0 ? (
-        <Card className="rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 ring-0">
+        <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
           <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <TypographyP className="text-sm font-medium text-foreground">
@@ -355,7 +355,7 @@ export function ProjectOverviewPageContentView({
               <TypographyP className="mt-1 text-sm text-muted-foreground">
                 {readyToPullCount} {readyToPullCount === 1 ? "file has" : "files have"} completed
                 translations you can download or sync with{" "}
-                <span className="font-mono text-foreground/80">sync pull</span>.
+                <span className="font-mono text-foreground">sync pull</span>.
               </TypographyP>
             </div>
             <Button

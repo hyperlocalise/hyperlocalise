@@ -15,7 +15,9 @@ export default async function ProjectFilesPage({
 
   return (
     <Suspense
-      fallback={<TypographyP className="text-sm text-foreground/52">Loading files...</TypographyP>}
+      fallback={
+        <TypographyP className="text-sm text-muted-foreground">Loading files...</TypographyP>
+      }
     >
       <ProjectFilesPageContent organizationSlug={organizationSlug} projectId={projectId} />
     </Suspense>

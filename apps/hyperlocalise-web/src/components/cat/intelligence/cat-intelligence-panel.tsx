@@ -27,6 +27,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
+import { glossaryTermStatusClass } from "@/components/cat/segment/cat-tone";
+
 import {
   catEditorPanelMessages,
   catIntelligencePanelMessages,
@@ -62,28 +64,30 @@ function PanelSection({
   );
 }
 
+const intelligenceMutedPanelClassName = "overflow-hidden rounded-2xl bg-muted px-3.5 py-3";
+
 function ConcordanceSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
-      <Skeleton className="h-4 w-32 rounded-full bg-foreground/8" />
-      <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
-      <Skeleton className="h-4 w-10/12 rounded-full bg-foreground/8" />
+    <div className="space-y-3 rounded-2xl bg-muted p-3.5">
+      <Skeleton className="h-4 w-32 rounded-full bg-skeleton" />
+      <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
+      <Skeleton className="h-4 w-10/12 rounded-full bg-skeleton" />
     </div>
   );
 }
 
 function AgentContextSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
+    <div className="space-y-3">
       <div className="space-y-2">
-        <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
-        <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
-        <Skeleton className="h-4 w-10/12 rounded-full bg-foreground/8" />
+        <Skeleton className="h-3 w-28 rounded-full bg-skeleton" />
+        <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
+        <Skeleton className="h-4 w-10/12 rounded-full bg-skeleton" />
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <Skeleton className="h-5 w-28 rounded-lg bg-foreground/8" />
-        <Skeleton className="h-5 w-20 rounded-lg bg-foreground/8" />
-        <Skeleton className="h-5 w-36 rounded-lg bg-foreground/8" />
+        <Skeleton className="h-5 w-28 rounded-lg bg-skeleton" />
+        <Skeleton className="h-5 w-20 rounded-lg bg-skeleton" />
+        <Skeleton className="h-5 w-36 rounded-lg bg-skeleton" />
       </div>
     </div>
   );
@@ -100,34 +104,39 @@ function GlossaryTermRow({
 }) {
   const intl = useIntl();
   const forbiddenInTarget = term.forbidden && containsGlossaryTerm(targetText, term.source);
+  const canUse = Boolean(onUse && term.approved && !term.forbidden);
 
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5">
-      <span className="min-w-0 truncate text-sm text-foreground/86">{term.source}</span>
-      <span className="text-xs text-muted-foreground">→</span>
-      <span className="inline-flex min-w-0 items-center justify-end gap-1.5 text-right text-sm font-medium text-foreground/92">
-        <span className="truncate">{term.target}</span>
+    <li className="px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="min-w-0 truncate text-sm text-foreground">{term.source}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">→</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            {term.target}
+          </span>
+        </div>
         {forbiddenInTarget ? (
           <HugeiconsIcon
             icon={AlertCircleIcon}
-            className="size-3.5 shrink-0 text-flame-200"
+            className={cn("size-4 shrink-0", glossaryTermStatusClass(term, forbiddenInTarget))}
             aria-label={intl.formatMessage(catIntelligencePanelMessages.forbiddenInTargetAria)}
           />
         ) : term.approved ? (
           <HugeiconsIcon
             icon={CheckmarkCircle02Icon}
-            className="size-3.5 shrink-0 text-grove-300"
+            className={cn("size-4 shrink-0", glossaryTermStatusClass(term, forbiddenInTarget))}
             aria-label={intl.formatMessage(catIntelligencePanelMessages.approvedAria)}
           />
         ) : null}
-      </span>
-      {onUse && term.approved && !term.forbidden ? (
-        <Button variant="ghost" size="sm" onClick={() => onUse(term)}>
-          <FormattedMessage {...catIntelligencePanelMessages.useGlossaryTerm} />
-        </Button>
-      ) : (
-        <span />
-      )}
+      </div>
+      {canUse ? (
+        <div className="mt-2 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => onUse?.(term)}>
+            <FormattedMessage {...catIntelligencePanelMessages.useGlossaryTerm} />
+          </Button>
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -196,7 +205,7 @@ function TranslationMemoryRow({
         <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
           {match.sourceText}
         </p>
-        <p className="text-pretty text-sm leading-relaxed text-foreground/88">{match.targetText}</p>
+        <p className="text-pretty text-sm leading-relaxed text-foreground">{match.targetText}</p>
       </div>
     </li>
   );
@@ -261,8 +270,8 @@ export function CatIntelligencePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-foreground/8">
-      <div className="border-b border-foreground/8 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border">
+      <div className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={BulbIcon} className="size-4 text-bud-300" />
           <h2 className="text-sm font-semibold text-foreground">
@@ -283,17 +292,19 @@ export function CatIntelligencePanel({
           />
 
           <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.fileContextTitle)}>
-            {hasFileContext ? (
-              <MarkdownContent
-                value={intelligence.productMeaning ?? ""}
-                contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground/88"
-                ariaLabel={intl.formatMessage(catIntelligencePanelMessages.fileContextAria)}
-              />
-            ) : (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                <FormattedMessage {...catIntelligencePanelMessages.noFileContext} />
-              </p>
-            )}
+            <div className={intelligenceMutedPanelClassName}>
+              {hasFileContext ? (
+                <MarkdownContent
+                  value={intelligence.productMeaning ?? ""}
+                  contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground"
+                  ariaLabel={intl.formatMessage(catIntelligencePanelMessages.fileContextAria)}
+                />
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  <FormattedMessage {...catIntelligencePanelMessages.noFileContext} />
+                </p>
+              )}
+            </div>
           </PanelSection>
 
           {showAgentContext ? (
@@ -315,55 +326,57 @@ export function CatIntelligencePanel({
                 ) : null
               }
             >
-              {isLookingUpContext ? (
-                <AgentContextSkeleton />
-              ) : hasAgentContext ? (
-                <div className="space-y-3">
-                  {hasAgentInsight ? (
-                    <div className="min-h-[1.25rem] space-y-2">
-                      <MarkdownContent
-                        value={intelligence.agentContext ?? ""}
-                        contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
-                        ariaLabel={intl.formatMessage(
-                          catIntelligencePanelMessages.agentContextAria,
-                        )}
-                      />
-                      {intelligence.intent ? (
+              <div className={intelligenceMutedPanelClassName}>
+                {isLookingUpContext ? (
+                  <AgentContextSkeleton />
+                ) : hasAgentContext ? (
+                  <div className="space-y-3">
+                    {hasAgentInsight ? (
+                      <div className="min-h-[1.25rem] space-y-2">
                         <MarkdownContent
-                          value={intelligence.intent}
-                          contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
+                          value={intelligence.agentContext ?? ""}
+                          contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground"
                           ariaLabel={intl.formatMessage(
-                            catIntelligencePanelMessages.translationIntentAria,
+                            catIntelligencePanelMessages.agentContextAria,
                           )}
                         />
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {agentBadges.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {intelligence.locationBreadcrumb ? (
-                        <Badge variant="outline" className="max-w-full font-normal">
-                          <span className="truncate">{intelligence.locationBreadcrumb}</span>
-                        </Badge>
-                      ) : null}
-                      {intelligence.componentName ? (
-                        <Badge variant="outline" className="max-w-full font-normal">
-                          <span className="truncate">{intelligence.componentName}</span>
-                        </Badge>
-                      ) : null}
-                      {intelligence.filePath ? (
-                        <Badge variant="outline" className="max-w-full font-mono font-normal">
-                          <span className="truncate">{intelligence.filePath}</span>
-                        </Badge>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  <FormattedMessage {...catIntelligencePanelMessages.noRepositoryContext} />
-                </p>
-              )}
+                        {intelligence.intent ? (
+                          <MarkdownContent
+                            value={intelligence.intent}
+                            contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
+                            ariaLabel={intl.formatMessage(
+                              catIntelligencePanelMessages.translationIntentAria,
+                            )}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {agentBadges.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {intelligence.locationBreadcrumb ? (
+                          <Badge variant="outline" className="max-w-full font-normal">
+                            <span className="truncate">{intelligence.locationBreadcrumb}</span>
+                          </Badge>
+                        ) : null}
+                        {intelligence.componentName ? (
+                          <Badge variant="outline" className="max-w-full font-normal">
+                            <span className="truncate">{intelligence.componentName}</span>
+                          </Badge>
+                        ) : null}
+                        {intelligence.filePath ? (
+                          <Badge variant="outline" className="max-w-full font-mono font-normal">
+                            <span className="truncate">{intelligence.filePath}</span>
+                          </Badge>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    <FormattedMessage {...catIntelligencePanelMessages.noRepositoryContext} />
+                  </p>
+                )}
+              </div>
             </PanelSection>
           ) : null}
 
@@ -384,8 +397,8 @@ export function CatIntelligencePanel({
 
           {!isConcordanceLoading && intelligence.glossaryTerms.length > 0 ? (
             <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}>
-              <div className="overflow-hidden rounded-2xl bg-foreground/3">
-                <ul className="divide-y divide-foreground/8">
+              <div className="overflow-hidden rounded-2xl bg-muted">
+                <ul className="divide-y divide-border">
                   {intelligence.glossaryTerms.map((term) => (
                     <GlossaryTermRow
                       key={term.id}
@@ -407,8 +420,8 @@ export function CatIntelligencePanel({
             <PanelSection
               title={intl.formatMessage(catIntelligencePanelMessages.translationMemory)}
             >
-              <div className="overflow-hidden rounded-2xl bg-foreground/3">
-                <ul className="divide-y divide-foreground/8">
+              <div className="overflow-hidden rounded-2xl bg-muted">
+                <ul className="divide-y divide-border">
                   {intelligence.translationMemoryMatches.map((match) => (
                     <TranslationMemoryRow
                       key={match.id}

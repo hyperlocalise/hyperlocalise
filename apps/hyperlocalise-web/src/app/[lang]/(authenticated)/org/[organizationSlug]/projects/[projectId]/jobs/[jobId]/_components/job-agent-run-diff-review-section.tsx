@@ -103,12 +103,12 @@ function ProposalDiffRow({
   disabled: boolean;
 }) {
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="flex flex-wrap items-start gap-3">
         <label className="mt-0.5 flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground"
+            className="size-4 rounded border-input accent-foreground"
             checked={selected}
             disabled={disabled}
             onChange={(event) => onToggle(item.itemId, event.currentTarget.checked)}
@@ -116,7 +116,7 @@ function ProposalDiffRow({
         </label>
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-mono text-sm font-medium text-foreground/86">{item.key}</p>
+            <p className="font-mono text-sm font-medium text-foreground">{item.key}</p>
             <Badge variant="outline" className="rounded-full uppercase">
               {item.locale}
             </Badge>
@@ -139,23 +139,27 @@ function ProposalDiffRow({
           <GlossaryMatchBadges matches={item.glossaryMatchesUsed ?? []} />
           <TranslationMemoryMatchBadges matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="grid gap-3 lg:grid-cols-3">
-            <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
+            <div className="space-y-1 rounded-md border border-border bg-muted p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Source
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/78">{item.sourceText}</p>
+              <p className="text-sm whitespace-pre-wrap text-subtle-foreground">
+                {item.sourceText}
+              </p>
             </div>
-            <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
+            <div className="space-y-1 rounded-md border border-border bg-muted p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Current provider target
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/78">{item.from || "—"}</p>
+              <p className="text-sm whitespace-pre-wrap text-subtle-foreground">
+                {item.from || "—"}
+              </p>
             </div>
             <div className="space-y-1 rounded-md border border-flame-100/20 bg-flame-100/5 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Agent proposal
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/86">{item.to}</p>
+              <p className="text-sm whitespace-pre-wrap text-foreground">{item.to}</p>
             </div>
           </div>
           <GlossaryMatchesDetail matches={item.glossaryMatchesUsed ?? []} />
@@ -341,7 +345,7 @@ export function JobAgentRunDiffReviewSection({
   }
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+    <section className="rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
           Agent Proposal Review
@@ -359,7 +363,7 @@ export function JobAgentRunDiffReviewSection({
         </div>
       </div>
 
-      <p className="mt-2 text-sm text-foreground/52">
+      <p className="mt-2 text-sm text-muted-foreground">
         Inspect agent-proposed translations before pushing approved changes back to the provider.
       </p>
 
@@ -385,7 +389,7 @@ export function JobAgentRunDiffReviewSection({
           <HugeiconsIcon
             icon={Search01Icon}
             strokeWidth={1.8}
-            className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-foreground/42"
+            className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground"
           />
           <Input
             value={search}
@@ -476,11 +480,11 @@ export function JobAgentRunDiffReviewSection({
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-foreground/52">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground"
+            className="size-4 rounded border-input accent-foreground"
             checked={
               pagination.pageItems.length > 0 &&
               pagination.pageItems.every((item) => selectedItemIds.has(item.itemId))
@@ -510,7 +514,9 @@ export function JobAgentRunDiffReviewSection({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-sm text-foreground/48">No proposals match the current filters.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          No proposals match the current filters.
+        </p>
       )}
 
       {pagination.totalPages > 1 ? (
@@ -523,7 +529,7 @@ export function JobAgentRunDiffReviewSection({
           >
             Previous
           </Button>
-          <p className="text-sm text-foreground/52">
+          <p className="text-sm text-muted-foreground">
             Page {pagination.currentPage} of {pagination.totalPages}
           </p>
           <Button

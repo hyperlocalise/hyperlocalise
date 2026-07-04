@@ -38,17 +38,17 @@ export function ProjectNativeConnectCliPanel({
   }
 
   return (
-    <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+    <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <div>
         <TypographyP className="text-sm font-medium text-foreground">Connect CLI & CI</TypographyP>
-        <TypographyP className="mt-1 text-sm text-foreground/52">
+        <TypographyP className="mt-1 text-sm text-muted-foreground">
           Use native sync to push source files and pull translations without creating jobs from the
           CLI.
         </TypographyP>
       </div>
 
       <div className="space-y-2">
-        <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+        <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
           Project ID
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
@@ -69,7 +69,7 @@ export function ProjectNativeConnectCliPanel({
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+          <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
             Sample i18n.yml
           </TypographyP>
           <Button
@@ -82,7 +82,7 @@ export function ProjectNativeConnectCliPanel({
             {copiedField === "config" ? "Copied" : "Copy config"}
           </Button>
         </div>
-        <pre className="overflow-x-auto rounded-md border border-border bg-background p-3 text-xs leading-6 text-foreground/72">
+        <pre className="overflow-x-auto rounded-md border border-border bg-background p-3 text-xs leading-6 text-subtle-foreground">
           {sampleConfig}
         </pre>
       </div>

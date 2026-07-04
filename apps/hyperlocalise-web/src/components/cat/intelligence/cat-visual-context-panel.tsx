@@ -13,9 +13,9 @@ import { catVisualContextPanelMessages } from "@/components/cat/shared/cat.messa
 
 function VisualContextSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
-      <Skeleton className="h-3 w-32 rounded-full bg-foreground/8" />
-      <Skeleton className="aspect-[9/16] w-full rounded-xl bg-foreground/8" />
+    <div className="space-y-3 rounded-2xl bg-muted p-3.5">
+      <Skeleton className="h-3 w-32 rounded-full bg-skeleton" />
+      <Skeleton className="aspect-[9/16] w-full rounded-xl bg-skeleton" />
     </div>
   );
 }
@@ -24,13 +24,13 @@ function VisualContextScreenshotCard({ screenshot }: { screenshot: CatVisualCont
   const intl = useIntl();
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-foreground/8 bg-background">
+    <figure className="overflow-hidden rounded-xl border border-border bg-background">
       {screenshot.name ? (
-        <figcaption className="border-b border-foreground/8 px-3 py-2 text-xs text-muted-foreground">
+        <figcaption className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
           {screenshot.name}
         </figcaption>
       ) : null}
-      <div className="relative bg-foreground/2">
+      <div className="relative bg-muted">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={screenshot.imageUrl}

@@ -647,7 +647,7 @@ export function GlossariesPageContent({
       ) : null}
 
       {glossariesQuery.isSuccess && hasActiveFilters && glossaryTotal === 0 ? (
-        <div className="text-sm text-foreground/52">
+        <div className="text-sm text-muted-foreground">
           No glossaries match your filters.{" "}
           <button
             type="button"
@@ -658,7 +658,7 @@ export function GlossariesPageContent({
               setResourceTypeFilter("all");
               setSyncFilter("all");
             }}
-            className="text-foreground/72 underline hover:text-foreground"
+            className="text-subtle-foreground underline hover:text-foreground"
           >
             Clear filters
           </button>
@@ -670,7 +670,7 @@ export function GlossariesPageContent({
           <TypographyP className="text-sm font-medium text-foreground">
             Choose a TMS project
           </TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             Select a project above to load live glossaries and term bases from your connected
             provider.
           </TypographyP>
@@ -702,7 +702,7 @@ export function GlossariesPageContent({
       glossariesQuery.isSuccess &&
       glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-foreground/52">
+          <p className="text-sm text-muted-foreground">
             Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -715,7 +715,7 @@ export function GlossariesPageContent({
             >
               Previous
             </Button>
-            <p className="text-sm text-foreground/52">
+            <p className="text-sm text-muted-foreground">
               Page {page} of {totalPages}
             </p>
             <Button
