@@ -320,7 +320,6 @@ func finishAndroidValueCapture(text []byte, decoder *xml.Decoder, capture *andro
 	}, nil
 }
 
-
 func androidValidPluralQuantity(quantity string) bool {
 	switch quantity {
 	case "zero", "one", "two", "few", "many", "other":
