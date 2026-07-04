@@ -1,0 +1,24 @@
+# Exclude dev-only files from Vercel uploads.
+# See https://vercel.com/docs/deployments/vercel-ignore
+# Vercel already ignores node_modules, .next, .git, and .env* by default.
+
+# Storybook
+.storybook
+storybook-static
+
+# Tests, fixtures, and stories (not imported by production code)
+**/*.test.ts
+**/*.test.tsx
+**/*.fixture.ts
+**/*.stories.ts
+**/*.stories.tsx
+
+# Test output
+coverage
+
+# MSW worker used by Storybook/local dev only
+public/mockServiceWorker.js
+
+# Agent/editor docs
+AGENTS.md
+CLAUDE.md
