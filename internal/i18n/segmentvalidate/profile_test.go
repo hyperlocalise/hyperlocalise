@@ -13,6 +13,7 @@ func TestExtractExtraPlaceholders(t *testing.T) {
 		{"Path ${HOME}/file", []string{"${HOME}"}},
 		{"Wrap $token$ here", []string{"$token$"}},
 		{"Hello {name}", nil},
+		{"step %i of %d", []string{"%d"}},
 	}
 	for _, tt := range tests {
 		got := extractExtraPlaceholders(tt.text)

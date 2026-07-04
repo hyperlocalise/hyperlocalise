@@ -3,6 +3,7 @@ package segmentvalidate
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
@@ -36,7 +37,7 @@ const (
 func ValidateSegment(req Request) []Check {
 	checks := make([]Check, 0, 6)
 
-	if req.MaxLength > 0 && len(req.TargetText) > req.MaxLength {
+	if req.MaxLength > 0 && utf8.RuneCountInString(req.TargetText) > req.MaxLength {
 		checks = append(checks, Check{
 			ID:       "length",
 			Label:    "Length",
@@ -89,6 +90,7 @@ func validateForKind(kind FormatKind, source, translated string) error {
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return fmt.Errorf("raw HTML syntax introduced in translated markdown")
 		}
+		return nil
 	case FormatHTML:
 		if htmltagparity.Mismatch(source, translated) {
 			return fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))

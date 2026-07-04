@@ -9,9 +9,9 @@ import (
 
 // Non-ICU placeholder patterns used in Hyperlocalise projects (subset of Crowdin editor rules).
 var extraPlaceholderPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`%[0-9]+\$[sidf@]`),
-	regexp.MustCompile(`%\([A-Za-z_][\w]*\)[sidf@]`),
-	regexp.MustCompile(`%[sidf@]\b`),
+	regexp.MustCompile(`%[0-9]+\$[sdf@]`),
+	regexp.MustCompile(`%\([A-Za-z_][\w]*\)[sdf@]`),
+	regexp.MustCompile(`%[sdf@]\b`),
 	regexp.MustCompile(`%\{[ \w.-]+\}`),
 	regexp.MustCompile(`\$\{[A-Za-z_][\w.-]*\}`),
 	regexp.MustCompile(`\$[A-Za-z_][\w.+-]*\$`),

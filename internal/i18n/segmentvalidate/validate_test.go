@@ -153,6 +153,20 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name:       "markdown_skips_profile_parity_whitespace",
+			path:       "/en/a.md",
+			source:     " Hello ",
+			translated: "Bonjour ",
+			wantErr:    false,
+		},
+		{
+			name:       "markdown_skips_profile_parity_special_chars",
+			path:       "/en/a.md",
+			source:     `Save\n`,
+			translated: `Enregistrer`,
+			wantErr:    false,
+		},
+		{
 			name:        "json_icu_placeholder_mismatch",
 			path:        "/pkg/en.json",
 			source:      "Hello {name}",
@@ -216,6 +230,26 @@ func TestValidateSegmentPassAndFail(t *testing.T) {
 	}
 	if checks[0].ID != "length" || checks[0].Status != StatusFail {
 		t.Fatalf("expected length failure first, got %+v", checks[0])
+	}
+
+	// MaxLength counts Unicode characters, not UTF-8 bytes.
+	checks = ValidateSegment(Request{
+		SourceText: "你好",
+		TargetText: "你好世界",
+		SourcePath: "/pkg/zh.json",
+		MaxLength:  4,
+	})
+	if len(checks) != 2 || checks[0].ID != "length" || checks[0].Status != StatusFail {
+		t.Fatalf("expected rune-based length failure, got %+v", checks)
+	}
+	checks = ValidateSegment(Request{
+		SourceText: "你好",
+		TargetText: "你好",
+		SourcePath: "/pkg/zh.json",
+		MaxLength:  2,
+	})
+	if len(checks) != 1 || checks[0].Status != StatusPass {
+		t.Fatalf("expected pass within rune limit, got %+v", checks)
 	}
 }
 
