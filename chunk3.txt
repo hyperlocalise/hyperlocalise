@@ -1,0 +1,100 @@
+					}
+					doc.entries = append(doc.entries, entry)
+					capture = nil
+				} else if capture.depth > 0 {
+					capture.depth--
+				}
+			}
+
+			if capture == nil && depth == 2 && plural != nil && token.Name.Local == "plurals" {
+				if plural.itemCount == 0 {
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, plural.startLine)
+				}
+				if !plural.hasOther {
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, plural.startLine)
+				}
+				plural = nil
+			}
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+
+	if !rootSeen {
+		return androidResourceDocument{}, fmt.Errorf("android resources: expected <resources> root")
+	}
+	if capture != nil {
+		return androidResourceDocument{}, fmt.Errorf("android resources: unterminated <%s> value for key %q", capture.name, capture.key)
+	}
+	if plural != nil {
+		return androidResourceDocument{}, fmt.Errorf("android resources: unterminated <plurals name=%q>", plural.name)
+	}
+
+	return doc, nil
+}
+
+func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, *androidPluralState, error) {
+	var name string
+	translatable := true
+	for _, attr := range token.Attr {
+		switch attr.Name.Local {
+		case "name":
+			name = attr.Value
+		case "translatable":
+			if strings.EqualFold(strings.TrimSpace(attr.Value), "false") {
+				translatable = false
+			}
+		}
+	}
+
+	if !translatable {
+		return nil, nil, nil
+	}
+	if name == "" {
+		return nil, nil, fmt.Errorf("android resources: <%s> is missing required \"name\" attribute at line %d", token.Name.Local, currentLine)
+	}
+
+	switch token.Name.Local {
+	case "string":
+		capture, err := startAndroidValueCapture(text, decoder, token, name, seenKeys)
+		return capture, nil, err
+	case "plurals":
+		return nil, &androidPluralState{name: name, startLine: currentLine}, nil
+	default:
+		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, currentLine)
+	}
+}
+
+func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, error) {
+	if token.Name.Local != "item" {
+		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, currentLine)
+	}
+
+	var quantity string
+	for _, attr := range token.Attr {
+		if attr.Name.Local == "quantity" {
+			quantity = attr.Value
+			break
+		}
+	}
+	if quantity == "" {
+		return nil, fmt.Errorf("android resources: <item> inside <plurals name=%q> at line %d is missing required \"quantity\" attribute", plural.name, currentLine)
+	}
+
+	if !androidValidPluralQuantity(quantity) {
+		return nil, fmt.Errorf("android resources: <plurals name=%q> has unsupported quantity %q", plural.name, quantity)
+	}
+	plural.itemCount++
+	if quantity == "other" {
+		plural.hasOther = true
+	}
+	key := plural.name + "." + quantity
+	return startAndroidValueCapture(text, decoder, token, key, seenKeys)
+}
+
+func startAndroidValueCapture(text string, decoder *xml.Decoder, token xml.StartElement, key string, seenKeys map[string]struct{}) (*androidValueCapture, error) {
+	if _, ok := seenKeys[key]; ok {
+		return nil, fmt.Errorf("android resources: duplicate resource key %q", key)
+	}
+	seenKeys[key] = struct{}{}

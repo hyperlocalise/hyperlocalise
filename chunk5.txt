@@ -1,0 +1,39 @@
+				b.WriteString(" xmlns:")
+				b.WriteString(attr.Name.Local)
+			} else {
+				b.WriteString(" xmlns")
+			}
+			b.WriteString("=\"")
+			b.WriteString(escapeXMLAttr(attr.Value))
+			b.WriteString("\"")
+		}
+	}
+
+	if !initialized {
+		return ""
+	}
+	return b.String()
+}
+
+func isAndroidStringResourcePath(path string) bool {
+	path = strings.TrimSpace(path)
+	// BOLT OPTIMIZATION: Fast-path suffix check to skip expensive filepath/string ops.
+	if len(path) < 11 { // "strings.xml" is 11 chars
+		return false
+	}
+	// Case-insensitive check for "strings.xml" at the end without full string lowering or cleaning.
+	if !strings.EqualFold(path[len(path)-11:], "strings.xml") {
+		return false
+	}
+
+	normalized := filepath.ToSlash(filepath.Clean(path))
+	// BOLT OPTIMIZATION: Avoid strings.Split while remaining case-insensitive.
+	// Android string resources are always in a "strings.xml" file.
+	lower := strings.ToLower(normalized)
+	if lower == "strings.xml" {
+		// Just the filename is acceptable as a relative path.
+		return true
+	}
+	if !strings.HasSuffix(lower, "/strings.xml") {
+		return false
+	}
