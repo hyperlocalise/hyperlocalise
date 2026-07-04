@@ -38,6 +38,8 @@ export default defineConfig({
     ],
   },
   test: {
+    environment: "node",
+    setupFiles: ["./src/test/setup-dom.ts"],
     server: {
       deps: {
         inline: ["@workos-inc/authkit-nextjs"],
