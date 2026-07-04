@@ -23,7 +23,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     await waitFor(() => {
-      expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+      void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
     });
   },
 };
@@ -31,7 +31,7 @@ export const Default: Story = {
 export const SelectFile: Story = {
   play: async ({ canvasElement, args }) => {
     await waitFor(() => {
-      expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+      void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
     });
 
     const treeContainer = canvasElement.querySelector("file-tree-container");

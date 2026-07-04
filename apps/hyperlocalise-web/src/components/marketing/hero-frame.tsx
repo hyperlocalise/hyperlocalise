@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 import type {
   CatFormatCheck,
   CatSegment,
@@ -361,6 +362,7 @@ const heroDemoState: CatWorkspaceState = {
     canAddComments: true,
   },
   segments: heroDemoSegments,
+  queueSegments: heroDemoSegments.map(toQueueSegment),
   selectedSegmentId: "hero-title",
   formatChecks: heroDemoChecks,
   segmentFormatChecks: {
