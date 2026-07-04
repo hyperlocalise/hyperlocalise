@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -121,12 +122,14 @@ export function ProjectFilesTreePanel({
   selectedSourcePath,
   onSelectSourcePath,
   onLoadedFilesChange,
+  toolbar,
 }: {
   organizationSlug: string;
   projectId: string;
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
   onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
+  toolbar?: ReactNode;
 }) {
   const queryClient = useQueryClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
@@ -209,6 +212,8 @@ export function ProjectFilesTreePanel({
         </div>
         {filesQuery.isFetching && !filesQuery.isLoading ? <Spinner /> : null}
       </header>
+
+      {toolbar}
 
       {filesQuery.isLoading ? (
         <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>

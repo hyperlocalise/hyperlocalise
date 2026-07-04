@@ -22,8 +22,7 @@ import {
   ProjectSectionHeader,
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
-import { ProjectFileDetailPanel } from "./project-file-detail-panel";
-import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
+import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 import {
   ProjectFilesTreePanel,
   projectFilesQueryKey,
@@ -55,14 +54,6 @@ export type ProjectFilesTreeRenderer = (props: {
   onSelectFile: (sourcePath: string | null) => void;
 }) => ReactNode;
 
-export type ProjectFilesDetailPanelRenderer = (props: {
-  organizationSlug: string;
-  projectId: string;
-  file: ProjectFileRecord | null;
-  requestedSourcePath: string | null;
-  highlightLocale: string | null;
-}) => ReactNode;
-
 export type ProjectFilesErrorRenderer = (props: {
   organizationSlug: string;
   error: unknown;
@@ -78,24 +69,6 @@ function defaultRenderFilesTree({
       files={files}
       selectedSourcePath={selectedSourcePath}
       onSelectFile={onSelectFile}
-    />
-  );
-}
-
-function defaultRenderDetailPanel({
-  organizationSlug,
-  projectId,
-  file,
-  requestedSourcePath,
-  highlightLocale,
-}: Parameters<ProjectFilesDetailPanelRenderer>[0]) {
-  return (
-    <ProjectFileDetailPanel
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      file={file}
-      requestedSourcePath={requestedSourcePath}
-      highlightLocale={highlightLocale}
     />
   );
 }
@@ -222,15 +195,25 @@ export function ProjectFilesPageContent({
       onAddSelectedFiles={addSelectedFiles}
       onRemoveSelectedFile={removeSelectedFile}
       onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
-      filesTree={
+      filesTree={(selectedFile) => (
         <ProjectFilesTreePanel
           organizationSlug={organizationSlug}
           projectId={projectId}
           selectedSourcePath={selectedSourcePath}
           onSelectSourcePath={setSelectedSourcePath}
           onLoadedFilesChange={setLoadedFiles}
+          toolbar={
+            selectedFile ? (
+              <ProjectFileSelectionActions
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                file={selectedFile}
+                highlightLocale={highlightLocale}
+              />
+            ) : null
+          }
         />
-      }
+      )}
     />
   );
 }
@@ -251,7 +234,6 @@ export function ProjectFilesPageContentView({
   onAddSelectedFiles,
   onRemoveSelectedFile,
   onUploadSelectedFiles,
-  renderDetailPanel = defaultRenderDetailPanel,
   renderError = defaultRenderFilesError,
   renderFilesTree = defaultRenderFilesTree,
   filesTree,
@@ -271,10 +253,9 @@ export function ProjectFilesPageContentView({
   onAddSelectedFiles: (files: File[]) => void;
   onRemoveSelectedFile: (file: File) => void;
   onUploadSelectedFiles: () => void;
-  renderDetailPanel?: ProjectFilesDetailPanelRenderer;
   renderError?: ProjectFilesErrorRenderer;
   renderFilesTree?: ProjectFilesTreeRenderer;
-  filesTree?: ReactNode;
+  filesTree?: (selectedFile: ProjectFileRecord | null) => ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const displayFiles = filesTree ? (resolvedFiles ?? []) : files;
@@ -293,8 +274,8 @@ export function ProjectFilesPageContentView({
         section="Files"
         description={
           isProviderProject
-            ? "Browse source files from the connected TMS provider, then select one to preview its source content when the provider exposes it."
-            : "Upload source files, then select one to preview its content and related translation jobs."
+            ? "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported."
+            : "Upload source files, then open one in the CAT workspace to review and edit translations."
         }
         actions={
           canUploadFiles ? (
@@ -374,28 +355,17 @@ export function ProjectFilesPageContentView({
 
       <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
         {filesTree ? (
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
-              {filesTree}
-            </aside>
-            <main className="min-h-0 overflow-y-auto bg-background/40">
-              <ProjectFilesErrorBoundary
-                organizationSlug={organizationSlug}
-                scope="detail"
-                resetKeys={[selectedSourcePath, highlightLocale, selectedFile?.sourcePath]}
-              >
-                {renderDetailPanel({
-                  organizationSlug,
-                  projectId,
-                  file: selectedFile,
-                  requestedSourcePath: selectedSourcePath,
-                  highlightLocale,
-                })}
-              </ProjectFilesErrorBoundary>
-            </main>
-          </div>
+          <div className="flex min-h-0 flex-1 flex-col">{filesTree(selectedFile)}</div>
         ) : (
           <>
+            {selectedFile ? (
+              <ProjectFileSelectionActions
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                file={selectedFile}
+                highlightLocale={highlightLocale}
+              />
+            ) : null}
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
               <div>
                 <ProjectSectionTitle>Project files</ProjectSectionTitle>
@@ -410,45 +380,31 @@ export function ProjectFilesPageContentView({
               {isFilesFetching && !isFilesLoading ? <Spinner /> : null}
             </header>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
-              <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
-                {isFilesLoading ? (
-                  <TypographyP className="p-4 text-sm text-foreground/52">
-                    Loading files…
+            <div className="flex min-h-0 flex-1 flex-col">
+              {isFilesLoading ? (
+                <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
+              ) : filesError ? (
+                <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
+              ) : files.length === 0 ? (
+                <div className="flex flex-col gap-2 p-4">
+                  <TypographyP className="text-sm font-medium text-foreground">
+                    No files yet
                   </TypographyP>
-                ) : filesError ? (
-                  <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
-                ) : files.length === 0 ? (
-                  <div className="flex flex-col gap-2 p-4">
-                    <TypographyP className="text-sm font-medium text-foreground">
-                      No files yet
-                    </TypographyP>
-                    <TypographyP className="text-sm text-foreground/52">
-                      {isProviderProject
-                        ? "No provider files were found for this project."
-                        : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
-                    </TypographyP>
-                  </div>
-                ) : (
-                  <div className="min-h-0 flex-1 p-2">
-                    {renderFilesTree({
-                      files,
-                      selectedSourcePath,
-                      onSelectFile: onSelectSourcePath,
-                    })}
-                  </div>
-                )}
-              </aside>
-
-              <main className="min-h-0 overflow-y-auto bg-background/40">
-                {renderDetailPanel({
-                  organizationSlug,
-                  projectId,
-                  file: selectedFile,
-                  requestedSourcePath: selectedSourcePath,
-                  highlightLocale,
-                })}
-              </main>
+                  <TypographyP className="text-sm text-foreground/52">
+                    {isProviderProject
+                      ? "No provider files were found for this project."
+                      : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
+                  </TypographyP>
+                </div>
+              ) : (
+                <div className="min-h-0 flex-1 p-2">
+                  {renderFilesTree({
+                    files,
+                    selectedSourcePath,
+                    onSelectFile: onSelectSourcePath,
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}
