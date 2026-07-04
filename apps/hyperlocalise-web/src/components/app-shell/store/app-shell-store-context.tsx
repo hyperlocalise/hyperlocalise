@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
@@ -18,10 +18,14 @@ export function AppShellStoreProvider({
 }) {
   const [store] = useState(() => createAppShellStore(defaultNavigationGroups));
   const pathname = usePathname();
+  const previousPathnameRef = useRef(pathname);
 
-  useEffect(() => {
+  // Reset during render, not in useEffect. Passive effects flush bottom-up, so a
+  // provider effect would run after page hooks register and immediately clear them.
+  if (previousPathnameRef.current !== pathname) {
     store.resetPageScope();
-  }, [pathname, store]);
+    previousPathnameRef.current = pathname;
+  }
 
   return <AppShellStoreContext.Provider value={store}>{children}</AppShellStoreContext.Provider>;
 }
