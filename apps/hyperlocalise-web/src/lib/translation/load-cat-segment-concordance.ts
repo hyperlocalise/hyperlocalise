@@ -129,10 +129,20 @@ async function loadCrowdinLiveConcordance(input: {
     baseUrl: credential.baseUrl ?? undefined,
   });
 
+  let sourceLocale = input.sourceLocale;
+  if (!sourceLocale || sourceLocale === "source") {
+    try {
+      const project = await client.getProject(Number(externalProjectId));
+      sourceLocale = project.sourceLanguageId;
+    } catch {
+      sourceLocale = "en";
+    }
+  }
+
   return searchCrowdinCatConcordance({
     client,
     externalProjectId,
-    sourceLocale: input.sourceLocale,
+    sourceLocale,
     targetLocale: input.targetLocale,
     sourceText: input.sourceText,
   });

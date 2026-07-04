@@ -798,6 +798,33 @@ function resolveLiveCatFileFromExternalResourceId(input: {
   });
 }
 
+async function enrichLiveCatFileWithProjectLocales(
+  file: TmsProviderLiveFile,
+  context: ActiveTmsProviderContext,
+  externalProjectId: string,
+): Promise<TmsProviderLiveFile> {
+  if (!file.provider || file.provider.sourceLocale) {
+    return file;
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  if (!projectMetadata?.sourceLocale) {
+    return file;
+  }
+
+  return {
+    ...file,
+    provider: {
+      ...file.provider,
+      sourceLocale: projectMetadata.sourceLocale,
+      targetLocales:
+        file.provider.targetLocales.length > 0
+          ? file.provider.targetLocales
+          : projectMetadata.targetLocales,
+    },
+  };
+}
+
 async function resolveLiveCatFile(input: {
   organizationId: string;
   externalProjectId: string;
@@ -1987,7 +2014,9 @@ export async function getTmsProviderLiveCatFile(
     return null;
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  const enrichedFile = await enrichLiveCatFileWithProjectLocales(file, context, externalProjectId);
+
+  if (!supportsLiveProviderCat(context.providerKind, enrichedFile)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
@@ -2001,7 +2030,7 @@ export async function getTmsProviderLiveCatFile(
         region: context.credential.region,
         baseUrl: context.credential.baseUrl,
         externalProjectId,
-        file,
+        file: enrichedFile,
         targetLocale,
         canEditTranslations: options?.canEditTranslations ?? false,
         pagination: options?.pagination,
@@ -2013,7 +2042,7 @@ export async function getTmsProviderLiveCatFile(
 
   return buildCrowdinLiveCatFile({
     context,
-    file,
+    file: enrichedFile,
     targetLocale,
     canEditTranslations: options?.canEditTranslations ?? false,
     pagination: options?.pagination,

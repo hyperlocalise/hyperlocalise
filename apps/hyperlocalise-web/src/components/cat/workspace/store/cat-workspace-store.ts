@@ -221,7 +221,12 @@ export class CatWorkspaceStore {
       }
 
       if (currentSegment.targetText === previousSegment.targetText) {
-        existingDraft.applyServerTarget(targetText, status);
+        // Queue snapshots omit per-segment targets. Do not clobber lazy-loaded text with empty.
+        if (!targetText.trim() && previousSegment.targetText.trim()) {
+          existingDraft.applyServerStatus(status);
+        } else {
+          existingDraft.applyServerTarget(targetText, status);
+        }
       } else {
         existingDraft.applyServerStatus(status);
       }

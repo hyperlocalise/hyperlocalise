@@ -7,6 +7,7 @@ import { useIntl } from "react-intl";
 import type {
   ProjectFileCatConcordanceResponse,
   ProjectFileCatRecommendationResponse,
+  ProjectFileCatTranslation,
   ProjectFileCatVisualContextResponse,
 } from "@/api/routes/project/project.schema";
 import {
@@ -82,6 +83,9 @@ export function ProjectFileCatWorkspace({
 }) {
   const intl = useIntl();
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
+  const [loadedSegmentTargets, setLoadedSegmentTargets] = useState<
+    Record<string, ProjectFileCatTranslation | null>
+  >({});
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -104,6 +108,10 @@ export function ProjectFileCatWorkspace({
 
   const targetLocale = targetLocaleProp ?? targetLocaleState;
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
+
+  useEffect(() => {
+    setLoadedSegmentTargets({});
+  }, [sourcePath, targetLocale, externalResourceId, resourceType]);
 
   const {
     catQuery,
@@ -216,10 +224,31 @@ export function ProjectFileCatWorkspace({
   const isCommentsLoading =
     Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
 
+  const cachedTargetForActiveSegment =
+    activeSegmentId != null ? loadedSegmentTargets[activeSegmentId] : undefined;
+
   const isSegmentTargetLoading =
     Boolean(activeSegmentId) &&
     segmentTargetQuery.isFetching &&
-    segmentTargetQuery.data === undefined;
+    segmentTargetQuery.data === undefined &&
+    cachedTargetForActiveSegment === undefined;
+
+  useEffect(() => {
+    if (!activeSegmentId || segmentTargetQuery.data === undefined) {
+      return;
+    }
+
+    setLoadedSegmentTargets((current) => {
+      if (Object.is(current[activeSegmentId], segmentTargetQuery.data)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [activeSegmentId]: segmentTargetQuery.data,
+      };
+    });
+  }, [activeSegmentId, segmentTargetQuery.data]);
 
   const enrichedWorkspaceState = useMemo(() => {
     if (!workspaceState) {
@@ -228,14 +257,20 @@ export function ProjectFileCatWorkspace({
 
     let nextState = workspaceState;
 
-    if (catFile && activeSegmentId && segmentTargetQuery.data !== undefined) {
-      nextState = applyCatSegmentTargetToWorkspaceState(
-        nextState,
-        catFile,
-        activeSegmentId,
-        segmentTargetQuery.data,
-        intl,
-      );
+    if (catFile) {
+      for (const [segmentId, target] of Object.entries(loadedSegmentTargets)) {
+        if (!segmentId) {
+          continue;
+        }
+
+        nextState = applyCatSegmentTargetToWorkspaceState(
+          nextState,
+          catFile,
+          segmentId,
+          target,
+          intl,
+        );
+      }
     }
 
     if (activeSegmentId && segmentCommentsQuery.data) {
@@ -247,14 +282,7 @@ export function ProjectFileCatWorkspace({
     }
 
     return nextState;
-  }, [
-    activeSegmentId,
-    catFile,
-    intl,
-    segmentCommentsQuery.data,
-    segmentTargetQuery.data,
-    workspaceState,
-  ]);
+  }, [catFile, intl, loadedSegmentTargets, segmentCommentsQuery.data, workspaceState]);
 
   const validateFormat = useCallback(
     (segment: CatSegment, value: string, glossaryTerms: CatGlossaryTerm[] = []) =>

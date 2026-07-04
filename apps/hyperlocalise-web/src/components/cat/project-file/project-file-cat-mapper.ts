@@ -279,7 +279,7 @@ export function projectFileCatToWorkspaceState(
   catFile: CatFile,
   _intl: CatFormatMessageIntl,
 ): CatWorkspaceState {
-  const sourceLocale = catFile.provider?.sourceLocale ?? "source";
+  const sourceLocale = catFile.provider?.sourceLocale ?? "en";
   const segmentOffset = catFile.pagination?.offset ?? 0;
   const segments = catFile.segments.map((segment, index): CatSegment => {
     const commentCount = segment.comments.length || segment.commentCount || 0;

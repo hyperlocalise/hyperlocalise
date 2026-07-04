@@ -141,6 +141,52 @@ describe("CatWorkspaceStore hydration", () => {
     );
   });
 
+  it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
+    const initialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "hero.title",
+          sourceText: "Hello",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "ca",
+          status: "pending",
+        },
+      ],
+    });
+    const store = createCatWorkspaceStore(initialState);
+
+    store.hydrateFromServerSnapshot({
+      ...initialState,
+      segments: [
+        {
+          ...initialState.segments[0]!,
+          targetText: "Hola",
+          status: "reviewed",
+        },
+      ],
+    });
+
+    store.hydrateFromServerSnapshot({
+      ...initialState,
+      segments: [
+        {
+          ...initialState.segments[0]!,
+          targetText: "",
+          status: "pending",
+        },
+      ],
+    });
+
+    expect(store.segments[0]).toMatchObject({
+      targetText: "Hola",
+    });
+    expect([...store.dirtySegmentIds]).toEqual([]);
+  });
+
   it("tracks dirty segment ids from draft baselines", () => {
     const store = createCatWorkspaceStore(
       createCatWorkspaceState({
