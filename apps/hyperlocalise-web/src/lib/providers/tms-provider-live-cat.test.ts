@@ -333,15 +333,15 @@ describe("getTmsProviderLiveCatFile", () => {
       externalStringId: "1001",
       key: "hero.title",
       sourceText: "Hello",
-      target: { text: "Bonjour", externalTranslationId: "9001", isApproved: false },
       comments: [],
     });
+    expect(catFile?.segments[0]).not.toHaveProperty("target");
     expect(catFile?.segments[1]).toMatchObject({
       externalStringId: "1002",
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
-      target: null,
       comments: [],
     });
+    expect(catFile?.segments[1]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requestedPaths.some((path) => path.includes("/projects/42/approvals?"))).toBe(false);
     expect(
@@ -354,7 +354,7 @@ describe("getTmsProviderLiveCatFile", () => {
     ).toBe(false);
   });
 
-  it("uses latest Crowdin translations in queue without approval lookups", async () => {
+  it("loads Crowdin queue segments without translation or approval lookups", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -484,11 +484,14 @@ describe("getTmsProviderLiveCatFile", () => {
 
     expect(catFile?.segments[0]).toMatchObject({
       externalStringId: "1001",
-      target: { text: "Salut", externalTranslationId: "9002", isApproved: false },
+      key: "hero.title",
+      sourceText: "Hello",
+      comments: [],
     });
-    expect(
-      fetchMock.mock.calls.some(([url]) => String(url).includes("/projects/42/approvals?")),
-    ).toBe(false);
+    expect(catFile?.segments[0]).not.toHaveProperty("target");
+    const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedPaths.some((path) => path.includes("/projects/42/approvals?"))).toBe(false);
+    expect(requestedPaths.some((path) => path.includes("/languages/fr/translations?"))).toBe(false);
   });
 
   it("loads a Crowdin queue directly by provider resource id", async () => {
@@ -563,13 +566,17 @@ describe("getTmsProviderLiveCatFile", () => {
     expect(catFile?.segments).toHaveLength(1);
     expect(catFile?.segments[0]).toMatchObject({
       externalStringId: "1001",
-      target: { text: "Bonjour", externalTranslationId: "9001", isApproved: false },
+      key: "hero.title",
+      sourceText: "Hello",
+      comments: [],
     });
+    expect(catFile?.segments[0]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requestedPaths.some((path) => path.includes("/branches?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/directories?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/files?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/approvals?"))).toBe(false);
+    expect(requestedPaths.some((path) => path.includes("/languages/fr/translations?"))).toBe(false);
   });
 
   it("saves a Crowdin CAT translation against the approved record when suggestions exist", async () => {

@@ -65,6 +65,7 @@ export function CatWorkspaceView({
   isQueueFetchingPage = false,
   isQueueLoading = false,
   isCommentsLoading = false,
+  isSegmentDetailLoading = false,
   queuePagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -220,6 +221,7 @@ export function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isCommentsLoading={isCommentsLoading}
+          isSegmentDetailLoading={isSegmentDetailLoading}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}

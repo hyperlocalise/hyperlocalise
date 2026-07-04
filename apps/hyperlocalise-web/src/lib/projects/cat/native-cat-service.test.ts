@@ -118,6 +118,8 @@ describe("NativeCatService.getCatFile", () => {
       key: "hero.title",
       sourceText: "Welcome",
     });
+    expect(result?.segments[0]).not.toHaveProperty("target");
+    expect(getTranslationsByKeyIds).not.toHaveBeenCalled();
     expect(result?.segments[0]?.maxLength).toBeUndefined();
   });
 

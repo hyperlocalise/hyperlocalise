@@ -18,6 +18,7 @@ export type CatEditorPanelProps = {
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isCommentsLoading?: boolean;
+  isSegmentDetailLoading?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;

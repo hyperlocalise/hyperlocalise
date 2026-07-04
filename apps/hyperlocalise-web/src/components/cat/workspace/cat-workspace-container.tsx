@@ -49,6 +49,7 @@ export interface CatWorkspaceContainerProps {
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
+  isSegmentDetailLoading?: boolean;
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
@@ -76,6 +77,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   hasMoreQueue,
   onLoadMoreQueue,
   isCommentsLoading,
+  isSegmentDetailLoading,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
 }: CatWorkspaceContainerProps & { store: ReturnType<typeof createCatWorkspaceStore> }) {
@@ -136,6 +138,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           isCommentsLoading={isCommentsLoading}
+          isSegmentDetailLoading={isSegmentDetailLoading}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}

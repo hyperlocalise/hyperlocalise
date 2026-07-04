@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import type {
   ProjectFileCatComment,
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
@@ -22,7 +22,7 @@ export function useCatMutations(input: {
   sourcePath: string;
   targetLocale: string;
   repositoryFullName?: string | null;
-  catFile: ProjectFileCatResponse["catFile"] | null | undefined;
+  catFile: ProjectFileCatQueueFile | null | undefined;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
@@ -70,7 +70,24 @@ export function useCatMutations(input: {
         variables.text,
         translation.isApproved,
       );
-      await input.invalidateQueue();
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateSegmentDetail({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+          repositoryFullName,
+        }),
+      ]);
     },
   });
 

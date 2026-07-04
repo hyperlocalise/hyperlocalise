@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type {
   ProjectFileCatComment,
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
   ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
@@ -57,7 +57,7 @@ export class NativeCatService extends ProjectServiceBase {
     targetLocale: string;
     canEditTranslations: boolean;
     pagination?: ProjectFileCatPaginationInput;
-  }): Promise<ProjectFileCatResponse["catFile"] | null> {
+  }): Promise<ProjectFileCatQueueFile | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -142,25 +142,14 @@ export class NativeCatService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
-  }): Promise<ProjectFileCatResponse["catFile"]> {
+  }): Promise<ProjectFileCatQueueFile> {
     const translationKeyIds = input.visibleKeys.map((key) => key.id);
-    const [translations, commentCounts] = await Promise.all([
-      this.translations.getTranslationsByKeyIds({
-        organizationId: input.input.organizationId,
-        projectId: input.input.projectId,
-        translationKeyIds,
-        targetLocale: input.input.targetLocale,
-      }),
-      this.comments.countByKeyIds({
-        organizationId: input.input.organizationId,
-        projectId: input.input.projectId,
-        translationKeyIds,
-        targetLocale: input.input.targetLocale,
-      }),
-    ]);
-    const translationByKeyId = new Map(
-      translations.map((translation) => [translation.translationKeyId, translation]),
-    );
+    const commentCounts = await this.comments.countByKeyIds({
+      organizationId: input.input.organizationId,
+      projectId: input.input.projectId,
+      translationKeyIds,
+      targetLocale: input.input.targetLocale,
+    });
 
     return {
       sourcePath: input.input.sourcePath,
@@ -171,7 +160,6 @@ export class NativeCatService extends ProjectServiceBase {
       truncated: input.truncated,
       pagination: input.pagination,
       segments: input.visibleKeys.map((key) => {
-        const translation = translationByKeyId.get(key.id);
         const counts = commentCounts.get(key.id);
         return {
           externalStringId: key.id,
@@ -180,7 +168,6 @@ export class NativeCatService extends ProjectServiceBase {
           context: key.context,
           type: key.type,
           ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
-          target: translation ? toCatTranslation(translation) : null,
           comments: [],
           ...(counts
             ? {
@@ -472,9 +459,9 @@ export class NativeCatService extends ProjectServiceBase {
   async attachAgentContexts(input: {
     organizationId: string;
     projectId: string;
-    catFile: ProjectFileCatResponse["catFile"];
+    catFile: ProjectFileCatQueueFile;
     preferredRepositoryFullName?: string | null;
-  }): Promise<ProjectFileCatResponse["catFile"]> {
+  }): Promise<ProjectFileCatQueueFile> {
     const log = this.log.child({
       organizationId: input.organizationId,
       projectId: input.projectId,

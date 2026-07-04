@@ -1,6 +1,7 @@
 import type {
   ProjectFileCatComment,
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
+  ProjectFileCatQueueSegment,
   ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
@@ -60,16 +61,22 @@ type PhraseCatSegmentDraft = {
   commentCount: number;
 };
 
-function draftToSegment(draft: PhraseCatSegmentDraft): ProjectFileCatSegment {
+function draftToQueueSegment(draft: PhraseCatSegmentDraft): ProjectFileCatQueueSegment {
   return {
     externalStringId: draft.externalStringId,
     key: draft.key,
     sourceText: draft.sourceText,
     context: draft.context,
     type: draft.type,
-    target: draft.target,
     comments: [],
     commentCount: draft.commentCount,
+  };
+}
+
+function draftToSegment(draft: PhraseCatSegmentDraft): ProjectFileCatSegment {
+  return {
+    ...draftToQueueSegment(draft),
+    target: draft.target,
   };
 }
 
@@ -351,7 +358,7 @@ async function loadPhraseQueuePage(input: {
   targetLocaleCode: string;
   paginationInput: ProjectFileCatPaginationInput;
 }): Promise<{
-  segments: ProjectFileCatSegment[];
+  segments: ProjectFileCatQueueSegment[];
   hasMore: boolean;
   nextPhraseScanPage?: number;
   nextPhraseScanSkip?: number;
@@ -408,7 +415,7 @@ async function loadPhraseQueuePage(input: {
           segmentMatchesQueueFilter(segment, queueFilter) && segmentMatchesSearch(segment, search),
       )
       .slice(offset, offset + limit)
-      .map(draftToSegment);
+      .map(draftToQueueSegment);
 
     return {
       segments,
@@ -442,12 +449,12 @@ async function loadPhraseQueuePage(input: {
         targetLocaleCode: input.targetLocaleCode,
         translationsByKeyId,
         commentCountsByKeyId: new Map(),
-      }).map(draftToSegment),
+      }).map(draftToQueueSegment),
       hasMore,
     };
   }
 
-  const collected: ProjectFileCatSegment[] = [];
+  const collected: ProjectFileCatQueueSegment[] = [];
   const resumingScan = input.paginationInput.phraseScanPage != null;
   let phrasePage = resumingScan ? input.paginationInput.phraseScanPage! : 1;
   let skipMatches = resumingScan ? (input.paginationInput.phraseScanSkip ?? 0) : offset;
@@ -514,7 +521,7 @@ async function loadPhraseQueuePage(input: {
           continue;
         }
 
-        collected.push(draftToSegment(draft));
+        collected.push(draftToQueueSegment(draft));
         if (collected.length >= limit) {
           nextPhraseScanPage = phrasePage;
           nextPhraseScanSkip = matchesSeenOnPage;
@@ -553,7 +560,7 @@ export async function buildPhraseLiveCatFile(input: {
   targetLocale: string;
   canEditTranslations: boolean;
   pagination?: ProjectFileCatPaginationInput;
-}): Promise<ProjectFileCatResponse["catFile"]> {
+}): Promise<ProjectFileCatQueueFile> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,

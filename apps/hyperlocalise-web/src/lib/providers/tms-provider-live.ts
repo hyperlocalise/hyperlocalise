@@ -3,7 +3,7 @@ import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
 import type {
   ProjectFileCatComment,
-  ProjectFileCatResponse,
+  ProjectFileCatQueueFile,
   ProjectFileCatSegment,
   ProjectFileCatTranslation,
   ProjectFileContent,
@@ -229,7 +229,7 @@ export type TmsProviderLiveFile = {
 };
 
 export type TmsProviderLiveFileDetail = ProjectFileDetailResponse["file"];
-export type TmsProviderLiveCatFile = ProjectFileCatResponse["catFile"];
+export type TmsProviderLiveCatFile = ProjectFileCatQueueFile;
 
 export type TmsProviderLiveGlossary = {
   id: string;
@@ -957,39 +957,6 @@ function preferredLanguageTranslation(
   return sortTranslationsByNewest(withText)[0] ?? null;
 }
 
-async function loadCrowdinTranslationsByStringId(
-  client: CrowdinApiClient,
-  projectId: number,
-  targetLocale: string,
-  sourceStringIds: number[],
-) {
-  const translationsByStringId = new Map<number, CrowdinLanguageTranslation[]>();
-  if (sourceStringIds.length === 0) {
-    return translationsByStringId;
-  }
-
-  const chunks: number[][] = [];
-  for (let index = 0; index < sourceStringIds.length; index += 25) {
-    chunks.push(sourceStringIds.slice(index, index + 25));
-  }
-
-  const chunkResults = await mapWithConcurrency(chunks, 3, (chunk) =>
-    client.listLanguageTranslations(projectId, targetLocale, {
-      stringIds: chunk,
-    }),
-  );
-
-  for (const translations of chunkResults) {
-    for (const translation of translations) {
-      const existing = translationsByStringId.get(translation.stringId) ?? [];
-      existing.push(translation);
-      translationsByStringId.set(translation.stringId, existing);
-    }
-  }
-
-  return translationsByStringId;
-}
-
 async function buildCrowdinLiveCatFile(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
@@ -1069,15 +1036,9 @@ async function buildCrowdinLiveCatFile(input: {
     const queueFilter = paginationInput.queueFilter ?? "all";
     const inferIssuesFromFilter = queueFilter === "has_issues";
 
-    const [translationsByStringId, unresolvedIssueStringIds] = await Promise.all([
-      loadCrowdinTranslationsByStringId(client, projectId, input.targetLocale, sourceStringIds),
-      inferIssuesFromFilter
-        ? Promise.resolve(new Set(sourceStringIds))
-        : Promise.resolve(new Set<number>()),
-    ]);
-
-    const approvedTranslationIds = new Set<number>();
-    const inferApprovedFromFilter = queueFilter === "reviewed";
+    const unresolvedIssueStringIds = inferIssuesFromFilter
+      ? new Set(sourceStringIds)
+      : new Set<number>();
 
     return {
       sourcePath: input.file.sourcePath,
@@ -1088,10 +1049,6 @@ async function buildCrowdinLiveCatFile(input: {
       truncated,
       pagination,
       segments: visibleStrings.map((sourceString) => {
-        const target = preferredLanguageTranslation(
-          translationsByStringId.get(sourceString.id) ?? [],
-          approvedTranslationIds,
-        );
         const hasUnresolvedIssue = unresolvedIssueStringIds.has(sourceString.id);
         return {
           externalStringId: String(sourceString.id),
@@ -1099,14 +1056,6 @@ async function buildCrowdinLiveCatFile(input: {
           sourceText: crowdinCatSourceTextValue(sourceString.text),
           context: sourceString.context,
           type: sourceString.type ?? null,
-          target: target?.text
-            ? {
-                text: target.text,
-                externalTranslationId:
-                  target.translationId != null ? String(target.translationId) : null,
-                isApproved: inferApprovedFromFilter,
-              }
-            : null,
           comments: [],
           ...(hasUnresolvedIssue ? { unresolvedIssueCount: 1 } : {}),
         };

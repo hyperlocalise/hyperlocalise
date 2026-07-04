@@ -6,7 +6,6 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
-import { QueueStatusDot } from "@/components/cat/segment/cat-segment-status";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
@@ -150,7 +149,6 @@ export function CatQueueVirtualList({
                         aria-label={intl.formatMessage(catQueuePanelMessages.unsavedChangesAria)}
                       />
                     ) : null}
-                    <QueueStatusDot status={segment.status} />
                   </div>
                 </button>
               </div>

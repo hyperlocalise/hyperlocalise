@@ -31,6 +31,20 @@ export function createCatProviderMeta() {
   };
 }
 
+export function createCatQueueSegment(
+  overrides: Partial<ProjectFileCatQueueResponse["catQueue"]["segments"][number]> = {},
+) {
+  return {
+    externalStringId: "segment-1",
+    key: "auth.signIn.title",
+    sourceText: "Sign in to your workspace",
+    context: "Heading on the sign-in screen",
+    type: "text",
+    comments: [],
+    ...overrides,
+  };
+}
+
 export function createCatSegment(
   overrides: Partial<ProjectFileCatSegment> = {},
 ): ProjectFileCatSegment {
@@ -85,7 +99,7 @@ export function createCatQueueResponse(
         totalCount: 1,
         hasMore: false,
       },
-      segments: [createCatSegment()],
+      segments: [createCatQueueSegment()],
       ...overrides,
     },
   };

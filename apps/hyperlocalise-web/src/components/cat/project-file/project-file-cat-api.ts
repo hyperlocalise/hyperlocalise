@@ -1,13 +1,11 @@
 import type {
   ProjectFileCatQueueFilter,
   ProjectFileCatQueueResponse,
-  ProjectFileCatResponse,
 } from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-export type ProjectFileCatPage = ProjectFileCatResponse["catFile"];
 export type ProjectFileCatQueuePage = ProjectFileCatQueueResponse["catQueue"];
 
 export function projectFileCatQueryKey(input: {

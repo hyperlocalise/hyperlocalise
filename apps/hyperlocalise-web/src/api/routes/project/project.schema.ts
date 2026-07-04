@@ -560,6 +560,9 @@ export const projectFileCatSegmentSchema = z.object({
   repositoryContext: z.string().nullable().optional(),
 });
 
+/** Queue list items omit target text — the editor loads translation via segment detail. */
+export const projectFileCatQueueSegmentSchema = projectFileCatSegmentSchema.omit({ target: true });
+
 export const projectFileCatSegmentParamsSchema = z.object({
   organizationSlug: z.string().trim().min(1).max(128),
   projectId: z.string().trim().min(1).max(128),
@@ -595,8 +598,12 @@ export const projectFileCatResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatQueueFileSchema = projectFileCatResponseSchema.shape.catFile.extend({
+  segments: z.array(projectFileCatQueueSegmentSchema),
+});
+
 export const projectFileCatQueueResponseSchema = z.object({
-  catQueue: projectFileCatResponseSchema.shape.catFile,
+  catQueue: projectFileCatQueueFileSchema,
 });
 
 export const projectFileCatTranslationResponseSchema = z.object({
@@ -650,6 +657,7 @@ export type ProjectFileCatCommentResolveResponse = z.infer<
 >;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileCatQueueSegment = z.infer<typeof projectFileCatQueueSegmentSchema>;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
 export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
@@ -657,6 +665,7 @@ export type ProjectFileCatSegmentCommentsResponse = z.infer<
   typeof projectFileCatSegmentCommentsResponseSchema
 >;
 export type ProjectFileCatQueueResponse = z.infer<typeof projectFileCatQueueResponseSchema>;
+export type ProjectFileCatQueueFile = z.infer<typeof projectFileCatQueueFileSchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
 export type ProjectFileCatTranslationResponse = z.infer<
   typeof projectFileCatTranslationResponseSchema

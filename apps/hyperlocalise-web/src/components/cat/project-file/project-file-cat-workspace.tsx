@@ -212,6 +212,8 @@ export function ProjectFileCatWorkspace({
   const isCommentsLoading =
     Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
 
+  const isSegmentDetailLoading = Boolean(activeSegmentId) && segmentDetailQuery.isPending;
+
   const enrichedWorkspaceState = useMemo(() => {
     if (!workspaceState) {
       return null;
@@ -558,6 +560,7 @@ export function ProjectFileCatWorkspace({
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
         isCommentsLoading={isCommentsLoading}
+        isSegmentDetailLoading={isSegmentDetailLoading}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
