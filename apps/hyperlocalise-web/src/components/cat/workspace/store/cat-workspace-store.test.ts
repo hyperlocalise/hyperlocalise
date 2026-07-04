@@ -250,6 +250,41 @@ describe("CatWorkspaceStore hydration", () => {
     expect(store.segmentComments.has("seg-01")).toBe(true);
   });
 
+  it("preserves skipped status for empty target segments on initial hydration", () => {
+    const initialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "empty",
+          sourceText: "Empty segment",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          status: "skipped",
+        },
+        {
+          id: "seg-02",
+          index: 2,
+          key: "pending",
+          sourceText: "Pending segment",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          status: "pending",
+        },
+      ],
+    });
+    const store = createCatWorkspaceStore(initialState);
+
+    expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
+    expect(store.matchesQueueFilter("seg-02", "skipped")).toBe(false);
+    expect(store.getQueuePanelSegments("skipped", false)).toEqual([
+      expect.objectContaining({ id: "seg-01", status: "skipped" }),
+    ]);
+  });
+
   it("stores file locale context separately from queue segment metadata", () => {
     const store = createCatWorkspaceStore(
       createCatWorkspaceState({

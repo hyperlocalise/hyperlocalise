@@ -222,7 +222,9 @@ export function useCatWorkspaceController({
       const includeConcordance =
         Boolean(lookupSegmentConcordance) && (options?.includeConcordance === true || includeAi);
       const shouldLookupConcordance =
-        includeConcordance && !concordanceLoadedSegmentIdsRef.current.has(segmentId);
+        includeConcordance &&
+        !concordanceLoadedSegmentIdsRef.current.has(segmentId) &&
+        store.concordanceLoadingSegmentId !== segmentId;
       const showFormatChecksLoading = includeFormatChecks && !includeAi;
 
       if (!includeAi && !includeFormatChecks && !includeConcordance) {

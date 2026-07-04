@@ -194,6 +194,47 @@ describe("useCatWorkspaceController", () => {
     await waitFor(() => expect(store.isLoadingConcordance).toBe(false));
   });
 
+  it("does not start a duplicate concordance lookup when AI review runs during an in-flight lookup", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        generateAiRecommendation,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.dependencies.review.onReviewWithAi("seg-02");
+    });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveConcordance?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+      });
+      await concordancePromise;
+    });
+  });
+
   it("does not refetch concordance when AI review runs after intelligence panel loaded it", async () => {
     const lookupSegmentConcordance = vi.fn().mockResolvedValue({
       glossaryTerms: [

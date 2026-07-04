@@ -447,7 +447,7 @@ export class CatWorkspaceStore {
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
       }
-      if (segment.targetText.trim()) {
+      if (segment.targetText.trim() || segment.status !== "pending") {
         this.drafts.set(
           segment.id,
           new CatSegmentDraft(segment.id, segment.targetText, segment.status),
