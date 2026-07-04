@@ -991,6 +991,7 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 	}{
 		{"nil request", nil, "request cannot be nil"},
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
+		{"missing branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
 		{"both branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 12}, "only one of branchId or directoryId may be set"},
 		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
 		{"nil updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},

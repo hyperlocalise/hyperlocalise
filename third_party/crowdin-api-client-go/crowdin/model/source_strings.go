@@ -195,6 +195,10 @@ type SourceStringsAddRequest struct {
 	LabelIDs []int `json:"labelIds,omitempty"`
 	// Fields (enterprises only).
 	Fields map[string]any `json:"fields,omitempty"`
+	// StringBased indicates that the target project is string-based.
+	// When false (default), fileId, branchId, or directoryId is required.
+	// This field is not sent to the Crowdin API.
+	StringBased bool `json:"-"`
 }
 
 // Validate checks if the add request is valid.
@@ -218,8 +222,8 @@ func (r *SourceStringsAddRequest) Validate() error {
 		return errors.New("text must be a string or map of strings")
 	}
 
-	if r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 && r.Identifier == "" {
-		return errors.New("fileId, branchId, directoryId or identifier is required")
+	if !r.StringBased && r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 {
+		return errors.New("fileId, branchId or directoryId is required")
 	}
 	if (r.FileID != 0 && r.BranchID != 0) || (r.FileID != 0 && r.DirectoryID != 0) || (r.BranchID != 0 && r.DirectoryID != 0) {
 		return errors.New("only one of fileId, branchId or directoryId may be set")
@@ -300,6 +304,10 @@ type SourceStringsUploadRequest struct {
 	// Enum: "clear_translations_and_approvals" "keep_translations" "keep_translations_and_approvals"
 	// Must be used together with updateStrings = true
 	UpdateOption string `json:"updateOption,omitempty"`
+	// StringBased indicates that the target project is string-based.
+	// When false (default), branchId or directoryId is required.
+	// This field is not sent to the Crowdin API.
+	StringBased bool `json:"-"`
 }
 
 // SourceStringsImportOptions defines the options for importing strings.
@@ -322,6 +330,9 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	}
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
+	}
+	if !o.StringBased && o.BranchID == 0 && o.DirectoryID == 0 {
+		return errors.New("branchId or directoryId is required")
 	}
 	if o.BranchID != 0 && o.DirectoryID != 0 {
 		return errors.New("only one of branchId or directoryId may be set")
