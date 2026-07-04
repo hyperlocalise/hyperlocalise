@@ -235,6 +235,8 @@ export const projectFileCatQueueFilterSchema = z.enum([
 export const projectFileCatQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),

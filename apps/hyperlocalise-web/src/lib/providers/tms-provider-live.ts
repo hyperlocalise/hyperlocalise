@@ -798,13 +798,13 @@ async function resolveLiveCatFile(input: {
   resourceType?: "file" | "key";
   context: ActiveTmsProviderContext;
 }): Promise<TmsProviderLiveFile | null> {
-  if (input.externalResourceId && input.context.providerKind === "crowdin") {
+  if (input.externalResourceId) {
     return resolveLiveCatFileFromExternalResourceId({
       providerKind: input.context.providerKind,
       externalProjectId: input.externalProjectId,
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
-      resourceType: input.resourceType ?? "file",
+      resourceType: input.resourceType,
     });
   }
 
@@ -1061,19 +1061,15 @@ async function buildCrowdinLiveCatFile(input: {
     const queueFilter = paginationInput.queueFilter ?? "all";
     const inferIssuesFromFilter = queueFilter === "has_issues";
 
-    const [translationsByStringId, approvals, unresolvedIssueStringIds] = await Promise.all([
+    const [translationsByStringId, unresolvedIssueStringIds] = await Promise.all([
       loadCrowdinTranslationsByStringId(client, projectId, input.targetLocale, sourceStringIds),
-      client.listTranslationApprovalsForSourceStrings(
-        projectId,
-        input.targetLocale,
-        visibleStrings,
-      ),
       inferIssuesFromFilter
         ? Promise.resolve(new Set(sourceStringIds))
         : Promise.resolve(new Set<number>()),
     ]);
 
-    const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
+    const approvedTranslationIds = new Set<number>();
+    const inferApprovedFromFilter = queueFilter === "reviewed";
 
     return {
       sourcePath: input.file.sourcePath,
@@ -1100,8 +1096,7 @@ async function buildCrowdinLiveCatFile(input: {
                 text: target.text,
                 externalTranslationId:
                   target.translationId != null ? String(target.translationId) : null,
-                isApproved:
-                  target.translationId != null && approvedTranslationIds.has(target.translationId),
+                isApproved: inferApprovedFromFilter,
               }
             : null,
           comments: [],
@@ -1975,17 +1970,22 @@ export async function getTmsProviderLiveCatFile(
   options?: {
     actorUserId?: string | null;
     canEditTranslations?: boolean;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
     pagination?: ProjectFileCatPaginationInput;
   },
 ): Promise<TmsProviderLiveCatFile | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    externalResourceId: options?.externalResourceId,
+    resourceType: options?.resourceType,
     context,
-    limit: 1000,
   });
-  const file = files.find((item) => item.sourcePath === sourcePath);
   if (!file) {
     return null;
   }

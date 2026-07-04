@@ -14,6 +14,8 @@ export function projectFileCatQueryKey(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
@@ -26,6 +28,8 @@ export function projectFileCatQueryKey(input: {
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
+    input.externalResourceId ?? null,
+    input.resourceType ?? null,
     input.targetLocale,
     input.repositoryFullName,
     input.search,
@@ -39,6 +43,8 @@ export function projectFileCatBaseQueryKey(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
@@ -50,6 +56,8 @@ export function projectFileCatBaseQueryKey(input: {
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
+    input.externalResourceId ?? null,
+    input.resourceType ?? null,
     input.targetLocale,
     input.repositoryFullName,
     input.search,
@@ -68,6 +76,8 @@ export async function fetchProjectFileCatQueuePage(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
@@ -83,6 +93,8 @@ export async function fetchProjectFileCatQueuePage(input: {
     param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
     query: {
       sourcePath: input.sourcePath,
+      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
       targetLocale: input.targetLocale,
       offset: input.offset,
       limit: input.limit,

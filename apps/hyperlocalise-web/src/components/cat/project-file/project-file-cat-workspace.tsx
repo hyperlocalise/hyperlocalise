@@ -56,6 +56,8 @@ export function ProjectFileCatWorkspace({
   organizationSlug,
   projectId,
   sourcePath,
+  externalResourceId = null,
+  resourceType,
   targetLocale: targetLocaleProp,
   targetLocales,
   highlightLocale = null,
@@ -67,6 +69,8 @@ export function ProjectFileCatWorkspace({
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale?: string;
   targetLocales?: string[];
   highlightLocale?: string | null;
@@ -117,6 +121,8 @@ export function ProjectFileCatWorkspace({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId,
+    resourceType,
     targetLocale,
     repositoryFullName,
     enabled: Boolean(targetLocale),
@@ -508,7 +514,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
+        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}`}
         initialState={workspaceForRender}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         navigation={{

@@ -39,6 +39,8 @@ export function useCatSegmentQuery(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   repositoryFullName?: string | null;
   enabled?: boolean;
@@ -58,6 +60,8 @@ export function useCatSegmentQuery(input: {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
+        externalResourceId: input.externalResourceId,
+        resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         repositoryFullName,
         search: debouncedSearch,
@@ -69,6 +73,8 @@ export function useCatSegmentQuery(input: {
       input.organizationSlug,
       input.projectId,
       input.sourcePath,
+      input.externalResourceId,
+      input.resourceType,
       input.targetLocale,
       limit,
       repositoryFullName,
@@ -103,6 +109,8 @@ export function useCatSegmentQuery(input: {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
+        externalResourceId: input.externalResourceId,
+        resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         repositoryFullName,
         search: debouncedSearch,
@@ -139,6 +147,8 @@ export function useCatSegmentQuery(input: {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
+        externalResourceId: input.externalResourceId,
+        resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         repositoryFullName,
         search: debouncedSearch,
@@ -151,6 +161,8 @@ export function useCatSegmentQuery(input: {
       input.organizationSlug,
       input.projectId,
       input.sourcePath,
+      input.externalResourceId,
+      input.resourceType,
       input.targetLocale,
       limit,
       repositoryFullName,

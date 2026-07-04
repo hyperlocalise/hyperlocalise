@@ -601,6 +601,8 @@ async function loadProjectFileCatQueue(
       {
         actorUserId: auth.user.localUserId,
         canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+        externalResourceId: query.externalResourceId,
+        resourceType: query.resourceType,
         pagination,
       },
     );
