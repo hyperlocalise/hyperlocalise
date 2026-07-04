@@ -6,13 +6,14 @@
 .storybook
 storybook-static
 
-# Tests, fixtures, and stories (not imported by production code)
+# Tests, fixtures, MSW handlers, and stories (not imported by production code)
 **/*.test.ts
 **/*.test.tsx
 **/*.test.js
 **/*.test.jsx
 **/*.fixture.ts
 **/*.fixture.js
+**/*-msw-handlers.ts
 **/*.stories.ts
 **/*.stories.tsx
 **/*.stories.js
