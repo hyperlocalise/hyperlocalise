@@ -275,13 +275,24 @@ export function JobCatPageContent({
   }
 
   const sourceLocale = projectQuery.data?.sourceLocale;
-  if (!sourceLocale) {
+  if (projectQuery.isSuccess && !sourceLocale) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
             This project does not have a source locale.
           </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
         </div>
       </ProjectPageShell>
     );

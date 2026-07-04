@@ -38,8 +38,9 @@ export function ProjectFileCatPageContent({
   resourceType?: "file" | "key" | null;
 }) {
   const queryClient = useQueryClient();
+  const hasFileReference = Boolean(sourcePath);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
-    enabled: Boolean(sourcePath),
+    enabled: hasFileReference,
   });
   const filesHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
     sourcePath ? `?sourcePath=${encodeURIComponent(sourcePath)}` : ""
@@ -53,15 +54,15 @@ export function ProjectFileCatPageContent({
   const filesQuery = useQuery({
     queryKey: projectFilesQueryKey(organizationSlug, projectId),
     queryFn: () => fetchProjectFiles(organizationSlug, projectId),
-    enabled: Boolean(sourcePath) && !canOpenFromUrlIdentity,
+    enabled: hasFileReference && !canOpenFromUrlIdentity,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId),
   });
   useAppShellSidebar({
-    forceCollapsed: Boolean(sourcePath),
-    preferredOpen: sourcePath ? false : null,
+    forceCollapsed: hasFileReference,
+    preferredOpen: hasFileReference ? false : null,
   });
 
-  if (!sourcePath) {
+  if (!hasFileReference) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -119,19 +120,6 @@ export function ProjectFileCatPageContent({
   const resolvedExternalResourceId =
     externalResourceId ?? file?.provider?.externalResourceId ?? null;
   const resolvedResourceType = resourceType ?? file?.provider?.resourceType;
-  const sourceLocale = projectQuery.data?.sourceLocale;
-
-  if (!sourceLocale) {
-    return (
-      <ProjectPageShell>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-flame-100">
-            This project does not have a source locale.
-          </TypographyP>
-        </div>
-      </ProjectPageShell>
-    );
-  }
 
   if (!canOpenFromUrlIdentity && !file) {
     return (
@@ -184,6 +172,30 @@ export function ProjectFileCatPageContent({
             <ArrowLeftIcon />
             Files
           </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  const sourceLocale = projectQuery.data?.sourceLocale;
+  if (projectQuery.isSuccess && !sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            This project does not have a source locale.
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
         </div>
       </ProjectPageShell>
     );
