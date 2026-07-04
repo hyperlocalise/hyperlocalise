@@ -115,4 +115,10 @@ describe("CatEditorPanel UI", () => {
     expect(screen.getByText("Length on mobile")).toBeInTheDocument();
     expect(screen.getByText("Translation exceeds 80 characters.")).toBeInTheDocument();
   });
+
+  it("shows the segment key above the source heading", () => {
+    renderEditorPanel();
+
+    expect(screen.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
+  });
 });

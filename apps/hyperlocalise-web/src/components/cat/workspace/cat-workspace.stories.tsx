@@ -4,8 +4,8 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
 import {
+  catIntelligenceFixture,
   catSegmentsFixture,
-  catWorkspaceFixture,
   createCatWorkspaceState,
   mockValidateFormat,
 } from "@/components/cat/shared/cat.fixture";
@@ -31,7 +31,15 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    initialState: catWorkspaceFixture,
+    initialState: createCatWorkspaceState({
+      segmentIntelligence: {
+        "seg-02": {
+          ...catIntelligenceFixture,
+          agentContext:
+            "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
+        },
+      },
+    }),
     navigation: {
       onSelectSegment: fn(),
       onPreviousSegment: fn(),
@@ -48,6 +56,10 @@ export const Default: Story = {
     },
     services: {
       validateFormat: mockValidateFormat,
+      lookupSegmentContext: async (_segment, options) =>
+        options?.forceRefresh
+          ? "Refreshed repository context: the card lives in the dashboard review summary widget."
+          : "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
     },
   },
   play: async ({ canvasElement }) => {
@@ -58,6 +70,19 @@ export const Default: Story = {
     await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(
       canvas.getByText("Dashboard card showing how many reviews still need approval."),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "“Review” refers to a human approval step for translated content, not a product rating.",
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Re-run repository context lookup for this string" }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     await expect(canvasElement.querySelectorAll('[data-slot="kbd"]')).toHaveLength(8);

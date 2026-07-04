@@ -82,7 +82,7 @@ export interface CatSegmentIntelligence {
   filePath?: string;
   componentName?: string;
   productMeaning?: string;
-  agentContext?: string;
+  agentContext?: string | null;
   reviewerPreference?: string;
   constraints?: string;
   glossaryTerms: CatGlossaryTerm[];

@@ -312,7 +312,10 @@ export function ProjectFileCatWorkspace({
   }, []);
 
   const lookupSegmentContext = useCallback(
-    async (segment: CatSegment) => {
+    async (
+      segment: CatSegment,
+      options?: { cachedOnly?: boolean; forceRefresh?: boolean },
+    ): Promise<string | null> => {
       if (!repositoryFullName) {
         throw new Error("Select a GitHub repository before looking up string context.");
       }
@@ -327,6 +330,8 @@ export function ProjectFileCatWorkspace({
           key: segment.key,
           text: segment.sourceText,
           context: segment.contextLabel ?? null,
+          ...(options?.cachedOnly ? { cachedOnly: true } : {}),
+          ...(options?.forceRefresh ? { forceRefresh: true } : {}),
         },
       });
 
@@ -334,7 +339,7 @@ export function ProjectFileCatWorkspace({
         throw new Error(await readApiError(response, "Failed to look up repository context"));
       }
 
-      const body = (await response.json()) as { stringContext: { summary: string } };
+      const body = (await response.json()) as { stringContext: { summary: string | null } };
       return body.stringContext.summary;
     },
     [organizationSlug, projectId, repositoryFullName, sourcePath],

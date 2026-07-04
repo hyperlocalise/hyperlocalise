@@ -5,7 +5,7 @@ import {
   BulbIcon,
   AlertCircleIcon,
   CheckmarkCircle02Icon,
-  InformationCircleIcon,
+  RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -27,7 +27,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
-import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
+import {
+  catEditorPanelMessages,
+  catIntelligencePanelMessages,
+} from "@/components/cat/shared/cat.messages";
 import type {
   CatGlossaryTerm,
   CatSegmentIntelligence,
@@ -39,34 +42,23 @@ import { containsGlossaryTerm } from "./cat-glossary-checks";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { CatVisualContextPanel } from "./cat-visual-context-panel";
 
-function PanelSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function InsightCard({
-  icon,
-  label,
+function PanelSection({
+  title,
+  action,
   children,
 }: {
-  icon: ReactNode;
-  label: string;
+  title: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-foreground/3 p-3.5">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span className="flex size-6 items-center justify-center rounded-full bg-background text-foreground/70">
-          {icon}
-        </span>
-        {label}
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+        {action}
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -219,6 +211,7 @@ export function CatIntelligencePanel({
   showAgentContext = false,
   showVisualContext = false,
   canEditTranslations = true,
+  onRefreshContext,
   onUseTmMatch,
   onUseGlossaryTerm,
 }: {
@@ -230,6 +223,7 @@ export function CatIntelligencePanel({
   showAgentContext?: boolean;
   showVisualContext?: boolean;
   canEditTranslations?: boolean;
+  onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
 }) {
@@ -242,7 +236,9 @@ export function CatIntelligencePanel({
     intelligence.filePath,
   ].filter(Boolean);
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
+  const hasAttemptedAgentLookup = intelligence.agentContext !== undefined;
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
+  const canRefreshAgentContext = hasAttemptedAgentLookup && onRefreshContext;
 
   function handleUseTmMatch(match: CatTranslationMemoryMatch) {
     if (!onUseTmMatch) {
@@ -303,35 +299,45 @@ export function CatIntelligencePanel({
           {showAgentContext ? (
             <PanelSection
               title={intl.formatMessage(catIntelligencePanelMessages.agentContextTitle)}
+              action={
+                canRefreshAgentContext ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="-mr-2 size-8 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={onRefreshContext}
+                    disabled={isLookingUpContext}
+                    title={intl.formatMessage(catEditorPanelMessages.refreshContextTitle)}
+                    aria-label={intl.formatMessage(catEditorPanelMessages.refreshContextTitle)}
+                  >
+                    <HugeiconsIcon icon={RefreshIcon} className="size-4" strokeWidth={1.8} />
+                  </Button>
+                ) : null
+              }
             >
               {isLookingUpContext ? (
                 <AgentContextSkeleton />
               ) : hasAgentContext ? (
                 <div className="space-y-3">
                   {hasAgentInsight ? (
-                    <InsightCard
-                      label={intl.formatMessage(catIntelligencePanelMessages.meaningInProduct)}
-                      icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
-                    >
-                      <div className="min-h-[1.25rem] space-y-2">
+                    <div className="min-h-[1.25rem] space-y-2">
+                      <MarkdownContent
+                        value={intelligence.agentContext ?? ""}
+                        contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                        ariaLabel={intl.formatMessage(
+                          catIntelligencePanelMessages.agentContextAria,
+                        )}
+                      />
+                      {intelligence.intent ? (
                         <MarkdownContent
-                          value={intelligence.agentContext ?? ""}
-                          contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                          value={intelligence.intent}
+                          contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
                           ariaLabel={intl.formatMessage(
-                            catIntelligencePanelMessages.agentContextAria,
+                            catIntelligencePanelMessages.translationIntentAria,
                           )}
                         />
-                        {intelligence.intent ? (
-                          <MarkdownContent
-                            value={intelligence.intent}
-                            contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
-                            ariaLabel={intl.formatMessage(
-                              catIntelligencePanelMessages.translationIntentAria,
-                            )}
-                          />
-                        ) : null}
-                      </div>
-                    </InsightCard>
+                      ) : null}
+                    </div>
                   ) : null}
                   {agentBadges.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">

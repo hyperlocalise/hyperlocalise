@@ -474,6 +474,53 @@ export class ProjectStringContextService extends ProjectServiceBase {
       }
     }
   }
+
+  async lookupCached(input: {
+    organizationId: string;
+    projectId: string;
+    repositoryFullName: string | null;
+    sourcePath: string;
+    key: string;
+    text: string;
+  }): Promise<Result<{ summary: string | null; cached: true }, ProjectFileStringContextError>> {
+    const log = this.log.child({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      stringKey: input.key,
+    });
+    log.debug("project file string cached context lookup started");
+
+    const repositoryResult = await this.resolveRepositoryFullName({
+      organizationId: input.organizationId,
+      repositoryFullName: input.repositoryFullName,
+    });
+    if (isErr(repositoryResult)) {
+      log.warn(
+        { code: repositoryResult.error.code },
+        "project file string cached context repository resolution failed",
+      );
+      return repositoryResult;
+    }
+
+    const summary = await this.getCached({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      stringKey: input.key,
+      repositoryFullName: repositoryResult.value,
+      sourceText: input.text,
+    });
+
+    log.debug(
+      {
+        cached: summary !== null,
+        summaryLength: summary?.length ?? 0,
+      },
+      "project file string cached context lookup completed",
+    );
+
+    return ok({ summary, cached: true });
+  }
 }
 
 export const projectStringContextService = new ProjectStringContextService();
@@ -500,3 +547,7 @@ export const resolveProjectFileStringRepositoryFullName = (
 export const lookupProjectFileStringRepositoryContext = (
   input: Parameters<ProjectStringContextService["lookup"]>[0],
 ) => projectStringContextService.lookup(input);
+
+export const lookupCachedProjectFileStringRepositoryContext = (
+  input: Parameters<ProjectStringContextService["lookupCached"]>[0],
+) => projectStringContextService.lookupCached(input);

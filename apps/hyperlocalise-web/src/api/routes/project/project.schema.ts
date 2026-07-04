@@ -315,12 +315,13 @@ export const projectFileStringContextBodySchema = z.object({
   key: z.string().trim().min(1).max(2048),
   text: z.string().trim().max(16_384),
   context: z.string().trim().max(16_384).nullable().optional(),
+  cachedOnly: z.boolean().optional(),
   forceRefresh: z.boolean().optional(),
 });
 
 export const projectFileStringContextResponseSchema = z.object({
   stringContext: z.object({
-    summary: z.string(),
+    summary: z.string().nullable(),
     cached: z.boolean(),
   }),
 });

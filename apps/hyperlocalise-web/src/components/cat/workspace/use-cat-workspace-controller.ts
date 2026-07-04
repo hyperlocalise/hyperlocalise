@@ -386,6 +386,51 @@ export function useCatWorkspaceController({
     void runSegmentReviewRef.current(segmentId, { includeAi: false });
   }, [canRunSegmentReview, store.selectedSegmentId]);
 
+  const cachedContextLookupAttemptedRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    cachedContextLookupAttemptedRef.current.clear();
+  }, [lookupSegmentContext]);
+
+  useEffect(() => {
+    const segmentId = store.selectedSegmentId;
+    if (!segmentId || !lookupSegmentContext) {
+      return;
+    }
+
+    const segment = store.segments.find((item) => item.id === segmentId);
+    if (!segment) {
+      return;
+    }
+
+    const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
+    if (
+      existingAgentContext !== undefined ||
+      cachedContextLookupAttemptedRef.current.has(segmentId)
+    ) {
+      return;
+    }
+
+    cachedContextLookupAttemptedRef.current.add(segmentId);
+
+    let cancelled = false;
+    void lookupSegmentContext(segment, { cachedOnly: true })
+      .then((agentContext) => {
+        if (cancelled || !agentContext?.trim()) {
+          return;
+        }
+
+        store.mergeSegmentIntelligence(segmentId, { agentContext });
+        store.revealAgentContext(segmentId);
+        store.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupSegmentContext, store, store.selectedSegmentId]);
+
   useEffect(() => {
     const segmentId = store.selectedSegmentId;
     if (!segmentId || !lookupSegmentVisualContext || !canLoadVisualContext) {
@@ -610,8 +655,8 @@ export function useCatWorkspaceController({
           store.resolvingCommentId = null;
         }
       },
-      onAskQuestion: async (segmentId: string) => {
-        await onAskQuestion?.(segmentId);
+      onAskQuestion: async (segmentId: string, options?: { forceRefresh?: boolean }) => {
+        await onAskQuestion?.(segmentId, options);
         if (!lookupSegmentContext) {
           return;
         }
@@ -621,15 +666,17 @@ export function useCatWorkspaceController({
           return;
         }
 
-        const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext?.trim();
+        const existingAgentContext = store.segmentIntelligence[segmentId]?.agentContext;
         store.revealAgentContext(segmentId);
-        if (existingAgentContext) {
+        if (Boolean(existingAgentContext?.trim()) && !options?.forceRefresh) {
           return;
         }
 
         store.isLookingUpContext = true;
         try {
-          const agentContext = await lookupSegmentContext(segment);
+          const agentContext = await lookupSegmentContext(segment, {
+            forceRefresh: options?.forceRefresh === true,
+          });
           store.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
           store.mergeSegmentIntelligence(segmentId, { agentContext });
         } catch (error) {
