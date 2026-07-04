@@ -388,6 +388,7 @@ export class CatWorkspaceStore {
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
+        existingDraft.applyServerStatus(status);
         return;
       }
 

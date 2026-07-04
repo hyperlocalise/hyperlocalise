@@ -230,7 +230,7 @@ describe("CatWorkspaceStore hydration", () => {
 
     expect(store.getSegmentView("seg-01")).toMatchObject({
       targetText: "Bonjour modifié",
-      status: "needs_review",
+      status: "reviewed",
     });
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
   });
