@@ -538,6 +538,32 @@ func TestParseASTSelect(t *testing.T) {
 	}
 }
 
+func TestParseASTSelectOrdinalWithOffset(t *testing.T) {
+	// selectordinal blocks should support the offset parameter just like plural blocks.
+	msg := "{count, selectordinal, offset:1 one {# item} other {# items}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected PluralElement, got %T", elems[0])
+	}
+	if pl.Type() != TypeSelectOrdinal {
+		t.Errorf("expected type %q, got %q", TypeSelectOrdinal, pl.Type())
+	}
+	if pl.Offset != 1 {
+		t.Errorf("expected offset 1, got %d", pl.Offset)
+	}
+	if len(pl.Options) != 2 {
+		t.Fatalf("expected 2 options, got %d", len(pl.Options))
+	}
+}
+
 func TestParseASTErrors(t *testing.T) {
 	tests := []struct {
 		name string
