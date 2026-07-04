@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createCatWorkspaceState, mockValidateFormat } from "@/components/cat/shared/cat.fixture";
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
 import type { CatSegmentConcordanceResult } from "@/components/cat/shared/dependencies";
+import type { CatFormatCheck } from "@/components/cat/shared/types";
 
 import { createCatWorkspaceStore } from "./store/cat-workspace-store";
 import { useCatWorkspaceController } from "./use-cat-workspace-controller";
@@ -152,7 +153,7 @@ describe("useCatWorkspaceController", () => {
     expect(store.isLoadingConcordance).toBe(false);
   });
 
-  it("clears concordance loading when a concurrent review supersedes the sequence", async () => {
+  it("clears concordance loading when AI review runs during an in-flight lookup", async () => {
     let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
     const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
       resolveConcordance = resolve;
@@ -172,10 +173,7 @@ describe("useCatWorkspaceController", () => {
     expect(store.isLoadingConcordance).toBe(true);
 
     await act(async () => {
-      await result.current.dependencies.review.onReviewWithAi("seg-02");
-    });
-
-    await act(async () => {
+      const reviewPromise = result.current.dependencies.review.onReviewWithAi("seg-02");
       resolveConcordance?.({
         glossaryTerms: [
           {
@@ -189,9 +187,62 @@ describe("useCatWorkspaceController", () => {
         translationMemoryMatches: [],
       });
       await concordancePromise;
+      await reviewPromise;
     });
 
     await waitFor(() => expect(store.isLoadingConcordance).toBe(false));
+    expect(store.segmentIntelligence["seg-02"]?.glossaryTerms).toEqual([
+      expect.objectContaining({ id: "term-1", target: "Deuxième" }),
+    ]);
+  });
+
+  it("keeps concordance results while format checks run in parallel", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const validateFormat = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise<CatFormatCheck[]>((resolve) => setTimeout(() => resolve([]), 50)),
+      );
+    const { result, store } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        validateFormat,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    expect(store.isLoadingConcordance).toBe(true);
+    await waitFor(() => expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveConcordance?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [
+          {
+            id: "tm-1",
+            sourceText: "Second",
+            targetText: "Deuxième",
+            matchPercent: 100,
+            contextLabel: "Settings",
+          },
+        ],
+      });
+      await concordancePromise;
+    });
+
+    await waitFor(() =>
+      expect(store.segmentIntelligence["seg-02"]?.translationMemoryMatches).toEqual([
+        expect.objectContaining({ id: "tm-1", targetText: "Deuxième" }),
+      ]),
+    );
   });
 
   it("does not start a duplicate concordance lookup when AI review runs during an in-flight lookup", async () => {
@@ -221,18 +272,16 @@ describe("useCatWorkspaceController", () => {
     expect(store.isLoadingConcordance).toBe(true);
 
     await act(async () => {
-      await result.current.dependencies.review.onReviewWithAi("seg-02");
-    });
-
-    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
+      const reviewPromise = result.current.dependencies.review.onReviewWithAi("seg-02");
       resolveConcordance?.({
         glossaryTerms: [],
         translationMemoryMatches: [],
       });
       await concordancePromise;
+      await reviewPromise;
     });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
   });
 
   it("does not refetch concordance when AI review runs after intelligence panel loaded it", async () => {

@@ -20,6 +20,7 @@ import {
 } from "@/components/cat/shared/cat.messages";
 import type {
   CatAiRecommendationResult,
+  CatSegmentConcordanceResult,
   CatWorkspaceDependencies,
   CatWorkspaceEditing,
   CatWorkspaceNavigation,
@@ -117,7 +118,6 @@ export function useCatWorkspaceController({
   const onAddComment = reviewOverrides?.onAddComment;
   const onResolveComment = reviewOverrides?.onResolveComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
-  const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
   const onBulkApprove = reviewOverrides?.onBulkApprove;
   const onBulkSkip = reviewOverrides?.onBulkSkip;
@@ -209,9 +209,106 @@ export function useCatWorkspaceController({
   );
 
   const concordanceLoadedSegmentIdsRef = useRef(new Set<string>());
+  const concordanceInFlightRef = useRef(
+    new Map<string, Promise<CatSegmentConcordanceResult | undefined>>(),
+  );
+
+  const applyConcordanceResult = useCallback(
+    (segmentId: string, concordance: CatSegmentConcordanceResult, autoFill: boolean) => {
+      concordanceLoadedSegmentIdsRef.current.add(segmentId);
+      store.mergeSegmentIntelligence(segmentId, {
+        glossaryTerms: concordance.glossaryTerms,
+        translationMemoryMatches: concordance.translationMemoryMatches,
+      });
+
+      if (!autoFill) {
+        return;
+      }
+
+      const currentSegment = store.getSegmentView(segmentId);
+      const bestTmMatch = selectBestTmMatchForAutoFill(
+        concordance.translationMemoryMatches,
+        tmAutoFillMinMatchPercent,
+      );
+      if (
+        currentSegment &&
+        !currentSegment.targetText.trim() &&
+        bestTmMatch &&
+        !store.autoFilledSegmentIds.has(segmentId)
+      ) {
+        store.autoFilledSegmentIds = new Set([...store.autoFilledSegmentIds, segmentId]);
+        store.setTargetText(segmentId, bestTmMatch.targetText);
+        store.markSegmentSaved(segmentId, bestTmMatch.targetText);
+        onTargetChange?.(segmentId, bestTmMatch.targetText);
+      }
+    },
+    [onTargetChange, store, tmAutoFillMinMatchPercent],
+  );
+
+  const runConcordanceLookup = useCallback(
+    async (
+      segmentId: string,
+      options?: { autoFill?: boolean },
+    ): Promise<CatSegmentConcordanceResult | undefined> => {
+      if (!lookupSegmentConcordance) {
+        return undefined;
+      }
+
+      if (concordanceLoadedSegmentIdsRef.current.has(segmentId)) {
+        const intelligence = store.segmentIntelligence[segmentId] ?? store.intelligence;
+        return {
+          glossaryTerms: intelligence.glossaryTerms ?? [],
+          translationMemoryMatches: intelligence.translationMemoryMatches ?? [],
+        };
+      }
+
+      const inFlight = concordanceInFlightRef.current.get(segmentId);
+      if (inFlight) {
+        return inFlight;
+      }
+
+      const segment = store.getSegmentView(segmentId);
+      if (!segment) {
+        return undefined;
+      }
+
+      const autoFill = options?.autoFill !== false;
+      const lookupPromise = (async () => {
+        store.beginConcordanceLoad(segmentId);
+        try {
+          const concordance = await lookupSegmentConcordance(segment);
+          applyConcordanceResult(segmentId, concordance, autoFill);
+          return concordance;
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchFailed);
+          store.upsertFormatCheck(segmentId, {
+            id: `concordance-failed-${segmentId}`,
+            label: intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchLabel),
+            status: "fail",
+            message,
+            category: "qa",
+          });
+          return undefined;
+        } finally {
+          store.endConcordanceLoad(segmentId);
+          concordanceInFlightRef.current.delete(segmentId);
+        }
+      })();
+
+      concordanceInFlightRef.current.set(segmentId, lookupPromise);
+      return lookupPromise;
+    },
+    [applyConcordanceResult, intl, lookupSegmentConcordance, store],
+  );
+
+  const runConcordanceLookupRef = useRef(runConcordanceLookup);
+  runConcordanceLookupRef.current = runConcordanceLookup;
 
   const runSegmentReview = useCallback(
-    async (segmentId: string, options?: { includeAi?: boolean; includeConcordance?: boolean }) => {
+    async (segmentId: string, options?: { includeAi?: boolean }) => {
       const segment = store.getSegmentView(segmentId);
       if (!segment) {
         return;
@@ -219,171 +316,91 @@ export function useCatWorkspaceController({
 
       const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
-      const includeConcordance =
-        Boolean(lookupSegmentConcordance) && (options?.includeConcordance === true || includeAi);
-      const shouldLookupConcordance =
-        includeConcordance &&
-        !concordanceLoadedSegmentIdsRef.current.has(segmentId) &&
-        store.concordanceLoadingSegmentId !== segmentId;
       const showFormatChecksLoading = includeFormatChecks && !includeAi;
 
-      if (!includeAi && !includeFormatChecks && !includeConcordance) {
+      if (!includeAi && !includeFormatChecks) {
         return;
       }
 
-      if (shouldLookupConcordance && lookupSegmentConcordance) {
-        store.beginConcordanceLoad(segmentId);
+      if (includeAi && lookupSegmentConcordance) {
+        await runConcordanceLookupRef.current(segmentId, { autoFill: false });
       }
 
+      const intelligenceForRecommendation =
+        store.segmentIntelligence[segmentId] ?? store.intelligence;
+
+      const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
       try {
-        await onReviewWithAi?.(segmentId);
+        let recommendation: CatAiRecommendationResult | undefined;
+        let aiFailureCheck: CatFormatCheck | undefined;
 
-        const currentIntelligence = store.segmentIntelligence[segmentId] ?? store.intelligence;
+        const segmentForReview = store.getSegmentView(segmentId) ?? segment;
 
-        const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
-        try {
-          let recommendation: CatAiRecommendationResult | undefined;
-          let aiFailureCheck: CatFormatCheck | undefined;
-          let intelligenceForRecommendation = currentIntelligence;
-
-          if (shouldLookupConcordance && lookupSegmentConcordance) {
-            try {
-              const concordance = await lookupSegmentConcordance(segment);
-              if (!store.isReviewCurrent(sequence)) {
-                return;
-              }
-
-              concordanceLoadedSegmentIdsRef.current.add(segmentId);
-
-              intelligenceForRecommendation = {
-                ...currentIntelligence,
-                glossaryTerms: concordance.glossaryTerms,
-                translationMemoryMatches: concordance.translationMemoryMatches,
-              };
-
-              store.mergeSegmentIntelligence(segmentId, {
-                glossaryTerms: concordance.glossaryTerms,
-                translationMemoryMatches: concordance.translationMemoryMatches,
-              });
-
-              const currentSegment = store.getSegmentView(segmentId);
-              const bestTmMatch = selectBestTmMatchForAutoFill(
-                concordance.translationMemoryMatches,
-                tmAutoFillMinMatchPercent,
-              );
-              if (
-                currentSegment &&
-                !currentSegment.targetText.trim() &&
-                bestTmMatch &&
-                !store.autoFilledSegmentIds.has(segmentId)
-              ) {
-                store.autoFilledSegmentIds = new Set([...store.autoFilledSegmentIds, segmentId]);
-                store.setTargetText(segmentId, bestTmMatch.targetText);
-                store.markSegmentSaved(segmentId, bestTmMatch.targetText);
-                onTargetChange?.(segmentId, bestTmMatch.targetText);
-              }
-            } catch (error) {
-              if (!store.isReviewCurrent(sequence)) {
-                return;
-              }
-
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchFailed);
-              store.upsertFormatCheck(segmentId, {
-                id: `concordance-failed-${segmentId}`,
-                label: intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchLabel),
-                status: "fail",
-                message,
-                category: "qa",
-              });
-            }
-          }
-
-          const segmentForReview = store.getSegmentView(segmentId) ?? segment;
-
-          if (includeAi && generateAiRecommendation) {
-            try {
-              recommendation = await generateAiRecommendation(
-                segmentForReview,
-                segmentForReview.targetText,
-                intelligenceForRecommendation,
-              );
-            } catch (error) {
-              if (!store.isReviewCurrent(sequence)) {
-                return;
-              }
-
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationFailed);
-              aiFailureCheck = {
-                id: `ai-recommendation-failed-${segmentId}`,
-                label: intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationLabel),
-                status: "fail",
-                message,
-                category: "qa",
-              };
-            }
-          }
-
-          if (includeFormatChecks || includeAi) {
-            const [formatChecks, qaChecks] = await Promise.all([
-              includeFormatChecks && validateFormat
-                ? validateFormat(
-                    segmentForReview,
-                    segmentForReview.targetText,
-                    intelligenceForRecommendation.glossaryTerms,
-                  )
-                : Promise.resolve([]),
-              includeFormatChecks && runQaChecks
-                ? runQaChecks(segmentForReview, segmentForReview.targetText)
-                : Promise.resolve([]),
-            ]);
+        if (includeAi && generateAiRecommendation) {
+          try {
+            recommendation = await generateAiRecommendation(
+              segmentForReview,
+              segmentForReview.targetText,
+              intelligenceForRecommendation,
+            );
+          } catch (error) {
             if (!store.isReviewCurrent(sequence)) {
               return;
             }
-            const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
-              segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
-            const baseChecks = withoutAiFailure(
-              recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
-            );
-            const checks = aiFailureCheck
-              ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
-              : baseChecks;
 
-            store.setFormatChecks(segmentId, checks, store.selectedSegmentId === segmentId);
-            if (recommendation) {
-              store.mergeSegmentIntelligence(segmentId, {
-                aiSuggestion: recommendation.aiSuggestion,
-                aiReasoning: recommendation.aiReasoning,
-              });
-            }
+            const message =
+              error instanceof Error
+                ? error.message
+                : intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationFailed);
+            aiFailureCheck = {
+              id: `ai-recommendation-failed-${segmentId}`,
+              label: intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationLabel),
+              status: "fail",
+              message,
+              category: "qa",
+            };
           }
-        } finally {
-          store.setReviewPhaseLoading(sequence, "ai", false);
-          store.setReviewPhaseLoading(sequence, "formatChecks", false);
+        }
+
+        if (includeFormatChecks || includeAi) {
+          const [formatChecks, qaChecks] = await Promise.all([
+            includeFormatChecks && validateFormat
+              ? validateFormat(
+                  segmentForReview,
+                  segmentForReview.targetText,
+                  intelligenceForRecommendation.glossaryTerms,
+                )
+              : Promise.resolve([]),
+            includeFormatChecks && runQaChecks
+              ? runQaChecks(segmentForReview, segmentForReview.targetText)
+              : Promise.resolve([]),
+          ]);
+          if (!store.isReviewCurrent(sequence)) {
+            return;
+          }
+          const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
+            segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
+          const baseChecks = withoutAiFailure(
+            recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+          );
+          const checks = aiFailureCheck
+            ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
+            : baseChecks;
+
+          store.setFormatChecks(segmentId, checks, store.selectedSegmentId === segmentId);
+          if (recommendation) {
+            store.mergeSegmentIntelligence(segmentId, {
+              aiSuggestion: recommendation.aiSuggestion,
+              aiReasoning: recommendation.aiReasoning,
+            });
+          }
         }
       } finally {
-        if (shouldLookupConcordance && lookupSegmentConcordance) {
-          store.endConcordanceLoad(segmentId);
-        }
+        store.setReviewPhaseLoading(sequence, "ai", false);
+        store.setReviewPhaseLoading(sequence, "formatChecks", false);
       }
     },
-    [
-      generateAiRecommendation,
-      intl,
-      lookupSegmentConcordance,
-      onReviewWithAi,
-      onTargetChange,
-      runQaChecks,
-      runSegmentChecks,
-      store,
-      tmAutoFillMinMatchPercent,
-      validateFormat,
-    ],
+    [generateAiRecommendation, intl, lookupSegmentConcordance, runQaChecks, store, validateFormat],
   );
 
   const runSegmentReviewRef = useRef(runSegmentReview);
@@ -406,6 +423,7 @@ export function useCatWorkspaceController({
   useEffect(() => {
     concordanceLookupAttemptedRef.current.clear();
     concordanceLoadedSegmentIdsRef.current.clear();
+    concordanceInFlightRef.current.clear();
   }, [lookupSegmentConcordance]);
 
   useEffect(() => {
@@ -425,10 +443,7 @@ export function useCatWorkspaceController({
 
       if (lookupSegmentConcordance && !concordanceLookupAttemptedRef.current.has(segmentId)) {
         concordanceLookupAttemptedRef.current.add(segmentId);
-        void runSegmentReviewRef.current(segmentId, {
-          includeAi: false,
-          includeConcordance: true,
-        });
+        void runConcordanceLookupRef.current(segmentId);
       }
 
       if (lookupSegmentContext) {
