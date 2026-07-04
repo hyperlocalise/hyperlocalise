@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 
 import {
   Breadcrumb,
@@ -18,12 +19,16 @@ import { cn } from "@/lib/primitives/cn";
 
 import { getAppShellBreadcrumbs } from "./app-shell-title";
 import { parseProjectRoute } from "./navigation-config";
+import { useAppShellStore } from "./store/app-shell-store-context";
 
 type AppShellBreadcrumbProps = {
   organizationSlug: string;
 };
 
-export function AppShellBreadcrumb({ organizationSlug }: AppShellBreadcrumbProps) {
+export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
+  organizationSlug,
+}: AppShellBreadcrumbProps) {
+  const store = useAppShellStore();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
   const resolvedOrganizationSlug = projectRoute?.organizationSlug ?? organizationSlug;
@@ -46,9 +51,11 @@ export function AppShellBreadcrumb({ organizationSlug }: AppShellBreadcrumbProps
     },
   });
 
-  const breadcrumbs = getAppShellBreadcrumbs(pathname, {
-    projectName: projectQuery.data?.name,
-  });
+  const breadcrumbs = store.breadcrumb.applyOverrides(
+    getAppShellBreadcrumbs(pathname, {
+      projectName: projectQuery.data?.name,
+    }),
+  );
 
   if (breadcrumbs.length === 1) {
     return (
@@ -92,4 +99,4 @@ export function AppShellBreadcrumb({ organizationSlug }: AppShellBreadcrumbProps
       </BreadcrumbList>
     </Breadcrumb>
   );
-}
+});
