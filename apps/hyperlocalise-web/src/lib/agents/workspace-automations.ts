@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -855,7 +855,7 @@ export async function listDueWorkspaceAutomations(input: {
         eq(schema.githubInstallationRepositories.archived, false),
       ),
     )
-    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
   return rows.map(({ automation, repository }) => ({
@@ -867,6 +867,7 @@ export async function listDueWorkspaceAutomations(input: {
 export async function listDueContentfulWorkspaceAutomations(input: {
   now?: Date;
   limit?: number;
+  organizationId?: string;
 }): Promise<WorkspaceAutomationRecord[]> {
   const now = input.now ?? new Date();
   const limit = input.limit ?? 100;
@@ -881,9 +882,12 @@ export async function listDueContentfulWorkspaceAutomations(input: {
         lte(schema.workspaceAutomations.nextRunAt, now),
         sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
         sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
+        ...(input.organizationId
+          ? [eq(schema.workspaceAutomations.organizationId, input.organizationId)]
+          : []),
       ),
     )
-    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
   return rows
