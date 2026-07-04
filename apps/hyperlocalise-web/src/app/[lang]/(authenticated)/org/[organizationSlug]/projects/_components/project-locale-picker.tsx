@@ -62,10 +62,7 @@ export function ProjectSourceLocalePicker({
         }}
         disabled={disabled}
       >
-        <SelectTrigger
-          id={fieldId}
-          className="w-full border-foreground/10 bg-foreground/6 text-foreground"
-        >
+        <SelectTrigger id={fieldId} className="w-full border-border bg-muted text-foreground">
           <SelectValue placeholder="Select locale" />
         </SelectTrigger>
         <SelectContent
@@ -228,7 +225,7 @@ export function ProjectTargetLocalesPicker({
             }}
             disabled={disabled}
             placeholder="Other target locale"
-            className="min-w-0 flex-1 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
+            className="min-w-0 flex-1 border-border bg-muted text-foreground placeholder:text-muted-foreground"
           />
           <Button
             type="button"

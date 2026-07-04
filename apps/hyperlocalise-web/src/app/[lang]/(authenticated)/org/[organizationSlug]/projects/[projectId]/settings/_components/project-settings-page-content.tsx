@@ -71,10 +71,12 @@ async function readProjectError(response: Response, fallback: string) {
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="min-w-0">
-      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+      <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
         {label}
       </TypographyP>
-      <TypographyP className="mt-1 truncate text-sm text-foreground/72">{value ?? "—"}</TypographyP>
+      <TypographyP className="mt-1 truncate text-sm text-subtle-foreground">
+        {value ?? "—"}
+      </TypographyP>
     </div>
   );
 }
@@ -87,11 +89,11 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
   const providerUrl = sanitizeExternalUrl(project.externalProjectUrl);
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+    <section className="rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <ProjectSectionTitle>Source connection</ProjectSectionTitle>
-          <TypographyP className="mt-1 text-sm text-foreground/52">
+          <TypographyP className="mt-1 text-sm text-muted-foreground">
             External TMS projects inherit source data and locales from the connected provider.
           </TypographyP>
         </div>
@@ -192,7 +194,7 @@ export function ProjectSettingsPageContent({
   if (projectQuery.isLoading || !values) {
     return (
       <ProjectPageShell>
-        <TypographyP className="text-sm text-foreground/52">
+        <TypographyP className="text-sm text-muted-foreground">
           Loading project settings...
         </TypographyP>
       </ProjectPageShell>
@@ -234,11 +236,11 @@ export function ProjectSettingsPageContent({
       />
 
       <form id="project-settings-form" onSubmit={handleSubmit} className="grid gap-5">
-        <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+        <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <ProjectSectionTitle>General</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
                 Name the project and capture operational notes for the team.
               </TypographyP>
             </div>
@@ -283,10 +285,10 @@ export function ProjectSettingsPageContent({
         </section>
 
         {settingsEditable ? (
-          <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+          <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
             <div>
               <ProjectSectionTitle>Translation guidance</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
                 Shared instructions for tone, terminology, formatting, and product context.
               </TypographyP>
             </div>
@@ -314,11 +316,11 @@ export function ProjectSettingsPageContent({
           </section>
         ) : null}
 
-        <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+        <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <ProjectSectionTitle>Locales</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
                 {localesEditable
                   ? "Edit the source locale and target locales for this native project."
                   : "Locales are managed by the connected TMS provider."}

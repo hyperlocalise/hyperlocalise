@@ -33,15 +33,15 @@ function queueStatusDotClassName(status: CatSegmentStatus) {
     return "size-2.5 rounded-full bg-beam-700";
   }
 
-  return "size-2.5 rounded-full border border-foreground/25";
+  return "size-2.5 rounded-full border border-input";
 }
 
-function segmentStatusBadgeClassName(status: CatSegmentStatus) {
+function segmentStatusBadgeVariant(status: CatSegmentStatus) {
   if (status === "needs_review") {
-    return "border-beam-500/25 bg-beam-500/10 text-beam-100";
+    return "warning" as const;
   }
 
-  return catToneClass(segmentStatusTone(status));
+  return "outline" as const;
 }
 
 export function QueueStatusDot({ status }: { status: CatSegmentStatus }) {
@@ -60,8 +60,14 @@ export function QueueStatusDot({ status }: { status: CatSegmentStatus }) {
 }
 
 export function SegmentStatusBadge({ status }: { status: CatSegmentStatus }) {
+  const variant = segmentStatusBadgeVariant(status);
+  const toneClass =
+    variant === "outline" && status !== "pending"
+      ? cn(catToneClass(segmentStatusTone(status)))
+      : undefined;
+
   return (
-    <Badge variant="outline" className={cn(segmentStatusBadgeClassName(status))}>
+    <Badge variant={variant} className={toneClass}>
       <FormattedMessage {...getSegmentStatusMessage(status)} />
     </Badge>
   );

@@ -6,7 +6,6 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
-import { CatSegmentTags } from "@/components/cat/segment/cat-segment-tags";
 import { QueueStatusDot } from "@/components/cat/segment/cat-segment-status";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
@@ -18,6 +17,7 @@ export function CatQueueVirtualList({
   selectedSegmentId,
   dirtySegmentIds,
   checkedSegmentIds,
+  showSelection = false,
   onToggleSegmentChecked,
   onSelectSegment,
   hasMore = false,
@@ -29,6 +29,7 @@ export function CatQueueVirtualList({
   selectedSegmentId: string;
   dirtySegmentIds?: ReadonlySet<string>;
   checkedSegmentIds?: ReadonlySet<string>;
+  showSelection?: boolean;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   onSelectSegment: (segmentId: string) => void;
   hasMore?: boolean;
@@ -38,7 +39,6 @@ export function CatQueueVirtualList({
 }) {
   const intl = useIntl();
   const parentRef = useRef<HTMLDivElement>(null);
-  const showSelection = Boolean(onToggleSegmentChecked);
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
@@ -90,14 +90,14 @@ export function CatQueueVirtualList({
                   "flex min-h-11 w-full items-start gap-2 rounded-lg px-2 py-2.5 transition-colors",
                   selected
                     ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
-                    : "hover:bg-foreground/4",
+                    : "hover:bg-muted",
                 )}
               >
-                {showSelection ? (
+                {showSelection && onToggleSegmentChecked ? (
                   <label className="mt-1.5 flex shrink-0 cursor-pointer items-center">
                     <input
                       type="checkbox"
-                      className="size-4 rounded border-foreground/20 accent-foreground"
+                      className="size-4 rounded border-input accent-foreground"
                       checked={isChecked}
                       aria-label={intl.formatMessage(catQueuePanelMessages.selectSegmentAria, {
                         key: segment.key,
@@ -120,15 +120,12 @@ export function CatQueueVirtualList({
                     {String(segment.index).padStart(2, "0")}
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="line-clamp-2 text-sm text-foreground/90">{segment.sourceText}</p>
+                    <p className="line-clamp-2 text-sm text-foreground">{segment.sourceText}</p>
                     <div className="flex min-w-0 items-center">
                       <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                         {segment.key}
                       </span>
                     </div>
-                    {segment.tags && segment.tags.length > 0 ? (
-                      <CatSegmentTags tags={segment.tags} />
-                    ) : null}
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
                     {isDirty ? (

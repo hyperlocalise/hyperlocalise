@@ -48,13 +48,18 @@ export function CatEditorActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
-        className="min-h-11 flex-1 bg-grove-500 text-white hover:bg-grove-400 sm:flex-none lg:min-h-0"
+        variant="default"
+        className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
         onClick={onApprove}
         disabled={!canTriggerApprove}
       >
-        {isApproving ? <Spinner className="size-4 text-white" /> : null}
+        {isApproving ? <Spinner className="size-4 text-primary-foreground" /> : null}
         {primaryActionLabel}
-        <CatEditorShortcutKbd shortcut="approve" isMac={isMac} className="bg-white/15 text-white" />
+        <CatEditorShortcutKbd
+          shortcut="approve"
+          isMac={isMac}
+          className="bg-primary-foreground/15 text-primary-foreground"
+        />
       </Button>
       {onSaveDraft ? (
         <Button

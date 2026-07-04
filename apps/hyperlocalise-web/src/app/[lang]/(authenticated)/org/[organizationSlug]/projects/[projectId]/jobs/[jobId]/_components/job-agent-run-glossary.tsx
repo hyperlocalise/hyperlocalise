@@ -61,18 +61,18 @@ export function GlossaryMatchesDetail({ matches }: { matches: AgentRunGlossaryMa
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
+    <div className="space-y-2 rounded-md border border-border bg-muted p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Glossary terms used
       </p>
       <ul className="space-y-2">
         {matches.map((match, index) => (
           <li
             key={`${match.glossaryId}:${match.targetLocale}:${index}`}
-            className="space-y-1 text-sm text-foreground/74"
+            className="space-y-1 text-sm text-subtle-foreground"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-foreground/86">{match.glossaryName}</span>
+              <span className="font-medium text-foreground">{match.glossaryName}</span>
               <Badge
                 variant="outline"
                 className={cn("rounded-full", toneClass(matchSourceTone(match.matchSource)))}
@@ -86,7 +86,7 @@ export function GlossaryMatchesDetail({ matches }: { matches: AgentRunGlossaryMa
                 {formatGlossaryTermStatusLabel(match)}
               </Badge>
             </div>
-            <p className="text-xs whitespace-pre-wrap text-foreground/58">
+            <p className="text-xs whitespace-pre-wrap text-muted-foreground">
               {match.sourceTerm} → {match.targetTerm} ({match.targetLocale})
             </p>
           </li>

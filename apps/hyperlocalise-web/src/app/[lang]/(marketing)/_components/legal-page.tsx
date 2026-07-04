@@ -48,8 +48,8 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
               </TypographyP>
             </div>
           </div>
-          <div className="mt-10 rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
-            <div className="space-y-8 text-base leading-7 text-foreground/88">{children}</div>
+          <div className="mt-10 rounded-3xl border border-border bg-background/95 p-6 shadow-sm sm:p-8">
+            <div className="space-y-8 text-base leading-7 text-foreground">{children}</div>
           </div>
         </div>
       </div>
@@ -69,5 +69,5 @@ export function LegalSection({ title, children }: { title: string; children: Rea
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="list-disc space-y-2 pl-6 marker:text-foreground/50">{children}</ul>;
+  return <ul className="list-disc space-y-2 pl-6 marker:text-muted-foreground">{children}</ul>;
 }

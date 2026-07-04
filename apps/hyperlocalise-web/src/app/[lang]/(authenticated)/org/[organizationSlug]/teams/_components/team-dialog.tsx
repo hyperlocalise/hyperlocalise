@@ -83,7 +83,7 @@ export function TeamDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+      <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
@@ -105,7 +105,7 @@ export function TeamDialog({
               aria-invalid={Boolean(errors.name)}
               disabled={isSaving}
               placeholder="Localization"
-              className="border-foreground/10 bg-foreground/4"
+              className="border-border bg-muted"
             />
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
           </Field>
@@ -122,7 +122,7 @@ export function TeamDialog({
               aria-invalid={Boolean(errors.slug)}
               disabled={isSaving}
               placeholder="localization"
-              className="border-foreground/10 bg-foreground/4"
+              className="border-border bg-muted"
             />
             <FieldDescription>
               Used in URLs and project scoping. Lowercase letters, numbers, and hyphens only.

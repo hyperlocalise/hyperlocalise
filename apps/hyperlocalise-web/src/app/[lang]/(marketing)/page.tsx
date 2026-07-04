@@ -110,7 +110,7 @@ export default async function Home({ params }: HomePageProps) {
               <section
                 key={chapter.id}
                 id={chapter.anchorId}
-                className="border-t border-border/70 scroll-mt-24"
+                className="border-t border-border scroll-mt-24"
               >
                 <div className="px-5 py-20 sm:px-8 lg:px-10">
                   <ChapterSection chapter={chapter} />
@@ -119,19 +119,19 @@ export default async function Home({ params }: HomePageProps) {
             ))}
           </section>
 
-          <section className="border-t border-border/70">
+          <section className="border-t border-border">
             <div className="px-5 py-20 sm:px-8 lg:px-10">
               <ChangelogSection />
             </div>
           </section>
 
-          <section className="border-t border-border/70">
+          <section className="border-t border-border">
             <div className="px-5 py-24 sm:px-8 lg:px-10">
               <FinalCtaSection />
             </div>
           </section>
 
-          <section className="border-t border-border/70">
+          <section className="border-t border-border">
             <div className="px-5 py-16 sm:px-8 lg:px-10">
               <MarketingFooter columns={footerColumns} />
             </div>

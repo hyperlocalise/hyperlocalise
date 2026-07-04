@@ -20,7 +20,7 @@ export function defaultRenderBackLink({
       nativeButton={false}
       render={<Link href={href} />}
       variant="ghost"
-      className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"
+      className="-ml-2 mb-2 text-muted-foreground hover:bg-muted hover:text-foreground"
     >
       <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.8} />
       {children}

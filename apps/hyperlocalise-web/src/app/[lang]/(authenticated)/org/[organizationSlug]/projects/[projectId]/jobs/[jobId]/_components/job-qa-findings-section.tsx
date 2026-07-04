@@ -143,7 +143,7 @@ function ProviderReviewThreadRow({
   const providerUrl = thread.providerContext.providerUrl;
 
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
@@ -155,34 +155,34 @@ function ProviderReviewThreadRow({
           >
             {formatReviewThreadStateLabel(thread.state)}
           </Badge>
-          <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+          <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
             {formatReviewThreadKindLabel(thread.kind)}
           </Badge>
           {thread.locale ? (
-            <Badge variant="outline" className="rounded-full text-foreground/62">
+            <Badge variant="outline" className="rounded-full text-subtle-foreground">
               {thread.locale}
             </Badge>
           ) : null}
           {thread.issueType ? (
-            <Badge variant="outline" className="rounded-full text-foreground/62">
+            <Badge variant="outline" className="rounded-full text-subtle-foreground">
               {thread.issueType.replaceAll("_", " ")}
             </Badge>
           ) : null}
         </div>
-        {body ? <p className="text-sm text-foreground/82">{body}</p> : null}
+        {body ? <p className="text-sm text-foreground">{body}</p> : null}
         {thread.comments.length > 1 ? (
-          <p className="text-xs text-foreground/48">
+          <p className="text-xs text-muted-foreground">
             {thread.comments.length} comments in this thread
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/54">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {authorLabel ? <span>{authorLabel}</span> : null}
           {thread.createdAt ? <span>{thread.createdAt}</span> : null}
           {thread.item?.key ? <span className="font-mono">{thread.item.key}</span> : null}
           {contentHref ? (
             <Link
               href={contentHref}
-              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
             >
               View in project files
             </Link>
@@ -192,7 +192,7 @@ function ProviderReviewThreadRow({
               href={providerUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
             >
               Open in TMS
             </Link>
@@ -284,12 +284,12 @@ function FindingRow({
     : null;
 
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="flex flex-wrap items-start gap-3">
         <label className="mt-0.5 flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            className="size-4 rounded border-input accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
             checked={selected}
             disabled={writeBackComplete}
             title={writeBackComplete ? "This finding already has a provider comment" : undefined}
@@ -304,21 +304,21 @@ function FindingRow({
             >
               {finding.severity}
             </Badge>
-            <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+            <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
               {formatCheckTypeLabel(finding.checkType)}
             </Badge>
             {finding.item.locale ? (
-              <Badge variant="outline" className="rounded-full text-foreground/62">
+              <Badge variant="outline" className="rounded-full text-subtle-foreground">
                 {finding.item.locale}
               </Badge>
             ) : null}
             {finding.item.field ? (
-              <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+              <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
                 {finding.item.field}
               </Badge>
             ) : null}
             {typeof finding.confidence === "number" ? (
-              <Badge variant="outline" className="rounded-full text-foreground/62">
+              <Badge variant="outline" className="rounded-full text-subtle-foreground">
                 {Math.round(finding.confidence * 100)}% confidence
               </Badge>
             ) : null}
@@ -334,16 +334,16 @@ function FindingRow({
               </Badge>
             ) : null}
           </div>
-          <p className="text-sm text-foreground/82">{finding.message}</p>
+          <p className="text-sm text-foreground">{finding.message}</p>
           {finding.suggestedFix ? (
-            <p className="text-xs text-foreground/48">{finding.suggestedFix}</p>
+            <p className="text-xs text-muted-foreground">{finding.suggestedFix}</p>
           ) : null}
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="font-mono text-foreground/54">{finding.item.key}</span>
+            <span className="font-mono text-muted-foreground">{finding.item.key}</span>
             {contentHref ? (
               <Link
                 href={contentHref}
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
                 View in project files
               </Link>
@@ -353,7 +353,7 @@ function FindingRow({
                 href={externalUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
                 Open in TMS
               </Link>
@@ -363,13 +363,16 @@ function FindingRow({
                 href={commentProviderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
                 View provider comment
               </Link>
             ) : null}
             {writeBack?.status === "failed" ? (
-              <span className="text-foreground/48" title={writeBack.message?.trim() || undefined}>
+              <span
+                className="text-muted-foreground"
+                title={writeBack.message?.trim() || undefined}
+              >
                 Could not post provider comment
               </span>
             ) : null}
@@ -626,13 +629,13 @@ export function JobQaFindingsSection({
   ).length;
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+    <section className="rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
             Review findings
           </TypographyH2>
-          <p className="mt-1 text-sm text-foreground/48">
+          <p className="mt-1 text-sm text-muted-foreground">
             Inspect issues from agent review or QA checks before writing back to the TMS. Filter by
             locale or check type, then act on selected findings.
           </p>
@@ -705,7 +708,7 @@ export function JobQaFindingsSection({
         </div>
       </div>
 
-      {agentRunsLoading ? <Skeleton className="mt-4 h-24 w-full bg-foreground/8" /> : null}
+      {agentRunsLoading ? <Skeleton className="mt-4 h-24 w-full bg-skeleton" /> : null}
 
       {activeQaRun ? (
         <p className="mt-4 rounded-md border border-bud-500/20 bg-bud-500/8 px-3 py-2 text-sm text-bud-300">
@@ -716,10 +719,10 @@ export function JobQaFindingsSection({
       ) : null}
 
       {providerReviewReport && providerReviewReport.summary.total > 0 ? (
-        <div className="mt-4 space-y-3 rounded-md border border-foreground/8 bg-foreground/2 px-4 py-4">
+        <div className="mt-4 space-y-3 rounded-md border border-border bg-muted px-4 py-4">
           <div>
-            <h3 className="text-sm font-medium text-foreground/82">Provider review threads</h3>
-            <p className="mt-1 text-sm text-foreground/48">
+            <h3 className="text-sm font-medium text-foreground">Provider review threads</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Issues and comments synced from the TMS for this job.
             </p>
           </div>
@@ -746,7 +749,7 @@ export function JobQaFindingsSection({
               <HugeiconsIcon
                 icon={Search01Icon}
                 strokeWidth={1.8}
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/40"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 value={searchQuery}
@@ -815,7 +818,7 @@ export function JobQaFindingsSection({
                 <SelectItem value="key">Group by key</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-foreground/48">
+            <p className="text-sm text-muted-foreground">
               Showing {filteredCount} of {findingsWithIds.length}
               {activeFilterCount > 0 || searchQuery.trim()
                 ? ` · ${activeFilterCount + (searchQuery.trim() ? 1 : 0)} filters active`
@@ -834,17 +837,17 @@ export function JobQaFindingsSection({
                   <div key={group.key} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium capitalize text-foreground/82">
+                        <h3 className="text-sm font-medium capitalize text-foreground">
                           {group.label}
                         </h3>
-                        <Badge variant="outline" className="rounded-full text-foreground/54">
+                        <Badge variant="outline" className="rounded-full text-muted-foreground">
                           {group.findings.length}
                         </Badge>
                       </div>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-xs text-foreground/54"
+                        className="h-7 text-xs text-muted-foreground"
                         onClick={() => toggleGroup(group.findings, !groupSelected)}
                       >
                         <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} />
@@ -870,11 +873,11 @@ export function JobQaFindingsSection({
               })}
             </div>
           ) : (
-            <p className="text-sm text-foreground/48">
+            <p className="text-sm text-muted-foreground">
               No findings match the current filters.{" "}
               <button
                 type="button"
-                className="underline decoration-foreground/24 underline-offset-4 hover:text-foreground"
+                className="underline decoration-border underline-offset-4 hover:text-foreground"
                 onClick={() => {
                   setSeverityFilter("all");
                   setLocaleFilter("all");
@@ -890,7 +893,7 @@ export function JobQaFindingsSection({
       ) : null}
 
       {!agentRunsLoading && !report && !activeQaRun ? (
-        <Empty className="mt-4 border border-dashed border-foreground/12">
+        <Empty className="mt-4 border border-dashed border-border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <HugeiconsIcon icon={ShieldEnergyIcon} strokeWidth={1.8} />

@@ -403,7 +403,7 @@ export function MonitorO11yBento() {
             <TypographyMuted className="text-muted-foreground">
               Ranked by impact across current release checks
             </TypographyMuted>
-            <TypographySmall className="text-foreground/80">50 total findings</TypographySmall>
+            <TypographySmall className="text-foreground">50 total findings</TypographySmall>
           </div>
 
           <div className="h-52 sm:h-56">

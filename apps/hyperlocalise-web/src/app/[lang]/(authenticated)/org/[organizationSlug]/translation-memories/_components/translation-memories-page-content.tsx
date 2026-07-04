@@ -545,7 +545,7 @@ export function TranslationMemoriesPageContent({
       ) : null}
 
       {memoriesQuery.isSuccess && memories.length > 0 && filteredMemories.length === 0 ? (
-        <div className="text-sm text-foreground/52">
+        <div className="text-sm text-muted-foreground">
           No translation memories match your filters.{" "}
           <button
             type="button"
@@ -555,7 +555,7 @@ export function TranslationMemoriesPageContent({
               setProviderFilter("all");
               setSyncFilter("all");
             }}
-            className="text-foreground/72 underline hover:text-foreground"
+            className="text-subtle-foreground underline hover:text-foreground"
           >
             Clear filters
           </button>
@@ -567,7 +567,7 @@ export function TranslationMemoriesPageContent({
           <TypographyP className="text-sm font-medium text-foreground">
             Choose a TMS project
           </TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             Select a project above to load live translation memories from your connected provider.
           </TypographyP>
         </div>
@@ -598,7 +598,7 @@ export function TranslationMemoriesPageContent({
       memoriesQuery.isSuccess &&
       memoryTotal > MEMORIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-foreground/52">
+          <p className="text-sm text-muted-foreground">
             Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -611,7 +611,7 @@ export function TranslationMemoriesPageContent({
             >
               Previous
             </Button>
-            <p className="text-sm text-foreground/52">
+            <p className="text-sm text-muted-foreground">
               Page {page} of {totalPages}
             </p>
             <Button

@@ -226,12 +226,12 @@ export function GlossaryDetailPageContent({
 
   if (glossaryQuery.isLoading) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">Loading glossary...</TypographyP>
+      <TypographyP className="py-8 text-sm text-muted-foreground">Loading glossary...</TypographyP>
     );
   }
   if (!glossary) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">Glossary not found.</TypographyP>
+      <TypographyP className="py-8 text-sm text-muted-foreground">Glossary not found.</TypographyP>
     );
   }
 
@@ -239,7 +239,7 @@ export function GlossaryDetailPageContent({
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <Link
         href={`/org/${organizationSlug}/glossaries`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/58 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
         Glossaries
@@ -249,7 +249,7 @@ export function GlossaryDetailPageContent({
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
             icon={BookOpenTextIcon}
-            className="size-5 text-foreground/48"
+            className="size-5 text-muted-foreground"
             strokeWidth={1.8}
           />
           <Badge variant="outline">{glossary.source === "native" ? "Workspace" : "Provider"}</Badge>
@@ -258,16 +258,16 @@ export function GlossaryDetailPageContent({
           </Badge>
         </div>
         <TypographyH1 className="font-sans text-2xl font-medium">{glossary.name}</TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-foreground/58">
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {glossary.description || "Manage terms and assign this glossary to projects."}
         </TypographyP>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <TypographyP className="text-sm font-medium text-foreground">Terms</TypographyP>
-            <TypographyP className="text-xs text-foreground/52">
+            <TypographyP className="text-xs text-muted-foreground">
               Add terms manually or import CSV/TBX files.
             </TypographyP>
           </div>
@@ -349,19 +349,21 @@ export function GlossaryDetailPageContent({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {(termsQuery.data ?? []).map((term) => (
             <div
               key={term.id}
-              className="grid gap-2 border-b border-foreground/8 px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
+              className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
             >
               <div>
                 <TypographyP className="text-sm font-medium">{term.sourceTerm}</TypographyP>
-                <TypographyP className="text-xs text-foreground/48">
+                <TypographyP className="text-xs text-muted-foreground">
                   {term.description || term.partOfSpeech}
                 </TypographyP>
               </div>
-              <TypographyP className="text-sm text-foreground/72">{term.targetTerm}</TypographyP>
+              <TypographyP className="text-sm text-subtle-foreground">
+                {term.targetTerm}
+              </TypographyP>
               {canEdit ? (
                 <div className="flex gap-2">
                   <Button
@@ -393,19 +395,19 @@ export function GlossaryDetailPageContent({
             </div>
           ))}
           {termsQuery.isSuccess && (termsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="px-4 py-6 text-sm text-foreground/52">
+            <TypographyP className="px-4 py-6 text-sm text-muted-foreground">
               No terms yet.
             </TypographyP>
           ) : null}
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div>
           <TypographyP className="text-sm font-medium text-foreground">
             Assigned projects
           </TypographyP>
-          <TypographyP className="text-xs text-foreground/52">
+          <TypographyP className="text-xs text-muted-foreground">
             This glossary is used only by the projects listed here.
           </TypographyP>
         </div>
@@ -439,7 +441,7 @@ export function GlossaryDetailPageContent({
           {(attachedProjectsQuery.data ?? []).map((project) => (
             <div
               key={project.projectId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-foreground/8 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
             >
               <Link
                 href={`/org/${organizationSlug}/projects/${project.projectId}`}
@@ -460,7 +462,7 @@ export function GlossaryDetailPageContent({
             </div>
           ))}
           {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="text-sm text-foreground/52">
+            <TypographyP className="text-sm text-muted-foreground">
               No projects assigned yet.
             </TypographyP>
           ) : null}

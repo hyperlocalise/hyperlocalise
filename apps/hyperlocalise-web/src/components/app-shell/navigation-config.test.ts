@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildProjectPath, isNavigationItemActive, parseProjectRoute } from "./navigation-config";
+import {
+  buildProjectPath,
+  isNavigationItemActive,
+  parseProjectRoute,
+  stripAppLocalePrefix,
+} from "./navigation-config";
 
 describe("navigation-config", () => {
   it("encodes external project ids as one path segment and parses them back", () => {
@@ -104,5 +109,11 @@ describe("workspace people navigation", () => {
 
     expect(isNavigationItemActive("/org/acme/members", settingsHref)).toBe(false);
     expect(isNavigationItemActive("/org/acme/settings/account", settingsHref)).toBe(true);
+  });
+
+  it("handles missing pathnames safely", () => {
+    expect(stripAppLocalePrefix(null)).toBe("/");
+    expect(stripAppLocalePrefix(undefined)).toBe("/");
+    expect(isNavigationItemActive(null, "/org/acme/teams")).toBe(false);
   });
 });

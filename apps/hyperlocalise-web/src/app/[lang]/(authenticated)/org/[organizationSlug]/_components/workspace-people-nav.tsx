@@ -25,7 +25,14 @@ const peopleSections: readonly {
   },
 ] as const;
 
-function resolveActiveSection(pathname: string, organizationSlug: string): WorkspacePeopleSection {
+function resolveActiveSection(
+  pathname: string | null,
+  organizationSlug: string,
+): WorkspacePeopleSection {
+  if (!pathname) {
+    return "teams";
+  }
+
   const basePath = `/org/${organizationSlug}`;
   const normalizedPath = stripAppLocalePrefix(pathname);
 
@@ -41,7 +48,7 @@ export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: str
   const activeSection = resolveActiveSection(pathname, organizationSlug);
 
   return (
-    <nav aria-label="Workspace people" className="border-b border-foreground/8">
+    <nav aria-label="Workspace people" className="border-b border-border">
       <div className="flex flex-wrap gap-1">
         {peopleSections.map((section) => {
           const href = `/org/${organizationSlug}/${section.id}`;
@@ -57,7 +64,7 @@ export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: str
                 "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-opacity",
                 isActive
                   ? "text-foreground after:bg-foreground after:opacity-100"
-                  : "text-foreground/56 hover:text-foreground after:opacity-0",
+                  : "text-muted-foreground hover:text-foreground after:opacity-0",
               )}
             >
               {section.label}

@@ -29,16 +29,16 @@ export function OverviewHeroCard({
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-foreground/8 py-0 text-foreground ring-0",
+        "rounded-2xl border border-border py-0 text-foreground ring-0",
         isCaughtUp
-          ? "bg-gradient-to-br from-grove-700/15 via-foreground/4 to-foreground/2"
-          : "bg-gradient-to-br from-beam-700/20 via-foreground/4 to-foreground/2",
+          ? "bg-gradient-to-br from-grove-700/15 via-muted to-muted"
+          : "bg-gradient-to-br from-amber-100 via-muted to-muted",
         className,
       )}
     >
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div>
-          <TypographyP className="text-sm font-medium text-foreground/72">
+          <TypographyP className="text-sm font-medium text-subtle-foreground">
             {isCaughtUp
               ? "All caught up"
               : `${pendingCount} pending ${pendingCount === 1 ? "action" : "actions"}`}

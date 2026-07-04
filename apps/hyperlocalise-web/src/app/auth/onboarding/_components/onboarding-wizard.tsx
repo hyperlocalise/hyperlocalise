@@ -43,7 +43,7 @@ export function OnboardingWizard() {
 
   return (
     <main className="dark flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
-      <Card className="w-full max-w-sm border-border/80 bg-card">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardContent className="space-y-7 p-6 sm:p-8">
           <div className="space-y-4 text-center">
             <Image
@@ -91,7 +91,7 @@ export function OnboardingWizard() {
                     {...onboardingWizardMessages.workspaceUrlPreview}
                     values={{
                       slug: derivedSlug,
-                      label: (chunks) => <span className="text-foreground/70">{chunks}</span>,
+                      label: (chunks) => <span className="text-subtle-foreground">{chunks}</span>,
                       path: (chunks) => <span className="font-mono text-foreground">{chunks}</span>,
                     }}
                   />

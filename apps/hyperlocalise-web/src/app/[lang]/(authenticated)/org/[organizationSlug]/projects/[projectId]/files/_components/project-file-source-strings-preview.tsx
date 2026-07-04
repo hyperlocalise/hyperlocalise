@@ -18,33 +18,33 @@ export function ProjectFileSourceStringsPreview({
 function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview }) {
   return (
     <div className="space-y-3">
-      <TypographyP className="text-xs text-foreground/52">
+      <TypographyP className="text-xs text-muted-foreground">
         {preview.entries.length} string{preview.entries.length === 1 ? "" : "s"}
         {preview.truncated ? " (preview truncated)" : ""}
       </TypographyP>
 
       {preview.note ? (
-        <TypographyP className="text-xs text-foreground/42">{preview.note}</TypographyP>
+        <TypographyP className="text-xs text-muted-foreground">{preview.note}</TypographyP>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
+      <div className="overflow-hidden rounded-md border border-border bg-background">
         <div className="max-h-[min(24rem,50vh)] overflow-auto">
           <table className="w-full min-w-[32rem] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 border-b border-foreground/8 bg-background/95 backdrop-blur-sm">
+            <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
               <tr>
-                <th className="px-3 py-2 font-medium text-foreground/52">Key</th>
-                <th className="px-3 py-2 font-medium text-foreground/52">Text</th>
-                <th className="px-3 py-2 font-medium text-foreground/52">Context</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">Key</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">Text</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">Context</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-foreground/8">
+            <tbody className="divide-y divide-border">
               {preview.entries.map((entry) => (
                 <tr key={entry.id ?? entry.key} className="align-top">
-                  <td className="px-3 py-2 font-mono text-foreground/82">{entry.key}</td>
-                  <td className="max-w-[14rem] px-3 py-2 whitespace-pre-wrap text-foreground/78">
+                  <td className="px-3 py-2 font-mono text-foreground">{entry.key}</td>
+                  <td className="max-w-[14rem] px-3 py-2 whitespace-pre-wrap text-subtle-foreground">
                     {entry.text}
                   </td>
-                  <td className="max-w-[12rem] px-3 py-2 whitespace-pre-wrap text-foreground/52">
+                  <td className="max-w-[12rem] px-3 py-2 whitespace-pre-wrap text-muted-foreground">
                     {entry.context?.trim() ? entry.context : "—"}
                   </td>
                 </tr>

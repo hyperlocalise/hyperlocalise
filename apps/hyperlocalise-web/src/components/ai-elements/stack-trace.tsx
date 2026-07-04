@@ -455,7 +455,7 @@ export const StackTraceFrames = memo(
           <div
             className={cn(
               "text-xs",
-              frame.isInternal ? "text-muted-foreground/50" : "text-foreground/90",
+              frame.isInternal ? "text-muted-foreground" : "text-foreground",
             )}
             key={frame.raw}
           >

@@ -24,21 +24,21 @@ function PlanUsageSummarySkeleton({ variant }: { variant: "sidebar" | "billing" 
   if (variant === "sidebar") {
     return (
       <div className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3">
-        <div className="h-3 w-16 animate-pulse rounded bg-sidebar-foreground/10" />
-        <div className="mt-3 h-3 w-24 animate-pulse rounded bg-sidebar-foreground/10" />
-        <div className="mt-2 h-3 w-32 animate-pulse rounded bg-sidebar-foreground/10" />
-        <div className="mt-3 h-1.5 animate-pulse rounded-full bg-sidebar-foreground/10" />
-        <div className="mt-3 h-3 w-28 animate-pulse rounded bg-sidebar-foreground/10" />
+        <div className="h-3 w-16 animate-pulse rounded bg-sidebar-accent" />
+        <div className="mt-3 h-3 w-24 animate-pulse rounded bg-sidebar-accent" />
+        <div className="mt-2 h-3 w-32 animate-pulse rounded bg-sidebar-accent" />
+        <div className="mt-3 h-1.5 animate-pulse rounded-full bg-sidebar-accent" />
+        <div className="mt-3 h-3 w-28 animate-pulse rounded bg-sidebar-accent" />
       </div>
     );
   }
 
   return (
     <div className="space-y-3 px-5 py-5">
-      <div className="h-4 w-28 animate-pulse rounded bg-foreground/10" />
-      <div className="h-3 w-40 animate-pulse rounded bg-foreground/10" />
-      <div className="h-1.5 animate-pulse rounded-full bg-foreground/10" />
-      <div className="h-3 w-36 animate-pulse rounded bg-foreground/10" />
+      <div className="h-4 w-28 animate-pulse rounded bg-accent" />
+      <div className="h-3 w-40 animate-pulse rounded bg-accent" />
+      <div className="h-1.5 animate-pulse rounded-full bg-accent" />
+      <div className="h-3 w-36 animate-pulse rounded bg-accent" />
     </div>
   );
 }
@@ -75,17 +75,17 @@ export function PlanUsageSummaryContent({
   const planName = summary.activePlanName ?? "No active plan";
   const isSidebar = variant === "sidebar";
   const planNameClassName = isSidebar
-    ? "mt-3 text-xs text-sidebar-foreground/80"
+    ? "mt-3 text-xs text-sidebar-foreground"
     : "text-sm font-medium text-foreground";
   const renewalClassName = isSidebar
-    ? "mt-1 text-xs text-sidebar-foreground/70"
-    : "mt-1 text-sm text-foreground/52";
+    ? "mt-1 text-xs text-sidebar-muted-foreground"
+    : "mt-1 text-sm text-muted-foreground";
   const usageClassName = isSidebar
-    ? "mt-3 text-xs text-sidebar-foreground/68"
-    : "mt-3 text-sm text-foreground/68";
+    ? "mt-3 text-xs text-sidebar-muted-foreground"
+    : "mt-3 text-sm text-subtle-foreground";
   const progressTrackClassName = isSidebar
-    ? "mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-foreground/10"
-    : "mt-4 h-2 overflow-hidden rounded-full bg-foreground/10";
+    ? "mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-accent"
+    : "mt-4 h-2 overflow-hidden rounded-full bg-accent";
 
   return (
     <>
@@ -108,7 +108,7 @@ export function PlanUsageSummaryContent({
       ) : null}
       <TypographyP className={usageClassName}>{summary.usageSummary}</TypographyP>
       {isSidebar ? (
-        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
+        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-muted-foreground">
           <span>View usage</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
         </div>
@@ -167,10 +167,10 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
         <TypographyP className="text-xs font-medium text-sidebar-foreground">
           Plan usage
         </TypographyP>
-        <TypographyP className="mt-3 text-xs text-sidebar-foreground/70">
+        <TypographyP className="mt-3 text-xs text-sidebar-muted-foreground">
           Couldn&apos;t load usage right now.
         </TypographyP>
-        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
+        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-muted-foreground">
           <span>Open billing</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
         </div>
@@ -187,13 +187,11 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
         <TypographyP className="text-xs font-medium text-sidebar-foreground">
           Plan usage
         </TypographyP>
-        <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
-          No active plan
-        </TypographyP>
-        <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
+        <TypographyP className="mt-3 text-xs text-sidebar-foreground">No active plan</TypographyP>
+        <TypographyP className="mt-1 text-xs text-sidebar-muted-foreground">
           Choose a plan to start tracking usage.
         </TypographyP>
-        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
+        <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-muted-foreground">
           <span>View plans</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
         </div>

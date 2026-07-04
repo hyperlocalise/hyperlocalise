@@ -42,7 +42,7 @@ export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
           )}
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

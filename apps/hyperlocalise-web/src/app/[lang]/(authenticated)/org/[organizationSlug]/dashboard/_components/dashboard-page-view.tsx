@@ -82,14 +82,18 @@ function DashboardPanel({
   renderLink?: DashboardLinkRenderer;
 }) {
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
+    <Card className="rounded-lg border border-border bg-muted py-0 text-foreground ring-0">
       <CardHeader className="px-5 pt-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-lg text-foreground">{title}</CardTitle>
             <CardDescription className="mt-1">{description}</CardDescription>
           </div>
-          <HugeiconsIcon icon={icon} strokeWidth={1.8} className="mt-1 size-5 text-foreground/42" />
+          <HugeiconsIcon
+            icon={icon}
+            strokeWidth={1.8}
+            className="mt-1 size-5 text-muted-foreground"
+          />
         </div>
       </CardHeader>
       <CardContent className="px-5 pb-5">
@@ -117,7 +121,7 @@ function DashboardPanel({
         ) : (
           <>
             {isEmpty && emptyMessage ? (
-              <TypographyP className="rounded-lg border border-dashed border-foreground/10 px-3 py-4 text-sm text-muted-foreground">
+              <TypographyP className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                 {emptyMessage}
               </TypographyP>
             ) : (
@@ -154,11 +158,11 @@ function DashboardSetupHero({
   const progressValue = Math.round((hero.connectedCount / hero.totalCount) * 100);
 
   return (
-    <Card className="rounded-2xl border border-foreground/8 bg-gradient-to-br from-beam-700/20 via-foreground/4 to-foreground/2 py-0 text-foreground ring-0 lg:col-span-2">
+    <Card className="rounded-2xl border border-border bg-gradient-to-br from-amber-100 via-muted to-muted py-0 text-foreground ring-0 lg:col-span-2">
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] lg:items-end">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground/72">
+            <TypographyP className="text-sm font-medium text-subtle-foreground">
               Workspace setup · {hero.connectedCount} of {hero.totalCount} connected
             </TypographyP>
             <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
@@ -217,7 +221,7 @@ function DashboardIntegrationsSection({
   return (
     <section className="flex flex-col gap-4">
       <OverviewSectionHeader title="Integrations" count={integrations.length - connectedCount} />
-      <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 ring-0">
+      <Card className="rounded-lg border border-border bg-muted py-0 ring-0">
         <CardContent className="px-5 py-5">
           {isLoading ? (
             <div className="grid gap-2" aria-busy="true" aria-label="Loading integrations">
@@ -232,7 +236,7 @@ function DashboardIntegrationsSection({
                   {renderLink({
                     href: integrationsHref,
                     className:
-                      "block rounded-lg border border-foreground/8 px-4 py-4 transition-colors hover:bg-foreground/4",
+                      "block rounded-lg border border-border px-4 py-4 transition-colors hover:bg-muted",
                     children: (
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
@@ -249,7 +253,7 @@ function DashboardIntegrationsSection({
                             "shrink-0 rounded-full",
                             item.connected
                               ? "border-grove-300/25 bg-grove-300/10 text-grove-300"
-                              : "border-foreground/12 bg-foreground/4 text-muted-foreground",
+                              : "border-border bg-muted text-muted-foreground",
                           )}
                         >
                           {item.connected ? "Connected" : "Connect"}
@@ -299,7 +303,7 @@ function DashboardAutomationsSection({
         })}
       </div>
 
-      <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 ring-0">
+      <Card className="rounded-lg border border-border bg-muted py-0 ring-0">
         <CardContent className="px-5 py-5">
           {isLoading ? (
             <div className="grid gap-3" aria-busy="true" aria-label="Loading automation runs">
@@ -326,7 +330,7 @@ function DashboardAutomationsSection({
               </TypographyP>
               <div className="mt-4 grid gap-2">
                 {runs.length === 0 ? (
-                  <TypographyP className="rounded-lg border border-dashed border-foreground/10 px-3 py-4 text-sm text-muted-foreground">
+                  <TypographyP className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                     No automation runs yet.
                   </TypographyP>
                 ) : (
@@ -335,7 +339,7 @@ function DashboardAutomationsSection({
                       {renderLink({
                         href: run.href,
                         className:
-                          "block rounded-lg border border-foreground/8 px-4 py-3 transition-colors hover:bg-foreground/4",
+                          "block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted",
                         children: (
                           <>
                             <div className="flex flex-wrap items-center gap-2">
@@ -428,10 +432,10 @@ export function DashboardPageView({
               ctaLabel={hero.ctaLabel}
               ctaHref={hero.ctaHref}
             />
-            <Card className="rounded-2xl border border-foreground/8 bg-foreground/2 py-0 ring-0">
+            <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
               <CardContent className="flex h-full flex-col justify-between gap-4 px-6 py-6">
                 <div>
-                  <TypographyP className="text-sm font-medium text-foreground/72">
+                  <TypographyP className="text-sm font-medium text-subtle-foreground">
                     Quick start
                   </TypographyP>
                   <TypographyP className="mt-2 font-heading text-xl font-medium text-foreground">
@@ -472,7 +476,7 @@ export function DashboardPageView({
         >
           {jobs.map((job) => {
             const content = (
-              <div className="rounded-lg border border-foreground/8 px-3 py-3 transition-colors hover:bg-foreground/4">
+              <div className="rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted">
                 <div className="flex flex-wrap items-center gap-2">
                   <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
                     {job.name}
@@ -524,7 +528,7 @@ export function DashboardPageView({
               {renderLink({
                 href: project.href,
                 className:
-                  "block rounded-lg border border-foreground/8 px-3 py-3 transition-colors hover:bg-foreground/4",
+                  "block rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted",
                 children: (
                   <>
                     <div className="flex flex-wrap items-center gap-2">

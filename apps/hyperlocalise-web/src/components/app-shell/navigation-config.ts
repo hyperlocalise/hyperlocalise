@@ -160,7 +160,11 @@ export function buildProjectNavigationItems(
   ] as const;
 }
 
-export function stripAppLocalePrefix(pathname: string) {
+export function stripAppLocalePrefix(pathname: string | null | undefined) {
+  if (!pathname) {
+    return "/";
+  }
+
   const [, firstSegment, ...rest] = pathname.split("/");
   const locale = firstSegment ? normalizeAppLocale(firstSegment) : null;
 
@@ -198,7 +202,7 @@ function decodePathSegment(value: string) {
 }
 
 export function isNavigationItemActive(
-  pathname: string,
+  pathname: string | null | undefined,
   href: string,
   options?: {
     exact?: boolean;
@@ -206,6 +210,10 @@ export function isNavigationItemActive(
     organizationSlug?: string;
   },
 ) {
+  if (!pathname) {
+    return false;
+  }
+
   const normalizedPathname = stripAppLocalePrefix(pathname);
   const itemPathname = href.split("#", 1)[0];
 

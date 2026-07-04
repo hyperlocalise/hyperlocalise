@@ -227,11 +227,13 @@ export function TranslationMemoryDetailPageContent({
   );
 
   if (memoryQuery.isLoading) {
-    return <TypographyP className="py-8 text-sm text-foreground/52">Loading memory...</TypographyP>;
+    return (
+      <TypographyP className="py-8 text-sm text-muted-foreground">Loading memory...</TypographyP>
+    );
   }
   if (!memory) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">
+      <TypographyP className="py-8 text-sm text-muted-foreground">
         Translation memory not found.
       </TypographyP>
     );
@@ -241,7 +243,7 @@ export function TranslationMemoryDetailPageContent({
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <Link
         href={`/org/${organizationSlug}/translation-memories`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/58 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
         Translation memories
@@ -251,22 +253,22 @@ export function TranslationMemoryDetailPageContent({
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
             icon={DatabaseSyncIcon}
-            className="size-5 text-foreground/48"
+            className="size-5 text-muted-foreground"
             strokeWidth={1.8}
           />
           <Badge variant="outline">{memory.source === "native" ? "Workspace" : "Provider"}</Badge>
         </div>
         <TypographyH1 className="font-sans text-2xl font-medium">{memory.name}</TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-foreground/58">
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {memory.description || "Manage translation examples and assign this memory to projects."}
         </TypographyP>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <TypographyP className="text-sm font-medium text-foreground">Entries</TypographyP>
-            <TypographyP className="text-xs text-foreground/52">
+            <TypographyP className="text-xs text-muted-foreground">
               Add aligned source and target examples manually or import CSV/TMX files.
             </TypographyP>
           </div>
@@ -352,19 +354,21 @@ export function TranslationMemoryDetailPageContent({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {(entriesQuery.data ?? []).map((entry) => (
             <div
               key={entry.id}
-              className="grid gap-2 border-b border-foreground/8 px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
+              className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
             >
               <div>
                 <TypographyP className="text-sm font-medium">{entry.sourceText}</TypographyP>
-                <TypographyP className="text-xs text-foreground/48">
+                <TypographyP className="text-xs text-muted-foreground">
                   {entry.sourceLocale} → {entry.targetLocale}
                 </TypographyP>
               </div>
-              <TypographyP className="text-sm text-foreground/72">{entry.targetText}</TypographyP>
+              <TypographyP className="text-sm text-subtle-foreground">
+                {entry.targetText}
+              </TypographyP>
               {canEdit ? (
                 <div className="flex gap-2">
                   <Button
@@ -396,19 +400,19 @@ export function TranslationMemoryDetailPageContent({
             </div>
           ))}
           {entriesQuery.isSuccess && (entriesQuery.data ?? []).length === 0 ? (
-            <TypographyP className="px-4 py-6 text-sm text-foreground/52">
+            <TypographyP className="px-4 py-6 text-sm text-muted-foreground">
               No entries yet.
             </TypographyP>
           ) : null}
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div>
           <TypographyP className="text-sm font-medium text-foreground">
             Assigned projects
           </TypographyP>
-          <TypographyP className="text-xs text-foreground/52">
+          <TypographyP className="text-xs text-muted-foreground">
             This memory is used only by the projects listed here.
           </TypographyP>
         </div>
@@ -442,7 +446,7 @@ export function TranslationMemoryDetailPageContent({
           {(attachedProjectsQuery.data ?? []).map((project) => (
             <div
               key={project.projectId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-foreground/8 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
             >
               <Link
                 href={`/org/${organizationSlug}/projects/${project.projectId}`}
@@ -463,7 +467,7 @@ export function TranslationMemoryDetailPageContent({
             </div>
           ))}
           {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="text-sm text-foreground/52">
+            <TypographyP className="text-sm text-muted-foreground">
               No projects assigned yet.
             </TypographyP>
           ) : null}

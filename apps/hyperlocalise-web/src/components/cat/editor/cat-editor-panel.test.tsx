@@ -51,6 +51,19 @@ describe("CatEditorPanel UI", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
 
+  it("disables approve when the target string is empty", () => {
+    renderEditorPanel({
+      segment: {
+        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+  });
+
   it("disables find context when lookup is unavailable", () => {
     renderEditorPanel({ canLookupContext: false });
 

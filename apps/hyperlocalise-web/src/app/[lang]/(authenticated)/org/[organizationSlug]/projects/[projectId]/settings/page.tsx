@@ -14,7 +14,7 @@ export default async function ProjectSettingsPage({
   return (
     <Suspense
       fallback={
-        <TypographyP className="text-sm text-foreground/52">Loading settings...</TypographyP>
+        <TypographyP className="text-sm text-muted-foreground">Loading settings...</TypographyP>
       }
     >
       <ProjectSettingsPageContent organizationSlug={organizationSlug} projectId={projectId} />

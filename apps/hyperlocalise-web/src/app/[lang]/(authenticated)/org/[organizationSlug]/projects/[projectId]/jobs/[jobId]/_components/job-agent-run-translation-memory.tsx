@@ -54,18 +54,18 @@ export function TranslationMemoryMatchesDetail({
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
+    <div className="space-y-2 rounded-md border border-border bg-muted p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Translation memory used
       </p>
       <ul className="space-y-2">
         {matches.map((match, index) => (
           <li
             key={`${match.memoryId}:${match.targetLocale}:${index}`}
-            className="space-y-1 text-sm text-foreground/74"
+            className="space-y-1 text-sm text-subtle-foreground"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-foreground/86">{match.memoryName}</span>
+              <span className="font-medium text-foreground">{match.memoryName}</span>
               <Badge
                 variant="outline"
                 className={cn("rounded-full", toneClass(matchSourceTone(match.matchSource)))}
@@ -73,10 +73,10 @@ export function TranslationMemoryMatchesDetail({
                 {formatTranslationMemoryResourceLabel(match)}
               </Badge>
               {match.matchScore !== null ? (
-                <span className="text-xs text-foreground/48">{match.matchScore}% match</span>
+                <span className="text-xs text-muted-foreground">{match.matchScore}% match</span>
               ) : null}
             </div>
-            <p className="text-xs whitespace-pre-wrap text-foreground/58">
+            <p className="text-xs whitespace-pre-wrap text-muted-foreground">
               {match.sourceText} → {match.targetText}
             </p>
           </li>

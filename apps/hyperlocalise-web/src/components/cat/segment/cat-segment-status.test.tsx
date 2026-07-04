@@ -19,6 +19,14 @@ describe("SegmentStatusBadge", () => {
   it("uses yellow for segments that need review", () => {
     renderWithCatProviders(<SegmentStatusBadge status="needs_review" />);
 
-    expect(screen.getByText("Needs review")).toHaveClass("text-beam-100");
+    expect(screen.getByText("Needs review")).toHaveClass("text-warning-foreground");
+  });
+
+  it("uses plain outline styling for untranslated segments", () => {
+    renderWithCatProviders(<SegmentStatusBadge status="pending" />);
+
+    const badge = screen.getByText("Untranslated");
+    expect(badge).toHaveClass("text-foreground");
+    expect(badge).not.toHaveClass("text-dew-100");
   });
 });

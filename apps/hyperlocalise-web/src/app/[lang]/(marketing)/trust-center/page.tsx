@@ -165,7 +165,7 @@ export default function TrustCenterPage() {
               {certificationStatuses.map((item) => (
                 <div
                   key={item.name}
-                  className="flex items-start justify-between gap-4 border-t border-border/70 pt-4 first:border-t-0 first:pt-0"
+                  className="flex items-start justify-between gap-4 border-t border-border pt-4 first:border-t-0 first:pt-0"
                 >
                   <dt className="text-sm font-medium text-foreground">{item.name}</dt>
                   <dd className="max-w-40 text-right text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export default function TrustCenterPage() {
           </aside>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <SectionHeader
             eyebrow="Security"
             title="Built for controlled localization workflows"
@@ -207,7 +207,7 @@ export default function TrustCenterPage() {
 
         <section
           id="subprocessors"
-          className="border-t border-border/70 px-5 py-16 scroll-mt-24 sm:px-8 lg:px-10 lg:py-20"
+          className="border-t border-border px-5 py-16 scroll-mt-24 sm:px-8 lg:px-10 lg:py-20"
         >
           <SectionHeader
             eyebrow="Subprocessors"
@@ -248,7 +248,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
             <SectionHeader
               eyebrow="Certification"
@@ -269,7 +269,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
             <SectionHeader
               eyebrow="Data handling"
@@ -293,7 +293,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <div className="flex flex-col gap-5 rounded-lg border border-border bg-muted/25 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
               <TypographyH2 className="pb-0 text-2xl tracking-[-0.02em] md:text-3xl">
@@ -311,7 +311,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70">
+        <section className="border-t border-border">
           <div className="px-5 py-16 sm:px-8 lg:px-10">
             <MarketingFooter columns={footerColumns} />
           </div>

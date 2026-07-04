@@ -17,8 +17,8 @@ import { ProviderJobDescriptionField } from "./provider-job-description-field";
 function JobDetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 wrap-break-word text-sm text-subtle-foreground">{value ?? "—"}</dd>
     </div>
   );
 }
@@ -104,7 +104,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
       <JobDetailRow label="Target locales" value={crowdinTargetLocales} />
       {isCrowdin ? (
         <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-          <dt className="text-sm text-foreground/42">Description</dt>
+          <dt className="text-sm text-muted-foreground">Description</dt>
           <dd className="min-w-0">
             {renderDescriptionField({
               organizationSlug,
@@ -134,7 +134,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
               href={job.externalUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
             >
               Open in {job.externalProviderKind}
             </a>

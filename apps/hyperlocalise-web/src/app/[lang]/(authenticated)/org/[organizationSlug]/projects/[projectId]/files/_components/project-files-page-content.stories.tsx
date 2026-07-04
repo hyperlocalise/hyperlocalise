@@ -33,10 +33,10 @@ function storyFilesTree({
 }) {
   return (selectedFileRecord: ReturnType<typeof createProjectFileRecord> | null) => (
     <>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
           <ProjectSectionTitle>Project files</ProjectSectionTitle>
-          <TypographyP className="mt-0.5 text-sm text-foreground/52">
+          <TypographyP className="mt-0.5 text-sm text-muted-foreground">
             {files.length} file{files.length === 1 ? "" : "s"}
           </TypographyP>
         </div>

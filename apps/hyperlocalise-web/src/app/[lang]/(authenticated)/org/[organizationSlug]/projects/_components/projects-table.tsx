@@ -52,7 +52,7 @@ function LocaleSummary({ project }: { project: ProjectListRow }) {
   if (parts.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1 text-xs text-foreground/52">
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
       <HugeiconsIcon icon={TranslationIcon} strokeWidth={1.8} className="size-3.5" />
       <span>{parts.join(" → ")}</span>
     </div>
@@ -88,12 +88,12 @@ export function ProjectsTable({
   return (
     <section>
       {projectsQuery.isLoading ? (
-        <div className="border-t border-foreground/8 px-1 py-8 text-sm text-foreground/52">
+        <div className="border-t border-border px-1 py-8 text-sm text-muted-foreground">
           Loading projects...
         </div>
       ) : null}
       {projectsQuery.isError ? (
-        <div className="border-t border-foreground/8 px-1 py-8">
+        <div className="border-t border-border px-1 py-8">
           {variant === "tms" && isTmsUserConnectionRequiredError(projectsQuery.error) ? (
             <TmsUserConnectionErrorPanel
               organizationSlug={organizationSlug}
@@ -105,7 +105,7 @@ export function ProjectsTable({
               <TypographyP className="text-sm font-medium text-flame-100">
                 Projects failed to load.
               </TypographyP>
-              <TypographyP className="mt-1 text-xs text-foreground/42">
+              <TypographyP className="mt-1 text-xs text-muted-foreground">
                 {projectsQuery.error instanceof Error
                   ? projectsQuery.error.message
                   : "Refresh the page to try again."}
@@ -119,7 +119,7 @@ export function ProjectsTable({
           <TypographyP className="text-sm font-medium text-foreground">
             {variant === "native" ? emptyNativeTitle : emptyTmsTitle}
           </TypographyP>
-          <TypographyP className="text-sm leading-6 text-foreground/52">
+          <TypographyP className="text-sm leading-6 text-muted-foreground">
             {variant === "native" ? emptyNativeDescription : emptyTmsDescription}
           </TypographyP>
         </div>
@@ -129,7 +129,7 @@ export function ProjectsTable({
           {projects.map((project) => (
             <article
               key={project.id}
-              className="group min-w-0 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4 transition-colors hover:border-foreground/14 hover:bg-foreground/4"
+              className="group min-w-0 rounded-lg border border-border bg-muted p-4 transition-colors hover:border-border hover:bg-muted"
             >
               <div className="flex items-start justify-between gap-4">
                 <Link
@@ -137,7 +137,7 @@ export function ProjectsTable({
                   className="min-w-0 flex-1"
                 >
                   <div className="flex items-center gap-2">
-                    <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground md:text-base group-hover:text-foreground/80">
+                    <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground md:text-base group-hover:text-foreground">
                       {project.name}
                     </TypographyH3>
                     <ProviderBadge externalProviderKind={project.externalProviderKind} />
@@ -148,7 +148,7 @@ export function ProjectsTable({
                     ) : null}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <TypographyP className="truncate text-xs text-foreground/36">
+                    <TypographyP className="truncate text-xs text-muted-foreground">
                       {project.id}
                     </TypographyP>
                     <LocaleSummary project={project} />
@@ -169,7 +169,7 @@ export function ProjectsTable({
                                 onEditProject(project);
                               }}
                               disabled={isSavingProject}
-                              className="text-foreground/54 hover:text-foreground"
+                              className="text-muted-foreground hover:text-foreground"
                             >
                               <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
                               <span className="sr-only">Edit {project.name}</span>
@@ -191,7 +191,7 @@ export function ProjectsTable({
                                 onDeleteProject(project);
                               }}
                               disabled={isDeletingProject || isSavingProject}
-                              className="text-foreground/54 hover:text-foreground"
+                              className="text-muted-foreground hover:text-foreground"
                             >
                               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
                               <span className="sr-only">Delete {project.name}</span>
@@ -218,7 +218,7 @@ export function ProjectsTable({
                                 rel="noopener noreferrer"
                               />
                             }
-                            className="text-foreground/54 hover:text-foreground"
+                            className="text-muted-foreground hover:text-foreground"
                           >
                             <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
                             <span className="sr-only">Open {project.name} in provider</span>
@@ -234,16 +234,16 @@ export function ProjectsTable({
               </div>
 
               {variant === "native" ? (
-                <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
+                <dl className="mt-6 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
                   <div className="min-w-0">
-                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                    <dt className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
                       Open jobs
                     </dt>
-                    <dd className="mt-1 truncate text-sm text-foreground/54">
+                    <dd className="mt-1 truncate text-sm text-muted-foreground">
                       {project.openJobCount > 0 ? (
                         <Link
                           href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
-                          className="text-foreground/72 hover:text-foreground hover:underline"
+                          className="text-subtle-foreground hover:text-foreground hover:underline"
                         >
                           {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
                         </Link>

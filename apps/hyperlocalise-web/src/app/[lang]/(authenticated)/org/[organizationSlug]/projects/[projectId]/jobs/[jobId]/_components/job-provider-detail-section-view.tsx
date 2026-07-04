@@ -66,8 +66,8 @@ export type JobProviderDiffReviewRenderer = (props: {
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 wrap-break-word text-sm text-subtle-foreground">{value ?? "—"}</dd>
     </div>
   );
 }
@@ -105,7 +105,7 @@ function defaultRenderExternalLink({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+      className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
     >
       {label}
     </Link>
@@ -153,7 +153,7 @@ export function JobProviderDetailSectionView({
   return (
     <>
       {showProviderMetadata ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+        <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
               Provider Details
@@ -162,7 +162,7 @@ export function JobProviderDetailSectionView({
               {job.externalProviderKind}
             </Badge>
           </div>
-          <dl className="mt-3 divide-y divide-foreground/8">
+          <dl className="mt-3 divide-y divide-border">
             <DetailRow label="Provider title" value={job.externalTitle} />
             <DetailRow label="Provider status" value={job.externalStatus} />
             <DetailRow label="Sync state" value={job.externalSyncState} />
@@ -182,12 +182,12 @@ export function JobProviderDetailSectionView({
                   )}
                 />
                 <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-sm text-foreground/42">Description</dt>
-                  <dd className="min-w-0 text-sm text-foreground/74">
+                  <dt className="text-sm text-muted-foreground">Description</dt>
+                  <dd className="min-w-0 text-sm text-subtle-foreground">
                     {crowdinDescription ? (
                       <MarkdownDescriptionPreview
                         value={crowdinDescription}
-                        className="border-foreground/8 bg-transparent"
+                        className="border-border bg-transparent"
                       />
                     ) : (
                       "—"
@@ -219,7 +219,7 @@ export function JobProviderDetailSectionView({
       ) : null}
 
       {projectId && renderSourceFiles ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+        <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
               Source files
@@ -233,7 +233,7 @@ export function JobProviderDetailSectionView({
           {sourceFilesExpanded ? (
             renderSourceFiles({ job, organizationSlug, projectId })
           ) : (
-            <p className="mt-3 text-sm text-foreground/48">
+            <p className="mt-3 text-sm text-muted-foreground">
               Load linked source files when you are ready to review or open them.
             </p>
           )}
@@ -241,7 +241,7 @@ export function JobProviderDetailSectionView({
       ) : null}
 
       {showAgentActions && visibleActions.length > 0 ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+        <section className="rounded-lg border border-border bg-muted p-5">
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
             Agent Actions
           </TypographyH2>
@@ -283,11 +283,11 @@ export function JobProviderDetailSectionView({
           })
         : null}
 
-      <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <section className="rounded-lg border border-border bg-muted p-5">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
           Agent Activity
         </TypographyH2>
-        {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-foreground/8" /> : null}
+        {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-skeleton" /> : null}
         {agentRunsError ? (
           <p className="mt-4 text-sm text-flame-100">
             {agentRunsError instanceof Error ? agentRunsError.message : "Unable to load agent runs"}
@@ -316,13 +316,13 @@ export function JobProviderDetailSectionView({
               return (
                 <li
                   key={run.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted.5 px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium capitalize text-foreground/82">
+                    <p className="text-sm font-medium capitalize text-foreground">
                       {run.kind.replaceAll("_", " ")}
                     </p>
-                    <p className="text-xs text-foreground/48">
+                    <p className="text-xs text-muted-foreground">
                       Started {formatJobDetailDate(run.createdAt)}
                       {hasProposals ? ` · ${proposedCount} proposals` : null}
                       {translationMemoryMatchCount > 0
@@ -352,7 +352,7 @@ export function JobProviderDetailSectionView({
           </ul>
         ) : null}
         {agentRuns && agentRuns.length === 0 ? (
-          <p className="mt-4 text-sm text-foreground/48">No agent runs yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No agent runs yet.</p>
         ) : null}
       </section>
     </>

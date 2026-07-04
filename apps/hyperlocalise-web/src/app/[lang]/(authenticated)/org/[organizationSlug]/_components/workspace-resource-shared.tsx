@@ -44,18 +44,18 @@ export function WorkspaceFilterField({
 }
 
 export const workspaceFilterTriggerClassName =
-  "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm data-[size=default]:h-9";
+  "h-9 min-h-9 w-full border-border bg-transparent px-3 text-sm data-[size=default]:h-9";
 
 export function toneClass(tone: Tone) {
   switch (tone) {
     case "safe":
-      return "border-grove-300/25 bg-grove-300/10 text-grove-300";
+      return "border-grove-700/25 bg-grove-100 text-grove-900 dark:border-grove-500/30 dark:bg-grove-100 dark:text-grove-900";
     case "watch":
-      return "border-bud-500/25 bg-bud-500/10 text-bud-300";
+      return "border-warning/25 bg-warning/10 text-warning-foreground dark:border-warning/30 dark:bg-warning/20 dark:text-warning-foreground";
     case "risk":
-      return "border-flame-700/25 bg-flame-700/10 text-flame-100";
+      return "border-destructive/25 bg-destructive/10 text-destructive dark:border-destructive/30 dark:bg-destructive/20 dark:text-destructive";
     default:
-      return "border-dew-500/25 bg-dew-500/10 text-dew-100";
+      return "border-blue-700/25 bg-blue-100 text-blue-1000 dark:border-blue-600/30 dark:bg-blue-100 dark:text-blue-900";
   }
 }
 
@@ -114,7 +114,7 @@ export function PageHeader({
           {statusLabel ? (
             <Badge
               variant="outline"
-              className="h-8 w-fit rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
+              className="h-8 w-fit rounded-lg border-border bg-muted text-subtle-foreground"
             >
               {statusLabel}
             </Badge>
@@ -136,10 +136,10 @@ export function MetricsGrid({
       {metrics.map((metric) => (
         <Card
           key={metric.label}
-          className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
+          className="rounded-lg border border-border bg-muted py-0 text-foreground ring-0"
         >
           <CardContent className="px-4 py-4">
-            <TypographyP className="text-sm text-foreground/52">{metric.label}</TypographyP>
+            <TypographyP className="text-sm text-muted-foreground">{metric.label}</TypographyP>
             <div className="mt-3 flex items-end justify-between gap-4">
               <TypographyP className="font-heading text-3xl font-medium text-foreground">
                 {metric.value}
@@ -157,10 +157,7 @@ export function MetricsGrid({
 
 export function ProgressBar({ value, tone }: { value: number; tone: Tone }) {
   return (
-    <div
-      className="h-2 overflow-hidden rounded-full bg-foreground/8"
-      aria-label={`${value}% complete`}
-    >
+    <div className="h-2 overflow-hidden rounded-full bg-skeleton" aria-label={`${value}% complete`}>
       <div
         className={cn(
           "h-full rounded-full",
@@ -187,17 +184,21 @@ export function ResourceCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
+    <Card className="rounded-lg border border-border bg-muted py-0 text-foreground ring-0">
       <CardHeader className="px-5 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-xl text-foreground">{title}</CardTitle>
-            <CardDescription className="mt-1 text-foreground/48">{description}</CardDescription>
+            <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
           </div>
-          <HugeiconsIcon icon={icon} strokeWidth={1.8} className="mt-1 size-5 text-foreground/42" />
+          <HugeiconsIcon
+            icon={icon}
+            strokeWidth={1.8}
+            className="mt-1 size-5 text-muted-foreground"
+          />
         </div>
       </CardHeader>
-      <Separator className="bg-foreground/8" />
+      <Separator className="bg-skeleton" />
       <CardContent className="px-0 pb-3">{children}</CardContent>
     </Card>
   );

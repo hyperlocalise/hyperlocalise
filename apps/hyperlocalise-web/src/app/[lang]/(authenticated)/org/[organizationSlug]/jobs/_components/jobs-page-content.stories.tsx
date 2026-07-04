@@ -224,7 +224,7 @@ export const TmsConnectionRequired: Story = {
       <div>
         <p className="text-sm font-medium text-flame-100">Connect Crowdin to view provider jobs.</p>
         {error instanceof Error ? (
-          <p className="mt-1 text-xs text-foreground/42">{error.message}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{error.message}</p>
         ) : null}
       </div>
     ),

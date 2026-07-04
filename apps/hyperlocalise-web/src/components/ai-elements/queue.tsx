@@ -51,9 +51,7 @@ export const QueueItemIndicator = ({
   <span
     className={cn(
       "mt-0.5 inline-block size-2.5 rounded-full border",
-      completed
-        ? "border-muted-foreground/20 bg-muted-foreground/10"
-        : "border-muted-foreground/50",
+      completed ? "border-border bg-accent" : "border-border",
       className,
     )}
     {...props}
@@ -72,7 +70,7 @@ export const QueueItemContent = ({
   <span
     className={cn(
       "line-clamp-1 grow break-words",
-      completed ? "text-muted-foreground/50 line-through" : "text-muted-foreground",
+      completed ? "text-muted-foreground line-through" : "text-muted-foreground",
       className,
     )}
     {...props}
@@ -91,7 +89,7 @@ export const QueueItemDescription = ({
   <div
     className={cn(
       "ms-6 text-xs",
-      completed ? "text-muted-foreground/40 line-through" : "text-muted-foreground",
+      completed ? "text-muted-foreground line-through" : "text-muted-foreground",
       className,
     )}
     {...props}
@@ -109,7 +107,7 @@ export type QueueItemActionProps = Omit<ComponentProps<typeof Button>, "variant"
 export const QueueItemAction = ({ className, ...props }: QueueItemActionProps) => (
   <Button
     className={cn(
-      "size-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/10 hover:text-foreground group-hover:opacity-100",
+      "size-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100",
       className,
     )}
     size="icon"

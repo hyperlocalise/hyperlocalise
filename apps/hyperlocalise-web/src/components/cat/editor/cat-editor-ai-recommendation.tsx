@@ -28,7 +28,7 @@ export function CatEditorAiRecommendation({
     <aside
       className={cn(
         "border-l pl-4 transition-opacity",
-        hasSuggestion ? "border-grove-300/40" : "border-foreground/12",
+        hasSuggestion ? "border-grove-300/40" : "border-border",
         isLoading && "opacity-80",
       )}
       aria-busy={isLoading}
@@ -64,10 +64,10 @@ export function CatEditorAiRecommendation({
         <p className="text-sm leading-relaxed text-flame-100">{error}</p>
       ) : hasSuggestion ? (
         <>
-          <p className="text-sm leading-relaxed text-foreground/88">{intelligence.aiSuggestion}</p>
+          <p className="text-sm leading-relaxed text-foreground">{intelligence.aiSuggestion}</p>
           {intelligence.aiReasoning ? (
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground/70">
+              <span className="font-medium text-subtle-foreground">
                 <FormattedMessage {...catEditorPanelMessages.reasoningPrefix} />
               </span>{" "}
               {intelligence.aiReasoning}

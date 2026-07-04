@@ -127,7 +127,7 @@ export function formatJobStatusLabel(status: ApiJob["status"]) {
 }
 
 const jobsFilterTriggerClassName =
-  "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
+  "h-9 min-h-9 w-full border-border bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
 
 const jobsFilterSelectContentClassName =
   "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
@@ -289,7 +289,7 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
         nativeButton={false}
         render={<a href={href} />}
         variant="ghost"
-        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
+        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-muted"
       >
         {children}
       </Button>
@@ -328,7 +328,7 @@ export function JobsPageErrorMessage({ error }: { error: unknown }) {
   return (
     <>
       <TypographyP className="text-sm font-medium text-flame-100">Jobs failed to load.</TypographyP>
-      <TypographyP className="mt-1 text-sm text-foreground/58">
+      <TypographyP className="mt-1 text-sm text-muted-foreground">
         {error instanceof Error ? error.message : "Failed to load jobs."}
       </TypographyP>
     </>
@@ -356,17 +356,22 @@ function JobsList({
 }) {
   if (isLoading)
     return (
-      <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
+      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">Loading jobs…</TypographyP>
     );
   if (jobs.length === 0) {
-    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
+    return (
+      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">{emptyLabel}</TypographyP>
+    );
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[56rem]">
         <div
-          className={cn(jobsTableGridClassName, "px-3 py-3 text-sm font-medium text-foreground/42")}
+          className={cn(
+            jobsTableGridClassName,
+            "px-3 py-3 text-sm font-medium text-muted-foreground",
+          )}
         >
           <TypographyP>Name</TypographyP>
           <TypographyP>Source</TypographyP>
@@ -393,7 +398,7 @@ function JobsList({
                   </div>
                 )}
                 <JobSourceLabel job={job} />
-                <TypographyP className="truncate text-sm text-foreground/58">
+                <TypographyP className="truncate text-sm text-muted-foreground">
                   {job.projectName ?? job.projectId ?? "Workspace"}
                 </TypographyP>
                 <Badge
@@ -403,10 +408,10 @@ function JobsList({
                   {formatJobStatusLabel(job.status)}
                 </Badge>
                 <div className="min-w-0">
-                  <TypographyP className="truncate text-sm text-foreground/68">
+                  <TypographyP className="truncate text-sm text-subtle-foreground">
                     {taskDetailSummary(job)}
                   </TypographyP>
-                  <TypographyP className="mt-1 truncate text-xs text-foreground/38">
+                  <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
                     Due {formatRelativeTime(job.externalDueDate, now)} · Synced{" "}
                     {formatRelativeTime(job.updatedAt, now)}
                   </TypographyP>
@@ -419,7 +424,7 @@ function JobsList({
                   renderJobLink={renderJobLink}
                 />
               </div>
-              {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+              {index < jobs.length - 1 ? <Separator className="bg-skeleton" /> : null}
             </div>
           );
         })}
@@ -434,7 +439,7 @@ function JobListItemTitle({ job }: { job: ApiJob }) {
       <span className="block truncate text-base font-medium text-foreground">
         {getJobName(job)}
       </span>
-      <span className="mt-1 block truncate text-xs font-normal text-foreground/38">
+      <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
         {formatJobKind(job)} · {job.externalTaskId ?? job.id}
       </span>
     </span>
@@ -529,7 +534,7 @@ function JobsSectionHeader({ title, description }: { title: string; description?
     <div className="space-y-1">
       <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
       {description ? (
-        <TypographyP className="text-sm leading-6 text-foreground/52">{description}</TypographyP>
+        <TypographyP className="text-sm leading-6 text-muted-foreground">{description}</TypographyP>
       ) : null}
     </div>
   );
@@ -686,14 +691,14 @@ export function JobsPageView({
             <HugeiconsIcon
               icon={SearchIcon}
               strokeWidth={2}
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/42"
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               id={searchId}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Jobs, providers, locales, assignees..."
-              className="h-9 border-foreground/14 bg-transparent pl-9 text-foreground placeholder:text-foreground/42"
+              className="h-9 border-border bg-transparent pl-9 text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </JobsFilterField>

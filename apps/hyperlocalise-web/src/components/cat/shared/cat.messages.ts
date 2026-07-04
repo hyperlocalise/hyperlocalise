@@ -131,6 +131,16 @@ export const catQueuePanelMessages = defineMessages({
     id: "Ygi+pnLdm5",
     description: "Accessible label for selecting a CAT queue segment for bulk actions",
   },
+  showSelection: {
+    defaultMessage: "Select",
+    id: "LAx6QaaPwX",
+    description: "Label for the toggle that shows bulk-selection checkboxes in the CAT queue list",
+  },
+  showSelectionAria: {
+    defaultMessage: "Show bulk selection checkboxes",
+    id: "oCFslUs6eA",
+    description: "Accessible label for the CAT queue bulk selection mode toggle",
+  },
 });
 
 export const catSegmentStatusMessages = defineMessages({
@@ -322,10 +332,20 @@ export const catTargetEditorMessages = defineMessages({
     id: "MB3Jte6am8",
     description: "Live character count for the CAT target translation against a max length limit",
   },
+  characterCountOnly: {
+    defaultMessage: "{count} characters",
+    id: "Ks+Feeoung",
+    description: "Live character count for the CAT target translation when no max length is set",
+  },
   characterCountAria: {
     defaultMessage: "{count} of {maxLength} characters used",
     id: "+jUwPCSypy",
     description: "Accessible label for the CAT target translation character counter",
+  },
+  characterCountOnlyAria: {
+    defaultMessage: "{count} characters used",
+    id: "8eFLCTVPnq",
+    description: "Accessible label for the CAT target character counter without a max length",
   },
 });
 

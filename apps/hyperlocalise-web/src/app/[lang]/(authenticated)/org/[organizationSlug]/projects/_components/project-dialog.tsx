@@ -98,11 +98,11 @@ export function ProjectDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="flex max-h-[min(85dvh,40rem)] flex-col gap-0 overflow-hidden rounded-xl border border-foreground/10 bg-background p-0 text-foreground sm:max-w-lg">
+      <DialogContent className="flex max-h-[min(85dvh,40rem)] flex-col gap-0 overflow-hidden rounded-xl border border-border bg-background p-0 text-foreground sm:max-w-lg">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <DialogHeader className="shrink-0 gap-2 border-b border-foreground/8 px-6 pt-6 pe-12 pb-4">
+          <DialogHeader className="shrink-0 gap-2 border-b border-border px-6 pt-6 pe-12 pb-4">
             <DialogTitle className="text-foreground">{title}</DialogTitle>
-            <DialogDescription className="text-foreground/52">{description}</DialogDescription>
+            <DialogDescription className="text-muted-foreground">{description}</DialogDescription>
           </DialogHeader>
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 py-4">
             <Field className="gap-1.5">
@@ -117,13 +117,13 @@ export function ProjectDialog({
                 aria-describedby={nameCountId}
                 disabled={isSaving}
                 placeholder="Marketing site launch"
-                className="border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
+                className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
               />
               <div className="flex items-center justify-between gap-2">
                 <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
                 <span
                   id={nameCountId}
-                  className="ml-auto tabular-nums text-[10px] font-medium text-foreground/32"
+                  className="ml-auto tabular-nums text-[10px] font-medium text-muted-foreground"
                 >
                   {values.name.length} / 200
                 </span>
@@ -159,7 +159,7 @@ export function ProjectDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-9 w-full justify-between px-3 text-sm font-medium text-foreground/58 hover:bg-foreground/6 hover:text-foreground"
+                    className="h-9 w-full justify-between px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     Settings
                     <ChevronDownIcon
@@ -185,7 +185,7 @@ export function ProjectDialog({
                     aria-describedby={descriptionCountId}
                     disabled={isSaving}
                     placeholder="Project scope, release, or ownership notes"
-                    className="min-h-20 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
+                    className="min-h-20 border-border bg-muted text-foreground placeholder:text-muted-foreground"
                   />
                   <div className="flex items-center justify-between gap-2">
                     <FieldError
@@ -193,7 +193,7 @@ export function ProjectDialog({
                     />
                     <span
                       id={descriptionCountId}
-                      className="ml-auto tabular-nums text-[10px] font-medium text-foreground/32"
+                      className="ml-auto tabular-nums text-[10px] font-medium text-muted-foreground"
                     >
                       {values.description.length.toLocaleString()} / 10,000
                     </span>
@@ -202,7 +202,7 @@ export function ProjectDialog({
               </CollapsibleContent>
             </Collapsible>
           </div>
-          <DialogFooter className="shrink-0 border-t border-foreground/8 px-6 pt-4 pb-6">
+          <DialogFooter className="shrink-0 border-t border-border px-6 pt-4 pb-6">
             <Button
               type="button"
               variant="outline"

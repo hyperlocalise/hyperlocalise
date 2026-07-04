@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   Add01Icon,
   ArrowLeft01Icon,
-  Delete01Icon,
+  MoreHorizontalCircle01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -20,6 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -47,18 +54,75 @@ import {
   resolveTeamDetailPageState,
 } from "./teams-settings-view-model";
 
-function MembersTableHeader() {
+function MembersTableHeader({ showActions }: { showActions: boolean }) {
   return (
     <div
       role="row"
-      className="hidden grid-cols-[minmax(0,1.5fr)_12rem_2.5rem] gap-4 border-b border-foreground/8 px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-foreground/36 uppercase md:grid"
+      className={cn(
+        "hidden gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid",
+        showActions
+          ? "md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem]"
+          : "md:grid-cols-[minmax(0,1.5fr)_12rem]",
+      )}
     >
       <div role="columnheader">Member</div>
       <div role="columnheader">Role</div>
-      <div role="columnheader" className="text-right">
-        Actions
-      </div>
+      {showActions ? (
+        <div role="columnheader" className="text-right">
+          <span className="sr-only">Actions</span>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function MemberRowActions({
+  member,
+  canRemove,
+  isRemovingMember,
+  onRemoveMember,
+}: {
+  member: TeamMemberRow;
+  canRemove: boolean;
+  isRemovingMember: boolean;
+  onRemoveMember: (member: TeamMemberRow) => void;
+}) {
+  if (!canRemove) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(
+              "rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground",
+              "opacity-100 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100",
+              "data-popup-open:opacity-100 aria-expanded:opacity-100",
+            )}
+            aria-label={`Actions for ${member.email}`}
+            disabled={isRemovingMember}
+          />
+        }
+      >
+        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onRemoveMember(member)}
+            disabled={isRemovingMember}
+          >
+            Remove from team...
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -127,7 +191,7 @@ export function TeamDetailPageView({
           render={<Link href={`/org/${organizationSlug}/teams`} />}
           variant="ghost"
           size="sm"
-          className="w-fit px-2 text-foreground/56 hover:text-foreground"
+          className="w-fit px-2 text-muted-foreground hover:text-foreground"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} />
           Back to teams
@@ -162,12 +226,12 @@ export function TeamDetailPageView({
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <TypographyP className="text-sm font-medium text-foreground">Members</TypographyP>
-            <TypographyP className="mt-1 text-sm text-foreground/52">
+            <TypographyP className="mt-1 text-sm text-muted-foreground">
               People assigned to this team can access its projects and jobs. Need someone new in the
               workspace?{" "}
               <Link
                 href={`/org/${organizationSlug}/members`}
-                className="font-medium text-foreground/72 underline-offset-4 hover:text-foreground hover:underline"
+                className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 Invite a member
               </Link>
@@ -188,13 +252,13 @@ export function TeamDetailPageView({
         </div>
 
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-foreground/52">Loading team...</TypographyP>
+          <TypographyP className="py-8 text-sm text-muted-foreground">Loading team...</TypographyP>
         ) : error ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
               Team failed to load.
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-foreground/48">
+            <TypographyP className="mt-1 text-xs text-muted-foreground">
               {error instanceof Error ? error.message : "Refresh the page to try again."}
             </TypographyP>
           </div>
@@ -203,13 +267,13 @@ export function TeamDetailPageView({
             <TypographyP className="text-sm font-medium text-foreground">
               No members on this team
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-foreground/52">
+            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Add workspace members to start scoping projects and jobs to this team.
             </TypographyP>
           </div>
         ) : (
           <div role="table" className="min-w-0">
-            <MembersTableHeader />
+            <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
               const canUpdateRole = canUpdateTeamMemberRole({
@@ -227,7 +291,12 @@ export function TeamDetailPageView({
                 <div
                   key={member.workosUserId}
                   role="row"
-                  className="grid gap-4 border-t border-foreground/8 px-1 py-4 md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem] md:items-center"
+                  className={cn(
+                    "group/row grid gap-4 border-t border-border px-1 py-3 transition-colors hover:bg-muted/40 md:items-center",
+                    pageState.canManageMembers
+                      ? "md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem]"
+                      : "md:grid-cols-[minmax(0,1.5fr)_12rem]",
+                  )}
                 >
                   <div role="cell" className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -235,7 +304,7 @@ export function TeamDetailPageView({
                         {member.email}
                       </TypographyP>
                       {isCurrentUser ? (
-                        <span className="rounded-full border border-foreground/10 bg-foreground/4 px-2 py-0.5 text-xs font-medium text-foreground/58">
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           You
                         </span>
                       ) : null}
@@ -244,7 +313,7 @@ export function TeamDetailPageView({
 
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
-                      <span className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase md:hidden">
+                      <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
                         Role
                       </span>
                       {canUpdateRole ? (
@@ -262,7 +331,7 @@ export function TeamDetailPageView({
                           }}
                           disabled={updatingMemberRoleId === member.workosUserId}
                         >
-                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-foreground/10 bg-background/60 text-foreground/78 hover:bg-foreground/4">
+                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
                             <SelectValue>{getTeamRoleLabel(member.role)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
@@ -278,7 +347,7 @@ export function TeamDetailPageView({
                                 variant="outline"
                                 className={cn(
                                   "h-auto max-w-[12rem] truncate rounded-lg px-3 py-1.5 text-sm",
-                                  "border-foreground/12 bg-foreground/4 text-foreground/72",
+                                  "border-border bg-muted text-subtle-foreground",
                                 )}
                               >
                                 {getTeamRoleLabel(member.role)}
@@ -294,27 +363,13 @@ export function TeamDetailPageView({
                   </div>
 
                   <div role="cell" className="flex items-center justify-end">
-                    {canRemove ? (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="border-foreground/10 bg-transparent text-foreground/52 hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => onRemovingMemberChange(member)}
-                              disabled={isRemovingMember}
-                              aria-label={`Remove ${member.email}`}
-                            >
-                              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
-                            </Button>
-                          }
-                        />
-                        <TooltipContent side="bottom" align="end">
-                          Remove from team
-                        </TooltipContent>
-                      </Tooltip>
+                    {pageState.canManageMembers ? (
+                      <MemberRowActions
+                        member={member}
+                        canRemove={canRemove}
+                        isRemovingMember={isRemovingMember}
+                        onRemoveMember={onRemovingMemberChange}
+                      />
                     ) : null}
                   </div>
                 </div>
@@ -349,7 +404,7 @@ export function TeamDetailPageView({
         open={removingMember !== null}
         onOpenChange={(open) => !open && onRemovingMemberChange(null)}
       >
-        <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Remove team member</DialogTitle>
             <DialogDescription>

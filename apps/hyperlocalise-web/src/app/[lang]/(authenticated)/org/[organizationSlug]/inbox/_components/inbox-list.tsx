@@ -123,7 +123,7 @@ const ConversationListItem = memo(function ConversationListItem({
           <span className="truncate">
             {sourceLabel[conversation.source] ?? conversation.source}
           </span>
-          <span className="size-1 rounded-full bg-muted-foreground/20" />
+          <span className="size-1 rounded-full bg-muted" />
           <span>{formatRelativeTime(conversation.lastMessageAt)}</span>
         </div>
       </div>

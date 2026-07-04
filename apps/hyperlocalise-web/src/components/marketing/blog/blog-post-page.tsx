@@ -61,7 +61,7 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
         </article>
 
         {relatedPosts.length > 0 ? (
-          <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+          <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
             <div className="mx-auto max-w-3xl">
               <TypographyH2 className="text-2xl tracking-tight">
                 {intl.formatMessage(blogMessages.relatedPostsTitle)}
@@ -75,13 +75,13 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
           </section>
         ) : null}
 
-        <section className="border-t border-border/70">
+        <section className="border-t border-border">
           <div className="px-5 py-24 sm:px-8 lg:px-10">
             <FinalCtaSection />
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

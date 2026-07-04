@@ -453,7 +453,7 @@ export function GitHubIntegrationRow({
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search repositories"
                   aria-label="Search repositories"
-                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-[3px] focus:ring-foreground/10"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-input focus:ring-[3px] focus:ring-border"
                 />
               </div>
               {selectionChanged ? (
@@ -508,7 +508,7 @@ export function GitHubIntegrationRow({
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleRepository(repository.githubRepositoryId)}
-                          className="size-4 rounded border-foreground/20 accent-foreground"
+                          className="size-4 rounded border-input accent-foreground"
                           aria-label={`Enable ${repository.fullName}`}
                         />
                       </div>

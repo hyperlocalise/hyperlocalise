@@ -20,14 +20,14 @@ export function CatQueueSkeletonList({
             key={`cat-queue-skeleton-${index}`}
             className="flex min-h-11 items-start gap-3 rounded-lg px-2 py-2.5"
           >
-            <Skeleton className="mt-0.5 size-4 shrink-0 rounded bg-foreground/8" />
-            <Skeleton className="mt-0.5 h-4 w-5 shrink-0 rounded bg-foreground/8" />
+            <Skeleton className="mt-0.5 size-4 shrink-0 rounded bg-skeleton" />
+            <Skeleton className="mt-0.5 h-4 w-5 shrink-0 rounded bg-skeleton" />
             <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
-              <Skeleton className="h-4 w-4/5 rounded-full bg-foreground/8" />
-              <Skeleton className="h-3 w-2/5 rounded-full bg-foreground/8" />
+              <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
+              <Skeleton className="h-4 w-4/5 rounded-full bg-skeleton" />
+              <Skeleton className="h-3 w-2/5 rounded-full bg-skeleton" />
             </div>
-            <Skeleton className="mt-1 size-2 shrink-0 rounded-full bg-foreground/8" />
+            <Skeleton className="mt-1 size-2 shrink-0 rounded-full bg-skeleton" />
           </li>
         ))}
       </ul>

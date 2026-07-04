@@ -12,7 +12,9 @@ export default async function ProjectOverviewPage({
 
   return (
     <Suspense
-      fallback={<TypographyP className="text-sm text-foreground/52">Loading project…</TypographyP>}
+      fallback={
+        <TypographyP className="text-sm text-muted-foreground">Loading project…</TypographyP>
+      }
     >
       <ProjectOverviewPageContent organizationSlug={organizationSlug} projectId={projectId} />
     </Suspense>

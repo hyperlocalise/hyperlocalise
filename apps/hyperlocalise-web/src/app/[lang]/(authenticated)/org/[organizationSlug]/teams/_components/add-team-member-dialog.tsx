@@ -45,6 +45,9 @@ export function AddTeamMemberDialog({
   const [workosUserId, setWorkosUserId] = useState("");
   const [role, setRole] = useState<TeamRole>("member");
   const memberId = useId();
+  const selectedMemberEmail = assignableMembers.find(
+    (member) => member.workosUserId === workosUserId,
+  )?.email;
 
   useEffect(() => {
     if (open) {
@@ -73,7 +76,7 @@ export function AddTeamMemberDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+      <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>Add team member</DialogTitle>
@@ -84,7 +87,7 @@ export function AddTeamMemberDialog({
           </DialogHeader>
 
           {assignableMembers.length === 0 ? (
-            <p className="text-sm text-foreground/52">
+            <p className="text-sm text-muted-foreground">
               Everyone in this workspace is already on the team.
             </p>
           ) : (
@@ -100,8 +103,8 @@ export function AddTeamMemberDialog({
                   }}
                   disabled={isSaving}
                 >
-                  <SelectTrigger id={memberId} className="border-foreground/10 bg-foreground/4">
-                    <SelectValue placeholder="Select a member" />
+                  <SelectTrigger id={memberId} className="border-border bg-muted">
+                    <SelectValue placeholder="Select a member">{selectedMemberEmail}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {assignableMembers.map((member) => (
@@ -120,7 +123,7 @@ export function AddTeamMemberDialog({
                   onValueChange={(value) => setRole(value as TeamRole)}
                   disabled={isSaving}
                 >
-                  <SelectTrigger className="border-foreground/10 bg-foreground/4">
+                  <SelectTrigger className="border-border bg-muted">
                     <SelectValue>{getTeamRoleLabel(role)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>

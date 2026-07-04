@@ -26,12 +26,12 @@ export function ProjectFileSelectionActions({
   const catHref = buildProjectFileCatHref(organizationSlug, projectId, file, highlightLocale);
 
   return (
-    <div className="flex shrink-0 flex-col gap-3 border-b border-foreground/8 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <TypographyP className="truncate font-mono text-sm text-foreground">
           {file.sourcePath}
         </TypographyP>
-        <TypographyP className="text-xs text-foreground/52">
+        <TypographyP className="text-xs text-muted-foreground">
           {canOpenCat
             ? "Open this file in the CAT workspace to review and edit translations."
             : "The CAT workspace is not available for this file yet."}

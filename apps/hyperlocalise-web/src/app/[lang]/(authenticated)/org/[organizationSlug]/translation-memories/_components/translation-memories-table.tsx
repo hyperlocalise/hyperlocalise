@@ -19,14 +19,14 @@ import { providerLabel } from "./memory-list";
 
 function SourceLabel({ memory }: { memory: MemoryListRow }) {
   if (memory.source === "native") {
-    return <span className="text-xs text-foreground/48">Workspace</span>;
+    return <span className="text-xs text-muted-foreground">Workspace</span>;
   }
 
   if (memory.externalProviderKind) {
     return <ProviderKindBadge kind={memory.externalProviderKind} />;
   }
 
-  return <span className="text-xs text-foreground/48">External TMS</span>;
+  return <span className="text-xs text-muted-foreground">External TMS</span>;
 }
 
 function SyncHealthBadge({ memory }: { memory: MemoryListRow }) {
@@ -52,7 +52,7 @@ function SyncHealthBadge({ memory }: { memory: MemoryListRow }) {
   }
 
   return (
-    <Badge variant="outline" className="text-[10px] text-foreground/58">
+    <Badge variant="outline" className="text-[10px] text-muted-foreground">
       Not synced
     </Badge>
   );
@@ -98,7 +98,7 @@ function MemoryRow({
           <HugeiconsIcon
             icon={LanguageSquareIcon}
             strokeWidth={1.7}
-            className="size-4 shrink-0 text-foreground/42"
+            className="size-4 shrink-0 text-muted-foreground"
           />
           <Link
             href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
@@ -108,7 +108,7 @@ function MemoryRow({
           </Link>
           <SourceLabel memory={memory} />
         </div>
-        <TypographyP className="mt-1 text-xs text-foreground/42">{sourceDetail}</TypographyP>
+        <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
         {memory.lastSyncErrorAt ? (
           <Tooltip>
             <TooltipTrigger
@@ -127,12 +127,12 @@ function MemoryRow({
           {memory.projectLinkId ? (
             <Link
               href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
-              className="text-xs text-foreground/58 underline-offset-2 hover:text-foreground hover:underline"
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               View linked project
             </Link>
           ) : memory.externalProjectId ? (
-            <span className="text-xs text-foreground/42">
+            <span className="text-xs text-muted-foreground">
               External project {memory.externalProjectId}
             </span>
           ) : null}
@@ -141,7 +141,7 @@ function MemoryRow({
               href={memory.externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-foreground/58 hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               Open in provider
               <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.7} className="size-3.5" />
@@ -149,8 +149,8 @@ function MemoryRow({
           ) : null}
         </div>
       </div>
-      <TypographyP className="text-sm text-foreground/58">{memory.localeSummary}</TypographyP>
-      <TypographyP className="text-sm text-foreground/58">
+      <TypographyP className="text-sm text-muted-foreground">{memory.localeSummary}</TypographyP>
+      <TypographyP className="text-sm text-muted-foreground">
         {memory.segmentCountLabel} segments
       </TypographyP>
       <div className="flex flex-wrap gap-2">
@@ -182,7 +182,7 @@ export function TranslationMemoriesTable({
   return (
     <section aria-label="Translation memories" className="min-w-0">
       {memoriesQuery.isLoading ? (
-        <TypographyP className="py-8 text-sm text-foreground/52">
+        <TypographyP className="py-8 text-sm text-muted-foreground">
           Loading translation memories...
         </TypographyP>
       ) : null}
@@ -192,7 +192,7 @@ export function TranslationMemoriesTable({
           <TypographyP className="text-sm font-medium text-flame-100">
             Translation memories failed to load.
           </TypographyP>
-          <TypographyP className="mt-1 text-xs text-foreground/42">
+          <TypographyP className="mt-1 text-xs text-muted-foreground">
             {memoriesQuery.error instanceof Error
               ? memoriesQuery.error.message
               : "Try refreshing the page."}
@@ -203,7 +203,7 @@ export function TranslationMemoriesTable({
       {memoriesQuery.isSuccess && memories.length === 0 ? (
         <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             {emptyDescription}
           </TypographyP>
           {emptyAction}
@@ -211,11 +211,11 @@ export function TranslationMemoriesTable({
       ) : null}
 
       {memoriesQuery.isSuccess && memories.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {memories.map((memory, index) => (
             <div key={memory.id}>
               <MemoryRow memory={memory} organizationSlug={organizationSlug} />
-              {index < memories.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+              {index < memories.length - 1 ? <Separator className="bg-skeleton" /> : null}
             </div>
           ))}
         </div>

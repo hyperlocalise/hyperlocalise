@@ -28,7 +28,7 @@ export function OverviewActionCard({
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0",
+        "rounded-2xl border border-border bg-muted py-0 text-foreground ring-0",
         className,
       )}
     >
@@ -36,7 +36,7 @@ export function OverviewActionCard({
         <div className="flex flex-1 flex-col gap-3">
           <Badge
             variant="outline"
-            className="w-fit rounded-full border-foreground/12 bg-foreground/4 text-foreground/72"
+            className="w-fit rounded-full border-border bg-muted text-subtle-foreground"
           >
             {category}
           </Badge>

@@ -12,19 +12,21 @@ import { CatFormatChecks } from "./cat-format-checks";
 
 function FormatChecksSkeleton() {
   return (
-    <div className="space-y-0 divide-y divide-foreground/8 rounded-xl border border-foreground/8 bg-foreground/2">
-      {[0, 1, 2].map((item) => (
-        <div key={item} className="flex items-start gap-3 px-3 py-3">
-          <Skeleton className="size-4 shrink-0 rounded-full bg-foreground/8" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-4 w-36 rounded-full bg-foreground/8" />
-              <Skeleton className="h-3 w-12 rounded-full bg-foreground/8" />
+    <div className="overflow-hidden rounded-2xl bg-muted">
+      <div className="divide-y divide-border">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="flex items-start gap-3 px-3 py-3">
+            <Skeleton className="size-4 shrink-0 rounded-full bg-skeleton" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-36 rounded-full bg-skeleton" />
+                <Skeleton className="h-3 w-12 rounded-full bg-skeleton" />
+              </div>
+              <Skeleton className="h-3 w-10/12 rounded-full bg-skeleton" />
             </div>
-            <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

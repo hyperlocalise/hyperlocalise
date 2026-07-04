@@ -86,7 +86,7 @@ export function AutomationTemplateFlow({
       <FlowIcon bucket={triggerBucket} />
       {toolBuckets.length > 0 ? (
         <>
-          <span className="h-px w-3 shrink-0 bg-foreground/25" aria-hidden />
+          <span className="h-px w-3 shrink-0 bg-muted5" aria-hidden />
           {toolBuckets.map((bucket) => (
             <FlowIcon key={bucket} bucket={bucket} />
           ))}

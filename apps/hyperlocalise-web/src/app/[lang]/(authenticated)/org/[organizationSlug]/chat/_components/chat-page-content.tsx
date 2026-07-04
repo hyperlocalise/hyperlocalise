@@ -300,7 +300,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 >
                   <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
                   {projectsQuery.isLoading ? (
-                    <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
+                    <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
                   ) : (
                     projectTriggerLabel
                   )}
@@ -312,16 +312,16 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                     {projectsQuery.isLoading ? (
                       <>
                         <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-28 rounded-full bg-muted-foreground/20" />
+                          <Skeleton className="size-4 rounded-md bg-muted" />
+                          <Skeleton className="h-3.5 w-28 rounded-full bg-muted" />
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
+                          <Skeleton className="size-4 rounded-md bg-muted" />
+                          <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-32 rounded-full bg-muted-foreground/20" />
+                          <Skeleton className="size-4 rounded-md bg-muted" />
+                          <Skeleton className="h-3.5 w-32 rounded-full bg-muted" />
                         </DropdownMenuItem>
                       </>
                     ) : null}

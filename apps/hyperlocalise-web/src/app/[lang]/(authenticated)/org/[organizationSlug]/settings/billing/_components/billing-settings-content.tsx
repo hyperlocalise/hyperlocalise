@@ -50,7 +50,7 @@ function SurfaceCard({
   return (
     <Card
       id={id}
-      className={`rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0 ${className}`}
+      className={`rounded-lg border border-border bg-muted py-0 text-foreground ring-0 ${className}`}
     >
       {children}
     </Card>
@@ -97,7 +97,7 @@ function BillingUnavailableCard() {
     <SurfaceCard>
       <CardHeader className="px-5 py-5">
         <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
-        <CardDescription className="text-foreground/52">
+        <CardDescription className="text-muted-foreground">
           Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
           billing for this workspace.
         </CardDescription>
@@ -258,7 +258,7 @@ function ConfiguredBillingSettingsPanel({
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Loading billing</CardTitle>
-          <CardDescription className="text-foreground/52">
+          <CardDescription className="text-muted-foreground">
             Fetching plan and usage details for this workspace.
           </CardDescription>
         </CardHeader>
@@ -273,11 +273,11 @@ function ConfiguredBillingSettingsPanel({
           <CardTitle className="text-lg font-medium text-foreground">
             Unable to load billing
           </CardTitle>
-          <CardDescription className="text-foreground/52">
+          <CardDescription className="text-muted-foreground">
             {formatAutumnBillingError(billingError)}
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-foreground/8" />
+        <Separator className="bg-skeleton" />
         <CardContent className="px-5 py-4">
           <Button variant="outline" onClick={() => void refetchCustomer()}>
             Try again
@@ -295,7 +295,7 @@ function ConfiguredBillingSettingsPanel({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <CardTitle className="text-lg font-medium text-foreground">Subscription</CardTitle>
-                <CardDescription className="mt-1 text-foreground/52">
+                <CardDescription className="mt-1 text-muted-foreground">
                   {activeSubscription
                     ? isScheduledForCancel
                       ? "Your subscription stays active until the current billing period ends."
@@ -313,7 +313,7 @@ function ConfiguredBillingSettingsPanel({
               ) : null}
             </div>
           </CardHeader>
-          <Separator className="bg-foreground/8" />
+          <Separator className="bg-skeleton" />
           <CardContent className="px-5 py-5">
             {canManageBilling && isScheduledForCancel ? (
               <div className="mt-4">
@@ -342,26 +342,26 @@ function ConfiguredBillingSettingsPanel({
 
         <SurfaceCard>
           <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
+            <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted">
               <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
             </div>
             <CardTitle className="text-base font-medium text-foreground">Billing portal</CardTitle>
-            <CardDescription className="leading-6 text-foreground/52">
+            <CardDescription className="leading-6 text-muted-foreground">
               Update payment methods, review invoices, and manage subscription billing details.
             </CardDescription>
           </CardHeader>
-          <Separator className="bg-foreground/8" />
+          <Separator className="bg-skeleton" />
           <CardContent className="px-5 py-4">
             <Button
               variant="outline"
-              className="border-foreground/10 bg-transparent"
+              className="border-border bg-transparent"
               disabled={!canManageBilling || actionPending !== null}
               onClick={() => void handleOpenPortal()}
             >
               {actionPending === "portal" ? "Opening…" : "Manage billing"}
             </Button>
             {!canManageBilling ? (
-              <TypographyP className="mt-3 text-xs text-foreground/42">
+              <TypographyP className="mt-3 text-xs text-muted-foreground">
                 Only workspace admins can open the billing portal.
               </TypographyP>
             ) : null}
@@ -375,24 +375,24 @@ function ConfiguredBillingSettingsPanel({
       >
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Plan usage</CardTitle>
-          <CardDescription className="text-foreground/52">
+          <CardDescription className="text-muted-foreground">
             AI credit usage resets each billing cycle. Seats, projects, automations, and
             integrations are workspace limits.
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-foreground/8" />
+        <Separator className="bg-skeleton" />
         <div className="px-5 py-5">
           <PlanUsageSummaryContent summary={planUsageSummary} variant="billing" />
         </div>
-        <Separator className="bg-foreground/8" />
-        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
+        <Separator className="bg-skeleton" />
+        <CardContent className="divide-y divide-border px-5 py-0">
           {usageRows.map((row) => (
             <div key={row.featureId} className="flex items-center justify-between gap-4 py-4">
               <div>
                 <TypographyP className="text-sm font-medium text-foreground">
                   {row.label}
                 </TypographyP>
-                <TypographyP className="text-xs text-foreground/42">
+                <TypographyP className="text-xs text-muted-foreground">
                   Resets {formatResetDate(row.nextResetAt)}
                 </TypographyP>
               </div>
@@ -405,11 +405,11 @@ function ConfiguredBillingSettingsPanel({
                       : `${formatUsageValue(row.usage)} / ${formatUsageValue(row.granted)} used`}
                 </TypographyP>
                 {!row.unlimited && !row.usageUnavailable ? (
-                  <TypographyP className="text-xs text-foreground/42">
+                  <TypographyP className="text-xs text-muted-foreground">
                     {formatUsageValue(row.remaining)} remaining
                   </TypographyP>
                 ) : row.usageUnavailable ? (
-                  <TypographyP className="text-xs text-foreground/42">
+                  <TypographyP className="text-xs text-muted-foreground">
                     Plan limit {formatUsageValue(row.granted)}
                   </TypographyP>
                 ) : null}
@@ -425,12 +425,12 @@ function ConfiguredBillingSettingsPanel({
       >
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Available plans</CardTitle>
-          <CardDescription className="text-foreground/52">
+          <CardDescription className="text-muted-foreground">
             Plans are configured in Autumn. Pricing changes there do not require app migrations.
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-foreground/8" />
-        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
+        <Separator className="bg-skeleton" />
+        <CardContent className="divide-y divide-border px-5 py-0">
           {(plans ?? []).map((plan) => {
             const isCurrentPlan = plan.id === activePlanId;
             return (
@@ -439,7 +439,7 @@ function ConfiguredBillingSettingsPanel({
                   <TypographyP className="text-sm font-medium text-foreground">
                     {plan.name}
                   </TypographyP>
-                  <TypographyP className="mt-1 max-w-xl text-sm leading-6 text-foreground/48">
+                  <TypographyP className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
                     {plan.description ?? "Workspace subscription plan"}
                   </TypographyP>
                 </div>
@@ -447,7 +447,7 @@ function ConfiguredBillingSettingsPanel({
                   {isCurrentPlan ? (
                     <Badge
                       variant="outline"
-                      className="rounded-full border-foreground/10 bg-foreground/4 text-foreground/52"
+                      className="rounded-full border-border bg-muted text-muted-foreground"
                     >
                       Current plan
                     </Badge>
@@ -467,7 +467,7 @@ function ConfiguredBillingSettingsPanel({
           })}
           {!plans?.length ? (
             <div className="py-4">
-              <TypographyP className="text-sm text-foreground/52">
+              <TypographyP className="text-sm text-muted-foreground">
                 No plans are configured in Autumn yet.
               </TypographyP>
             </div>

@@ -86,7 +86,7 @@ function JobKanbanCard({
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
 
   return (
-    <article className="rounded-lg border border-foreground/10 bg-background p-3 shadow-sm">
+    <article className="rounded-lg border border-border bg-background p-3 shadow-sm">
       {detailHref ? (
         renderJobLink({
           href: detailHref,
@@ -96,7 +96,7 @@ function JobKanbanCard({
               <span className="block truncate text-sm font-medium text-foreground">
                 {getJobName(job)}
               </span>
-              <span className="mt-1 block truncate text-xs font-normal text-foreground/38">
+              <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
                 {formatJobKind(job)} · {job.externalTaskId ?? job.id}
               </span>
             </span>
@@ -107,7 +107,7 @@ function JobKanbanCard({
           <TypographyP className="truncate text-sm font-medium text-foreground">
             {getJobName(job)}
           </TypographyP>
-          <TypographyP className="mt-1 truncate text-xs text-foreground/38">
+          <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
             {formatJobKind(job)} · {job.externalTaskId ?? job.id}
           </TypographyP>
         </div>
@@ -122,15 +122,15 @@ function JobKanbanCard({
         ) : null}
       </div>
 
-      <TypographyP className="mt-3 line-clamp-2 text-xs text-foreground/68">
+      <TypographyP className="mt-3 line-clamp-2 text-xs text-subtle-foreground">
         {taskDetailSummary(job)}
       </TypographyP>
-      <TypographyP className="mt-1 text-[11px] text-foreground/38">
+      <TypographyP className="mt-1 text-[11px] text-muted-foreground">
         Due {formatRelativeTime(job.externalDueDate, now)} · Synced{" "}
         {formatRelativeTime(job.updatedAt, now)}
       </TypographyP>
 
-      <div className="mt-3 border-t border-foreground/8 pt-3">
+      <div className="mt-3 border-t border-border pt-3">
         <JobRowActions
           buildJobDetailHref={buildDetailHref}
           job={job}
@@ -154,8 +154,8 @@ function KanbanColumn({
   statusTone: Tone;
 } & Omit<Parameters<typeof JobKanbanCard>[0], "job">) {
   return (
-    <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-foreground/10 bg-foreground/2">
-      <header className="flex items-center justify-between gap-2 border-b border-foreground/8 px-3 py-3">
+    <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-border bg-muted">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
         <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
         <Badge variant="outline" className={cn("rounded-full", toneClass(statusTone))}>
           {jobs.length}
@@ -163,7 +163,7 @@ function KanbanColumn({
       </header>
       <div className="flex flex-1 flex-col gap-3 p-3">
         {jobs.length === 0 ? (
-          <TypographyP className="px-1 py-6 text-center text-xs text-foreground/38">
+          <TypographyP className="px-1 py-6 text-center text-xs text-muted-foreground">
             No jobs
           </TypographyP>
         ) : (
@@ -176,8 +176,8 @@ function KanbanColumn({
 
 function KanbanColumnSkeleton({ label }: { label: string }) {
   return (
-    <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-foreground/10 bg-foreground/2">
-      <header className="flex items-center justify-between gap-2 border-b border-foreground/8 px-3 py-3">
+    <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-border bg-muted">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
         <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
         <Skeleton className="h-5 w-8 rounded-full" />
       </header>
@@ -185,7 +185,7 @@ function KanbanColumnSkeleton({ label }: { label: string }) {
         {Array.from({ length: 2 }, (_, index) => (
           <div
             key={index}
-            className="space-y-3 rounded-lg border border-foreground/10 bg-background p-3 shadow-sm"
+            className="space-y-3 rounded-lg border border-border bg-background p-3 shadow-sm"
           >
             <Skeleton className="h-4 w-4/5" />
             <Skeleton className="h-3 w-2/5" />
@@ -195,7 +195,7 @@ function KanbanColumnSkeleton({ label }: { label: string }) {
             </div>
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-3/4" />
-            <div className="border-t border-foreground/8 pt-3">
+            <div className="border-t border-border pt-3">
               <Skeleton className="h-8 w-24 rounded-md" />
             </div>
           </div>
@@ -246,7 +246,9 @@ export function JobsKanbanBoard({
   }
 
   if (jobs.length === 0) {
-    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
+    return (
+      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">{emptyLabel}</TypographyP>
+    );
   }
 
   const jobsByStatus = new Map<KanbanStatus, JobRow[]>();
