@@ -1,15 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { AlertCircleIcon } from "lucide-react";
 import { useIntl } from "react-intl";
 
 import type {
   ProjectFileCatConcordanceResponse,
-  ProjectFileCatComment,
   ProjectFileCatRecommendationResponse,
-  ProjectFileCatTranslation,
   ProjectFileCatVisualContextResponse,
 } from "@/api/routes/project/project.schema";
 import {
@@ -32,7 +29,6 @@ import type {
   CatSegment,
   CatSegmentCommentInput,
   CatSegmentIntelligence,
-  CrowdinIssueType,
 } from "@/components/cat/shared/types";
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
@@ -41,11 +37,11 @@ import {
   applyCatSegmentCommentsToWorkspaceState,
   applyCatSegmentDetailToWorkspaceState,
   projectFileCatToWorkspaceState,
-  requireProviderExternalResourceId,
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
-import { useCatSegmentComments, useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
-import { useCatSegmentDetail, useInvalidateCatSegmentDetail } from "./use-cat-segment-detail";
+import { useCatMutations } from "./use-cat-mutations";
+import { useCatSegmentComments } from "./use-cat-segment-comments";
+import { useCatSegmentDetail } from "./use-cat-segment-detail";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
@@ -81,8 +77,6 @@ export function ProjectFileCatWorkspace({
 }) {
   const intl = useIntl();
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
-  const invalidateSegmentDetail = useInvalidateCatSegmentDetail();
-  const invalidateSegmentComments = useInvalidateCatSegmentComments();
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -141,144 +135,15 @@ export function ProjectFileCatWorkspace({
     setQueueFilter("all");
   }, [availableQueueFilters, queueFilter, setQueueFilter]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (input: { externalStringId: string; text: string; approve?: boolean }) => {
-      const externalResourceId = catFile?.provider
-        ? requireProviderExternalResourceId(catFile)
-        : undefined;
-
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.translations.$post({
-        param: { organizationSlug, projectId },
-        json: {
-          sourcePath,
-          targetLocale,
-          externalStringId: input.externalStringId,
-          externalResourceId,
-          text: input.text,
-          approve: input.approve,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to save translation"));
-      }
-
-      const body = (await response.json()) as { translation: ProjectFileCatTranslation };
-      return body.translation;
-    },
-    onSuccess: async () => {
-      await invalidateQueue();
-    },
+  const { saveTranslation, postComment, resolveComment } = useCatMutations({
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    repositoryFullName,
+    catFile,
+    invalidateQueue,
   });
-  const saveTranslation = saveMutation.mutateAsync;
-
-  const commentMutation = useMutation({
-    mutationFn: async (input: {
-      externalStringId: string;
-      text: string;
-      type?: "comment" | "issue";
-      issueType?: CrowdinIssueType;
-    }) => {
-      const externalResourceId = catFile?.provider
-        ? requireProviderExternalResourceId(catFile)
-        : undefined;
-
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.comments.$post({
-        param: { organizationSlug, projectId },
-        json: {
-          sourcePath,
-          targetLocale,
-          externalStringId: input.externalStringId,
-          externalResourceId,
-          text: input.text,
-          type: input.type,
-          issueType: input.issueType,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to post comment"));
-      }
-
-      const body = (await response.json()) as { comment: ProjectFileCatComment };
-      return body.comment;
-    },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        invalidateQueue(),
-        invalidateSegmentDetail({
-          organizationSlug,
-          projectId,
-          sourcePath,
-          targetLocale,
-          externalStringId: variables.externalStringId,
-          repositoryFullName,
-        }),
-        invalidateSegmentComments({
-          organizationSlug,
-          projectId,
-          sourcePath,
-          targetLocale,
-          externalStringId: variables.externalStringId,
-        }),
-      ]);
-    },
-  });
-  const postComment = commentMutation.mutateAsync;
-
-  const resolveCommentMutation = useMutation({
-    mutationFn: async (input: { externalStringId: string; externalCommentId: string }) => {
-      const externalResourceId = catFile?.provider
-        ? requireProviderExternalResourceId(catFile)
-        : undefined;
-
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.comments[":commentId"].resolve.$patch({
-        param: {
-          organizationSlug,
-          projectId,
-          commentId: input.externalCommentId,
-        },
-        json: {
-          sourcePath,
-          externalResourceId,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to resolve issue"));
-      }
-
-      const body = (await response.json()) as { comment: ProjectFileCatComment };
-      return body.comment;
-    },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        invalidateQueue(),
-        invalidateSegmentDetail({
-          organizationSlug,
-          projectId,
-          sourcePath,
-          targetLocale,
-          externalStringId: variables.externalStringId,
-          repositoryFullName,
-        }),
-        invalidateSegmentComments({
-          organizationSlug,
-          projectId,
-          sourcePath,
-          targetLocale,
-          externalStringId: variables.externalStringId,
-        }),
-      ]);
-    },
-  });
-  const resolveComment = resolveCommentMutation.mutateAsync;
 
   const workspaceState = useMemo(() => {
     if (!catFile) {
@@ -432,20 +297,6 @@ export function ProjectFileCatWorkspace({
       await resolveComment({ externalStringId: segmentId, externalCommentId: commentId });
     },
     [catFile?.canEditTranslations, resolveComment],
-  );
-
-  const handleBulkApprove = useCallback(
-    async (segmentIds: string[]) => {
-      for (const segmentId of segmentIds) {
-        const segment = workspaceState?.segments.find((item) => item.id === segmentId);
-        if (!segment) {
-          continue;
-        }
-
-        await handleApprove(segmentId, segment.targetText);
-      }
-    },
-    [handleApprove, workspaceState?.segments],
   );
 
   const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
@@ -694,7 +545,6 @@ export function ProjectFileCatWorkspace({
           onAddComment: handleAddComment,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
-          onBulkApprove: handleBulkApprove,
         }}
         initialSegmentKeyOrId={initialSegmentKey}
         buildSegmentShareUrl={buildSegmentShareUrl}

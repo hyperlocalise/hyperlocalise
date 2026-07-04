@@ -75,6 +75,8 @@
     "jwks-rsa": "^4.1.0",
     "lucide-react": "^1.23.0",
     "media-chrome": "^4.19.0",
+    "mobx": "^6.16.1",
+    "mobx-react-lite": "^4.1.1",
     "motion": "12.40.0",
     "nanoid": "^5.1.16",
     "negotiator": "^1.0.0",
