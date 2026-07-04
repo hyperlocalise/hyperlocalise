@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 )
+
+const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
 
 type validateSegmentRequest struct {
 	SourceText string   `json:"sourceText"`
@@ -43,7 +46,12 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req validateSegmentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxValidateSegmentBodyBytes))
+	if err := decoder.Decode(&req); err != nil {
+		if isRequestBodyTooLarge(err) {
+			writePayloadTooLarge(w)
+			return
+		}
 		writeBadRequest(w, "invalid JSON body")
 		return
 	}
@@ -68,4 +76,18 @@ func writeBadRequest(w http.ResponseWriter, message string) {
 		"error":   "bad_request",
 		"message": message,
 	})
+}
+
+func writePayloadTooLarge(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusRequestEntityTooLarge)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "payload_too_large",
+		"message": "request body exceeds maximum allowed size",
+	})
+}
+
+func isRequestBodyTooLarge(err error) bool {
+	var maxBytesErr *http.MaxBytesError
+	return errors.As(err, &maxBytesErr)
 }

@@ -167,6 +167,13 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name:       "json_skips_profile_parity_whitespace",
+			path:       "/pkg/en.json",
+			source:     " Hello %s ",
+			translated: "Bonjour %s",
+			wantErr:    false,
+		},
+		{
 			name:        "json_icu_placeholder_mismatch",
 			path:        "/pkg/en.json",
 			source:      "Hello {name}",

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
@@ -126,4 +127,26 @@ func TestValidateSegmentInvalidJSON(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestValidateSegmentBodyTooLarge(t *testing.T) {
+	h := newHandler()
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	padding := strings.Repeat("x", maxValidateSegmentBodyBytes+1)
+	payload := `{"sourceText":"` + padding + `","targetText":"y","sourcePath":"/messages/en.json"}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "payload_too_large", body["error"])
 }

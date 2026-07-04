@@ -48,9 +48,18 @@ func ValidateSegment(req Request) []Check {
 	}
 
 	kind := KindForSourcePath(req.SourcePath)
-	if err := validateForKind(kind, req.SourceText, req.TargetText); err != nil {
-		checks = append(checks, checkFromError(err))
-	} else {
+	formatErr := validateForKind(kind, req.SourceText, req.TargetText)
+	var profileErr error
+	if formatErr == nil && kind != FormatMarkdown {
+		profileErr = validateProfileParity(req.SourceText, req.TargetText)
+	}
+
+	switch {
+	case formatErr != nil:
+		checks = append(checks, checkFromError(formatErr))
+	case profileErr != nil:
+		checks = append(checks, checkFromError(profileErr))
+	default:
 		hasTokens := segmentHasFormatTokens(req.SourceText, kind)
 		label := "Format"
 		message := "No placeholders or ICU blocks detected."
@@ -113,7 +122,7 @@ func validateForKind(kind FormatKind, source, translated string) error {
 	if err != nil {
 		return err
 	}
-	return validateProfileParity(source, translated)
+	return nil
 }
 
 func checkFromError(err error) Check {
