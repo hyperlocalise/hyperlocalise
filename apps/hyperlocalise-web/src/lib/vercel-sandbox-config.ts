@@ -1,11 +1,11 @@
 import { Sandbox } from "@vercel/sandbox";
 
-export const defaultVercelSandboxRuntime = "node26" as const;
-
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
+
+export const defaultVercelSandboxRuntime = "node26";
 
 const installRipgrepFromGithubRelease = [
   "install_ripgrep_from_github_release() {",
@@ -48,10 +48,16 @@ export const installRequiredSandboxToolsCommand = [
 export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
-  const sandbox = await Sandbox.create({
-    runtime: defaultVercelSandboxRuntime,
-    ...options,
-  });
+  const shouldUseDefaultRuntime =
+    !("runtime" in options) && !("image" in options) && options.source?.type !== "snapshot";
+  const createOptions: VercelSandboxCreateOptions = shouldUseDefaultRuntime
+    ? ({
+        ...options,
+        runtime: defaultVercelSandboxRuntime,
+      } as VercelSandboxCreateOptions)
+    : options;
+
+  const sandbox = await Sandbox.create(createOptions);
 
   const installResult = await sandbox.runCommand({
     cmd: "sh",

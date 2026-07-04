@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { updateProviderCredentialBodySchema } from "./provider-credential.schema";
 import { addTeamMemberBodySchema, teamMemberParamsSchema } from "../team/team.schema";
 

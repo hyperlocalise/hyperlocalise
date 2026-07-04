@@ -15,7 +15,7 @@
     "@canva/app-i18n-kit": "^1.2.0",
     "@canva/app-ui-kit": "^5.10.0",
     "@canva/asset": "^2.3.0",
-    "@canva/design": "2.9.1-alpha.0",
+    "@canva/design": "2.10.0",
     "@canva/error": "^2.2.1",
     "@canva/intents": "^2.5.0",
     "@canva/platform": "^2.2.2",
@@ -27,7 +27,7 @@
   "devDependencies": {
     "@canva/cli": "^2.0.0",
     "@formatjs/cli": "6.16.11",
-    "@formatjs/ts-transformer": "4.4.13",
+    "@formatjs/ts-transformer": "4.4.14",
     "@ngrok/ngrok": "1.7.0",
     "@svgr/webpack": "8.1.0",
     "@testing-library/react": "16.3.2",
@@ -50,18 +50,18 @@
     "postcss-loader": "8.2.1",
     "style-loader": "4.0.0",
     "terser-webpack-plugin": "5.6.1",
-    "ts-loader": "9.6.0",
+    "ts-loader": "9.6.2",
     "tsx": "4.22.4",
     "typescript": "5.9.3",
     "url-loader": "4.1.1",
-    "vite-plus": "0.1.24",
-    "webpack": "5.107.2",
+    "vite-plus": "0.2.1",
+    "webpack": "5.108.3",
     "webpack-cli": "6.0.1",
     "webpack-dev-server": "5.2.5",
-    "yargs": "17.7.2"
+    "yargs": "17.7.3"
   },
   "engines": {
     "node": "^22 || ^24"
   },
-  "packageManager": "pnpm@11.6.0"
+  "packageManager": "pnpm@11.9.0"
 }
