@@ -396,6 +396,26 @@ export class PhraseApiClient {
     });
   }
 
+  async probeKeyCommentCount(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<number> {
+    const pageItems = await this.get<unknown[]>(
+      this.buildPath(
+        `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/comments`,
+        {
+          page: 1,
+          per_page: 1,
+          branch: options.branch,
+          order: "desc",
+        },
+      ),
+    );
+
+    return pageItems.length > 0 ? 1 : 0;
+  }
+
   async listCommentReplies(
     projectId: string,
     keyId: string,
