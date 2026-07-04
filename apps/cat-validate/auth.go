@@ -7,14 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/workos/workos-go/v4/pkg/usermanagement"
+	"github.com/workos/workos-go/v7"
 )
 
-const workOSIssuer = "https://api.workos.com"
+const workOSSessionCookieName = "wos-session"
 
 type authContextKey struct{}
 
@@ -24,94 +21,80 @@ type AuthClaims struct {
 	SessionID string
 }
 
-type TokenVerifier interface {
-	Verify(ctx context.Context, token string) (AuthClaims, error)
+type SessionVerifier interface {
+	Verify(ctx context.Context, sealedSession string) (AuthClaims, error)
 }
 
-type WorkOSTokenVerifier struct {
-	clientID string
-	jwksURL  string
-	cache    *jwk.Cache
+type WorkOSSessionVerifier struct {
+	cookiePassword string
 }
 
-func NewWorkOSTokenVerifier(clientID string) (*WorkOSTokenVerifier, error) {
-	if strings.TrimSpace(clientID) == "" {
-		return nil, errors.New("WORKOS_CLIENT_ID is required")
+func NewWorkOSSessionVerifier(cookiePassword string) (*WorkOSSessionVerifier, error) {
+	cookiePassword = strings.TrimSpace(cookiePassword)
+	if cookiePassword == "" {
+		return nil, errors.New("WORKOS_COOKIE_PASSWORD is required")
+	}
+	if len(cookiePassword) < 32 {
+		return nil, errors.New("WORKOS_COOKIE_PASSWORD must be at least 32 characters")
+	}
+	return &WorkOSSessionVerifier{cookiePassword: cookiePassword}, nil
+}
+
+func (v *WorkOSSessionVerifier) Verify(_ context.Context, sealedSession string) (AuthClaims, error) {
+	sealedSession = strings.TrimSpace(sealedSession)
+	if sealedSession == "" {
+		return AuthClaims{}, errors.New("missing session cookie")
 	}
 
-	jwksURL, err := usermanagement.GetJWKSURL(clientID)
+	result, err := workos.AuthenticateSession(sealedSession, v.cookiePassword)
 	if err != nil {
-		return nil, fmt.Errorf("resolve WorkOS JWKS URL: %w", err)
+		return AuthClaims{}, fmt.Errorf("invalid session: %w", err)
+	}
+	if result == nil || !result.Authenticated {
+		reason := "invalid session"
+		if result != nil && result.Reason != "" {
+			reason = result.Reason
+		}
+		return AuthClaims{}, fmt.Errorf("invalid session: %s", reason)
 	}
 
-	cache := jwk.NewCache(context.Background())
-	if err := cache.Register(jwksURL.String(), jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
-		return nil, fmt.Errorf("register JWKS cache: %w", err)
+	userID := ""
+	if result.User != nil {
+		userID = result.User.ID
+	}
+	if userID == "" {
+		return AuthClaims{}, errors.New("session missing user")
 	}
 
-	return &WorkOSTokenVerifier{
-		clientID: clientID,
-		jwksURL:  jwksURL.String(),
-		cache:    cache,
+	return AuthClaims{
+		UserID:    userID,
+		OrgID:     result.OrganizationID,
+		SessionID: result.SessionID,
 	}, nil
 }
 
-func (v *WorkOSTokenVerifier) Verify(ctx context.Context, token string) (AuthClaims, error) {
-	keySet, err := v.cache.Get(ctx, v.jwksURL)
+func sessionCookieValue(r *http.Request) (string, error) {
+	cookie, err := r.Cookie(workOSSessionCookieName)
 	if err != nil {
-		return AuthClaims{}, fmt.Errorf("fetch JWKS: %w", err)
+		return "", err
 	}
-
-	parsed, err := jwt.Parse(
-		[]byte(token),
-		jwt.WithKeySet(keySet),
-		jwt.WithValidate(true),
-		jwt.WithIssuer(workOSIssuer),
-	)
-	if err != nil {
-		return AuthClaims{}, fmt.Errorf("invalid token: %w", err)
+	value := strings.TrimSpace(cookie.Value)
+	if value == "" {
+		return "", errors.New("empty session cookie")
 	}
-
-	userID, _ := parsed.Get("sub")
-	orgID, _ := parsed.Get("org_id")
-	sessionID, _ := parsed.Get("sid")
-
-	claims := AuthClaims{
-		UserID:    stringClaim(userID),
-		OrgID:     stringClaim(orgID),
-		SessionID: stringClaim(sessionID),
-	}
-	if claims.UserID == "" {
-		return AuthClaims{}, errors.New("token missing sub claim")
-	}
-	return claims, nil
+	return value, nil
 }
 
-func stringClaim(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	default:
-		return fmt.Sprint(v)
-	}
-}
-
-func authMiddleware(verifier TokenVerifier) func(http.Handler) http.Handler {
+func authMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			if !strings.HasPrefix(header, "Bearer ") {
-				writeUnauthorized(w, "missing bearer token")
+			sealedSession, err := sessionCookieValue(r)
+			if err != nil {
+				writeUnauthorized(w, "missing session cookie")
 				return
 			}
 
-			token := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
-			if token == "" {
-				writeUnauthorized(w, "missing bearer token")
-				return
-			}
-
-			claims, err := verifier.Verify(r.Context(), token)
+			claims, err := verifier.Verify(r.Context(), sealedSession)
 			if err != nil {
 				writeUnauthorized(w, err.Error())
 				return

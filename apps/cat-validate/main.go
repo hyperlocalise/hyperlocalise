@@ -4,8 +4,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/workos/workos-go/v4/pkg/usermanagement"
 )
 
 func main() {
@@ -14,14 +12,7 @@ func main() {
 		port = "8080"
 	}
 
-	apiKey := os.Getenv("WORKOS_API_KEY")
-	if apiKey == "" {
-		log.Fatal("WORKOS_API_KEY is required")
-	}
-	usermanagement.SetAPIKey(apiKey)
-
-	clientID := os.Getenv("WORKOS_CLIENT_ID")
-	verifier, err := NewWorkOSTokenVerifier(clientID)
+	verifier, err := NewWorkOSSessionVerifier(os.Getenv("WORKOS_COOKIE_PASSWORD"))
 	if err != nil {
 		log.Fatalf("configure WorkOS auth: %v", err)
 	}

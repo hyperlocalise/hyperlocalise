@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockTokenVerifier struct {
+type mockSessionVerifier struct {
 	claims AuthClaims
 	err    error
 }
 
-func (m mockTokenVerifier) Verify(_ context.Context, _ string) (AuthClaims, error) {
+func (m mockSessionVerifier) Verify(_ context.Context, _ string) (AuthClaims, error) {
 	if m.err != nil {
 		return AuthClaims{}, m.err
 	}
@@ -38,7 +38,7 @@ func TestHealth(t *testing.T) {
 func TestValidateSegmentUnauthorized(t *testing.T) {
 	h := newHandler()
 	mux := http.NewServeMux()
-	mux.Handle("POST /v1/validate/segment", authMiddleware(mockTokenVerifier{err: context.Canceled})(http.HandlerFunc(h.validateSegment)))
+	mux.Handle("POST /v1/validate/segment", authMiddleware(mockSessionVerifier{err: context.Canceled})(http.HandlerFunc(h.validateSegment)))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(`{}`))
@@ -71,13 +71,13 @@ func TestValidateSegmentSuccess(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle(
 		"POST /v1/validate/segment",
-		authMiddleware(mockTokenVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
 	)
 
 	payload := `{"sourceText":"Hello {name}","targetText":"Bonjour {name}","sourcePath":"/messages/en.json"}`
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
-	req.Header.Set("Authorization", "Bearer test-token")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
 	mux.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -94,13 +94,13 @@ func TestValidateSegmentWithQAModes(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle(
 		"POST /v1/validate/segment",
-		authMiddleware(mockTokenVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
 	)
 
 	payload := `{"sourceText":"Hello","targetText":"Hello","sourcePath":"/messages/en.json","modes":["same_as_source"]}`
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
-	req.Header.Set("Authorization", "Bearer test-token")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
 	mux.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -117,12 +117,12 @@ func TestValidateSegmentInvalidJSON(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle(
 		"POST /v1/validate/segment",
-		authMiddleware(mockTokenVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
 	)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(`{`))
-	req.Header.Set("Authorization", "Bearer test-token")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
 	mux.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)

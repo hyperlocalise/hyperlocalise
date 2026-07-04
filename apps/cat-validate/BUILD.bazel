@@ -11,15 +11,16 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/segmentvalidate",
-        "@com_github_lestrrat_go_jwx_v2//jwk",
-        "@com_github_lestrrat_go_jwx_v2//jwt",
-        "@com_github_workos_workos_go_v4//pkg/usermanagement",
+        "@com_github_workos_workos_go_v7//:workos-go",
     ],
 )
 
 go_test(
     name = "cat_validate_test",
-    srcs = ["handler_test.go"],
+    srcs = [
+        "auth_test.go",
+        "handler_test.go",
+    ],
     embed = [":cat_validate"],
     deps = [
         "//internal/i18n/segmentvalidate",
