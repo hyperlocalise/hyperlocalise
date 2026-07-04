@@ -1,0 +1,302 @@
+package segmentvalidate
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+)
+
+type Request struct {
+	SourceText string
+	TargetText string
+	SourcePath string
+	MaxLength  int
+	Modes      []string `json:"modes,omitempty"`
+}
+
+type Check struct {
+	ID            string   `json:"id"`
+	Label         string   `json:"label"`
+	Status        string   `json:"status"`
+	Message       string   `json:"message"`
+	Category      string   `json:"category,omitempty"`
+	RelatedTokens []string `json:"relatedTokens,omitempty"`
+}
+
+const (
+	StatusPass = "pass"
+	StatusWarn = "warn"
+	StatusFail = "fail"
+)
+
+// ValidateSegment runs format, length, and optional QA checks for a CAT segment.
+func ValidateSegment(req Request) []Check {
+	checks := make([]Check, 0, 6)
+
+	if req.MaxLength > 0 && len(req.TargetText) > req.MaxLength {
+		checks = append(checks, Check{
+			ID:       "length",
+			Label:    "Length",
+			Status:   StatusFail,
+			Message:  fmt.Sprintf("Translation exceeds %d characters.", req.MaxLength),
+			Category: "length",
+		})
+	}
+
+	kind := KindForSourcePath(req.SourcePath)
+	if err := validateForKind(kind, req.SourceText, req.TargetText); err != nil {
+		checks = append(checks, checkFromError(err))
+	} else {
+		hasTokens := segmentHasFormatTokens(req.SourceText, kind)
+		label := "Format"
+		message := "No placeholders or ICU blocks detected."
+		if hasTokens {
+			label = "Placeholders & ICU"
+			message = "Target keeps the required placeholders and ICU structure."
+		}
+
+		checks = append(checks, Check{
+			ID:       "format-parity",
+			Label:    label,
+			Status:   StatusPass,
+			Message:  message,
+			Category: "placeholder",
+		})
+	}
+
+	checks = append(checks, qaChecks(req)...)
+	return checks
+}
+
+// FirstValidationError returns the first validation failure using runsvc-compatible messages.
+func FirstValidationError(sourcePath, source, target string) error {
+	return validateForKind(KindForSourcePath(sourcePath), source, target)
+}
+
+func validateForKind(kind FormatKind, source, translated string) error {
+	var err error
+	switch kind {
+	case FormatMarkdown:
+		if err = translationfileparser.ValidateMarkdownTranslatedBlockStructure(source, translated); err != nil {
+			return err
+		}
+		if err = translationfileparser.ValidateMarkdownInternalPlaceholders(source, translated); err != nil {
+			return err
+		}
+		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
+			return fmt.Errorf("raw HTML syntax introduced in translated markdown")
+		}
+	case FormatHTML:
+		if htmltagparity.Mismatch(source, translated) {
+			return fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))
+		}
+		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
+			return fmt.Errorf("raw HTML syntax introduced in translated html")
+		}
+		err = validateICUInvariant(source, translated)
+	case FormatLiquid:
+		if err = translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
+			return err
+		}
+		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
+			return fmt.Errorf("raw HTML syntax introduced in translated liquid")
+		}
+		err = validateICUInvariant(source, translated)
+	default:
+		err = validateICUInvariant(source, translated)
+	}
+	if err != nil {
+		return err
+	}
+	return validateProfileParity(source, translated)
+}
+
+func checkFromError(err error) Check {
+	message := err.Error()
+	lower := strings.ToLower(message)
+
+	switch {
+	case strings.Contains(lower, "exceeds") && strings.Contains(lower, "characters"):
+		return Check{
+			ID:       "length",
+			Label:    "Length",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "length",
+		}
+	case strings.Contains(lower, "invalid icu/braces structure"):
+		return Check{
+			ID:       "format-parse-error",
+			Label:    "ICU syntax",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	case strings.Contains(lower, "extra placeholder parity mismatch"):
+		return Check{
+			ID:            "format-extra-placeholder-mismatch",
+			Label:         "Missing placeholders",
+			Status:        StatusFail,
+			Message:       message,
+			Category:      "placeholder",
+			RelatedTokens: placeholderTokensFromMessage(message),
+		}
+	case strings.Contains(lower, "whitespace profile mismatch"):
+		return Check{
+			ID:       "format-whitespace-profile",
+			Label:    "Whitespace",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	case strings.Contains(lower, "special character parity mismatch"):
+		return Check{
+			ID:       "format-special-char-mismatch",
+			Label:    "Special characters",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	case strings.Contains(lower, "placeholder parity mismatch"):
+		return Check{
+			ID:            "format-missing-token",
+			Label:         "Missing placeholders",
+			Status:        StatusFail,
+			Message:       message,
+			Category:      "placeholder",
+			RelatedTokens: placeholderTokensFromMessage(message),
+		}
+	case strings.Contains(lower, "icu parity mismatch"):
+		return Check{
+			ID:            "format-icu-mismatch",
+			Label:         "ICU structure",
+			Status:        StatusFail,
+			Message:       message,
+			Category:      "icu",
+			RelatedTokens: icuTokensFromMessage(message),
+		}
+	case strings.Contains(lower, "duplicate # tokens"):
+		return Check{
+			ID:       "format-icu-duplicate-pound",
+			Label:    "ICU structure",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "icu",
+		}
+	case strings.Contains(lower, "html tag"):
+		return Check{
+			ID:       "format-html-tag-mismatch",
+			Label:    "HTML tags",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	case strings.Contains(lower, "raw html"):
+		return Check{
+			ID:       "format-raw-html",
+			Label:    "HTML safety",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	case strings.Contains(lower, "placeholder"):
+		return Check{
+			ID:       "format-placeholder-mismatch",
+			Label:    "Placeholders",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "placeholder",
+		}
+	case strings.Contains(lower, "structure"):
+		return Check{
+			ID:       "format-markdown-structure",
+			Label:    "Markdown structure",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	default:
+		return Check{
+			ID:       "format-validation",
+			Label:    "Format",
+			Status:   StatusFail,
+			Message:  message,
+			Category: "syntax",
+		}
+	}
+}
+
+func segmentHasFormatTokens(source string, kind FormatKind) bool {
+	if kind == FormatMarkdown {
+		if strings.Contains(source, "\x1eHLMDPH_") {
+			return true
+		}
+	}
+
+	inv, err := icuparser.ParseInvariant(trimSpace(source))
+	if err == nil && (len(inv.Placeholders) > 0 || len(inv.ICUBlocks) > 0) {
+		return true
+	}
+	return profileHasFormatTokens(source)
+}
+
+func placeholderTokensFromMessage(message string) []string {
+	expected, _ := extractListAfter(message, "expected ", ", got")
+	if expected == "" {
+		return nil
+	}
+	return formatPlaceholderNames(expected)
+}
+
+func icuTokensFromMessage(message string) []string {
+	expected, _ := extractListAfter(message, "expected ", ", got")
+	if expected == "" {
+		return nil
+	}
+	return []string{expected}
+}
+
+func formatPlaceholderNames(rawList string) []string {
+	rawList = strings.TrimSpace(rawList)
+	rawList = strings.TrimPrefix(rawList, "[")
+	rawList = strings.TrimSuffix(rawList, "]")
+	if rawList == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(rawList, func(r rune) bool {
+		return r == ' ' || r == ','
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if strings.HasPrefix(part, "%") || strings.HasPrefix(part, "$") {
+			out = append(out, part)
+			continue
+		}
+		out = append(out, "{"+part+"}")
+	}
+	return out
+}
+
+func extractListAfter(message, prefix, suffix string) (string, string) {
+	start := strings.Index(message, prefix)
+	if start < 0 {
+		return "", message
+	}
+	start += len(prefix)
+	end := strings.Index(message[start:], suffix)
+	if end < 0 {
+		return strings.TrimSpace(message[start:]), message
+	}
+	return strings.TrimSpace(message[start : start+end]), message
+}
+
+func trimSpace(value string) string {
+	return strings.TrimSpace(value)
+}

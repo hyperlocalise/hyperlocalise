@@ -1,37 +1,10 @@
 package runsvc
 
 import (
-	"fmt"
-	"path/filepath"
 	"strings"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 )
-
-// translationOutputKind selects which post-translate checks apply to a source file segment.
-type translationOutputKind int
-
-const (
-	translationOutputMarkdown translationOutputKind = iota
-	translationOutputHTML
-	translationOutputLiquid
-	translationOutputICUInvariant
-)
-
-// translationOutputKindForSourcePath maps file extension to validation strategy (aligned with check: ICU shape skipped for markdown paths).
-func translationOutputKindForSourcePath(path string) translationOutputKind {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".md", ".mdx":
-		return translationOutputMarkdown
-	case ".html":
-		return translationOutputHTML
-	case ".liquid":
-		return translationOutputLiquid
-	default:
-		return translationOutputICUInvariant
-	}
-}
 
 // validateTranslatedOutput runs all applicable post-translate checks for the task's source path kind.
 //
@@ -40,41 +13,18 @@ func translationOutputKindForSourcePath(path string) translationOutputKind {
 //   - Liquid: internal Liquid/HTML sentinel multiset, then ICU invariant on the segment text.
 //   - Everything else: ICU MessageFormat / placeholder parity via validateTranslatedInvariant.
 func validateTranslatedOutput(task Task, translated string) error {
-	return validateTranslatedOutputForKind(translationOutputKindForSourcePath(task.SourcePath), task.SourceText, translated)
+	return validationErrorFromSegment(
+		segmentvalidate.FirstValidationError(task.SourcePath, task.SourceText, translated),
+	)
 }
 
-func validateTranslatedOutputForKind(kind translationOutputKind, source, translated string) error {
-	switch kind {
-	case translationOutputMarkdown:
-		if err := translationfileparser.ValidateMarkdownTranslatedBlockStructure(source, translated); err != nil {
-			return &postTranslateValidationError{msg: err.Error()}
-		}
-		if err := translationfileparser.ValidateMarkdownInternalPlaceholders(source, translated); err != nil {
-			return &postTranslateValidationError{msg: err.Error()}
-		}
-		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated markdown"}
-		}
+func validationErrorFromSegment(err error) error {
+	if err == nil {
 		return nil
-	case translationOutputHTML:
-		if htmltagparity.Mismatch(source, translated) {
-			return &postTranslateValidationError{
-				msg: fmt.Sprintf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated)),
-			}
-		}
-		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated html"}
-		}
-		return validateTranslatedInvariant(source, translated)
-	case translationOutputLiquid:
-		if err := translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
-			return &postTranslateValidationError{msg: err.Error()}
-		}
-		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated liquid"}
-		}
-		return validateTranslatedInvariant(source, translated)
-	default:
-		return validateTranslatedInvariant(source, translated)
 	}
+	msg := err.Error()
+	if strings.Contains(msg, "translation invariant violation") {
+		return &invariantViolationError{msg: msg}
+	}
+	return &postTranslateValidationError{msg: msg}
 }

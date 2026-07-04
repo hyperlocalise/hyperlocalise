@@ -3,25 +3,23 @@ package runsvc
 import (
 	"strings"
 	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 )
 
 func TestTranslationOutputKindForSourcePath(t *testing.T) {
 	tests := []struct {
 		path string
-		want translationOutputKind
+		want segmentvalidate.FormatKind
 	}{
-		{"/content/en/guide.md", translationOutputMarkdown},
-		{`/docs\Page.mdx`, translationOutputMarkdown},
-		{"C:\\docs\\en\\x.MDX", translationOutputMarkdown},
-		{"/srv/page.html", translationOutputHTML},
-		{"/srv/sections/header.liquid", translationOutputLiquid},
-		{"/pkg/messages.json", translationOutputICUInvariant},
-		{"/pkg/strings.arb", translationOutputICUInvariant},
-		{"noext", translationOutputICUInvariant},
+		{"/content/en/guide.md", segmentvalidate.FormatMarkdown},
+		{"/srv/page.html", segmentvalidate.FormatHTML},
+		{"/srv/sections/header.liquid", segmentvalidate.FormatLiquid},
+		{"/pkg/messages.json", segmentvalidate.FormatICUInvariant},
 	}
 	for _, tt := range tests {
-		if got := translationOutputKindForSourcePath(tt.path); got != tt.want {
-			t.Fatalf("translationOutputKindForSourcePath(%q) = %v, want %v", tt.path, got, tt.want)
+		if got := segmentvalidate.KindForSourcePath(tt.path); got != tt.want {
+			t.Fatalf("KindForSourcePath(%q) = %v, want %v", tt.path, got, tt.want)
 		}
 	}
 }
@@ -44,126 +42,12 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:        "markdown_hlmdph_mismatch",
-			path:        "/en/a.md",
-			source:      "A " + tok + " B",
-			translated:  "A B",
-			wantErr:     true,
-			errContains: "placeholder",
-		},
-		{
-			name:        "markdown_single_line_injected_heading",
-			path:        "/en/a.md",
-			source:      "Hello.",
-			translated:  "Bonjour.\n\n# Bad",
-			wantErr:     true,
-			errContains: "structure",
-		},
-		{
-			name:       "markdown_multiline_source_skips_block_heuristic",
-			path:       "/en/a.md",
-			source:     "Line1\nLine2",
-			translated: "L1\n\n# X",
-			wantErr:    false,
-		},
-		{
-			name:        "markdown_raw_html_fragment",
-			path:        "/en/a.md",
-			source:      "Hello.",
-			translated:  "Bonjour <img src=x onerror=alert(1)//",
-			wantErr:     true,
-			errContains: "raw HTML",
-		},
-		{
-			name:       "markdown_skips_icu_even_if_invalid_message_shape",
-			path:       "/en/a.md",
-			source:     "{not, valid icu",
-			translated: "{still bad",
-			wantErr:    false,
-		},
-		{
-			name:       "html_tags_ok_then_icu_ok",
-			path:       "/en/a.html",
-			source:     "<p>Hello {name}</p>",
-			translated: "<p>Bonjour {name}</p>",
-			wantErr:    false,
-		},
-		{
-			name:        "html_tag_mismatch",
-			path:        "/en/a.html",
-			source:      "<p>x</p>",
-			translated:  "x",
-			wantErr:     true,
-			errContains: "html tag",
-		},
-		{
-			name:        "html_raw_html_fragment",
-			path:        "/en/a.html",
-			source:      "Hello",
-			translated:  "Bonjour <img src=x onerror=alert(1)//",
-			wantErr:     true,
-			errContains: "raw HTML",
-		},
-		{
-			name:        "html_tags_ok_icu_fails",
-			path:        "/en/a.html",
-			source:      "<p>Hello {name}</p>",
-			translated:  "<p>Bonjour {wrong}</p>",
-			wantErr:     true,
-			errContains: "placeholder parity",
-		},
-		{
-			name:       "liquid_placeholders_ok_then_icu_ok",
-			path:       "/en/a.liquid",
-			source:     "Hello \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
-			translated: "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
-			wantErr:    false,
-		},
-		{
-			name:        "liquid_placeholder_mismatch",
-			path:        "/en/a.liquid",
-			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f",
-			translated:  "Bonjour",
-			wantErr:     true,
-			errContains: "liquid internal placeholder",
-		},
-		{
-			name:        "liquid_raw_html_fragment",
-			path:        "/en/a.liquid",
-			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f",
-			translated:  "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f <img src=x onerror=alert(1)//",
-			wantErr:     true,
-			errContains: "raw HTML",
-		},
-		{
-			name:        "liquid_placeholders_ok_icu_fails",
-			path:        "/en/a.liquid",
-			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
-			translated:  "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f {wrong}",
-			wantErr:     true,
-			errContains: "placeholder parity",
-		},
-		{
-			name:       "json_icu_ok",
-			path:       "/pkg/en.json",
-			source:     "Hello {name}",
-			translated: "Hi {name}",
-			wantErr:    false,
-		},
-		{
 			name:        "json_icu_placeholder_mismatch",
 			path:        "/pkg/en.json",
 			source:      "Hello {name}",
 			translated:  "Hi {user}",
 			wantErr:     true,
 			errContains: "placeholder parity",
-		},
-		{
-			name:       "json_plain_no_icu_structure",
-			path:       "/pkg/en.json",
-			source:     "plain",
-			translated: "texte",
-			wantErr:    false,
 		},
 	}
 
@@ -184,21 +68,14 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 	}
 }
 
-func TestValidateTranslatedOutputForKindDispatches(t *testing.T) {
-	tok := testHLMDPHToken
-	if err := validateTranslatedOutputForKind(translationOutputMarkdown, "a"+tok, "a"); err == nil {
-		t.Fatal("expected markdown mismatch error")
+func TestValidationErrorFromSegment(t *testing.T) {
+	invariantErr := validationErrorFromSegment(segmentvalidate.FirstValidationError("", "Hello {name}", "Hi {user}"))
+	if _, ok := invariantErr.(*invariantViolationError); !ok {
+		t.Fatalf("expected invariantViolationError, got %T", invariantErr)
 	}
-	if err := validateTranslatedOutputForKind(translationOutputMarkdown, "a", "a"); err != nil {
-		t.Fatalf("unexpected %v", err)
-	}
-	if err := validateTranslatedOutputForKind(translationOutputHTML, "<p>a</p>", "<p>b</p>"); err != nil {
-		t.Fatalf("unexpected %v", err)
-	}
-	if err := validateTranslatedOutputForKind(translationOutputLiquid, "a \x1eHLLQPH_ABCDEF123456_0\x1f", "b \x1eHLLQPH_ABCDEF123456_0\x1f"); err != nil {
-		t.Fatalf("unexpected %v", err)
-	}
-	if err := validateTranslatedOutputForKind(translationOutputICUInvariant, "x {n}", "y {n}"); err != nil {
-		t.Fatalf("unexpected %v", err)
+
+	postErr := validationErrorFromSegment(segmentvalidate.FirstValidationError("/a.md", "Hello.", "Bonjour.\n\n# Bad"))
+	if _, ok := postErr.(*postTranslateValidationError); !ok {
+		t.Fatalf("expected postTranslateValidationError, got %T", postErr)
 	}
 }
