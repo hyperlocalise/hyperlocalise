@@ -1,0 +1,33 @@
+{
+  "services": {
+    "web": {
+      "root": "apps/hyperlocalise-web"
+    },
+    "cat_validate": {
+      "runtime": "container",
+      "root": ".",
+      "entrypoint": "apps/cat-validate/Dockerfile.vercel"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/cat-validate/:path*",
+      "destination": {
+        "service": "cat_validate",
+        "path": "/:path*"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/github-repository-automation-dispatch",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

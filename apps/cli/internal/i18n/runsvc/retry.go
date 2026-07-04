@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
@@ -123,7 +123,7 @@ func buildValidationFixRuntimeContext(baseRuntime string, valErr error, previous
 	b.WriteString("Translation validation failed. Return only the corrected translation with no explanations.\n\nError:\n")
 	b.WriteString(valErr.Error())
 	b.WriteString("\n\nPrevious output:\n")
-	b.WriteString(elideInvariantDebugString(previousOutput, 400))
+	b.WriteString(segmentvalidate.ElideDebugString(previousOutput, 400))
 	return strings.TrimSpace(b.String())
 }
 
@@ -159,100 +159,7 @@ func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string
 }
 
 func validateTranslatedInvariant(source, translated string) error {
-	source = strings.TrimSpace(source)
-	translated = strings.TrimSpace(translated)
-
-	srcInv, srcErr := icuparser.ParseInvariant(source)
-	if srcErr != nil {
-		return nil
-	}
-	if len(srcInv.Placeholders) == 0 && len(srcInv.ICUBlocks) == 0 {
-		return nil
-	}
-
-	translatedInv, translatedErr := icuparser.ParseInvariant(translated)
-	if translatedErr != nil {
-		return &invariantViolationError{
-			msg:   fmt.Sprintf("translation invariant violation: invalid ICU/braces structure | %s", formatInvariantDebugContext(source, translated)),
-			cause: translatedErr,
-		}
-	}
-	if !icuparser.SamePlaceholderSet(srcInv.Placeholders, translatedInv.Placeholders) {
-		return &invariantViolationError{msg: fmt.Sprintf(
-			"translation invariant violation: placeholder parity mismatch (expected %v, got %v) | %s",
-			srcInv.Placeholders,
-			translatedInv.Placeholders,
-			formatInvariantDebugContext(source, translated),
-		)}
-	}
-	if !icuparser.SameICUBlocks(srcInv.ICUBlocks, translatedInv.ICUBlocks) {
-		return &invariantViolationError{msg: fmt.Sprintf(
-			"translation invariant violation: ICU parity mismatch (expected %s, got %s) | %s",
-			icuparser.FormatICUBlocks(srcInv.ICUBlocks),
-			icuparser.FormatICUBlocks(translatedInv.ICUBlocks),
-			formatInvariantDebugContext(source, translated),
-		)}
-	}
-	if icuparser.HasDuplicatePounds(translatedInv.ICUBlocks) {
-		return &invariantViolationError{msg: fmt.Sprintf(
-			"translation invariant violation: duplicate # tokens in ICU plural/selectordinal branch (got %s) | %s",
-			icuparser.FormatICUBlocks(translatedInv.ICUBlocks),
-			formatInvariantDebugContext(source, translated),
-		)}
-	}
-	return nil
-}
-
-func formatInvariantDebugContext(source, translated string) string {
-	return fmt.Sprintf(
-		`source=%q candidate=%q diff=%s`,
-		elideInvariantDebugString(source, 160),
-		elideInvariantDebugString(translated, 160),
-		firstDiffWindow(source, translated, 24),
-	)
-}
-
-func elideInvariantDebugString(s string, maxRunes int) string {
-	runes := []rune(s)
-	if len(runes) <= maxRunes {
-		return s
-	}
-	if maxRunes <= 1 {
-		return string(runes[:maxRunes])
-	}
-	return string(runes[:maxRunes-1]) + "…"
-}
-
-func firstDiffWindow(a, b string, radius int) string {
-	ar := []rune(a)
-	br := []rune(b)
-	limit := len(ar)
-	if len(br) < limit {
-		limit = len(br)
-	}
-	idx := 0
-	for idx < limit && ar[idx] == br[idx] {
-		idx++
-	}
-	if idx == len(ar) && idx == len(br) {
-		return "none"
-	}
-
-	aStart := max(0, idx-radius)
-	aEnd := min(len(ar), idx+radius)
-	bStart := max(0, idx-radius)
-	bEnd := min(len(br), idx+radius)
-
-	return fmt.Sprintf(
-		`at=%d source[%d:%d]=%q candidate[%d:%d]=%q`,
-		idx,
-		aStart,
-		aEnd,
-		string(ar[aStart:aEnd]),
-		bStart,
-		bEnd,
-		string(br[bStart:bEnd]),
-	)
+	return validationErrorFromSegment(segmentvalidate.FirstValidationError("", source, translated))
 }
 
 func isRetryableTranslateError(err error) bool {

@@ -1951,7 +1951,14 @@ func TestRunWritesRealisticLiquidTemplateForMultipleLocales(t *testing.T) {
 		}
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
-		return strings.ToUpper(req.TargetLanguage) + "(" + strings.Join(strings.Fields(req.Source), " ") + ")", nil
+		trimmed := strings.TrimSpace(req.Source)
+		if trimmed == "" {
+			return req.Source, nil
+		}
+		core := strings.ToUpper(req.TargetLanguage) + "(" + strings.Join(strings.Fields(trimmed), " ") + ")"
+		start := strings.Index(req.Source, trimmed)
+		end := start + len(trimmed)
+		return req.Source[:start] + core + req.Source[end:], nil
 	}
 
 	written := map[string]string{}

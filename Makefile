@@ -19,6 +19,10 @@ bump: ## update go dependencies
 check-build: ## check golang build
 	@go build -ldflags "-X main.version=$(version)" -o /dev/null ./apps/cli
 
+.PHONY: check-build-cat-validate
+check-build-cat-validate: ## check cat-validate service build
+	@go build -o /dev/null ./apps/cat-validate
+
 .PHONY: install
 install: ## install golang binary
 	@go install -ldflags "-X main.version=$(version)" ./apps/cli
