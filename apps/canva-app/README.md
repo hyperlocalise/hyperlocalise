@@ -1,22 +1,23 @@
 # Hyperlocalise Canva App
 
-Canva design editor app that uploads selected pages from a design as a JSON translation file to Hyperlocalise, runs a localization job, and syncs translated text back into the design.
+Canva design editor app that extracts text from selected pages, uploads a JSON translation file to Hyperlocalise, runs a localization job, and polls for translated content.
 
 ## What it does
 
-1. **Select pages** from the full design (all editable pages are selected by default).
-2. **Extract** text from the selected pages (with optional inline formatting preservation).
-3. **Upload** a JSON source file to Hyperlocalise through the web app integration API.
-4. **Translate** through a Hyperlocalise file job using the org's stored API key.
-5. **Sync** the selected target locale back into the selected Canva pages.
+1. **Browse pages** from the current design without signing in.
+2. **Sign in** with Hyperlocalise OAuth when you are ready to localize.
+3. **Choose** a workspace and project inside the Canva panel.
+4. **Extract** text from the selected pages.
+5. **Translate** through a Hyperlocalise file job scoped to your user account.
+6. **Poll** job status until translations are ready.
 
-The Canva app calls `hyperlocalise-web` at `/api/integrations/canva/localize`. There is no separate Canva backend to deploy.
+The Canva app calls `hyperlocalise-web` at `/api/integrations/canva/*` and `/api/oauth/canva/*`. There is no separate Canva backend to deploy.
 
 ## Requirements
 
 - Node.js `^22` or `^24`
 - [Vite+](https://vite.plus) (`vp`)
-- A running Hyperlocalise web app with a Canva connection configured
+- A running Hyperlocalise web app with Canva OAuth configured
 
 ## Quick start
 
@@ -39,33 +40,33 @@ vp run bundle
 
 ## Configure Hyperlocalise
 
-In the Hyperlocalise web app, create a **Canva connection** for your workspace:
+In the Hyperlocalise web app, open **Integrations** and follow the **Canva** setup instructions. You will need:
 
-1. Choose an API key with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
-2. Set the default project and locales for the connection.
-3. Copy the one-time **connection token** shown after creation.
+- `CANVA_OAUTH_CLIENT_ID` and `CANVA_OAUTH_CLIENT_SECRET` on the Hyperlocalise server
+- `CANVA_OAUTH_REDIRECT_URIS` including `https://www.canva.com/apps/oauth/authorized`
+- `CANVA_APP_ID` for Canva JWT verification
 
-Set these values in `.env`:
+In the Canva Developer Portal, register Hyperlocalise as an OAuth provider using the authorization, token, and revocation URLs shown on the Integrations page.
+
+Set these values in the Canva app `.env`:
 
 - `CANVA_BACKEND_HOST` — Hyperlocalise web app origin (`http://localhost:3000` in development)
-- `CANVA_APP_ID` — your Canva app ID for JWT verification
+- `CANVA_APP_ID` — your Canva app ID (must match Hyperlocalise `CANVA_APP_ID`)
 
-In the Canva app UI, provide:
+In the Canva app UI:
 
-- **Connection token** — from the Hyperlocalise Canva connection
-- **Project ID override** — optional; leave blank to use the connection default
-- **Source locale** — language of the current design text
-- **Target locales** — comma-separated locale codes (for example `es, fr, de`)
-- **Apply locale** — which translated locale to write back into Canva
-- **Pages to localize** — choose one or more editable pages from the design
+- **Sign in to Hyperlocalise** — starts OAuth via Canva `auth.initOauth()`
+- **Organization / Project** — choose where jobs are created
+- **Pages to localize** — select editable pages
+- **Target locales** — locales to translate into
 
 Each design is stored at a stable source path: `canva/designs/<design-id>.json`.
 
 ## Preview in Canva
 
 1. Create an app in the [Developer Portal](https://www.canva.com/developers/apps).
-2. Set **Development URL** to `http://localhost:8080`.
-3. Set `CANVA_APP_ID` in `.env` for JWT verification in production.
+2. Configure OAuth with the Hyperlocalise endpoints from the Integrations page.
+3. Set **Development URL** to `http://localhost:8080`.
 4. Click **Preview** and open the app in the Canva editor.
 
 See the [Canva Apps SDK docs](https://www.canva.dev/docs/apps/) for HTTPS, HMR, and deployment details.
@@ -77,16 +78,9 @@ apps/canva-app/
 ├── src/
 │   ├── index.tsx
 │   └── intents/design_editor/
-│       ├── app.tsx               # Localization workflow UI
-│       ├── design-content.ts     # Extract/apply Canva text
+│       ├── app.tsx               # OAuth + localization workflow UI
+│       ├── oauth.ts              # Canva OAuth client wrapper
 │       ├── hyperlocalise-client.ts
-│       ├── segment-file.ts       # JSON file format helpers
-│       └── settings.ts             # Saved project/locale settings
-├── styles/components.css
-├── canva-app.json
-└── webpack.config.ts
+│       ├── design-content.ts     # Page list + text extraction
+│       └── settings.ts           # Local preferences
 ```
-
-## License
-
-Licensed under the Business Source License 1.1. See [LICENSE](./LICENSE).

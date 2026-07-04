@@ -19,8 +19,8 @@ import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
-import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
+import { createCanvaOAuthRoutes } from "./routes/canva-oauth/canva-oauth.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
@@ -107,6 +107,7 @@ export function createApp(options: CreateAppOptions = {}) {
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/", createCanvaOAuthRoutes())
     .route("/webhooks", createWebhookRoutes(options));
 }
 
@@ -154,7 +155,6 @@ function createOrgScopedAppRoutes(
     )
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
-    .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
       "/tms-provider",

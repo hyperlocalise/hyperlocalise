@@ -54,6 +54,12 @@ jobs:
       MCP_TOKEN_LIFETIME_MINUTES: "60"
       MCP_REFRESH_TOKEN_LIFETIME_DAYS: "30"
       MCP_ENCRYPTION_KEY: base64-encoded-32-byte-key
+      CANVA_APP_ID: test-canva-app-id
+      CANVA_OAUTH_CLIENT_ID: test-canva-oauth-client
+      CANVA_OAUTH_CLIENT_SECRET: test-canva-oauth-client-secret
+      CANVA_OAUTH_REDIRECT_URIS: https://www.canva.com/apps/oauth/authorized
+      CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES: "60"
+      CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS: "90"
       SLACK_BOT_TOKEN: xoxb-your-slack-bot-token
       SLACK_SIGNING_SECRET: your-slack-signing-secret
     defaults:

@@ -9,13 +9,25 @@ export type CanvaJwtVariables = {
   canvaUser?: CanvaVerifiedUser;
 };
 
-function getBearerToken(authorizationHeader: string | undefined): string | null {
-  if (!authorizationHeader?.startsWith("Bearer ")) {
-    return null;
+const CANVA_USER_TOKEN_HEADER = "x-canva-user-token";
+
+function getCanvaUserToken(c: {
+  req: { header: (name: string) => string | undefined };
+}): string | null {
+  const dedicated = c.req.header(CANVA_USER_TOKEN_HEADER)?.trim();
+  if (dedicated) {
+    return dedicated;
   }
 
-  const token = authorizationHeader.slice("Bearer ".length).trim();
-  return token.length > 0 ? token : null;
+  const authorization = c.req.header("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    const token = authorization.slice("Bearer ".length).trim();
+    if (token && !token.startsWith("hl_canva_")) {
+      return token;
+    }
+  }
+
+  return null;
 }
 
 export function createCanvaJwtMiddleware(options: { required?: boolean } = {}) {
@@ -23,7 +35,7 @@ export function createCanvaJwtMiddleware(options: { required?: boolean } = {}) {
 
   return createMiddleware<{ Variables: CanvaJwtVariables }>(async (c, next) => {
     const appId = env.CANVA_APP_ID;
-    const token = getBearerToken(c.req.header("authorization"));
+    const token = getCanvaUserToken(c);
 
     if (!token) {
       if (required && appId) {
