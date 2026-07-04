@@ -245,6 +245,50 @@ describe("useCatWorkspaceController", () => {
     );
   });
 
+  it("auto-fills when intelligence panel joins an in-flight AI review concordance lookup", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+
+    const { result, store } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        generateAiRecommendation,
+      },
+    });
+
+    await act(async () => {
+      const reviewPromise = result.current.dependencies.review.onReviewWithAi("seg-02");
+      result.current.handleIntelligencePanelVisible("seg-02");
+      resolveConcordance?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [
+          {
+            id: "tm-1",
+            sourceText: "Second",
+            targetText: "Deuxième",
+            matchPercent: 100,
+            contextLabel: "Settings",
+          },
+        ],
+      });
+      await concordancePromise;
+      await reviewPromise;
+    });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
+    expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
+  });
+
   it("does not start a duplicate concordance lookup when AI review runs during an in-flight lookup", async () => {
     let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
     const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {

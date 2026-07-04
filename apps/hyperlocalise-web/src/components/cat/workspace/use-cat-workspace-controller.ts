@@ -211,7 +211,13 @@ export function useCatWorkspaceController({
 
   const concordanceLoadedSegmentIdsRef = useRef(new Set<string>());
   const concordanceInFlightRef = useRef(
-    new Map<string, Promise<CatSegmentConcordanceResult | undefined>>(),
+    new Map<
+      string,
+      {
+        autoFill: boolean;
+        promise: Promise<CatSegmentConcordanceResult | undefined>;
+      }
+    >(),
   );
 
   const applyConcordanceResult = useCallback(
@@ -265,7 +271,10 @@ export function useCatWorkspaceController({
 
       const inFlight = concordanceInFlightRef.current.get(segmentId);
       if (inFlight) {
-        return inFlight;
+        if (options?.autoFill !== false) {
+          inFlight.autoFill = true;
+        }
+        return inFlight.promise;
       }
 
       const segment = store.getSegmentView(segmentId);
@@ -273,34 +282,37 @@ export function useCatWorkspaceController({
         return undefined;
       }
 
-      const autoFill = options?.autoFill !== false;
-      const lookupPromise = (async () => {
-        store.beginConcordanceLoad(segmentId);
-        try {
-          const concordance = await lookupSegmentConcordance(segment);
-          applyConcordanceResult(segmentId, concordance, autoFill);
-          return concordance;
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchFailed);
-          store.upsertFormatCheck(segmentId, {
-            id: `concordance-failed-${segmentId}`,
-            label: intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchLabel),
-            status: "fail",
-            message,
-            category: "qa",
-          });
-          return undefined;
-        } finally {
-          store.endConcordanceLoad(segmentId);
-          concordanceInFlightRef.current.delete(segmentId);
-        }
-      })();
+      const inFlightEntry = {
+        autoFill: options?.autoFill !== false,
+        promise: (async () => {
+          store.beginConcordanceLoad(segmentId);
+          try {
+            const concordance = await lookupSegmentConcordance(segment);
+            const entry = concordanceInFlightRef.current.get(segmentId);
+            applyConcordanceResult(segmentId, concordance, entry?.autoFill ?? false);
+            return concordance;
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchFailed);
+            store.upsertFormatCheck(segmentId, {
+              id: `concordance-failed-${segmentId}`,
+              label: intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchLabel),
+              status: "fail",
+              message,
+              category: "qa",
+            });
+            return undefined;
+          } finally {
+            store.endConcordanceLoad(segmentId);
+            concordanceInFlightRef.current.delete(segmentId);
+          }
+        })(),
+      };
 
-      concordanceInFlightRef.current.set(segmentId, lookupPromise);
-      return lookupPromise;
+      concordanceInFlightRef.current.set(segmentId, inFlightEntry);
+      return inFlightEntry.promise;
     },
     [applyConcordanceResult, intl, lookupSegmentConcordance, store],
   );
