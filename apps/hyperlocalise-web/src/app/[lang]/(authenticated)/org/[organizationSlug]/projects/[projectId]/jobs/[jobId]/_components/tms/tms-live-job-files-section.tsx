@@ -17,11 +17,13 @@ export function TmsLiveJobFilesSection({
   projectId,
   encodedJobId,
   highlightLocale,
+  openInCatOnSelect = false,
 }: {
   organizationSlug: string;
   projectId: string;
   encodedJobId: string;
   highlightLocale?: string | null;
+  openInCatOnSelect?: boolean;
 }) {
   const filesQuery = useQuery({
     queryKey: tmsLiveJobFilesQueryKey(organizationSlug, encodedJobId),
@@ -56,6 +58,7 @@ export function TmsLiveJobFilesSection({
       }
       emptyMessage="No files are linked to this task."
       highlightLocale={highlightLocale ?? null}
+      openInCatOnSelect={openInCatOnSelect}
     />
   );
 }
