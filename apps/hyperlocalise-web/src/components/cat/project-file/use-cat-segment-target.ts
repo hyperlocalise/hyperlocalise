@@ -2,11 +2,11 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ProjectFileCatSegment } from "@/api/routes/project/project.schema";
+import type { ProjectFileCatTranslation } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-export function projectFileCatSegmentDetailQueryKey(input: {
+export function projectFileCatSegmentTargetQueryKey(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -17,7 +17,7 @@ export function projectFileCatSegmentDetailQueryKey(input: {
   repositoryFullName: string | null;
 }) {
   return [
-    "project-file-cat-segment-detail",
+    "project-file-cat-segment-target",
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
@@ -29,7 +29,7 @@ export function projectFileCatSegmentDetailQueryKey(input: {
   ] as const;
 }
 
-export async function fetchProjectFileCatSegmentDetail(input: {
+export async function fetchProjectFileCatSegmentTarget(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -41,7 +41,7 @@ export async function fetchProjectFileCatSegmentDetail(input: {
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.segments[":externalStringId"].$get({
+  ].files.detail.cat.segments[":externalStringId"].target.$get({
     param: {
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
@@ -57,14 +57,14 @@ export async function fetchProjectFileCatSegmentDetail(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load segment details"));
+    throw new Error(await readApiError(response, "Failed to load segment translation"));
   }
 
-  const body = (await response.json()) as { segment: ProjectFileCatSegment };
-  return body.segment;
+  const body = (await response.json()) as { target: ProjectFileCatTranslation | null };
+  return body.target;
 }
 
-export function useCatSegmentDetail(input: {
+export function useCatSegmentTarget(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -79,7 +79,7 @@ export function useCatSegmentDetail(input: {
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery({
-    queryKey: projectFileCatSegmentDetailQueryKey({
+    queryKey: projectFileCatSegmentTargetQueryKey({
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
@@ -96,7 +96,7 @@ export function useCatSegmentDetail(input: {
       Boolean(input.sourcePath),
     staleTime: 30_000,
     queryFn: () =>
-      fetchProjectFileCatSegmentDetail({
+      fetchProjectFileCatSegmentTarget({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
@@ -109,7 +109,7 @@ export function useCatSegmentDetail(input: {
   });
 }
 
-export function useInvalidateCatSegmentDetail() {
+export function useInvalidateCatSegmentTarget() {
   const queryClient = useQueryClient();
 
   return async (input: {
@@ -123,7 +123,7 @@ export function useInvalidateCatSegmentDetail() {
     repositoryFullName?: string | null;
   }) => {
     await queryClient.invalidateQueries({
-      queryKey: projectFileCatSegmentDetailQueryKey({
+      queryKey: projectFileCatSegmentTargetQueryKey({
         ...input,
         repositoryFullName: input.repositoryFullName ?? null,
       }),

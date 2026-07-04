@@ -560,7 +560,7 @@ export const projectFileCatSegmentSchema = z.object({
   repositoryContext: z.string().nullable().optional(),
 });
 
-/** Queue list items omit target text — the editor loads translation via segment detail. */
+/** Queue list items omit target text — the editor lazy-loads translation via segment target. */
 export const projectFileCatQueueSegmentSchema = projectFileCatSegmentSchema.omit({ target: true });
 
 export const projectFileCatSegmentParamsSchema = z.object({
@@ -583,6 +583,10 @@ export const projectFileCatSegmentResponseSchema = z.object({
 
 export const projectFileCatSegmentCommentsResponseSchema = z.object({
   comments: z.array(projectFileCatCommentSchema),
+});
+
+export const projectFileCatSegmentTargetResponseSchema = z.object({
+  target: projectFileCatTranslationSchema.nullable(),
 });
 
 export const projectFileCatResponseSchema = z.object({
@@ -663,6 +667,9 @@ export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQue
 export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
 export type ProjectFileCatSegmentCommentsResponse = z.infer<
   typeof projectFileCatSegmentCommentsResponseSchema
+>;
+export type ProjectFileCatSegmentTargetResponse = z.infer<
+  typeof projectFileCatSegmentTargetResponseSchema
 >;
 export type ProjectFileCatQueueResponse = z.infer<typeof projectFileCatQueueResponseSchema>;
 export type ProjectFileCatQueueFile = z.infer<typeof projectFileCatQueueFileSchema>;

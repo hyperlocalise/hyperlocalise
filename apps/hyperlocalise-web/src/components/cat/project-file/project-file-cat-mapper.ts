@@ -329,49 +329,47 @@ export function projectFileCatToWorkspaceState(
   };
 }
 
-export function applyCatSegmentDetailToWorkspaceState(
+export function applyCatSegmentTargetToWorkspaceState(
   state: CatWorkspaceState,
   catFile: CatFile,
-  segmentDetail: ProjectFileCatSegment,
+  segmentId: string,
+  target: ProjectFileCatSegment["target"],
   intl: CatFormatMessageIntl,
 ): CatWorkspaceState {
-  const mergedSegment = {
-    ...catFile.segments.find(
-      (segment) => segment.externalStringId === segmentDetail.externalStringId,
-    ),
-    ...segmentDetail,
-  };
-
-  if (!mergedSegment.externalStringId) {
+  const queueSegment = catFile.segments.find((segment) => segment.externalStringId === segmentId);
+  if (!queueSegment) {
     return state;
   }
+
+  const mergedSegment: ProjectFileCatSegment = {
+    ...queueSegment,
+    externalStringId: segmentId,
+    key: queueSegment.key,
+    sourceText: queueSegment.sourceText,
+    context: queueSegment.context,
+    type: queueSegment.type,
+    comments: [],
+    target,
+  };
 
   const nextCatFile: CatFile = {
     ...catFile,
     segments: catFile.segments.map((segment) =>
-      segment.externalStringId === segmentDetail.externalStringId ? mergedSegment : segment,
+      segment.externalStringId === segmentId ? mergedSegment : segment,
     ),
   };
-  const detailState = projectFileCatToWorkspaceState(nextCatFile, intl);
-  const detailSegment = detailState.segments.find(
-    (segment) => segment.id === segmentDetail.externalStringId,
-  );
+  const targetState = projectFileCatToWorkspaceState(nextCatFile, intl);
+  const targetSegment = targetState.segments.find((segment) => segment.id === segmentId);
 
-  if (!detailSegment) {
+  if (!targetSegment) {
     return state;
   }
 
   return {
     ...state,
     segments: state.segments.map((segment) =>
-      segment.id === detailSegment.id ? detailSegment : segment,
+      segment.id === targetSegment.id ? targetSegment : segment,
     ),
-    segmentIntelligence: {
-      ...state.segmentIntelligence,
-      [detailSegment.id]: detailState.segmentIntelligence?.[detailSegment.id] ?? {
-        ...state.intelligence,
-      },
-    },
   };
 }
 

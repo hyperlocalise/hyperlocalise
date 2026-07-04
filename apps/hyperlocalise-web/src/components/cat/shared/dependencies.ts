@@ -126,7 +126,7 @@ export interface CatWorkspaceViewProps {
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
-  isSegmentDetailLoading?: boolean;
+  isSegmentTargetLoading?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];

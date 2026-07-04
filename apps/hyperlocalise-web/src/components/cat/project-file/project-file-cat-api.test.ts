@@ -4,14 +4,13 @@ import {
   catApiTestContext,
   createCatComment,
   createCatQueueResponse,
-  createCatSegment,
   errorResponse,
   jsonResponse,
 } from "@/components/cat/shared/cat-api.fixture";
 
-const { catQueueGetMock, catSegmentDetailGetMock, catSegmentCommentsGetMock } = vi.hoisted(() => ({
+const { catQueueGetMock, catSegmentTargetGetMock, catSegmentCommentsGetMock } = vi.hoisted(() => ({
   catQueueGetMock: vi.fn(),
-  catSegmentDetailGetMock: vi.fn(),
+  catSegmentTargetGetMock: vi.fn(),
   catSegmentCommentsGetMock: vi.fn(),
 }));
 
@@ -30,7 +29,9 @@ vi.mock("@/lib/api-client-instance", () => ({
                     },
                     segments: {
                       ":externalStringId": {
-                        $get: (...args: unknown[]) => catSegmentDetailGetMock(...args),
+                        target: {
+                          $get: (...args: unknown[]) => catSegmentTargetGetMock(...args),
+                        },
                         comments: {
                           $get: (...args: unknown[]) => catSegmentCommentsGetMock(...args),
                         },
@@ -53,7 +54,7 @@ import {
   projectFileCatQueryKey,
 } from "./project-file-cat-api";
 import { fetchProjectFileCatSegmentComments } from "./use-cat-segment-comments";
-import { fetchProjectFileCatSegmentDetail } from "./use-cat-segment-detail";
+import { fetchProjectFileCatSegmentTarget } from "./use-cat-segment-target";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -138,12 +139,16 @@ describe("fetchProjectFileCatQueuePage", () => {
   });
 });
 
-describe("fetchProjectFileCatSegmentDetail", () => {
-  it("returns segment detail on success", async () => {
-    const segment = createCatSegment({ externalStringId: "segment-42" });
-    catSegmentDetailGetMock.mockResolvedValue(jsonResponse({ segment }));
+describe("fetchProjectFileCatSegmentTarget", () => {
+  it("returns segment target on success", async () => {
+    const target = {
+      text: "Bonjour",
+      externalTranslationId: "translation-42",
+      isApproved: false,
+    };
+    catSegmentTargetGetMock.mockResolvedValue(jsonResponse({ target }));
 
-    const result = await fetchProjectFileCatSegmentDetail({
+    const result = await fetchProjectFileCatSegmentTarget({
       ...catApiTestContext,
       externalResourceId: "101",
       resourceType: "file",
@@ -151,8 +156,8 @@ describe("fetchProjectFileCatSegmentDetail", () => {
       repositoryFullName: null,
     });
 
-    expect(result).toEqual(segment);
-    expect(catSegmentDetailGetMock).toHaveBeenCalledWith(
+    expect(result).toEqual(target);
+    expect(catSegmentTargetGetMock).toHaveBeenCalledWith(
       expect.objectContaining({
         param: {
           organizationSlug: catApiTestContext.organizationSlug,
@@ -169,13 +174,13 @@ describe("fetchProjectFileCatSegmentDetail", () => {
     );
   });
 
-  it("throws when segment detail cannot be loaded", async () => {
-    catSegmentDetailGetMock.mockResolvedValue(
+  it("throws when segment target cannot be loaded", async () => {
+    catSegmentTargetGetMock.mockResolvedValue(
       errorResponse("segment_not_found", "Segment was not found.", 404),
     );
 
     await expect(
-      fetchProjectFileCatSegmentDetail({
+      fetchProjectFileCatSegmentTarget({
         ...catApiTestContext,
         externalStringId: "missing",
         repositoryFullName: null,

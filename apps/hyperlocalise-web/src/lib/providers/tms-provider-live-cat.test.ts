@@ -10,7 +10,7 @@ import { upsertCrowdinPatProviderCredential } from "./organization-external-tms-
 import {
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
-  getTmsProviderLiveCatSegmentDetail,
+  getTmsProviderLiveCatSegmentTarget,
   saveTmsProviderLiveCatTranslation,
 } from "./tms-provider-live";
 
@@ -1272,7 +1272,7 @@ describe("getTmsProviderLiveCatFile", () => {
   });
 });
 
-describe("getTmsProviderLiveCatSegmentDetail", () => {
+describe("getTmsProviderLiveCatSegmentTarget", () => {
   let originalFetch: typeof fetch;
 
   beforeAll(async () => {
@@ -1459,7 +1459,7 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const segment = await getTmsProviderLiveCatSegmentDetail(
+    const target = await getTmsProviderLiveCatSegmentTarget(
       organization.id,
       "42",
       "home.json",
@@ -1468,11 +1468,11 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
       { actorUserId: user.id, externalResourceId: "101", resourceType: "file" },
     );
 
-    expect(segment).toMatchObject({
-      externalStringId: "1001",
-      key: "hero.title",
+    expect(target).toMatchObject({
+      text: "Bonjour",
+      externalTranslationId: "9001",
+      isApproved: false,
     });
-    expect(segment?.comments).toEqual([]);
 
     const comments = await getTmsProviderLiveCatSegmentComments(
       organization.id,
@@ -1493,6 +1493,7 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
       expect(path).not.toContain("type=");
     }
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedPaths.some((path) => path.endsWith("/projects/42/strings/1001"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/branches?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/directories?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/files?"))).toBe(false);

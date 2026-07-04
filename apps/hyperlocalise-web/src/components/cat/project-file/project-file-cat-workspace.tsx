@@ -35,13 +35,13 @@ import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-s
 
 import {
   applyCatSegmentCommentsToWorkspaceState,
-  applyCatSegmentDetailToWorkspaceState,
+  applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
 import { useCatMutations } from "./use-cat-mutations";
 import { useCatSegmentComments } from "./use-cat-segment-comments";
-import { useCatSegmentDetail } from "./use-cat-segment-detail";
+import { useCatSegmentTarget } from "./use-cat-segment-target";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
@@ -186,7 +186,7 @@ export function ProjectFileCatWorkspace({
     externalResourceId ?? catFile?.provider?.externalResourceId ?? null;
   const resolvedResourceType = resourceType ?? catFile?.provider?.resourceType;
 
-  const segmentDetailQuery = useCatSegmentDetail({
+  const segmentTargetQuery = useCatSegmentTarget({
     organizationSlug,
     projectId,
     sourcePath,
@@ -212,7 +212,8 @@ export function ProjectFileCatWorkspace({
   const isCommentsLoading =
     Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
 
-  const isSegmentDetailLoading = Boolean(activeSegmentId) && segmentDetailQuery.isPending;
+  const isSegmentTargetLoading =
+    Boolean(activeSegmentId) && segmentTargetQuery.isFetching && !segmentTargetQuery.data;
 
   const enrichedWorkspaceState = useMemo(() => {
     if (!workspaceState) {
@@ -221,11 +222,12 @@ export function ProjectFileCatWorkspace({
 
     let nextState = workspaceState;
 
-    if (catFile && segmentDetailQuery.data) {
-      nextState = applyCatSegmentDetailToWorkspaceState(
+    if (catFile && activeSegmentId && segmentTargetQuery.data !== undefined) {
+      nextState = applyCatSegmentTargetToWorkspaceState(
         nextState,
         catFile,
-        segmentDetailQuery.data,
+        activeSegmentId,
+        segmentTargetQuery.data,
         intl,
       );
     }
@@ -244,7 +246,7 @@ export function ProjectFileCatWorkspace({
     catFile,
     intl,
     segmentCommentsQuery.data,
-    segmentDetailQuery.data,
+    segmentTargetQuery.data,
     workspaceState,
   ]);
 
@@ -560,7 +562,7 @@ export function ProjectFileCatWorkspace({
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
         isCommentsLoading={isCommentsLoading}
-        isSegmentDetailLoading={isSegmentDetailLoading}
+        isSegmentTargetLoading={isSegmentTargetLoading}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}

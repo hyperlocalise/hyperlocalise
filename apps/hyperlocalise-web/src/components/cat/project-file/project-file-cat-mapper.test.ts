@@ -5,7 +5,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   applyCatSegmentCommentsToWorkspaceState,
-  applyCatSegmentDetailToWorkspaceState,
+  applyCatSegmentTargetToWorkspaceState,
   projectFileCatToWorkspaceState,
   formatCheckForSegment,
 } from "./project-file-cat-mapper";
@@ -197,8 +197,8 @@ describe("projectFileCatToWorkspaceState", () => {
   });
 });
 
-describe("applyCatSegmentDetailToWorkspaceState", () => {
-  it("merges lazy segment detail without clobbering queue-only metadata", () => {
+describe("applyCatSegmentTargetToWorkspaceState", () => {
+  it("merges lazy segment target without clobbering queue-only metadata", () => {
     const file = catFile({
       pagination: {
         offset: 50,
@@ -231,22 +231,14 @@ describe("applyCatSegmentDetailToWorkspaceState", () => {
     const state = projectFileCatToWorkspaceState(file, testIntl);
     const untouchedSegment = state.segments[1];
 
-    const nextState = applyCatSegmentDetailToWorkspaceState(
+    const nextState = applyCatSegmentTargetToWorkspaceState(
       state,
       file,
+      "segment-with-detail",
       {
-        externalStringId: "segment-with-detail",
-        key: "auth.signIn.title",
-        sourceText: "Sign in to your workspace",
-        context: "Heading on the sign-in screen",
-        type: "icu",
-        target: {
-          text: "Dang nhap vao khong gian lam viec",
-          externalTranslationId: "translation-1",
-          isApproved: false,
-        },
-        comments: [],
-        repositoryContext: "Rendered in the authentication flow hero.",
+        text: "Dang nhap vao khong gian lam viec",
+        externalTranslationId: "translation-1",
+        isApproved: false,
       },
       testIntl,
     );
@@ -254,33 +246,25 @@ describe("applyCatSegmentDetailToWorkspaceState", () => {
     expect(nextState.segments[0]).toMatchObject({
       id: "segment-with-detail",
       index: 51,
-      contextLabel: "Heading on the sign-in screen",
       targetText: "Dang nhap vao khong gian lam viec",
-      tags: ["icu", "3 comments", "1 issue"],
+      tags: ["text", "3 comments", "1 issue"],
       hasOpenIssues: true,
-    });
-    expect(nextState.segmentIntelligence?.["segment-with-detail"]).toMatchObject({
-      productMeaning: "Heading on the sign-in screen",
-      agentContext: "Rendered in the authentication flow hero.",
     });
     expect(nextState.segments[1]).toBe(untouchedSegment);
   });
 
-  it("returns the existing state when detail does not match a queued segment", () => {
+  it("returns the existing state when target does not match a queued segment", () => {
     const file = catFile();
     const state = projectFileCatToWorkspaceState(file, testIntl);
 
-    const nextState = applyCatSegmentDetailToWorkspaceState(
+    const nextState = applyCatSegmentTargetToWorkspaceState(
       state,
       file,
+      "missing-segment",
       {
-        externalStringId: "missing-segment",
-        key: "missing",
-        sourceText: "Missing",
-        context: null,
-        type: "text",
-        target: null,
-        comments: [],
+        text: "Missing",
+        externalTranslationId: null,
+        isApproved: false,
       },
       testIntl,
     );

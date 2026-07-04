@@ -14,7 +14,7 @@ import type { CrowdinIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
-import { useInvalidateCatSegmentDetail } from "./use-cat-segment-detail";
+import { useInvalidateCatSegmentTarget } from "./use-cat-segment-target";
 
 export function useCatMutations(input: {
   organizationSlug: string;
@@ -26,7 +26,7 @@ export function useCatMutations(input: {
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
-  const invalidateSegmentDetail = useInvalidateCatSegmentDetail();
+  const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
   const repositoryFullName = input.repositoryFullName ?? null;
 
@@ -77,7 +77,7 @@ export function useCatMutations(input: {
 
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentDetail({
+        invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
@@ -135,7 +135,7 @@ export function useCatMutations(input: {
 
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentDetail({
+        invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
@@ -193,7 +193,7 @@ export function useCatMutations(input: {
 
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentDetail({
+        invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,

@@ -30,7 +30,7 @@ import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
-  getTmsProviderLiveCatSegmentDetail,
+  getTmsProviderLiveCatSegmentTarget,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
@@ -42,7 +42,7 @@ import { listOrganizationProjects } from "@/lib/projects/organization/organizati
 import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
-  getNativeProjectCatSegmentDetail,
+  getNativeProjectCatSegmentTarget,
   resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
@@ -730,7 +730,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .get(
-      "/:projectId/files/detail/cat/segments/:externalStringId",
+      "/:projectId/files/detail/cat/segments/:externalStringId/target",
       validateProjectParams,
       validateProjectFileCatSegmentParams,
       validateProjectFileCatSegmentQuery,
@@ -748,24 +748,23 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          const segment = await getNativeProjectCatSegmentDetail({
+          const segmentTarget = await getNativeProjectCatSegmentTarget({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: query.sourcePath,
             targetLocale: query.targetLocale,
             externalStringId: params.externalStringId,
-            preferredRepositoryFullName: query.repositoryFullName ?? null,
           });
 
-          if (!segment) {
+          if (segmentTarget === "not_found") {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ segment }, 200);
+          return c.json({ target: segmentTarget }, 200);
         }
 
         try {
-          const segment = await getTmsProviderLiveCatSegmentDetail(
+          const segmentTarget = await getTmsProviderLiveCatSegmentTarget(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
             query.sourcePath,
@@ -777,11 +776,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               resourceType: query.resourceType,
             },
           );
-          if (!segment) {
+          if (segmentTarget === "not_found") {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ segment }, 200);
+          return c.json({ target: segmentTarget }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

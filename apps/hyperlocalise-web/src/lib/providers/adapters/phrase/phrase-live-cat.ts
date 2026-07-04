@@ -2,7 +2,6 @@ import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,
   ProjectFileCatQueueSegment,
-  ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
@@ -70,13 +69,6 @@ function draftToQueueSegment(draft: PhraseCatSegmentDraft): ProjectFileCatQueueS
     type: draft.type,
     comments: [],
     commentCount: draft.commentCount,
-  };
-}
-
-function draftToSegment(draft: PhraseCatSegmentDraft): ProjectFileCatSegment {
-  return {
-    ...draftToQueueSegment(draft),
-    target: draft.target,
   };
 }
 
@@ -627,7 +619,7 @@ export async function buildPhraseLiveCatFile(input: {
   };
 }
 
-export async function getPhraseLiveCatSegmentDetail(input: {
+export async function getPhraseLiveCatSegmentTarget(input: {
   secretMaterial: string;
   region?: string | null;
   baseUrl?: string | null;
@@ -635,7 +627,7 @@ export async function getPhraseLiveCatSegmentDetail(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatSegment | null> {
+}): Promise<ProjectFileCatTranslation | null | "not_found"> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,
@@ -657,55 +649,31 @@ export async function getPhraseLiveCatSegmentDetail(input: {
     mapPhraseApiError(error);
   }
 
-  const sourceLocale = locales.find((locale) => locale.default) ?? null;
   const targetLocale = resolvePhraseTargetLocale(input.targetLocale, locales);
-  const localeNames = new Set(
-    [sourceLocale, targetLocale]
-      .filter((locale): locale is PhraseLocale => locale != null)
-      .map((locale) => locale.name),
-  );
 
-  let key: PhraseKey | null;
+  let translationsByKeyId: Map<string, Map<string, PhraseTranslation>>;
   try {
-    key = await client.getKey(scope.stringsProjectId, input.externalStringId, listOptions);
+    translationsByKeyId = await loadTranslationsByKeyId({
+      client,
+      projectId: scope.stringsProjectId,
+      localeNames: new Set([targetLocale.name]),
+      branch: scope.branch,
+      keyIds: [input.externalStringId],
+    });
   } catch (error) {
     if (error instanceof PhraseApiError && error.status === 404) {
-      return null;
+      return "not_found";
     }
     mapPhraseApiError(error);
   }
 
-  if (!key) {
-    return null;
+  if (!translationsByKeyId.has(input.externalStringId)) {
+    return "not_found";
   }
 
-  const translationsByKeyId = await loadTranslationsByKeyId({
-    client,
-    projectId: scope.stringsProjectId,
-    localeNames,
-    branch: scope.branch,
-    keyIds: [key.id],
-  });
+  const targetTranslation = translationsByKeyId.get(input.externalStringId)?.get(targetLocale.name);
 
-  const translationsByLocale = translationsByKeyId.get(key.id);
-  const sourceTranslation = sourceLocale ? translationsByLocale?.get(sourceLocale.name) : null;
-  const segment = buildSegmentDrafts({
-    keys: [key],
-    sourceLocale,
-    targetLocale,
-    targetLocaleCode: input.targetLocale,
-    translationsByKeyId,
-    commentCountsByKeyId: new Map(),
-  })[0];
-
-  if (!segment) {
-    return null;
-  }
-
-  return {
-    ...draftToSegment(segment),
-    sourceText: sourceTranslation?.content?.trim() || segment.sourceText,
-  };
+  return mapPhraseTargetTranslation(targetTranslation);
 }
 
 export async function getPhraseLiveCatSegmentComments(input: {

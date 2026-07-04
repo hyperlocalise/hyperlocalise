@@ -412,6 +412,52 @@ export class NativeCatService extends ProjectServiceBase {
     return segment;
   }
 
+  async getSegmentTarget(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    externalStringId: string;
+  }): Promise<ProjectFileCatTranslation | null | "not_found"> {
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+    });
+
+    if (!sourceFile) {
+      return "not_found";
+    }
+
+    const [key] = await this.database
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.id, input.externalStringId),
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+        ),
+      )
+      .limit(1);
+
+    if (!key) {
+      return "not_found";
+    }
+
+    const translation = (
+      await this.translations.getTranslationsByKeyIds({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyIds: [key.id],
+        targetLocale: input.targetLocale,
+      })
+    )[0];
+
+    return translation ? toCatTranslation(translation) : null;
+  }
+
   async getSegmentComments(input: {
     organizationId: string;
     projectId: string;
@@ -530,6 +576,10 @@ export const getNativeProjectCatFile = (input: Parameters<NativeCatService["getC
 export const getNativeProjectCatSegmentDetail = (
   input: Parameters<NativeCatService["getSegmentDetail"]>[0],
 ) => nativeCatService.getSegmentDetail(input);
+
+export const getNativeProjectCatSegmentTarget = (
+  input: Parameters<NativeCatService["getSegmentTarget"]>[0],
+) => nativeCatService.getSegmentTarget(input);
 
 export const getNativeProjectCatSegmentComments = (
   input: Parameters<NativeCatService["getSegmentComments"]>[0],

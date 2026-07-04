@@ -18,13 +18,13 @@ const {
   catTranslationsPostMock,
   catCommentsPostMock,
   catCommentResolvePatchMock,
-  invalidateSegmentDetailMock,
+  invalidateSegmentTargetMock,
   invalidateSegmentCommentsMock,
 } = vi.hoisted(() => ({
   catTranslationsPostMock: vi.fn(),
   catCommentsPostMock: vi.fn(),
   catCommentResolvePatchMock: vi.fn(),
-  invalidateSegmentDetailMock: vi.fn(),
+  invalidateSegmentTargetMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
 }));
 
@@ -60,8 +60,8 @@ vi.mock("@/lib/api-client-instance", () => ({
   },
 }));
 
-vi.mock("./use-cat-segment-detail", () => ({
-  useInvalidateCatSegmentDetail: () => invalidateSegmentDetailMock,
+vi.mock("./use-cat-segment-target", () => ({
+  useInvalidateCatSegmentTarget: () => invalidateSegmentTargetMock,
 }));
 
 vi.mock("./use-cat-segment-comments", () => ({
@@ -183,7 +183,7 @@ describe("useCatMutations", () => {
       }),
     );
     expect(invalidateQueue).toHaveBeenCalled();
-    expect(invalidateSegmentDetailMock).toHaveBeenCalledWith(
+    expect(invalidateSegmentTargetMock).toHaveBeenCalledWith(
       expect.objectContaining({ externalStringId: "segment-1" }),
     );
     expect(invalidateSegmentCommentsMock).toHaveBeenCalledWith(
@@ -226,7 +226,7 @@ describe("useCatMutations", () => {
         json: expect.objectContaining({ externalResourceId: "crowdin-file" }),
       }),
     );
-    expect(invalidateSegmentDetailMock).toHaveBeenCalled();
+    expect(invalidateSegmentTargetMock).toHaveBeenCalled();
     expect(invalidateSegmentCommentsMock).toHaveBeenCalled();
   });
 

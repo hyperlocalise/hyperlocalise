@@ -4,7 +4,6 @@ import { schema } from "@/lib/database";
 import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,
-  ProjectFileCatSegment,
   ProjectFileCatTranslation,
   ProjectFileContent,
   ProjectFileDetailResponse,
@@ -43,7 +42,7 @@ import {
 import {
   buildPhraseLiveCatFile,
   getPhraseLiveCatSegmentComments,
-  getPhraseLiveCatSegmentDetail,
+  getPhraseLiveCatSegmentTarget,
   PhraseLiveCatError,
   savePhraseLiveCatComment,
   savePhraseLiveCatTranslation,
@@ -1070,16 +1069,15 @@ async function buildCrowdinLiveCatFile(input: {
   }
 }
 
-async function buildCrowdinLiveCatSegmentDetail(input: {
+async function buildCrowdinLiveCatSegmentTarget(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatSegment | null> {
+}): Promise<ProjectFileCatTranslation | null> {
   const projectId = Number(input.file.provider?.externalProjectId);
-  const fileId = Number(input.file.provider?.externalResourceId);
   const stringId = Number(input.externalStringId);
-  if (Number.isNaN(projectId) || Number.isNaN(fileId) || Number.isNaN(stringId)) {
+  if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
     throw new TmsProviderLiveError(
       "invalid_crowdin_project_or_file_id",
       "Crowdin project or file identifier is invalid.",
@@ -1092,38 +1090,24 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
   });
 
   try {
-    const [sourceString, translations, approvals] = await Promise.all([
-      client.getSourceString(projectId, stringId),
+    const [translations, approvals] = await Promise.all([
       client.listLanguageTranslations(projectId, input.targetLocale, {
         stringIds: [stringId],
       }),
       client.listTranslationApprovals(projectId, input.targetLocale, { stringId }),
     ]);
 
-    if (!sourceString) {
-      return null;
-    }
-
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const target = preferredLanguageTranslation(translations, approvedTranslationIds);
 
-    return {
-      externalStringId: String(sourceString.id),
-      key: sourceString.identifier,
-      sourceText: crowdinCatSourceTextValue(sourceString.text),
-      context: sourceString.context,
-      type: sourceString.type ?? null,
-      target: target?.text
-        ? {
-            text: target.text,
-            externalTranslationId:
-              target.translationId != null ? String(target.translationId) : null,
-            isApproved:
-              target.translationId != null && approvedTranslationIds.has(target.translationId),
-          }
-        : null,
-      comments: [],
-    };
+    return target?.text
+      ? {
+          text: target.text,
+          externalTranslationId: target.translationId != null ? String(target.translationId) : null,
+          isApproved:
+            target.translationId != null && approvedTranslationIds.has(target.translationId),
+        }
+      : null;
   } catch (error) {
     if (error instanceof CrowdinApiError) {
       if (error.status === 401) {
@@ -1966,7 +1950,7 @@ export async function getTmsProviderLiveCatFile(
   });
 }
 
-export async function getTmsProviderLiveCatSegmentDetail(
+export async function getTmsProviderLiveCatSegmentTarget(
   organizationId: string,
   externalProjectId: string,
   sourcePath: string,
@@ -1977,7 +1961,7 @@ export async function getTmsProviderLiveCatSegmentDetail(
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
   },
-): Promise<ProjectFileCatSegment | null> {
+): Promise<ProjectFileCatTranslation | null | "not_found"> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -1990,7 +1974,7 @@ export async function getTmsProviderLiveCatSegmentDetail(
     context,
   });
   if (!file) {
-    return null;
+    return "not_found";
   }
 
   if (!supportsLiveProviderCat(context.providerKind, file)) {
@@ -2002,7 +1986,7 @@ export async function getTmsProviderLiveCatSegmentDetail(
 
   if (context.providerKind === "phrase") {
     try {
-      return await getPhraseLiveCatSegmentDetail({
+      return await getPhraseLiveCatSegmentTarget({
         secretMaterial: context.secretMaterial,
         region: context.credential.region,
         baseUrl: context.credential.baseUrl,
@@ -2016,7 +2000,7 @@ export async function getTmsProviderLiveCatSegmentDetail(
     }
   }
 
-  return buildCrowdinLiveCatSegmentDetail({
+  return buildCrowdinLiveCatSegmentTarget({
     context,
     file,
     targetLocale,
