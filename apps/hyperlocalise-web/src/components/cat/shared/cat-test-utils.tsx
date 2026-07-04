@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderOptions } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import { IntlProvider } from "react-intl";
 
 function createTestQueryClient() {
@@ -17,7 +18,7 @@ function createTestQueryClient() {
 }
 
 export function CatTestProviders({ children }: { children: ReactNode }) {
-  const queryClient = createTestQueryClient();
+  const [queryClient] = useState(() => createTestQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
