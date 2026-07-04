@@ -203,17 +203,20 @@ func TestUsageContextHelpers(t *testing.T) {
 	t.Parallel()
 
 	t.Run("collects and normalizes usage", func(t *testing.T) {
+		t.Parallel()
 		var collected Usage
 		ctx := WithUsageCollector(context.Background(), &collected)
 
 		SetUsage(ctx, Usage{InputTokens: 10, OutputTokens: 5})
 
-		if collected.InputTokens != 10 || collected.OutputTokens != 5 || collected.TotalTokens != 15 {
+		if collected.InputTokens != 10 || collected.OutputTokens != 5 || collected.TotalTokens != 15 ||
+			collected.PromptTokens != 10 || collected.CompletionTokens != 5 {
 			t.Errorf("expected normalized usage in collector, got %+v", collected)
 		}
 	})
 
 	t.Run("nil collector returns original context", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		got := WithUsageCollector(ctx, nil)
 		if got != ctx {
@@ -222,6 +225,7 @@ func TestUsageContextHelpers(t *testing.T) {
 	})
 
 	t.Run("no collector in context is no-op", func(t *testing.T) {
+		t.Parallel()
 		// Should not panic
 		SetUsage(context.Background(), Usage{InputTokens: 10})
 	})
