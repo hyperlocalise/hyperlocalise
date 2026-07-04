@@ -122,6 +122,7 @@ func authMiddleware(verifier TokenVerifier) func(http.Handler) http.Handler {
 		})
 	}
 }
+
 func writeUnauthorized(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
