@@ -104,6 +104,7 @@ function NativeJobCatSourceFilePicker({
       files={[file]}
       highlightLocale={targetLocale}
       emptyMessage="No source file linked to this task."
+      openInCatOnSelect
     />
   );
 }
@@ -141,6 +142,7 @@ export function JobCatSourceFilePicker({
             projectId={projectId}
             encodedJobId={jobId}
             highlightLocale={targetLocale}
+            openInCatOnSelect
           />
         ) : (
           <NativeJobCatSourceFilePicker
