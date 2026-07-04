@@ -49,7 +49,7 @@ export interface CatWorkspaceReview {
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
-  onAskQuestion: (segmentId: string) => void | Promise<void>;
+  onAskQuestion: (segmentId: string, options?: { forceRefresh?: boolean }) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
   onBulkApprove?: (segmentIds: string[]) => void | Promise<void>;
@@ -63,7 +63,10 @@ export interface CatWorkspaceServices {
     glossaryTerms?: CatGlossaryTerm[],
   ) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
-  lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
+  lookupSegmentContext?: (
+    segment: CatSegment,
+    options?: { cachedOnly?: boolean; forceRefresh?: boolean },
+  ) => Promise<string | null>;
   lookupSegmentConcordance?: (segment: CatSegment) => Promise<CatSegmentConcordanceResult>;
   lookupSegmentVisualContext?: (segment: CatSegment) => Promise<CatSegmentVisualContextResult>;
   generateAiRecommendation?: (

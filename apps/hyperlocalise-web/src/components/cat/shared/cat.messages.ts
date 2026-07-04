@@ -360,11 +360,6 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "obaPDIKyjU",
     description: "Section heading for repository context discovered by an agent",
   },
-  meaningInProduct: {
-    defaultMessage: "Meaning in product",
-    id: "99wOujGZDN",
-    description: "Insight card label for agent-discovered product meaning",
-  },
   agentContextAria: {
     defaultMessage: "Agent context",
     id: "4lhHg5n2pX",
@@ -513,6 +508,11 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Find context",
     id: "/MBsvL6JVH",
     description: "Button to look up repository context for the current string",
+  },
+  refreshContextTitle: {
+    defaultMessage: "Re-run repository context lookup for this string",
+    id: "746kT0UVrs",
+    description: "Tooltip for refreshing repository context for the current string",
   },
   previous: {
     defaultMessage: "Previous",

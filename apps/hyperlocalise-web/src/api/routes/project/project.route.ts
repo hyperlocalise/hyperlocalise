@@ -54,7 +54,10 @@ import {
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
-import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/string-context/project-string-context-service";
+import {
+  lookupCachedProjectFileStringRepositoryContext,
+  lookupProjectFileStringRepositoryContext,
+} from "@/lib/projects/string-context/project-string-context-service";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
@@ -1288,6 +1291,43 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return providerProjectUnavailableResponse(c, target);
         }
 
+        if (body.cachedOnly) {
+          const result = await lookupCachedProjectFileStringRepositoryContext({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            repositoryFullName: body.repositoryFullName ?? null,
+            sourcePath: body.sourcePath,
+            key: body.key,
+            text: body.text,
+          });
+
+          if (isErr(result)) {
+            stringContextRouteLogger.warn(
+              {
+                organizationId: c.var.auth.organization.localOrganizationId,
+                projectId: params.projectId,
+                stringKey: body.key,
+                code: result.error.code,
+              },
+              "project file string context lookup rejected",
+            );
+            return badRequestResponse(c, result.error.code, result.error.message);
+          }
+
+          stringContextRouteLogger.debug(
+            {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              stringKey: body.key,
+              cached: result.value.cached,
+              summaryLength: result.value.summary?.length ?? 0,
+            },
+            "project file string context lookup served",
+          );
+
+          return c.json({ stringContext: result.value }, 200);
+        }
+
         const result = await lookupProjectFileStringRepositoryContext({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
@@ -1322,7 +1362,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             projectId: params.projectId,
             stringKey: body.key,
             cached: result.value.cached,
-            summaryLength: result.value.summary.length,
+            summaryLength: result.value.summary?.length ?? 0,
           },
           "project file string context lookup served",
         );

@@ -30,7 +30,7 @@ function queueStatusDotClassName(status: CatSegmentStatus) {
   }
 
   if (status === "needs_review") {
-    return "size-2.5 rounded-full bg-bud-400";
+    return "size-2.5 rounded-full bg-beam-700";
   }
 
   return "size-2.5 rounded-full border border-foreground/25";

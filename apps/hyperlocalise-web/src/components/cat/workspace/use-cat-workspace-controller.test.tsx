@@ -297,11 +297,19 @@ describe("useCatWorkspaceController", () => {
   });
 
   it("reveals agent context after a successful lookup", async () => {
+    const lookupSegmentContext = vi.fn().mockImplementation((_segment, options) => {
+      if (options?.cachedOnly) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve("Hero title on the sign-in page.");
+    });
     const { result, store } = renderController(undefined, {
       services: {
-        lookupSegmentContext: vi.fn().mockResolvedValue("Hero title on the sign-in page."),
+        lookupSegmentContext,
       },
     });
+
+    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
 
     await act(async () => {
       await result.current.dependencies.review.onAskQuestion("seg-02");
@@ -313,10 +321,62 @@ describe("useCatWorkspaceController", () => {
     );
   });
 
+  it("lazy-loads cached agent context for the selected segment", async () => {
+    const lookupSegmentContext = vi.fn().mockResolvedValue("Cached context from the repository.");
+    const { store } = renderController(undefined, {
+      services: {
+        lookupSegmentContext,
+      },
+    });
+
+    await waitFor(() =>
+      expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
+        "Cached context from the repository.",
+      ),
+    );
+    expect(store.revealedAgentContextSegmentIds.has("seg-02")).toBe(true);
+    expect(lookupSegmentContext).toHaveBeenCalledWith(expect.objectContaining({ id: "seg-02" }), {
+      cachedOnly: true,
+    });
+  });
+
+  it("refreshes existing agent context when requested", async () => {
+    const initialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-02",
+      segmentIntelligence: {
+        "seg-02": {
+          ...createCatWorkspaceState().intelligence,
+          agentContext: "Old context.",
+        },
+      },
+    });
+    const lookupSegmentContext = vi.fn().mockResolvedValue("Updated context.");
+    const { result, store } = renderController(initialState, {
+      services: {
+        lookupSegmentContext,
+      },
+    });
+
+    await act(async () => {
+      await result.current.dependencies.review.onAskQuestion("seg-02", { forceRefresh: true });
+    });
+
+    expect(lookupSegmentContext).toHaveBeenCalledWith(expect.objectContaining({ id: "seg-02" }), {
+      forceRefresh: true,
+    });
+    expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe("Updated context.");
+  });
+
   it("records context lookup failures as format checks", async () => {
+    const lookupSegmentContext = vi.fn().mockImplementation((_segment, options) => {
+      if (options?.cachedOnly) {
+        return Promise.resolve(null);
+      }
+      return Promise.reject(new Error("Repository not selected."));
+    });
     const { result, store } = renderController(undefined, {
       services: {
-        lookupSegmentContext: vi.fn().mockRejectedValue(new Error("Repository not selected.")),
+        lookupSegmentContext,
       },
     });
 
@@ -326,13 +386,15 @@ describe("useCatWorkspaceController", () => {
       await result.current.dependencies.review.onAskQuestion("seg-02");
     });
 
-    expect(store.segmentFormatChecks["seg-02"]).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "context-lookup-failed-seg-02",
-          message: "Repository not selected.",
-        }),
-      ]),
+    await waitFor(() =>
+      expect(store.segmentFormatChecks["seg-02"]).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "context-lookup-failed-seg-02",
+            message: "Repository not selected.",
+          }),
+        ]),
+      ),
     );
   });
 });

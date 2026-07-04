@@ -130,6 +130,7 @@ export function CatEditorPanel({
           <CatEditorSourceSection
             sourceText={segment.sourceText}
             sourceLocale={segment.sourceLocale}
+            segmentKey={segment.key}
           />
 
           <CatEditorTargetSection
