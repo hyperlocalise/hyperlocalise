@@ -115,7 +115,7 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: apps/hyperlocalise-web/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-${{ hashFiles('apps/hyperlocalise-web/**/*.ts', 'apps/hyperlocalise-web/**/*.tsx', 'apps/hyperlocalise-web/**/*.js', 'apps/hyperlocalise-web/**/*.jsx', 'apps/hyperlocalise-web/**/*.mjs', 'apps/hyperlocalise-web/**/*.cjs') }}
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-${{ hashFiles('apps/hyperlocalise-web/src/**/*.ts', 'apps/hyperlocalise-web/src/**/*.tsx', 'apps/hyperlocalise-web/src/**/*.js', 'apps/hyperlocalise-web/src/**/*.jsx', 'apps/hyperlocalise-web/next.config.*', 'apps/hyperlocalise-web/postcss.config.*') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-
 
