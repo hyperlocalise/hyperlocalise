@@ -70,7 +70,7 @@ export function ProviderLiveJobDetailContent({
   });
   useAppShellBreadcrumbAppend({
     id: "job-detail",
-    label: jobQuery.data?.externalTitle ?? jobId,
+    label: jobQuery.data?.externalTitle,
   });
 
   const translateWithAgent = useMutation({
