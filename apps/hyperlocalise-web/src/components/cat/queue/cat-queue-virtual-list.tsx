@@ -1,7 +1,7 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
@@ -39,30 +39,46 @@ export function CatQueueVirtualList({
 }) {
   const intl = useIntl();
   const parentRef = useRef<HTMLDivElement>(null);
+  const loadRequestedForLengthRef = useRef<number | null>(null);
+  const checkForNearEnd = useCallback(
+    (items: Array<{ index: number }>) => {
+      if (items.length === 0 || segments.length === 0) {
+        return;
+      }
+
+      const lastItem = items.at(-1);
+      if (!lastItem || lastItem.index < Math.max(segments.length - 3, 0)) {
+        return;
+      }
+
+      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.length) {
+        return;
+      }
+
+      loadRequestedForLengthRef.current = segments.length;
+      onNearEnd?.();
+    },
+    [hasMore, isLoadingMore, onNearEnd, segments.length],
+  );
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 8,
+    onChange: (instance) => {
+      checkForNearEnd(instance.getVirtualItems());
+    },
   });
 
   useEffect(() => {
-    const items = virtualizer.getVirtualItems();
-    if (items.length === 0 || segments.length === 0) {
-      return;
+    if (!isLoadingMore) {
+      loadRequestedForLengthRef.current = null;
     }
+  }, [isLoadingMore]);
 
-    const lastItem = items.at(-1);
-    if (!lastItem) {
-      return;
-    }
-
-    if (lastItem.index >= Math.max(segments.length - 3, 0)) {
-      if (hasMore && !isLoadingMore) {
-        onNearEnd?.();
-      }
-    }
-  }, [hasMore, isLoadingMore, onNearEnd, segments.length, virtualizer]);
+  useEffect(() => {
+    checkForNearEnd(virtualizer.getVirtualItems());
+  }, [checkForNearEnd, virtualizer]);
 
   return (
     <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto px-4 pb-3", className)}>
