@@ -200,6 +200,7 @@ export async function startCanvaLocalization(input: {
   const [project] = await db
     .select({
       id: schema.projects.id,
+      source: schema.projects.source,
       sourceLocale: schema.projects.sourceLocale,
       targetLocales: schema.projects.targetLocales,
     })

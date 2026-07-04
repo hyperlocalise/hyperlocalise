@@ -1,11 +1,16 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
-import { markAuthorizationCodeUsed } from "@/api/auth/mcp";
+import {
+  markAuthorizationCodeUsed,
+  deriveSha256KeyMaterial,
+  hashMcpToken,
+  verifyPkceChallenge,
+} from "@/api/auth/mcp";
 
 const TOKEN_PREFIX = "hl_canva_";
 
@@ -43,7 +48,7 @@ export const CANVA_CONSENT_COOKIE = "hl_canva_consent";
 
 function getCanvaOAuthSecret(): Buffer {
   const configuredKey = env.CANVA_OAUTH_CLIENT_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
-  return createHash("sha256").update(configuredKey).digest();
+  return deriveSha256KeyMaterial(configuredKey);
 }
 
 function base64Url(input: Buffer | string): string {
@@ -95,7 +100,7 @@ export function generateCanvaOAuthToken(): string {
 }
 
 export function hashCanvaOAuthToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  return hashMcpToken(token);
 }
 
 export function isCanvaOAuthAccessToken(token: string): boolean {
