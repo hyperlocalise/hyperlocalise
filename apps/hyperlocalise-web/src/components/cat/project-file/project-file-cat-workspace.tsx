@@ -182,10 +182,16 @@ export function ProjectFileCatWorkspace({
     });
   }, [initialSegmentKey, workspaceState]);
 
+  const resolvedExternalResourceId =
+    externalResourceId ?? catFile?.provider?.externalResourceId ?? null;
+  const resolvedResourceType = resourceType ?? catFile?.provider?.resourceType;
+
   const segmentDetailQuery = useCatSegmentDetail({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId: resolvedExternalResourceId,
+    resourceType: resolvedResourceType,
     targetLocale,
     externalStringId: activeSegmentId,
     repositoryFullName,
@@ -196,6 +202,8 @@ export function ProjectFileCatWorkspace({
     organizationSlug,
     projectId,
     sourcePath,
+    externalResourceId: resolvedExternalResourceId,
+    resourceType: resolvedResourceType,
     targetLocale,
     externalStringId: activeSegmentId,
     enabled: Boolean(catFile),

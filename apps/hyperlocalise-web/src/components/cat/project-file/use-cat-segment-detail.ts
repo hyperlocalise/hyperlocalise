@@ -10,6 +10,8 @@ export function projectFileCatSegmentDetailQueryKey(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
   repositoryFullName: string | null;
@@ -19,6 +21,8 @@ export function projectFileCatSegmentDetailQueryKey(input: {
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
+    input.externalResourceId ?? null,
+    input.resourceType ?? null,
     input.targetLocale,
     input.externalStringId,
     input.repositoryFullName,
@@ -29,6 +33,8 @@ export async function fetchProjectFileCatSegmentDetail(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
   repositoryFullName: string | null;
@@ -43,6 +49,8 @@ export async function fetchProjectFileCatSegmentDetail(input: {
     },
     query: {
       sourcePath: input.sourcePath,
+      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
       targetLocale: input.targetLocale,
       ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
     },
@@ -60,6 +68,8 @@ export function useCatSegmentDetail(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string | null;
   repositoryFullName?: string | null;
@@ -73,6 +83,8 @@ export function useCatSegmentDetail(input: {
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      externalResourceId: input.externalResourceId,
+      resourceType: input.resourceType,
       targetLocale: input.targetLocale,
       externalStringId,
       repositoryFullName,
@@ -88,6 +100,8 @@ export function useCatSegmentDetail(input: {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
+        externalResourceId: input.externalResourceId,
+        resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         externalStringId,
         repositoryFullName,
@@ -102,6 +116,8 @@ export function useInvalidateCatSegmentDetail() {
     organizationSlug: string;
     projectId: string;
     sourcePath: string;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
     targetLocale: string;
     externalStringId: string;
     repositoryFullName?: string | null;

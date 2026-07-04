@@ -111,12 +111,19 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentDetail({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
           repositoryFullName,
@@ -125,6 +132,8 @@ export function useCatMutations(input: {
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
         }),
@@ -160,12 +169,19 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+      const resourceType = input.catFile?.provider?.resourceType;
+
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentDetail({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
           repositoryFullName,
@@ -174,6 +190,8 @@ export function useCatMutations(input: {
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
           sourcePath: input.sourcePath,
+          externalResourceId,
+          resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
         }),

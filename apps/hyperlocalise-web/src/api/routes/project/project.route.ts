@@ -771,7 +771,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             query.sourcePath,
             query.targetLocale,
             params.externalStringId,
-            { actorUserId: c.var.auth.user.localUserId },
+            {
+              actorUserId: c.var.auth.user.localUserId,
+              externalResourceId: query.externalResourceId,
+              resourceType: query.resourceType,
+            },
           );
           if (!segment) {
             return notFoundResponse(c, "cat_segment_not_found");
@@ -820,7 +824,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             query.sourcePath,
             query.targetLocale,
             params.externalStringId,
-            { actorUserId: c.var.auth.user.localUserId },
+            {
+              actorUserId: c.var.auth.user.localUserId,
+              externalResourceId: query.externalResourceId,
+              resourceType: query.resourceType,
+            },
           );
 
           return c.json({ comments }, 200);

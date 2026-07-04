@@ -1376,75 +1376,76 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
       if (path.includes("/projects/42/comments?")) {
         commentRequests.push(path);
 
-        if (path.includes("type=comment")) {
-          return new Response(
-            JSON.stringify({
-              data: [
-                {
-                  data: {
-                    id: 501,
-                    text: "French note",
-                    userId: 1,
-                    stringId: 1001,
-                    languageId: "fr",
-                    type: "comment",
-                    createdAt: "2026-06-08T00:01:00Z",
-                    projectId: 42,
-                  },
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 501,
+                  text: "French note",
+                  userId: 1,
+                  stringId: 1001,
+                  languageId: "fr",
+                  type: "comment",
+                  createdAt: "2026-06-08T00:01:00Z",
+                  projectId: 42,
                 },
-                {
-                  data: {
-                    id: 502,
-                    text: "German note",
-                    userId: 1,
-                    stringId: 1001,
-                    languageId: "de",
-                    type: "comment",
-                    createdAt: "2026-06-08T00:02:00Z",
-                    projectId: 42,
-                  },
+              },
+              {
+                data: {
+                  id: 502,
+                  text: "German note",
+                  userId: 1,
+                  stringId: 1001,
+                  languageId: "de",
+                  type: "comment",
+                  createdAt: "2026-06-08T00:02:00Z",
+                  projectId: 42,
                 },
-              ],
-            }),
-            { status: 200 },
-          );
-        }
-
-        if (path.includes("type=issue")) {
-          return new Response(
-            JSON.stringify({
-              data: [
-                {
-                  data: {
-                    id: 601,
-                    text: "French issue",
-                    userId: 1,
-                    stringId: 1001,
-                    languageId: "fr",
-                    type: "issue",
-                    issueStatus: "unresolved",
-                    createdAt: "2026-06-08T00:03:00Z",
-                    projectId: 42,
-                  },
+              },
+              {
+                data: {
+                  id: 601,
+                  text: "French issue",
+                  userId: 1,
+                  stringId: 1001,
+                  languageId: "fr",
+                  type: "issue",
+                  issueStatus: "unresolved",
+                  createdAt: "2026-06-08T00:03:00Z",
+                  projectId: 42,
                 },
-                {
-                  data: {
-                    id: 602,
-                    text: "German issue",
-                    userId: 1,
-                    stringId: 1001,
-                    languageId: "de",
-                    type: "issue",
-                    issueStatus: "unresolved",
-                    createdAt: "2026-06-08T00:04:00Z",
-                    projectId: 42,
-                  },
+              },
+              {
+                data: {
+                  id: 602,
+                  text: "German issue",
+                  userId: 1,
+                  stringId: 1001,
+                  languageId: "de",
+                  type: "issue",
+                  issueStatus: "unresolved",
+                  createdAt: "2026-06-08T00:04:00Z",
+                  projectId: 42,
                 },
-              ],
-            }),
-            { status: 200 },
-          );
-        }
+              },
+              {
+                data: {
+                  id: 603,
+                  text: "Resolved French issue",
+                  userId: 1,
+                  stringId: 1001,
+                  languageId: "fr",
+                  type: "issue",
+                  issueStatus: "resolved",
+                  createdAt: "2026-06-08T00:05:00Z",
+                  projectId: 42,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
       }
 
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
@@ -1457,7 +1458,7 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
       "home.json",
       "fr",
       "1001",
-      { actorUserId: user.id },
+      { actorUserId: user.id, externalResourceId: "101", resourceType: "file" },
     );
 
     expect(segment).toMatchObject({
@@ -1472,16 +1473,21 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
       "home.json",
       "fr",
       "1001",
-      { actorUserId: user.id },
+      { actorUserId: user.id, externalResourceId: "101", resourceType: "file" },
     );
 
     expect(comments).toHaveLength(2);
     expect(comments.map((comment) => comment.locale)).toEqual(["fr", "fr"]);
     expect(comments.map((comment) => comment.text)).toEqual(["French issue", "French note"]);
-    expect(commentRequests).toHaveLength(2);
+    expect(commentRequests).toHaveLength(1);
     for (const path of commentRequests) {
       expect(path).toContain("targetLanguageId=fr");
       expect(path).toContain("stringId=1001");
+      expect(path).not.toContain("type=");
     }
+    const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedPaths.some((path) => path.includes("/branches?"))).toBe(false);
+    expect(requestedPaths.some((path) => path.includes("/directories?"))).toBe(false);
+    expect(requestedPaths.some((path) => path.includes("/files?"))).toBe(false);
   });
 });

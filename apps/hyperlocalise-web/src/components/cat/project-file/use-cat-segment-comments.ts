@@ -10,6 +10,8 @@ export function projectFileCatSegmentCommentsQueryKey(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
 }) {
@@ -18,6 +20,8 @@ export function projectFileCatSegmentCommentsQueryKey(input: {
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
+    input.externalResourceId ?? null,
+    input.resourceType ?? null,
     input.targetLocale,
     input.externalStringId,
   ] as const;
@@ -27,6 +31,8 @@ export async function fetchProjectFileCatSegmentComments(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
 }) {
@@ -40,6 +46,8 @@ export async function fetchProjectFileCatSegmentComments(input: {
     },
     query: {
       sourcePath: input.sourcePath,
+      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
       targetLocale: input.targetLocale,
     },
   });
@@ -56,6 +64,8 @@ export function useCatSegmentComments(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string | null;
   enabled?: boolean;
@@ -67,6 +77,8 @@ export function useCatSegmentComments(input: {
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      externalResourceId: input.externalResourceId,
+      resourceType: input.resourceType,
       targetLocale: input.targetLocale,
       externalStringId,
     }),
@@ -81,6 +93,8 @@ export function useCatSegmentComments(input: {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
+        externalResourceId: input.externalResourceId,
+        resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         externalStringId,
       }),
@@ -94,6 +108,8 @@ export function useInvalidateCatSegmentComments() {
     organizationSlug: string;
     projectId: string;
     sourcePath: string;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
     targetLocale: string;
     externalStringId: string;
   }) => {

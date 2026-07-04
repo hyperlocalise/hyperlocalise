@@ -145,6 +145,8 @@ describe("fetchProjectFileCatSegmentDetail", () => {
 
     const result = await fetchProjectFileCatSegmentDetail({
       ...catApiTestContext,
+      externalResourceId: "101",
+      resourceType: "file",
       externalStringId: "segment-42",
       repositoryFullName: null,
     });
@@ -159,6 +161,8 @@ describe("fetchProjectFileCatSegmentDetail", () => {
         },
         query: {
           sourcePath: catApiTestContext.sourcePath,
+          externalResourceId: "101",
+          resourceType: "file",
           targetLocale: catApiTestContext.targetLocale,
         },
       }),
@@ -187,10 +191,22 @@ describe("fetchProjectFileCatSegmentComments", () => {
 
     const result = await fetchProjectFileCatSegmentComments({
       ...catApiTestContext,
+      externalResourceId: "101",
+      resourceType: "file",
       externalStringId: "segment-1",
     });
 
     expect(result).toEqual(comments);
+    expect(catSegmentCommentsGetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: {
+          sourcePath: catApiTestContext.sourcePath,
+          externalResourceId: "101",
+          resourceType: "file",
+          targetLocale: catApiTestContext.targetLocale,
+        },
+      }),
+    );
   });
 
   it("throws when comments cannot be loaded", async () => {

@@ -267,7 +267,11 @@ type ActiveTmsProviderContext = {
 async function buildActiveTmsProviderContext(
   organizationId: string,
   credential: ExternalTmsCredential,
-  options?: { actorUserId?: string | null },
+  options?: {
+    actorUserId?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+  },
 ): Promise<ActiveTmsProviderContext> {
   const providerKind = credential.providerKind as ExternalTmsProviderKind;
   let secretMaterial: string;
@@ -508,7 +512,11 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
 
 export async function tryLoadActiveTmsProviderContext(
   organizationId: string,
-  options?: { actorUserId?: string | null },
+  options?: {
+    actorUserId?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+  },
 ): Promise<ActiveTmsProviderContext | null> {
   const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
   if (!credential) {
@@ -1267,30 +1275,16 @@ async function buildCrowdinLiveCatSegmentComments(input: {
   });
 
   try {
-    const [plainComments, unresolvedIssues] = await Promise.all([
-      client.listStringComments(projectId, {
-        stringId,
-        type: "comment",
-        targetLanguageId: input.targetLocale,
-      }),
-      client.listStringComments(projectId, {
-        stringId,
-        type: "issue",
-        issueStatus: "unresolved",
-        targetLanguageId: input.targetLocale,
-      }),
-    ]);
+    const comments = await client.listStringComments(projectId, {
+      stringId,
+      targetLanguageId: input.targetLocale,
+    });
 
-    const localePlainComments = crowdinCatCommentsForTargetLocale(
-      plainComments,
-      input.targetLocale,
-    );
-    const localeUnresolvedIssues = crowdinCatCommentsForTargetLocale(
-      unresolvedIssues,
-      input.targetLocale,
+    const visibleComments = crowdinCatCommentsForTargetLocale(comments, input.targetLocale).filter(
+      (comment) => comment.type !== "issue" || comment.issueStatus === "unresolved",
     );
 
-    return [...localePlainComments, ...localeUnresolvedIssues]
+    return visibleComments
       .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((comment) => mapCrowdinStringComment(comment));
   } catch (error) {
@@ -2029,7 +2023,11 @@ export async function getTmsProviderLiveCatSegmentDetail(
   sourcePath: string,
   targetLocale: string,
   externalStringId: string,
-  options?: { actorUserId?: string | null },
+  options?: {
+    actorUserId?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+  },
 ): Promise<ProjectFileCatSegment | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
@@ -2038,6 +2036,8 @@ export async function getTmsProviderLiveCatSegmentDetail(
     organizationId,
     externalProjectId,
     sourcePath,
+    externalResourceId: options?.externalResourceId,
+    resourceType: options?.resourceType,
     context,
   });
   if (!file) {
@@ -2081,7 +2081,11 @@ export async function getTmsProviderLiveCatSegmentComments(
   sourcePath: string,
   targetLocale: string,
   externalStringId: string,
-  options?: { actorUserId?: string | null },
+  options?: {
+    actorUserId?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+  },
 ): Promise<ProjectFileCatComment[]> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
@@ -2090,6 +2094,8 @@ export async function getTmsProviderLiveCatSegmentComments(
     organizationId,
     externalProjectId,
     sourcePath,
+    externalResourceId: options?.externalResourceId,
+    resourceType: options?.resourceType,
     context,
   });
   if (!file) {
