@@ -8,6 +8,7 @@ func TestExtractExtraPlaceholders(t *testing.T) {
 		want []string
 	}{
 		{"Hello %s", []string{"%s"}},
+		{"%s and %s", []string{"%s", "%s"}},
 		{"Item %1$d of %2$d", []string{"%1$d", "%2$d"}},
 		{"Hello %(name)s", []string{"%(name)s"}},
 		{"Path ${HOME}/file", []string{"${HOME}"}},
@@ -29,6 +30,12 @@ func TestValidateExtraPlaceholderParity(t *testing.T) {
 	}
 	if err := validateExtraPlaceholderParity("Hello %s", "Bonjour"); err == nil {
 		t.Fatal("expected missing placeholder to fail")
+	}
+	if err := validateExtraPlaceholderParity("%s %s", "%s"); err == nil {
+		t.Fatal("expected missing duplicate placeholder to fail")
+	}
+	if err := validateExtraPlaceholderParity("%s %s", "%s %s"); err != nil {
+		t.Fatalf("expected duplicate placeholder parity pass, got %v", err)
 	}
 }
 

@@ -22,25 +22,21 @@ func extractExtraPlaceholders(text string) []string {
 		return nil
 	}
 
-	seen := make(map[string]struct{})
+	var out []string
 	for _, pattern := range extraPlaceholderPatterns {
 		for _, match := range pattern.FindAllString(text, -1) {
 			match = strings.TrimSpace(match)
 			if match == "" {
 				continue
 			}
-			seen[match] = struct{}{}
+			out = append(out, match)
 		}
 	}
 
-	if len(seen) == 0 {
+	if len(out) == 0 {
 		return nil
 	}
 
-	out := make([]string, 0, len(seen))
-	for token := range seen {
-		out = append(out, token)
-	}
 	sort.Strings(out)
 	return out
 }
