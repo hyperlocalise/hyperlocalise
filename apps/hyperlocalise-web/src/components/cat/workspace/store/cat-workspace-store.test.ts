@@ -78,8 +78,8 @@ describe("CatWorkspaceStore hydration", () => {
     expect(store.selectedSegmentId).toBe("seg-02");
     expect(store.getSegmentView("seg-01")).toMatchObject({
       id: "seg-01",
-      targetText: "Saved first",
-      status: "reviewed",
+      targetText: "Old first",
+      status: "needs_review",
     });
     expect(store.getSegmentView("seg-02")).toMatchObject({
       id: "seg-02",
@@ -139,6 +139,38 @@ describe("CatWorkspaceStore hydration", () => {
     );
   });
 
+  it("preserves lazy-loaded translation when paginated queue snapshots rehydrate twice", () => {
+    const pageOne = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+        { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
+      ],
+    });
+    const store = createCatWorkspaceStore(pageOne);
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+
+    const pageOneAndTwo = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+        { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
+        { id: "seg-03", index: 3, key: "footer.title", sourceText: "Footer" },
+      ],
+    });
+
+    store.hydrateFromServerSnapshot(pageOneAndTwo);
+    store.hydrateFromServerSnapshot(pageOneAndTwo);
+
+    expect(store.getSegmentView("seg-01")?.targetText).toBe("Bonjour");
+    expect(store.getSegmentView("seg-03")?.targetText).toBe("");
+  });
+
   it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
@@ -157,27 +189,13 @@ describe("CatWorkspaceStore hydration", () => {
     });
     const store = createCatWorkspaceStore(initialState);
 
-    store.hydrateFromServerSnapshot({
-      ...initialState,
-      segments: [
-        {
-          ...initialState.segments![0]!,
-          targetText: "Hola",
-          status: "reviewed",
-        },
-      ],
+    store.applySegmentTarget("seg-01", {
+      text: "Hola",
+      externalTranslationId: "translation-1",
+      isApproved: true,
     });
 
-    store.hydrateFromServerSnapshot({
-      ...initialState,
-      segments: [
-        {
-          ...initialState.segments![0]!,
-          targetText: "",
-          status: "pending",
-        },
-      ],
-    });
+    store.hydrateFromServerSnapshot(initialState);
 
     expect(store.getSegmentView("seg-01")).toMatchObject({
       targetText: "Hola",
@@ -202,25 +220,29 @@ describe("CatWorkspaceStore hydration", () => {
       ],
     });
     const store = createCatWorkspaceStore(queueState);
-    const loadedComments = [
+    store.applySegmentComments("seg-01", [
       {
-        id: "comment-1",
-        type: "comment" as const,
+        externalCommentId: "comment-1",
+        type: "comment",
         status: null,
         text: "Keep this concise.",
         createdAt: "2026-07-04T00:00:00.000Z",
         locale: "fr",
+        author: null,
       },
-    ];
-
-    store.hydrateFromServerSnapshot({
-      ...queueState,
-      segments: [{ ...queueState.segments![0]!, comments: loadedComments }],
-    });
+    ]);
     store.hydrateFromServerSnapshot(queueState);
-
-    expect(store.getSegmentView("seg-01")?.comments).toEqual(loadedComments);
-    expect(store.getSegmentView("seg-01")?.tags).toEqual(["1 comment"]);
+    expect(store.getSegmentView("seg-01")?.comments).toEqual([
+      {
+        id: "comment-1",
+        type: "comment",
+        status: null,
+        text: "Keep this concise.",
+        createdAt: "2026-07-04T00:00:00.000Z",
+        locale: "fr",
+        author: null,
+      },
+    ]);
     expect(store.segmentComments.has("seg-01")).toBe(true);
   });
 
