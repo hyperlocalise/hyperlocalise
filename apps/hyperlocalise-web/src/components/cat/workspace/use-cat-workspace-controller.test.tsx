@@ -49,6 +49,7 @@ function renderController(
   overrides: Record<string, unknown> = {},
 ) {
   const store = createCatWorkspaceStore(initialState);
+  const { services: servicesOverride, review, editing, navigation, ...rest } = overrides;
 
   return {
     store,
@@ -59,12 +60,12 @@ function renderController(
           initialState,
           services: {
             validateFormat: mockValidateFormat,
-            ...(overrides.services as object),
+            ...(servicesOverride as object),
           },
-          review: overrides.review as never,
-          editing: overrides.editing as never,
-          navigation: overrides.navigation as never,
-          ...overrides,
+          review: review as never,
+          editing: editing as never,
+          navigation: navigation as never,
+          ...rest,
         }),
       { wrapper: CatTestProviders },
     ),
@@ -139,6 +140,7 @@ describe("useCatWorkspaceController", () => {
   it("records concordance lookup failures as format checks", async () => {
     const { store } = renderController(undefined, {
       services: {
+        validateFormat: undefined,
         lookupSegmentConcordance: vi.fn().mockRejectedValue(new Error("TM unavailable")),
       },
     });
@@ -193,11 +195,14 @@ describe("useCatWorkspaceController", () => {
 
   it("adds save failure checks when approve fails", async () => {
     const { result, store } = renderController(undefined, {
-      services: {},
       review: {
         onApprove: vi.fn().mockRejectedValue(new Error("Provider rejected the update.")),
       },
     });
+
+    await waitFor(() =>
+      expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0),
+    );
 
     await act(async () => {
       await result.current.dependencies.review.onApprove("seg-02", "Deuxième");
@@ -316,6 +321,10 @@ describe("useCatWorkspaceController", () => {
         lookupSegmentContext: vi.fn().mockRejectedValue(new Error("Repository not selected.")),
       },
     });
+
+    await waitFor(() =>
+      expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0),
+    );
 
     await act(async () => {
       await result.current.dependencies.review.onAskQuestion("seg-02");

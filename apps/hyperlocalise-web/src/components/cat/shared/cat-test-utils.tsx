@@ -34,10 +34,3 @@ export function renderWithCatProviders(ui: ReactElement, options?: Omit<RenderOp
     ...options,
   });
 }
-
-export function createCatWorkspaceContainerProps(overrides: Record<string, unknown> = {}) {
-  return {
-    initialState: undefined,
-    ...overrides,
-  };
-}

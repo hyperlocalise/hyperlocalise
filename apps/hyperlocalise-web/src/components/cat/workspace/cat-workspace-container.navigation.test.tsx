@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   catSegmentsFixture,
@@ -30,6 +30,10 @@ type MockVirtualizer = {
 };
 
 const virtualizerByCount = new Map<number, MockVirtualizer>();
+
+beforeEach(() => {
+  virtualizerByCount.clear();
+});
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: (options: { count: number; estimateSize?: () => number }) => {
