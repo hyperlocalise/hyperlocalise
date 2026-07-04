@@ -200,9 +200,7 @@ describe("useCatWorkspaceController", () => {
       },
     });
 
-    await waitFor(() =>
-      expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
 
     await act(async () => {
       await result.current.dependencies.review.onApprove("seg-02", "Deuxième");
@@ -322,9 +320,7 @@ describe("useCatWorkspaceController", () => {
       },
     });
 
-    await waitFor(() =>
-      expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
 
     await act(async () => {
       await result.current.dependencies.review.onAskQuestion("seg-02");
