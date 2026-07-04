@@ -9,31 +9,29 @@ import "@pierre/trees/web-components";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { formatBytes } from "./project-files-shared";
 
-const TREE_HEIGHT_PX = 320;
+const TREE_MIN_HEIGHT_PX = 320;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
 
-function projectFilesTreeStyle(heightPx: number): CSSProperties {
-  return {
-    height: `${heightPx}px`,
-    minHeight: `${heightPx}px`,
-    backgroundColor: "transparent",
-    color: "var(--foreground)",
-    borderColor: "var(--border)",
-    "--trees-bg-override": "var(--background)",
-    "--trees-bg-muted-override": "var(--muted)",
-    "--trees-border-color-override": "var(--border)",
-    "--trees-fg-override": "var(--foreground)",
-    "--trees-fg-muted-override": "var(--muted-foreground)",
-    "--trees-focus-ring-color-override": "var(--ring)",
-    "--trees-selected-bg-override": "var(--muted)",
-    "--trees-selected-fg-override": "var(--foreground)",
-    "--trees-selected-focused-border-color-override": "var(--ring)",
-  } as CSSProperties;
-}
+const projectFilesTreeStyle = {
+  height: "100%",
+  minHeight: `${TREE_MIN_HEIGHT_PX}px`,
+  backgroundColor: "transparent",
+  color: "var(--foreground)",
+  borderColor: "var(--border)",
+  "--trees-bg-override": "var(--background)",
+  "--trees-bg-muted-override": "var(--muted)",
+  "--trees-border-color-override": "var(--border)",
+  "--trees-fg-override": "var(--foreground)",
+  "--trees-fg-muted-override": "var(--muted-foreground)",
+  "--trees-focus-ring-color-override": "var(--ring)",
+  "--trees-selected-bg-override": "var(--muted)",
+  "--trees-selected-fg-override": "var(--foreground)",
+  "--trees-selected-focused-border-color-override": "var(--ring)",
+} as CSSProperties;
 
 function formatNullableDate(value: string | null | undefined) {
   if (!value) return null;
@@ -69,7 +67,6 @@ export function ProjectFilesTree({
   ariaLabel?: string;
 }) {
   const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
-  const pathsKey = paths.join("\0");
   const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
@@ -84,7 +81,7 @@ export function ProjectFilesTree({
             initialVisibleRowCount: Math.max(paths.length, 8),
           })
         : null,
-    [pathsKey, paths],
+    [paths],
   );
 
   useEffect(() => {
@@ -144,14 +141,14 @@ export function ProjectFilesTree({
   }
 
   return (
-    <div className="w-full" style={{ height: TREE_HEIGHT_PX }}>
+    <div className="h-full min-h-80 w-full">
       <PierreFileTree
         aria-label={ariaLabel}
         className="size-full border-0 bg-transparent"
         id="project-files-tree"
         model={model}
         preloadedData={preloadedData ?? undefined}
-        style={projectFilesTreeStyle(TREE_HEIGHT_PX)}
+        style={projectFilesTreeStyle}
       />
     </div>
   );
