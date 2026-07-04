@@ -51,34 +51,17 @@ const defaultFileContext: CatFileContext = {
   canAddComments: false,
 };
 
-function getSegmentsById(state: CatWorkspaceState) {
-  return new Map(normalizeHydrationSegments(state).map((segment) => [segment.id, segment]));
-}
-
-function normalizeHydrationSegments(state: CatWorkspaceState): CatSegment[] {
-  if (state.segments?.length) {
-    return state.segments;
-  }
-
+function normalizeSnapshot(state: CatWorkspaceState): CatWorkspaceState {
   const fileContext = resolveFileContext(state);
-  return (state.queueSegments ?? []).map((meta) => ({
-    ...meta,
-    sourceLocale: fileContext.sourceLocale,
-    targetLocale: fileContext.targetLocale,
-    targetText: "",
-    status: "pending" as const,
-  }));
-}
-
-function snapshotWithSegments(state: CatWorkspaceState): CatWorkspaceState {
-  const fileContext = resolveFileContext(state);
-  const segments = normalizeHydrationSegments(state);
+  const queueSegments =
+    state.queueSegments.length > 0
+      ? state.queueSegments
+      : (state.segments ?? []).map(toQueueSegment);
 
   return {
     ...state,
     fileContext,
-    segments,
-    queueSegments: state.queueSegments ?? segments.map(toQueueSegment),
+    queueSegments,
   };
 }
 
@@ -169,7 +152,7 @@ export class CatWorkspaceStore {
   resolvingCommentId: string | null = null;
   commentPostError: string | undefined;
   isLookingUpContext = false;
-  isLoadingConcordance = false;
+  concordanceLoadingSegmentId: string | null = null;
   isLoadingVisualContext = false;
   isGeneratingAiRecommendation = false;
   isRunningFormatChecks = false;
@@ -208,6 +191,15 @@ export class CatWorkspaceStore {
 
   get providerKind() {
     return this.fileContext.providerKind;
+  }
+
+  get isLoadingConcordance() {
+    const selectedSegmentId =
+      this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
+    return (
+      this.concordanceLoadingSegmentId !== null &&
+      this.concordanceLoadingSegmentId === selectedSegmentId
+    );
   }
 
   get dirtySegmentIds(): ReadonlySet<string> {
@@ -322,7 +314,7 @@ export class CatWorkspaceStore {
     nextInitialState: CatWorkspaceState,
     initialSegmentKeyOrId?: string | null,
   ) {
-    const normalizedNext = snapshotWithSegments(nextInitialState);
+    const normalizedNext = normalizeSnapshot(nextInitialState);
     const previousInitialState = this.lastHydratedSnapshot;
     const currentShell = this.shellState;
     const nextFileContext = resolveFileContext(normalizedNext);
@@ -335,28 +327,33 @@ export class CatWorkspaceStore {
       this.intelligence = normalizedNext.intelligence;
 
       if (!previousInitialState) {
-        this.applySnapshotSegments(
-          normalizedNext.segments ?? [],
-          normalizedNext.segmentIntelligence,
-        );
+        if (normalizedNext.segments?.length) {
+          this.applySnapshotSegments(normalizedNext.segments, normalizedNext.segmentIntelligence);
+        } else {
+          this.applySnapshotQueueMeta(
+            normalizedNext.queueSegments,
+            normalizedNext.segmentIntelligence,
+          );
+        }
         this.segmentFormatChecks = { ...normalizedNext.segmentFormatChecks };
         this.formatChecks = normalizedNext.formatChecks;
-        this.segmentIntelligence = { ...normalizedNext.segmentIntelligence };
+        this.segmentIntelligence = {
+          ...this.segmentIntelligence,
+          ...normalizedNext.segmentIntelligence,
+        };
       } else {
-        this.mergeSegmentsFromHydration(
-          previousInitialState,
-          currentShell,
-          normalizedNext,
-          nextFileContext,
-        );
-        this.mergeFormatChecksFromHydration(previousInitialState, currentShell, normalizedNext);
+        this.mergeQueueMetaFromSnapshot(normalizedNext);
+        this.mergeFormatChecksFromHydration(currentShell, normalizedNext);
         this.mergeIntelligenceFromHydration(currentShell, normalizedNext);
       }
 
-      const nextSegmentIds = new Set((normalizedNext.segments ?? []).map((segment) => segment.id));
+      const nextSegmentIds = new Set(normalizedNext.queueSegments.map((segment) => segment.id));
       const selectedSegmentId = nextSegmentIds.has(this.selectedSegmentId)
         ? this.selectedSegmentId
-        : (normalizedNext.selectedSegmentId ?? normalizedNext.segments?.[0]?.id ?? "");
+        : (normalizedNext.selectedSegmentId ??
+          normalizedNext.queueSegments[0]?.id ??
+          normalizedNext.segments?.[0]?.id ??
+          "");
 
       this.selectedSegmentId = selectedSegmentId;
 
@@ -422,6 +419,20 @@ export class CatWorkspaceStore {
     this.isCommentsLoading = loading;
   }
 
+  private applySnapshotQueueMeta(
+    queueSegments: CatQueueSegment[],
+    segmentIntelligence: CatWorkspaceState["segmentIntelligence"] = {},
+  ) {
+    this.segmentMeta.clear();
+    this.segmentComments.clear();
+    this.drafts.clear();
+    this.segmentIntelligence = { ...segmentIntelligence };
+
+    for (const meta of queueSegments) {
+      this.segmentMeta.set(meta.id, meta);
+    }
+  }
+
   private applySnapshotSegments(
     segments: CatSegment[],
     segmentIntelligence: CatWorkspaceState["segmentIntelligence"],
@@ -436,10 +447,12 @@ export class CatWorkspaceStore {
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
       }
-      this.drafts.set(
-        segment.id,
-        new CatSegmentDraft(segment.id, segment.targetText, segment.status),
-      );
+      if (segment.targetText.trim() || segment.status !== "pending") {
+        this.drafts.set(
+          segment.id,
+          new CatSegmentDraft(segment.id, segment.targetText, segment.status),
+        );
+      }
 
       const mergedIntelligence = intelligenceFromHydratedSegment(
         segment,
@@ -451,64 +464,14 @@ export class CatWorkspaceStore {
     }
   }
 
-  private mergeSegmentsFromHydration(
-    previousInitialState: CatWorkspaceState,
-    currentShell: CatWorkspaceShell,
-    nextInitialState: CatWorkspaceState,
-    nextFileContext: CatFileContext,
-  ) {
-    const previousSegments = getSegmentsById(previousInitialState);
-    const nextSegments = nextInitialState.segments ?? [];
-
-    for (const nextSegment of nextSegments) {
-      const previousSegment = previousSegments.get(nextSegment.id);
-      const currentDraft = this.drafts.get(nextSegment.id);
-      const currentTargetText = currentDraft?.targetText ?? "";
-      const existingDraft = this.drafts.get(nextSegment.id);
-
-      this.segmentMeta.set(nextSegment.id, toQueueSegment(nextSegment));
-      if (nextSegment.comments !== undefined) {
-        this.segmentComments.set(nextSegment.id, nextSegment.comments);
-      }
-
-      const mergedIntelligence = intelligenceFromHydratedSegment(
-        nextSegment,
-        this.segmentIntelligence[nextSegment.id] ??
-          nextInitialState.segmentIntelligence?.[nextSegment.id],
-      );
-      if (mergedIntelligence) {
-        this.segmentIntelligence[nextSegment.id] = mergedIntelligence;
-      }
-
-      if (!previousSegment || !existingDraft) {
-        if (nextSegment.comments === undefined) {
-          this.segmentComments.delete(nextSegment.id);
-        }
-        this.drafts.set(
-          nextSegment.id,
-          new CatSegmentDraft(nextSegment.id, nextSegment.targetText, nextSegment.status),
-        );
-        continue;
-      }
-
-      if (currentTargetText === previousSegment.targetText) {
-        if (!nextSegment.targetText.trim() && previousSegment.targetText.trim()) {
-          existingDraft.applyServerStatus(nextSegment.status);
-        } else {
-          existingDraft.applyServerTarget(nextSegment.targetText, nextSegment.status);
-        }
-      } else {
-        existingDraft.applyServerStatus(nextSegment.status);
-      }
+  private mergeQueueMetaFromSnapshot(nextInitialState: CatWorkspaceState) {
+    for (const meta of nextInitialState.queueSegments) {
+      this.segmentMeta.set(meta.id, meta);
     }
 
-    this.fileContext = {
-      ...this.fileContext,
-      ...nextFileContext,
-    };
-
+    const nextSegmentIds = new Set(nextInitialState.queueSegments.map((meta) => meta.id));
     for (const segmentId of this.drafts.keys()) {
-      if (!nextSegments.some((segment) => segment.id === segmentId)) {
+      if (!nextSegmentIds.has(segmentId)) {
         const draft = this.drafts.get(segmentId);
         if (!draft?.isDirty) {
           this.drafts.delete(segmentId);
@@ -520,26 +483,18 @@ export class CatWorkspaceStore {
   }
 
   private mergeFormatChecksFromHydration(
-    previousInitialState: CatWorkspaceState,
     currentShell: CatWorkspaceShell,
     nextInitialState: CatWorkspaceState,
   ) {
-    const previousSegments = getSegmentsById(previousInitialState);
     const segmentFormatChecks: Record<string, CatFormatCheck[]> = {
       ...nextInitialState.segmentFormatChecks,
     };
 
     for (const segmentId of this.segmentMeta.keys()) {
-      const previousSegment = previousSegments.get(segmentId);
       const currentDraft = this.drafts.get(segmentId);
-      const currentTargetText = currentDraft?.targetText ?? "";
       const currentChecks = currentShell.segmentFormatChecks?.[segmentId];
 
-      if (
-        previousSegment &&
-        currentChecks &&
-        (currentTargetText !== previousSegment.targetText || hasSaveFailureCheck(currentChecks))
-      ) {
+      if (currentChecks && (currentDraft?.isDirty || hasSaveFailureCheck(currentChecks))) {
         segmentFormatChecks[segmentId] = currentChecks;
       }
     }
@@ -587,16 +542,39 @@ export class CatWorkspaceStore {
 
     const meta = this.segmentMeta.get(segmentId);
     if (meta) {
-      this.drafts.set(segmentId, new CatSegmentDraft(segmentId, value, "pending"));
+      const nextDraft = new CatSegmentDraft(segmentId, "", "pending");
+      nextDraft.setTargetText(value);
+      this.drafts.set(segmentId, nextDraft);
     }
   }
 
   setSegmentStatus(segmentId: string, status: CatSegmentStatus) {
-    this.drafts.get(segmentId)?.setStatus(status);
+    const draft = this.drafts.get(segmentId);
+    if (draft) {
+      draft.setStatus(status);
+      return;
+    }
+
+    const meta = this.segmentMeta.get(segmentId);
+    if (meta) {
+      this.drafts.set(segmentId, new CatSegmentDraft(segmentId, "", status));
+    }
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {
-    this.drafts.get(segmentId)?.markSaved(targetText, status);
+    const draft = this.drafts.get(segmentId);
+    if (draft) {
+      draft.markSaved(targetText, status);
+      return;
+    }
+
+    const meta = this.segmentMeta.get(segmentId);
+    if (meta) {
+      this.drafts.set(
+        segmentId,
+        new CatSegmentDraft(segmentId, targetText, status ?? "needs_review"),
+      );
+    }
   }
 
   setFormatChecks(segmentId: string, checks: CatFormatCheck[], isSelected: boolean) {
@@ -759,19 +737,22 @@ export class CatWorkspaceStore {
     return this.reviewSequence === sequence;
   }
 
-  setReviewPhaseLoading(
-    sequence: number,
-    phase: "concordance" | "ai" | "formatChecks",
-    loading: boolean,
-  ): void {
+  beginConcordanceLoad(segmentId: string) {
+    this.concordanceLoadingSegmentId = segmentId;
+  }
+
+  endConcordanceLoad(segmentId: string) {
+    if (this.concordanceLoadingSegmentId === segmentId) {
+      this.concordanceLoadingSegmentId = null;
+    }
+  }
+
+  setReviewPhaseLoading(sequence: number, phase: "ai" | "formatChecks", loading: boolean): void {
     if (!this.isReviewCurrent(sequence)) {
       return;
     }
 
     switch (phase) {
-      case "concordance":
-        this.isLoadingConcordance = loading;
-        break;
       case "ai":
         this.isGeneratingAiRecommendation = loading;
         break;

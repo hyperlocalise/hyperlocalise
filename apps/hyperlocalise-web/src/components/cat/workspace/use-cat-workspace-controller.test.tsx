@@ -149,6 +149,130 @@ describe("useCatWorkspaceController", () => {
 
     await waitFor(() => expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième"));
     expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
+    expect(store.isLoadingConcordance).toBe(false);
+  });
+
+  it("clears concordance loading when a concurrent review supersedes the sequence", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const { result, store } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    expect(store.isLoadingConcordance).toBe(true);
+
+    await act(async () => {
+      await result.current.dependencies.review.onReviewWithAi("seg-02");
+    });
+
+    await act(async () => {
+      resolveConcordance?.({
+        glossaryTerms: [
+          {
+            id: "term-1",
+            source: "Second",
+            target: "Deuxième",
+            approved: true,
+            forbidden: false,
+          },
+        ],
+        translationMemoryMatches: [],
+      });
+      await concordancePromise;
+    });
+
+    await waitFor(() => expect(store.isLoadingConcordance).toBe(false));
+  });
+
+  it("does not start a duplicate concordance lookup when AI review runs during an in-flight lookup", async () => {
+    let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
+    const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
+      resolveConcordance = resolve;
+    });
+
+    const lookupSegmentConcordance = vi.fn().mockReturnValue(concordancePromise);
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+
+    const { result, store } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        generateAiRecommendation,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    expect(store.isLoadingConcordance).toBe(true);
+
+    await act(async () => {
+      await result.current.dependencies.review.onReviewWithAi("seg-02");
+    });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveConcordance?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+      });
+      await concordancePromise;
+    });
+  });
+
+  it("does not refetch concordance when AI review runs after intelligence panel loaded it", async () => {
+    const lookupSegmentConcordance = vi.fn().mockResolvedValue({
+      glossaryTerms: [
+        {
+          id: "term-1",
+          source: "Second",
+          target: "Deuxième",
+          approved: true,
+          forbidden: false,
+        },
+      ],
+      translationMemoryMatches: [],
+    } satisfies CatSegmentConcordanceResult);
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Suggestion IA",
+      aiReasoning: "Because TM",
+      formatChecks: [],
+    });
+
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+        generateAiRecommendation,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    await waitFor(() => expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.dependencies.review.onReviewWithAi("seg-02");
+    });
+
+    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+    expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
   });
 
   it("records concordance lookup failures as format checks after intelligence loads", async () => {

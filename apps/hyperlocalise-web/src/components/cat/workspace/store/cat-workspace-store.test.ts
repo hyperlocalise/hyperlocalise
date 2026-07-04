@@ -3,7 +3,11 @@ import { describe, expect, it } from "vite-plus/test";
 import { createCatWorkspaceState } from "@/components/cat/shared/cat.fixture";
 
 import { createCatWorkspaceStore } from "./cat-workspace-store";
-import { addSaveFailureFormatCheck, getAiSuggestionForSegment } from "./cat-workspace-store-utils";
+import {
+  addSaveFailureFormatCheck,
+  getAiSuggestionForSegment,
+  resolveSegmentIntelligenceForDisplay,
+} from "./cat-workspace-store-utils";
 
 describe("CatWorkspaceStore hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
@@ -78,8 +82,8 @@ describe("CatWorkspaceStore hydration", () => {
     expect(store.selectedSegmentId).toBe("seg-02");
     expect(store.getSegmentView("seg-01")).toMatchObject({
       id: "seg-01",
-      targetText: "Saved first",
-      status: "reviewed",
+      targetText: "Old first",
+      status: "needs_review",
     });
     expect(store.getSegmentView("seg-02")).toMatchObject({
       id: "seg-02",
@@ -139,6 +143,38 @@ describe("CatWorkspaceStore hydration", () => {
     );
   });
 
+  it("preserves lazy-loaded translation when paginated queue snapshots rehydrate twice", () => {
+    const pageOne = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+        { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
+      ],
+    });
+    const store = createCatWorkspaceStore(pageOne);
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+
+    const pageOneAndTwo = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+        { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
+        { id: "seg-03", index: 3, key: "footer.title", sourceText: "Footer" },
+      ],
+    });
+
+    store.hydrateFromServerSnapshot(pageOneAndTwo);
+    store.hydrateFromServerSnapshot(pageOneAndTwo);
+
+    expect(store.getSegmentView("seg-01")?.targetText).toBe("Bonjour");
+    expect(store.getSegmentView("seg-03")?.targetText).toBe("");
+  });
+
   it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
@@ -157,27 +193,13 @@ describe("CatWorkspaceStore hydration", () => {
     });
     const store = createCatWorkspaceStore(initialState);
 
-    store.hydrateFromServerSnapshot({
-      ...initialState,
-      segments: [
-        {
-          ...initialState.segments![0]!,
-          targetText: "Hola",
-          status: "reviewed",
-        },
-      ],
+    store.applySegmentTarget("seg-01", {
+      text: "Hola",
+      externalTranslationId: "translation-1",
+      isApproved: true,
     });
 
-    store.hydrateFromServerSnapshot({
-      ...initialState,
-      segments: [
-        {
-          ...initialState.segments![0]!,
-          targetText: "",
-          status: "pending",
-        },
-      ],
-    });
+    store.hydrateFromServerSnapshot(initialState);
 
     expect(store.getSegmentView("seg-01")).toMatchObject({
       targetText: "Hola",
@@ -202,26 +224,89 @@ describe("CatWorkspaceStore hydration", () => {
       ],
     });
     const store = createCatWorkspaceStore(queueState);
-    const loadedComments = [
+    store.applySegmentComments("seg-01", [
       {
-        id: "comment-1",
-        type: "comment" as const,
+        externalCommentId: "comment-1",
+        type: "comment",
         status: null,
         text: "Keep this concise.",
         createdAt: "2026-07-04T00:00:00.000Z",
         locale: "fr",
+        author: null,
       },
-    ];
-
-    store.hydrateFromServerSnapshot({
-      ...queueState,
-      segments: [{ ...queueState.segments![0]!, comments: loadedComments }],
-    });
+    ]);
     store.hydrateFromServerSnapshot(queueState);
-
-    expect(store.getSegmentView("seg-01")?.comments).toEqual(loadedComments);
-    expect(store.getSegmentView("seg-01")?.tags).toEqual(["1 comment"]);
+    expect(store.getSegmentView("seg-01")?.comments).toEqual([
+      {
+        id: "comment-1",
+        type: "comment",
+        status: null,
+        text: "Keep this concise.",
+        createdAt: "2026-07-04T00:00:00.000Z",
+        locale: "fr",
+        author: null,
+      },
+    ]);
     expect(store.segmentComments.has("seg-01")).toBe(true);
+  });
+
+  it("preserves skipped status for empty target segments on initial hydration", () => {
+    const initialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "empty",
+          sourceText: "Empty segment",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          status: "skipped",
+        },
+        {
+          id: "seg-02",
+          index: 2,
+          key: "pending",
+          sourceText: "Pending segment",
+          targetText: "",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          status: "pending",
+        },
+      ],
+    });
+    const store = createCatWorkspaceStore(initialState);
+
+    expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
+    expect(store.matchesQueueFilter("seg-02", "skipped")).toBe(false);
+    expect(store.getQueuePanelSegments("skipped", false)).toEqual([
+      expect.objectContaining({ id: "seg-01", status: "skipped" }),
+    ]);
+  });
+
+  it("creates a draft when skipping an unedited pending segment", () => {
+    const store = createCatWorkspaceStore(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [],
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+          { id: "seg-02", index: 2, key: "footer.title", sourceText: "Footer" },
+        ],
+      }),
+    );
+
+    store.setSegmentStatus("seg-01", "skipped");
+
+    expect(store.drafts.get("seg-01")).toMatchObject({
+      targetText: "",
+      status: "skipped",
+    });
+    expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
+    expect(store.getQueuePanelSegments("skipped", false)).toEqual([
+      expect.objectContaining({ id: "seg-01", status: "skipped" }),
+    ]);
   });
 
   it("stores file locale context separately from queue segment metadata", () => {
@@ -368,5 +453,33 @@ describe("getAiSuggestionForSegment", () => {
     });
 
     expect(getAiSuggestionForSegment(state, "seg-02")).toBe("Use the segment-level suggestion.");
+  });
+});
+
+describe("resolveSegmentIntelligenceForDisplay", () => {
+  it("falls back to file-level AI fields when hydrated segment intelligence omits them", () => {
+    const state = createCatWorkspaceState({
+      intelligence: {
+        ...createCatWorkspaceState().intelligence,
+        aiSuggestion: "Use the file-level suggestion.",
+        aiReasoning: "File-level reasoning.",
+      },
+      segmentIntelligence: {
+        "seg-02": {
+          glossaryTerms: [],
+          productMeaning: "Card description",
+          maxLength: 80,
+        },
+      },
+    });
+
+    expect(resolveSegmentIntelligenceForDisplay(state, "seg-02")).toEqual(
+      expect.objectContaining({
+        productMeaning: "Card description",
+        maxLength: 80,
+        aiSuggestion: "Use the file-level suggestion.",
+        aiReasoning: "File-level reasoning.",
+      }),
+    );
   });
 });
