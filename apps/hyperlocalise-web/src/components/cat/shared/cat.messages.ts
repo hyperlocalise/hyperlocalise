@@ -719,7 +719,7 @@ export const catEditorPanelMessages = defineMessages({
 export const catVisualContextPanelMessages = defineMessages({
   title: {
     defaultMessage: "Visual Context",
-    id: "2W3toA+qRz",
+    id: "tJeeSJ6Rq1",
     description: "Section heading for TMS screenshot context in the CAT intelligence panel",
   },
   description: {
