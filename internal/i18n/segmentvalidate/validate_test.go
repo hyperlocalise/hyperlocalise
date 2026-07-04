@@ -235,7 +235,7 @@ func TestValidateSegmentPassAndFail(t *testing.T) {
 	// MaxLength counts Unicode characters, not UTF-8 bytes.
 	checks = ValidateSegment(Request{
 		SourceText: "你好",
-		TargetText: "你好世界",
+		TargetText: "你好世界啊", // 5 runes, 15 UTF-8 bytes
 		SourcePath: "/pkg/zh.json",
 		MaxLength:  4,
 	})
