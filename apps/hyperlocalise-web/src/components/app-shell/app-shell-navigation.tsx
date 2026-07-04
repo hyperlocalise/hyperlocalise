@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -27,15 +28,42 @@ import {
   type NavigationGroup,
   type NavigationItem,
 } from "./navigation-config";
+import { useAppShellStore } from "./store/app-shell-store-context";
 
 type AppShellNavigationProps = {
   organizationSlug: string;
-  groups: readonly NavigationGroup[];
 };
 
-export function AppShellNavigation({ organizationSlug, groups }: AppShellNavigationProps) {
+export const AppShellNavigation = observer(function AppShellNavigation({
+  organizationSlug,
+}: AppShellNavigationProps) {
+  const store = useAppShellStore();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
+
+  if (store.navigation.mode === "custom" && store.navigation.customState) {
+    const customState = store.navigation.customState;
+
+    if (customState.projectContext) {
+      return (
+        <ProjectNavigation
+          organizationSlug={customState.projectContext.organizationSlug}
+          projectId={customState.projectContext.projectId}
+          pathname={pathname}
+          projectName={customState.projectContext.projectName}
+          items={customState.groups.flatMap((group) => group.items)}
+        />
+      );
+    }
+
+    return (
+      <GlobalNavigation
+        organizationSlug={organizationSlug}
+        groups={customState.groups}
+        pathname={pathname}
+      />
+    );
+  }
 
   if (projectRoute?.organizationSlug === organizationSlug) {
     return (
@@ -48,9 +76,13 @@ export function AppShellNavigation({ organizationSlug, groups }: AppShellNavigat
   }
 
   return (
-    <GlobalNavigation organizationSlug={organizationSlug} groups={groups} pathname={pathname} />
+    <GlobalNavigation
+      organizationSlug={organizationSlug}
+      groups={store.navigation.defaultNavigationGroups}
+      pathname={pathname}
+    />
   );
-}
+});
 
 function GlobalNavigation({
   organizationSlug,
@@ -104,13 +136,18 @@ function ProjectNavigation({
   organizationSlug,
   projectId,
   pathname,
+  projectName,
+  items,
 }: {
   organizationSlug: string;
   projectId: string;
   pathname: string;
+  projectName?: string;
+  items?: readonly NavigationItem[];
 }) {
   const projectQuery = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
+    enabled: !projectName && !items,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
@@ -123,7 +160,8 @@ function ProjectNavigation({
     },
   });
 
-  const items = buildProjectNavigationItems(organizationSlug, projectId);
+  const resolvedItems = items ?? buildProjectNavigationItems(organizationSlug, projectId);
+  const resolvedProjectName = projectName ?? projectQuery.data?.name ?? "Project";
   const projectsHref = buildOrganizationPath(organizationSlug, "projects");
 
   return (
@@ -150,16 +188,16 @@ function ProjectNavigation({
           Project
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
-          {projectQuery.isLoading ? (
+          {!projectName && projectQuery.isLoading ? (
             <Skeleton className="h-5 w-4/5" />
           ) : (
             <p className="truncate text-sm font-medium text-sidebar-foreground">
-              {projectQuery.data?.name ?? "Project"}
+              {resolvedProjectName}
             </p>
           )}
         </div>
         <NavigationGroupItems
-          group={{ items }}
+          group={{ items: resolvedItems }}
           pathname={pathname}
           organizationSlug={organizationSlug}
           projectId={projectId}

@@ -15,8 +15,13 @@ import {
 } from "@/components/ui/sidebar";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
+import { AppShellNavigation } from "./app-shell-navigation";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import { TmsUserOAuthErrorToast } from "./tms-user-oauth-error-toast";
+import type { NavigationGroup } from "./navigation-config";
+import { AppShellHeaderActions } from "./store/app-shell-header-actions";
+import { AppShellStoreProvider } from "./store/app-shell-store-context";
+import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
 import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
@@ -26,7 +31,7 @@ import { TypographyP } from "@/components/ui/typography";
 type AppShellClientProps = {
   autumnConfigured?: boolean;
   children: ReactNode;
-  navigation: ReactNode;
+  navigationGroups: readonly NavigationGroup[];
   activeOrganization: {
     name: string;
     slug?: string | null;
@@ -48,7 +53,7 @@ type AppShellClientProps = {
 export function AppShellClient({
   autumnConfigured = false,
   children,
-  navigation,
+  navigationGroups,
   activeOrganization,
   organizations,
   tmsUserConnectCta = { showConnectCta: false },
@@ -65,13 +70,14 @@ export function AppShellClient({
   const resolvedTmsUserConnectCta = tmsUserConnectQuery.data ?? tmsUserConnectCta;
 
   return (
-    <>
+    <AppShellStoreProvider defaultNavigationGroups={navigationGroups}>
       <TmsUserOAuthErrorToast />
       <SidebarProvider
         defaultOpen
         style={{ "--sidebar-width": "15rem" } as CSSProperties}
         className="min-h-svh bg-background text-foreground"
       >
+        <SidebarStoreBridge />
         <Sidebar variant="sidebar" collapsible="icon">
           <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
             <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
@@ -92,7 +98,7 @@ export function AppShellClient({
           </SidebarHeader>
 
           <SidebarContent className="gap-0 px-2 py-2">
-            {navigation}
+            <AppShellNavigation organizationSlug={organizationSlug} />
 
             {showBillingLink && autumnConfigured ? (
               <PlanUsageSidebarWidget organizationSlug={organizationSlug} />
@@ -114,6 +120,7 @@ export function AppShellClient({
                 <AppShellBreadcrumb organizationSlug={organizationSlug} />
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <AppShellHeaderActions />
                 {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
                   <TmsUserConnectButton
                     organizationSlug={organizationSlug}
@@ -139,6 +146,6 @@ export function AppShellClient({
           <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
         </SidebarInset>
       </SidebarProvider>
-    </>
+    </AppShellStoreProvider>
   );
 }

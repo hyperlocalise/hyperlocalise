@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
-import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import {
   evaluateWorkspaceFeatureFlags,
@@ -73,9 +72,7 @@ export async function AppShell({
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigation={
-        <AppShellNavigation organizationSlug={activeOrganizationSlug} groups={navigationGroups} />
-      }
+      navigationGroups={navigationGroups}
     >
       <OrgTmsQueryProvider
         organizationSlug={activeOrganizationSlug}
