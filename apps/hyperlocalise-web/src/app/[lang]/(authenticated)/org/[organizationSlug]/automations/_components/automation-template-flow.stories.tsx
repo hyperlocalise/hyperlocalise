@@ -33,9 +33,7 @@ function templateStory(templateId: string): Story {
 export const GithubPushValidation: Story = {
   ...templateStory("validate-localisation-on-push"),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByLabelText("GitHub push → Validation → Slack"),
-    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("GitHub push → Validation → Slack")).toBeInTheDocument();
   },
 };
 

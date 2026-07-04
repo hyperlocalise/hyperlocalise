@@ -134,9 +134,7 @@ export const CreateValidationErrors: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Name is required.")).toBeInTheDocument();
     await expect(canvas.getByText("Instructions are required.")).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Choose a Slack channel for notifications."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("Choose a Slack channel for notifications.")).toBeInTheDocument();
   },
 };
 
