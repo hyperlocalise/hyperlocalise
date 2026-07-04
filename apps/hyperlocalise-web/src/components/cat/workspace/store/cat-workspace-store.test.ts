@@ -285,6 +285,30 @@ describe("CatWorkspaceStore hydration", () => {
     ]);
   });
 
+  it("creates a draft when skipping an unedited pending segment", () => {
+    const store = createCatWorkspaceStore(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [],
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+          { id: "seg-02", index: 2, key: "footer.title", sourceText: "Footer" },
+        ],
+      }),
+    );
+
+    store.setSegmentStatus("seg-01", "skipped");
+
+    expect(store.drafts.get("seg-01")).toMatchObject({
+      targetText: "",
+      status: "skipped",
+    });
+    expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
+    expect(store.getQueuePanelSegments("skipped", false)).toEqual([
+      expect.objectContaining({ id: "seg-01", status: "skipped" }),
+    ]);
+  });
+
   it("stores file locale context separately from queue segment metadata", () => {
     const store = createCatWorkspaceStore(
       createCatWorkspaceState({

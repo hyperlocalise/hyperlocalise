@@ -549,7 +549,16 @@ export class CatWorkspaceStore {
   }
 
   setSegmentStatus(segmentId: string, status: CatSegmentStatus) {
-    this.drafts.get(segmentId)?.setStatus(status);
+    const draft = this.drafts.get(segmentId);
+    if (draft) {
+      draft.setStatus(status);
+      return;
+    }
+
+    const meta = this.segmentMeta.get(segmentId);
+    if (meta) {
+      this.drafts.set(segmentId, new CatSegmentDraft(segmentId, "", status));
+    }
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {
