@@ -1,478 +1,626 @@
 import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  CheckboxGroup,
-  FormField,
-  LinkButton,
-  ProgressBar,
-  Rows,
-  Select,
-  Switch,
-  Text,
-  TextInput,
-  Title,
+    Alert,
+    Box,
+    Button,
+    Checkbox,
+    CheckboxGroup,
+    FormField,
+    Rows,
+    Select,
+    Text,
+    TextInput,
+    Title,
 } from "@canva/app-ui-kit";
 import { getDesignToken } from "@canva/design";
-import { useEffect, useMemo, useState } from "react";
-
-import * as styles from "../../../styles/components.css";
-import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
-import { HyperlocaliseClientError, pollLocalizeDesign, startLocalizeDesign } from "./hyperlocalise-client";
+import { requestOpenExternalUrl } from "@canva/platform";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
+import * as styles from "styles/components.css";
 import {
-  loadSettings,
-  parseSelectedPageValues,
-  parseTargetLocales,
-  saveSettings,
-  selectedPageValues,
+    extractDesignContent,
+    listDesignPages,
+} from "./design-content";
+import {
+    fetchCanvaMe,
+    fetchCanvaProjects,
+    pollLocalizeDesign,
+    startLocalizeDesign,
+} from "./hyperlocalise-client";
+import {
+    connectHyperlocalise,
+    disconnectHyperlocalise,
+    getHyperlocaliseAccessToken,
+} from "./oauth";
+import {
+    loadSettings,
+    parseSelectedPageValues,
+    parseTargetLocales,
+    saveSettings,
+    selectedPageValues,
 } from "./settings";
-import type { AppSettings, DesignPageInfo, WorkflowStep } from "./types";
-
-const LOCALE_OPTIONS = [
-  { value: "en", label: "English (en)" },
-  { value: "es", label: "Spanish (es)" },
-  { value: "fr", label: "French (fr)" },
-  { value: "de", label: "German (de)" },
-  { value: "it", label: "Italian (it)" },
-  { value: "pt", label: "Portuguese (pt)" },
-  { value: "ja", label: "Japanese (ja)" },
-  { value: "ko", label: "Korean (ko)" },
-  { value: "zh-CN", label: "Chinese Simplified (zh-CN)" },
-  { value: "vi-VN", label: "Vietnamese (vi-VN)" },
-];
-
-const WORKFLOW_STEPS: Array<{ id: WorkflowStep; label: string }> = [
-  { id: "extracting", label: "Extract text" },
-  { id: "uploading", label: "Upload file" },
-  { id: "translating", label: "Translate" },
-  { id: "applying", label: "Sync to design" },
-];
-
-function workflowProgress(step: WorkflowStep): number {
-  switch (step) {
-    case "extracting":
-      return 0.2;
-    case "uploading":
-      return 0.45;
-    case "translating":
-      return 0.7;
-    case "applying":
-      return 0.9;
-    case "done":
-      return 1;
-    default:
-      return 0;
-  }
-}
-
-function activeStepLabel(step: WorkflowStep): string {
-  return WORKFLOW_STEPS.find((workflowStep) => workflowStep.id === step)?.label ?? "Ready";
-}
-
-function defaultSelectedPages(pages: DesignPageInfo[]): number[] {
-  return pages.filter((page) => page.editable).map((page) => page.index);
-}
+import type {
+    CanvaOrganizationSummary,
+    CanvaProjectSummary,
+    DesignPageInfo,
+} from "./types";
 
 function pageDescription(page: DesignPageInfo): string {
-  if (!page.editable) {
-    return page.locked ? "Locked page" : "Unsupported page type";
-  }
+    if (!page.editable) {
+        return page.locked ? "Locked page" : "Unsupported page type";
+    }
 
-  return "Editable page";
+    return "Editable page";
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return String(error);
 }
 
 export const App = () => {
-  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
-  const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
-  const [pagesLoading, setPagesLoading] = useState(true);
-  const [pagesError, setPagesError] = useState<string | null>(null);
-  const [workflowStep, setWorkflowStep] = useState<WorkflowStep>("idle");
-  const [segmentCount, setSegmentCount] = useState(0);
-  const [selectedLocale, setSelectedLocale] = useState("");
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const intl = useIntl();
+    const [settings, setSettings] = useState(() => loadSettings());
+    const [isSignedIn, setIsSignedIn] = useState(false);
+    const [organizations, setOrganizations] = useState<CanvaOrganizationSummary[]>([]);
+    const [userEmail, setUserEmail] = useState("");
+    const [projects, setProjects] = useState<CanvaProjectSummary[]>([]);
+    const [pages, setPages] = useState<DesignPageInfo[]>([]);
+    const [selectedPageIndices, setSelectedPageIndices] = useState<number[]>(
+        settings.selectedPageIndices,
+    );
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(
+        settings.organizationId,
+    );
+    const [selectedProjectId, setSelectedProjectId] = useState(settings.projectId);
+    const [rememberBrandOrgBinding, setRememberBrandOrgBinding] = useState(
+        settings.rememberBrandOrgBinding,
+    );
+    const targetLocales = useMemo(
+        () => parseTargetLocales(settings.targetLocales),
+        [settings.targetLocales],
+    );
+    const [statusMessage, setStatusMessage] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isLoadingContext, setIsLoadingContext] = useState(true);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isLocalizing, setIsLocalizing] = useState(false);
+    const [jobStatus, setJobStatus] = useState<string | null>(null);
 
-  const targetLocales = useMemo(
-    () => parseTargetLocales(settings.targetLocales),
-    [settings.targetLocales],
-  );
-  const editablePages = useMemo(() => designPages.filter((page) => page.editable), [designPages]);
-  const selectedPageIndices = useMemo(() => {
-    if (settings.selectedPageIndices.length > 0) {
-      return settings.selectedPageIndices.filter((index) =>
-        editablePages.some((page) => page.index === index),
-      );
-    }
+    const pageOptions = useMemo(
+        () =>
+            pages.map((page) => ({
+                value: String(page.index),
+                label: page.label,
+                description: pageDescription(page),
+                disabled: !page.editable,
+            })),
+        [pages],
+    );
 
-    return defaultSelectedPages(designPages);
-  }, [designPages, editablePages, settings.selectedPageIndices]);
-  const isBusy = workflowStep !== "idle" && workflowStep !== "done";
-  const canLocalize =
-    settings.connectionToken.trim().length > 0 &&
-    settings.sourceLocale.trim().length > 0 &&
-    targetLocales.length > 0 &&
-    selectedPageIndices.length > 0 &&
-    !pagesLoading &&
-    !isBusy;
+    const persistSettings = useCallback((next: Partial<typeof settings>) => {
+        const merged = { ...settings, ...next };
+        saveSettings(merged);
+        setSettings(merged);
+        return merged;
+    }, [settings]);
 
-  useEffect(() => {
-    let cancelled = false;
+    const loadFrictionlessContext = useCallback(async () => {
+        setIsLoadingContext(true);
+        setErrorMessage(null);
 
-    async function loadPages() {
-      setPagesLoading(true);
-      setPagesError(null);
+        try {
+            const designPages = await listDesignPages();
+            setPages(designPages);
 
-      try {
-        const pages = await listDesignPages();
-        if (cancelled) {
-          return;
+            if (selectedPageIndices.length === 0) {
+                const editableIndices = designPages
+                    .filter((page) => page.editable)
+                    .map((page) => page.index);
+                setSelectedPageIndices(editableIndices);
+                persistSettings({ selectedPageIndices: editableIndices });
+            }
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error));
+        } finally {
+            setIsLoadingContext(false);
+        }
+    }, [persistSettings, selectedPageIndices.length]);
+
+    const loadProjectsForOrganization = useCallback(async (organizationId: string) => {
+        if (!organizationId) {
+            setProjects([]);
+            return;
         }
 
-        setDesignPages(pages);
+        setIsLoadingProjects(true);
+        setErrorMessage(null);
 
-        setSettings((current) => {
-          if (current.selectedPageIndices.length > 0) {
-            return current;
-          }
+        try {
+            const projectList = await fetchCanvaProjects(organizationId);
+            setProjects(projectList);
 
-          const next = {
-            ...current,
-            selectedPageIndices: defaultSelectedPages(pages),
-          };
-          saveSettings(next);
-          return next;
-        });
-      } catch (error) {
-        if (!cancelled) {
-          setPagesError(error instanceof Error ? error.message : "Unable to load design pages.");
+            const preferredProjectId =
+                settings.projectId ||
+                (projectList.length === 1 ? projectList[0]?.id : "") ||
+                "";
+            if (preferredProjectId) {
+                setSelectedProjectId(preferredProjectId);
+            }
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error));
+        } finally {
+            setIsLoadingProjects(false);
         }
-      } finally {
-        if (!cancelled) {
-          setPagesLoading(false);
+    }, [settings.projectId]);
+
+    const loadAccountContext = useCallback(async () => {
+        const accessToken = await getHyperlocaliseAccessToken();
+        if (!accessToken) {
+            setIsSignedIn(false);
+            setOrganizations([]);
+            setUserEmail("");
+            setProjects([]);
+            return;
         }
-      }
-    }
 
-    void loadPages();
+        setIsSignedIn(true);
 
-    return () => {
-      cancelled = true;
+        try {
+            const account = await fetchCanvaMe();
+            setOrganizations(account.organizations);
+            setUserEmail(account.user.email);
+
+            const preferredOrganizationId =
+                settings.organizationId ||
+                account.brandBinding?.organizationId ||
+                (account.organizations.length === 1
+                    ? account.organizations[0]?.id
+                    : "") ||
+                "";
+
+            if (preferredOrganizationId) {
+                setSelectedOrganizationId(preferredOrganizationId);
+                persistSettings({ organizationId: preferredOrganizationId });
+                await loadProjectsForOrganization(preferredOrganizationId);
+            }
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error));
+        }
+    }, [loadProjectsForOrganization, persistSettings, settings.organizationId]);
+
+    useEffect(() => {
+        void loadFrictionlessContext();
+        void loadAccountContext();
+    }, [loadAccountContext, loadFrictionlessContext]);
+
+    const handleSignIn = async () => {
+        setIsConnecting(true);
+        setErrorMessage(null);
+
+        try {
+            const result = await connectHyperlocalise();
+            if (result !== "completed") {
+                throw new Error("Hyperlocalise sign-in was not completed.");
+            }
+            await loadAccountContext();
+            setStatusMessage(
+                intl.formatMessage({
+                    id: "hyperlocalise.canva.status.signedIn",
+                    defaultMessage: "Signed in to Hyperlocalise.",
+                    description:
+                        "Status shown after the user connects Hyperlocalise.",
+                }),
+            );
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error));
+        } finally {
+            setIsConnecting(false);
+        }
     };
-  }, []);
 
-  useEffect(() => {
-    if (targetLocales.length === 0) {
-      setSelectedLocale("");
-      return;
-    }
+    const handleSignOut = async () => {
+        await disconnectHyperlocalise();
+        setIsSignedIn(false);
+        setOrganizations([]);
+        setUserEmail("");
+        setProjects([]);
+        setSelectedOrganizationId("");
+        setSelectedProjectId("");
+        setStatusMessage(
+            intl.formatMessage({
+                id: "hyperlocalise.canva.status.signedOut",
+                defaultMessage: "Signed out of Hyperlocalise.",
+                description:
+                    "Status shown after the user disconnects Hyperlocalise.",
+            }),
+        );
+    };
 
-    if (!targetLocales.includes(selectedLocale)) {
-      setSelectedLocale(targetLocales[0] ?? "");
-    }
-  }, [selectedLocale, targetLocales]);
+    const handleOrganizationChange = async (organizationId: string) => {
+        setSelectedOrganizationId(organizationId);
+        setSelectedProjectId("");
+        persistSettings({ organizationId, projectId: "" });
+        await loadProjectsForOrganization(organizationId);
+    };
 
-  const updateSettings = (patch: Partial<AppSettings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...patch };
-      saveSettings(next);
-      return next;
-    });
-  };
+    const handleLocalize = async () => {
+        if (!selectedOrganizationId || !selectedProjectId) {
+            setErrorMessage(
+                intl.formatMessage({
+                    id: "hyperlocalise.canva.error.missingOrgProject",
+                    defaultMessage:
+                        "Choose an organization and project before localizing.",
+                    description:
+                        "Validation error when org or project is missing.",
+                }),
+            );
+            return;
+        }
 
-  const selectAllEditablePages = () => {
-    updateSettings({ selectedPageIndices: defaultSelectedPages(designPages) });
-  };
+        if (targetLocales.length === 0) {
+            setErrorMessage(
+                intl.formatMessage({
+                    id: "hyperlocalise.canva.error.missingLocales",
+                    defaultMessage: "Select at least one target locale.",
+                    description:
+                        "Validation error when no target locales are selected.",
+                }),
+            );
+            return;
+        }
 
-  const clearPageSelection = () => {
-    updateSettings({ selectedPageIndices: [] });
-  };
+        if (selectedPageIndices.length === 0) {
+            setErrorMessage(
+                intl.formatMessage({
+                    id: "hyperlocalise.canva.error.missingPages",
+                    defaultMessage: "Select at least one page to localize.",
+                    description:
+                        "Validation error when no pages are selected.",
+                }),
+            );
+            return;
+        }
 
-  const localizeDesignFlow = async () => {
-    setErrorMessage(null);
-    setStatusMessage(null);
+        setIsLocalizing(true);
+        setErrorMessage(null);
+        setJobStatus(null);
 
-    try {
-      setWorkflowStep("extracting");
-      const extracted = await extractDesignContent(
-        selectedPageIndices,
-        settings.preserveFormatting,
-      );
-      setSegmentCount(extracted.segments.length);
+        try {
+            const accessToken = await getHyperlocaliseAccessToken();
+            if (!accessToken) {
+                throw new Error("Sign in to Hyperlocalise before localizing.");
+            }
 
-      if (extracted.segments.length === 0) {
-        throw new Error("Add text to the selected pages before localizing.");
-      }
+            const [designToken, extracted] = await Promise.all([
+                getDesignToken(),
+                extractDesignContent(
+                    selectedPageIndices,
+                    settings.preserveFormatting,
+                ),
+            ]);
 
-      const { token } = await getDesignToken();
+            persistSettings({
+                organizationId: selectedOrganizationId,
+                projectId: selectedProjectId,
+                targetLocales: settings.targetLocales,
+                selectedPageIndices,
+                rememberBrandOrgBinding,
+            });
 
-      setWorkflowStep("uploading");
-      const started = await startLocalizeDesign({
-        connectionToken: settings.connectionToken.trim(),
-        projectId: settings.projectId.trim() || undefined,
-        sourceLocale: settings.sourceLocale.trim(),
-        targetLocales,
-        designToken: token,
-        segments: extracted.segments,
-        preserveFormatting: settings.preserveFormatting,
-      });
+            const created = await startLocalizeDesign({
+                organizationId: selectedOrganizationId,
+                projectId: selectedProjectId,
+                sourceLocale: settings.sourceLocale,
+                targetLocales,
+                designToken: designToken.token,
+                segments: extracted.segments,
+                rememberBrandOrgBinding,
+            });
 
-      setWorkflowStep("translating");
-      const response = await pollLocalizeDesign({
-        connectionToken: settings.connectionToken.trim(),
-        jobId: started.jobId,
-      });
+            setJobStatus("queued");
+            setStatusMessage(
+                intl.formatMessage(
+                    {
+                        id: "hyperlocalise.canva.status.jobStarted",
+                        defaultMessage: "Localization job {jobId} started.",
+                        description:
+                            "Status shown after a localization job is created.",
+                    },
+                    { jobId: created.jobId },
+                ),
+            );
 
-      const localeToApply = selectedLocale || targetLocales[0] || "";
-      const translations = localeToApply ? response.translationsByLocale[localeToApply] : undefined;
-      if (!translations) {
-        throw new Error(`No translated content returned for ${localeToApply}.`);
-      }
+            const finalStatus = await pollLocalizeDesign({
+                organizationId: selectedOrganizationId,
+                projectId: selectedProjectId,
+                jobId: created.jobId,
+            });
 
-      setWorkflowStep("applying");
-      await applyTranslationsToDesign(
-        translations,
-        selectedPageIndices,
-        settings.preserveFormatting,
-      );
+            setJobStatus("succeeded");
+            setStatusMessage(
+                intl.formatMessage(
+                    {
+                        id: "hyperlocalise.canva.status.jobFinished",
+                        defaultMessage:
+                            "Localization job {jobId} finished with {segmentCount} segments translated.",
+                        description:
+                            "Status shown after localization completes.",
+                    },
+                    {
+                        jobId: finalStatus.jobId,
+                        segmentCount: Object.keys(
+                            finalStatus.translationsByLocale[targetLocales[0] ?? ""] ?? {},
+                        ).length,
+                    },
+                ),
+            );
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error));
+        } finally {
+            setIsLocalizing(false);
+        }
+    };
 
-      setWorkflowStep("done");
-      setStatusMessage(
-        `Localized ${extracted.segments.length} text segments across ${selectedPageIndices.length} page(s) and synced ${localeToApply} back to your design.`,
-      );
-    } catch (error) {
-      setWorkflowStep("idle");
-      if (error instanceof HyperlocaliseClientError) {
-        setErrorMessage(error.message);
-        return;
-      }
+    const organizationOptions = organizations.map((org) => ({
+        value: org.id,
+        label: org.name,
+    }));
 
-      setErrorMessage(error instanceof Error ? error.message : "Localization failed.");
-    }
-  };
+    const projectOptions = projects.map((project) => ({
+        value: project.id,
+        label: project.name,
+    }));
 
-  return (
-    <div className={styles.scrollContainer}>
-      <Rows spacing="2u">
-        <Rows spacing="1u">
-          <Title size="small">Hyperlocalise for Canva</Title>
-          <Text>
-            Upload selected pages from your design as a JSON translation file, run localization in
-            Hyperlocalise, then sync the translated text back into Canva.
-          </Text>
-        </Rows>
+    const canLocalize =
+        isSignedIn &&
+        Boolean(selectedOrganizationId) &&
+        Boolean(selectedProjectId) &&
+        targetLocales.length > 0 &&
+        selectedPageIndices.length > 0;
 
-        {pagesError ? (
-          <Alert tone="warn" title="Pages unavailable">
-            <Text>{pagesError}</Text>
-          </Alert>
-        ) : null}
-
-        {errorMessage ? (
-          <Alert tone="critical" title="Localization failed">
-            <Text>{errorMessage}</Text>
-          </Alert>
-        ) : null}
-
-        {statusMessage ? (
-          <Alert tone="positive" title="Design updated">
-            <Text>{statusMessage}</Text>
-          </Alert>
-        ) : null}
-
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Pages to localize</Title>
-              <Text size="small" tone="secondary">
-                Choose which pages to include in the upload and sync workflow.
-              </Text>
-            </Rows>
-
-            {pagesLoading ? (
-              <Text size="small" tone="secondary">
-                Loading pages from your design...
-              </Text>
-            ) : (
-              <Rows spacing="1u">
-                <Rows spacing="0.5u">
-                  <Text size="small">
-                    {selectedPageIndices.length} of {editablePages.length} editable pages selected
-                  </Text>
-                  <div className={styles.pageActions}>
-                    <LinkButton onClick={selectAllEditablePages}>Select all</LinkButton>
-                    <LinkButton onClick={clearPageSelection}>Clear</LinkButton>
-                  </div>
-                </Rows>
-
-                <CheckboxGroup
-                  value={selectedPageValues(selectedPageIndices)}
-                  onChange={(values) =>
-                    updateSettings({
-                      selectedPageIndices: parseSelectedPageValues(values),
-                    })
-                  }
-                  options={designPages.map((page) => ({
-                    value: String(page.index),
-                    label: page.label,
-                    description: pageDescription(page),
-                    disabled: !page.editable,
-                  }))}
-                />
-              </Rows>
-            )}
-          </Rows>
-        </Box>
-
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Connection settings</Title>
-              <Text size="small" tone="secondary">
-                Paste the connection token from your Hyperlocalise workspace Canva integration.
-              </Text>
-            </Rows>
-
-            <FormField
-              label="Connection token"
-              value={settings.connectionToken}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="hl_canva_..."
-                  onChange={(value) => updateSettings({ connectionToken: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Project ID override"
-              description="Optional. Leave blank to use the project configured on the connection."
-              value={settings.projectId}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="project_..."
-                  onChange={(value) => updateSettings({ projectId: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Source locale"
-              value={settings.sourceLocale}
-              control={(props) => (
-                <Select
-                  {...props}
-                  options={LOCALE_OPTIONS}
-                  onChange={(value) => updateSettings({ sourceLocale: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Target locales"
-              description="Comma-separated locale codes"
-              value={settings.targetLocales}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="es, fr, de"
-                  onChange={(value) => updateSettings({ targetLocales: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Apply locale"
-              value={selectedLocale}
-              control={(props) => (
-                <Select
-                  {...props}
-                  stretch
-                  disabled={targetLocales.length === 0}
-                  options={targetLocales.map((locale) => ({
-                    value: locale,
-                    label: locale,
-                  }))}
-                  onChange={setSelectedLocale}
-                />
-              )}
-            />
-
-            <FormField
-              label="Preserve inline formatting"
-              value={settings.preserveFormatting}
-              control={(props) => (
-                <Switch
-                  {...props}
-                  value={settings.preserveFormatting}
-                  onChange={(value) => updateSettings({ preserveFormatting: value })}
-                />
-              )}
-            />
-          </Rows>
-        </Box>
-
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Workflow</Title>
-              <Text size="small" tone="secondary">
-                Extract text from selected pages, upload a source file, translate, then write
-                results back to Canva.
-              </Text>
-            </Rows>
-
-            <Rows spacing="1u">
-              {WORKFLOW_STEPS.map((step) => {
-                const isComplete =
-                  workflowStep === "done" ||
-                  WORKFLOW_STEPS.findIndex((item) => item.id === workflowStep) >
-                    WORKFLOW_STEPS.findIndex((item) => item.id === step.id);
-                const isActive = workflowStep === step.id;
-
-                return (
-                  <div key={step.id} className={styles.workflowStep}>
-                    <Badge
-                      text={isComplete ? "Done" : isActive ? "Active" : "Pending"}
-                      tone={isComplete ? "positive" : isActive ? "info" : "contrast"}
+    return (
+        <div className={styles.scrollContainer}>
+            <Rows spacing="2u">
+                <Title>
+                    <FormattedMessage
+                        id="hyperlocalise.canva.title"
+                        defaultMessage="Hyperlocalise"
+                        description="App title in the Canva design editor panel."
                     />
-                    <Text size="small">{step.label}</Text>
-                  </div>
-                );
-              })}
-            </Rows>
+                </Title>
 
-            {isBusy ? (
-              <Rows spacing="1u">
-                <ProgressBar value={workflowProgress(workflowStep)} />
-                <Text size="small" tone="secondary">
-                  {activeStepLabel(workflowStep)}
-                  {segmentCount > 0 ? ` · ${segmentCount} segments` : ""}
-                  {selectedPageIndices.length > 0 ? ` · ${selectedPageIndices.length} pages` : ""}
+                <Text>
+                    <FormattedMessage
+                        id="hyperlocalise.canva.intro"
+                        defaultMessage="Browse pages without signing in. Sign in to Hyperlocalise when you are ready to localize."
+                        description="Intro text explaining frictionless vs signed-in flows."
+                    />
                 </Text>
-              </Rows>
-            ) : (
-              <Text size="small" tone="secondary">
-                {selectedPageIndices.length > 0
-                  ? `${selectedPageIndices.length} page(s) selected for localization.`
-                  : "Select at least one editable page to continue."}
-              </Text>
-            )}
 
-            <Button
-              variant="primary"
-              stretch
-              onClick={localizeDesignFlow}
-              disabled={!canLocalize}
-              loading={isBusy}
-            >
-              Localize and sync design
-            </Button>
-          </Rows>
-        </Box>
-      </Rows>
-    </div>
-  );
+                {!isSignedIn ? (
+                    <Button
+                        variant="primary"
+                        onClick={() => void handleSignIn()}
+                        loading={isConnecting}
+                        stretch
+                    >
+                        <FormattedMessage
+                            id="hyperlocalise.canva.action.signIn"
+                            defaultMessage="Sign in to Hyperlocalise"
+                            description="Button to start OAuth sign-in."
+                        />
+                    </Button>
+                ) : (
+                    <Rows spacing="1u">
+                        <Text>
+                            <FormattedMessage
+                                id="hyperlocalise.canva.status.signedInAs"
+                                defaultMessage="Signed in as {email}"
+                                description="Shows the signed-in Hyperlocalise user."
+                                values={{ email: userEmail }}
+                            />
+                        </Text>
+                        <Button
+                            variant="secondary"
+                            onClick={() => void handleSignOut()}
+                            stretch
+                        >
+                            <FormattedMessage
+                                id="hyperlocalise.canva.action.signOut"
+                                defaultMessage="Sign out"
+                                description="Button to disconnect Hyperlocalise."
+                            />
+                        </Button>
+                    </Rows>
+                )}
+
+                {isSignedIn && organizationOptions.length > 0 && (
+                    <FormField
+                        label={intl.formatMessage({
+                            id: "hyperlocalise.canva.field.organization",
+                            defaultMessage: "Organization",
+                            description: "Label for organization picker.",
+                        })}
+                        control={(props) => (
+                            <Select
+                                {...props}
+                                value={selectedOrganizationId}
+                                options={organizationOptions}
+                                onChange={(value) =>
+                                    void handleOrganizationChange(value)
+                                }
+                                placeholder={intl.formatMessage({
+                                    id: "hyperlocalise.canva.field.organizationPlaceholder",
+                                    defaultMessage: "Select organization",
+                                    description:
+                                        "Placeholder for organization picker.",
+                                })}
+                            />
+                        )}
+                    />
+                )}
+
+                {isSignedIn && selectedOrganizationId && (
+                    <FormField
+                        label={intl.formatMessage({
+                            id: "hyperlocalise.canva.field.project",
+                            defaultMessage: "Project",
+                            description: "Label for project picker.",
+                        })}
+                        control={(props) => (
+                            <Select
+                                {...props}
+                                value={selectedProjectId}
+                                options={projectOptions}
+                                onChange={(value) => {
+                                    setSelectedProjectId(value);
+                                    persistSettings({ projectId: value });
+                                }}
+                                disabled={isLoadingProjects}
+                                placeholder={intl.formatMessage({
+                                    id: "hyperlocalise.canva.field.projectPlaceholder",
+                                    defaultMessage: "Select project",
+                                    description:
+                                        "Placeholder for project picker.",
+                                })}
+                            />
+                        )}
+                    />
+                )}
+
+                {isSignedIn && selectedOrganizationId && (
+                    <Checkbox
+                        checked={rememberBrandOrgBinding}
+                        onChange={(_event, checked) => {
+                            setRememberBrandOrgBinding(checked);
+                            persistSettings({
+                                rememberBrandOrgBinding: checked,
+                            });
+                        }}
+                        label={intl.formatMessage({
+                            id: "hyperlocalise.canva.field.rememberBrandOrg",
+                            defaultMessage:
+                                "Remember this organization for this Canva team",
+                            description:
+                                "Checkbox to save brand-to-org binding.",
+                        })}
+                    />
+                )}
+
+                <FormField
+                    label={intl.formatMessage({
+                        id: "hyperlocalise.canva.field.pages",
+                        defaultMessage: "Pages to localize",
+                        description: "Label for page multiselect.",
+                    })}
+                    value={selectedPageValues(selectedPageIndices)}
+                    control={(props) => (
+                        <CheckboxGroup
+                            {...props}
+                            options={pageOptions}
+                            onChange={(values) => {
+                                const indices = parseSelectedPageValues(values);
+                                setSelectedPageIndices(indices);
+                                persistSettings({
+                                    selectedPageIndices: indices,
+                                });
+                            }}
+                            disabled={isLoadingContext || pageOptions.length === 0}
+                        />
+                    )}
+                />
+
+                <FormField
+                    label={intl.formatMessage({
+                        id: "hyperlocalise.canva.field.targetLocales",
+                        defaultMessage: "Target locales",
+                        description: "Label for target locale input.",
+                    })}
+                    description="Comma-separated locale codes"
+                    value={settings.targetLocales}
+                    control={(props) => (
+                        <TextInput
+                            {...props}
+                            placeholder="es, fr, de"
+                            onChange={(value) =>
+                                persistSettings({ targetLocales: value })
+                            }
+                        />
+                    )}
+                />
+
+                <Box padding="2u" background="neutralLow">
+                    <Text>
+                        <FormattedMessage
+                            id="hyperlocalise.canva.summary.editablePages"
+                            defaultMessage="{count, plural, one {# editable page} other {# editable pages}}"
+                            description="Shows how many editable pages are available."
+                            values={{
+                                count: pages.filter((page) => page.editable).length,
+                            }}
+                        />
+                    </Text>
+                </Box>
+
+                <Button
+                    variant="primary"
+                    onClick={() => void handleLocalize()}
+                    loading={isLocalizing}
+                    disabled={!canLocalize}
+                    stretch
+                >
+                    <FormattedMessage
+                        id="hyperlocalise.canva.action.localize"
+                        defaultMessage="Localize design"
+                        description="Button to start localization."
+                    />
+                </Button>
+
+                {!isSignedIn && (
+                    <Alert tone="info">
+                        <FormattedMessage
+                            id="hyperlocalise.canva.info.signInRequired"
+                            defaultMessage="Sign in to choose a workspace and start localization."
+                            description="Info when user has not signed in yet."
+                        />
+                    </Alert>
+                )}
+
+                {statusMessage && (
+                    <Alert tone="positive">{statusMessage}</Alert>
+                )}
+                {jobStatus && (
+                    <Text>
+                        <FormattedMessage
+                            id="hyperlocalise.canva.status.latestJob"
+                            defaultMessage="Latest job status: {status}"
+                            description="Shows the latest localization job status."
+                            values={{ status: jobStatus }}
+                        />
+                    </Text>
+                )}
+                {errorMessage && <Alert tone="critical">{errorMessage}</Alert>}
+
+                <Button
+                    variant="secondary"
+                    onClick={() =>
+                        void requestOpenExternalUrl({
+                            url: "https://hyperlocalise.com/docs/integrations/canva",
+                        })
+                    }
+                    stretch
+                >
+                    <FormattedMessage
+                        id="hyperlocalise.canva.action.openSetupGuide"
+                        defaultMessage="Open setup guide"
+                        description="Link to Hyperlocalise Canva setup docs."
+                    />
+                </Button>
+            </Rows>
+        </div>
+    );
 };

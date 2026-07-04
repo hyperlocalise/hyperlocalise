@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { App } from "./app";
 import * as designContent from "./design-content";
-import { localizeDesign } from "./hyperlocalise-client";
+import * as hyperlocaliseClient from "./hyperlocalise-client";
+import * as oauth from "./oauth";
 
 function renderInTestProvider(node: ReactNode) {
   return render(
@@ -18,18 +19,34 @@ function renderInTestProvider(node: ReactNode) {
 }
 
 vi.mock("@canva/design", () => ({
+  getDesignMetadata: vi.fn(async () => ({
+    id: "design-id",
+    title: "Test design",
+    defaultTitle: "Test design",
+  })),
   getDesignToken: vi.fn(),
+}));
+
+vi.mock("@canva/platform", () => ({
+  requestOpenExternalUrl: vi.fn(),
 }));
 
 vi.mock("./design-content", () => ({
   listDesignPages: vi.fn(),
   extractDesignContent: vi.fn(),
-  applyTranslationsToDesign: vi.fn(),
+}));
+
+vi.mock("./oauth", () => ({
+  connectHyperlocalise: vi.fn(),
+  disconnectHyperlocalise: vi.fn(),
+  getHyperlocaliseAccessToken: vi.fn(),
 }));
 
 vi.mock("./hyperlocalise-client", () => ({
-  localizeDesign: vi.fn(),
-  HyperlocaliseClientError: class HyperlocaliseClientError extends Error {},
+  fetchCanvaMe: vi.fn(),
+  fetchCanvaProjects: vi.fn(),
+  startLocalizeDesign: vi.fn(),
+  pollLocalizeDesign: vi.fn(),
 }));
 
 describe("Hyperlocalise Canva app", () => {
@@ -39,30 +56,45 @@ describe("Hyperlocalise Canva app", () => {
       { index: 1, label: "Page 2", locked: false, editable: true },
     ]);
     vi.mocked(getDesignToken).mockResolvedValue({ token: "design-token" });
-    vi.mocked(localizeDesign).mockResolvedValue({
-      jobId: "job_test",
-      mode: "hyperlocalise",
-      translationsByLocale: {
-        es: {
-          "canva.segment.0.0.0": "Hola",
-        },
-      },
-    });
+    vi.mocked(oauth.getHyperlocaliseAccessToken).mockResolvedValue(null);
   });
 
-  it("renders localization workflow UI with page selection", async () => {
+  it("renders frictionless workflow UI with sign-in and page selection", async () => {
     const result = renderInTestProvider(<App />);
 
-    expect(result.getByText("Hyperlocalise for Canva")).toBeTruthy();
+    expect(result.getByText("Hyperlocalise")).toBeTruthy();
+    expect(result.getByText("Sign in to Hyperlocalise")).toBeTruthy();
     expect(result.getByText("Pages to localize")).toBeTruthy();
 
     await waitFor(() => {
-      expect(result.getByText("Page 1")).toBeTruthy();
-      expect(result.getByText("Page 2")).toBeTruthy();
+      expect(designContent.listDesignPages).toHaveBeenCalled();
     });
 
-    expect(result.getByRole("button", { name: "Localize and sync design" })).toBeTruthy();
-    expect(result.getByText("Connection settings")).toBeTruthy();
-    expect(result.getByText("Workflow")).toBeTruthy();
+    expect(result.getByRole("button", { name: "Localize design" })).toBeTruthy();
+  });
+
+  it("loads account context after OAuth sign-in", async () => {
+    vi.mocked(oauth.getHyperlocaliseAccessToken).mockResolvedValue("hl_canva_test_token");
+    vi.mocked(hyperlocaliseClient.fetchCanvaMe).mockResolvedValue({
+      user: { id: "user_1", email: "user@example.com" },
+      organizations: [{ id: "org_1", name: "Acme", slug: "acme", role: "admin" }],
+      brandBinding: null,
+    });
+    vi.mocked(hyperlocaliseClient.fetchCanvaProjects).mockResolvedValue([
+      {
+        id: "project_1",
+        name: "Website",
+        sourceLocale: "en-US",
+        targetLocales: ["es-ES"],
+      },
+    ]);
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByText("Signed in as user@example.com")).toBeTruthy();
+      expect(hyperlocaliseClient.fetchCanvaMe).toHaveBeenCalled();
+      expect(hyperlocaliseClient.fetchCanvaProjects).toHaveBeenCalledWith("org_1");
+    });
   });
 });

@@ -120,7 +120,7 @@ export async function cleanupWorkosTestRecords(input: {
         orgParams,
       );
       await client.query(
-        "DELETE FROM canva_connections WHERE organization_id = ANY($1::uuid[])",
+        "DELETE FROM canva_brand_org_bindings WHERE organization_id = ANY($1::uuid[])",
         orgParams,
       );
       await client.query("DELETE FROM projects WHERE organization_id = ANY($1::uuid[])", orgParams);

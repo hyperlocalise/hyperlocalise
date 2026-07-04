@@ -70,6 +70,7 @@ import {
   useContentfulConnections,
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
+import { CanvaIntegrationInstructions } from "./canva-integration-instructions";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
 import { ModelProviderCard, type ModelProviderCardConfig } from "./model-provider-card";
 import { SimpleBrandIcon } from "./simple-brand-icon";
@@ -1252,6 +1253,8 @@ export function IntegrationsPageContent({
         organizationSlug={organizationSlug}
         userCanManage={userCanManageAgents}
       />
+
+      {canManageProviderIntegrations ? <CanvaIntegrationInstructions /> : null}
 
       {canManageProviderIntegrations ? (
         <>

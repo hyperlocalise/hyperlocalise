@@ -6,27 +6,6 @@ export type CanvaDesignSegment = {
   text: string;
 };
 
-export type CanvaConnectionSummary = {
-  id: string;
-  organizationId: string;
-  apiKeyId: string;
-  projectId: string;
-  displayName: string;
-  sourceLocale: string;
-  targetLocales: string[];
-  canvaBrandId: string | null;
-  connectionTokenPrefix: string;
-  enabled: boolean;
-  lastUsedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CanvaConnectionSecretResult = {
-  connection: CanvaConnectionSummary;
-  connectionToken: string;
-};
-
 export type StartCanvaLocalizationResult = {
   jobId: string;
 };
@@ -45,4 +24,18 @@ export type CanvaLocalizationStatus =
 export type CanvaVerifiedUser = {
   userId: string;
   brandId: string;
+};
+
+export type CanvaOrganizationSummary = {
+  id: string;
+  name: string;
+  slug: string | null;
+  role: string;
+};
+
+export type CanvaProjectSummary = {
+  id: string;
+  name: string;
+  sourceLocale: string | null;
+  targetLocales: string[];
 };

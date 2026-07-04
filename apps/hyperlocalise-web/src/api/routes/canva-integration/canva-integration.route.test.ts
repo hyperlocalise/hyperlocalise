@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
   startCanvaLocalizationMock: vi.fn(),
   getCanvaLocalizationStatusMock: vi.fn(),
   resolveCanvaDesignIdMock: vi.fn(async () => "design-id"),
+  verifyCanvaUserTokenMock: vi.fn(async () => ({
+    userId: "canva-user",
+    brandId: "canva-brand",
+  })),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -32,54 +36,58 @@ vi.mock("@/lib/canva/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/canva/auth")>();
   return {
     ...actual,
+    verifyCanvaUserToken: mocks.verifyCanvaUserTokenMock,
     resolveCanvaDesignId: mocks.resolveCanvaDesignIdMock,
   };
 });
 
 import { createApp } from "@/api/app";
-import { createCanvaConnection } from "@/lib/canva/connections";
 import { db } from "@/lib/database";
-import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { cleanupCanvaOAuthTestSessions, createCanvaOAuthTestSession } from "./canva-oauth.fixture";
 
 const client = testClient(createApp());
-const apiKeyFixture = createApiKeyTestFixture(client);
 const projectFixture = createProjectTestFixture(client);
 
 describe("canvaIntegrationRoutes", () => {
+  const cleanedUserIds: string[] = [];
+
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
 
   afterEach(async () => {
     vi.clearAllMocks();
-    await apiKeyFixture.cleanup();
+    await cleanupCanvaOAuthTestSessions(cleanedUserIds);
+    cleanedUserIds.length = 0;
     await projectFixture.cleanup();
   });
 
-  it("starts localization when the connection token is valid", async () => {
-    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
-    await apiKeyFixture.authHeadersFor(identity);
+  async function createOAuthContext() {
+    const stored = await projectFixture.createStoredProjectFixture();
+    await projectFixture.authHeadersFor(stored.identity);
     const auth = globalThis.__testApiAuthContext!;
-    const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
-      name: "Canva localize key",
+    const oauth = await createCanvaOAuthTestSession({
+      userId: stored.user.id,
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
+    cleanedUserIds.push(stored.user.id);
 
-    const projectResponse = await projectFixture.createProjectViaApi(identity);
-    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    return {
+      stored,
+      auth,
+      oauth,
+      headers: {
+        Authorization: `Bearer ${oauth.accessToken}`,
+        "X-Canva-User-Token": "design-token",
+      },
+    };
+  }
 
-    const created = await createCanvaConnection({
-      organizationId,
-      userId: auth.user.localUserId,
-      displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
-      projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
-    });
+  it("starts localization when the OAuth access token is valid", async () => {
+    const { stored, auth, oauth, headers } = await createOAuthContext();
+    const organizationId = stored.organization.id;
+    const projectId = stored.project.id;
 
     mocks.startCanvaLocalizationMock.mockResolvedValue({
       jobId: "job_test",
@@ -88,7 +96,11 @@ describe("canvaIntegrationRoutes", () => {
     const response = await client.api.integrations.canva.localize.$post(
       {
         json: {
+          organizationId,
+          projectId,
           designToken: "design-token",
+          sourceLocale: "en",
+          targetLocales: ["es"],
           segments: [
             {
               key: "canva.segment.0.0.0",
@@ -100,11 +112,7 @@ describe("canvaIntegrationRoutes", () => {
           ],
         },
       },
-      {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
-      },
+      { headers },
     );
 
     expect(response.status).toBe(202);
@@ -115,100 +123,21 @@ describe("canvaIntegrationRoutes", () => {
     expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId,
-        apiKeyId: apiKeyBody.apiKey.id,
-        canvaConnectionId: created.connection.id,
-        projectId: projectBody.project.id,
-      }),
-    );
-  });
-
-  it("scopes localization to the connection project even when projectId is sent", async () => {
-    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
-    await apiKeyFixture.authHeadersFor(identity);
-    const auth = globalThis.__testApiAuthContext!;
-    const organizationId = auth.organization.localOrganizationId;
-
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
-      name: "Canva localize key",
-    });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
-
-    const boundProjectResponse = await projectFixture.createProjectViaApi(identity);
-    const boundProjectBody = (await boundProjectResponse.json()) as { project: { id: string } };
-    const otherProjectResponse = await projectFixture.createProjectViaApi(identity);
-    const otherProjectBody = (await otherProjectResponse.json()) as { project: { id: string } };
-
-    const created = await createCanvaConnection({
-      organizationId,
-      userId: auth.user.localUserId,
-      displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
-      projectId: boundProjectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
-    });
-
-    mocks.startCanvaLocalizationMock.mockResolvedValue({
-      jobId: "job_test",
-    });
-
-    const payload = {
-      designToken: "design-token",
-      projectId: otherProjectBody.project.id,
-      segments: [
-        {
-          key: "canva.segment.0.0.0",
-          pageIndex: 0,
-          contentIndex: 0,
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
-    };
-
-    const response = await client.api.integrations.canva.localize.$post(
-      {
-        json: payload as Parameters<typeof client.api.integrations.canva.localize.$post>[0]["json"],
-      },
-      {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
-      },
-    );
-
-    expect(response.status).toBe(202);
-    expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: boundProjectBody.project.id,
-        canvaConnectionId: created.connection.id,
+        projectId,
+        session: expect.objectContaining({
+          sessionId: oauth.sessionId,
+          user: expect.objectContaining({
+            localUserId: auth.user.localUserId,
+          }),
+        }),
       }),
     );
   });
 
   it("returns localization results for a completed job", async () => {
-    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
-    await apiKeyFixture.authHeadersFor(identity);
-    const auth = globalThis.__testApiAuthContext!;
-    const organizationId = auth.organization.localOrganizationId;
-
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
-      name: "Canva localize key",
-    });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
-
-    const projectResponse = await projectFixture.createProjectViaApi(identity);
-    const projectBody = (await projectResponse.json()) as { project: { id: string } };
-
-    const created = await createCanvaConnection({
-      organizationId,
-      userId: auth.user.localUserId,
-      displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
-      projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
-    });
+    const { stored, auth, headers } = await createOAuthContext();
+    const organizationId = stored.organization.id;
+    const projectId = stored.project.id;
 
     mocks.getCanvaLocalizationStatusMock.mockResolvedValue({
       jobId: "job_test",
@@ -225,12 +154,12 @@ describe("canvaIntegrationRoutes", () => {
         param: {
           jobId: "job_test",
         },
+        query: {
+          organizationId,
+          projectId,
+        } as { organizationId: string; projectId: string },
       },
-      {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
-      },
+      { headers },
     );
 
     expect(response.status).toBe(200);
@@ -247,16 +176,19 @@ describe("canvaIntegrationRoutes", () => {
     expect(mocks.getCanvaLocalizationStatusMock).toHaveBeenCalledWith({
       jobId: "job_test",
       organizationId,
-      canvaConnectionId: created.connection.id,
-      projectId: projectBody.project.id,
-      apiKeyId: apiKeyBody.apiKey.id,
+      userId: auth.user.localUserId,
+      projectId,
     });
   });
 
-  it("rejects localize requests without a connection token", async () => {
+  it("rejects localize requests without an OAuth access token", async () => {
     const response = await client.api.integrations.canva.localize.$post({
       json: {
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        projectId: "prj_test",
         designToken: "design-token",
+        sourceLocale: "en",
+        targetLocales: ["es"],
         segments: [
           {
             key: "canva.segment.0.0.0",

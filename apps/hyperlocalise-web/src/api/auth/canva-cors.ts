@@ -34,10 +34,7 @@ export const canvaCorsMiddleware = createMiddleware(async (c, next) => {
     c.header("Vary", "Origin");
   }
 
-  c.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Hyperlocalise-Connection-Token",
-  );
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Canva-User-Token");
   c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
   if (c.req.method === "OPTIONS") {

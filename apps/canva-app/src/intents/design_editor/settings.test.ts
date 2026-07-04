@@ -30,21 +30,23 @@ describe("settings", () => {
     });
 
     saveSettings({
-      connectionToken: "hl_canva_test_token",
+      organizationId: "org_123",
       projectId: "project_123",
       sourceLocale: "en",
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      rememberBrandOrgBinding: true,
     });
 
     expect(loadSettings()).toEqual({
-      connectionToken: "hl_canva_test_token",
+      organizationId: "org_123",
       projectId: "project_123",
       sourceLocale: "en",
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      rememberBrandOrgBinding: true,
     });
   });
 });
