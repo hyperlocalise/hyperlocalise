@@ -217,7 +217,9 @@ export function ProjectFileCatWorkspace({
     Boolean(activeSegmentId) && segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
 
   const isSegmentTargetLoading =
-    Boolean(activeSegmentId) && segmentTargetQuery.isFetching && !segmentTargetQuery.data;
+    Boolean(activeSegmentId) &&
+    segmentTargetQuery.isFetching &&
+    segmentTargetQuery.data === undefined;
 
   const enrichedWorkspaceState = useMemo(() => {
     if (!workspaceState) {

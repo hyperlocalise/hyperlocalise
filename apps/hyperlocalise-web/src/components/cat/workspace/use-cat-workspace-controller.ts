@@ -388,6 +388,7 @@ export function useCatWorkspaceController({
   const concordanceLookupAttemptedRef = useRef(new Set<string>());
   const cachedContextLookupAttemptedRef = useRef(new Set<string>());
   const visualContextLookupAttemptedRef = useRef(new Set<string>());
+  const visualContextLoadingSegmentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     concordanceLookupAttemptedRef.current.clear();
@@ -444,6 +445,7 @@ export function useCatWorkspaceController({
       const existingVisualContext = store.segmentIntelligence[segmentId]?.visualContext;
       if (existingVisualContext) {
         store.isLoadingVisualContext = false;
+        visualContextLoadingSegmentIdRef.current = null;
         return;
       }
 
@@ -453,6 +455,7 @@ export function useCatWorkspaceController({
 
       visualContextLookupAttemptedRef.current.add(segmentId);
       store.isLoadingVisualContext = true;
+      visualContextLoadingSegmentIdRef.current = segmentId;
 
       void lookupSegmentVisualContext(segment)
         .then((visualContext) => {
@@ -468,7 +471,10 @@ export function useCatWorkspaceController({
           });
         })
         .finally(() => {
-          store.isLoadingVisualContext = false;
+          if (segmentId === visualContextLoadingSegmentIdRef.current) {
+            store.isLoadingVisualContext = false;
+            visualContextLoadingSegmentIdRef.current = null;
+          }
         });
     },
     [
