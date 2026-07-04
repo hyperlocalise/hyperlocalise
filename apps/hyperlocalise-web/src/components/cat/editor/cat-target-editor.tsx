@@ -19,6 +19,11 @@ import {
   type CatMessageAnalysis,
   type CatMessageToken,
 } from "@/components/cat/message-format/cat-message-format";
+import {
+  catMessageTokenMissingClass,
+  catMessageTokenToneClass,
+  type CatMessageTokenVisualKind,
+} from "@/components/cat/message-format/cat-message-token-styles";
 import { catTargetEditorMessages } from "@/components/cat/shared/cat.messages";
 
 function textDocFromValue(value: string) {
@@ -36,17 +41,22 @@ function editorText(editor: NonNullable<ReturnType<typeof useEditor>>) {
   return editor.getText({ blockSeparator: "\n" });
 }
 
-function tokenClassName(token: CatMessageToken) {
+function tokenVisualKind(token: CatMessageToken): CatMessageTokenVisualKind {
   switch (token.kind) {
     case "icu":
-      return "cat-mf-token cat-mf-icu";
+      return "icu";
     case "pound":
-      return "cat-mf-token cat-mf-pound";
+      return "pound";
     case "tag":
-      return "cat-mf-token cat-mf-tag";
+      return "tag";
     default:
-      return "cat-mf-token cat-mf-placeholder";
+      return "placeholder";
   }
+}
+
+function tokenClassName(token: CatMessageToken) {
+  const kind = tokenVisualKind(token);
+  return cn("cat-mf-token", `cat-mf-${kind}`, catMessageTokenToneClass(kind));
 }
 
 function decorationRangesForToken(
@@ -125,7 +135,11 @@ function createCatMessageFormatExtension() {
                   start: analysis.parseError.start,
                   end: analysis.parseError.end,
                 }).forEach(({ from, to }) => {
-                  decorations.push(Decoration.inline(from, to, { class: "cat-mf-error" }));
+                  decorations.push(
+                    Decoration.inline(from, to, {
+                      class: cn("cat-mf-error", catMessageTokenToneClass("error")),
+                    }),
+                  );
                 });
               }
 
@@ -208,9 +222,7 @@ export function CatMessagePreview({ message, className }: { message: string; cla
             key={part.key}
             className={cn(
               "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
-              part.token.kind === "icu"
-                ? "border-bud-500/25 bg-bud-500/10 text-bud-100"
-                : "border-dew-500/25 bg-dew-500/10 text-dew-100",
+              catMessageTokenToneClass(tokenVisualKind(part.token)),
             )}
           >
             {part.text}
@@ -237,7 +249,12 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
         {blocks.map((block) => (
           <li key={block.id} className="space-y-1">
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="rounded-md border border-bud-500/25 bg-bud-500/10 px-1.5 py-0.5 font-mono text-bud-100">
+              <span
+                className={cn(
+                  "rounded-md border px-1.5 py-0.5 font-mono",
+                  catMessageTokenToneClass("icu"),
+                )}
+              >
                 {block.arg}
               </span>
               <span className="text-muted-foreground">·</span>
@@ -352,11 +369,6 @@ export function CatTargetEditor({
           "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
-          "[&_.cat-mf-placeholder]:bg-dew-500/10 [&_.cat-mf-placeholder]:text-dew-100",
-          "[&_.cat-mf-icu]:bg-bud-500/10 [&_.cat-mf-icu]:text-bud-100",
-          "[&_.cat-mf-pound]:bg-grove-500/10 [&_.cat-mf-pound]:text-grove-100",
-          "[&_.cat-mf-tag]:bg-skeleton [&_.cat-mf-tag]:text-foreground",
-          "[&_.cat-mf-error]:rounded-md [&_.cat-mf-error]:bg-flame-700/20 [&_.cat-mf-error]:text-flame-100",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:float-left",
@@ -427,7 +439,7 @@ export function CatTargetEditor({
                 disabled={disabled}
                 className={cn(
                   "h-7 rounded-full px-2 font-mono text-xs",
-                  isMissing && "border-bud-500/40 bg-bud-500/10 text-bud-100",
+                  isMissing && catMessageTokenMissingClass,
                   isPresent && !isMissing && "text-muted-foreground",
                 )}
               >
