@@ -11,7 +11,7 @@ export function catMessageTokenToneClass(kind: CatMessageTokenVisualKind) {
     case "tag":
       return "border-border bg-skeleton text-foreground";
     case "error":
-      return "bg-flame-700/20 text-flame-900 dark:text-flame-100";
+      return "rounded-md bg-flame-700/20 text-flame-900 dark:text-flame-100";
   }
 }
 
