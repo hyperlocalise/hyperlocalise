@@ -274,17 +274,13 @@ export function ProjectFileCatWorkspace({
       segment: CatSegment,
       options?: { cachedOnly?: boolean; forceRefresh?: boolean },
     ): Promise<string | null> => {
-      if (!repositoryFullName) {
-        throw new Error("Select a GitHub repository before looking up string context.");
-      }
-
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files[
         "string-context"
       ].$post({
         param: { organizationSlug, projectId },
         json: {
           sourcePath,
-          repositoryFullName,
+          ...(repositoryFullName ? { repositoryFullName } : {}),
           key: segment.key,
           text: segment.sourceText,
           context: segment.contextLabel ?? null,
@@ -485,12 +481,12 @@ export function ProjectFileCatWorkspace({
         services={{
           validateFormat,
           lookupSegmentConcordance,
+          lookupSegmentContext,
           lookupSegmentVisualContext:
             catFile?.provider?.kind && catFile.provider.kind !== "native"
               ? lookupSegmentVisualContext
               : undefined,
           generateAiRecommendation,
-          ...(repositoryFullName ? { lookupSegmentContext } : {}),
         }}
         review={{
           onApprove: handleApprove,
