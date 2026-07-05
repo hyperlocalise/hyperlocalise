@@ -44,11 +44,14 @@ export function useCatSegmentQuery(input: {
   targetLocale: string;
   repositoryFullName?: string | null;
   enabled?: boolean;
+  initialQueueFilter?: CatQueueFilter;
 }) {
   const queryClient = useQueryClient();
   const repositoryFullName = input.repositoryFullName ?? null;
   const [search, setSearch] = useState("");
-  const [queueFilter, setQueueFilter] = useState<CatQueueFilter>("all");
+  const [queueFilter, setQueueFilter] = useState<CatQueueFilter>(
+    () => input.initialQueueFilter ?? "all",
+  );
   const [limit] = useState(defaultCatPageLimit);
   const debouncedSearch = useDebouncedValue(search, 300);
   const isSearchPending = search !== debouncedSearch;

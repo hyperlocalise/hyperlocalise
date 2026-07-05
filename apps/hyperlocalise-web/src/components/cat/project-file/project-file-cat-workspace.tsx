@@ -22,7 +22,10 @@ import { apiClient } from "@/lib/api-client-instance";
 import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-concordance-for-ai-recommendation";
 import { cn } from "@/lib/primitives/cn";
 
-import { resolveAvailableCatQueueFilters } from "@/components/cat/queue/cat-queue-filter";
+import {
+  resolveAvailableCatQueueFilters,
+  type CatQueueFilter,
+} from "@/components/cat/queue/cat-queue-filter";
 import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/cat/segment/cat-segment-share-link";
 import type {
@@ -60,6 +63,7 @@ export function ProjectFileCatWorkspace({
   repositoryFullName = null,
   canLookupFreshContext = true,
   initialSegmentKey = null,
+  initialQueueFilter = "all",
   layout = "default",
   className,
 }: {
@@ -75,6 +79,7 @@ export function ProjectFileCatWorkspace({
   repositoryFullName?: string | null;
   canLookupFreshContext?: boolean;
   initialSegmentKey?: string | null;
+  initialQueueFilter?: CatQueueFilter;
   layout?: "default" | "fullscreen";
   className?: string;
 }) {
@@ -123,6 +128,7 @@ export function ProjectFileCatWorkspace({
     targetLocale,
     repositoryFullName,
     enabled: Boolean(targetLocale),
+    initialQueueFilter,
   });
 
   const availableQueueFilters = useMemo(

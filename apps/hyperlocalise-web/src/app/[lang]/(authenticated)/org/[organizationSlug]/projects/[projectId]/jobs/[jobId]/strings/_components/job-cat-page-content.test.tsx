@@ -27,14 +27,17 @@ const {
     ({
       repositoryFullName,
       sourcePath,
+      initialQueueFilter,
     }: {
       repositoryFullName?: string | null;
       sourcePath: string;
+      initialQueueFilter?: string;
     }) => (
       <div
         data-testid="cat-workspace"
         data-repo={repositoryFullName ?? ""}
         data-source-path={sourcePath}
+        data-initial-queue-filter={initialQueueFilter ?? ""}
       />
     ),
   ),
@@ -83,8 +86,11 @@ vi.mock("@/lib/api-client-instance", () => ({
 }));
 
 vi.mock("@/components/cat/project-file/project-file-cat-workspace", () => ({
-  ProjectFileCatWorkspace: (props: { repositoryFullName?: string | null; sourcePath: string }) =>
-    ProjectFileCatWorkspaceMock(props),
+  ProjectFileCatWorkspace: (props: {
+    repositoryFullName?: string | null;
+    sourcePath: string;
+    initialQueueFilter?: string;
+  }) => ProjectFileCatWorkspaceMock(props),
 }));
 
 import { JobCatPageContent } from "./job-cat-page-content";
@@ -280,6 +286,10 @@ describe("JobCatPageContent CAT shell", () => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
         "data-source-path",
         "crowdin/home.json",
+      );
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
+        "data-initial-queue-filter",
+        "untranslated",
       );
     });
   });
