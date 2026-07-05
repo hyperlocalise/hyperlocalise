@@ -228,6 +228,28 @@ async function fetchLokaliseKeysByIds(input: {
   return keys;
 }
 
+async function advanceLokaliseKeysCursor(input: {
+  client: LokaliseApiClient;
+  projectId: string;
+  targetScanPage: number;
+  pageSize: number;
+}): Promise<{ cursor: string; scanComplete: boolean }> {
+  let cursor = "";
+  for (let page = 1; page < input.targetScanPage; page++) {
+    const result = await input.client.listKeysCursorPage(input.projectId, {
+      includeTranslations: false,
+      cursor: cursor || undefined,
+      limit: input.pageSize,
+    });
+    if (!result.nextCursor) {
+      return { cursor: "", scanComplete: true };
+    }
+    cursor = result.nextCursor;
+  }
+
+  return { cursor, scanComplete: false };
+}
+
 async function loadLokaliseQueuePage(input: {
   client: LokaliseApiClient;
   scope: LokaliseLiveCatContext;
@@ -306,6 +328,53 @@ async function loadLokaliseQueuePage(input: {
     };
   }
 
+  if (!needsClientSideFilter && scopedKeyIds.length === 0) {
+    const collected: LokaliseKey[] = [];
+    let cursor = "";
+    let skipped = 0;
+    let hasMore = false;
+
+    while (collected.length < limit) {
+      const page = await input.client.listKeysCursorPage(input.scope.projectId, {
+        includeTranslations: false,
+        cursor: cursor || undefined,
+        limit: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
+      });
+
+      let stoppedEarly = false;
+      for (const key of page.keys) {
+        if (skipped < offset) {
+          skipped += 1;
+          continue;
+        }
+
+        collected.push(key);
+        if (collected.length >= limit) {
+          stoppedEarly = true;
+          break;
+        }
+      }
+
+      if (collected.length >= limit) {
+        hasMore = Boolean(page.nextCursor) || stoppedEarly;
+        break;
+      }
+
+      if (!page.nextCursor) {
+        break;
+      }
+
+      cursor = page.nextCursor;
+    }
+
+    return {
+      segments: collected
+        .map((key) => buildQueueSegmentFromKey(key, sourceLocale))
+        .map(draftToQueueSegment),
+      hasMore,
+    };
+  }
+
   const collected: ProjectFileCatQueueSegment[] = [];
   const resumingScan = input.paginationInput.phraseScanPage != null;
   let scanPage = resumingScan ? input.paginationInput.phraseScanPage! : 1;
@@ -313,6 +382,20 @@ async function loadLokaliseQueuePage(input: {
   let scanComplete = false;
   let nextPhraseScanPage: number | undefined;
   let nextPhraseScanSkip: number | undefined;
+  let listKeysCursor = "";
+  if (resumingScan && scopedKeyIds.length === 0) {
+    const advanced = await advanceLokaliseKeysCursor({
+      client: input.client,
+      projectId: input.scope.projectId,
+      targetScanPage: scanPage,
+      pageSize: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
+    });
+    if (advanced.scanComplete) {
+      scanComplete = true;
+    } else {
+      listKeysCursor = advanced.cursor;
+    }
+  }
   const scanPageBudget = resumingScan
     ? scanPage + LOKALISE_MAX_SCAN_PAGES - 1
     : Math.max(
@@ -320,7 +403,7 @@ async function loadLokaliseQueuePage(input: {
         Math.ceil((offset + limit) / LOKALISE_QUEUE_SCAN_PAGE_SIZE) + LOKALISE_MAX_SCAN_PAGES,
       );
 
-  while (collected.length < limit && scanPage <= scanPageBudget) {
+  while (!scanComplete && collected.length < limit && scanPage <= scanPageBudget) {
     const chunkStart = (scanPage - 1) * LOKALISE_QUEUE_SCAN_PAGE_SIZE;
     const chunkKeyIds =
       scopedKeyIds.length > 0
@@ -340,14 +423,19 @@ async function loadLokaliseQueuePage(input: {
       });
     } else {
       try {
-        keys = await input.client.listKeys(input.scope.projectId, {
+        const page = await input.client.listKeysCursorPage(input.scope.projectId, {
           includeTranslations: false,
-          maxKeys: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
+          cursor: listKeysCursor || undefined,
+          limit: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
         });
+        keys = page.keys;
+        listKeysCursor = page.nextCursor ?? "";
+        if (!page.nextCursor) {
+          scanComplete = true;
+        }
       } catch (error) {
         mapLokaliseApiError(error);
       }
-      scanComplete = true;
     }
 
     const filteredKeys = filterKeysByFileTags(keys, metadata.tags);
@@ -382,8 +470,7 @@ async function loadLokaliseQueuePage(input: {
         scanComplete = true;
         break;
       }
-    } else {
-      scanComplete = true;
+    } else if (scanComplete) {
       break;
     }
 

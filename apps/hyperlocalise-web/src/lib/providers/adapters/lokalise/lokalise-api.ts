@@ -417,6 +417,48 @@ export class LokaliseApiClient {
     return maxKeys != null ? keys.slice(0, maxKeys) : keys;
   }
 
+  async listKeysCursorPage(
+    projectId: string,
+    options?: {
+      includeTranslations?: boolean;
+      filterKeyIds?: number[];
+      filterTranslationLangIds?: number[];
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ keys: LokaliseKey[]; nextCursor: string | null }> {
+    const pageLimit = options?.limit ?? 500;
+    const includeTranslations = options?.includeTranslations ?? true;
+    const filterKeyIds = options?.filterKeyIds?.length ? options.filterKeyIds.join(",") : null;
+    const filterTranslationLangIds = options?.filterTranslationLangIds?.length
+      ? options.filterTranslationLangIds.join(",")
+      : null;
+
+    const params = new URLSearchParams({
+      pagination: "cursor",
+      limit: String(pageLimit),
+      include_translations: includeTranslations ? "1" : "0",
+    });
+    if (options?.cursor) {
+      params.set("cursor", options.cursor);
+    }
+    if (filterKeyIds) {
+      params.set("filter_key_ids", filterKeyIds);
+    }
+    if (filterTranslationLangIds) {
+      params.set("filter_translation_lang_ids", filterTranslationLangIds);
+    }
+
+    const { body, nextCursor } = await this.getWithPagination<LokaliseKeysListResponse>(
+      `/projects/${encodeURIComponent(projectId)}/keys?${params.toString()}`,
+    );
+
+    return {
+      keys: (body.keys ?? []).map(normalizeLokaliseKey),
+      nextCursor: nextCursor?.trim() ? nextCursor.trim() : null,
+    };
+  }
+
   async listTasks(projectId: string, options?: LokaliseListTasksOptions): Promise<LokaliseTask[]> {
     const tasks: LokaliseTask[] = [];
     let page = 1;

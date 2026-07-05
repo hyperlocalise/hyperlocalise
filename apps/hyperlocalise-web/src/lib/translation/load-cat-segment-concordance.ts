@@ -85,6 +85,12 @@ const LOKALISE_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
     "Connect your Lokalise account before loading glossary and translation memory matches.",
 };
 
+const LOKALISE_OAUTH_ERROR_CODES = new Set([
+  "lokalise_oauth_refresh_failed",
+  "lokalise_oauth_token_invalid",
+  "lokalise_oauth_token_response_invalid",
+]);
+
 const LOKALISE_USER_AUTH_INVALID_MESSAGE =
   "Your Lokalise connection is invalid. Reconnect Lokalise and try again.";
 
@@ -172,7 +178,7 @@ async function resolveLokaliseConcordanceToken(input: {
         throw new TmsProviderLiveError(error.message, message);
       }
 
-      if (error.message.startsWith("lokalise_")) {
+      if (LOKALISE_OAUTH_ERROR_CODES.has(error.message)) {
         throw new TmsProviderLiveError(
           "lokalise_user_auth_invalid",
           LOKALISE_USER_AUTH_INVALID_MESSAGE,

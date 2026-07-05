@@ -129,16 +129,6 @@ export function resolveLokaliseLocaleReadiness(
   return {
     translationProgress: progress,
     approvalProgress: progress,
-    words: {
-      total: 100,
-      translated: progress,
-      approved: progress,
-    },
-    phrases: {
-      total: 100,
-      translated: progress,
-      approved: progress,
-    },
   };
 }
 

@@ -236,4 +236,48 @@ describe("loadCatSegmentConcordance", () => {
 
     expect(searchLokaliseCatConcordanceMock).not.toHaveBeenCalled();
   });
+
+  it.each(["lokalise_oauth_refresh_failed", "lokalise_oauth_token_invalid"] as const)(
+    "throws a reconnect error when Lokalise OAuth token is invalid (%s)",
+    async (errorCode) => {
+      resolveExternalTmsSecretMaterialForActorMock.mockRejectedValue(new Error(errorCode));
+
+      await expect(
+        loadCatSegmentConcordance({
+          organizationId: "org_1",
+          projectId: "ext:lokalise:proj.123",
+          providerKind: "lokalise",
+          actorUserId: "user_1",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Hello",
+        }),
+      ).rejects.toMatchObject({
+        code: "lokalise_user_auth_invalid",
+        message: "Your Lokalise connection is invalid. Reconnect Lokalise and try again.",
+      } satisfies Partial<TmsProviderLiveError>);
+
+      expect(searchLokaliseCatConcordanceMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not remap unknown Lokalise errors as auth failures", async () => {
+    resolveExternalTmsSecretMaterialForActorMock.mockRejectedValue(
+      new Error("lokalise_rate_limit_exceeded"),
+    );
+
+    await expect(
+      loadCatSegmentConcordance({
+        organizationId: "org_1",
+        projectId: "ext:lokalise:proj.123",
+        providerKind: "lokalise",
+        actorUserId: "user_1",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        sourceText: "Hello",
+      }),
+    ).rejects.toThrow("lokalise_rate_limit_exceeded");
+
+    expect(searchLokaliseCatConcordanceMock).not.toHaveBeenCalled();
+  });
 });

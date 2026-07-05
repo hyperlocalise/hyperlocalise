@@ -155,6 +155,110 @@ describe("buildLokaliseLiveCatFile", () => {
       }),
     ).rejects.toBeInstanceOf(LokaliseLiveCatError);
   });
+
+  it("paginates unscoped file queues beyond the first 100 keys", async () => {
+    const firstPageKeys = Array.from({ length: 100 }, (_, index) => ({
+      key_id: index + 1,
+      key_name: { web: `key.${index + 1}`, ios: "", android: "", other: "" },
+      filenames: { web: "", ios: "", android: "", other: "" },
+      description: null,
+      tags: [],
+      translations: [
+        {
+          translation_id: index + 1,
+          key_id: index + 1,
+          language_iso: "en",
+          translation: `Source ${index + 1}`,
+          is_reviewed: true,
+          is_unverified: false,
+        },
+      ],
+    }));
+    const secondPageKeys = [
+      {
+        key_id: 101,
+        key_name: { web: "key.101", ios: "", android: "", other: "" },
+        filenames: { web: "", ios: "", android: "", other: "" },
+        description: null,
+        tags: [],
+        translations: [
+          {
+            translation_id: 101,
+            key_id: 101,
+            language_iso: "en",
+            translation: "Source 101",
+            is_reviewed: true,
+            is_unverified: false,
+          },
+        ],
+      },
+    ];
+
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/languages")) {
+        return new Response(
+          JSON.stringify({
+            languages: [
+              { lang_id: 640, lang_iso: "en", lang_name: "English", is_rtl: false },
+              { lang_id: 641, lang_iso: "fr", lang_name: "French", is_rtl: false },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys")) {
+        const cursor = new URL(path, "https://api.lokalise.test").searchParams.get("cursor");
+        return new Response(JSON.stringify({ keys: cursor ? secondPageKeys : firstPageKeys }), {
+          status: 200,
+          headers: cursor ? {} : { "X-Pagination-Next-Cursor": "page-2" },
+        });
+      }
+
+      return new Response("not found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await buildLokaliseLiveCatFile({
+      secretMaterial: "token",
+      baseUrl: "https://api.lokalise.test/api2",
+      externalProjectId: "proj.123",
+      file: createLokaliseKeyFile({
+        sourcePath: "files/app.json",
+        filename: "app.json",
+        metadata: { tags: [] },
+        provider: {
+          kind: "lokalise",
+          resourceType: "file",
+          externalProjectId: "proj.123",
+          externalResourceId: "file:app.json",
+          externalUrl: null,
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: null,
+          format: "json",
+          lastSyncedAt: null,
+        },
+      }),
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: { offset: 100, limit: 1, queueFilter: "all", paginated: true },
+    });
+
+    expect(catFile.segments).toEqual([
+      expect.objectContaining({
+        externalStringId: "101",
+        key: "key.101",
+        sourceText: "Source 101",
+      }),
+    ]);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/keys"))).toHaveLength(2);
+  });
 });
 
 describe("getLokaliseLiveCatSegmentTarget", () => {

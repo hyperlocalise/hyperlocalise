@@ -118,15 +118,5 @@ export function mapLokaliseTaskLanguageProgressToReadiness(input: {
   return {
     translationProgress: rounded,
     approvalProgress: rounded,
-    words: {
-      total: 100,
-      translated: rounded,
-      approved: rounded,
-    },
-    phrases: {
-      total: 100,
-      translated: rounded,
-      approved: rounded,
-    },
   };
 }

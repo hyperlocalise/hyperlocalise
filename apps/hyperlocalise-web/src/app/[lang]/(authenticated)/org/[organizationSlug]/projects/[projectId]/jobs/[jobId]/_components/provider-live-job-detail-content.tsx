@@ -25,9 +25,9 @@ export function ProviderLiveJobDetailContent({
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
+  const parsedJobId = parseProviderJobId(jobId);
   const showComments =
-    parseProviderJobId(jobId)?.providerKind === "crowdin" ||
-    parseProviderJobId(jobId)?.providerKind === "lokalise";
+    parsedJobId?.providerKind === "crowdin" || parsedJobId?.providerKind === "lokalise";
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
@@ -47,7 +47,6 @@ export function ProviderLiveJobDetailContent({
     },
   });
 
-  const parsedJobId = parseProviderJobId(jobId);
   const localeReadinessQuery = useProviderJobLocaleReadiness({
     organizationSlug,
     externalProjectId: parsedJobId?.externalProjectId,
