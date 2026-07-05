@@ -51,6 +51,9 @@ import { DashboardPageView } from "./dashboard-page-view";
 const api = createApiClient();
 const automationsApi = createAutomationsApi(api);
 
+/** Workspace jobs can include synced TMS rows; fetch extra so five native jobs remain after filtering. */
+const DASHBOARD_NATIVE_JOB_FETCH_LIMIT = "100";
+
 async function fetchAssignedJobs(organizationSlug: string) {
   const response = await api.api.orgs[":organizationSlug"].jobs.$get({
     param: { organizationSlug },
@@ -72,7 +75,7 @@ async function fetchLatestJobs(organizationSlug: string) {
   const response = await api.api.orgs[":organizationSlug"].jobs.$get({
     param: { organizationSlug },
     query: {
-      limit: "10",
+      limit: DASHBOARD_NATIVE_JOB_FETCH_LIMIT,
     },
   });
 
