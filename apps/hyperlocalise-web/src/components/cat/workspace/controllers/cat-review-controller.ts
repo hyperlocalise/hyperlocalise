@@ -281,9 +281,11 @@ export class CatReviewController {
         this.ports.usesServerQueueFilter,
       );
       const currentIndex = visibleSegments.findIndex((segment) => segment.id === segmentId);
-      this.workspace.setSelectedSegmentId(
-        visibleSegments[currentIndex + 1]?.id ?? this.workspace.selectedSegmentId,
-      );
+      if (this.workspace.selectedSegmentId === segmentId) {
+        this.workspace.setSelectedSegmentId(
+          visibleSegments[currentIndex + 1]?.id ?? this.workspace.selectedSegmentId,
+        );
+      }
     } catch (error) {
       this.workspace.addSaveFailureCheck(
         segmentId,

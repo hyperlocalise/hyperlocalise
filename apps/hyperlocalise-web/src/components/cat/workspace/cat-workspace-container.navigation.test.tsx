@@ -203,4 +203,33 @@ describe("CatWorkspaceContainer queue navigation", () => {
       expect(targetEditor?.textContent).toContain(" unsaved");
     });
   });
+
+  it("prompts before a local queue filter hides the dirty segment", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard(" unsaved");
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Leave segment with unsaved changes?")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Stay" }));
+
+    expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("All strings");
+    await waitFor(() => {
+      const targetEditor = document.querySelector(
+        '[aria-label="Target translation"][contenteditable="true"]',
+      );
+      expect(targetEditor?.textContent).toContain(" unsaved");
+    });
+  });
 });

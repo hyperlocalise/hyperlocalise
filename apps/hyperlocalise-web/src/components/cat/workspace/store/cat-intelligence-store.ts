@@ -8,8 +8,8 @@ export class CatIntelligenceStore {
   fileIntelligence: CatSegmentIntelligence = { glossaryTerms: [] };
   bySegment: Record<string, CatSegmentIntelligence> = {};
   revealedAgentContextSegmentIds = new Set<string>();
+  contextLoadingSegmentIds = new Set<string>();
 
-  isLookingUpContext = false;
   concordanceLoadingSegmentId: string | null = null;
   isLoadingVisualContext = false;
   isGeneratingAiRecommendation = false;
@@ -38,5 +38,13 @@ export class CatIntelligenceStore {
 
   revealAgentContext(segmentId: string) {
     this.revealedAgentContextSegmentIds.add(segmentId);
+  }
+
+  beginContextLookup(segmentId: string) {
+    this.contextLoadingSegmentIds.add(segmentId);
+  }
+
+  endContextLookup(segmentId: string) {
+    this.contextLoadingSegmentIds.delete(segmentId);
   }
 }

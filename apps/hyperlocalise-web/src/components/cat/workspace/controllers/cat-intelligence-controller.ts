@@ -239,7 +239,7 @@ export class CatIntelligenceController {
       return;
     }
 
-    this.workspace.isLookingUpContext = true;
+    this.workspace.beginContextLookup(segmentId);
     try {
       const agentContext = await lookup(segment, {
         forceRefresh: options?.forceRefresh === true,
@@ -263,7 +263,7 @@ export class CatIntelligenceController {
         });
       }
     } finally {
-      this.workspace.isLookingUpContext = false;
+      this.workspace.endContextLookup(segmentId);
     }
   }
 

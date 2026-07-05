@@ -203,6 +203,68 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     expect([...store.checkedSegmentIds]).toEqual([]);
   });
 
+  it("keeps the selected dirty segment visible when a queue refresh filters it out", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+      }),
+    );
+    store.setTargetText("seg-02", "Unsaved second");
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+
+    expect(store.selectedSegmentId).toBe("seg-02");
+    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01", "seg-02"]);
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("Unsaved second");
+  });
+
+  it("uses the new selected segment checks when a refresh removes the previous selection", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        formatChecks: [
+          {
+            id: "old-selected-check",
+            label: "Old selected check",
+            status: "warn",
+            message: "This belongs to the removed segment.",
+          },
+        ],
+      }),
+    );
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+        formatChecks: [
+          {
+            id: "new-selected-check",
+            label: "New selected check",
+            status: "pass",
+            message: "This belongs to the remaining segment.",
+          },
+        ],
+      }),
+    );
+
+    expect(store.selectedSegmentId).toBe("seg-01");
+    expect(store.formatChecks.map((check) => check.id)).toEqual(["new-selected-check"]);
+  });
+
   it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",

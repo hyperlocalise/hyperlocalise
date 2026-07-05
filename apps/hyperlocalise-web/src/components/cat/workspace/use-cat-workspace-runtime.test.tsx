@@ -11,6 +11,17 @@ import type { CatFormatCheck } from "@/components/cat/shared/types";
 import { createCatWorkspace } from "./cat-workspace-orchestrator";
 import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, reject, resolve };
+}
+
 function renderController(
   initialState = createCatWorkspaceState({
     selectedSegmentId: "seg-02",
@@ -585,6 +596,34 @@ describe("useCatWorkspaceRuntime", () => {
     expect(store.getSegmentView("seg-02")?.status).toBe("reviewed");
   });
 
+  it("does not move the user when an earlier segment approval finishes after navigation", async () => {
+    const approval = createDeferred<"reviewed">();
+    const onApprove = vi.fn().mockReturnValue(approval.promise);
+    const { result, store } = renderController(undefined, {
+      review: { onApprove },
+    });
+    let approvePromise!: Promise<unknown>;
+
+    act(() => {
+      approvePromise = Promise.resolve(
+        result.current.dependencies.review.onApprove("seg-02", "Deuxième"),
+      );
+    });
+    expect(store.isApproving).toBe(true);
+
+    act(() => {
+      store.setSelectedSegmentId("seg-01");
+    });
+    approval.resolve("reviewed");
+    await act(async () => {
+      await approvePromise;
+    });
+
+    expect(store.selectedSegmentId).toBe("seg-01");
+    expect(store.getSegmentView("seg-02")?.status).toBe("reviewed");
+    expect(store.isApproving).toBe(false);
+  });
+
   it("adds save failure checks when approve fails", async () => {
     const { result, store } = renderController(undefined, {
       review: {
@@ -711,6 +750,49 @@ describe("useCatWorkspaceRuntime", () => {
     expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
       "Hero title on the sign-in page.",
     );
+  });
+
+  it("keeps context loading scoped to the selected segment across concurrent lookups", async () => {
+    const secondSegmentLookup = createDeferred<string>();
+    const thirdSegmentLookup = createDeferred<string>();
+    const lookupSegmentContext = vi.fn((segment: { id: string }) =>
+      segment.id === "seg-02" ? secondSegmentLookup.promise : thirdSegmentLookup.promise,
+    );
+    const { result, store } = renderController(undefined, {
+      services: {
+        lookupSegmentContext,
+      },
+    });
+    let secondSegmentPromise!: Promise<unknown>;
+    let thirdSegmentPromise!: Promise<unknown>;
+
+    act(() => {
+      secondSegmentPromise = Promise.resolve(
+        result.current.dependencies.review.onAskQuestion("seg-02"),
+      );
+    });
+    await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      store.setSelectedSegmentId("seg-03");
+      thirdSegmentPromise = Promise.resolve(
+        result.current.dependencies.review.onAskQuestion("seg-03"),
+      );
+    });
+    await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(2));
+    expect(store.isLookingUpContext).toBe(true);
+
+    secondSegmentLookup.resolve("Second segment context");
+    await act(async () => {
+      await secondSegmentPromise;
+    });
+    expect(store.isLookingUpContext).toBe(true);
+
+    thirdSegmentLookup.resolve("Third segment context");
+    await act(async () => {
+      await thirdSegmentPromise;
+    });
+    expect(store.isLookingUpContext).toBe(false);
   });
 
   it("lazy-loads cached agent context for the selected segment", async () => {

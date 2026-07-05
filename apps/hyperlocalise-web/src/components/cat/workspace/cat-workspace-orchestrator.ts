@@ -332,11 +332,9 @@ export class CatWorkspaceOrchestrator {
   }
 
   get isLookingUpContext() {
-    return this.intelligenceState.isLookingUpContext;
-  }
-
-  set isLookingUpContext(value: boolean) {
-    this.intelligenceState.isLookingUpContext = value;
+    const selectedSegmentId =
+      this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
+    return this.intelligenceState.contextLoadingSegmentIds.has(selectedSegmentId);
   }
 
   get concordanceLoadingSegmentId() {
@@ -552,22 +550,37 @@ export class CatWorkspaceOrchestrator {
       }
 
       const nextSegmentIds = new Set(normalizedNext.queueSegments.map((segment) => segment.id));
+      const selectedDraftIsDirty = Boolean(this.drafts.get(this.selectedSegmentId)?.isDirty);
+      const retainedSelectedSegmentId =
+        selectedDraftIsDirty && this.segmentMeta.has(this.selectedSegmentId)
+          ? this.selectedSegmentId
+          : null;
       const selectedSegmentId = nextSegmentIds.has(this.selectedSegmentId)
         ? this.selectedSegmentId
-        : (normalizedNext.selectedSegmentId ??
+        : (retainedSelectedSegmentId ??
+          normalizedNext.selectedSegmentId ??
           normalizedNext.queueSegments[0]?.id ??
           normalizedNext.segments?.[0]?.id ??
           "");
 
       this.selectedSegmentId = selectedSegmentId;
-      this.queue.reconcileVisibleIds(nextSegmentIds);
+      const visibleSegmentIds = new Set(nextSegmentIds);
+      if (retainedSelectedSegmentId) {
+        visibleSegmentIds.add(retainedSelectedSegmentId);
+      }
+      this.queue.reconcileVisibleIds(visibleSegmentIds);
 
       const matchedSegmentId = initialSegmentKeyOrId
         ? this.findSegmentIdByKeyOrId(initialSegmentKeyOrId)
         : null;
-      if (matchedSegmentId && !this.initialSegmentJumpApplied) {
+      if (matchedSegmentId && !this.initialSegmentJumpApplied && !selectedDraftIsDirty) {
         this.initialSegmentJumpApplied = true;
         this.selectedSegmentId = matchedSegmentId;
+      }
+
+      if (currentShell.selectedSegmentId !== this.selectedSegmentId) {
+        this.formatChecks =
+          this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks;
       }
 
       this.revealedAgentContextSegmentIds = new Set([
@@ -831,16 +844,23 @@ export class CatWorkspaceOrchestrator {
   }
 
   setQueueFilter(filter: CatQueueFilter) {
-    this.queue.setFilter(filter);
     const filtered = this.getFilteredQueueSegments(filter, false);
-    if (
-      !filtered.some(
-        (segment) =>
-          segment.id === this.selectedSegmentId || segment.key === this.selectedSegmentId,
-      )
-    ) {
-      this.setSelectedSegmentId(filtered[0]?.id ?? "");
+    const selectionWillChange = !filtered.some(
+      (segment) => segment.id === this.selectedSegmentId || segment.key === this.selectedSegmentId,
+    );
+    const applyFilter = () => {
+      this.queue.setFilter(filter);
+      if (selectionWillChange) {
+        this.setSelectedSegmentId(filtered[0]?.id ?? "");
+      }
+    };
+
+    if (selectionWillChange) {
+      this.attemptSegmentNavigation(applyFilter);
+      return;
     }
+
+    applyFilter();
   }
 
   attemptSegmentNavigation(proceed: () => void) {
@@ -914,6 +934,14 @@ export class CatWorkspaceOrchestrator {
     if (this.concordanceLoadingSegmentId === segmentId) {
       this.concordanceLoadingSegmentId = null;
     }
+  }
+
+  beginContextLookup(segmentId: string) {
+    this.intelligenceState.beginContextLookup(segmentId);
+  }
+
+  endContextLookup(segmentId: string) {
+    this.intelligenceState.endContextLookup(segmentId);
   }
 
   setReviewPhaseLoading(sequence: number, phase: "ai" | "formatChecks", loading: boolean): void {
