@@ -260,16 +260,18 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   );
 
   const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
-  const hasFilteredResults = filteredNativeProjects.length > 0 || filteredTmsProjects.length > 0;
   const isTmsProjectsLoading = tmsProjectsQuery.isLoading || tmsProjectsQuery.isFetching;
-  const tmsProviderName = activeTmsProviderQuery.data
-    ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
-    : "TMS";
-  const hasTmsPrimaryWorkflow = hasTmsConnection && tmsProjects.length > 0;
   const showTmsSection =
     (hasTmsConnection || isTmsProjectsLoading) &&
     (sourceFilter === "all" || sourceFilter === "tms");
   const showNativeSection = sourceFilter === "all" || sourceFilter === "native";
+  const hasFilteredResults =
+    (showNativeSection && filteredNativeProjects.length > 0) ||
+    (showTmsSection && filteredTmsProjects.length > 0);
+  const tmsProviderName = activeTmsProviderQuery.data
+    ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
+    : "TMS";
+  const hasTmsPrimaryWorkflow = hasTmsConnection && tmsProjects.length > 0;
   const compactNativeEmpty = hasTmsPrimaryWorkflow && nativeProjects.length === 0;
 
   function openCreateProjectDialog() {
