@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# Go container service build. Build context is the repository root.
+
+FROM golang:1.26.1-alpine AS builder
+WORKDIR /repo
+RUN apk add --no-cache git ca-certificates
+
+COPY go.mod go.sum ./
+COPY third_party ./third_party
+COPY internal/i18n ./internal/i18n
+COPY apps/go-svc ./apps/go-svc
+
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
+
+FROM gcr.io/distroless/static-debian12:nonroot
+WORKDIR /
+COPY --from=builder /service /service
+EXPOSE 8080
+USER nonroot:nonroot
+ENTRYPOINT ["/service"]

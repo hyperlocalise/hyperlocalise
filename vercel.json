@@ -5,17 +5,17 @@
       "framework": "nextjs",
       "buildCommand": "pnpm run db:migrate && pnpm build"
     },
-    "cat_validate": {
+    "go_svc": {
       "runtime": "container",
       "root": ".",
-      "entrypoint": "apps/cat-validate/Dockerfile.vercel"
+      "entrypoint": "Dockerfile.vercel"
     }
   },
   "rewrites": [
     {
-      "source": "/api/cat-validate/:path*",
+      "source": "/api/go-svc/:path*",
       "destination": {
-        "service": "cat_validate",
+        "service": "go_svc",
         "path": "/:path*"
       }
     },
