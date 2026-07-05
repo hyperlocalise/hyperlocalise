@@ -17,8 +17,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 });
 
 const projectFilesTreeStyle = {
-  height: "100%",
-  minHeight: `${TREE_MIN_HEIGHT_PX}px`,
+  height: `${TREE_MIN_HEIGHT_PX}px`,
   backgroundColor: "transparent",
   color: "var(--foreground)",
   borderColor: "var(--border)",
@@ -141,15 +140,13 @@ export function ProjectFilesTree({
   }
 
   return (
-    <div className="h-full min-h-80 w-full">
-      <PierreFileTree
-        aria-label={ariaLabel}
-        className="size-full border-0 bg-transparent"
-        id="project-files-tree"
-        model={model}
-        preloadedData={preloadedData ?? undefined}
-        style={projectFilesTreeStyle}
-      />
-    </div>
+    <PierreFileTree
+      aria-label={ariaLabel}
+      className="w-full border-0 bg-transparent"
+      id="project-files-tree"
+      model={model}
+      preloadedData={preloadedData ?? undefined}
+      style={projectFilesTreeStyle}
+    />
   );
 }
