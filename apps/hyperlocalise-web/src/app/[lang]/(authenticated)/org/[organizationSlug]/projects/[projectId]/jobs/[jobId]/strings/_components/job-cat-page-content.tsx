@@ -7,19 +7,13 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
+import { CatFileTreePicker, CatRepositorySelect } from "../../../../_components/cat-header-pickers";
 import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
 import {
   catFileRepositoryPreferenceKey,
@@ -423,8 +417,8 @@ export function JobCatPageContent({
     );
   }
 
-  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
-    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
+  const handleRepositoryChange = (nextRepositoryFullName: string) => {
+    if (!repositoryPreferenceKey) {
       return;
     }
 
@@ -478,21 +472,11 @@ export function JobCatPageContent({
           </TypographyP>
 
           {enabledRepositoryFullNames.length > 0 ? (
-            <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
-              <SelectTrigger
-                className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-                aria-label="GitHub repository"
-              >
-                <SelectValue placeholder="GitHub repo" />
-              </SelectTrigger>
-              <SelectContent>
-                {enabledRepositoryFullNames.map((repositoryFullName) => (
-                  <SelectItem key={repositoryFullName} value={repositoryFullName}>
-                    {repositoryFullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CatRepositorySelect
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
           ) : null}
         </div>
 
@@ -593,38 +577,18 @@ export function JobCatPageContent({
           <ArrowLeftIcon className="size-4" />
         </Button>
 
-        <Select value={selectedFile.sourcePath} onValueChange={handleFileChange}>
-          <SelectTrigger
-            className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-            aria-label="Source file"
-          >
-            <SelectValue placeholder="Source file" />
-          </SelectTrigger>
-          <SelectContent>
-            {providerFiles.map((file) => (
-              <SelectItem key={file.sourcePath} value={file.sourcePath}>
-                {file.sourcePath}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatFileTreePicker
+          files={providerFiles}
+          selectedSourcePath={selectedFile.sourcePath}
+          onSelectFile={handleFileChange}
+        />
 
         {enabledRepositoryFullNames.length > 0 ? (
-          <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
-            <SelectTrigger
-              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-              aria-label="GitHub repository"
-            >
-              <SelectValue placeholder="GitHub repo" />
-            </SelectTrigger>
-            <SelectContent>
-              {enabledRepositoryFullNames.map((repositoryFullName) => (
-                <SelectItem key={repositoryFullName} value={repositoryFullName}>
-                  {repositoryFullName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatRepositorySelect
+            repositoryFullNames={enabledRepositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
         ) : null}
 
         <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
