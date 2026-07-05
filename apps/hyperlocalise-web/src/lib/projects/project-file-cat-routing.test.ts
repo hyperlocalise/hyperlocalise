@@ -110,4 +110,14 @@ describe("buildProjectFileCatHref", () => {
       "/org/acme/projects/project_website/files/cat?sourcePath=marketing%2Fhome.json&locale=fr-FR",
     );
   });
+
+  it("preserves the provider branch filter in CAT hrefs", () => {
+    const file = createProjectFileRecord({
+      sourcePath: "marketing/home.json",
+    });
+
+    expect(buildProjectFileCatHref("acme", "project_website", file, "fr-FR", "main")).toBe(
+      "/org/acme/projects/project_website/files/cat?sourcePath=marketing%2Fhome.json&locale=fr-FR&branch=main",
+    );
+  });
 });

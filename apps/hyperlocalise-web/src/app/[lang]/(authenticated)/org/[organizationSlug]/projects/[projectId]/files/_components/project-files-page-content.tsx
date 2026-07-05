@@ -16,6 +16,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
+import {
+  buildProjectFileCatHref,
+  canOpenProjectFileCat,
+  resolveProjectFileCatTargetLocale,
+} from "@/lib/projects/project-file-cat-routing";
 
 import {
   ProjectPageShell,
@@ -198,6 +203,55 @@ export function ProjectFilesPageContent({
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
 
+  const openFileInCat = useCallback(
+    (sourcePath: string) => {
+      const file = resolvedFiles.find((entry) => entry.sourcePath === sourcePath);
+      if (!file) {
+        return;
+      }
+
+      const targetLocale = resolveProjectFileCatTargetLocale(file, highlightLocale);
+      if (!canOpenProjectFileCat(file) || !targetLocale) {
+        toast.error(
+          targetLocale
+            ? "This file can't be opened in the CAT workspace."
+            : "No target locale is available for this file.",
+        );
+        return;
+      }
+
+      const href = buildProjectFileCatHref(
+        organizationSlug,
+        projectId,
+        file,
+        highlightLocale,
+        selectedBranch,
+      );
+      if (href) {
+        router.push(href);
+      }
+    },
+    [highlightLocale, organizationSlug, projectId, resolvedFiles, router, selectedBranch],
+  );
+
+  const selectedFileForTree = useMemo(
+    () => resolvedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
+    [resolvedFiles, selectedSourcePath],
+  );
+  const catOpenHint = selectedFileForTree
+    ? (() => {
+        const targetLocale = resolveProjectFileCatTargetLocale(
+          selectedFileForTree,
+          highlightLocale,
+        );
+        if (targetLocale) {
+          return `Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
+        }
+
+        return "No target locale is available for this file.";
+      })()
+    : null;
+
   return (
     <ProjectFilesPageContentView
       organizationSlug={organizationSlug}
@@ -224,6 +278,8 @@ export function ProjectFilesPageContent({
           selectedSourcePath={selectedSourcePath}
           onSelectSourcePath={setSelectedSourcePath}
           onLoadedFilesChange={setLoadedFiles}
+          onActivateFile={openFileInCat}
+          catOpenHint={catOpenHint}
           branch={selectedBranch}
           headerActions={
             <>
@@ -241,6 +297,7 @@ export function ProjectFilesPageContent({
                   projectId={projectId}
                   file={selectedFile}
                   highlightLocale={highlightLocale}
+                  branch={selectedBranch}
                   layout="compact"
                 />
               ) : null}
@@ -404,6 +461,7 @@ export function ProjectFilesPageContentView({
                 projectId={projectId}
                 file={selectedFile}
                 highlightLocale={highlightLocale}
+                branch={_selectedBranch}
               />
             ) : null}
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">

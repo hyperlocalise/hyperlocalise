@@ -442,6 +442,29 @@ describe("CatIntelligenceController", () => {
       expect(lookupSegmentVisualContext).not.toHaveBeenCalled();
       expect(workspace.isLoadingVisualContext).toBe(false);
     });
+
+    it("loads cached agent context without requiring fresh lookup availability", async () => {
+      const lookupSegmentContext = vi.fn().mockResolvedValue("Cached repository context.");
+      const { controller, workspace } = createController(undefined, {
+        intl,
+        services: { lookupSegmentContext },
+      });
+
+      controller.panelVisible("seg-02");
+
+      await vi.waitFor(() =>
+        expect(lookupSegmentContext).toHaveBeenCalledWith(
+          expect.objectContaining({ id: "seg-02" }),
+          {
+            cachedOnly: true,
+          },
+        ),
+      );
+      expect(workspace.segmentIntelligence["seg-02"]?.agentContext).toBe(
+        "Cached repository context.",
+      );
+      expect(workspace.revealedAgentContextSegmentIds.has("seg-02")).toBe(true);
+    });
   });
 
   describe("askQuestion", () => {

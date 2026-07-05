@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
+import {
+  canLookupFreshCatRepositoryContext,
+  selectJobCatRepository,
+  sortJobCatProviderFiles,
+} from "./select-job-cat-repository";
 
 describe("selectJobCatRepository", () => {
   it("returns the saved repository when it is still enabled", () => {
@@ -37,6 +41,21 @@ describe("selectJobCatRepository", () => {
         savedRepositoryFullName: "acme/legacy",
       }),
     ).toBe("acme/web");
+  });
+});
+
+describe("canLookupFreshCatRepositoryContext", () => {
+  it("allows fresh lookup when a single repository is enabled", () => {
+    expect(canLookupFreshCatRepositoryContext(["acme/web"], null)).toBe(true);
+  });
+
+  it("requires an explicit repository choice when multiple repositories are enabled", () => {
+    expect(canLookupFreshCatRepositoryContext(["acme/web", "acme/docs"], null)).toBe(false);
+    expect(canLookupFreshCatRepositoryContext(["acme/web", "acme/docs"], "acme/docs")).toBe(true);
+  });
+
+  it("disables fresh lookup when no repositories are enabled", () => {
+    expect(canLookupFreshCatRepositoryContext([], null)).toBe(false);
   });
 });
 

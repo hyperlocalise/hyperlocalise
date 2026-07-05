@@ -231,7 +231,7 @@ export function JobSourceFilesPanel({
               files={sortedFiles}
               selectedSourcePath={activeSourcePath}
               onSelectFile={handleSelectFile}
-              onActivateFile={encodedJobId ? openFileInCat : undefined}
+              onActivateFile={encodedJobId && !openInCatOnSelect ? openFileInCat : undefined}
             />
           </div>
         </div>

@@ -1,13 +1,39 @@
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
+import { createProjectFileRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
 
-const { useProjectPageQueryMock, useAppShellSidebarMock } = vi.hoisted(() => ({
+const {
+  useProjectPageQueryMock,
+  useAppShellSidebarMock,
+  loadJobCatTargetFileMock,
+  loadJobCatProviderJobFilesMock,
+  repositoriesGetMock,
+  ProjectFileCatWorkspaceMock,
+} = vi.hoisted(() => ({
   useProjectPageQueryMock: vi.fn(),
   useAppShellSidebarMock: vi.fn(),
+  loadJobCatTargetFileMock: vi.fn(),
+  loadJobCatProviderJobFilesMock: vi.fn(),
+  repositoriesGetMock: vi.fn(),
+  ProjectFileCatWorkspaceMock: vi.fn(
+    ({
+      repositoryFullName,
+      sourcePath,
+    }: {
+      repositoryFullName?: string | null;
+      sourcePath: string;
+    }) => (
+      <div
+        data-testid="cat-workspace"
+        data-repo={repositoryFullName ?? ""}
+        data-source-path={sourcePath}
+      />
+    ),
+  ),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -35,11 +61,91 @@ vi.mock("./job-cat-source-file-picker", () => ({
 }));
 
 vi.mock("./load-job-cat-files", () => ({
-  loadJobCatTargetFile: vi.fn(),
-  loadJobCatProviderJobFiles: vi.fn(),
+  loadJobCatTargetFile: (...args: unknown[]) => loadJobCatTargetFileMock(...args),
+  loadJobCatProviderJobFiles: (...args: unknown[]) => loadJobCatProviderJobFilesMock(...args),
+}));
+
+vi.mock("@/lib/api-client-instance", () => ({
+  apiClient: {
+    api: {
+      orgs: {
+        ":organizationSlug": {
+          "github-installation": {
+            repositories: {
+              $get: (...args: unknown[]) => repositoriesGetMock(...args),
+            },
+          },
+        },
+      },
+    },
+  },
+}));
+
+vi.mock("@/components/cat/project-file/project-file-cat-workspace", () => ({
+  ProjectFileCatWorkspace: (props: { repositoryFullName?: string | null; sourcePath: string }) =>
+    ProjectFileCatWorkspaceMock(props),
 }));
 
 import { JobCatPageContent } from "./job-cat-page-content";
+
+const nativeFile = createProjectFileRecord({
+  sourcePath: "en-US.json",
+  storedFileId: "en-US.json",
+  filename: "en-US.json",
+});
+
+const providerFile = createProjectFileRecord({
+  origin: "provider",
+  sourcePath: "crowdin/home.json",
+  storedFileId: null,
+  provider: {
+    kind: "crowdin",
+    resourceType: "file",
+    externalProjectId: "project_website",
+    externalResourceId: "file_home_json",
+    externalUrl: null,
+    syncState: "synced",
+    sourceLocale: "en",
+    targetLocales: ["vi", "de-DE"],
+    localeReadiness: {},
+    revision: "1",
+    format: "json",
+    lastSyncedAt: new Date().toISOString(),
+  },
+});
+
+function createLocalStorageMock() {
+  const store = new Map<string, string>();
+
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    clear: () => {
+      store.clear();
+    },
+  };
+}
+
+function mockRepositories(
+  repositories: Array<{ fullName: string; enabled: boolean; archived: boolean }>,
+) {
+  repositoriesGetMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ repositories }),
+  });
+}
+
+function mockReadyProjectQuery() {
+  useProjectPageQueryMock.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    isSuccess: true,
+    data: { sourceLocale: "en" },
+    error: null,
+  });
+}
 
 describe("JobCatPageContent guard ordering", () => {
   it("shows the source file picker when no file reference is present", () => {
@@ -98,5 +204,117 @@ describe("JobCatPageContent guard ordering", () => {
     expect(
       screen.queryByText("This project does not have a source locale."),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("JobCatPageContent CAT shell", () => {
+  beforeEach(() => {
+    mockReadyProjectQuery();
+    mockRepositories([
+      { fullName: "acme/web", enabled: true, archived: false },
+      { fullName: "acme/docs", enabled: true, archived: false },
+    ]);
+    ProjectFileCatWorkspaceMock.mockClear();
+    vi.stubGlobal("localStorage", createLocalStorageMock());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders provider task CAT with file and repository selectors", async () => {
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
+    loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="crowdin/home.json"
+          targetLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Source file")).toBeInTheDocument();
+      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
+        "data-source-path",
+        "crowdin/home.json",
+      );
+    });
+  });
+
+  it("passes a saved repository preference into provider task CAT", async () => {
+    localStorage.setItem("job-cat-repository:acme:proj_1:crowdin/home.json", "acme/docs");
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
+    loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="crowdin/home.json"
+          targetLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
+    });
+  });
+
+  it("renders native task CAT with a repository selector and passes the selection to the workspace", async () => {
+    localStorage.setItem("job-cat-repository:acme:proj_1:en-US.json", "acme/web");
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: nativeFile });
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath={null}
+          storedFileId="en-US.json"
+          targetLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "en-US.json");
+    });
+    expect(screen.queryByLabelText("Source file")).not.toBeInTheDocument();
+  });
+
+  it("prompts for a repository on native task CAT when multiple repos are enabled", async () => {
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: nativeFile });
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath={null}
+          storedFileId="en-US.json"
+          targetLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Select a GitHub repository to look up string context."),
+      ).toBeInTheDocument();
+    });
   });
 });

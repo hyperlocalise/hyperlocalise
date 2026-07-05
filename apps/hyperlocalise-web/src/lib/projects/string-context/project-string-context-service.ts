@@ -490,26 +490,16 @@ export class ProjectStringContextService extends ProjectServiceBase {
     });
     log.debug("project file string cached context lookup started");
 
-    const repositoryResult = await this.resolveRepositoryFullName({
-      organizationId: input.organizationId,
-      repositoryFullName: input.repositoryFullName,
-    });
-    if (isErr(repositoryResult)) {
-      log.warn(
-        { code: repositoryResult.error.code },
-        "project file string cached context repository resolution failed",
-      );
-      return repositoryResult;
-    }
-
-    const summary = await this.getCached({
+    const summaries = await this.listCached({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
-      stringKey: input.key,
-      repositoryFullName: repositoryResult.value,
-      sourceText: input.text,
+      stringKeys: [input.key],
+      preferredRepositoryFullName: input.repositoryFullName,
+      sourceTextByKey: new Map([[input.key, input.text]]),
     });
+
+    const summary = summaries.get(input.key) ?? null;
 
     log.debug(
       {

@@ -58,6 +58,7 @@ export function ProjectFileCatWorkspace({
   targetLocales,
   highlightLocale = null,
   repositoryFullName = null,
+  canLookupFreshContext = true,
   initialSegmentKey = null,
   layout = "default",
   className,
@@ -72,6 +73,7 @@ export function ProjectFileCatWorkspace({
   targetLocales?: string[];
   highlightLocale?: string | null;
   repositoryFullName?: string | null;
+  canLookupFreshContext?: boolean;
   initialSegmentKey?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
@@ -508,6 +510,7 @@ export function ProjectFileCatWorkspace({
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
+        canLookupFreshContext={canLookupFreshContext}
       />
     </div>
   );

@@ -66,6 +66,7 @@ export interface CatWorkspaceContainerProps {
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
+  canLookupFreshContext?: boolean;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -92,6 +93,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   onLoadMoreQueue,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
+  canLookupFreshContext,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
   const controller = useCatWorkspaceRuntime({
     store,
@@ -104,6 +106,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     onQueueFilterChange,
     buildSegmentShareUrl,
     tmAutoFillMinMatchPercent,
+    canLookupFreshContext,
   });
 
   return (

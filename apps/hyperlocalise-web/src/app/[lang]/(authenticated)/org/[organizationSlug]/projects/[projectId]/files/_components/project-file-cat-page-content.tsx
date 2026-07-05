@@ -1,24 +1,59 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
+import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
-import { hasProjectFileCatIdentityFromUrl } from "@/lib/projects/project-file-cat-routing";
+import {
+  buildProjectFileCatHref,
+  canOpenProjectFileCat,
+  hasProjectFileCatIdentityFromUrl,
+} from "@/lib/projects/project-file-cat-routing";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
+import {
+  catFileRepositoryPreferenceKey,
+  readCatFileRepositoryPreference,
+  writeCatFileRepositoryPreference,
+} from "../../jobs/[jobId]/strings/_components/job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "../../jobs/[jobId]/strings/_components/job-cat-target-locale";
+import {
+  canLookupFreshCatRepositoryContext,
+  selectJobCatRepository,
+} from "../../jobs/[jobId]/strings/_components/select-job-cat-repository";
 import {
   fetchProjectFiles,
   findCachedProjectFiles,
+  PROJECT_FILES_MAX_LIMIT,
   projectFilesQueryKey,
+  sortFilesByPath,
 } from "./project-files-tree-panel";
+
+type ProjectFileCatGithubRepository = {
+  fullName: string;
+  enabled: boolean;
+  archived: boolean;
+};
+
+function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
+  return ["github-installation-repositories", organizationSlug] as const;
+}
 
 export function ProjectFileCatPageContent({
   organizationSlug,
@@ -28,6 +63,7 @@ export function ProjectFileCatPageContent({
   initialSegmentKey = null,
   externalResourceId = null,
   resourceType = null,
+  branch = null,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -36,15 +72,30 @@ export function ProjectFileCatPageContent({
   initialSegmentKey?: string | null;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
+  branch?: string | null;
 }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const hasFileReference = Boolean(sourcePath);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
   });
-  const filesHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
-    sourcePath ? `?sourcePath=${encodeURIComponent(sourcePath)}` : ""
-  }`;
+  const filesHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (sourcePath) {
+      params.set("sourcePath", sourcePath);
+    }
+    if (highlightLocale) {
+      params.set("locale", highlightLocale);
+    }
+    if (branch) {
+      params.set("branch", branch);
+    }
+    const query = params.toString();
+    return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
+      query ? `?${query}` : ""
+    }`;
+  }, [branch, highlightLocale, organizationSlug, projectId, sourcePath]);
   const canOpenFromUrlIdentity = hasProjectFileCatIdentityFromUrl({
     sourcePath,
     externalResourceId,
@@ -52,11 +103,67 @@ export function ProjectFileCatPageContent({
   });
 
   const filesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId),
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
-    enabled: hasFileReference && !canOpenFromUrlIdentity,
-    placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId),
+    queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+    enabled: hasFileReference,
+    placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
+
+  const repositoriesQuery = useQuery({
+    queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
+    enabled: hasFileReference,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
+        "repositories"
+      ].$get({
+        param: { organizationSlug },
+        query: {},
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load GitHub repositories");
+      }
+
+      const body = (await response.json()) as { repositories: ProjectFileCatGithubRepository[] };
+      return body.repositories;
+    },
+  });
+
+  const catFiles = useMemo(
+    () => sortFilesByPath(filesQuery.data ?? []).filter((entry) => canOpenProjectFileCat(entry)),
+    [filesQuery.data],
+  );
+
+  const enabledRepositoryFullNames = useMemo(
+    () =>
+      (repositoriesQuery.data ?? [])
+        .filter((repository) => repository.enabled && !repository.archived)
+        .map((repository) => repository.fullName),
+    [repositoriesQuery.data],
+  );
+
+  const repositoryPreferenceKey = sourcePath
+    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, sourcePath)
+    : null;
+
+  const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRepositoryOverride(null);
+  }, [repositoryPreferenceKey]);
+
+  const autoSelectedRepositoryFullName = useMemo(() => {
+    if (!repositoryPreferenceKey) {
+      return null;
+    }
+
+    return selectJobCatRepository({
+      enabledRepositoryFullNames,
+      savedRepositoryFullName: readCatFileRepositoryPreference(repositoryPreferenceKey),
+    });
+  }, [enabledRepositoryFullNames, repositoryPreferenceKey]);
+
+  const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
   useAppShellSidebar({
     forceCollapsed: hasFileReference,
     preferredOpen: hasFileReference ? false : null,
@@ -201,23 +308,114 @@ export function ProjectFileCatPageContent({
     );
   }
 
+  const handleFileChange = (nextSourcePath: string | null) => {
+    if (!nextSourcePath) {
+      return;
+    }
+
+    const nextFile = catFiles.find((entry) => entry.sourcePath === nextSourcePath);
+    if (!nextFile) {
+      return;
+    }
+
+    const href = buildProjectFileCatHref(
+      organizationSlug,
+      projectId,
+      nextFile,
+      highlightLocale,
+      branch,
+    );
+    if (href) {
+      router.push(href);
+    }
+  };
+
+  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
+    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
+      return;
+    }
+
+    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
+  };
+
   return (
     <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
-            Files
-          </Button>
-          <TypographyP className="truncate font-mono text-xs text-muted-foreground">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="size-8 shrink-0"
+          render={<Link href={filesHref} />}
+        >
+          <ArrowLeftIcon className="size-4" />
+        </Button>
+
+        {catFiles.length > 0 ? (
+          <Select value={sourcePath ?? ""} onValueChange={handleFileChange}>
+            <SelectTrigger
+              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+              aria-label="Source file"
+            >
+              <SelectValue placeholder="Source file" />
+            </SelectTrigger>
+            <SelectContent>
+              {catFiles.map((entry) => (
+                <SelectItem key={entry.sourcePath} value={entry.sourcePath}>
+                  {entry.sourcePath}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">
             {sourcePath}
           </TypographyP>
-        </div>
+        )}
+
+        {enabledRepositoryFullNames.length > 0 ? (
+          <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
+            <SelectTrigger
+              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+              aria-label="GitHub repository"
+            >
+              <SelectValue placeholder="GitHub repo" />
+            </SelectTrigger>
+            <SelectContent>
+              {enabledRepositoryFullNames.map((repositoryFullName) => (
+                <SelectItem key={repositoryFullName} value={repositoryFullName}>
+                  {repositoryFullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+
+        {file?.provider ? (
+          <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
+            {file.provider.kind} · {file.provider.format ?? "file"}
+          </TypographyP>
+        ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
+      {(repositoriesQuery.isError ||
+        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          {repositoriesQuery.isError ? (
+            <TypographyP className="text-xs text-muted-foreground">
+              GitHub repositories could not be loaded. Repository context lookup is unavailable.
+            </TypographyP>
+          ) : (
+            <TypographyP className="text-xs text-muted-foreground">
+              Select a GitHub repository to look up string context.
+            </TypographyP>
+          )}
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
+          key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}:${selectedRepositoryFullName ?? "default"}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}
@@ -227,8 +425,14 @@ export function ProjectFileCatPageContent({
           targetLocale={targetLocale}
           targetLocales={file?.provider?.targetLocales}
           highlightLocale={highlightLocale}
+          repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
           initialSegmentKey={initialSegmentKey}
           layout="fullscreen"
+          className="min-h-0 flex-1"
         />
       </div>
     </main>

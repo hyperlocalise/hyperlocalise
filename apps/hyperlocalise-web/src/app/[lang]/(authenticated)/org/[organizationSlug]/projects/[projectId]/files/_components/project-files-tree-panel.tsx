@@ -105,11 +105,15 @@ function ProjectFilesTreeBody({
   files,
   selectedSourcePath,
   onSelectSourcePath,
+  onActivateFile,
+  catOpenHint,
 }: {
   projectId: string;
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
 }) {
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -128,12 +132,23 @@ function ProjectFilesTreeBody({
   }
 
   return (
-    <div className="min-h-0 flex-1 p-2">
-      <ProjectFilesTree
-        files={files}
-        selectedSourcePath={selectedSourcePath}
-        onSelectFile={onSelectSourcePath}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+      {onActivateFile && selectedSourcePath && catOpenHint ? (
+        <div className="rounded-lg border border-border bg-background px-4 py-3">
+          <TypographyP className="truncate font-mono text-xs text-foreground">
+            {selectedSourcePath}
+          </TypographyP>
+          <TypographyP className="text-xs text-muted-foreground">{catOpenHint}</TypographyP>
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        <ProjectFilesTree
+          files={files}
+          selectedSourcePath={selectedSourcePath}
+          onSelectFile={onSelectSourcePath}
+          onActivateFile={onActivateFile}
+        />
+      </div>
     </div>
   );
 }
@@ -144,12 +159,16 @@ function ProjectFilesTreeQueryResult({
   files,
   selectedSourcePath,
   onSelectSourcePath,
+  onActivateFile,
+  catOpenHint,
 }: {
   error: unknown;
   projectId: string;
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
 }) {
   if (error) {
     throw error;
@@ -161,6 +180,8 @@ function ProjectFilesTreeQueryResult({
       files={files}
       selectedSourcePath={selectedSourcePath}
       onSelectSourcePath={onSelectSourcePath}
+      onActivateFile={onActivateFile}
+      catOpenHint={catOpenHint}
     />
   );
 }
@@ -171,6 +192,8 @@ export function ProjectFilesTreePanel({
   selectedSourcePath,
   onSelectSourcePath,
   onLoadedFilesChange,
+  onActivateFile,
+  catOpenHint = null,
   headerActions,
   branch = null,
 }: {
@@ -179,6 +202,8 @@ export function ProjectFilesTreePanel({
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
   onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
   headerActions?: ReactNode;
   branch?: string | null;
 }) {
@@ -288,6 +313,8 @@ export function ProjectFilesTreePanel({
             files={files}
             selectedSourcePath={selectedSourcePath}
             onSelectSourcePath={onSelectSourcePath}
+            onActivateFile={onActivateFile}
+            catOpenHint={catOpenHint}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">
