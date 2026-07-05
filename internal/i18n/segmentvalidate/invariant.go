@@ -27,7 +27,7 @@ func validateICUInvariant(source, translated string) error {
 	}
 	if !icuparser.SamePlaceholderSet(srcInv.Placeholders, translatedInv.Placeholders) {
 		return fmt.Errorf(
-			"translation invariant violation: placeholder parity mismatch (expected %v, got %v) | %s",
+			"translation invariant violation: placeholder parity mismatch (expected %q, got %q) | %s",
 			srcInv.Placeholders,
 			translatedInv.Placeholders,
 			formatInvariantDebugContext(source, translated),
