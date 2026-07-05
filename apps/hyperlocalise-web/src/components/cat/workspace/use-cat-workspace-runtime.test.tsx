@@ -818,6 +818,27 @@ describe("useCatWorkspaceRuntime", () => {
     });
   });
 
+  it("disables fresh context lookup while still loading cached context", async () => {
+    const lookupSegmentContext = vi.fn().mockResolvedValue("Cached context from the repository.");
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentContext,
+      },
+      canLookupFreshContext: false,
+    });
+
+    expect(result.current.canLookupContext).toBe(false);
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(1));
+    expect(lookupSegmentContext).toHaveBeenCalledWith(expect.objectContaining({ id: "seg-02" }), {
+      cachedOnly: true,
+    });
+  });
+
   it("retries cached agent context lookup when the lookup function changes", async () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue(null);
     const nextLookupSegmentContext = vi.fn().mockResolvedValue("Cached context from another repo.");

@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH4 } from "@/components/ui/typography";
+import { TypographyH4, TypographyP } from "@/components/ui/typography";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { toast } from "sonner";
 
@@ -110,11 +113,9 @@ export function JobSourceFilesPanel({
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
 
-  const handleSelectFile = useCallback(
+  const openFileInCat = useCallback(
     (sourcePath: string) => {
-      setSelectedSourcePath(sourcePath);
-
-      if (!openInCatOnSelect || !encodedJobId) {
+      if (!encodedJobId) {
         return;
       }
 
@@ -141,16 +142,42 @@ export function JobSourceFilesPanel({
         }),
       );
     },
-    [
-      encodedJobId,
-      highlightLocale,
-      openInCatOnSelect,
-      organizationSlug,
-      projectId,
-      router,
-      sortedFiles,
-    ],
+    [encodedJobId, highlightLocale, organizationSlug, projectId, router, sortedFiles],
   );
+
+  const handleSelectFile = useCallback(
+    (sourcePath: string) => {
+      setSelectedSourcePath(sourcePath);
+
+      if (!openInCatOnSelect || !encodedJobId) {
+        return;
+      }
+
+      openFileInCat(sourcePath);
+    },
+    [encodedJobId, openInCatOnSelect, openFileInCat],
+  );
+
+  const selectedTargetLocale = selectedFile
+    ? resolveTargetLocale(selectedFile, highlightLocale)
+    : null;
+  const canViewStrings = Boolean(
+    selectedFile &&
+    activeSourcePath &&
+    canOpenFileInCat(selectedFile, activeSourcePath, encodedJobId, selectedTargetLocale),
+  );
+  const stringsHrefForSelected =
+    canViewStrings && selectedFile && activeSourcePath && encodedJobId && selectedTargetLocale
+      ? stringsHref({
+          organizationSlug,
+          projectId,
+          encodedJobId,
+          targetLocale: selectedTargetLocale,
+          ...(supportsProviderCatFile(selectedFile)
+            ? { sourcePath: activeSourcePath }
+            : { storedFileId: selectedFile.storedFileId as string }),
+        })
+      : null;
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
@@ -173,13 +200,40 @@ export function JobSourceFilesPanel({
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-background p-2">
-          <ProjectFilesTree
-            ariaLabel="Job source files"
-            files={sortedFiles}
-            selectedSourcePath={activeSourcePath}
-            onSelectFile={handleSelectFile}
-          />
+        <div className="mt-4 space-y-2">
+          {!openInCatOnSelect && encodedJobId ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <TypographyP className="truncate font-mono text-xs text-foreground">
+                  {selectedFile?.sourcePath}
+                </TypographyP>
+                <TypographyP className="text-xs text-muted-foreground">
+                  {selectedTargetLocale
+                    ? `Double-click a file or use View strings to open the CAT workspace for ${selectedTargetLocale}.`
+                    : "No target locale is available for this task file."}
+                </TypographyP>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                disabled={!stringsHrefForSelected}
+                render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
+              >
+                <ListIcon />
+                View strings
+              </Button>
+            </div>
+          ) : null}
+          <div className="overflow-hidden rounded-lg border border-border bg-background p-2">
+            <ProjectFilesTree
+              ariaLabel="Job source files"
+              files={sortedFiles}
+              selectedSourcePath={activeSourcePath}
+              onSelectFile={handleSelectFile}
+              onActivateFile={encodedJobId && !openInCatOnSelect ? openFileInCat : undefined}
+            />
+          </div>
         </div>
       ) : null}
     </section>

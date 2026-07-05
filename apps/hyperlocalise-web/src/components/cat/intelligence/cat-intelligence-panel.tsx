@@ -220,6 +220,7 @@ export function CatIntelligencePanel({
   showAgentContext = false,
   showVisualContext = false,
   canEditTranslations = true,
+  canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
   onUseGlossaryTerm,
@@ -232,6 +233,7 @@ export function CatIntelligencePanel({
   showAgentContext?: boolean;
   showVisualContext?: boolean;
   canEditTranslations?: boolean;
+  canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
@@ -247,7 +249,8 @@ export function CatIntelligencePanel({
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
   const hasAttemptedAgentLookup = intelligence.agentContext !== undefined;
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
-  const canRefreshAgentContext = hasAttemptedAgentLookup && onRefreshContext;
+  const canRefreshAgentContext =
+    hasAttemptedAgentLookup && canLookupFreshContext && onRefreshContext;
 
   function handleUseTmMatch(match: CatTranslationMemoryMatch) {
     if (!onUseTmMatch) {

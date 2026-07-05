@@ -58,6 +58,7 @@ export function ProjectFileCatWorkspace({
   targetLocales,
   highlightLocale = null,
   repositoryFullName = null,
+  canLookupFreshContext = true,
   initialSegmentKey = null,
   layout = "default",
   className,
@@ -72,6 +73,7 @@ export function ProjectFileCatWorkspace({
   targetLocales?: string[];
   highlightLocale?: string | null;
   repositoryFullName?: string | null;
+  canLookupFreshContext?: boolean;
   initialSegmentKey?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
@@ -274,17 +276,13 @@ export function ProjectFileCatWorkspace({
       segment: CatSegment,
       options?: { cachedOnly?: boolean; forceRefresh?: boolean },
     ): Promise<string | null> => {
-      if (!repositoryFullName) {
-        throw new Error("Select a GitHub repository before looking up string context.");
-      }
-
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files[
         "string-context"
       ].$post({
         param: { organizationSlug, projectId },
         json: {
           sourcePath,
-          repositoryFullName,
+          ...(repositoryFullName ? { repositoryFullName } : {}),
           key: segment.key,
           text: segment.sourceText,
           context: segment.contextLabel ?? null,
@@ -485,12 +483,12 @@ export function ProjectFileCatWorkspace({
         services={{
           validateFormat,
           lookupSegmentConcordance,
+          lookupSegmentContext,
           lookupSegmentVisualContext:
             catFile?.provider?.kind && catFile.provider.kind !== "native"
               ? lookupSegmentVisualContext
               : undefined,
           generateAiRecommendation,
-          ...(repositoryFullName ? { lookupSegmentContext } : {}),
         }}
         review={{
           onApprove: handleApprove,
@@ -512,6 +510,7 @@ export function ProjectFileCatWorkspace({
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
+        canLookupFreshContext={canLookupFreshContext}
       />
     </div>
   );

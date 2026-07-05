@@ -16,6 +16,16 @@ export function selectJobCatRepository({
   return null;
 }
 
+export function canLookupFreshCatRepositoryContext(
+  enabledRepositoryFullNames: readonly string[],
+  selectedRepositoryFullName: string | null,
+) {
+  return (
+    enabledRepositoryFullNames.length > 0 &&
+    (enabledRepositoryFullNames.length === 1 || selectedRepositoryFullName != null)
+  );
+}
+
 export function sortJobCatProviderFiles<T extends { sourcePath: string }>(files: readonly T[]) {
   return [...files].toSorted((left, right) =>
     left.sourcePath.localeCompare(right.sourcePath, undefined, { sensitivity: "base" }),

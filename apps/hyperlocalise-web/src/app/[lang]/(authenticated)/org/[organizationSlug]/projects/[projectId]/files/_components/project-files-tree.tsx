@@ -17,6 +17,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 });
 
 const projectFilesTreeStyle = {
+  width: "100%",
+  minWidth: "100%",
   height: `${TREE_MIN_HEIGHT_PX}px`,
   backgroundColor: "transparent",
   color: "var(--foreground)",
@@ -58,18 +60,21 @@ export function ProjectFilesTree({
   files,
   selectedSourcePath,
   onSelectFile,
+  onActivateFile,
   ariaLabel = "Project files",
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectFile: (sourcePath: string) => void;
+  onActivateFile?: (sourcePath: string) => void;
   ariaLabel?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
   const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
-  const latestStateRef = useRef({ fileByPath, onSelectFile });
+  const latestStateRef = useRef({ fileByPath, onSelectFile, onActivateFile });
   const preloadedData = useMemo(
     () =>
       paths.length > 0
@@ -84,12 +89,40 @@ export function ProjectFilesTree({
   );
 
   useEffect(() => {
-    latestStateRef.current = { fileByPath, onSelectFile };
-  }, [fileByPath, onSelectFile]);
+    latestStateRef.current = { fileByPath, onSelectFile, onActivateFile };
+  }, [fileByPath, onActivateFile, onSelectFile]);
+
+  useEffect(() => {
+    if (!onActivateFile) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleDoubleClick = (event: MouseEvent) => {
+      const pathElement = event
+        .composedPath()
+        .find(
+          (node): node is HTMLElement =>
+            node instanceof HTMLElement && typeof node.dataset.itemPath === "string",
+        );
+      const path = pathElement?.dataset.itemPath;
+      if (!path || !latestStateRef.current.fileByPath.has(path)) {
+        return;
+      }
+
+      latestStateRef.current.onActivateFile?.(path);
+    };
+
+    container.addEventListener("dblclick", handleDoubleClick);
+    return () => container.removeEventListener("dblclick", handleDoubleClick);
+  }, [onActivateFile]);
 
   const { model } = useFileTree({
     id: "project-files-tree",
-    density: "compact",
     flattenEmptyDirectories: true,
     initialExpansion: "open",
     initialSelectedPaths: selectedPaths,
@@ -140,13 +173,15 @@ export function ProjectFilesTree({
   }
 
   return (
-    <PierreFileTree
-      aria-label={ariaLabel}
-      className="w-full border-0 bg-transparent"
-      id="project-files-tree"
-      model={model}
-      preloadedData={preloadedData ?? undefined}
-      style={projectFilesTreeStyle}
-    />
+    <div ref={containerRef} className="w-full min-w-0">
+      <PierreFileTree
+        aria-label={ariaLabel}
+        className="w-full min-w-0 border-0 bg-transparent"
+        id="project-files-tree"
+        model={model}
+        preloadedData={preloadedData ?? undefined}
+        style={projectFilesTreeStyle}
+      />
+    </div>
   );
 }

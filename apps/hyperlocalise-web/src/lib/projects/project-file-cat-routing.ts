@@ -9,7 +9,10 @@ export function canOpenProjectFileCat(file: ProjectFileRecord) {
   return Boolean(file.storedFileId);
 }
 
-function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale: string | null) {
+export function resolveProjectFileCatTargetLocale(
+  file: ProjectFileRecord,
+  highlightLocale: string | null,
+) {
   if (file.provider) {
     if (highlightLocale && file.provider.targetLocales.includes(highlightLocale)) {
       return highlightLocale;
@@ -21,12 +24,17 @@ function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale
   return highlightLocale;
 }
 
+function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale: string | null) {
+  return resolveProjectFileCatTargetLocale(file, highlightLocale);
+}
+
 export type ProjectFileCatUrlParams = {
   sourcePath: string;
   locale?: string | null;
   segment?: string | null;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
+  branch?: string | null;
 };
 
 export function parseProjectFileCatSearchParams(searchParams: {
@@ -35,12 +43,14 @@ export function parseProjectFileCatSearchParams(searchParams: {
   segment?: string;
   externalResourceId?: string;
   resourceType?: string;
+  branch?: string;
 }): {
   sourcePath: string | null;
   highlightLocale: string | null;
   initialSegmentKey: string | null;
   externalResourceId: string | null;
   resourceType: "file" | "key" | null;
+  branch: string | null;
 } {
   const resourceType =
     searchParams.resourceType === "file" || searchParams.resourceType === "key"
@@ -55,6 +65,7 @@ export function parseProjectFileCatSearchParams(searchParams: {
       ? searchParams.externalResourceId.trim()
       : null,
     resourceType,
+    branch: searchParams.branch?.trim() ? searchParams.branch.trim() : null,
   };
 }
 
@@ -71,6 +82,7 @@ export function buildProjectFileCatHref(
   projectId: string,
   file: ProjectFileRecord,
   highlightLocale: string | null = null,
+  branch: string | null = null,
 ) {
   if (!canOpenProjectFileCat(file)) {
     return null;
@@ -83,6 +95,11 @@ export function buildProjectFileCatHref(
   const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale);
   if (targetLocale) {
     params.set("locale", targetLocale);
+  }
+
+  const trimmedBranch = branch?.trim();
+  if (trimmedBranch) {
+    params.set("branch", trimmedBranch);
   }
 
   if (file.provider?.externalResourceId) {

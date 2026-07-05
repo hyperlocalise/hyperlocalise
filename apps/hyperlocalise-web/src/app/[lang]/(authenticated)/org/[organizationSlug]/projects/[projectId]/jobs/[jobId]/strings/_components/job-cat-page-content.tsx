@@ -28,7 +28,11 @@ import {
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
 import { loadJobCatProviderJobFiles, loadJobCatTargetFile } from "./load-job-cat-files";
-import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
+import {
+  canLookupFreshCatRepositoryContext,
+  selectJobCatRepository,
+  sortJobCatProviderFiles,
+} from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
 
 import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
@@ -144,7 +148,7 @@ export function JobCatPageContent({
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
-    enabled: hasFileReference && !isNativeJob,
+    enabled: hasFileReference,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
@@ -298,38 +302,6 @@ export function JobCatPageContent({
     );
   }
 
-  if (isNativeFile) {
-    return (
-      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-        <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
-              <ArrowLeftIcon />
-              Task
-            </Button>
-            <TypographyP className="truncate font-mono text-xs text-muted-foreground">
-              {selectedFile.sourcePath}
-            </TypographyP>
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
-          <ProjectFileCatWorkspace
-            key={selectedFile.sourcePath}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourceLocale={sourceLocale}
-            sourcePath={selectedFile.sourcePath}
-            targetLocale={targetLocale ?? undefined}
-            highlightLocale={targetLocale}
-            initialSegmentKey={initialSegmentKey}
-            layout="fullscreen"
-          />
-        </div>
-      </main>
-    );
-  }
-
   if (repositoriesQuery.isLoading) {
     return (
       <ProjectPageShell>
@@ -338,6 +310,104 @@ export function JobCatPageContent({
           <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
         </div>
       </ProjectPageShell>
+    );
+  }
+
+  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
+    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
+      return;
+    }
+
+    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
+  };
+
+  const repositoryBanner =
+    repositoriesQuery.isError ||
+    (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
+      <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+        {repositoriesQuery.isError ? (
+          <TypographyP className="text-xs text-muted-foreground">
+            GitHub repositories could not be loaded. Repository context lookup is unavailable.
+          </TypographyP>
+        ) : (
+          <TypographyP className="text-xs text-muted-foreground">
+            Select a GitHub repository to look up string context.
+          </TypographyP>
+        )}
+      </div>
+    ) : null;
+
+  if (isNativeFile) {
+    if (!targetLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">
+              No target locale is available for this task file.
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    return (
+      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            render={<Link href={taskHref} />}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+
+          <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground sm:max-w-xs">
+            {selectedFile.sourcePath}
+          </TypographyP>
+
+          {enabledRepositoryFullNames.length > 0 ? (
+            <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
+              <SelectTrigger
+                className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+                aria-label="GitHub repository"
+              >
+                <SelectValue placeholder="GitHub repo" />
+              </SelectTrigger>
+              <SelectContent>
+                {enabledRepositoryFullNames.map((repositoryFullName) => (
+                  <SelectItem key={repositoryFullName} value={repositoryFullName}>
+                    {repositoryFullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+        </div>
+
+        {repositoryBanner}
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+          <ProjectFileCatWorkspace
+            key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourceLocale={sourceLocale}
+            sourcePath={selectedFile.sourcePath}
+            targetLocale={targetLocale}
+            highlightLocale={targetLocale}
+            repositoryFullName={selectedRepositoryFullName}
+            canLookupFreshContext={canLookupFreshCatRepositoryContext(
+              enabledRepositoryFullNames,
+              selectedRepositoryFullName,
+            )}
+            initialSegmentKey={initialSegmentKey}
+            layout="fullscreen"
+            className="min-h-0 flex-1"
+          />
+        </div>
+      </main>
     );
   }
 
@@ -400,15 +470,6 @@ export function JobCatPageContent({
     );
   };
 
-  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
-    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
-      return;
-    }
-
-    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
-    setRepositoryOverride(nextRepositoryFullName);
-  };
-
   return (
     <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
@@ -460,20 +521,7 @@ export function JobCatPageContent({
         </TypographyP>
       </div>
 
-      {(repositoriesQuery.isError ||
-        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
-        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
-          {repositoriesQuery.isError ? (
-            <TypographyP className="text-xs text-muted-foreground">
-              GitHub repositories could not be loaded. Repository context lookup is unavailable.
-            </TypographyP>
-          ) : (
-            <TypographyP className="text-xs text-muted-foreground">
-              Select a GitHub repository to look up string context.
-            </TypographyP>
-          )}
-        </div>
-      )}
+      {repositoryBanner}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
@@ -486,6 +534,10 @@ export function JobCatPageContent({
           resourceType={selectedFile.provider.resourceType}
           targetLocale={selectedTargetLocale}
           repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
           initialSegmentKey={initialSegmentKey}
           layout="fullscreen"
           className="min-h-0 flex-1"

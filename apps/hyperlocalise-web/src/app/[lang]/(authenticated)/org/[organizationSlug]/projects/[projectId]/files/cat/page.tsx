@@ -14,6 +14,7 @@ export default async function ProjectFileCatPage({
     segment?: string;
     externalResourceId?: string;
     resourceType?: string;
+    branch?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
@@ -29,6 +30,7 @@ export default async function ProjectFileCatPage({
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
+      branch={parsedSearchParams.branch}
     />
   );
 }

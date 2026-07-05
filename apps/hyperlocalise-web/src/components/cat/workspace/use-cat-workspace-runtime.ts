@@ -69,6 +69,7 @@ export interface UseCatWorkspaceRuntimeInput {
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
+  canLookupFreshContext?: boolean;
 }
 
 export function useCatWorkspaceRuntime({
@@ -82,6 +83,7 @@ export function useCatWorkspaceRuntime({
   onQueueFilterChange,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent = TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
+  canLookupFreshContext = true,
 }: UseCatWorkspaceRuntimeInput) {
   const intl = useIntl();
   const queueFilter = queueFilterProp ?? store.queueFilter;
@@ -102,7 +104,7 @@ export function useCatWorkspaceRuntime({
   const onSaveDraft = reviewOverrides?.onSaveDraft;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
 
-  const canLookupContext = Boolean(lookupSegmentContext);
+  const canLookupContext = Boolean(lookupSegmentContext) && canLookupFreshContext;
   const canLoadVisualContext = Boolean(
     lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
   );

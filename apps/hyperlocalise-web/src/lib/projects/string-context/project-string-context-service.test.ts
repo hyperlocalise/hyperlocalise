@@ -32,7 +32,10 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { lookupProjectFileStringRepositoryContext } from "./project-string-context-service";
+import {
+  lookupCachedProjectFileStringRepositoryContext,
+  lookupProjectFileStringRepositoryContext,
+} from "./project-string-context-service";
 
 const fixture = createProjectTestFixture();
 
@@ -277,5 +280,98 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     });
     expect(resolveWebProjectRepositoryGitHubContextMock).not.toHaveBeenCalled();
     expect(runSubagentMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("lookupCachedProjectFileStringRepositoryContext", () => {
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("returns cached context without requiring a repository selection", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+    await insertRepository({
+      organizationId: organization.id,
+      githubRepositoryId: "2001",
+      fullName: "hyperlocalise/first",
+    });
+    await insertRepository({
+      organizationId: organization.id,
+      githubRepositoryId: "2002",
+      fullName: "hyperlocalise/second",
+    });
+
+    const { saveProjectFileStringRepositoryContext } =
+      await import("./project-string-context-service");
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/second",
+      sourceText: "Ship localized product experiences",
+      summary: "Cached hero headline context.",
+      createdByUserId: user.id,
+    });
+
+    const result = await lookupCachedProjectFileStringRepositoryContext(
+      baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+      }),
+    );
+
+    expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected cached lookup to succeed");
+    }
+    expect(result.value).toEqual({
+      summary: "Cached hero headline context.",
+      cached: true,
+    });
+  });
+
+  it("prefers the explicitly selected repository when multiple caches exist", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+
+    const { saveProjectFileStringRepositoryContext } =
+      await import("./project-string-context-service");
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/web",
+      sourceText: "Ship localized product experiences",
+      summary: "Web repository context.",
+      createdByUserId: user.id,
+    });
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/legacy",
+      sourceText: "Ship localized product experiences",
+      summary: "Legacy repository context.",
+      createdByUserId: user.id,
+    });
+
+    const result = await lookupCachedProjectFileStringRepositoryContext({
+      ...baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+      }),
+      repositoryFullName: "hyperlocalise/web",
+    });
+
+    expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected cached lookup to succeed");
+    }
+    expect(result.value.summary).toBe("Web repository context.");
   });
 });

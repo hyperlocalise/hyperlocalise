@@ -328,6 +328,7 @@ export function CatWorkspaceView({
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
           canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
           onUseGlossaryTerm={(term) =>

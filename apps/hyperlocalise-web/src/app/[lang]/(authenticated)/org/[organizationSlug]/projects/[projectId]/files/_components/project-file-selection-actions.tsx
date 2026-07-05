@@ -16,16 +16,24 @@ export function ProjectFileSelectionActions({
   projectId,
   file,
   highlightLocale,
+  branch = null,
   layout = "default",
 }: {
   organizationSlug: string;
   projectId: string;
   file: ProjectFileRecord;
   highlightLocale: string | null;
+  branch?: string | null;
   layout?: "default" | "compact";
 }) {
   const canOpenCat = canOpenProjectFileCat(file);
-  const catHref = buildProjectFileCatHref(organizationSlug, projectId, file, highlightLocale);
+  const catHref = buildProjectFileCatHref(
+    organizationSlug,
+    projectId,
+    file,
+    highlightLocale,
+    branch,
+  );
 
   if (layout === "compact") {
     return (
