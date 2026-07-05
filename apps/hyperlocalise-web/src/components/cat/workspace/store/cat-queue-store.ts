@@ -26,7 +26,7 @@ export class CatQueueStore {
     for (const segment of segments) {
       this.segmentMeta.set(segment.id, segment);
     }
-    this.reconcileVisibleIds(new Set(segments.map((segment) => segment.id)));
+    this.reconcileVisibleIds(new Set(this.segmentMeta.keys()));
   }
 
   remove(segmentId: string) {

@@ -166,7 +166,7 @@ export function useCatWorkspaceRuntime({
         store.setTargetText(segmentId, value);
         const segmentToValidate = store.getSegmentView(segmentId);
         if (segmentToValidate) {
-          void reviewController.runChecks(segmentToValidate, value);
+          reviewController.scheduleChecks(segmentToValidate, value);
         }
         onTargetChange?.(segmentId, value);
       },
@@ -262,6 +262,7 @@ export function useCatWorkspaceRuntime({
     };
   }, [
     intelligenceController,
+    onAskQuestion,
     onNextSegment,
     onPreviousSegment,
     onReviewInSequence,

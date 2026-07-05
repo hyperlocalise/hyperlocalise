@@ -23,6 +23,8 @@ import type {
 import type { CatWorkspaceOrchestrator } from "../cat-workspace-orchestrator";
 import { glossaryTermsForSegment } from "../store/cat-workspace-store-utils";
 
+const SEGMENT_VALIDATION_DEBOUNCE_MS = 300;
+
 export interface CatReviewControllerPorts {
   intl: IntlShape;
   services?: CatWorkspaceServices;
@@ -39,6 +41,8 @@ export class CatReviewController {
   private ports: CatReviewControllerPorts;
   private selectedSegmentDisposer?: IReactionDisposer;
   private disposed = false;
+  private validationTimeout: ReturnType<typeof setTimeout> | null = null;
+  private validationAbortController: AbortController | null = null;
 
   constructor(
     private readonly workspace: CatWorkspaceOrchestrator,
@@ -58,7 +62,10 @@ export class CatReviewController {
       () => this.workspace.selectedSegmentId,
       (segmentId) => {
         if (segmentId && this.canRunChecks) {
-          void this.runReview(segmentId, { includeAi: false });
+          const segment = this.workspace.getSegmentView(segmentId);
+          if (segment) {
+            void this.runChecks(segment, segment.targetText);
+          }
         }
       },
       { fireImmediately: true },
@@ -67,6 +74,12 @@ export class CatReviewController {
 
   dispose() {
     this.disposed = true;
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+    this.validationAbortController?.abort();
+    this.validationAbortController = null;
     this.selectedSegmentDisposer?.();
     this.selectedSegmentDisposer = undefined;
   }
@@ -76,20 +89,34 @@ export class CatReviewController {
   }
 
   async runChecks(segment: CatSegment, value: string, glossaryTermsOverride?: CatGlossaryTerm[]) {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+
     const { validateFormat, runQaChecks } = this.ports.services ?? {};
     if (!validateFormat && !runQaChecks) {
       return;
     }
 
+    this.validationAbortController?.abort();
+    const abortController = new AbortController();
+    this.validationAbortController = abortController;
     const sequence = this.workspace.beginValidation();
     try {
       const glossaryTerms =
         glossaryTermsOverride ?? glossaryTermsForSegment(this.workspace.shellState, segment.id);
       const [formatChecks, qaChecks] = await Promise.all([
-        validateFormat ? validateFormat(segment, value, glossaryTerms) : Promise.resolve([]),
+        validateFormat
+          ? validateFormat(segment, value, glossaryTerms, { signal: abortController.signal })
+          : Promise.resolve([]),
         runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
       ]);
-      if (this.disposed || !this.workspace.isValidationCurrent(sequence)) {
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        !this.workspace.isValidationCurrent(sequence)
+      ) {
         return;
       }
       this.workspace.setFormatChecks(
@@ -97,9 +124,27 @@ export class CatReviewController {
         [...formatChecks, ...qaChecks],
         this.workspace.selectedSegmentId === segment.id,
       );
+    } catch (error) {
+      if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+        throw error;
+      }
     } finally {
+      if (this.validationAbortController === abortController) {
+        this.validationAbortController = null;
+      }
       this.workspace.completeValidation(sequence);
     }
+  }
+
+  scheduleChecks(segment: CatSegment, value: string) {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+    this.validationAbortController?.abort();
+    this.validationTimeout = setTimeout(() => {
+      this.validationTimeout = null;
+      void this.runChecks(segment, value);
+    }, SEGMENT_VALIDATION_DEBOUNCE_MS);
   }
 
   async runReview(segmentId: string, options?: { includeAi?: boolean }) {
@@ -115,6 +160,14 @@ export class CatReviewController {
     if (!includeAi && !includeFormatChecks) {
       return;
     }
+
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+    this.validationAbortController?.abort();
+    const abortController = new AbortController();
+    this.validationAbortController = abortController;
 
     await this.ports.review?.onReviewWithAi?.(segmentId);
     const sequence = this.workspace.beginReview({
@@ -170,13 +223,18 @@ export class CatReviewController {
               segmentForReview,
               segmentForReview.targetText,
               intelligence.glossaryTerms,
+              { signal: abortController.signal },
             )
           : Promise.resolve([]),
         includeFormatChecks && runQaChecks
           ? runQaChecks(segmentForReview, segmentForReview.targetText)
           : Promise.resolve([]),
       ]);
-      if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        !this.workspace.isReviewCurrent(sequence)
+      ) {
         return;
       }
 
@@ -199,7 +257,14 @@ export class CatReviewController {
           aiReasoning: recommendation.aiReasoning,
         });
       }
+    } catch (error) {
+      if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+        throw error;
+      }
     } finally {
+      if (this.validationAbortController === abortController) {
+        this.validationAbortController = null;
+      }
       this.workspace.setReviewPhaseLoading(sequence, "ai", false);
       this.workspace.setReviewPhaseLoading(sequence, "formatChecks", false);
     }

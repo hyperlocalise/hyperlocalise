@@ -179,6 +179,9 @@ export class CatWorkspaceOrchestrator {
     }
     this.dirtyStateDisposer?.();
     if (typeof window !== "undefined") {
+      if (this.beforeUnloadHandler) {
+        window.removeEventListener("beforeunload", this.beforeUnloadHandler);
+      }
       const handleBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
       this.beforeUnloadHandler = handleBeforeUnload;
       this.dirtyStateDisposer = reaction(
