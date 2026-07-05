@@ -1,7 +1,9 @@
 {
   "services": {
     "web": {
-      "root": "apps/hyperlocalise-web"
+      "root": "apps/hyperlocalise-web",
+      "framework": "nextjs",
+      "buildCommand": "pnpm run db:migrate && pnpm build"
     },
     "cat_validate": {
       "runtime": "container",
