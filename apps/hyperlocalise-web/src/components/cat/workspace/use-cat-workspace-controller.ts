@@ -189,6 +189,11 @@ export function useCatWorkspaceController({
 
   const runSegmentChecks = useCallback(
     async (segment: CatSegment, value: string, glossaryTermsOverride?: CatGlossaryTerm[]) => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+
       if (!validateFormat && !runQaChecks) {
         return;
       }
@@ -377,6 +382,14 @@ export function useCatWorkspaceController({
         return;
       }
 
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+      validationAbortControllerRef.current?.abort();
+      const abortController = new AbortController();
+      validationAbortControllerRef.current = abortController;
+
       await onReviewWithAiOverride?.(segmentId);
 
       const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
@@ -429,13 +442,14 @@ export function useCatWorkspaceController({
                   segmentForReview,
                   segmentForReview.targetText,
                   intelligenceForRecommendation.glossaryTerms,
+                  { signal: abortController.signal },
                 )
               : Promise.resolve([]),
             includeFormatChecks && runQaChecks
               ? runQaChecks(segmentForReview, segmentForReview.targetText)
               : Promise.resolve([]),
           ]);
-          if (!store.isReviewCurrent(sequence)) {
+          if (abortController.signal.aborted || !store.isReviewCurrent(sequence)) {
             return;
           }
           const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
@@ -455,7 +469,14 @@ export function useCatWorkspaceController({
             });
           }
         }
+      } catch (error) {
+        if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+          throw error;
+        }
       } finally {
+        if (validationAbortControllerRef.current === abortController) {
+          validationAbortControllerRef.current = null;
+        }
         store.setReviewPhaseLoading(sequence, "ai", false);
         store.setReviewPhaseLoading(sequence, "formatChecks", false);
       }

@@ -47,7 +47,7 @@ export async function fetchCatSegmentValidation(
         sourceText: input.sourceText,
         targetText: input.targetText,
         sourcePath: input.sourcePath,
-        maxLength: input.maxLength ?? 0,
+        ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
         modes: CAT_SEGMENT_QA_MODES,
       }),
       signal: input.signal,

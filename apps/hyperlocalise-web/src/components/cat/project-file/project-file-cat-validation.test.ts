@@ -77,6 +77,32 @@ describe("fetchCatSegmentValidation", () => {
     );
   });
 
+  it("omits maxLength when the segment has no positive limit", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ checks: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await fetchCatSegmentValidation(
+      {
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        sourcePath: "/messages/en.json",
+      },
+      fetcher,
+    );
+
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(request.body as string)).toEqual({
+      sourceText: "Hello",
+      targetText: "Bonjour",
+      sourcePath: "/messages/en.json",
+      modes: ["not_localized", "whitespace_only", "same_as_source"],
+    });
+  });
+
   it("returns an aborted result when the request is cancelled", async () => {
     const abortController = new AbortController();
     const fetcher = vi.fn().mockImplementation(async (_url, init: RequestInit) => {

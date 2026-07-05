@@ -8,7 +8,7 @@ Use the Go segment-validation service as the CAT editor's source of truth for fo
 
 The CAT client posts directly to `/api/go-svc/v1/validate/segment`. The existing Vercel rewrite routes this same-origin request to `go-svc`, and the browser's WorkOS session cookie authenticates it.
 
-Each request includes the source text, current target text, source path, maximum length, and all supported QA modes:
+Each request includes the source text, current target text, source path, and all supported QA modes. It includes `maxLength` only when the segment defines a positive limit.
 
 - `not_localized`
 - `whitespace_only`
