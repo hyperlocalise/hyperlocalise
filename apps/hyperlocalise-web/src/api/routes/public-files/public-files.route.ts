@@ -11,7 +11,11 @@ import {
 import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import {
+  uploadSourceFile,
+  type SourceFileUploadError,
+} from "@/lib/projects/files/source-file-upload-service";
+import { isErr } from "@/lib/primitives/result/results";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { badRequestResponse, payloadTooLargeResponse } from "@/api/response.schema";
@@ -37,23 +41,24 @@ type CreatePublicFileRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
 };
 
-function sourceUploadErrorResponse(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
-  const code = error instanceof Error ? error.message : "source_upload_failed";
-  switch (code) {
+function sourceUploadErrorResponse(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: SourceFileUploadError,
+) {
+  switch (error.code) {
     case "external_tms_project_not_found":
       return projectNotFoundResponse(c);
     case "provider_credential_not_found":
       return badRequestResponse(c, "provider_credential_not_found");
+    case "invalid_crowdin_project_id":
     case "crowdin_branch_not_found":
     case "phrase_source_locale_not_found":
     case "phrase_source_file_format_required":
     case "lokalise_source_locale_required":
     case "lokalise_source_file_format_required":
     case "smartling_source_file_type_required":
-      return badRequestResponse(c, "invalid_file_payload", code);
-    case "source_upload_unsupported":
-      return badRequestResponse(c, "source_upload_unsupported");
-    default:
+      return badRequestResponse(c, "invalid_file_payload", error.code);
+    case "source_upload_failed":
       return c.json(
         {
           error: "source_upload_failed",
@@ -110,41 +115,40 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           return projectNotFoundResponse(c);
         }
 
-        try {
-          const content = new Uint8Array(await file.arrayBuffer());
-          const result = await uploadSourceFile({
-            organizationId,
-            project,
-            file: {
-              filename: file.name,
-              contentType: file.type || "application/octet-stream",
-              content,
-            },
-            sourcePath: parsed.data.sourcePath,
-            sourceHash: parsed.data.sourceHash,
-            commitSha: parsed.data.commitSha,
-            workflowRunId: parsed.data.workflowRunId,
-            sourceLocale: parsed.data.sourceLocale,
-            format: parsed.data.format,
-            branch: parsed.data.branch,
-            uploadSurface: "public_api",
-            uploadedByApiKeyId: c.var.auth.apiKey.id,
-            actorUserId: c.var.auth.teamAccess.user.localUserId,
-            fileStorageAdapter: options.fileStorageAdapter,
-          });
-
-          return c.json(
-            {
-              file: {
-                ...result.file,
-                destination: result.destination,
-              },
-            },
-            201,
-          );
-        } catch (error) {
-          return sourceUploadErrorResponse(c, error);
+        const content = new Uint8Array(await file.arrayBuffer());
+        const result = await uploadSourceFile({
+          organizationId,
+          project,
+          file: {
+            filename: file.name,
+            contentType: file.type || "application/octet-stream",
+            content,
+          },
+          sourcePath: parsed.data.sourcePath,
+          sourceHash: parsed.data.sourceHash,
+          commitSha: parsed.data.commitSha,
+          workflowRunId: parsed.data.workflowRunId,
+          sourceLocale: parsed.data.sourceLocale,
+          format: parsed.data.format,
+          branch: parsed.data.branch,
+          uploadSurface: "public_api",
+          uploadedByApiKeyId: c.var.auth.apiKey.id,
+          actorUserId: c.var.auth.teamAccess.user.localUserId,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        if (isErr(result)) {
+          return sourceUploadErrorResponse(c, result.error);
         }
+
+        return c.json(
+          {
+            file: {
+              ...result.value.file,
+              destination: result.value.destination,
+            },
+          },
+          201,
+        );
       },
     )
     .get("/:fileId/download", requireApiKeyPermission("files:read"), async (c) => {

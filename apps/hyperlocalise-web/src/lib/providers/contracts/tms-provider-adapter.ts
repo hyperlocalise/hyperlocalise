@@ -1,4 +1,5 @@
 import type { schema } from "@/lib/database";
+import type { Result } from "@/lib/primitives/result/results";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import type {
   ExternalTmsApprovedTranslationUpload,
@@ -6,6 +7,7 @@ import type {
   ExternalTmsGlossaryMetadata,
   ExternalTmsJobTaskMetadata,
   ExternalTmsProjectMetadata,
+  ExternalTmsSourceFileUploadError,
   ExternalTmsSourceFileUpload,
   ExternalTmsSourceFileUploadResult,
   ExternalTmsTaskContent,
@@ -102,7 +104,7 @@ export abstract class TmsProviderAdapter {
 
   abstract uploadSourceFile(
     scope: TmsProviderSourceFileUploadScope,
-  ): Promise<ExternalTmsSourceFileUploadResult>;
+  ): Promise<Result<ExternalTmsSourceFileUploadResult, ExternalTmsSourceFileUploadError>>;
 
   abstract pushTranslations(
     scope: TmsProviderPushTranslationsScope,

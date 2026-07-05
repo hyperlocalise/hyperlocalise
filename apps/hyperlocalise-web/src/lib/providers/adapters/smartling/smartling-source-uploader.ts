@@ -1,5 +1,6 @@
 import type { ExternalTmsSourceFileUploader } from "@/lib/providers/tms-provider-types";
 
+import { err, ok } from "@/lib/primitives/result/results";
 import {
   providerFileFormat,
   providerFilename,
@@ -21,7 +22,7 @@ export const uploadSmartlingSourceFile: ExternalTmsSourceFileUploader = async ({
   const sourcePath = providerSourcePath(file);
   const fileType = providerFileFormat(file);
   if (!fileType) {
-    throw new Error("smartling_source_file_type_required");
+    return err({ code: "smartling_source_file_type_required" });
   }
 
   const result = await client.uploadSourceFile(externalProjectId, {
@@ -32,7 +33,7 @@ export const uploadSmartlingSourceFile: ExternalTmsSourceFileUploader = async ({
     contentType: file.contentType,
   });
 
-  return {
+  return ok({
     sourcePath,
     externalResourceId: result.fileUri,
     revision: null,
@@ -48,5 +49,5 @@ export const uploadSmartlingSourceFile: ExternalTmsSourceFileUploader = async ({
       processUid: result.processUid,
       ...result.providerPayload,
     },
-  };
+  });
 };

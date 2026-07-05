@@ -1,5 +1,6 @@
 import type { JobKind } from "@/lib/database/types";
 import type { schema } from "@/lib/database";
+import type { Result } from "@/lib/primitives/result/results";
 
 import type {
   ExternalTmsCredential,
@@ -79,6 +80,15 @@ export type ExternalTmsSourceFileUploadResult = {
   providerPayload?: Record<string, unknown>;
 };
 
+export type ExternalTmsSourceFileUploadError =
+  | { code: "invalid_crowdin_project_id" }
+  | { code: "crowdin_branch_not_found" }
+  | { code: "phrase_source_locale_not_found" }
+  | { code: "phrase_source_file_format_required" }
+  | { code: "lokalise_source_locale_required" }
+  | { code: "lokalise_source_file_format_required" }
+  | { code: "smartling_source_file_type_required" };
+
 export type ExternalTmsSourceFileUploader = (input: {
   organizationId: string;
   projectId: string;
@@ -88,7 +98,7 @@ export type ExternalTmsSourceFileUploader = (input: {
   project: ExternalTmsProject;
   secretMaterial: string;
   file: ExternalTmsSourceFileUpload;
-}) => Promise<ExternalTmsSourceFileUploadResult>;
+}) => Promise<Result<ExternalTmsSourceFileUploadResult, ExternalTmsSourceFileUploadError>>;
 
 export type ExternalTmsJobTaskMetadata = {
   externalJobId: string;

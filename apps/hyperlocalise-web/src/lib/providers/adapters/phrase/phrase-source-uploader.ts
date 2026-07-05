@@ -3,6 +3,7 @@ import type {
   ExternalTmsSourceFileUploader,
 } from "@/lib/providers/tms-provider-types";
 
+import { err, ok } from "@/lib/primitives/result/results";
 import {
   providerFileFormat,
   providerFilename,
@@ -25,13 +26,13 @@ export const uploadPhraseSourceFile: ExternalTmsSourceFileUploader = async ({
   const sourcePath = providerSourcePath(file);
   const fileFormat = providerFileFormat(file);
   if (!fileFormat) {
-    throw new Error("phrase_source_file_format_required");
+    return err({ code: "phrase_source_file_format_required" });
   }
 
   const locales = await client.listLocales(externalProjectId, { branch: file.branch });
   const sourceLocale = resolvePhraseSourceLocale(file, locales, project.sourceLocale);
   if (!sourceLocale) {
-    throw new Error("phrase_source_locale_not_found");
+    return err({ code: "phrase_source_locale_not_found" });
   }
 
   const upload = await client.uploadSourceFile(externalProjectId, {
@@ -43,7 +44,7 @@ export const uploadPhraseSourceFile: ExternalTmsSourceFileUploader = async ({
     branch: file.branch,
   });
 
-  return {
+  return ok({
     sourcePath,
     externalResourceId: upload.id,
     revision: upload.updatedAt ?? upload.createdAt ?? null,
@@ -60,7 +61,7 @@ export const uploadPhraseSourceFile: ExternalTmsSourceFileUploader = async ({
       },
       branch: file.branch?.trim() || null,
     },
-  };
+  });
 };
 
 function resolvePhraseSourceLocale(

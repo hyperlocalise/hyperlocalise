@@ -1,5 +1,6 @@
 import type { ExternalTmsSourceFileUploader } from "@/lib/providers/tms-provider-types";
 
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   providerFilename,
   providerSourcePath,
@@ -18,23 +19,27 @@ export const uploadCrowdinSourceFile: ExternalTmsSourceFileUploader = async ({
   });
   const projectId = Number(externalProjectId);
   if (!Number.isInteger(projectId) || projectId <= 0) {
-    throw new Error("invalid_crowdin_project_id");
+    return err({ code: "invalid_crowdin_project_id" });
   }
 
-  const branchId = await resolveCrowdinBranchId(client, projectId, file.branch);
+  const branchIdResult = await resolveCrowdinBranchId(client, projectId, file.branch);
+  if (!branchIdResult.ok) {
+    return branchIdResult;
+  }
+  const branchId = branchIdResult.value;
   const sourcePath = providerSourcePath(file);
   const pathSegments = sourcePath.split("/").filter(Boolean);
   const name = providerFilename(file);
   const directorySegments = pathSegments.length > 1 ? pathSegments.slice(0, -1) : [];
   const directoryId = await ensureCrowdinDirectory(client, projectId, branchId, directorySegments);
+  const files = await client.listFiles(projectId, branchId ?? undefined, directoryId ?? undefined);
+  const existing = files.find((item) => item.name === name);
   const storage = await client.addStorage({
     fileName: name,
     content: file.content,
     contentType: file.contentType,
   });
 
-  const files = await client.listFiles(projectId, branchId ?? undefined, directoryId ?? undefined);
-  const existing = files.find((item) => item.name === name);
   const uploaded = existing
     ? await client.updateSourceFile(projectId, existing.id, { storageId: storage.id, name })
     : await client.addSourceFile(projectId, {
@@ -44,7 +49,7 @@ export const uploadCrowdinSourceFile: ExternalTmsSourceFileUploader = async ({
         directoryId,
       });
 
-  return {
+  return ok({
     sourcePath,
     externalResourceId: String(uploaded.id),
     revision: String(uploaded.revisionId),
@@ -56,25 +61,25 @@ export const uploadCrowdinSourceFile: ExternalTmsSourceFileUploader = async ({
       path: uploaded.path,
       status: uploaded.status,
     },
-  };
+  });
 };
 
 async function resolveCrowdinBranchId(
   client: CrowdinApiClient,
   projectId: number,
   branch?: string | null,
-) {
+): Promise<Result<number | null, { code: "crowdin_branch_not_found" }>> {
   const normalizedBranch = branch?.trim();
   if (!normalizedBranch) {
-    return null;
+    return ok(null);
   }
 
   const branches = await client.listBranches(projectId);
   const match = branches.find((item) => item.name === normalizedBranch);
   if (!match) {
-    throw new Error("crowdin_branch_not_found");
+    return err({ code: "crowdin_branch_not_found" });
   }
-  return match.id;
+  return ok(match.id);
 }
 
 async function ensureCrowdinDirectory(

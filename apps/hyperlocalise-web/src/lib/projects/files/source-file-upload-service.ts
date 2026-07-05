@@ -4,12 +4,17 @@ import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { createLogger } from "@/lib/log";
 import { getTmsProviderAdapter } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type { ExternalTmsSourceFileUploadError } from "@/lib/providers/tms-provider-types";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
+
+const logger = createLogger("source-file-upload-service");
 
 export type SourceFileUploadInput = {
   organizationId: string;
@@ -63,14 +68,20 @@ export type SourceFileUploadResult =
   | NativeSourceFileUploadResult
   | ExternalTmsSourceFileUploadResult;
 
+export type SourceFileUploadError =
+  | { code: "external_tms_project_not_found" }
+  | { code: "provider_credential_not_found" }
+  | { code: "source_upload_failed" }
+  | ExternalTmsSourceFileUploadError;
+
 export async function uploadSourceFile(
   input: SourceFileUploadInput,
-): Promise<SourceFileUploadResult> {
+): Promise<Result<SourceFileUploadResult, SourceFileUploadError>> {
   if (input.project.source === "external_tms") {
     return uploadExternalTmsSourceFile(input);
   }
 
-  return uploadNativeSourceFile(input);
+  return ok(await uploadNativeSourceFile(input));
 }
 
 async function uploadNativeSourceFile(
@@ -129,7 +140,16 @@ async function uploadNativeSourceFile(
     sourceFileVersionId: version.id,
     sourcePath: input.sourcePath,
     sourceHash: input.sourceHash ?? storedFile.sha256,
-  }).catch(() => {});
+  }).catch((error) => {
+    logger.warn(
+      {
+        projectId: input.project.id,
+        sourceFileVersionId: version.id,
+        error: error instanceof Error ? error.message : "unknown",
+      },
+      "source-file-upload source ingest enqueue failed",
+    );
+  });
 
   return {
     destination: "native",
@@ -146,14 +166,14 @@ async function uploadNativeSourceFile(
 
 async function uploadExternalTmsSourceFile(
   input: SourceFileUploadInput,
-): Promise<ExternalTmsSourceFileUploadResult> {
+): Promise<Result<ExternalTmsSourceFileUploadResult, SourceFileUploadError>> {
   const providerKind = input.project.externalProviderKind as ExternalTmsProviderKind | null;
   const externalProjectId = input.project.externalProjectId?.trim();
   if (!providerKind || !externalProjectId) {
-    throw new Error("external_tms_project_not_found");
+    return err({ code: "external_tms_project_not_found" });
   }
   if (!input.project.externalProviderCredentialId) {
-    throw new Error("provider_credential_not_found");
+    return err({ code: "provider_credential_not_found" });
   }
 
   const [credential] = await db
@@ -172,44 +192,61 @@ async function uploadExternalTmsSourceFile(
     .limit(1);
 
   if (!credential) {
-    throw new Error("provider_credential_not_found");
+    return err({ code: "provider_credential_not_found" });
   }
 
-  const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
-    credential,
-    organizationId: input.organizationId,
-    actorUserId: input.actorUserId,
-  });
-  const providerResult = await getTmsProviderAdapter(providerKind).uploadSourceFile({
-    organizationId: input.organizationId,
-    projectId: input.project.id,
-    externalProjectId,
-    credential,
-    project: input.project,
-    secretMaterial,
-    file: {
-      sourcePath: input.sourcePath,
-      filename: input.file.filename,
-      contentType: input.file.contentType,
-      content: input.file.content,
-      sourceHash: input.sourceHash ?? null,
-      sourceLocale: input.sourceLocale ?? input.project.sourceLocale ?? null,
-      format: input.format ?? null,
-      branch: input.branch ?? null,
-    },
-  });
+  let providerResult;
+  try {
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
+    providerResult = await getTmsProviderAdapter(providerKind).uploadSourceFile({
+      organizationId: input.organizationId,
+      projectId: input.project.id,
+      externalProjectId,
+      credential,
+      project: input.project,
+      secretMaterial,
+      file: {
+        sourcePath: input.sourcePath,
+        filename: input.file.filename,
+        contentType: input.file.contentType,
+        content: input.file.content,
+        sourceHash: input.sourceHash ?? null,
+        sourceLocale: input.sourceLocale ?? input.project.sourceLocale ?? null,
+        format: input.format ?? null,
+        branch: input.branch ?? null,
+      },
+    });
+  } catch (error) {
+    logger.warn(
+      {
+        projectId: input.project.id,
+        providerKind,
+        error: error instanceof Error ? error.message : "unknown",
+      },
+      "external TMS source upload failed",
+    );
+    return err({ code: "source_upload_failed" });
+  }
 
-  return {
+  if (isErr(providerResult)) {
+    return providerResult;
+  }
+
+  return ok({
     destination: "external_tms",
     file: {
-      id: providerResult.externalResourceId ?? null,
-      sourcePath: providerResult.sourcePath,
+      id: providerResult.value.externalResourceId ?? null,
+      sourcePath: providerResult.value.sourcePath,
       providerKind,
       externalProjectId,
-      externalResourceId: providerResult.externalResourceId ?? null,
-      revision: providerResult.revision ?? null,
-      asyncOperation: providerResult.asyncOperation ?? null,
-      providerPayload: providerResult.providerPayload ?? {},
+      externalResourceId: providerResult.value.externalResourceId ?? null,
+      revision: providerResult.value.revision ?? null,
+      asyncOperation: providerResult.value.asyncOperation ?? null,
+      providerPayload: providerResult.value.providerPayload ?? {},
     },
-  };
+  });
 }

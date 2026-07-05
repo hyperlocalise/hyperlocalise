@@ -1,5 +1,6 @@
 import type { ExternalTmsSourceFileUploader } from "@/lib/providers/tms-provider-types";
 
+import { err, ok } from "@/lib/primitives/result/results";
 import {
   providerFileFormat,
   providerFilename,
@@ -21,12 +22,12 @@ export const uploadLokaliseSourceFile: ExternalTmsSourceFileUploader = async ({
   const sourcePath = providerSourcePath(file);
   const format = providerFileFormat(file);
   if (!format) {
-    throw new Error("lokalise_source_file_format_required");
+    return err({ code: "lokalise_source_file_format_required" });
   }
 
   const sourceLocale = file.sourceLocale?.trim() || project.sourceLocale?.trim();
   if (!sourceLocale) {
-    throw new Error("lokalise_source_locale_required");
+    return err({ code: "lokalise_source_locale_required" });
   }
 
   const result = await client.uploadSourceFile(externalProjectId, {
@@ -37,7 +38,7 @@ export const uploadLokaliseSourceFile: ExternalTmsSourceFileUploader = async ({
     branch: file.branch,
   });
 
-  return {
+  return ok({
     sourcePath,
     externalResourceId: result.processId,
     revision: null,
@@ -56,5 +57,5 @@ export const uploadLokaliseSourceFile: ExternalTmsSourceFileUploader = async ({
       format,
       branch: file.branch?.trim() || null,
     },
-  };
+  });
 };

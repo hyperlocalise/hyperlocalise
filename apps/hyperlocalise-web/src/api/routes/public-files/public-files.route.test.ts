@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { err, ok } from "@/lib/primitives/result/results";
 
 import {
   createMemoryFileStorageAdapter,
@@ -76,13 +77,15 @@ describe("publicFileRoutes", () => {
   it("uploads a source file to an external TMS project through the provider adapter", async () => {
     const { apiKey, project, externalProjectId } =
       await createExternalTmsPublicApiFixture("phrase");
-    uploadSourceFileMock.mockResolvedValue({
-      sourcePath: "content/en/home.json",
-      externalResourceId: "upload_1",
-      revision: "rev_1",
-      asyncOperation: null,
-      providerPayload: { state: "success" },
-    });
+    uploadSourceFileMock.mockResolvedValue(
+      ok({
+        sourcePath: "content/en/home.json",
+        externalResourceId: "upload_1",
+        revision: "rev_1",
+        asyncOperation: null,
+        providerPayload: { state: "success" },
+      }),
+    );
 
     const uploadResponse = await client.api.v1.files.$post(
       {
@@ -138,6 +141,29 @@ describe("publicFileRoutes", () => {
       .from(schema.storedFiles)
       .where(eq(schema.storedFiles.projectId, project.id));
     expect(storedFiles).toHaveLength(0);
+  });
+
+  it("maps typed provider upload errors without matching error messages", async () => {
+    const { apiKey, project } = await createExternalTmsPublicApiFixture("phrase");
+    uploadSourceFileMock.mockResolvedValue(err({ code: "phrase_source_locale_not_found" }));
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.json",
+          branch: "missing",
+          file: new File([`{"hello":"Hello"}`], "home.json", { type: "application/json" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_file_payload",
+      message: "phrase_source_locale_not_found",
+    });
   });
 
   it("uploads and downloads a repository source file with an API key", async () => {
