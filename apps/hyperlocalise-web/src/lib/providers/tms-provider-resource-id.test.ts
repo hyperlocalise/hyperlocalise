@@ -151,5 +151,7 @@ describe("tms-provider-resource-id", () => {
     expect(isLiveProviderResourceId("ext:crowdin:42")).toBe(false);
     expect(parseLiveProviderMemoryId("unknown:tm:1")).toBeNull();
     expect(parseLiveProviderMemoryId("crowdin:tm:")).toBeNull();
+    expect(parseLiveProviderGlossaryId("unknown:glossary:1")).toBeNull();
+    expect(parseLiveProviderGlossaryId("crowdin:glossary:")).toBeNull();
   });
 });

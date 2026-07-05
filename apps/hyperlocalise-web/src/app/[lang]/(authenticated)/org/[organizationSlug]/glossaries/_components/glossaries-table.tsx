@@ -12,9 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 
+import { isLiveProviderGlossaryId } from "@/lib/providers/tms-provider-resource-id";
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
-import { isLiveProviderGlossaryId } from "@/lib/providers/tms-provider-resource-id";
 import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
 
