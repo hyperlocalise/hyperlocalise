@@ -5,11 +5,15 @@ const {
   resolveWebProjectRepositoryGitHubContextMock,
   runSubagentMock,
   stopRepositorySandboxMock,
+  reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsageMock,
 } = vi.hoisted(() => ({
   createRepositorySandboxMock: vi.fn(),
   resolveWebProjectRepositoryGitHubContextMock: vi.fn(),
   runSubagentMock: vi.fn(),
   stopRepositorySandboxMock: vi.fn(),
+  reserveAgentRuntimeUsageMock: vi.fn(),
+  trackSucceededAgentRuntimeUsageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/repository-context", () => ({
@@ -26,6 +30,11 @@ vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
 
 vi.mock("@/lib/agent-runtime/subagents/run-subagent", () => ({
   runSubagent: runSubagentMock,
+}));
+
+vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  reserveAgentRuntimeUsage: reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -98,6 +107,8 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     );
     runSubagentMock.mockResolvedValue({ text: "Found this key in the homepage hero." });
     stopRepositorySandboxMock.mockResolvedValue(undefined);
+    reserveAgentRuntimeUsageMock.mockResolvedValue(true);
+    trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -144,6 +155,8 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     });
     expect(resolveWebProjectRepositoryGitHubContextMock).not.toHaveBeenCalled();
     expect(runSubagentMock).not.toHaveBeenCalled();
+    expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
+    expect(trackSucceededAgentRuntimeUsageMock).not.toHaveBeenCalled();
   });
 
   it("uses an explicit repository name without auto-selecting from enabled repositories", async () => {
@@ -178,6 +191,17 @@ describe("lookupProjectFileStringRepositoryContext", () => {
       }),
     );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
+    expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        source: "project_file_string_context_lookup",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+      }),
+    );
   });
 
   it("returns repository_not_enabled when no repository is specified and none are enabled", async () => {

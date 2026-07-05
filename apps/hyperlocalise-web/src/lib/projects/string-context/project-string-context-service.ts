@@ -8,6 +8,10 @@ import {
 } from "@/lib/agents/repository-context";
 import { runSubagent } from "@/lib/agent-runtime/subagents/run-subagent";
 import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
+import {
   createRepositorySandbox,
   stopRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
@@ -386,6 +390,22 @@ export class ProjectStringContextService extends ProjectServiceBase {
     }
 
     const conversationId = `project-file-context:${randomUUID()}`;
+    const sourceTextHash = this.hashSourceText(input.text);
+    const usageOperationKey = `project-file-string-context:${this.hashSourceText(
+      [
+        input.organizationId,
+        input.projectId,
+        repositoryFullName,
+        input.sourcePath,
+        input.key,
+        sourceTextHash,
+      ].join("\0"),
+    )}:agent_runs`;
+    const usageDimensions = {
+      surface: "web",
+      agent_surface: "project_file_string_context",
+      subagent_type: "repository",
+    };
     const toolContext: ToolContext = {
       conversationId,
       agentSession: { todos: [] },
@@ -425,6 +445,13 @@ export class ProjectStringContextService extends ProjectServiceBase {
       .join("\n\n");
 
     try {
+      await reserveAgentRuntimeUsage({
+        organizationId: input.organizationId,
+        operationKey: usageOperationKey,
+        source: "project_file_string_context_lookup",
+        dimensions: usageDimensions,
+      });
+
       const result = await runSubagent("repository", {
         toolContext,
         task: `Find repository context for localization key "${input.key}".`,
@@ -452,6 +479,12 @@ export class ProjectStringContextService extends ProjectServiceBase {
         sourceText: input.text,
         summary,
         createdByUserId: input.localUserId,
+      });
+
+      await trackSucceededAgentRuntimeUsage({
+        organizationId: input.organizationId,
+        operationKey: usageOperationKey,
+        dimensions: usageDimensions,
       });
 
       log.info(
