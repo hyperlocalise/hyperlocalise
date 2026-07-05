@@ -10,8 +10,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
+import { tmsProviderCredentialPanelMessages } from "./tms-provider-credential-panel.messages";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/contracts/external-tms-provider-credential";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import {
@@ -39,6 +41,28 @@ import {
 } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
+
+const baseUrlGuidanceMessages = {
+  crowdin: tmsProviderCredentialPanelMessages.baseUrlGuidanceCrowdin,
+  phrase: tmsProviderCredentialPanelMessages.baseUrlGuidancePhrase,
+  lokalise: tmsProviderCredentialPanelMessages.baseUrlGuidanceLokalise,
+  smartling: tmsProviderCredentialPanelMessages.baseUrlGuidanceSmartling,
+} satisfies Record<ExternalTmsProviderKind, MessageDescriptor>;
+
+const baseUrlPlaceholderMessages = {
+  crowdin: tmsProviderCredentialPanelMessages.baseUrlPlaceholderCrowdin,
+  phrase: tmsProviderCredentialPanelMessages.baseUrlPlaceholderPhrase,
+  lokalise: tmsProviderCredentialPanelMessages.baseUrlPlaceholderLokalise,
+  smartling: tmsProviderCredentialPanelMessages.baseUrlPlaceholderSmartling,
+} satisfies Record<ExternalTmsProviderKind, MessageDescriptor>;
+
+function getTmsBaseUrlGuidance(intl: IntlShape, providerKind: ExternalTmsProviderKind): string {
+  return intl.formatMessage(baseUrlGuidanceMessages[providerKind]);
+}
+
+function getTmsBaseUrlPlaceholder(intl: IntlShape, providerKind: ExternalTmsProviderKind): string {
+  return intl.formatMessage(baseUrlPlaceholderMessages[providerKind]);
+}
 
 function CrowdinOAuthSetupFields({
   providerKind,
@@ -73,17 +97,23 @@ function CrowdinOAuthSetupFields({
   onToggleShowSecret: () => void;
   allowExistingCredentials?: boolean;
 }) {
+  const intl = useIntl();
+
   return (
     <>
       <Field className="gap-2">
-        <FieldLabel htmlFor={redirectUriFieldId}>OAuth callback URL</FieldLabel>
+        <FieldLabel htmlFor={redirectUriFieldId}>
+          {intl.formatMessage(tmsProviderCredentialPanelMessages.oauthCallbackUrlLabel)}
+        </FieldLabel>
         <InputGroup className="h-10 bg-muted/30">
           <InputGroupInput
             id={redirectUriFieldId}
             readOnly
             tabIndex={-1}
             value={crowdinRedirectUri}
-            aria-label="OAuth callback URL"
+            aria-label={intl.formatMessage(
+              tmsProviderCredentialPanelMessages.oauthCallbackUrlAriaLabel,
+            )}
             className="truncate text-sm cursor-default"
           />
           <InputGroupAddon align="inline-end">
@@ -95,9 +125,11 @@ function CrowdinOAuthSetupFields({
                     size="icon-sm"
                     onClick={onCopyRedirectUri}
                     disabled={!crowdinRedirectUri}
-                    aria-label={
-                      redirectUriCopied ? "Copied OAuth callback URL" : "Copy OAuth callback URL"
-                    }
+                    aria-label={intl.formatMessage(
+                      redirectUriCopied
+                        ? tmsProviderCredentialPanelMessages.copiedOAuthCallbackUrlAriaLabel
+                        : tmsProviderCredentialPanelMessages.copyOAuthCallbackUrlAriaLabel,
+                    )}
                   >
                     <HugeiconsIcon
                       icon={redirectUriCopied ? Tick02Icon : Copy01Icon}
@@ -107,7 +139,11 @@ function CrowdinOAuthSetupFields({
                 }
               />
               <TooltipContent>
-                {redirectUriCopied ? "Copied!" : "Copy OAuth callback URL"}
+                {intl.formatMessage(
+                  redirectUriCopied
+                    ? tmsProviderCredentialPanelMessages.copiedTooltip
+                    : tmsProviderCredentialPanelMessages.copyOAuthCallbackUrlTooltip,
+                )}
               </TooltipContent>
             </Tooltip>
           </InputGroupAddon>
@@ -116,11 +152,15 @@ function CrowdinOAuthSetupFields({
 
       <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
+          <p className="text-sm font-medium text-foreground">
+            <FormattedMessage {...tmsProviderCredentialPanelMessages.requiredOAuthScopesTitle} />
+          </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {providerKind === "crowdin"
-              ? "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
-              : "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
+            <FormattedMessage
+              {...(providerKind === "crowdin"
+                ? tmsProviderCredentialPanelMessages.crowdinOAuthScopesDescription
+                : tmsProviderCredentialPanelMessages.phraseOAuthScopesDescription)}
+            />
           </p>
         </div>
         {providerKind === "crowdin" || providerKind === "phrase" ? (
@@ -141,22 +181,27 @@ function CrowdinOAuthSetupFields({
       </div>
 
       <Field className="gap-2">
-        <FieldLabel htmlFor={oauthClientIdFieldId}>OAuth client ID</FieldLabel>
+        <FieldLabel htmlFor={oauthClientIdFieldId}>
+          {intl.formatMessage(tmsProviderCredentialPanelMessages.oauthClientIdLabel)}
+        </FieldLabel>
         <Input
           id={oauthClientIdFieldId}
           value={oauthClientId}
           onChange={(event) => onOauthClientIdChange(event.target.value)}
           autoComplete="off"
-          placeholder={
+          placeholder={intl.formatMessage(
             allowExistingCredentials
-              ? "Leave blank to keep existing client ID"
-              : `${providerName} OAuth App client ID`
-          }
+              ? tmsProviderCredentialPanelMessages.oauthClientIdPlaceholderKeep
+              : tmsProviderCredentialPanelMessages.oauthClientIdPlaceholderNew,
+            { providerName },
+          )}
         />
       </Field>
 
       <Field className="gap-2">
-        <FieldLabel htmlFor={oauthClientSecretFieldId}>OAuth client secret</FieldLabel>
+        <FieldLabel htmlFor={oauthClientSecretFieldId}>
+          {intl.formatMessage(tmsProviderCredentialPanelMessages.oauthClientSecretLabel)}
+        </FieldLabel>
         <div className="relative">
           <HugeiconsIcon
             icon={Key01Icon}
@@ -169,18 +214,23 @@ function CrowdinOAuthSetupFields({
             autoComplete="off"
             value={oauthClientSecret}
             onChange={(event) => onOauthClientSecretChange(event.target.value)}
-            placeholder={
+            placeholder={intl.formatMessage(
               allowExistingCredentials
-                ? "Leave blank to keep existing client secret"
-                : `${providerName} OAuth App client secret`
-            }
+                ? tmsProviderCredentialPanelMessages.oauthClientSecretPlaceholderKeep
+                : tmsProviderCredentialPanelMessages.oauthClientSecretPlaceholderNew,
+              { providerName },
+            )}
             className="ps-9 pe-9"
           />
           <button
             type="button"
             onClick={onToggleShowSecret}
             className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-            aria-label={showSecret ? "Hide secret" : "Show secret"}
+            aria-label={intl.formatMessage(
+              showSecret
+                ? tmsProviderCredentialPanelMessages.hideSecretAriaLabel
+                : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
+            )}
           >
             {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
           </button>
@@ -188,32 +238,6 @@ function CrowdinOAuthSetupFields({
       </Field>
     </>
   );
-}
-
-function getTmsBaseUrlGuidance(providerKind: ExternalTmsProviderKind): string {
-  switch (providerKind) {
-    case "crowdin":
-      return "Leave blank for Crowdin.com. For Crowdin Enterprise, use your organization API URL including /api/v2, for example https://yourorg.api.crowdin.com/api/v2. A trailing slash is optional.";
-    case "phrase":
-      return "Leave blank for Phrase Cloud. For a custom Phrase TMS host, enter the full web API base URL, for example https://cloud.memsource.com/web.";
-    case "lokalise":
-      return "Leave blank for the standard Lokalise API. For a custom host, include the /api2 path, for example https://api.lokalise.com/api2.";
-    case "smartling":
-      return "Leave blank for the standard Smartling API. For a custom host, include the auth API path, for example https://api.smartling.com/auth-api/v2.";
-  }
-}
-
-function getTmsBaseUrlPlaceholder(providerKind: ExternalTmsProviderKind): string {
-  switch (providerKind) {
-    case "crowdin":
-      return "https://yourorg.api.crowdin.com/api/v2";
-    case "phrase":
-      return "https://cloud.memsource.com/web";
-    case "lokalise":
-      return "https://api.lokalise.com/api2";
-    case "smartling":
-      return "https://api.smartling.com/auth-api/v2";
-  }
 }
 
 type CrowdinAuthMode = typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
@@ -283,6 +307,7 @@ export function TmsProviderCredentialPanel({
   baseUrlFieldId,
   crowdinAuthModeFieldId,
 }: TmsProviderCredentialPanelProps) {
+  const intl = useIntl();
   const isCrowdin = providerKind === "crowdin";
   const isCrowdinOAuthMode = isCrowdin && crowdinAuthMode === OAUTH_AUTH_MODE;
   const isCrowdinPatMode = isCrowdin && crowdinAuthMode === PAT_AUTH_MODE;
@@ -311,7 +336,9 @@ export function TmsProviderCredentialPanel({
 
     await navigator.clipboard.writeText(oauthRedirectUri);
     setRedirectUriCopied(true);
-    toast.success("OAuth callback URL copied");
+    toast.success(
+      intl.formatMessage(tmsProviderCredentialPanelMessages.oauthCallbackUrlCopiedToast),
+    );
 
     if (redirectUriCopyTimeoutRef.current) {
       clearTimeout(redirectUriCopyTimeoutRef.current);
@@ -354,15 +381,23 @@ export function TmsProviderCredentialPanel({
     >
       {isOAuthProvider && isOAuthConnected ? (
         <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <p className="font-medium text-foreground">{providerName} is connected via OAuth</p>
+          <p className="font-medium text-foreground">
+            <FormattedMessage
+              {...tmsProviderCredentialPanelMessages.oauthConnectedTitle}
+              values={{ providerName }}
+            />
+          </p>
           <p className="leading-6 text-muted-foreground">
-            Each workspace member connects their own {providerName} account. Projects, jobs,
-            glossaries, and translation memories load live from {providerName} when you open those
-            pages.
+            <FormattedMessage
+              {...tmsProviderCredentialPanelMessages.oauthConnectedDescription}
+              values={{ providerName }}
+            />
           </p>
           {credential.oauthExpiresAt ? (
             <p className="text-xs text-muted-foreground">
-              Access token expires {new Date(credential.oauthExpiresAt).toLocaleString()}
+              {intl.formatMessage(tmsProviderCredentialPanelMessages.accessTokenExpires, {
+                expiresAt: new Date(credential.oauthExpiresAt).toLocaleString(),
+              })}
             </p>
           ) : null}
         </div>
@@ -370,20 +405,27 @@ export function TmsProviderCredentialPanel({
 
       {isPatConnected ? (
         <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <p className="font-medium text-foreground">{providerName} is ready for member tokens</p>
+          <p className="font-medium text-foreground">
+            <FormattedMessage
+              {...tmsProviderCredentialPanelMessages.patConnectedTitle}
+              values={{ providerName }}
+            />
+          </p>
           <p className="leading-6 text-muted-foreground">
-            The API base URL is saved for this workspace. Each member connects with their own
-            Crowdin personal access token—no OAuth app required.
+            <FormattedMessage {...tmsProviderCredentialPanelMessages.patConnectedDescription} />
           </p>
         </div>
       ) : null}
 
       {isCrowdin && onCrowdinAuthModeChange && crowdinAuthModeFieldId ? (
         <Field className="gap-2">
-          <FieldLabel htmlFor={crowdinAuthModeFieldId}>Authentication method</FieldLabel>
+          <FieldLabel htmlFor={crowdinAuthModeFieldId}>
+            {intl.formatMessage(tmsProviderCredentialPanelMessages.authenticationMethodLabel)}
+          </FieldLabel>
           <FieldDescription>
-            OAuth works when your Enterprise OAuth app is configured. Personal access tokens let
-            each member paste a token from Crowdin without OAuth setup.
+            <FormattedMessage
+              {...tmsProviderCredentialPanelMessages.authenticationMethodDescription}
+            />
           </FieldDescription>
           <Select
             value={crowdinAuthMode}
@@ -397,8 +439,12 @@ export function TmsProviderCredentialPanel({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={OAUTH_AUTH_MODE}>OAuth app (recommended)</SelectItem>
-              <SelectItem value={PAT_AUTH_MODE}>Personal access token (per member)</SelectItem>
+              <SelectItem value={OAUTH_AUTH_MODE}>
+                {intl.formatMessage(tmsProviderCredentialPanelMessages.oauthAppRecommended)}
+              </SelectItem>
+              <SelectItem value={PAT_AUTH_MODE}>
+                {intl.formatMessage(tmsProviderCredentialPanelMessages.personalAccessTokenOption)}
+              </SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -406,39 +452,49 @@ export function TmsProviderCredentialPanel({
 
       {isOAuthProvider && !isOAuthConnected ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          {`Connect ${providerName} with an OAuth App. Each member links their own account before using ${providerName} data in Hyperlocalise.`}
+          <FormattedMessage
+            {...tmsProviderCredentialPanelMessages.connectOAuthIntro}
+            values={{ providerName }}
+          />
         </p>
       ) : isCrowdinPatMode && !isPatConnected ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          Set the Crowdin API base URL once for this workspace. After you save, members connect by
-          pasting their own personal access token—nothing else to configure.
+          <FormattedMessage {...tmsProviderCredentialPanelMessages.crowdinPatIntro} />
         </p>
       ) : !isOAuthProvider ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          Save credentials to connect {providerName}. The secret is encrypted at rest and used to
-          sync projects, files, and jobs into the workspace.
+          <FormattedMessage
+            {...tmsProviderCredentialPanelMessages.saveCredentialsIntro}
+            values={{ providerName }}
+          />
         </p>
       ) : null}
 
       <Field className="gap-2">
-        <FieldLabel htmlFor={displayNameFieldId}>Display name</FieldLabel>
+        <FieldLabel htmlFor={displayNameFieldId}>
+          {intl.formatMessage(tmsProviderCredentialPanelMessages.displayNameLabel)}
+        </FieldLabel>
         <Input
           id={displayNameFieldId}
           value={displayName}
           onChange={(event) => onDisplayNameChange(event.target.value)}
-          placeholder="e.g. Crowdin Production"
+          placeholder={intl.formatMessage(
+            tmsProviderCredentialPanelMessages.displayNamePlaceholder,
+          )}
         />
       </Field>
 
       {isCrowdinPatMode ? (
         <Field className="gap-2">
-          <FieldLabel htmlFor={baseUrlFieldId}>API base URL</FieldLabel>
-          <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
+          <FieldLabel htmlFor={baseUrlFieldId}>
+            {intl.formatMessage(tmsProviderCredentialPanelMessages.apiBaseUrlLabel)}
+          </FieldLabel>
+          <FieldDescription>{getTmsBaseUrlGuidance(intl, providerKind)}</FieldDescription>
           <Input
             id={baseUrlFieldId}
             value={baseUrl}
             onChange={(event) => onBaseUrlChange(event.target.value)}
-            placeholder={getTmsBaseUrlPlaceholder(providerKind)}
+            placeholder={getTmsBaseUrlPlaceholder(intl, providerKind)}
           />
         </Field>
       ) : null}
@@ -453,7 +509,7 @@ export function TmsProviderCredentialPanel({
                 size="sm"
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
-                Reconnect with a different OAuth app
+                {intl.formatMessage(tmsProviderCredentialPanelMessages.reconnectOAuthApp)}
                 <ChevronDownIcon
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
@@ -511,7 +567,9 @@ export function TmsProviderCredentialPanel({
 
       {showOrgApiTokenField ? (
         <Field className="gap-2">
-          <FieldLabel htmlFor={secretFieldId}>API token / secret</FieldLabel>
+          <FieldLabel htmlFor={secretFieldId}>
+            {intl.formatMessage(tmsProviderCredentialPanelMessages.apiTokenSecretLabel)}
+          </FieldLabel>
           <div className="relative">
             <HugeiconsIcon
               icon={Key01Icon}
@@ -524,14 +582,20 @@ export function TmsProviderCredentialPanel({
               autoComplete="off"
               value={secret}
               onChange={(event) => onSecretChange(event.target.value)}
-              placeholder="Enter provider API token"
+              placeholder={intl.formatMessage(
+                tmsProviderCredentialPanelMessages.apiTokenPlaceholder,
+              )}
               className="ps-9 pe-9"
             />
             <button
               type="button"
               onClick={onToggleShowSecret}
               className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label={showSecret ? "Hide secret" : "Show secret"}
+              aria-label={intl.formatMessage(
+                showSecret
+                  ? tmsProviderCredentialPanelMessages.hideSecretAriaLabel
+                  : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
+              )}
             >
               {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
             </button>
@@ -549,7 +613,7 @@ export function TmsProviderCredentialPanel({
                 size="sm"
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
-                Advanced settings
+                {intl.formatMessage(tmsProviderCredentialPanelMessages.advancedSettings)}
                 <ChevronDownIcon
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
@@ -562,13 +626,15 @@ export function TmsProviderCredentialPanel({
           />
           <CollapsibleContent className="pt-1">
             <Field className="gap-2">
-              <FieldLabel htmlFor={baseUrlFieldId}>Base URL (optional)</FieldLabel>
-              <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
+              <FieldLabel htmlFor={baseUrlFieldId}>
+                {intl.formatMessage(tmsProviderCredentialPanelMessages.baseUrlOptionalLabel)}
+              </FieldLabel>
+              <FieldDescription>{getTmsBaseUrlGuidance(intl, providerKind)}</FieldDescription>
               <Input
                 id={baseUrlFieldId}
                 value={baseUrl}
                 onChange={(event) => onBaseUrlChange(event.target.value)}
-                placeholder={getTmsBaseUrlPlaceholder(providerKind)}
+                placeholder={getTmsBaseUrlPlaceholder(intl, providerKind)}
               />
             </Field>
           </CollapsibleContent>
@@ -579,7 +645,7 @@ export function TmsProviderCredentialPanel({
         {credential && userIsAdmin ? (
           <Button type="button" variant="outline" onClick={onDisconnect} disabled={isDisconnecting}>
             <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-            Disconnect
+            {intl.formatMessage(tmsProviderCredentialPanelMessages.disconnect)}
           </Button>
         ) : (
           <div />
@@ -587,18 +653,28 @@ export function TmsProviderCredentialPanel({
         <Button type="submit" disabled={!canSubmit || isSaving} className="sm:ms-auto">
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
           {isSaving
-            ? "Saving..."
+            ? intl.formatMessage(tmsProviderCredentialPanelMessages.saving)
             : isCrowdinPatMode
               ? isPatConnected
-                ? `Save ${providerName} settings`
-                : `Enable ${providerName} tokens`
+                ? intl.formatMessage(tmsProviderCredentialPanelMessages.saveProviderSettings, {
+                    providerName,
+                  })
+                : intl.formatMessage(tmsProviderCredentialPanelMessages.enableProviderTokens, {
+                    providerName,
+                  })
               : isOAuthProvider
                 ? isOAuthConnected && !oauthReconnectOpen
-                  ? `Save ${providerName} settings`
+                  ? intl.formatMessage(tmsProviderCredentialPanelMessages.saveProviderSettings, {
+                      providerName,
+                    })
                   : isOAuthConnected
-                    ? `Update ${providerName}`
-                    : `Save ${providerName}`
-                : "Save provider"}
+                    ? intl.formatMessage(tmsProviderCredentialPanelMessages.updateProvider, {
+                        providerName,
+                      })
+                    : intl.formatMessage(tmsProviderCredentialPanelMessages.saveProvider, {
+                        providerName,
+                      })
+                : intl.formatMessage(tmsProviderCredentialPanelMessages.saveProviderGeneric)}
         </Button>
       </div>
     </form>

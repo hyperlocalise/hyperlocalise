@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { SlackIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { getSlackAgentViewModel } from "./slack-agent-view-model";
+import { slackIntegrationRowMessages } from "./slack-integration-row.messages";
 import { IntegrationRow } from "./integration-row";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,7 +63,7 @@ function useSlackInstallUrl(organizationSlug: string) {
   });
 }
 
-function useUpdateSlackAgentState(organizationSlug: string) {
+function useUpdateSlackAgentState(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -81,7 +83,13 @@ function useUpdateSlackAgentState(organizationSlug: string) {
     },
     onSuccess: async (_data, enabled) => {
       await queryClient.invalidateQueries({ queryKey: ["slack-agent", organizationSlug] });
-      toast.success(enabled ? "Slack agent enabled" : "Slack agent disabled");
+      toast.success(
+        intl.formatMessage(
+          enabled
+            ? slackIntegrationRowMessages.enabledToast
+            : slackIntegrationRowMessages.disabledToast,
+        ),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -94,6 +102,7 @@ export function SlackIntegrationRow({
   isLast = false,
   userCanManage,
 }: SlackIntegrationRowProps) {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
@@ -102,8 +111,8 @@ export function SlackIntegrationRow({
   const { data: slackAgent, isLoading, isError } = useSlackAgentState(organizationSlug);
   const { refetch: getInstallUrl, isFetching: isCreatingInstallUrl } =
     useSlackInstallUrl(organizationSlug);
-  const updateSlackAgentState = useUpdateSlackAgentState(organizationSlug);
-  const viewModel = getSlackAgentViewModel(slackAgent);
+  const updateSlackAgentState = useUpdateSlackAgentState(organizationSlug, intl);
+  const viewModel = getSlackAgentViewModel(slackAgent, intl);
 
   useEffect(() => {
     if (searchParams.get("slack_connected") !== "1" || handledSlackConnectedRef.current) {
@@ -118,9 +127,9 @@ export function SlackIntegrationRow({
 
     void queryClient.invalidateQueries({ queryKey: ["slack-agent", organizationSlug] }).then(() => {
       setExpanded(true);
-      toast.success("Slack connected");
+      toast.success(intl.formatMessage(slackIntegrationRowMessages.connectedToast));
     });
-  }, [organizationSlug, queryClient, searchParams]);
+  }, [intl, organizationSlug, queryClient, searchParams]);
 
   const handleConnect = useCallback(async () => {
     try {
@@ -130,23 +139,23 @@ export function SlackIntegrationRow({
         return;
       }
 
-      toast.error("Failed to generate Slack install URL");
+      toast.error(intl.formatMessage(slackIntegrationRowMessages.installUrlFailedToast));
     } catch (installError) {
       toast.error(installError instanceof Error ? installError.message : "Unable to connect Slack");
     }
-  }, [getInstallUrl]);
+  }, [getInstallUrl, intl]);
 
   const action = !userCanManage ? "view-only" : viewModel.connected ? "manage" : "connect";
 
   return (
     <IntegrationRow
-      name="Slack"
+      name={intl.formatMessage(slackIntegrationRowMessages.name)}
       description={
         isError
-          ? "Unable to load Slack settings right now."
+          ? intl.formatMessage(slackIntegrationRowMessages.loadErrorDescription)
           : viewModel.connected
             ? viewModel.statusDescription
-            : "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads."
+            : intl.formatMessage(slackIntegrationRowMessages.disconnectedDescription)
       }
       icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5 text-current" />}
       iconMuted={!viewModel.enabled}
@@ -165,18 +174,22 @@ export function SlackIntegrationRow({
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <TypographyP className="text-sm font-medium text-foreground">
-                {isError ? "Settings unavailable" : viewModel.statusTitle}
+                {isError
+                  ? intl.formatMessage(slackIntegrationRowMessages.settingsUnavailable)
+                  : viewModel.statusTitle}
               </TypographyP>
               {slackAgent?.teamId ? (
                 <TypographyP className="mt-1 text-xs text-muted-foreground">
-                  Workspace ID: {slackAgent.teamId}
+                  {intl.formatMessage(slackIntegrationRowMessages.workspaceId, {
+                    teamId: slackAgent.teamId,
+                  })}
                 </TypographyP>
               ) : null}
             </div>
             <Switch
               checked={viewModel.enabled}
               onCheckedChange={(enabled) => updateSlackAgentState.mutate(enabled)}
-              aria-label="Enable Slack agent"
+              aria-label={intl.formatMessage(slackIntegrationRowMessages.enableSlackAgentAriaLabel)}
               disabled={
                 viewModel.toggleDisabled ||
                 isError ||
@@ -188,7 +201,9 @@ export function SlackIntegrationRow({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => void handleConnect()} disabled={isCreatingInstallUrl}>
-              {isCreatingInstallUrl ? "Opening Slack..." : viewModel.primaryActionLabel}
+              {isCreatingInstallUrl
+                ? intl.formatMessage(slackIntegrationRowMessages.openingSlack)
+                : viewModel.primaryActionLabel}
             </Button>
             {viewModel.connected ? (
               <Button
@@ -197,7 +212,9 @@ export function SlackIntegrationRow({
                 onClick={() => updateSlackAgentState.mutate(false)}
                 disabled={!viewModel.enabled || updateSlackAgentState.isPending}
               >
-                {updateSlackAgentState.isPending ? "Updating..." : "Disable"}
+                {updateSlackAgentState.isPending
+                  ? intl.formatMessage(slackIntegrationRowMessages.updating)
+                  : intl.formatMessage(slackIntegrationRowMessages.disable)}
               </Button>
             ) : null}
           </div>

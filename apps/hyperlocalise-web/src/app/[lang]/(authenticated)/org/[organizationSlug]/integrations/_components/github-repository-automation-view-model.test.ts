@@ -8,6 +8,10 @@ import {
   validateAutomationFormState,
 } from "./github-repository-automation-view-model";
 import { DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS } from "@/lib/agents/github/github-repository-automation-settings";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import type { IntlShape } from "react-intl";
+
+const intl = getIntlShape("en") as IntlShape;
 
 describe("github-repository-automation-view-model", () => {
   it("maps stored settings into form state", () => {
@@ -37,7 +41,7 @@ describe("github-repository-automation-view-model", () => {
   });
 
   it("requires a trigger when workflows are enabled", () => {
-    const errors = validateAutomationFormState({
+    const errors = validateAutomationFormState(intl, {
       ...createAutomationFormStateFromSettings(DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS),
       pushSourceEnabled: true,
       pushSourceProjectId: "project-1",
@@ -71,21 +75,21 @@ describe("github-repository-automation-view-model", () => {
   });
 
   it("maps API validation codes to field errors", () => {
-    expect(mapAutomationApiErrorToFieldErrors("push_trigger_requires_branches")).toEqual({
+    expect(mapAutomationApiErrorToFieldErrors(intl, "push_trigger_requires_branches")).toEqual({
       pushBranches: expect.stringContaining("branch pattern"),
     });
   });
 
   it("deduplicates branch patterns and enforces limits", () => {
-    const first = addBranchPattern([], "main");
-    const duplicate = addBranchPattern(first.branches, "main");
+    const first = addBranchPattern(intl, [], "main");
+    const duplicate = addBranchPattern(intl, first.branches, "main");
 
     expect(first.branches).toEqual(["main"]);
     expect(duplicate.error).toMatch(/already listed/i);
   });
 
   it("rejects invalid weekly day-of-week values", () => {
-    const errors = validateAutomationFormState({
+    const errors = validateAutomationFormState(intl, {
       ...createAutomationFormStateFromSettings(DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS),
       pushSourceEnabled: true,
       pushSourceProjectId: "project-1",

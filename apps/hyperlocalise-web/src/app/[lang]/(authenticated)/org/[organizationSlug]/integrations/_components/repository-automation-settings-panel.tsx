@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import {
@@ -17,6 +18,10 @@ import {
   mapAutomationApiErrorToFieldErrors,
   validateAutomationFormState,
 } from "./github-repository-automation-view-model";
+import {
+  AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE,
+  repositoryAutomationSettingsPanelMessages,
+} from "./repository-automation-settings-panel.messages";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -88,6 +93,7 @@ function ProjectSelectField({
   id,
   label,
   description,
+  placeholder,
   value,
   projects,
   disabled,
@@ -97,6 +103,7 @@ function ProjectSelectField({
   id: string;
   label: string;
   description: string;
+  placeholder: string;
   value: string;
   projects: ProjectOption[];
   disabled: boolean;
@@ -117,7 +124,7 @@ function ProjectSelectField({
         disabled={disabled}
       >
         <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder="Select a project" />
+          <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
           {projects.map((project) => (
@@ -142,6 +149,7 @@ export function RepositoryAutomationSettingsPanel({
   showFullPageLink = false,
   onSaved,
 }: RepositoryAutomationSettingsPanelProps) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<GithubRepositoryAutomationFormState | null>(null);
   const [fieldErrors, setFieldErrors] = useState<GithubRepositoryAutomationFieldErrors>({});
@@ -167,7 +175,9 @@ export function RepositoryAutomationSettingsPanel({
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "load_failed" }));
         throw new Error(
-          "error" in error ? String(error.error) : "Failed to load automation settings",
+          "error" in error
+            ? String(error.error)
+            : intl.formatMessage(repositoryAutomationSettingsPanelMessages.loadSettingsFailed),
         );
       }
 
@@ -185,7 +195,9 @@ export function RepositoryAutomationSettingsPanel({
       });
 
       if (res.status !== 200) {
-        throw new Error("Failed to load projects");
+        throw new Error(
+          intl.formatMessage(repositoryAutomationSettingsPanelMessages.loadProjectsFailed),
+        );
       }
 
       const data = await res.json();
@@ -246,8 +258,11 @@ export function RepositoryAutomationSettingsPanel({
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        setFieldErrors(mapAutomationApiErrorToFieldErrors(result.code, result.message));
-        toast.error(result.message ?? "Could not save automation settings");
+        setFieldErrors(mapAutomationApiErrorToFieldErrors(intl, result.code, result.message));
+        toast.error(
+          result.message ??
+            intl.formatMessage(repositoryAutomationSettingsPanelMessages.saveFailedToast),
+        );
         return;
       }
 
@@ -261,7 +276,7 @@ export function RepositoryAutomationSettingsPanel({
         ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
         result.record,
       );
-      toast.success("Automation settings saved");
+      toast.success(intl.formatMessage(repositoryAutomationSettingsPanelMessages.saveSuccessToast));
       onSaved?.();
     },
     onError: (error) => {
@@ -280,7 +295,9 @@ export function RepositoryAutomationSettingsPanel({
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "reset_failed" }));
         throw new Error(
-          "error" in error ? String(error.error) : "Failed to reset automation settings",
+          "error" in error
+            ? String(error.error)
+            : intl.formatMessage(repositoryAutomationSettingsPanelMessages.resetFailed),
         );
       }
 
@@ -299,7 +316,9 @@ export function RepositoryAutomationSettingsPanel({
         ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
         record,
       );
-      toast.success("Automation settings reset");
+      toast.success(
+        intl.formatMessage(repositoryAutomationSettingsPanelMessages.resetSuccessToast),
+      );
       onSaved?.();
     },
     onError: (error) => {
@@ -316,11 +335,20 @@ export function RepositoryAutomationSettingsPanel({
 
   const triggerChoices = useMemo(
     () => [
-      { value: "none", label: "Off" },
-      { value: "push", label: "On push" },
-      { value: "scheduled", label: "Scheduled" },
+      {
+        value: "none",
+        label: intl.formatMessage(repositoryAutomationSettingsPanelMessages.triggerOff),
+      },
+      {
+        value: "push",
+        label: intl.formatMessage(repositoryAutomationSettingsPanelMessages.triggerOnPush),
+      },
+      {
+        value: "scheduled",
+        label: intl.formatMessage(repositoryAutomationSettingsPanelMessages.triggerScheduled),
+      },
     ],
-    [],
+    [intl],
   );
 
   function updateForm(patch: Partial<GithubRepositoryAutomationFormState>) {
@@ -339,7 +367,7 @@ export function RepositoryAutomationSettingsPanel({
       return;
     }
 
-    const errors = validateAutomationFormState(form);
+    const errors = validateAutomationFormState(intl, form);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -353,7 +381,7 @@ export function RepositoryAutomationSettingsPanel({
       return;
     }
 
-    const result = addBranchPattern(form.pushBranches, branchInput);
+    const result = addBranchPattern(intl, form.pushBranches, branchInput);
     if (result.error) {
       setBranchInputError(result.error);
       return;
@@ -371,7 +399,7 @@ export function RepositoryAutomationSettingsPanel({
   if (!repositoryEnabled) {
     return (
       <p className="text-sm text-muted-foreground">
-        Enable this repository to configure translation automation.
+        <FormattedMessage {...repositoryAutomationSettingsPanelMessages.enableRepositoryHint} />
       </p>
     );
   }
@@ -379,7 +407,7 @@ export function RepositoryAutomationSettingsPanel({
   if (repositoryArchived) {
     return (
       <p className="text-sm text-muted-foreground">
-        Archived repositories cannot use translation automation.
+        <FormattedMessage {...repositoryAutomationSettingsPanelMessages.archivedRepositoryHint} />
       </p>
     );
   }
@@ -400,10 +428,10 @@ export function RepositoryAutomationSettingsPanel({
         <p className="text-sm text-destructive">
           {settingsQuery.error instanceof Error
             ? settingsQuery.error.message
-            : "Unable to load automation settings."}
+            : intl.formatMessage(repositoryAutomationSettingsPanelMessages.loadError)}
         </p>
         <Button variant="outline" size="sm" onClick={() => void settingsQuery.refetch()}>
-          Retry
+          <FormattedMessage {...repositoryAutomationSettingsPanelMessages.retry} />
         </Button>
       </div>
     );
@@ -414,15 +442,22 @@ export function RepositoryAutomationSettingsPanel({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <p className="text-sm text-muted-foreground">
-            Configure how Hyperlocalise syncs source strings and translations for{" "}
-            <span className="font-medium text-foreground">{repositoryFullName}</span>.
+            <FormattedMessage
+              {...repositoryAutomationSettingsPanelMessages.intro}
+              values={{
+                repositoryFullName,
+                repositoryName: (chunks) => (
+                  <span className="font-medium text-foreground">{chunks}</span>
+                ),
+              }}
+            />
           </p>
           {showFullPageLink ? (
             <Link
               href={automationPath}
               className="text-xs text-primary underline-offset-4 hover:underline"
             >
-              Open full-page editor
+              <FormattedMessage {...repositoryAutomationSettingsPanelMessages.openFullPageEditor} />
             </Link>
           ) : null}
           {fieldErrors.form ? <FieldError message={fieldErrors.form} /> : null}
@@ -430,16 +465,24 @@ export function RepositoryAutomationSettingsPanel({
 
         <section className="flex flex-col gap-4 rounded-lg border border-border p-4">
           <SectionHeading
-            title="Workflows"
-            description="Choose which automation jobs run for this repository."
+            title={intl.formatMessage(repositoryAutomationSettingsPanelMessages.workflowsTitle)}
+            description={intl.formatMessage(
+              repositoryAutomationSettingsPanelMessages.workflowsDescription,
+            )}
           />
 
           <div className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="push-source-enabled">Push source to Hyperlocalise</Label>
+                <Label htmlFor="push-source-enabled">
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.pushSourceLabel}
+                  />
+                </Label>
                 <p className="text-xs text-muted-foreground">
-                  Import source strings from GitHub into your TMS project.
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.pushSourceDescription}
+                  />
                 </p>
               </div>
               <Switch
@@ -452,8 +495,15 @@ export function RepositoryAutomationSettingsPanel({
             {form.pushSourceEnabled ? (
               <ProjectSelectField
                 id="push-source-project"
-                label="Hyperlocalise project"
-                description="Source strings are pushed into this project."
+                label={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.hyperlocaliseProjectLabel,
+                )}
+                description={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.pushSourceProjectDescription,
+                )}
+                placeholder={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.selectProjectPlaceholder,
+                )}
                 value={form.pushSourceProjectId}
                 projects={projects}
                 disabled={formDisabled || projectsQuery.isLoading}
@@ -464,9 +514,15 @@ export function RepositoryAutomationSettingsPanel({
 
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="pull-translations-enabled">Pull translations to GitHub</Label>
+                <Label htmlFor="pull-translations-enabled">
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.pullTranslationsLabel}
+                  />
+                </Label>
                 <p className="text-xs text-muted-foreground">
-                  Opens a pull request with updated translation files when sync succeeds.
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.pullTranslationsDescription}
+                  />
                 </p>
               </div>
               <Switch
@@ -479,8 +535,15 @@ export function RepositoryAutomationSettingsPanel({
             {form.pullTranslationsEnabled ? (
               <ProjectSelectField
                 id="pull-translations-project"
-                label="Hyperlocalise project"
-                description="Translations are read from this project before opening the pull request."
+                label={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.hyperlocaliseProjectLabel,
+                )}
+                description={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.pullTranslationsProjectDescription,
+                )}
+                placeholder={intl.formatMessage(
+                  repositoryAutomationSettingsPanelMessages.selectProjectPlaceholder,
+                )}
                 value={form.pullTranslationsProjectId}
                 projects={projects}
                 disabled={formDisabled || projectsQuery.isLoading}
@@ -491,10 +554,18 @@ export function RepositoryAutomationSettingsPanel({
 
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="validation-enabled">Localization check</Label>
+                <Label htmlFor="validation-enabled">
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.validationLabel}
+                  />
+                </Label>
                 <p className="text-xs text-muted-foreground">
-                  Runs <code className="text-xs">hl check</code> against repository translation
-                  files.
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.validationDescription}
+                    values={{
+                      command: (chunks) => <code className="text-xs">{chunks}</code>,
+                    }}
+                  />
                 </p>
               </div>
               <Switch
@@ -507,9 +578,15 @@ export function RepositoryAutomationSettingsPanel({
             {form.validationEnabled ? (
               <div className="flex items-start justify-between gap-4 ps-2">
                 <div className="flex flex-col gap-1">
-                  <Label htmlFor="validation-block">Block on failure</Label>
+                  <Label htmlFor="validation-block">
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.validationBlockLabel}
+                    />
+                  </Label>
                   <p className="text-xs text-muted-foreground">
-                    Fail the automation run when the localization check reports errors.
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.validationBlockDescription}
+                    />
                   </p>
                 </div>
                 <Switch
@@ -525,8 +602,10 @@ export function RepositoryAutomationSettingsPanel({
 
         <section className="flex flex-col gap-4 rounded-lg border border-border p-4">
           <SectionHeading
-            title="Trigger"
-            description="Push and scheduled triggers are mutually exclusive."
+            title={intl.formatMessage(repositoryAutomationSettingsPanelMessages.triggerTitle)}
+            description={intl.formatMessage(
+              repositoryAutomationSettingsPanelMessages.triggerDescription,
+            )}
           />
 
           <div className="flex flex-wrap gap-2">
@@ -551,10 +630,19 @@ export function RepositoryAutomationSettingsPanel({
 
           {form.triggerMode === "push" ? (
             <div className="flex flex-col gap-3">
-              <Label htmlFor="branch-pattern-input">Branch patterns</Label>
+              <Label htmlFor="branch-pattern-input">
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.branchPatternsLabel}
+                />
+              </Label>
               <p className="text-xs text-muted-foreground">
-                Use glob patterns such as <code className="text-xs">main</code> or{" "}
-                <code className="text-xs">release/*</code>. Up to 32 patterns.
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.branchPatternsDescription}
+                  values={{
+                    mainExample: (chunks) => <code className="text-xs">{chunks}</code>,
+                    releaseExample: (chunks) => <code className="text-xs">{chunks}</code>,
+                  }}
+                />
               </p>
               <div className="flex gap-2">
                 <input
@@ -565,7 +653,9 @@ export function RepositoryAutomationSettingsPanel({
                     setBranchInputError(undefined);
                   }}
                   disabled={formDisabled}
-                  placeholder="main"
+                  placeholder={intl.formatMessage(
+                    repositoryAutomationSettingsPanelMessages.branchPatternPlaceholder,
+                  )}
                   className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/40 focus:ring-[3px] focus:ring-primary/20"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -581,7 +671,9 @@ export function RepositoryAutomationSettingsPanel({
                   disabled={formDisabled}
                   onClick={handleAddBranchPattern}
                 >
-                  Add
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.addBranchPattern}
+                  />
                 </Button>
               </div>
               <FieldError message={branchInputError ?? fieldErrors.pushBranches} />
@@ -594,7 +686,10 @@ export function RepositoryAutomationSettingsPanel({
                         type="button"
                         className="rounded-full px-1 text-muted-foreground hover:text-foreground"
                         disabled={formDisabled}
-                        aria-label={`Remove ${branch}`}
+                        aria-label={intl.formatMessage(
+                          repositoryAutomationSettingsPanelMessages.removeBranchPatternAriaLabel,
+                          { branch },
+                        )}
                         onClick={() =>
                           updateForm({
                             pushBranches: form.pushBranches.filter((value) => value !== branch),
@@ -613,7 +708,9 @@ export function RepositoryAutomationSettingsPanel({
           {form.triggerMode === "scheduled" ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="scheduled-cadence">Cadence</Label>
+                <Label htmlFor="scheduled-cadence">
+                  <FormattedMessage {...repositoryAutomationSettingsPanelMessages.cadenceLabel} />
+                </Label>
                 <Select
                   value={form.scheduledCadence}
                   onValueChange={(value) =>
@@ -628,16 +725,32 @@ export function RepositoryAutomationSettingsPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hourly">Hourly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="hourly">
+                      <FormattedMessage
+                        {...repositoryAutomationSettingsPanelMessages.cadenceHourly}
+                      />
+                    </SelectItem>
+                    <SelectItem value="daily">
+                      <FormattedMessage
+                        {...repositoryAutomationSettingsPanelMessages.cadenceDaily}
+                      />
+                    </SelectItem>
+                    <SelectItem value="weekly">
+                      <FormattedMessage
+                        {...repositoryAutomationSettingsPanelMessages.cadenceWeekly}
+                      />
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {form.scheduledCadence !== "hourly" ? (
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="scheduled-hour">Hour (UTC)</Label>
+                  <Label htmlFor="scheduled-hour">
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.scheduledHourLabel}
+                    />
+                  </Label>
                   <Select
                     value={String(form.scheduledHourUtc)}
                     onValueChange={(value) => updateForm({ scheduledHourUtc: Number(value) })}
@@ -649,7 +762,10 @@ export function RepositoryAutomationSettingsPanel({
                     <SelectContent>
                       {Array.from({ length: 24 }, (_, hour) => (
                         <SelectItem key={hour} value={String(hour)}>
-                          {String(hour).padStart(2, "0")}:00 UTC
+                          {intl.formatMessage(
+                            repositoryAutomationSettingsPanelMessages.scheduledHourOption,
+                            { hour: String(hour).padStart(2, "0") },
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -659,7 +775,11 @@ export function RepositoryAutomationSettingsPanel({
 
               {form.scheduledCadence === "weekly" ? (
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                  <Label htmlFor="scheduled-day">Day of week</Label>
+                  <Label htmlFor="scheduled-day">
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.scheduledDayLabel}
+                    />
+                  </Label>
                   <Select
                     value={String(form.scheduledDayOfWeek)}
                     onValueChange={(value) => updateForm({ scheduledDayOfWeek: Number(value) })}
@@ -671,7 +791,7 @@ export function RepositoryAutomationSettingsPanel({
                     <SelectContent>
                       {AUTOMATION_WEEKDAY_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={String(option.value)}>
-                          {option.label}
+                          {intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[option.value])}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -681,13 +801,19 @@ export function RepositoryAutomationSettingsPanel({
               ) : null}
 
               <div className="flex flex-col gap-2 sm:col-span-2">
-                <Label htmlFor="scheduled-timezone">Timezone</Label>
+                <Label htmlFor="scheduled-timezone">
+                  <FormattedMessage
+                    {...repositoryAutomationSettingsPanelMessages.scheduledTimezoneLabel}
+                  />
+                </Label>
                 <input
                   id="scheduled-timezone"
                   value={form.scheduledTimezone}
                   onChange={(event) => updateForm({ scheduledTimezone: event.target.value })}
                   disabled={formDisabled}
-                  placeholder="UTC"
+                  placeholder={intl.formatMessage(
+                    repositoryAutomationSettingsPanelMessages.scheduledTimezonePlaceholder,
+                  )}
                   className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/40 focus:ring-[3px] focus:ring-primary/20"
                 />
                 <FieldError message={fieldErrors.scheduledTimezone} />
@@ -698,15 +824,23 @@ export function RepositoryAutomationSettingsPanel({
 
         <section className="flex flex-col gap-4 rounded-lg border border-border p-4">
           <SectionHeading
-            title="GitHub status check"
-            description="Publish a check run so teams can see localization results on commits and pull requests."
+            title={intl.formatMessage(repositoryAutomationSettingsPanelMessages.statusCheckTitle)}
+            description={intl.formatMessage(
+              repositoryAutomationSettingsPanelMessages.statusCheckDescription,
+            )}
           />
 
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="status-check-enabled">Enable check run</Label>
+              <Label htmlFor="status-check-enabled">
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.statusCheckEnabledLabel}
+                />
+              </Label>
               <p className="text-xs text-muted-foreground">
-                Shows localization automation status in GitHub Checks.
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.statusCheckEnabledDescription}
+                />
               </p>
             </div>
             <Switch
@@ -719,7 +853,11 @@ export function RepositoryAutomationSettingsPanel({
 
           {form.statusCheckEnabled ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="status-check-mode">Check mode</Label>
+              <Label htmlFor="status-check-mode">
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.statusCheckModeLabel}
+                />
+              </Label>
               <Select
                 value={form.statusCheckMode}
                 onValueChange={(value) =>
@@ -734,21 +872,34 @@ export function RepositoryAutomationSettingsPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="advisory">Advisory</SelectItem>
-                  <SelectItem value="blocking">Blocking</SelectItem>
+                  <SelectItem value="advisory">
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.statusCheckAdvisory}
+                    />
+                  </SelectItem>
+                  <SelectItem value="blocking">
+                    <FormattedMessage
+                      {...repositoryAutomationSettingsPanelMessages.statusCheckBlocking}
+                    />
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Blocking checks can fail pull requests when combined with{" "}
-                <a
-                  href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-status-checks"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  branch protection rules
-                </a>
-                .
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.statusCheckBlockingDescription}
+                  values={{
+                    link: (chunks) => (
+                      <a
+                        href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-status-checks"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        {chunks}
+                      </a>
+                    ),
+                  }}
+                />
               </p>
             </div>
           ) : null}
@@ -758,14 +909,26 @@ export function RepositoryAutomationSettingsPanel({
           <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
             {metadata.configVersion > 0 ? (
               <p>
-                Config version:{" "}
-                <span className="font-medium text-foreground">{metadata.configVersion}</span>
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.configVersion}
+                  values={{
+                    configVersion: metadata.configVersion,
+                    version: (chunks) => (
+                      <span className="font-medium text-foreground">{chunks}</span>
+                    ),
+                  }}
+                />
               </p>
             ) : null}
             {formattedNextRun ? (
               <p className={cn(metadata.configVersion > 0 && "mt-1")}>
-                Next scheduled run:{" "}
-                <span className="font-medium text-foreground">{formattedNextRun}</span>
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.nextScheduledRun}
+                  values={{
+                    nextRunAt: formattedNextRun,
+                    time: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+                  }}
+                />
               </p>
             ) : null}
           </div>
@@ -778,7 +941,7 @@ export function RepositoryAutomationSettingsPanel({
             disabled={formDisabled || resetSettings.isPending}
             onClick={() => setResetDialogOpen(true)}
           >
-            Reset settings
+            <FormattedMessage {...repositoryAutomationSettingsPanelMessages.resetSettings} />
           </Button>
           <Button
             type="button"
@@ -786,7 +949,11 @@ export function RepositoryAutomationSettingsPanel({
             onClick={handleSave}
             className="bg-primary text-primary-foreground hover:bg-primary/80"
           >
-            {saveSettings.isPending ? "Saving..." : "Save settings"}
+            {saveSettings.isPending ? (
+              <FormattedMessage {...repositoryAutomationSettingsPanelMessages.savingSettings} />
+            ) : (
+              <FormattedMessage {...repositoryAutomationSettingsPanelMessages.saveSettings} />
+            )}
           </Button>
         </div>
       </div>
@@ -794,21 +961,32 @@ export function RepositoryAutomationSettingsPanel({
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset automation settings?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage {...repositoryAutomationSettingsPanelMessages.resetDialogTitle} />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This clears saved workflows, triggers, and status check settings for this repository.
-              GitHub metadata sync is not affected.
+              <FormattedMessage
+                {...repositoryAutomationSettingsPanelMessages.resetDialogDescription}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={resetSettings.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={resetSettings.isPending}>
+              <FormattedMessage {...repositoryAutomationSettingsPanelMessages.cancel} />
+            </AlertDialogCancel>
             <Button
               type="button"
               variant="destructive"
               disabled={resetSettings.isPending}
               onClick={() => resetSettings.mutate()}
             >
-              {resetSettings.isPending ? "Resetting..." : "Reset settings"}
+              {resetSettings.isPending ? (
+                <FormattedMessage
+                  {...repositoryAutomationSettingsPanelMessages.resettingSettings}
+                />
+              ) : (
+                <FormattedMessage {...repositoryAutomationSettingsPanelMessages.resetSettings} />
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

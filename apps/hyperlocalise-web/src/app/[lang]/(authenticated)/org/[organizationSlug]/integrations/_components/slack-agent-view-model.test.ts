@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import type { IntlShape } from "react-intl";
+
 import { getSlackAgentViewModel, type SlackAgentState } from "./slack-agent-view-model";
+
+const intl = getIntlShape("en") as IntlShape;
 
 function createSlackAgent(overrides: Partial<SlackAgentState> = {}): SlackAgentState {
   return {
@@ -13,7 +18,7 @@ function createSlackAgent(overrides: Partial<SlackAgentState> = {}): SlackAgentS
 
 describe("getSlackAgentViewModel", () => {
   it("shows a connected and enabled Slack workspace", () => {
-    const viewModel = getSlackAgentViewModel(createSlackAgent());
+    const viewModel = getSlackAgentViewModel(createSlackAgent(), intl);
 
     expect(viewModel).toEqual({
       connected: true,
@@ -27,7 +32,7 @@ describe("getSlackAgentViewModel", () => {
   });
 
   it("keeps connected workspaces manageable when disabled", () => {
-    const viewModel = getSlackAgentViewModel(createSlackAgent({ enabled: false }));
+    const viewModel = getSlackAgentViewModel(createSlackAgent({ enabled: false }), intl);
 
     expect(viewModel.connected).toBe(true);
     expect(viewModel.enabled).toBe(false);
@@ -37,11 +42,14 @@ describe("getSlackAgentViewModel", () => {
   });
 
   it("requires OAuth connection before enabling Slack", () => {
-    const viewModel = getSlackAgentViewModel({
-      enabled: true,
-      teamId: null,
-      teamName: null,
-    });
+    const viewModel = getSlackAgentViewModel(
+      {
+        enabled: true,
+        teamId: null,
+        teamName: null,
+      },
+      intl,
+    );
 
     expect(viewModel.connected).toBe(false);
     expect(viewModel.enabled).toBe(false);

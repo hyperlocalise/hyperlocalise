@@ -13,6 +13,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { ClockIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
   siGoogle,
@@ -58,6 +59,7 @@ import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
+import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/repository-automation-settings-panel.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
@@ -214,6 +216,7 @@ function formatHour(hourUtc: number) {
 }
 
 function triggerSummary(
+  intl: IntlShape,
   form: WorkspaceAutomationFormState,
   repositories: GithubRepositoryOption[] = [],
   projects: ProjectOption[] = [],
@@ -224,9 +227,13 @@ function triggerSummary(
     }
 
     if (form.scheduledCadence === "weekly") {
-      const weekday =
-        AUTOMATION_WEEKDAY_OPTIONS.find((option) => option.value === form.scheduledDayOfWeek)
-          ?.label ?? "Monday";
+      const weekdayMessage =
+        AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[
+          form.scheduledDayOfWeek as keyof typeof AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE
+        ];
+      const weekday = weekdayMessage
+        ? intl.formatMessage(weekdayMessage)
+        : intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[1]);
       return `Every ${weekday} at ${formatHour(form.scheduledHourUtc)} · ${form.scheduledTimezone}`;
     }
 
@@ -477,11 +484,12 @@ function BranchPatternSelector({
   error?: string;
   onChange: (branches: string[]) => void;
 }) {
+  const intl = useIntl();
   const [branchInput, setBranchInput] = useState("");
   const [inputError, setInputError] = useState<string | undefined>();
 
   function handleAdd() {
-    const result = addBranchPattern(branches, branchInput);
+    const result = addBranchPattern(intl, branches, branchInput);
     if (result.error) {
       setInputError(result.error);
       return;
@@ -722,6 +730,8 @@ function TriggerSettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
 }) {
+  const intl = useIntl();
+
   return (
     <EditorSection title="Triggers">
       <EditorPanel>
@@ -767,7 +777,7 @@ function TriggerSettings({
                     <SelectContent>
                       {AUTOMATION_WEEKDAY_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={String(option.value)}>
-                          {option.label}
+                          {intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[option.value])}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1752,6 +1762,7 @@ export function WorkspaceAutomationEditor({
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
 }) {
+  const intl = useIntl();
   const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
 
   const projectsQuery = useQuery({
@@ -1926,7 +1937,7 @@ export function WorkspaceAutomationEditor({
           {form.triggerMode !== "manual" ? (
             <>
               <span className="text-border">|</span>
-              <span>{triggerSummary(form, repositories, projectsQuery.data ?? [])}</span>
+              <span>{triggerSummary(intl, form, repositories, projectsQuery.data ?? [])}</span>
             </>
           ) : null}
           <span className="text-border">|</span>

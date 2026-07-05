@@ -4,7 +4,9 @@ import { MicrosoftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siGitlab, siLinear } from "simple-icons";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
+import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
 import {
@@ -21,42 +23,44 @@ type AgentIntegrationsSectionProps = {
 };
 
 type ComingSoonAgent = {
-  name: string;
-  description: string;
+  nameMessage: MessageDescriptor;
+  descriptionMessage: MessageDescriptor;
   icon?: SimpleIcon;
   fallbackIcon?: typeof MicrosoftIcon;
 };
 
 const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
   {
-    name: "Microsoft Teams",
-    description: "Coordinate localization reviews from Microsoft Teams workspaces.",
+    nameMessage: agentIntegrationsSectionMessages.microsoftTeamsName,
+    descriptionMessage: agentIntegrationsSectionMessages.microsoftTeamsDescription,
     fallbackIcon: MicrosoftIcon,
   },
   {
-    name: "Linear",
-    description: "Create issues from translation blockers and keep launch tasks in sync.",
+    nameMessage: agentIntegrationsSectionMessages.linearName,
+    descriptionMessage: agentIntegrationsSectionMessages.linearDescription,
     icon: siLinear,
   },
 ] as const;
 
 function ComingSoonIntegrationRow({
-  name,
-  description,
+  nameMessage,
+  descriptionMessage,
   icon,
   fallbackIcon,
   isLast,
 }: {
-  name: string;
-  description: string;
+  nameMessage: MessageDescriptor;
+  descriptionMessage: MessageDescriptor;
   icon?: SimpleIcon;
   fallbackIcon?: typeof MicrosoftIcon;
   isLast?: boolean;
 }) {
+  const intl = useIntl();
+
   return (
     <IntegrationRow
-      name={name}
-      description={description}
+      name={intl.formatMessage(nameMessage)}
+      description={intl.formatMessage(descriptionMessage)}
       icon={
         icon ? (
           <SimpleBrandIcon icon={icon} colored={false} />
@@ -77,12 +81,14 @@ export function SourceControlIntegrationsSection({
 }: AgentIntegrationsSectionProps) {
   return (
     <section className="flex flex-col gap-3">
-      <IntegrationCategoryLabel>Source control</IntegrationCategoryLabel>
+      <IntegrationCategoryLabel>
+        <FormattedMessage {...agentIntegrationsSectionMessages.sourceControlCategory} />
+      </IntegrationCategoryLabel>
       <IntegrationCategoryCard>
         <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
         <ComingSoonIntegrationRow
-          name="GitLab"
-          description="Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes."
+          nameMessage={agentIntegrationsSectionMessages.gitlabName}
+          descriptionMessage={agentIntegrationsSectionMessages.gitlabDescription}
           icon={siGitlab}
           isLast
         />
@@ -97,15 +103,17 @@ export function CollaborationIntegrationsSection({
 }: AgentIntegrationsSectionProps) {
   return (
     <section className="flex flex-col gap-3">
-      <IntegrationCategoryLabel>Collaboration</IntegrationCategoryLabel>
+      <IntegrationCategoryLabel>
+        <FormattedMessage {...agentIntegrationsSectionMessages.collaborationCategory} />
+      </IntegrationCategoryLabel>
       <IntegrationCategoryCard>
         <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
         <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
         {comingSoonCollaborationAgents.map((agent, index) => (
           <ComingSoonIntegrationRow
-            key={agent.name}
-            name={agent.name}
-            description={agent.description}
+            key={index}
+            nameMessage={agent.nameMessage}
+            descriptionMessage={agent.descriptionMessage}
             icon={agent.icon}
             fallbackIcon={agent.fallbackIcon}
             isLast={index === comingSoonCollaborationAgents.length - 1}

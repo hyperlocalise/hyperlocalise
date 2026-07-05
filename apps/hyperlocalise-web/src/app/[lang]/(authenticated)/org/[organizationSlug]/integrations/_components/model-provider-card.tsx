@@ -4,9 +4,11 @@ import Image from "next/image";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
+import { FormattedMessage } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
+import { modelProviderCardMessages } from "./model-provider-card.messages";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 
 export type ModelProviderCardConfig = {
@@ -51,7 +53,7 @@ export function ModelProviderCard({
             "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
           )}
         >
-          Active
+          <FormattedMessage {...modelProviderCardMessages.activeBadge} />
         </Badge>
       ) : null}
 
@@ -78,7 +80,7 @@ export function ModelProviderCard({
         <span className="text-base font-medium text-foreground">{provider.label}</span>
         {isManaged ? (
           <Badge variant="outline" className="text-[10px]">
-            Managed
+            <FormattedMessage {...modelProviderCardMessages.managedBadge} />
           </Badge>
         ) : null}
       </div>
