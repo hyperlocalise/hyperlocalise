@@ -7,6 +7,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
 import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
+import { nativeJobToProjectFileRecord } from "./tms/job-source-file-mappers";
 
 function getInputPayloadString(job: JobDetailRecord, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -61,32 +62,7 @@ export function nativeJobDetailProperties(job: JobDetailRecord) {
 export { jobDetailTaskLayoutFromRecord };
 
 export function buildNativeJobFileRecord(job: JobDetailRecord): ProjectFileRecord | null {
-  const sourcePath = getInputPayloadString(job, "sourceFileId");
-  if (!sourcePath) {
-    return null;
-  }
-
-  const filename = sourcePath.split("/").filter(Boolean).at(-1) ?? sourcePath;
-
-  return {
-    origin: "repository",
-    sourcePath,
-    sourceHash: null,
-    commitSha: null,
-    workflowRunId: job.workflowRunId,
-    uploadedAt: job.createdAt,
-    storedFileId: sourcePath,
-    metadata: {},
-    filename,
-    byteSize: null,
-    provider: null,
-    latestJob: {
-      id: job.id,
-      status: job.status,
-      createdAt: job.createdAt,
-      type: job.type ?? "file",
-    },
-  };
+  return nativeJobToProjectFileRecord(job);
 }
 
 export function NativeJobSourceFilesSection({

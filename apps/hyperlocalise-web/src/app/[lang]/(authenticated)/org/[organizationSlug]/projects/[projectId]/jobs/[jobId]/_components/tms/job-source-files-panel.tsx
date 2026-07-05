@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ListIcon } from "lucide-react";
@@ -8,7 +8,6 @@ import { ListIcon } from "lucide-react";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { toast } from "sonner";
@@ -84,19 +83,6 @@ function catOpenUnavailableMessage(targetLocale: string | null) {
   return "This file can't be opened in the CAT workspace.";
 }
 
-function findFirstOpenableJobFile(
-  files: ProjectFileRecord[],
-  encodedJobId: string | null | undefined,
-  highlightLocale: string | null,
-) {
-  return (
-    files.find((file) => {
-      const targetLocale = resolveTargetLocale(file, highlightLocale);
-      return canOpenFileInCat(file, file.sourcePath, encodedJobId, targetLocale);
-    }) ?? null
-  );
-}
-
 export function JobSourceFilesPanel({
   organizationSlug,
   projectId,
@@ -107,7 +93,6 @@ export function JobSourceFilesPanel({
   errorMessage,
   emptyMessage = "No source files linked to this job.",
   highlightLocale = null,
-  openInCatOnSelect = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -118,20 +103,13 @@ export function JobSourceFilesPanel({
   errorMessage?: string;
   emptyMessage?: string;
   highlightLocale?: string | null;
-  openInCatOnSelect?: boolean;
 }) {
   const router = useRouter();
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
   const [selectedSourcePath, setSelectedSourcePath] = useState<string | null>(null);
-  const didAutoOpenRef = useRef(false);
-  const firstOpenableFile = useMemo(
-    () => findFirstOpenableJobFile(sortedFiles, encodedJobId, highlightLocale),
-    [encodedJobId, highlightLocale, sortedFiles],
-  );
   const selectedFile =
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
-  const isAutoOpening = openInCatOnSelect && !isLoading && !isError && firstOpenableFile !== null;
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -165,27 +143,9 @@ export function JobSourceFilesPanel({
     [encodedJobId, highlightLocale, organizationSlug, projectId, router, sortedFiles],
   );
 
-  useEffect(() => {
-    if (!isAutoOpening || didAutoOpenRef.current || !firstOpenableFile) {
-      return;
-    }
-
-    didAutoOpenRef.current = true;
-    openFileInCat(firstOpenableFile.sourcePath);
-  }, [firstOpenableFile, isAutoOpening, openFileInCat]);
-
-  const handleSelectFile = useCallback(
-    (sourcePath: string) => {
-      setSelectedSourcePath(sourcePath);
-
-      if (!openInCatOnSelect || !encodedJobId) {
-        return;
-      }
-
-      openFileInCat(sourcePath);
-    },
-    [encodedJobId, openInCatOnSelect, openFileInCat],
-  );
+  const handleSelectFile = useCallback((sourcePath: string) => {
+    setSelectedSourcePath(sourcePath);
+  }, []);
 
   const selectedTargetLocale = selectedFile
     ? resolveTargetLocale(selectedFile, highlightLocale)
@@ -207,17 +167,6 @@ export function JobSourceFilesPanel({
             : { storedFileId: selectedFile.storedFileId as string }),
         })
       : null;
-
-  if (isAutoOpening) {
-    return (
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex min-h-48 items-center justify-center gap-2">
-          <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Opening workspace…</TypographyP>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
@@ -241,7 +190,7 @@ export function JobSourceFilesPanel({
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
         <div className="mt-4 space-y-2">
-          {!openInCatOnSelect && encodedJobId ? (
+          {encodedJobId ? (
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <TypographyP className="truncate font-mono text-xs text-foreground">
@@ -271,7 +220,7 @@ export function JobSourceFilesPanel({
               files={sortedFiles}
               selectedSourcePath={activeSourcePath}
               onSelectFile={handleSelectFile}
-              onActivateFile={encodedJobId && !openInCatOnSelect ? openFileInCat : undefined}
+              onActivateFile={encodedJobId ? openFileInCat : undefined}
             />
           </div>
         </div>

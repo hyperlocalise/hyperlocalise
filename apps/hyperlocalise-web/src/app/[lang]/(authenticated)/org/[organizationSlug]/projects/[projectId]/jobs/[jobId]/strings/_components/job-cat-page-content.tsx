@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -27,15 +27,18 @@ import {
   writeCatFileRepositoryPreference,
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
-import { loadJobCatProviderJobFiles, loadJobCatTargetFile } from "./load-job-cat-files";
+import { resolveDefaultJobCatFileReference } from "./job-cat-default-file";
+import {
+  loadJobCatJobSourceFiles,
+  loadJobCatProviderJobFiles,
+  loadJobCatTargetFile,
+} from "./load-job-cat-files";
 import {
   canLookupFreshCatRepositoryContext,
   selectJobCatRepository,
   sortJobCatProviderFiles,
 } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
-
-import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -55,6 +58,21 @@ function projectJobCatTargetFileQueryKey(
     projectId,
     sourcePath,
     storedFileId,
+  ] as const;
+}
+
+function projectJobCatDefaultFileQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  jobId: string,
+  targetLocale: string | null,
+) {
+  return [
+    "project-job-cat-default-file",
+    organizationSlug,
+    projectId,
+    jobId,
+    targetLocale,
   ] as const;
 }
 
@@ -119,6 +137,21 @@ export function JobCatPageContent({
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const hasFileReference = Boolean(sourcePath || storedFileId);
   const isNativeJob = Boolean(storedFileId);
+  const didAutoSelectDefaultFileRef = useRef(false);
+  const defaultFileQuery = useQuery({
+    queryKey: projectJobCatDefaultFileQueryKey(organizationSlug, projectId, jobId, targetLocale),
+    enabled: !hasFileReference,
+    queryFn: async () => {
+      const files = await loadJobCatJobSourceFiles({
+        organizationSlug,
+        projectId,
+        jobId,
+        targetLocale,
+      });
+
+      return resolveDefaultJobCatFileReference(files, targetLocale);
+    },
+  });
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
   });
@@ -208,14 +241,78 @@ export function JobCatPageContent({
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
+  useEffect(() => {
+    if (hasFileReference || didAutoSelectDefaultFileRef.current || !defaultFileQuery.data) {
+      return;
+    }
+
+    didAutoSelectDefaultFileRef.current = true;
+    router.replace(
+      stringsPageHref({
+        organizationSlug,
+        projectId,
+        jobId,
+        sourcePath: defaultFileQuery.data.sourcePath ?? undefined,
+        storedFileId: defaultFileQuery.data.storedFileId ?? undefined,
+        targetLocale: defaultFileQuery.data.targetLocale,
+        segment: initialSegmentKey,
+      }),
+    );
+  }, [
+    defaultFileQuery.data,
+    hasFileReference,
+    initialSegmentKey,
+    jobId,
+    organizationSlug,
+    projectId,
+    router,
+  ]);
+
   if (!hasFileReference) {
+    if (defaultFileQuery.isLoading) {
+      return (
+        <ProjectPageShell>
+          <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+            <Spinner />
+            <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (defaultFileQuery.isError) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-flame-100">
+              {defaultFileQuery.error instanceof Error
+                ? defaultFileQuery.error.message
+                : "Unable to load task files."}
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (!defaultFileQuery.data) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">
+              No source file is linked to this task.
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
     return (
-      <JobCatSourceFilePicker
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        jobId={jobId}
-        targetLocale={targetLocale}
-      />
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Opening workspace…</TypographyP>
+        </div>
+      </ProjectPageShell>
     );
   }
 

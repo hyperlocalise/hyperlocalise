@@ -11,6 +11,8 @@ const {
   useAppShellSidebarMock,
   loadJobCatTargetFileMock,
   loadJobCatProviderJobFilesMock,
+  loadJobCatJobSourceFilesMock,
+  routerReplaceMock,
   repositoriesGetMock,
   ProjectFileCatWorkspaceMock,
 } = vi.hoisted(() => ({
@@ -18,6 +20,8 @@ const {
   useAppShellSidebarMock: vi.fn(),
   loadJobCatTargetFileMock: vi.fn(),
   loadJobCatProviderJobFilesMock: vi.fn(),
+  loadJobCatJobSourceFilesMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
   repositoriesGetMock: vi.fn(),
   ProjectFileCatWorkspaceMock: vi.fn(
     ({
@@ -39,7 +43,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
-    replace: vi.fn(),
+    replace: routerReplaceMock,
   }),
 }));
 
@@ -56,13 +60,10 @@ vi.mock("@/components/app-shell/store/use-app-shell-sidebar", () => ({
   useAppShellSidebar: (...args: unknown[]) => useAppShellSidebarMock(...args),
 }));
 
-vi.mock("./job-cat-source-file-picker", () => ({
-  JobCatSourceFilePicker: () => <div>Choose a source file to open in the CAT workspace.</div>,
-}));
-
 vi.mock("./load-job-cat-files", () => ({
   loadJobCatTargetFile: (...args: unknown[]) => loadJobCatTargetFileMock(...args),
   loadJobCatProviderJobFiles: (...args: unknown[]) => loadJobCatProviderJobFilesMock(...args),
+  loadJobCatJobSourceFiles: (...args: unknown[]) => loadJobCatJobSourceFilesMock(...args),
 }));
 
 vi.mock("@/lib/api-client-instance", () => ({
@@ -148,7 +149,7 @@ function mockReadyProjectQuery() {
 }
 
 describe("JobCatPageContent guard ordering", () => {
-  it("shows the source file picker when no file reference is present", () => {
+  it("pre-selects the first openable file when no file reference is present", async () => {
     useProjectPageQueryMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -156,6 +157,8 @@ describe("JobCatPageContent guard ordering", () => {
       data: undefined,
       error: null,
     });
+    loadJobCatJobSourceFilesMock.mockResolvedValue([providerFile]);
+    routerReplaceMock.mockClear();
 
     render(
       <CatTestProviders>
@@ -165,14 +168,16 @@ describe("JobCatPageContent guard ordering", () => {
           jobId="job_1"
           sourcePath={null}
           storedFileId={null}
-          targetLocale={null}
+          targetLocale="vi"
         />
       </CatTestProviders>,
     );
 
-    expect(
-      screen.getByText("Choose a source file to open in the CAT workspace."),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith(
+        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json",
+      );
+    });
     expect(
       screen.queryByText("This project does not have a source locale."),
     ).not.toBeInTheDocument();
@@ -186,6 +191,7 @@ describe("JobCatPageContent guard ordering", () => {
       data: undefined,
       error: null,
     });
+    loadJobCatJobSourceFilesMock.mockResolvedValue([providerFile]);
 
     render(
       <CatTestProviders>

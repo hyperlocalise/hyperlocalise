@@ -12,6 +12,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
 import type { JobDetailRecord } from "../../_components/job-detail-types";
 import {
+  nativeJobToProjectFileRecord,
   providerSourceFileToProjectFileRecord,
   tmsLiveFileToProjectFileRecord,
 } from "../../_components/tms/job-source-file-mappers";
@@ -248,4 +249,24 @@ export async function loadJobCatProviderJobFiles(input: {
     projectId: input.projectId,
     targetLocale: input.targetLocale ?? null,
   });
+}
+
+export async function loadJobCatJobSourceFiles(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+  targetLocale?: string | null;
+}) {
+  const providerFiles = await loadJobCatProviderJobFiles(input);
+  if (providerFiles.length > 0) {
+    return providerFiles;
+  }
+
+  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  if (job.projectId !== input.projectId) {
+    throw new Error("Task does not belong to this project");
+  }
+
+  const nativeFile = nativeJobToProjectFileRecord(job);
+  return nativeFile ? [nativeFile] : [];
 }
