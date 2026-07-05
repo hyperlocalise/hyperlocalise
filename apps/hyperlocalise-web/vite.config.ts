@@ -9,8 +9,6 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 loadDotenv({ path: path.join(rootDir, ".env") });
 
-const isCi = process.env.CI === "true";
-
 const formatjsRulesOff = Object.fromEntries(
   Object.entries({
     ...pluginFormatjs.configs.strict.rules,
@@ -42,37 +40,13 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["./src/test/setup-dom.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["src/e2e/**"],
     server: {
       deps: {
         inline: ["@workos-inc/authkit-nextjs"],
       },
     },
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: "unit",
-          include: ["src/**/*.test.{ts,tsx}"],
-          exclude: ["src/e2e/**"],
-        },
-      },
-      ...(isCi
-        ? []
-        : [
-            {
-              extends: true,
-              test: {
-                name: "e2e",
-                include: ["src/e2e/**/*.e2e.ts"],
-                environment: "node",
-                globalSetup: ["./src/e2e/global-setup.ts"],
-                testTimeout: 60_000,
-                hookTimeout: 60_000,
-                fileParallelism: false,
-              },
-            },
-          ]),
-    ],
   },
   resolve: {
     alias: {

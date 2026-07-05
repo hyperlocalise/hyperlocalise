@@ -45,16 +45,13 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
 
-## Browser E2E
+## Browser E2E (local only, not run in CI)
 
-- Unit and API tests: `vp test --project unit` (default when running `vp test`).
-- Browser e2e: `vp test run --project e2e` (Playwright-driven, Vitest runner). **Not run in CI** — the e2e project is excluded when `CI=true`. First run migrates, builds production, and starts the app with `E2E_AUTH_MODE=fixture` (~75s setup). Repeat runs skip the build when `.next` exists.
-- Speed flags: `E2E_SKIP_BUILD=1` (never build), `E2E_SKIP_MIGRATE=1`, `E2E_REUSE_SERVER=1` (reuse a server you already started with fixture auth), `E2E_FORCE_BUILD=1` (rebuild even when `.next` exists).
-- E2E specs live in [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/). Shared helpers are in [`src/e2e/fixtures/`](src/e2e/fixtures/) and [`src/e2e/constants.ts`](src/e2e/constants.ts).
-- Full-app navigation uses the `playwright` library from Node tests. Vitest Browser Mode (iframe component tests) is not used for route-level e2e because it cannot `page.goto` external origins.
-- Local fixture auth is enabled when `E2E_AUTH_MODE=fixture` (blocked on `VERCEL_ENV=production`). Browser login uses [`/e2e/login`](src/app/e2e/login/route.ts); programmatic login uses `POST /api/e2e/auth/session`.
-- Copy [`.env.e2e.example`](.env.e2e.example) when running e2e outside the Vitest `globalSetup` block.
-- Staging smoke runs: set `E2E_TARGET=staging`, `E2E_BASE_URL`, and optionally `E2E_AUTH_MODE=workos` before `vp test --project e2e`.
+Fixture-auth infrastructure and baseline Playwright specs live under [`src/e2e/`](src/e2e/) and [`src/lib/e2e/`](src/lib/e2e/). They are **not** wired into `vp test` — run unit tests with `vp test` as usual.
+
+- **Fixture auth**: set `E2E_AUTH_MODE=fixture` in `.env` (see [`.env.e2e.example`](.env.e2e.example)). Browser login: [`/e2e/login`](src/app/e2e/login/route.ts). Programmatic login: `POST /api/e2e/auth/session`. Blocked when `VERCEL_ENV=production`.
+- **Baseline specs**: [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/) use Playwright from Node. To run them manually, start Postgres, migrate, build, and serve the app with fixture auth, then invoke Vitest against those files directly if needed.
+- Vitest Browser Mode is not used for route-level e2e (it cannot `page.goto` external origins).
 
 <!-- END:hono-agent-rules -->
 
