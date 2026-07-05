@@ -72,6 +72,15 @@ function buildOrganizationFileUrl(organizationSlug: string, fileId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/files/${fileId}`;
 }
 
+function normalizeRepositoryFullName(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().slice(0, 255);
+  return normalized || undefined;
+}
+
 function seedConversationRepositorySession(
   conversationId: string,
   repositoryGitHubContext: RepositoryAgentGitHubContext,
@@ -461,7 +470,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const normalizedProjectId = normalizeProjectId(asString(body.projectId));
         const requestedProjectId =
           typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
-        const repositoryFullName = asString(body.repositoryFullName);
+        const repositoryFullName = normalizeRepositoryFullName(asString(body.repositoryFullName));
 
         if (!text.trim() && files.length === 0) {
           return invalidMessagePayloadResponse(c);
@@ -543,6 +552,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             : new Error("failed to store uploaded file");
         }
 
+        if (repositoryGitHubContext) {
+          seedConversationRepositorySession(conversationId, repositoryGitHubContext);
+        }
+
         let message;
         try {
           message = await addInteractionMessage({
@@ -559,9 +572,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
                 : (file.downloadUrl ?? file.storageUrl),
             })),
           });
-          if (repositoryGitHubContext) {
-            seedConversationRepositorySession(conversationId, repositoryGitHubContext);
-          }
         } catch (error) {
           await cleanupStoredFiles(storedFiles, adapter);
           throw error;

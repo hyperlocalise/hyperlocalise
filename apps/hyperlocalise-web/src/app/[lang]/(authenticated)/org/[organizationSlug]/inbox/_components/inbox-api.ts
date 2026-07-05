@@ -1,18 +1,10 @@
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
 
+import type { GithubRepository } from "../../_components/github-repository";
 import type { Conversation, ConversationMessage, LinkedJob } from "./inbox-types";
 
-export type InboxGithubRepository = {
-  archived: boolean;
-  defaultBranch: string | null;
-  enabled: boolean;
-  fullName: string;
-  githubRepositoryId: string;
-  id: string;
-  name: string;
-  owner: string;
-};
+export type InboxGithubRepository = GithubRepository;
 
 export type SendConversationMessageInput = {
   text: string;

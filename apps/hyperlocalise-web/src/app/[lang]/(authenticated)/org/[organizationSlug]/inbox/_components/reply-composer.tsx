@@ -2,9 +2,8 @@
 
 import type { FileUIPart } from "ai";
 import { memo, useEffect, useState } from "react";
-import { ArrowDown01Icon, FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
+import { FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { siGithub } from "simple-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -25,17 +24,9 @@ import {
   AttachmentRemove,
   Attachments,
 } from "@/components/ai-elements/attachments";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { SimpleBrandIcon } from "../../integrations/_components/simple-brand-icon";
+import { RepositorySelector } from "../../_components/repository-selector";
 import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
 
 const inboxApi = createInboxApi(apiClient);
@@ -67,102 +58,6 @@ type ReplyComposerViewProps = {
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
 };
-
-function RepositorySelector({
-  repositories,
-  repositoriesIsError,
-  repositoriesIsLoading,
-  selectedRepositoryFullName,
-  onSelectRepository,
-}: {
-  repositories: InboxGithubRepository[];
-  repositoriesIsError: boolean;
-  repositoriesIsLoading: boolean;
-  selectedRepositoryFullName: string;
-  onSelectRepository: (fullName: string) => void;
-}) {
-  if (repositoriesIsLoading) {
-    return (
-      <PromptInputButton
-        className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
-        size="sm"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
-      </PromptInputButton>
-    );
-  }
-
-  if (repositoriesIsError) {
-    return (
-      <PromptInputButton
-        className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
-        size="sm"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        Repos unavailable
-      </PromptInputButton>
-    );
-  }
-
-  if (repositories.length === 0) {
-    return (
-      <PromptInputButton
-        className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
-        size="sm"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        No GitHub repos
-      </PromptInputButton>
-    );
-  }
-
-  if (repositories.length === 1) {
-    return (
-      <PromptInputButton
-        className="inline-flex h-8 max-w-56 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
-        size="sm"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
-        <span className="truncate">{repositories[0]?.fullName}</span>
-      </PromptInputButton>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <PromptInputButton
-            className="inline-flex h-8 max-w-56 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
-            size="sm"
-          >
-            <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
-            <span className="truncate">{selectedRepositoryFullName || "GitHub repo"}</span>
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
-          </PromptInputButton>
-        }
-      />
-      <DropdownMenuContent className="min-w-64" align="end">
-        <DropdownMenuGroup>
-          {repositories.map((repository) => (
-            <DropdownMenuItem
-              key={repository.id}
-              onClick={() => onSelectRepository(repository.fullName)}
-            >
-              <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-              <span className="min-w-0 flex-1 truncate">{repository.fullName}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 export function ReplyComposerView({
   disabled,
@@ -261,6 +156,7 @@ export function ReplyComposerView({
                 repositoriesIsLoading={repositoriesIsLoading}
                 selectedRepositoryFullName={resolvedRepositoryFullName}
                 onSelectRepository={setSelectedRepositoryFullName}
+                triggerStyle="prompt-input"
               />
               <PromptInputSubmit
                 size="sm"

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowDown01Icon,
   BubbleChatTranslateIcon,
   Cancel01Icon,
   SentIcon,
@@ -13,27 +12,19 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { siGithub } from "simple-icons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { SimpleBrandIcon } from "../../integrations/_components/simple-brand-icon";
+import type { GithubRepository } from "../../_components/github-repository";
+import { RepositorySelector } from "../../_components/repository-selector";
 
 const suggestedRequests = [
   {
@@ -73,121 +64,6 @@ const translationSourceFileAccept = [
 ].join(",");
 const maxTranslationSourceFiles = 5;
 
-type ChatGithubRepository = {
-  archived: boolean;
-  defaultBranch: string | null;
-  enabled: boolean;
-  fullName: string;
-  githubRepositoryId: string;
-  id: string;
-  name: string;
-  owner: string;
-};
-
-function RepositorySelector({
-  repositories,
-  repositoriesIsError,
-  repositoriesIsLoading,
-  selectedRepositoryFullName,
-  onSelectRepository,
-}: {
-  repositories: ChatGithubRepository[];
-  repositoriesIsError: boolean;
-  repositoriesIsLoading: boolean;
-  selectedRepositoryFullName: string;
-  onSelectRepository: (fullName: string) => void;
-}) {
-  const triggerClassName =
-    "rounded-full px-2.5 text-muted-foreground hover:bg-accent/20 hover:text-foreground";
-
-  if (repositoriesIsLoading) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="rounded-full px-2.5 text-muted-foreground"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
-      </Button>
-    );
-  }
-
-  if (repositoriesIsError) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="rounded-full px-2.5 text-muted-foreground"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        Repos unavailable
-      </Button>
-    );
-  }
-
-  if (repositories.length === 0) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="rounded-full px-2.5 text-muted-foreground"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        No GitHub repos
-      </Button>
-    );
-  }
-
-  if (repositories.length === 1) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="max-w-56 rounded-full px-2.5 text-muted-foreground"
-        disabled
-      >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
-        <span className="truncate">{repositories[0]?.fullName}</span>
-      </Button>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button type="button" variant="ghost" size="sm" className={triggerClassName}>
-            <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
-            <span className="max-w-44 truncate">{selectedRepositoryFullName || "GitHub repo"}</span>
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
-          </Button>
-        }
-      />
-      <DropdownMenuContent className="min-w-64" align="end">
-        <DropdownMenuGroup>
-          {repositories.map((repository) => (
-            <DropdownMenuItem
-              key={repository.id}
-              onClick={() => onSelectRepository(repository.fullName)}
-            >
-              <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-              <span className="min-w-0 flex-1 truncate">{repository.fullName}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export function ChatPageContent({ organizationSlug }: { organizationSlug: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -205,7 +81,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
         throw await readApiResponseError(response, "Failed to load GitHub repositories");
       }
 
-      const body = (await response.json()) as { repositories: ChatGithubRepository[] };
+      const body = (await response.json()) as { repositories: GithubRepository[] };
       return body.repositories.filter((repository) => repository.enabled && !repository.archived);
     },
   });
@@ -369,6 +245,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 repositoriesIsLoading={repositoriesQuery.isLoading}
                 selectedRepositoryFullName={resolvedRepositoryFullName}
                 onSelectRepository={setSelectedRepositoryFullName}
+                triggerStyle="button"
               />
               <Tooltip>
                 <TooltipTrigger
