@@ -45,6 +45,28 @@ export default defineConfig({
         inline: ["@workos-inc/authkit-nextjs"],
       },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.test.{ts,tsx}"],
+          exclude: ["src/e2e/**"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "e2e",
+          include: ["src/e2e/**/*.e2e.ts"],
+          environment: "node",
+          globalSetup: ["./src/e2e/global-setup.ts"],
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          fileParallelism: false,
+        },
+      },
+    ],
   },
   resolve: {
     alias: {

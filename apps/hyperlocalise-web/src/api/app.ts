@@ -54,6 +54,7 @@ import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
+import { createE2eAuthRoutes } from "./routes/e2e/e2e-auth.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
@@ -118,6 +119,7 @@ function createInternalRoutes() {
   return new Hono()
     .route("/", createMcpRoutes())
     .route("/health", healthRoutes)
+    .route("/e2e", createE2eAuthRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
