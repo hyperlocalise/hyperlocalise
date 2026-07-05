@@ -6,6 +6,7 @@ import { searchLokaliseGlossaryMatches } from "@/lib/providers/adapters/lokalise
 import { fetchLokaliseJobTasks } from "@/lib/providers/adapters/lokalise/lokalise-job-task-fetcher";
 import { fetchLokaliseProjects } from "@/lib/providers/adapters/lokalise/lokalise-project-fetcher";
 import { pullLokaliseProviderReview } from "@/lib/providers/adapters/lokalise/lokalise-review-puller";
+import { uploadLokaliseSourceFile } from "@/lib/providers/adapters/lokalise/lokalise-source-uploader";
 import { searchLokaliseTranslationMemoryMatches } from "@/lib/providers/adapters/lokalise/lokalise-tm-matcher";
 import { fetchLokaliseTranslationMemories } from "@/lib/providers/adapters/lokalise/lokalise-translation-memory-fetcher";
 import { pushLokaliseTranslations } from "@/lib/providers/adapters/lokalise/lokalise-translation-pusher";
@@ -17,6 +18,7 @@ import {
   type TmsProviderProjectScope,
   type TmsProviderPullReviewScope,
   type TmsProviderPushTranslationsScope,
+  type TmsProviderSourceFileUploadScope,
 } from "@/lib/providers/contracts/tms-provider-adapter";
 import type { ExternalTmsGlossaryMatcherInput } from "@/lib/providers/contracts/glossary-matcher";
 import type { ExternalTmsTranslationMemoryMatcherInput } from "@/lib/providers/contracts/translation-memory-matcher";
@@ -46,6 +48,10 @@ export class LokaliseTmsAdapter extends TmsProviderAdapter {
 
   pullTaskContent(scope: TmsProviderJobScope) {
     return pullLokaliseTaskContent({ ...scope, providerKind: this.kind });
+  }
+
+  uploadSourceFile(scope: TmsProviderSourceFileUploadScope) {
+    return uploadLokaliseSourceFile({ ...scope, providerKind: this.kind });
   }
 
   pushTranslations(scope: TmsProviderPushTranslationsScope) {

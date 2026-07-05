@@ -10,6 +10,9 @@ export const uploadBodySchema = z.object({
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
+  sourceLocale: z.string().trim().min(1).max(32).optional(),
+  format: z.string().trim().min(1).max(64).optional(),
+  branch: z.string().trim().min(1).max(256).optional(),
 });
 
 export const fileParamsSchema = z.object({

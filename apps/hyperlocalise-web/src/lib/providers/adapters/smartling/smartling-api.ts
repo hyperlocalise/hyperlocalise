@@ -228,6 +228,13 @@ export interface SmartlingAsyncProcessStatus {
   percentComplete?: number;
 }
 
+export interface SmartlingSourceUploadResult {
+  fileUri: string;
+  fileType: string;
+  processUid: string | null;
+  providerPayload: Record<string, unknown>;
+}
+
 export interface SmartlingIssueStringReference {
   hashcode: string;
   localeId: string;
@@ -527,6 +534,45 @@ export class SmartlingApiClient {
     });
 
     return files;
+  }
+
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      fileUri: string;
+      fileType: string;
+      filename: string;
+      content: Uint8Array;
+      contentType: string;
+    },
+  ): Promise<SmartlingSourceUploadResult> {
+    const token = await this.getAccessToken();
+    const form = new FormData();
+    form.append("fileUri", input.fileUri);
+    form.append("fileType", input.fileType);
+    const content = input.content.buffer.slice(
+      input.content.byteOffset,
+      input.content.byteOffset + input.content.byteLength,
+    ) as ArrayBuffer;
+    form.append("file", new Blob([content], { type: input.contentType }), input.filename);
+
+    const url = `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file`;
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+
+    const payload = await parseSmartlingResponse<Record<string, unknown>>(response, url);
+    return {
+      fileUri: input.fileUri,
+      fileType: input.fileType,
+      processUid: typeof payload.processUid === "string" ? payload.processUid : null,
+      providerPayload: payload,
+    };
   }
 
   async getFileStatusForAllLocales(

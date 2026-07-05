@@ -5,6 +5,7 @@ import { fetchSmartlingGlossaries } from "@/lib/providers/adapters/smartling/sma
 import { searchSmartlingGlossaryMatches } from "@/lib/providers/adapters/smartling/smartling-glossary-matcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/adapters/smartling/smartling-job-fetcher";
 import { fetchSmartlingProjects } from "@/lib/providers/adapters/smartling/smartling-project-fetcher";
+import { uploadSmartlingSourceFile } from "@/lib/providers/adapters/smartling/smartling-source-uploader";
 import { searchSmartlingTranslationMemoryMatches } from "@/lib/providers/adapters/smartling/smartling-tm-matcher";
 import { fetchSmartlingTranslationMemories } from "@/lib/providers/adapters/smartling/smartling-translation-memory-fetcher";
 import { pushSmartlingTranslations } from "@/lib/providers/adapters/smartling/smartling-translation-pusher";
@@ -15,6 +16,7 @@ import {
   type TmsProviderJobScope,
   type TmsProviderProjectScope,
   type TmsProviderPushTranslationsScope,
+  type TmsProviderSourceFileUploadScope,
 } from "@/lib/providers/contracts/tms-provider-adapter";
 import type { ExternalTmsGlossaryMatcherInput } from "@/lib/providers/contracts/glossary-matcher";
 import type { ExternalTmsTranslationMemoryMatcherInput } from "@/lib/providers/contracts/translation-memory-matcher";
@@ -44,6 +46,10 @@ export class SmartlingTmsAdapter extends TmsProviderAdapter {
 
   pullTaskContent(scope: TmsProviderJobScope) {
     return pullSmartlingTaskContent({ ...scope, providerKind: this.kind });
+  }
+
+  uploadSourceFile(scope: TmsProviderSourceFileUploadScope) {
+    return uploadSmartlingSourceFile({ ...scope, providerKind: this.kind });
   }
 
   pushTranslations(scope: TmsProviderPushTranslationsScope) {

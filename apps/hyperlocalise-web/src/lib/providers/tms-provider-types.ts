@@ -1,5 +1,6 @@
 import type { JobKind } from "@/lib/database/types";
 import type { schema } from "@/lib/database";
+import type { Result } from "@/lib/primitives/result/results";
 
 import type {
   ExternalTmsCredential,
@@ -59,6 +60,45 @@ export type ExternalTmsFileKeyFetcher = (input: {
   /** When set, only files for this provider branch are listed (Crowdin, Phrase). */
   branch?: string | null;
 }) => Promise<ExternalTmsFileKeyMetadata[]>;
+
+export type ExternalTmsSourceFileUpload = {
+  sourcePath: string;
+  filename: string;
+  contentType: string;
+  content: Uint8Array;
+  sourceHash?: string | null;
+  sourceLocale?: string | null;
+  format?: string | null;
+  branch?: string | null;
+};
+
+export type ExternalTmsSourceFileUploadResult = {
+  sourcePath: string;
+  externalResourceId?: string | null;
+  revision?: string | null;
+  asyncOperation?: Record<string, unknown> | null;
+  providerPayload?: Record<string, unknown>;
+};
+
+export type ExternalTmsSourceFileUploadError =
+  | { code: "invalid_crowdin_project_id" }
+  | { code: "crowdin_branch_not_found" }
+  | { code: "phrase_source_locale_not_found" }
+  | { code: "phrase_source_file_format_required" }
+  | { code: "lokalise_source_locale_required" }
+  | { code: "lokalise_source_file_format_required" }
+  | { code: "smartling_source_file_type_required" };
+
+export type ExternalTmsSourceFileUploader = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+  file: ExternalTmsSourceFileUpload;
+}) => Promise<Result<ExternalTmsSourceFileUploadResult, ExternalTmsSourceFileUploadError>>;
 
 export type ExternalTmsJobTaskMetadata = {
   externalJobId: string;
