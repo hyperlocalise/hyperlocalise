@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { isFixtureAuthEnabled } from "@/lib/e2e/config";
-import { createFixtureAuthSession } from "@/lib/e2e/fixture-auth";
+import { createFixtureAuthSession, createFixtureOnboardingSession } from "@/lib/e2e/fixture-auth";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 const allowedRoles = new Set<OrganizationMembershipRole>([
@@ -45,10 +45,26 @@ export async function GET(request: Request) {
     ? (roleParam as OrganizationMembershipRole)
     : "admin";
 
+  const mode = requestUrl.searchParams.get("mode");
+  const redirectParam = sanitizeRedirectPath(requestUrl.searchParams.get("redirect"));
+
+  if (mode === "onboarding") {
+    const session = await createFixtureOnboardingSession();
+    const redirectTo = redirectParam ?? "/auth/onboarding";
+
+    const cookieStore = await cookies();
+    cookieStore.set("wos-session", session.sessionToken, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: false,
+    });
+
+    return NextResponse.redirect(new URL(redirectTo, getRequestOrigin(request)));
+  }
+
   const session = await createFixtureAuthSession({ role });
-  const redirectTo =
-    sanitizeRedirectPath(requestUrl.searchParams.get("redirect")) ??
-    `/en/org/${session.organizationSlug}/dashboard`;
+  const redirectTo = redirectParam ?? `/en/org/${session.organizationSlug}/dashboard`;
 
   const cookieStore = await cookies();
   cookieStore.set("wos-session", session.sessionToken, {

@@ -5,17 +5,22 @@ import type { UserInfo } from "@workos-inc/authkit-nextjs";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { syncWorkosUser } from "@/api/auth/workos-sync";
+import { db } from "@/lib/database";
 import {
   createWorkosIdentityWithRole,
   switchAuthContextOrganization,
   syncWorkosIdentityToAuthContext,
+  withMembershipAccessSource,
 } from "@/test/auth-seed";
+import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 
 import { FIXTURE_SESSION_PREFIX, isFixtureAuthEnabled, isFixtureSessionToken } from "./config";
 
 type FixtureSessionRecord = {
-  authContext: ApiAuthContext;
+  authContext: ApiAuthContext | null;
   session: UserInfo;
+  onboarding: boolean;
 };
 
 declare global {
@@ -56,8 +61,13 @@ export async function resolveFixtureAuthSession(): Promise<UserInfo | null> {
     return null;
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("wos-session")?.value;
+  let token: string | undefined;
+  try {
+    const cookieStore = await cookies();
+    token = cookieStore.get("wos-session")?.value;
+  } catch {
+    return null;
+  }
 
   return getFixtureSessionRecord(token)?.session ?? null;
 }
@@ -77,7 +87,126 @@ export async function resolveFixtureApiAuthContext(options: {
     return null;
   }
 
+  if (!record || record.onboarding || !record.authContext) {
+    return null;
+  }
+
   return switchAuthContextOrganization(record.authContext, options.organizationSlug);
+}
+
+export async function createFixtureOnboardingSession() {
+  if (!isFixtureAuthEnabled()) {
+    throw new Error("fixture_auth_disabled");
+  }
+
+  const suffix = randomUUID();
+  const workosUserId = `user_${suffix}`;
+  const email = `${suffix}@example.com`;
+
+  const user = await syncWorkosUser(db, {
+    workosUserId,
+    email,
+    firstName: "E2E",
+    lastName: "Onboarding",
+  });
+
+  const sessionToken = `${FIXTURE_SESSION_PREFIX}${randomUUID()}`;
+
+  const session: UserInfo = {
+    user: {
+      object: "user",
+      id: user.workosUserId,
+      email: user.email,
+      emailVerified: true,
+      firstName: "E2E",
+      lastName: "Onboarding",
+      name: "E2E Onboarding",
+      profilePictureUrl: null,
+      lastSignInAt: new Date().toISOString(),
+      locale: "en",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      externalId: null,
+      metadata: {},
+    },
+    sessionId: `fixture_${sessionToken}`,
+    accessToken: `fixture_${sessionToken}`,
+  };
+
+  fixtureSessions.set(sessionToken, {
+    authContext: null,
+    session,
+    onboarding: true,
+  });
+
+  return {
+    email: user.email,
+    sessionToken,
+    workosUserId: user.workosUserId,
+  };
+}
+
+export async function attachOrganizationToFixtureSession(input: {
+  sessionToken: string;
+  user: {
+    workosUserId: string;
+    id: string;
+    email: string;
+  };
+  organization: {
+    id: string;
+    workosOrganizationId: string;
+    name: string;
+    slug: string | null;
+  };
+  workosMembershipId: string;
+  role?: OrganizationMembershipRole;
+}) {
+  if (!isFixtureAuthEnabled()) {
+    return;
+  }
+
+  const record = fixtureSessions.get(input.sessionToken);
+  if (!record) {
+    return;
+  }
+
+  const role = input.role ?? "admin";
+  const activeOrganization = {
+    workosOrganizationId: input.organization.workosOrganizationId,
+    localOrganizationId: input.organization.id,
+    name: input.organization.name,
+    slug: input.organization.slug,
+    membership: withMembershipAccessSource({
+      workosMembershipId: input.workosMembershipId,
+      role,
+    }),
+  };
+
+  const authContext = enrichAuthContextWithCapabilities({
+    user: {
+      workosUserId: input.user.workosUserId,
+      localUserId: input.user.id,
+      email: input.user.email,
+    },
+    organizations: [activeOrganization],
+    organization: activeOrganization,
+    activeOrganization,
+    membership: withMembershipAccessSource({
+      workosMembershipId: input.workosMembershipId,
+      role,
+    }),
+    activeTeam: null,
+  });
+
+  fixtureSessions.set(input.sessionToken, {
+    authContext,
+    onboarding: false,
+    session: {
+      ...record.session,
+      organizationId: input.organization.workosOrganizationId,
+    },
+  });
 }
 
 export async function createFixtureAuthSession(input: { role?: OrganizationMembershipRole }) {
@@ -111,7 +240,7 @@ export async function createFixtureAuthSession(input: { role?: OrganizationMembe
     accessToken: `fixture_${sessionToken}`,
   };
 
-  fixtureSessions.set(sessionToken, { authContext, session });
+  fixtureSessions.set(sessionToken, { authContext, session, onboarding: false });
 
   return {
     authContext,

@@ -31,6 +31,12 @@ export function getE2ePage() {
   return sharedContext.page;
 }
 
+export async function loginForOnboarding(page: Page) {
+  const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
+  loginUrl.searchParams.set("mode", "onboarding");
+  await page.goto(loginUrl.toString(), { waitUntil: "networkidle" });
+}
+
 export async function loginAsAdmin(page: Page) {
   const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
   loginUrl.searchParams.set("role", "admin");

@@ -69,4 +69,26 @@ describe("e2e auth route", () => {
     expect(body.session.sessionToken).toMatch(/^test_/);
     expect(response.headers.get("set-cookie")).toContain("wos-session=");
   });
+
+  it("creates an onboarding fixture session without an organization", async () => {
+    const { createE2eAuthRoutes } = await import("./e2e-auth.route");
+    const client = testClient(createE2eAuthRoutes());
+
+    const response = await client.auth.session.$post({
+      json: { mode: "onboarding" },
+    });
+
+    expect(response.status).toBe(201);
+
+    const body = (await response.json()) as {
+      session: {
+        email: string;
+        sessionToken: string;
+        workosUserId: string;
+      };
+    };
+    expect(body.session.sessionToken).toMatch(/^test_/);
+    expect(body.session.workosUserId).toMatch(/^user_/);
+    expect(response.headers.get("set-cookie")).toContain("wos-session=");
+  });
 });
