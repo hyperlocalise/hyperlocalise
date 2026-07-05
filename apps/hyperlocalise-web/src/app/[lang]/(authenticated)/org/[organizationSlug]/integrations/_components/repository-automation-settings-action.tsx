@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { RepositoryAutomationSettingsPanel } from "./repository-automation-settings-panel";
+import { repositoryAutomationSettingsActionMessages } from "./repository-automation-settings-action.messages";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -41,13 +43,15 @@ export function RepositoryAutomationSettingsAction({
       <SheetTrigger
         render={<Button type="button" variant="outline" size="sm" className="whitespace-nowrap" />}
       >
-        Automation
+        <FormattedMessage {...repositoryAutomationSettingsActionMessages.automationButton} />
       </SheetTrigger>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>Repository automation</SheetTitle>
+          <SheetTitle>
+            <FormattedMessage {...repositoryAutomationSettingsActionMessages.sheetTitle} />
+          </SheetTitle>
           <SheetDescription>
-            Push source, pull translations, and publish localization checks for this repository.
+            <FormattedMessage {...repositoryAutomationSettingsActionMessages.sheetDescription} />
           </SheetDescription>
         </SheetHeader>
         <div className="px-6 pb-6">

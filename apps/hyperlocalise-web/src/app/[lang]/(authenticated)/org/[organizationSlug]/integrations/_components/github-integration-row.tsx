@@ -6,8 +6,13 @@ import { GitBranchIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free
 import { HugeiconsIcon } from "@hugeicons/react";
 import { siGithub } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  getGithubConnectErrorMessage,
+  githubIntegrationRowMessages,
+} from "./github-integration-row.messages";
 import { IntegrationRow } from "./integration-row";
 import { RepositoryAutomationSettingsAction } from "./repository-automation-settings-action";
 import { SimpleBrandIcon } from "./simple-brand-icon";
@@ -19,25 +24,6 @@ import { cn } from "@/lib/primitives/cn";
 import { TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
-
-const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
-  missing_callback_params:
-    "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
-  invalid_state:
-    "The GitHub install link expired or was already used. Click Connect again from this page.",
-  github_install_pending_approval:
-    "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
-  github_app_not_configured: "GitHub App integration is not configured for this environment.",
-  github_app_private_key_invalid:
-    "GitHub rejected the app credentials in this environment. Set GITHUB_APP_ID to the App ID from GitHub App settings and GITHUB_APP_PRIVATE_KEY to the matching PEM (use literal \\n line breaks or base64-encode the whole file).",
-  github_installation_invalid:
-    "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
-  github_installation_already_linked:
-    "That GitHub installation is already linked to another Hyperlocalise organization.",
-  organization_not_found: "The organization for this install request could not be found.",
-  github_use_setup_url:
-    'GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off "Request user authorization (OAuth) during installation" and set the Setup URL to this app\'s /auth/github/callback.',
-};
 
 type GitHubIntegrationRowProps = {
   organizationSlug: string;
@@ -117,7 +103,7 @@ function useInstallUrl(organizationSlug: string) {
   });
 }
 
-function useSyncRepositories(organizationSlug: string) {
+function useSyncRepositories(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -140,7 +126,7 @@ function useSyncRepositories(organizationSlug: string) {
           queryKey: ["github-installation-repositories", organizationSlug],
         }),
       ]);
-      toast.success("GitHub repository list refreshed");
+      toast.success(intl.formatMessage(githubIntegrationRowMessages.repositoryListRefreshedToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -148,7 +134,7 @@ function useSyncRepositories(organizationSlug: string) {
   });
 }
 
-function useUpdateRepositories(organizationSlug: string) {
+function useUpdateRepositories(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -173,7 +159,9 @@ function useUpdateRepositories(organizationSlug: string) {
           queryKey: ["github-installation-repositories", organizationSlug],
         }),
       ]);
-      toast.success("Enabled repositories updated");
+      toast.success(
+        intl.formatMessage(githubIntegrationRowMessages.enabledRepositoriesUpdatedToast),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -181,7 +169,7 @@ function useUpdateRepositories(organizationSlug: string) {
   });
 }
 
-function useDisconnectInstallation(organizationSlug: string) {
+function useDisconnectInstallation(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -201,7 +189,7 @@ function useDisconnectInstallation(organizationSlug: string) {
           queryKey: ["github-installation-repositories", organizationSlug],
         }),
       ]);
-      toast.success("GitHub disconnected");
+      toast.success(intl.formatMessage(githubIntegrationRowMessages.disconnectedToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -214,6 +202,7 @@ export function GitHubIntegrationRow({
   isLast = false,
   userCanManage,
 }: GitHubIntegrationRowProps) {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
@@ -240,11 +229,8 @@ export function GitHubIntegrationRow({
     url.searchParams.delete("error");
     window.history.replaceState(null, "", url.toString());
 
-    const message =
-      GITHUB_CONNECT_ERROR_MESSAGES[errorCode] ??
-      "GitHub App connection failed. Try connecting again.";
-    toast.error(message);
-  }, [searchParams]);
+    toast.error(getGithubConnectErrorMessage(intl, errorCode));
+  }, [intl, searchParams]);
 
   useEffect(() => {
     if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
@@ -263,9 +249,9 @@ export function GitHubIntegrationRow({
         queryKey: ["github-installation-repositories", organizationSlug],
       });
       setExpanded(true);
-      toast.success("GitHub connected");
+      toast.success(intl.formatMessage(githubIntegrationRowMessages.connectedToast));
     })();
-  }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
+  }, [intl, organizationSlug, queryClient, refetchInstallation, searchParams]);
 
   const { data: repositories = [], isLoading: isLoadingRepositories } = useGitHubRepositories(
     organizationSlug,
@@ -273,9 +259,9 @@ export function GitHubIntegrationRow({
   );
   const { refetch: getInstallUrl, isFetching: isCreatingInstallUrl } =
     useInstallUrl(organizationSlug);
-  const syncRepositories = useSyncRepositories(organizationSlug);
-  const updateRepositories = useUpdateRepositories(organizationSlug);
-  const disconnect = useDisconnectInstallation(organizationSlug);
+  const syncRepositories = useSyncRepositories(organizationSlug, intl);
+  const updateRepositories = useUpdateRepositories(organizationSlug, intl);
+  const disconnect = useDisconnectInstallation(organizationSlug, intl);
   const [query, setQuery] = useState("");
   const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<Set<string> | null>(null);
 
@@ -315,9 +301,9 @@ export function GitHubIntegrationRow({
     if (url) {
       window.location.href = url;
     } else {
-      toast.error("Failed to generate GitHub install URL");
+      toast.error(intl.formatMessage(githubIntegrationRowMessages.installUrlFailedToast));
     }
-  }, [getInstallUrl]);
+  }, [getInstallUrl, intl]);
 
   const toggleRepository = useCallback(
     (repositoryId: string) => {
@@ -355,17 +341,24 @@ export function GitHubIntegrationRow({
   const hasEnabledRepositories =
     (installation?.enabledRepositoryCount ??
       repositories.filter((repository) => repository.enabled).length) > 0;
-  const description = (() => {
+
+  const description = useMemo(() => {
     if (!installation) {
-      return "Connect GitHub for pull request reviews, localization fixes, and repository context.";
+      return intl.formatMessage(githubIntegrationRowMessages.disconnectedDescription);
     }
 
-    const repoSummary = `${installation.enabledRepositoryCount ?? 0} of ${installation.repositoryCount ?? repositories.length} repositories enabled.`;
+    const repoSummary = intl.formatMessage(githubIntegrationRowMessages.repoSummary, {
+      enabledCount: installation.enabledRepositoryCount ?? 0,
+      totalCount: installation.repositoryCount ?? repositories.length,
+    });
 
     return installation.accountLogin
-      ? `Connected as ${installation.accountLogin}. ${repoSummary}`
-      : `Connected. ${repoSummary}`;
-  })();
+      ? intl.formatMessage(githubIntegrationRowMessages.connectedAsDescription, {
+          accountLogin: installation.accountLogin,
+          repoSummary,
+        })
+      : intl.formatMessage(githubIntegrationRowMessages.connectedDescription, { repoSummary });
+  }, [installation, intl, repositories.length]);
 
   const action = !userCanManage
     ? connected
@@ -377,7 +370,7 @@ export function GitHubIntegrationRow({
 
   return (
     <IntegrationRow
-      name="GitHub"
+      name={intl.formatMessage(githubIntegrationRowMessages.name)}
       description={description}
       icon={<SimpleBrandIcon icon={siGithub} colored={hasEnabledRepositories} />}
       iconMuted={!hasEnabledRepositories}
@@ -396,10 +389,10 @@ export function GitHubIntegrationRow({
           <TypographyP className="text-sm text-destructive">
             {error instanceof Error
               ? error.message
-              : "Unable to load GitHub installation status right now."}
+              : intl.formatMessage(githubIntegrationRowMessages.loadError)}
           </TypographyP>
           <Button variant="outline" size="sm" onClick={() => void refetchInstallation()}>
-            Retry
+            <FormattedMessage {...githubIntegrationRowMessages.retry} />
           </Button>
         </div>
       ) : connected ? (
@@ -413,7 +406,7 @@ export function GitHubIntegrationRow({
                   <a href={installationSettingsUrl} target="_blank" rel="noopener noreferrer" />
                 }
               >
-                Manage access on GitHub
+                <FormattedMessage {...githubIntegrationRowMessages.manageAccessOnGitHub} />
               </Button>
             ) : null}
             <Button
@@ -421,10 +414,14 @@ export function GitHubIntegrationRow({
               size="sm"
               onClick={() => syncRepositories.mutate()}
               disabled={syncRepositories.isPending}
-              title="Refresh the repository list and metadata from GitHub. This does not push or pull translations."
+              title={intl.formatMessage(githubIntegrationRowMessages.refreshRepoListTitle)}
             >
               <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} className="size-4" />
-              {syncRepositories.isPending ? "Refreshing..." : "Refresh repo list"}
+              {syncRepositories.isPending ? (
+                <FormattedMessage {...githubIntegrationRowMessages.refreshingRepoList} />
+              ) : (
+                <FormattedMessage {...githubIntegrationRowMessages.refreshRepoList} />
+              )}
             </Button>
             <Button
               variant="outline"
@@ -436,7 +433,11 @@ export function GitHubIntegrationRow({
               }
               disabled={disconnect.isPending}
             >
-              {disconnect.isPending ? "Disconnecting..." : "Disconnect"}
+              {disconnect.isPending ? (
+                <FormattedMessage {...githubIntegrationRowMessages.disconnecting} />
+              ) : (
+                <FormattedMessage {...githubIntegrationRowMessages.disconnect} />
+              )}
             </Button>
           </div>
 
@@ -451,8 +452,12 @@ export function GitHubIntegrationRow({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search repositories"
-                  aria-label="Search repositories"
+                  placeholder={intl.formatMessage(
+                    githubIntegrationRowMessages.searchRepositoriesPlaceholder,
+                  )}
+                  aria-label={intl.formatMessage(
+                    githubIntegrationRowMessages.searchRepositoriesAriaLabel,
+                  )}
                   className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-input focus:ring-[3px] focus:ring-border"
                 />
               </div>
@@ -463,7 +468,10 @@ export function GitHubIntegrationRow({
                   onClick={handleEnableSelected}
                   disabled={updateRepositories.isPending || repositories.length === 0}
                 >
-                  Enable {effectiveSelection.size}
+                  <FormattedMessage
+                    {...githubIntegrationRowMessages.enableSelected}
+                    values={{ count: effectiveSelection.size }}
+                  />
                 </Button>
               ) : null}
               <Button
@@ -476,17 +484,25 @@ export function GitHubIntegrationRow({
                   effectiveSelection.size === repositories.length
                 }
               >
-                Enable all
+                <FormattedMessage {...githubIntegrationRowMessages.enableAll} />
               </Button>
             </div>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
               <div className="grid grid-cols-[48px_minmax(0,1fr)_120px_260px] border-b border-border bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 <div className="px-4 py-3">
-                  <span className="sr-only">Enabled</span>
+                  <span className="sr-only">
+                    <FormattedMessage {...githubIntegrationRowMessages.enabledColumnSrOnly} />
+                  </span>
                 </div>
-                <div className="px-4 py-3">Repositories</div>
-                <div className="px-4 py-3">Branch</div>
-                <div className="px-4 py-3 text-right">Action</div>
+                <div className="px-4 py-3">
+                  <FormattedMessage {...githubIntegrationRowMessages.repositoriesColumn} />
+                </div>
+                <div className="px-4 py-3">
+                  <FormattedMessage {...githubIntegrationRowMessages.branchColumn} />
+                </div>
+                <div className="px-4 py-3 text-right">
+                  <FormattedMessage {...githubIntegrationRowMessages.actionColumn} />
+                </div>
               </div>
               {isLoadingRepositories ? (
                 <div className="p-4">
@@ -509,7 +525,10 @@ export function GitHubIntegrationRow({
                           checked={checked}
                           onChange={() => toggleRepository(repository.githubRepositoryId)}
                           className="size-4 rounded border-input accent-foreground"
-                          aria-label={`Enable ${repository.fullName}`}
+                          aria-label={intl.formatMessage(
+                            githubIntegrationRowMessages.enableRepositoryAriaLabel,
+                            { repositoryFullName: repository.fullName },
+                          )}
                         />
                       </div>
                       <div className="min-w-0 px-4">
@@ -525,7 +544,7 @@ export function GitHubIntegrationRow({
                               variant="outline"
                               className="border-border bg-secondary text-secondary-foreground"
                             >
-                              Private
+                              <FormattedMessage {...githubIntegrationRowMessages.privateBadge} />
                             </Badge>
                           ) : null}
                           {repository.archived ? (
@@ -533,14 +552,17 @@ export function GitHubIntegrationRow({
                               variant="outline"
                               className="border-border bg-accent text-accent-foreground"
                             >
-                              Archived
+                              <FormattedMessage {...githubIntegrationRowMessages.archivedBadge} />
                             </Badge>
                           ) : null}
                         </div>
                       </div>
                       <div className="flex min-w-0 items-center gap-2 px-4 text-muted-foreground">
                         <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-                        <span className="truncate">{repository.defaultBranch ?? "default"}</span>
+                        <span className="truncate">
+                          {repository.defaultBranch ??
+                            intl.formatMessage(githubIntegrationRowMessages.defaultBranchFallback)}
+                        </span>
                       </div>
                       <div
                         className="px-4"
@@ -563,9 +585,11 @@ export function GitHubIntegrationRow({
                 })
               ) : (
                 <div className="px-4 py-6 text-sm text-muted-foreground">
-                  {repositories.length === 0
-                    ? "No repositories are available to this GitHub App installation."
-                    : "No repositories match this search."}
+                  {repositories.length === 0 ? (
+                    <FormattedMessage {...githubIntegrationRowMessages.noRepositoriesAvailable} />
+                  ) : (
+                    <FormattedMessage {...githubIntegrationRowMessages.noRepositoriesMatchSearch} />
+                  )}
                 </div>
               )}
             </div>

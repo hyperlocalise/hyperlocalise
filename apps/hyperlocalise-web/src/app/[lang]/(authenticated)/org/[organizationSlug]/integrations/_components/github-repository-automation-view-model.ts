@@ -1,3 +1,5 @@
+import type { IntlShape } from "react-intl";
+
 import {
   DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS,
   type GithubRepositoryAutomationSettings,
@@ -5,6 +7,8 @@ import {
   hasEnabledGithubRepoAutomationWorkflow,
   validateGithubRepositoryAutomationSettings,
 } from "@/lib/agents/github/github-repository-automation-settings";
+
+import { githubRepositoryAutomationViewModelMessages } from "./github-repository-automation-view-model.messages";
 
 export type GithubAutomationTriggerMode = "none" | "push" | "scheduled";
 
@@ -43,25 +47,47 @@ export const MAX_AUTOMATION_BRANCH_PATTERNS = 32;
 const BRANCH_PATTERN_REGEX = /^[A-Za-z0-9._\-/*?]+$/;
 
 export const AUTOMATION_WEEKDAY_OPTIONS = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
+  { value: 0 },
+  { value: 1 },
+  { value: 2 },
+  { value: 3 },
+  { value: 4 },
+  { value: 5 },
+  { value: 6 },
 ] as const;
 
-export const AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
-  automation_trigger_required:
-    "Enable at least one workflow and choose when automation should run.",
-  push_trigger_requires_branches: "Add at least one branch pattern for push triggers.",
-  weekly_schedule_requires_day_of_week: "Choose a day of the week for weekly schedules.",
-  invalid_automation_timezone: "Enter a valid IANA timezone such as UTC or America/New_York.",
-  github_repository_not_enabled: "Enable this repository before configuring automation.",
-  github_repository_archived: "Archived repositories cannot use translation automation.",
-  invalid_branch_pattern: "Branch patterns may only use letters, numbers, ., _, -, /, *, and ?.",
-};
+function getAutomationApiErrorMessage(intl: IntlShape, errorCode: string) {
+  switch (errorCode) {
+    case "automation_trigger_required":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.automationTriggerRequired,
+      );
+    case "push_trigger_requires_branches":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.pushTriggerRequiresBranches,
+      );
+    case "weekly_schedule_requires_day_of_week":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.weeklyScheduleRequiresDayOfWeek,
+      );
+    case "invalid_automation_timezone":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.invalidAutomationTimezone,
+      );
+    case "github_repository_not_enabled":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.githubRepositoryNotEnabled,
+      );
+    case "github_repository_archived":
+      return intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.githubRepositoryArchived,
+      );
+    case "invalid_branch_pattern":
+      return intl.formatMessage(githubRepositoryAutomationViewModelMessages.invalidBranchPattern);
+    default:
+      return undefined;
+  }
+}
 
 export function createDefaultAutomationFormState(): GithubRepositoryAutomationFormState {
   const defaults = DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS;
@@ -187,17 +213,22 @@ export function formStateToAutomationSettingsPayload(
 }
 
 export function validateAutomationFormState(
+  intl: IntlShape,
   form: GithubRepositoryAutomationFormState,
 ): GithubRepositoryAutomationFieldErrors {
   const errors: GithubRepositoryAutomationFieldErrors = {};
   const hasWorkflow = hasAnyAutomationWorkflowEnabled(form);
 
   if (form.pushSourceEnabled && !form.pushSourceProjectId.trim()) {
-    errors.pushSourceProjectId = "Choose a Hyperlocalise project for push source.";
+    errors.pushSourceProjectId = intl.formatMessage(
+      githubRepositoryAutomationViewModelMessages.pushSourceProjectRequired,
+    );
   }
 
   if (form.pullTranslationsEnabled && !form.pullTranslationsProjectId.trim()) {
-    errors.pullTranslationsProjectId = "Choose a Hyperlocalise project for pull translations.";
+    errors.pullTranslationsProjectId = intl.formatMessage(
+      githubRepositoryAutomationViewModelMessages.pullTranslationsProjectRequired,
+    );
   }
 
   if (!hasWorkflow) {
@@ -205,19 +236,25 @@ export function validateAutomationFormState(
   }
 
   if (form.triggerMode === "none") {
-    errors.trigger = "Choose push or scheduled triggers when workflows are enabled.";
+    errors.trigger = intl.formatMessage(
+      githubRepositoryAutomationViewModelMessages.triggerRequired,
+    );
     return errors;
   }
 
   if (form.triggerMode === "push") {
     if (form.pushBranches.length === 0) {
-      errors.pushBranches = AUTOMATION_API_ERROR_MESSAGES.push_trigger_requires_branches;
+      errors.pushBranches = intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.pushTriggerRequiresBranches,
+      );
     } else {
       const invalidPattern = form.pushBranches.find(
         (branch) => !BRANCH_PATTERN_REGEX.test(branch.trim()),
       );
       if (invalidPattern) {
-        errors.pushBranches = AUTOMATION_API_ERROR_MESSAGES.invalid_branch_pattern;
+        errors.pushBranches = intl.formatMessage(
+          githubRepositoryAutomationViewModelMessages.invalidBranchPattern,
+        );
       }
     }
   }
@@ -227,15 +264,18 @@ export function validateAutomationFormState(
       form.scheduledCadence === "weekly" &&
       (form.scheduledDayOfWeek < 0 || form.scheduledDayOfWeek > 6)
     ) {
-      errors.scheduledDayOfWeek =
-        AUTOMATION_API_ERROR_MESSAGES.weekly_schedule_requires_day_of_week;
+      errors.scheduledDayOfWeek = intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.weeklyScheduleRequiresDayOfWeek,
+      );
     }
 
     const timezone = form.scheduledTimezone.trim() || "UTC";
     try {
       Intl.DateTimeFormat("en-US", { timeZone: timezone });
     } catch {
-      errors.scheduledTimezone = AUTOMATION_API_ERROR_MESSAGES.invalid_automation_timezone;
+      errors.scheduledTimezone = intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.invalidAutomationTimezone,
+      );
     }
   }
 
@@ -243,7 +283,7 @@ export function validateAutomationFormState(
     formStateToAutomationSettings(form),
   );
   if (validationError) {
-    const mapped = mapAutomationApiErrorToFieldErrors(validationError);
+    const mapped = mapAutomationApiErrorToFieldErrors(intl, validationError);
     return { ...errors, ...mapped };
   }
 
@@ -251,10 +291,11 @@ export function validateAutomationFormState(
 }
 
 export function mapAutomationApiErrorToFieldErrors(
+  intl: IntlShape,
   errorCode: string,
   message?: string,
 ): GithubRepositoryAutomationFieldErrors {
-  const fallbackMessage = message ?? AUTOMATION_API_ERROR_MESSAGES[errorCode];
+  const fallbackMessage = message ?? getAutomationApiErrorMessage(intl, errorCode);
 
   switch (errorCode) {
     case "automation_trigger_required":
@@ -269,7 +310,11 @@ export function mapAutomationApiErrorToFieldErrors(
     case "github_repository_archived":
       return { form: fallbackMessage };
     default:
-      return { form: fallbackMessage ?? "Could not save automation settings." };
+      return {
+        form:
+          fallbackMessage ??
+          intl.formatMessage(githubRepositoryAutomationViewModelMessages.saveFailed),
+      };
   }
 }
 
@@ -278,27 +323,41 @@ export function normalizeBranchPatternInput(value: string) {
 }
 
 export function addBranchPattern(
+  intl: IntlShape,
   branches: string[],
   rawPattern: string,
 ): { branches: string[]; error?: string } {
   const pattern = normalizeBranchPatternInput(rawPattern);
 
   if (!pattern) {
-    return { branches, error: "Enter a branch pattern." };
+    return {
+      branches,
+      error: intl.formatMessage(githubRepositoryAutomationViewModelMessages.enterBranchPattern),
+    };
   }
 
   if (!BRANCH_PATTERN_REGEX.test(pattern)) {
-    return { branches, error: AUTOMATION_API_ERROR_MESSAGES.invalid_branch_pattern };
+    return {
+      branches,
+      error: intl.formatMessage(githubRepositoryAutomationViewModelMessages.invalidBranchPattern),
+    };
   }
 
   if (branches.includes(pattern)) {
-    return { branches, error: "That branch pattern is already listed." };
+    return {
+      branches,
+      error: intl.formatMessage(
+        githubRepositoryAutomationViewModelMessages.branchPatternAlreadyListed,
+      ),
+    };
   }
 
   if (branches.length >= MAX_AUTOMATION_BRANCH_PATTERNS) {
     return {
       branches,
-      error: `You can add up to ${MAX_AUTOMATION_BRANCH_PATTERNS} branch patterns.`,
+      error: intl.formatMessage(githubRepositoryAutomationViewModelMessages.maxBranchPatterns, {
+        max: MAX_AUTOMATION_BRANCH_PATTERNS,
+      }),
     };
   }
 
