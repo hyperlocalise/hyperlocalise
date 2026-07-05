@@ -11,7 +11,7 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/segmentvalidate",
-        "@com_github_workos_workos_go_v7//:workos-go",
+        "@com_github_workos_workos_go_v9//:workos-go",
     ],
 )
 

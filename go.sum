@@ -1656,10 +1656,7 @@ github.com/uudashr/gocognit v1.2.1 h1:CSJynt5txTnORn/DkhiB4mZjwPuifyASC8/6Q0I/QS
 github.com/uudashr/gocognit v1.2.1/go.mod h1:acaubQc6xYlXFEMb9nWX2dYBzJ/bIjEkc1zzvyIZg5Q=
 github.com/uudashr/iface v1.4.2 h1:06Vq5RKVYThBsj0Bnw4oasMjD1r+7CE/bcKOA8dVSvg=
 github.com/uudashr/iface v1.4.2/go.mod h1:pbeBPlbuU2qkNDn0mmfrxP2X+wjPMIQAy+r1MBXSXtg=
-github.com/workos/workos-go/v7 v7.0.0 h1:JE00nLyWgR9LIQopiOq4eOQjtoMELVNAB/UDIqDLHkY=
-github.com/workos/workos-go/v7 v7.0.0/go.mod h1:OvaZ+hjCteVjqMPHfu3KHIxCQab28D2XKRfZboxEauY=
-github.com/workos/workos-go/v7 v7.1.2 h1:KommgxbeXKRm2hv2mDJC5J9V0wugdk3ChcLEVxNfC/I=
-github.com/workos/workos-go/v7 v7.1.2/go.mod h1:OvaZ+hjCteVjqMPHfu3KHIxCQab28D2XKRfZboxEauY=
+github.com/workos/workos-go/v9 v9.4.0 h1:ybwATb8hRhULVBUmqB3YS0O37e7MdDK775FzVabR5ng=
 github.com/workos/workos-go/v9 v9.4.0/go.mod h1:LmCsltyof8Hn6evswUhMWzWPj4jM41MKUpsb4LuRV4E=
 github.com/xen0n/gosmopolitan v1.3.0 h1:zAZI1zefvo7gcpbCOrPSHJZJYA9ZgLfJqtKzZ5pHqQM=
 github.com/xen0n/gosmopolitan v1.3.0/go.mod h1:rckfr5T6o4lBtM1ga7mLGKZmLxswUoH1zxHgNXOsEt4=
