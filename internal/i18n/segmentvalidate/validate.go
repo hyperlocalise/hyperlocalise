@@ -3,6 +3,7 @@ package segmentvalidate
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -288,7 +289,10 @@ func formatPlaceholderNames(rawList string) []string {
 
 		if rawList[i] == '"' {
 			j := i + 1
-			for j < len(rawList) && rawList[j] != '"' {
+			for j < len(rawList) {
+				if rawList[j] == '"' {
+					break
+				}
 				if rawList[j] == '\\' && j+1 < len(rawList) {
 					j += 2
 				} else {
@@ -296,10 +300,12 @@ func formatPlaceholderNames(rawList string) []string {
 				}
 			}
 			if j < len(rawList) {
-				// We found a closing quote. In Go, %q usually produces a string literal.
-				val := rawList[i+1 : j]
-				// Basic unescaping for common cases (\")
-				val = strings.ReplaceAll(val, `\"`, `"`)
+				// We found a closing quote. In Go, %q produces a valid string literal.
+				val, err := strconv.Unquote(rawList[i : j+1])
+				if err != nil {
+					// Fallback for failed unquoting
+					val = strings.ReplaceAll(rawList[i+1 : j], `\"`, `"`)
+				}
 				if placeholder := finalizePlaceholderName(val); placeholder != "" {
 					out = append(out, placeholder)
 				}
