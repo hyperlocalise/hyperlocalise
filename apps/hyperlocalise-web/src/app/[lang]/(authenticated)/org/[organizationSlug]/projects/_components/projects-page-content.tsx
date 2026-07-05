@@ -302,7 +302,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
   const pageDescription = hasTmsConnection
     ? `Browse live ${tmsProviderName} projects and manage Hyperlocalise workspace projects.`
-    : "Browse Hyperlocalise projects and live TMS projects from your connected provider.";
+    : "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.";
 
   const createProjectAction =
     hasTmsPrimaryWorkflow && nativeProjects.length === 0 ? (

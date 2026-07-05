@@ -9,6 +9,10 @@ describe("sanitizeCrowdinProjectLogo", () => {
     );
   });
 
+  it("rejects data image URLs with whitespace in the base64 payload", () => {
+    expect(sanitizeCrowdinProjectLogo("data:image/png;base64,abc 123")).toBeNull();
+  });
+
   it("accepts https logo URLs", () => {
     expect(sanitizeCrowdinProjectLogo("https://crowdin.com/logo.png")).toBe(
       "https://crowdin.com/logo.png",

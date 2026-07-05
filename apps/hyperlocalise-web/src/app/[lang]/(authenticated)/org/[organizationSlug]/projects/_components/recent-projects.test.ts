@@ -62,4 +62,18 @@ describe("recent-projects", () => {
       { id: "project_a", name: "Alpha" },
     ]);
   });
+
+  it("applies the limit after ignoring visits for unavailable projects", () => {
+    const storage = createStorage();
+
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 10 });
+    recordRecentProjectVisit("acme", "deleted_project", { storage, visitedAt: 20 });
+
+    expect(
+      resolveRecentProjects("acme", [{ id: "project_a", name: "Alpha" }], {
+        storage,
+        limit: 1,
+      }),
+    ).toEqual([{ id: "project_a", name: "Alpha" }]);
+  });
 });

@@ -105,7 +105,7 @@ export function resolveRecentProjects(
   const limit = options?.limit ?? 5;
 
   return readRecentProjectVisits(organizationSlug, options?.storage)
-    .slice(0, limit)
     .map((visit) => projectsById.get(visit.projectId))
-    .filter((project): project is { id: string; name: string } => project !== undefined);
+    .filter((project): project is { id: string; name: string } => project !== undefined)
+    .slice(0, limit);
 }
