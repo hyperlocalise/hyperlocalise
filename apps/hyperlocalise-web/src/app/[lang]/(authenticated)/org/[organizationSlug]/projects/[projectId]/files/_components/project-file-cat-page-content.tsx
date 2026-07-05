@@ -37,7 +37,7 @@ import {
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
-import { CatFileTreePicker, CatRepositorySelect } from "./cat-header-pickers";
+import { CatFileTreePicker, CatRepositorySelect } from "../../_components/cat-header-pickers";
 
 type ProjectFileCatGithubRepository = {
   fullName: string;
@@ -324,8 +324,8 @@ export function ProjectFileCatPageContent({
     }
   };
 
-  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
-    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
+  const handleRepositoryChange = (nextRepositoryFullName: string) => {
+    if (!repositoryPreferenceKey) {
       return;
     }
 

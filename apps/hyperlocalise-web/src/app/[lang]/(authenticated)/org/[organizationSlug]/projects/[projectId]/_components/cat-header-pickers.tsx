@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
 
-import { ProjectFilesTree } from "./project-files-tree";
+import { ProjectFilesTree } from "../files/_components/project-files-tree";
 
 function FilePickerIcon({ className }: { className?: string }) {
   return (
@@ -150,10 +150,16 @@ export function CatRepositorySelect({
 }: {
   repositoryFullNames: string[];
   selectedRepositoryFullName: string | null;
-  onRepositoryChange: (repositoryFullName: string | null) => void;
+  onRepositoryChange: (repositoryFullName: string) => void;
 }) {
+  const handleValueChange = (repositoryFullName: string | null) => {
+    if (repositoryFullName) {
+      onRepositoryChange(repositoryFullName);
+    }
+  };
+
   return (
-    <Select value={selectedRepositoryFullName ?? ""} onValueChange={onRepositoryChange}>
+    <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleValueChange}>
       <SelectTrigger
         className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
         aria-label="GitHub repository"
