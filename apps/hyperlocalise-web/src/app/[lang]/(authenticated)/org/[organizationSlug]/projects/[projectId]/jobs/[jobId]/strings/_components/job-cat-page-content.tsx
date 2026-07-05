@@ -398,6 +398,10 @@ export function JobCatPageContent({
             targetLocale={targetLocale}
             highlightLocale={targetLocale}
             repositoryFullName={selectedRepositoryFullName}
+            canLookupFreshContext={canLookupFreshCatRepositoryContext(
+              enabledRepositoryFullNames,
+              selectedRepositoryFullName,
+            )}
             initialSegmentKey={initialSegmentKey}
             layout="fullscreen"
             className="min-h-0 flex-1"
