@@ -173,3 +173,21 @@ export const LiveProjectSelectionRequired: Story = {
     await expect(canvas.getByText("Choose a TMS project")).toBeInTheDocument();
   },
 };
+
+export const NoFilterMatches: Story = {
+  args: {
+    glossaries: [],
+    glossaryTotal: 0,
+    hasActiveFilters: true,
+    activeFilterCount: 1,
+    sourceFilter: "native",
+    pageStart: 0,
+    pageEnd: 0,
+    providerKinds: [],
+    hasExternalGlossaries: false,
+    hasResourceTypes: false,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("No glossaries match your filters.")).toBeInTheDocument();
+  },
+};

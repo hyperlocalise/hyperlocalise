@@ -26,9 +26,11 @@ import {
   type GlossaryListRow,
 } from "./glossary-list";
 import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
-import { GlossariesPageView, type GlossaryCreateForm } from "./glossaries-page-view";
-
-const GLOSSARIES_PAGE_SIZE = 100;
+import {
+  GlossariesPageView,
+  GLOSSARIES_PAGE_SIZE,
+  type GlossaryCreateForm,
+} from "./glossaries-page-view";
 
 type GlossaryListFilters = {
   searchQuery: string;

@@ -38,7 +38,7 @@ import {
   TranslationMemoriesTable,
 } from "./translation-memories-table";
 
-const MEMORIES_PAGE_SIZE = 100;
+export const MEMORIES_PAGE_SIZE = 100;
 
 const sourceFilterLabels = {
   all: "All sources",

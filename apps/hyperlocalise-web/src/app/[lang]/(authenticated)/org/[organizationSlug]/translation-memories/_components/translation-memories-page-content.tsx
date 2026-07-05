@@ -27,10 +27,9 @@ import {
 import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
 import {
   TranslationMemoriesPageView,
+  MEMORIES_PAGE_SIZE,
   type MemoryCreateForm,
 } from "./translation-memories-page-view";
-
-const MEMORIES_PAGE_SIZE = 100;
 
 const memoriesQueryKey = (organizationSlug: string, page: number) => [
   "translation-memories",

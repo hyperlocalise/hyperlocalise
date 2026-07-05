@@ -39,7 +39,7 @@ import {
   ProjectTargetLocalesPicker,
 } from "../../projects/_components/project-locale-picker";
 
-const GLOSSARIES_PAGE_SIZE = 100;
+export const GLOSSARIES_PAGE_SIZE = 100;
 
 const sourceFilterLabels = {
   all: "All sources",
