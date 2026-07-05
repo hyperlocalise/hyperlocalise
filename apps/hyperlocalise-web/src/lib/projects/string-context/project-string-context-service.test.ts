@@ -275,6 +275,39 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
   });
 
+  it("completes reserved usage when the repository agent returns only whitespace", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+    runSubagentMock.mockResolvedValue({ text: " \n\t " });
+
+    const result = await lookupProjectFileStringRepositoryContext(
+      baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+        repositoryFullName: "hyperlocalise/explicit",
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: expect.objectContaining({
+        code: "agent_failed",
+      }),
+    });
+    expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        source: "project_file_string_context_lookup",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+      }),
+    );
+    expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
+  });
+
   it("returns repository_context_ambiguous when multiple enabled repositories match", async () => {
     const { organization, project, user } = await fixture.createStoredProjectFixture();
     await insertRepository({

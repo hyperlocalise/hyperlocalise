@@ -460,6 +460,12 @@ export class ProjectStringContextService extends ProjectServiceBase {
 
       const summary = result.text.trim();
       if (!summary) {
+        await trackSucceededAgentRuntimeUsage({
+          organizationId: input.organizationId,
+          operationKey: usageOperationKey,
+          dimensions: usageDimensions,
+        });
+
         log.warn(
           { code: "agent_failed" },
           "project file string context agent returned empty summary",
