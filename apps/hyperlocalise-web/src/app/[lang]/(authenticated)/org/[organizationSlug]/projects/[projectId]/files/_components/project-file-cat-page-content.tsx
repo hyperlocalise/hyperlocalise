@@ -7,13 +7,6 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
@@ -44,6 +37,7 @@ import {
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
+import { CatFileTreePicker, CatRepositorySelect } from "./cat-header-pickers";
 
 type ProjectFileCatGithubRepository = {
   fullName: string;
@@ -352,21 +346,11 @@ export function ProjectFileCatPageContent({
         </Button>
 
         {catFiles.length > 0 ? (
-          <Select value={sourcePath ?? ""} onValueChange={handleFileChange}>
-            <SelectTrigger
-              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-              aria-label="Source file"
-            >
-              <SelectValue placeholder="Source file" />
-            </SelectTrigger>
-            <SelectContent>
-              {catFiles.map((entry) => (
-                <SelectItem key={entry.sourcePath} value={entry.sourcePath}>
-                  {entry.sourcePath}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatFileTreePicker
+            files={catFiles}
+            selectedSourcePath={sourcePath}
+            onSelectFile={handleFileChange}
+          />
         ) : (
           <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">
             {sourcePath}
@@ -374,21 +358,11 @@ export function ProjectFileCatPageContent({
         )}
 
         {enabledRepositoryFullNames.length > 0 ? (
-          <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
-            <SelectTrigger
-              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-              aria-label="GitHub repository"
-            >
-              <SelectValue placeholder="GitHub repo" />
-            </SelectTrigger>
-            <SelectContent>
-              {enabledRepositoryFullNames.map((repositoryFullName) => (
-                <SelectItem key={repositoryFullName} value={repositoryFullName}>
-                  {repositoryFullName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatRepositorySelect
+            repositoryFullNames={enabledRepositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
         ) : null}
 
         {file?.provider ? (
