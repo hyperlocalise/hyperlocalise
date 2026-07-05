@@ -1,4 +1,4 @@
-import { makeAutoObservable, runInAction } from "mobx";
+import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
 
 import type {
   ProjectFileCatComment,
@@ -28,18 +28,26 @@ import {
   mapSegmentComments,
 } from "@/components/cat/project-file/project-file-cat-mapper";
 
-import { CatSegmentDraft } from "./cat-segment-draft";
-import { composeSegmentView, toQueueSegment } from "./cat-segment-view";
+import { CatIntelligenceStore } from "./store/cat-intelligence-store";
+import { CatQueueStore } from "./store/cat-queue-store";
+import { CatSegmentDraft } from "./store/cat-segment-draft";
+import { CatSegmentStore } from "./store/cat-segment-store";
+import { composeSegmentView, toQueueSegment } from "./store/cat-segment-view";
 import {
   collectSegmentsWithAgentContext,
   hasSaveFailureCheck,
   mergeSegmentIntelligenceOnHydrate,
-} from "./cat-workspace-store-utils";
+} from "./store/cat-workspace-store-utils";
 
 type UnsavedNavigationPrompt = {
   kind: "segment" | "page";
   proceed: () => void;
 };
+
+interface WorkspaceControllerLifecycle {
+  start(): void;
+  dispose(): void;
+}
 
 const defaultFileContext: CatFileContext = {
   sourcePath: "",
@@ -123,43 +131,20 @@ function intelligenceFromHydratedSegment(
   };
 }
 
-export class CatWorkspaceStore {
+export class CatWorkspaceOrchestrator {
+  readonly queue = new CatQueueStore();
+  readonly segments = new CatSegmentStore();
+  readonly intelligenceState = new CatIntelligenceStore();
+
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
 
   fileContext: CatFileContext = defaultFileContext;
 
-  selectedSegmentId = "";
-  queueFilter: CatQueueFilter = "all";
-  checkedSegmentIds = new Set<string>();
-
-  segmentMeta = new Map<string, CatQueueSegment>();
-  segmentComments = new Map<string, CatSegmentComment[]>();
-  drafts = new Map<string, CatSegmentDraft>();
-
-  formatChecks: CatFormatCheck[] = [];
-  segmentFormatChecks: Record<string, CatFormatCheck[]> = {};
-  intelligence: CatSegmentIntelligence = { glossaryTerms: [] };
-  segmentIntelligence: Record<string, CatSegmentIntelligence> = {};
-  revealedAgentContextSegmentIds = new Set<string>();
-
-  isValidating = false;
   isApproving = false;
   isSavingDraft = false;
-  isPostingComment = false;
-  isResolvingComment = false;
-  resolvingCommentId: string | null = null;
-  commentPostError: string | undefined;
-  isLookingUpContext = false;
-  concordanceLoadingSegmentId: string | null = null;
-  isLoadingVisualContext = false;
-  isGeneratingAiRecommendation = false;
-  isRunningFormatChecks = false;
   isBulkActionPending = false;
-
-  isSegmentTargetLoading = false;
-  isCommentsLoading = false;
 
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
 
@@ -169,6 +154,9 @@ export class CatWorkspaceStore {
 
   validationSequence = 0;
   reviewSequence = 0;
+  private controllers: WorkspaceControllerLifecycle[] = [];
+  private dirtyStateDisposer?: IReactionDisposer;
+  private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
 
   constructor() {
     makeAutoObservable(
@@ -179,6 +167,221 @@ export class CatWorkspaceStore {
       },
       { autoBind: true },
     );
+  }
+
+  attachControllers(...controllers: WorkspaceControllerLifecycle[]) {
+    this.controllers = controllers;
+  }
+
+  start() {
+    for (const controller of this.controllers) {
+      controller.start();
+    }
+    this.dirtyStateDisposer?.();
+    if (typeof window !== "undefined") {
+      const handleBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+      this.beforeUnloadHandler = handleBeforeUnload;
+      this.dirtyStateDisposer = reaction(
+        () => this.segments.hasDirtySegments,
+        (hasDirtySegments, previousHasDirtySegments) => {
+          if (previousHasDirtySegments) {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+          }
+          if (hasDirtySegments) {
+            window.addEventListener("beforeunload", handleBeforeUnload);
+          }
+        },
+        { fireImmediately: true },
+      );
+    }
+  }
+
+  dispose() {
+    this.dirtyStateDisposer?.();
+    this.dirtyStateDisposer = undefined;
+    if (this.beforeUnloadHandler && typeof window !== "undefined") {
+      window.removeEventListener("beforeunload", this.beforeUnloadHandler);
+      this.beforeUnloadHandler = undefined;
+    }
+    for (const controller of this.controllers) {
+      controller.dispose();
+    }
+  }
+
+  get selectedSegmentId() {
+    return this.queue.selectedSegmentId;
+  }
+
+  set selectedSegmentId(value: string) {
+    this.queue.selectedSegmentId = value;
+  }
+
+  get queueFilter() {
+    return this.queue.filter;
+  }
+
+  set queueFilter(value: CatQueueFilter) {
+    this.queue.filter = value;
+  }
+
+  get checkedSegmentIds() {
+    return this.queue.checkedSegmentIds;
+  }
+
+  set checkedSegmentIds(value: Set<string>) {
+    this.queue.checkedSegmentIds = value;
+  }
+
+  get segmentMeta() {
+    return this.queue.segmentMeta;
+  }
+
+  get segmentComments() {
+    return this.segments.comments;
+  }
+
+  set segmentComments(value: Map<string, CatSegmentComment[]>) {
+    this.segments.comments = value;
+  }
+
+  get drafts() {
+    return this.segments.drafts;
+  }
+
+  get formatChecks() {
+    return this.intelligenceState.formatChecks;
+  }
+
+  set formatChecks(value: CatFormatCheck[]) {
+    this.intelligenceState.formatChecks = value;
+  }
+
+  get segmentFormatChecks() {
+    return this.intelligenceState.segmentFormatChecks;
+  }
+
+  set segmentFormatChecks(value: Record<string, CatFormatCheck[]>) {
+    this.intelligenceState.segmentFormatChecks = value;
+  }
+
+  get intelligence() {
+    return this.intelligenceState.fileIntelligence;
+  }
+
+  set intelligence(value: CatSegmentIntelligence) {
+    this.intelligenceState.fileIntelligence = value;
+  }
+
+  get segmentIntelligence() {
+    return this.intelligenceState.bySegment;
+  }
+
+  set segmentIntelligence(value: Record<string, CatSegmentIntelligence>) {
+    this.intelligenceState.bySegment = value;
+  }
+
+  get revealedAgentContextSegmentIds() {
+    return this.intelligenceState.revealedAgentContextSegmentIds;
+  }
+
+  set revealedAgentContextSegmentIds(value: Set<string>) {
+    this.intelligenceState.revealedAgentContextSegmentIds = value;
+  }
+
+  get isValidating() {
+    return this.intelligenceState.isValidating;
+  }
+
+  set isValidating(value: boolean) {
+    this.intelligenceState.isValidating = value;
+  }
+
+  get isPostingComment() {
+    return this.segments.isPostingComment;
+  }
+
+  set isPostingComment(value: boolean) {
+    this.segments.isPostingComment = value;
+  }
+
+  get isResolvingComment() {
+    return this.segments.isResolvingComment;
+  }
+
+  set isResolvingComment(value: boolean) {
+    this.segments.isResolvingComment = value;
+  }
+
+  get resolvingCommentId() {
+    return this.segments.resolvingCommentId;
+  }
+
+  set resolvingCommentId(value: string | null) {
+    this.segments.resolvingCommentId = value;
+  }
+
+  get commentPostError() {
+    return this.segments.commentPostError;
+  }
+
+  set commentPostError(value: string | undefined) {
+    this.segments.commentPostError = value;
+  }
+
+  get isLookingUpContext() {
+    return this.intelligenceState.isLookingUpContext;
+  }
+
+  set isLookingUpContext(value: boolean) {
+    this.intelligenceState.isLookingUpContext = value;
+  }
+
+  get concordanceLoadingSegmentId() {
+    return this.intelligenceState.concordanceLoadingSegmentId;
+  }
+
+  set concordanceLoadingSegmentId(value: string | null) {
+    this.intelligenceState.concordanceLoadingSegmentId = value;
+  }
+
+  get isLoadingVisualContext() {
+    return this.intelligenceState.isLoadingVisualContext;
+  }
+
+  set isLoadingVisualContext(value: boolean) {
+    this.intelligenceState.isLoadingVisualContext = value;
+  }
+
+  get isGeneratingAiRecommendation() {
+    return this.intelligenceState.isGeneratingAiRecommendation;
+  }
+
+  set isGeneratingAiRecommendation(value: boolean) {
+    this.intelligenceState.isGeneratingAiRecommendation = value;
+  }
+
+  get isRunningFormatChecks() {
+    return this.intelligenceState.isRunningFormatChecks;
+  }
+
+  set isRunningFormatChecks(value: boolean) {
+    this.intelligenceState.isRunningFormatChecks = value;
+  }
+
+  get isSegmentTargetLoading() {
+    return this.segments.isTargetLoading;
+  }
+
+  set isSegmentTargetLoading(value: boolean) {
+    this.segments.isTargetLoading = value;
+  }
+
+  get isCommentsLoading() {
+    return this.segments.isCommentsLoading;
+  }
+
+  set isCommentsLoading(value: boolean) {
+    this.segments.isCommentsLoading = value;
   }
 
   get canEditTranslations() {
@@ -203,13 +406,11 @@ export class CatWorkspaceStore {
   }
 
   get dirtySegmentIds(): ReadonlySet<string> {
-    return new Set(
-      [...this.drafts.values()].filter((draft) => draft.isDirty).map((draft) => draft.segmentId),
-    );
+    return this.segments.dirtySegmentIds;
   }
 
   get queueSegments(): CatQueueSegment[] {
-    return [...this.segmentMeta.values()].sort((left, right) => left.index - right.index);
+    return this.queue.segments;
   }
 
   get shellState(): CatWorkspaceShell {
@@ -356,6 +557,7 @@ export class CatWorkspaceStore {
           "");
 
       this.selectedSegmentId = selectedSegmentId;
+      this.queue.reconcileVisibleIds(nextSegmentIds);
 
       const matchedSegmentId = initialSegmentKeyOrId
         ? this.findSegmentIdByKeyOrId(initialSegmentKeyOrId)
@@ -535,73 +737,32 @@ export class CatWorkspaceStore {
   }
 
   setSelectedSegmentId(segmentId: string) {
-    this.selectedSegmentId = segmentId;
+    this.queue.select(segmentId);
+    this.segments.clearCommentError();
   }
 
   setTargetText(segmentId: string, value: string) {
-    const draft = this.drafts.get(segmentId);
-    if (draft) {
-      draft.setTargetText(value);
-      return;
-    }
-
-    const meta = this.segmentMeta.get(segmentId);
-    if (meta) {
-      const nextDraft = new CatSegmentDraft(segmentId, "", "pending");
-      nextDraft.setTargetText(value);
-      this.drafts.set(segmentId, nextDraft);
-    }
+    this.segments.setTargetText(segmentId, value, this.segmentMeta.has(segmentId));
   }
 
   setSegmentStatus(segmentId: string, status: CatSegmentStatus) {
-    const draft = this.drafts.get(segmentId);
-    if (draft) {
-      draft.setStatus(status);
-      return;
-    }
-
-    const meta = this.segmentMeta.get(segmentId);
-    if (meta) {
-      this.drafts.set(segmentId, new CatSegmentDraft(segmentId, "", status));
-    }
+    this.segments.setStatus(segmentId, status, this.segmentMeta.has(segmentId));
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {
-    const draft = this.drafts.get(segmentId);
-    if (draft) {
-      draft.markSaved(targetText, status);
-      return;
-    }
-
-    const meta = this.segmentMeta.get(segmentId);
-    if (meta) {
-      this.drafts.set(
-        segmentId,
-        new CatSegmentDraft(segmentId, targetText, status ?? "needs_review"),
-      );
-    }
+    this.segments.markSaved(segmentId, targetText, status, this.segmentMeta.has(segmentId));
   }
 
   setFormatChecks(segmentId: string, checks: CatFormatCheck[], isSelected: boolean) {
-    this.segmentFormatChecks = {
-      ...this.segmentFormatChecks,
-      [segmentId]: checks,
-    };
-    if (isSelected) {
-      this.formatChecks = checks;
-    }
+    this.intelligenceState.setChecks(segmentId, checks, isSelected);
   }
 
   setSegmentIntelligence(segmentId: string, intelligence: CatSegmentIntelligence) {
-    this.segmentIntelligence = {
-      ...this.segmentIntelligence,
-      [segmentId]: intelligence,
-    };
+    this.intelligenceState.setSegment(segmentId, intelligence);
   }
 
   mergeSegmentIntelligence(segmentId: string, patch: Partial<CatSegmentIntelligence>) {
-    const current = this.segmentIntelligence[segmentId] ?? this.intelligence;
-    this.setSegmentIntelligence(segmentId, { ...current, ...patch });
+    this.intelligenceState.mergeSegment(segmentId, patch);
   }
 
   addSaveFailureCheck(segmentId: string, message: string, label: string) {
@@ -640,9 +801,7 @@ export class CatWorkspaceStore {
   }
 
   revealAgentContext(segmentId: string) {
-    this.revealedAgentContextSegmentIds = new Set(this.revealedAgentContextSegmentIds).add(
-      segmentId,
-    );
+    this.intelligenceState.revealAgentContext(segmentId);
   }
 
   setCheckedSegmentIds(next: ReadonlySet<string>) {
@@ -650,21 +809,15 @@ export class CatWorkspaceStore {
   }
 
   toggleSegmentChecked(segmentId: string, checked: boolean) {
-    const next = new Set(this.checkedSegmentIds);
-    if (checked) {
-      next.add(segmentId);
-    } else {
-      next.delete(segmentId);
-    }
-    this.checkedSegmentIds = next;
+    this.queue.toggleChecked(segmentId, checked);
   }
 
   selectAllVisible(segmentIds: string[]) {
-    this.checkedSegmentIds = new Set(segmentIds);
+    this.queue.selectAll(segmentIds);
   }
 
   clearChecked() {
-    this.checkedSegmentIds = new Set();
+    this.queue.clearChecked();
   }
 
   pruneCheckedToVisible(visibleIds: ReadonlySet<string>) {
@@ -675,8 +828,16 @@ export class CatWorkspaceStore {
   }
 
   setQueueFilter(filter: CatQueueFilter) {
-    this.queueFilter = filter;
-    this.clearChecked();
+    this.queue.setFilter(filter);
+    const filtered = this.getFilteredQueueSegments(filter, false);
+    if (
+      !filtered.some(
+        (segment) =>
+          segment.id === this.selectedSegmentId || segment.key === this.selectedSegmentId,
+      )
+    ) {
+      this.setSelectedSegmentId(filtered[0]?.id ?? "");
+    }
   }
 
   attemptSegmentNavigation(proceed: () => void) {
@@ -708,7 +869,7 @@ export class CatWorkspaceStore {
   }
 
   clearCommentPostError() {
-    this.commentPostError = undefined;
+    this.segments.clearCommentError();
   }
 
   beginValidation(): number {
@@ -768,11 +929,11 @@ export class CatWorkspaceStore {
   }
 }
 
-export function createCatWorkspaceStore(
+export function createCatWorkspace(
   initialState: CatWorkspaceState,
   initialSegmentKeyOrId?: string | null,
 ) {
-  const store = new CatWorkspaceStore();
-  store.reset(initialState, initialSegmentKeyOrId);
-  return store;
+  const workspace = new CatWorkspaceOrchestrator();
+  workspace.reset(initialState, initialSegmentKeyOrId);
+  return workspace;
 }

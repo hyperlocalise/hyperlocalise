@@ -2,14 +2,14 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createCatWorkspaceState } from "@/components/cat/shared/cat.fixture";
 
-import { createCatWorkspaceStore } from "./cat-workspace-store";
+import { createCatWorkspace } from "./cat-workspace-orchestrator";
 import {
   addSaveFailureFormatCheck,
   getAiSuggestionForSegment,
   resolveSegmentIntelligenceForDisplay,
-} from "./cat-workspace-store-utils";
+} from "./store/cat-workspace-store-utils";
 
-describe("CatWorkspaceStore hydration", () => {
+describe("CatWorkspaceOrchestrator hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
     const previousInitialState = createCatWorkspaceState({
       selectedSegmentId: "seg-02",
@@ -36,7 +36,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(previousInitialState);
+    const store = createCatWorkspace(previousInitialState);
     store.setTargetText("seg-02", "Unsaved second");
     store.setFormatChecks(
       "seg-02",
@@ -111,7 +111,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(previousInitialState);
+    const store = createCatWorkspace(previousInitialState);
     store.addSaveFailureCheck("seg-02", "Provider rejected the update.", "Save failed");
 
     const nextInitialState = createCatWorkspaceState({
@@ -151,7 +151,7 @@ describe("CatWorkspaceStore hydration", () => {
         { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
       ],
     });
-    const store = createCatWorkspaceStore(pageOne);
+    const store = createCatWorkspace(pageOne);
 
     store.applySegmentTarget("seg-01", {
       text: "Bonjour",
@@ -191,7 +191,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(initialState);
+    const store = createCatWorkspace(initialState);
 
     store.applySegmentTarget("seg-01", {
       text: "Hola",
@@ -208,7 +208,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("does not overwrite unsaved target edits when lazy target sync refetches", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
         queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
@@ -251,7 +251,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(queueState);
+    const store = createCatWorkspace(queueState);
     store.applySegmentComments("seg-01", [
       {
         externalCommentId: "comment-1",
@@ -304,7 +304,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(initialState);
+    const store = createCatWorkspace(initialState);
 
     expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
     expect(store.matchesQueueFilter("seg-02", "skipped")).toBe(false);
@@ -314,7 +314,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("creates a draft when skipping an unedited pending segment", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
         segments: [],
@@ -338,7 +338,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("stores file locale context separately from queue segment metadata", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         fileContext: {
           sourcePath: "locales/en.json",
@@ -382,7 +382,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("tracks dirty segment ids from draft baselines", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         segments: [
           {

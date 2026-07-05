@@ -8,8 +8,8 @@ import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
 import type { CatSegmentConcordanceResult } from "@/components/cat/shared/dependencies";
 import type { CatFormatCheck } from "@/components/cat/shared/types";
 
-import { createCatWorkspaceStore } from "./store/cat-workspace-store";
-import { useCatWorkspaceController } from "./use-cat-workspace-controller";
+import { createCatWorkspace } from "./cat-workspace-orchestrator";
+import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
 function renderController(
   initialState = createCatWorkspaceState({
@@ -49,16 +49,15 @@ function renderController(
   }),
   overrides: Record<string, unknown> = {},
 ) {
-  const store = createCatWorkspaceStore(initialState);
+  const store = createCatWorkspace(initialState);
   const { services: servicesOverride, review, editing, navigation, ...rest } = overrides;
 
   return {
     store,
     ...renderHook(
       () =>
-        useCatWorkspaceController({
+        useCatWorkspaceRuntime({
           store,
-          initialState,
           services: {
             validateFormat: mockValidateFormat,
             ...(servicesOverride as object),
@@ -77,7 +76,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("useCatWorkspaceController", () => {
+describe("useCatWorkspaceRuntime", () => {
   it("debounces format checks and validates the latest target text", async () => {
     const validateFormat = vi.fn(mockValidateFormat);
     const { result, store } = renderController(undefined, {
