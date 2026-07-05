@@ -93,7 +93,6 @@ export function JobSourceFilesPanel({
   errorMessage,
   emptyMessage = "No source files linked to this job.",
   highlightLocale = null,
-  openInCatOnSelect = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -104,7 +103,6 @@ export function JobSourceFilesPanel({
   errorMessage?: string;
   emptyMessage?: string;
   highlightLocale?: string | null;
-  openInCatOnSelect?: boolean;
 }) {
   const router = useRouter();
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
@@ -145,18 +143,9 @@ export function JobSourceFilesPanel({
     [encodedJobId, highlightLocale, organizationSlug, projectId, router, sortedFiles],
   );
 
-  const handleSelectFile = useCallback(
-    (sourcePath: string) => {
-      setSelectedSourcePath(sourcePath);
-
-      if (!openInCatOnSelect || !encodedJobId) {
-        return;
-      }
-
-      openFileInCat(sourcePath);
-    },
-    [encodedJobId, openInCatOnSelect, openFileInCat],
-  );
+  const handleSelectFile = useCallback((sourcePath: string) => {
+    setSelectedSourcePath(sourcePath);
+  }, []);
 
   const selectedTargetLocale = selectedFile
     ? resolveTargetLocale(selectedFile, highlightLocale)
@@ -201,7 +190,7 @@ export function JobSourceFilesPanel({
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
         <div className="mt-4 space-y-2">
-          {!openInCatOnSelect && encodedJobId ? (
+          {encodedJobId ? (
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <TypographyP className="truncate font-mono text-xs text-foreground">
@@ -231,7 +220,7 @@ export function JobSourceFilesPanel({
               files={sortedFiles}
               selectedSourcePath={activeSourcePath}
               onSelectFile={handleSelectFile}
-              onActivateFile={encodedJobId && !openInCatOnSelect ? openFileInCat : undefined}
+              onActivateFile={encodedJobId ? openFileInCat : undefined}
             />
           </div>
         </div>

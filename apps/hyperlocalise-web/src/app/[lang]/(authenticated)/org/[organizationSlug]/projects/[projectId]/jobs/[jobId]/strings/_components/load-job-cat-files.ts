@@ -12,6 +12,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
 import type { JobDetailRecord } from "../../_components/job-detail-types";
 import {
+  nativeJobToProjectFileRecord,
   providerSourceFileToProjectFileRecord,
   tmsLiveFileToProjectFileRecord,
 } from "../../_components/tms/job-source-file-mappers";
@@ -212,6 +213,7 @@ export async function loadJobCatProviderJobFiles(input: {
   projectId: string;
   jobId: string;
   targetLocale?: string | null;
+  job?: JobDetailRecord;
 }) {
   const parsedJobId = parseProviderJobId(input.jobId);
   if (parsedJobId) {
@@ -222,7 +224,7 @@ export async function loadJobCatProviderJobFiles(input: {
     });
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = input.job ?? (await fetchJobDetail(input.organizationSlug, input.jobId));
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }
@@ -248,4 +250,28 @@ export async function loadJobCatProviderJobFiles(input: {
     projectId: input.projectId,
     targetLocale: input.targetLocale ?? null,
   });
+}
+
+export async function loadJobCatJobSourceFiles(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+  targetLocale?: string | null;
+}) {
+  if (parseProviderJobId(input.jobId)) {
+    return loadJobCatProviderJobFiles(input);
+  }
+
+  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  if (job.projectId !== input.projectId) {
+    throw new Error("Task does not belong to this project");
+  }
+
+  const providerFiles = await loadJobCatProviderJobFiles({ ...input, job });
+  if (providerFiles.length > 0) {
+    return providerFiles;
+  }
+
+  const nativeFile = nativeJobToProjectFileRecord(job);
+  return nativeFile ? [nativeFile] : [];
 }

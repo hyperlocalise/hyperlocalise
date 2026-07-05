@@ -2,7 +2,46 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
+import type { JobDetailRecord } from "../job-detail-types";
 import type { ProviderSourceFile } from "../job-provider-detail-section";
+
+function getInputPayloadString(job: JobDetailRecord, key: string) {
+  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
+    return null;
+  }
+
+  const value = (job.inputPayload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+export function nativeJobToProjectFileRecord(job: JobDetailRecord): ProjectFileRecord | null {
+  const sourcePath = getInputPayloadString(job, "sourceFileId");
+  if (!sourcePath) {
+    return null;
+  }
+
+  const filename = sourcePath.split("/").filter(Boolean).at(-1) ?? sourcePath;
+
+  return {
+    origin: "repository",
+    sourcePath,
+    sourceHash: null,
+    commitSha: null,
+    workflowRunId: job.workflowRunId,
+    uploadedAt: job.createdAt,
+    storedFileId: sourcePath,
+    metadata: {},
+    filename,
+    byteSize: null,
+    provider: null,
+    latestJob: {
+      id: job.id,
+      status: job.status,
+      createdAt: job.createdAt,
+      type: job.type ?? "file",
+    },
+  };
+}
 
 export function tmsLiveFileToProjectFileRecord(file: TmsProviderLiveFile): ProjectFileRecord {
   return {

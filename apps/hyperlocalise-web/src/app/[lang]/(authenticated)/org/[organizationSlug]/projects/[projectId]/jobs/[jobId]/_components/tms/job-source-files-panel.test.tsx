@@ -59,7 +59,6 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
         encodedJobId="job_1"
         files={[nativeFile]}
         highlightLocale="vi"
-        openInCatOnSelect={false}
       />,
     );
 
@@ -84,7 +83,6 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
         encodedJobId="job_1"
         files={[nativeFile]}
         highlightLocale="vi"
-        openInCatOnSelect={false}
       />,
     );
 
@@ -95,10 +93,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
     );
   });
 
-  it("opens CAT immediately when openInCatOnSelect is enabled", async () => {
-    const user = userEvent.setup();
-    routerPushMock.mockClear();
-
+  it("wires onActivateFile for double-click navigation", () => {
     render(
       <JobSourceFilesPanel
         organizationSlug="acme"
@@ -106,42 +101,6 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
         encodedJobId="job_1"
         files={[nativeFile]}
         highlightLocale="vi"
-        openInCatOnSelect
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "en-US.json" }));
-
-    expect(routerPushMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&storedFileId=en-US.json",
-    );
-    expect(screen.queryByRole("link", { name: "View strings" })).not.toBeInTheDocument();
-  });
-
-  it("does not wire onActivateFile when openInCatOnSelect is enabled", () => {
-    render(
-      <JobSourceFilesPanel
-        organizationSlug="acme"
-        projectId="proj_1"
-        encodedJobId="job_1"
-        files={[nativeFile]}
-        highlightLocale="vi"
-        openInCatOnSelect
-      />,
-    );
-
-    expect(lastTreePropsRef.current?.onActivateFile).toBeUndefined();
-  });
-
-  it("wires onActivateFile when openInCatOnSelect is disabled", () => {
-    render(
-      <JobSourceFilesPanel
-        organizationSlug="acme"
-        projectId="proj_1"
-        encodedJobId="job_1"
-        files={[nativeFile]}
-        highlightLocale="vi"
-        openInCatOnSelect={false}
       />,
     );
 
