@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,6 +10,9 @@ import { readApiResponseError } from "@/lib/api-error";
 import { createApiClient } from "@/lib/api-client";
 import { WORKSPACE_FEATURE_UNAVAILABLE_REASON } from "@/lib/flags/workos-flag-entities";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
+import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
+import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 
 import { buildJobDetailHref } from "../../jobs/_components/jobs-view-helpers";
@@ -20,16 +23,25 @@ import {
   type JobRow,
 } from "../../jobs/_components/jobs-page-view";
 import { mapProjectToListRow, type ProjectListRow } from "../../projects/_components/project-list";
+import {
+  readRecentProjectVisits,
+  type RecentProjectVisit,
+} from "../../projects/_components/recent-projects";
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-tms-live-projects";
 import { providerLabel } from "../../_components/workspace-files-shared";
 import { createAutomationsApi } from "../../automations/_components/automations-api";
 import {
   formatDashboardLocaleRoute,
   mapDashboardAutomationRuns,
+  mergeDashboardJobSources,
+  mergeDashboardProjectSources,
   resolveAutomationSnapshotStats,
   resolveDashboardHero,
   resolveDashboardIntegrations,
   resolveWorkspacePendingActionCount,
   sortDashboardJobs,
+  sortDashboardLatestJobs,
   sortDashboardProjects,
   type DashboardJobItem,
   type DashboardProjectItem,
@@ -38,6 +50,9 @@ import { DashboardPageView } from "./dashboard-page-view";
 
 const api = createApiClient();
 const automationsApi = createAutomationsApi(api);
+
+/** Workspace jobs can include synced TMS rows; fetch extra so five native jobs remain after filtering. */
+const DASHBOARD_NATIVE_JOB_FETCH_LIMIT = "100";
 
 async function fetchAssignedJobs(organizationSlug: string) {
   const response = await api.api.orgs[":organizationSlug"].jobs.$get({
@@ -56,7 +71,36 @@ async function fetchAssignedJobs(organizationSlug: string) {
   return body.jobs;
 }
 
-async function fetchProjects(organizationSlug: string) {
+async function fetchLatestJobs(organizationSlug: string) {
+  const response = await api.api.orgs[":organizationSlug"].jobs.$get({
+    param: { organizationSlug },
+    query: {
+      limit: DASHBOARD_NATIVE_JOB_FETCH_LIMIT,
+    },
+  });
+
+  if (!response.ok) {
+    throw await readApiResponseError(response, "Failed to load latest jobs");
+  }
+
+  const body = (await response.json()) as { jobs: JobRow[] };
+  return body.jobs;
+}
+
+async function fetchTmsJobs(organizationSlug: string, mine: boolean) {
+  const response = await api.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
+    param: { organizationSlug },
+    query: { mine: mine ? "true" : "false" },
+  });
+
+  return readTmsProviderListResponse<JobRow>(
+    response,
+    "jobs",
+    mine ? "Failed to load assigned TMS jobs" : "Failed to load latest TMS jobs",
+  );
+}
+
+async function fetchNativeProjects(organizationSlug: string) {
   const response = await api.api.orgs[":organizationSlug"].projects.$get({
     param: { organizationSlug },
   });
@@ -95,22 +139,6 @@ async function fetchGithubConnected(organizationSlug: string) {
   return body.installation !== null;
 }
 
-async function fetchTmsConnected(organizationSlug: string, projectCount: number) {
-  const response = await api.api.orgs[":organizationSlug"]["tms-provider"].connection.$get({
-    param: { organizationSlug },
-  });
-
-  if (response.status === 404) {
-    return projectCount > 0;
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to load TMS connection");
-  }
-
-  return true;
-}
-
 async function fetchRecentAutomationRuns(
   organizationSlug: string,
   automationIds: string[],
@@ -134,8 +162,14 @@ async function fetchRecentAutomationRuns(
   return runsByAutomation.flat();
 }
 
-function mapDashboardJobs(organizationSlug: string, jobs: readonly JobRow[]): DashboardJobItem[] {
-  return sortDashboardJobs(jobs).map((job) => ({
+function mapDashboardJobs(
+  organizationSlug: string,
+  jobs: readonly JobRow[],
+  order: "priority" | "latest",
+): DashboardJobItem[] {
+  const sortedJobs = order === "priority" ? sortDashboardJobs(jobs) : sortDashboardLatestJobs(jobs);
+
+  return sortedJobs.slice(0, 5).map((job) => ({
     id: job.id,
     name: getJobName(job),
     projectName: job.projectName,
@@ -149,8 +183,9 @@ function mapDashboardJobs(organizationSlug: string, jobs: readonly JobRow[]): Da
 function mapDashboardProjects(
   organizationSlug: string,
   projects: readonly ProjectListRow[],
+  recentProjectVisits: readonly RecentProjectVisit[],
 ): DashboardProjectItem[] {
-  return sortDashboardProjects(projects)
+  return sortDashboardProjects(projects, recentProjectVisits)
     .slice(0, 5)
     .map((project) => ({
       id: project.id,
@@ -175,6 +210,7 @@ export function DashboardPageContent({
 }) {
   const searchParams = useSearchParams();
   const handledFeatureUnavailableRef = useRef(false);
+  const [recentProjectVisits, setRecentProjectVisits] = useState<RecentProjectVisit[] | null>(null);
 
   useEffect(() => {
     if (
@@ -193,18 +229,43 @@ export function DashboardPageContent({
     toast.error("This feature is not available for your workspace yet.");
   }, [searchParams]);
 
+  useEffect(() => {
+    setRecentProjectVisits(readRecentProjectVisits(organizationSlug));
+  }, [organizationSlug]);
+
   const integrationsHref = `/org/${organizationSlug}/integrations`;
   const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const newRequestHref = `/org/${organizationSlug}/chat`;
 
-  const projectsQuery = useQuery({
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const activeTmsProvider = activeTmsProviderQuery.data;
+  const hasTmsConnection = Boolean(activeTmsProvider);
+
+  const nativeProjectsQuery = useQuery({
     queryKey: ["dashboard-projects", organizationSlug],
-    queryFn: () => fetchProjects(organizationSlug),
+    queryFn: () => fetchNativeProjects(organizationSlug),
   });
 
-  const jobsQuery = useQuery({
+  const assignedJobsQuery = useQuery({
     queryKey: ["dashboard-my-jobs", organizationSlug],
     queryFn: () => fetchAssignedJobs(organizationSlug),
+  });
+
+  const latestJobsQuery = useQuery({
+    queryKey: ["dashboard-latest-jobs", organizationSlug],
+    queryFn: () => fetchLatestJobs(organizationSlug),
+  });
+
+  const assignedTmsJobsQuery = useQuery({
+    queryKey: ["dashboard-my-jobs", organizationSlug, "tms-live"],
+    queryFn: () => fetchTmsJobs(organizationSlug, true),
+    enabled: hasTmsConnection,
+  });
+
+  const latestTmsJobsQuery = useQuery({
+    queryKey: ["dashboard-latest-jobs", organizationSlug, "tms-live"],
+    queryFn: () => fetchTmsJobs(organizationSlug, false),
+    enabled: hasTmsConnection,
   });
 
   const slackQuery = useQuery({
@@ -217,10 +278,11 @@ export function DashboardPageContent({
     queryFn: () => fetchGithubConnected(organizationSlug),
   });
 
-  const tmsQuery = useQuery({
-    queryKey: ["dashboard-tms-connected", organizationSlug, projectsQuery.data?.length ?? 0],
-    queryFn: () => fetchTmsConnected(organizationSlug, projectsQuery.data?.length ?? 0),
-    enabled: projectsQuery.isFetched,
+  const tmsProjectsQuery = useQuery({
+    queryKey: tmsLiveProjectsQueryKey(organizationSlug),
+    queryFn: () => fetchTmsLiveProjects(organizationSlug),
+    select: (projects) => projects.map(mapProjectToListRow),
+    enabled: hasTmsConnection,
   });
 
   const automationsQuery = useQuery({
@@ -251,46 +313,61 @@ export function DashboardPageContent({
     enabled: automationsEnabled && automationsQuery.isSuccess,
   });
 
-  const projects = projectsQuery.data ?? [];
-  const jobs = jobsQuery.data ?? [];
+  const allProjects = useMemo(
+    () => mergeDashboardProjectSources(nativeProjectsQuery.data ?? [], tmsProjectsQuery.data ?? []),
+    [nativeProjectsQuery.data, tmsProjectsQuery.data],
+  );
+  const assignedJobs = useMemo(
+    () =>
+      mergeDashboardJobSources(
+        (assignedJobsQuery.data ?? []).filter(isNativeWorkspaceJob),
+        assignedTmsJobsQuery.data ?? [],
+      ),
+    [assignedJobsQuery.data, assignedTmsJobsQuery.data],
+  );
+  const latestJobs = useMemo(
+    () => (latestJobsQuery.data ?? []).filter(isNativeWorkspaceJob),
+    [latestJobsQuery.data],
+  );
+  const tmsBranding = getTmsProviderBranding(activeTmsProvider?.providerKind);
   const integrations = useMemo(
     () =>
       resolveDashboardIntegrations({
-        tmsConnected: tmsQuery.data ?? false,
+        tmsConnected: hasTmsConnection,
+        tmsProviderKind: activeTmsProvider?.providerKind,
+        tmsProviderName: hasTmsConnection ? tmsBranding.name : undefined,
         githubConnected: githubQuery.data ?? false,
         slackConnected: slackQuery.data ?? false,
       }),
-    [githubQuery.data, slackQuery.data, tmsQuery.data],
+    [
+      activeTmsProvider?.providerKind,
+      githubQuery.data,
+      hasTmsConnection,
+      slackQuery.data,
+      tmsBranding.name,
+    ],
   );
 
   const pendingCount = useMemo(
     () =>
       resolveWorkspacePendingActionCount({
-        projects,
-        jobs: jobs as readonly ApiJob[],
+        projects: allProjects,
+        jobs: assignedJobs as readonly ApiJob[],
       }),
-    [jobs, projects],
+    [allProjects, assignedJobs],
   );
 
   const hero = useMemo(
     () =>
       resolveDashboardHero({
         integrations,
-        projectCount: projects.length,
+        projectCount: allProjects.length,
         pendingCount,
         integrationsHref,
         myJobsHref,
         newRequestHref,
       }),
-    [
-      integrations,
-      integrationsHref,
-      myJobsHref,
-      newRequestHref,
-      organizationSlug,
-      pendingCount,
-      projects.length,
-    ],
+    [allProjects.length, integrations, integrationsHref, myJobsHref, newRequestHref, pendingCount],
   );
 
   const automationStats = useMemo(
@@ -310,39 +387,90 @@ export function DashboardPageContent({
   );
 
   const mappedJobs = useMemo(
-    () => mapDashboardJobs(organizationSlug, jobs),
-    [organizationSlug, jobs],
+    () => mapDashboardJobs(organizationSlug, assignedJobs, "priority"),
+    [assignedJobs, organizationSlug],
+  );
+
+  const mappedLatestJobs = useMemo(
+    () => mapDashboardJobs(organizationSlug, latestJobs, "latest"),
+    [latestJobs, organizationSlug],
+  );
+
+  const mappedTmsJobs = useMemo(
+    () => mapDashboardJobs(organizationSlug, latestTmsJobsQuery.data ?? [], "latest"),
+    [latestTmsJobsQuery.data, organizationSlug],
   );
 
   const mappedProjects = useMemo(
-    () => mapDashboardProjects(organizationSlug, projects),
-    [organizationSlug, projects],
+    () =>
+      recentProjectVisits
+        ? mapDashboardProjects(
+            organizationSlug,
+            nativeProjectsQuery.data ?? [],
+            recentProjectVisits,
+          )
+        : [],
+    [nativeProjectsQuery.data, organizationSlug, recentProjectVisits],
   );
 
+  const mappedTmsProjects = useMemo(
+    () =>
+      recentProjectVisits
+        ? mapDashboardProjects(organizationSlug, tmsProjectsQuery.data ?? [], recentProjectVisits)
+        : [],
+    [organizationSlug, recentProjectVisits, tmsProjectsQuery.data],
+  );
+
+  const isSetupLoading =
+    nativeProjectsQuery.isLoading ||
+    activeTmsProviderQuery.isLoading ||
+    (hasTmsConnection && tmsProjectsQuery.isLoading) ||
+    slackQuery.isLoading ||
+    githubQuery.isLoading;
   return (
     <DashboardPageView
       organizationSlug={organizationSlug}
       hero={hero}
+      isHeroLoading={isSetupLoading}
       integrations={integrations}
       jobs={mappedJobs}
+      latestJobs={mappedLatestJobs}
       projects={mappedProjects}
+      showTmsSections={hasTmsConnection}
+      tmsProviderName={tmsBranding.name}
+      tmsJobs={mappedTmsJobs}
+      tmsProjects={mappedTmsProjects}
       automationStats={automationStats}
       automationRuns={automationRuns}
       automationsEnabled={automationsEnabled}
       isIntegrationsLoading={
-        slackQuery.isLoading ||
-        githubQuery.isLoading ||
-        tmsQuery.isLoading ||
-        projectsQuery.isLoading
+        slackQuery.isLoading || githubQuery.isLoading || activeTmsProviderQuery.isLoading
       }
-      isJobsLoading={jobsQuery.isLoading}
-      isJobsError={jobsQuery.isError}
-      isProjectsLoading={projectsQuery.isLoading}
-      isProjectsError={projectsQuery.isError}
+      isJobsLoading={
+        assignedJobsQuery.isLoading || (hasTmsConnection && assignedTmsJobsQuery.isLoading)
+      }
+      isJobsError={assignedJobsQuery.isError && (!hasTmsConnection || assignedTmsJobsQuery.isError)}
+      jobsWarning={
+        assignedTmsJobsQuery.isError && !assignedJobsQuery.isError
+          ? "Live TMS jobs could not be loaded."
+          : assignedJobsQuery.isError && assignedTmsJobsQuery.isSuccess
+            ? "Native workspace jobs could not be loaded."
+            : undefined
+      }
+      isLatestJobsLoading={latestJobsQuery.isLoading}
+      isLatestJobsError={latestJobsQuery.isError}
+      isProjectsLoading={nativeProjectsQuery.isLoading || recentProjectVisits === null}
+      isProjectsError={nativeProjectsQuery.isError}
+      isTmsJobsLoading={hasTmsConnection && latestTmsJobsQuery.isLoading}
+      isTmsJobsError={latestTmsJobsQuery.isError}
+      isTmsProjectsLoading={
+        hasTmsConnection && (tmsProjectsQuery.isLoading || recentProjectVisits === null)
+      }
+      isTmsProjectsError={tmsProjectsQuery.isError}
       isAutomationsLoading={automationsQuery.isLoading || automationRunsQuery.isLoading}
       isAutomationsError={automationsQuery.isError || automationRunsQuery.isError}
-      renderLink={({ href, className, children }) => (
-        <Link href={href} className={className}>
+      renderLink={({ href, className, children, onClick }) => (
+        <Link href={href} className={className} onClick={onClick}>
           {children}
         </Link>
       )}

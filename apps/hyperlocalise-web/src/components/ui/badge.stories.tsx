@@ -11,6 +11,7 @@ const badgeVariants = [
   "outline",
   "ghost",
   "destructive",
+  "success",
   "warning",
   "link",
 ] as const;
@@ -40,7 +41,7 @@ export const Overview: Story = {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">States</h2>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge>
+          <Badge variant="success">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} data-icon="inline-start" />
             Synced
           </Badge>

@@ -32,7 +32,7 @@ import {
 import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
-import { recordRecentProject, resolveRecentProjects } from "./recent-projects";
+import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
   ["translation-projects", organizationSlug, "native"] as const;
@@ -235,7 +235,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
   const handleOpenProject = useCallback(
     (projectId: string) => {
-      recordRecentProject(organizationSlug, projectId);
+      recordRecentProjectVisit(organizationSlug, projectId);
       setRecentProjects(resolveRecentProjects(organizationSlug, allProjects));
     },
     [allProjects, organizationSlug],

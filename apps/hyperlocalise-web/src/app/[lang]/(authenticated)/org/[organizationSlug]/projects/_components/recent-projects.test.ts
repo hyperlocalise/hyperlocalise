@@ -1,42 +1,62 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
-  readRecentProjectIds,
-  recordRecentProject,
+  readRecentProjectVisits,
+  recordRecentProjectVisit,
   resolveRecentProjects,
 } from "./recent-projects";
 
+function createStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    },
+  };
+}
+
 describe("recent-projects", () => {
-  const storage = new Map<string, string>();
+  it("stores the latest visit first without duplicating a project", () => {
+    const storage = createStorage();
 
-  beforeEach(() => {
-    storage.clear();
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        storage.set(key, value);
-      },
-      removeItem: (key: string) => {
-        storage.delete(key);
-      },
-    });
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 10 });
+    recordRecentProjectVisit("acme", "project_b", { storage, visitedAt: 20 });
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 30 });
+
+    expect(readRecentProjectVisits("acme", storage)).toEqual([
+      { projectId: "project_a", visitedAt: 30 },
+      { projectId: "project_b", visitedAt: 20 },
+    ]);
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  it("keeps organization histories separate and ignores invalid data", () => {
+    const storage = createStorage();
+    storage.setItem("hyperlocalise:recent-projects:v1:broken", "{");
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 10 });
+
+    expect(readRecentProjectVisits("other", storage)).toEqual([]);
+    expect(readRecentProjectVisits("broken", storage)).toEqual([]);
   });
 
-  it("records and resolves recent projects in recency order", () => {
-    recordRecentProject("acme", "project_b");
-    recordRecentProject("acme", "project_a");
-    recordRecentProject("acme", "project_c");
+  it("resolves recent visits to known projects in visit order", () => {
+    const storage = createStorage();
 
-    expect(readRecentProjectIds("acme")).toEqual(["project_c", "project_a", "project_b"]);
+    recordRecentProjectVisit("acme", "project_b", { storage, visitedAt: 10 });
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 20 });
+    recordRecentProjectVisit("acme", "project_c", { storage, visitedAt: 30 });
+
     expect(
-      resolveRecentProjects("acme", [
-        { id: "project_a", name: "Alpha" },
-        { id: "project_c", name: "Charlie" },
-      ]),
+      resolveRecentProjects(
+        "acme",
+        [
+          { id: "project_a", name: "Alpha" },
+          { id: "project_c", name: "Charlie" },
+        ],
+        { storage },
+      ),
     ).toEqual([
       { id: "project_c", name: "Charlie" },
       { id: "project_a", name: "Alpha" },

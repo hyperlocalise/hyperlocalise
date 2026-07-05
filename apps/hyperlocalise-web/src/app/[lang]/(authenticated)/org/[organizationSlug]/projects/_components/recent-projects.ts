@@ -1,65 +1,111 @@
-const RECENT_PROJECTS_STORAGE_VERSION = "v1";
-const MAX_RECENT_PROJECTS = 5;
+const RECENT_PROJECTS_STORAGE_VERSION = 1;
+const RECENT_PROJECTS_LIMIT = 20;
 
-function storageKey(organizationSlug: string) {
-  return `recent-projects:${RECENT_PROJECTS_STORAGE_VERSION}:${organizationSlug}`;
+export type RecentProjectVisit = {
+  projectId: string;
+  visitedAt: number;
+};
+
+type RecentProjectsStorage = Pick<Storage, "getItem" | "setItem">;
+
+function recentProjectsStorageKey(organizationSlug: string) {
+  return `hyperlocalise:recent-projects:v${RECENT_PROJECTS_STORAGE_VERSION}:${organizationSlug}`;
 }
 
-function getBrowserStorage(): Storage | null {
-  if (typeof globalThis.localStorage === "undefined") {
-    return null;
+function getBrowserStorage() {
+  try {
+    return typeof window === "undefined" ? undefined : window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecentProjectVisit(value: unknown): value is RecentProjectVisit {
+  if (!value || typeof value !== "object") {
+    return false;
   }
 
-  return globalThis.localStorage;
+  const visit = value as Partial<RecentProjectVisit>;
+  return (
+    typeof visit.projectId === "string" &&
+    visit.projectId.length > 0 &&
+    typeof visit.visitedAt === "number" &&
+    Number.isFinite(visit.visitedAt)
+  );
 }
 
-export function readRecentProjectIds(organizationSlug: string): string[] {
-  const storage = getBrowserStorage();
+export function readRecentProjectVisits(
+  organizationSlug: string,
+  storage: RecentProjectsStorage | undefined = getBrowserStorage(),
+): RecentProjectVisit[] {
   if (!storage) {
     return [];
   }
 
   try {
-    const raw = storage.getItem(storageKey(organizationSlug));
-    if (!raw) {
+    const value = storage.getItem(recentProjectsStorageKey(organizationSlug));
+    if (!value) {
       return [];
     }
 
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed: unknown = JSON.parse(value);
     if (!Array.isArray(parsed)) {
       return [];
     }
 
     return parsed
-      .filter((value): value is string => typeof value === "string")
-      .slice(0, MAX_RECENT_PROJECTS);
+      .filter(isRecentProjectVisit)
+      .toSorted((left, right) => right.visitedAt - left.visitedAt)
+      .slice(0, RECENT_PROJECTS_LIMIT);
   } catch {
     return [];
   }
 }
 
-export function recordRecentProject(organizationSlug: string, projectId: string) {
-  const storage = getBrowserStorage();
-  if (!storage || !projectId.trim()) {
+export function recordRecentProjectVisit(
+  organizationSlug: string,
+  projectId: string,
+  options?: {
+    storage?: RecentProjectsStorage;
+    visitedAt?: number;
+  },
+) {
+  const storage = options?.storage ?? getBrowserStorage();
+  if (!storage || !projectId) {
     return;
   }
 
+  const visits = readRecentProjectVisits(organizationSlug, storage).filter(
+    (visit) => visit.projectId !== projectId,
+  );
+  visits.unshift({
+    projectId,
+    visitedAt: options?.visitedAt ?? Date.now(),
+  });
+
   try {
-    const existing = readRecentProjectIds(organizationSlug).filter((id) => id !== projectId);
-    const next = [projectId, ...existing].slice(0, MAX_RECENT_PROJECTS);
-    storage.setItem(storageKey(organizationSlug), JSON.stringify(next));
+    storage.setItem(
+      recentProjectsStorageKey(organizationSlug),
+      JSON.stringify(visits.slice(0, RECENT_PROJECTS_LIMIT)),
+    );
   } catch {
-    // Ignore quota, private browsing, or disabled storage.
+    // Recent history is an enhancement; navigation must still succeed.
   }
 }
 
 export function resolveRecentProjects(
   organizationSlug: string,
   projects: readonly { id: string; name: string }[],
+  options?: {
+    storage?: RecentProjectsStorage;
+    limit?: number;
+  },
 ) {
   const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const limit = options?.limit ?? 5;
 
-  return readRecentProjectIds(organizationSlug)
-    .map((id) => projectsById.get(id))
+  return readRecentProjectVisits(organizationSlug, options?.storage)
+    .slice(0, limit)
+    .map((visit) => projectsById.get(visit.projectId))
     .filter((project): project is { id: string; name: string } => project !== undefined);
 }
