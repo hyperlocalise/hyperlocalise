@@ -12,6 +12,11 @@ import (
 // Mismatch reports whether the normalized HTML tag name sequences differ
 // between source and target (same semantics as check hasHTMLTagMismatch).
 func Mismatch(sourceValue, targetValue string) bool {
+	// BOLT OPTIMIZATION: Fast-path for identical strings.
+	if sourceValue == targetValue {
+		return false
+	}
+
 	sourceTags := normalizedMarkupTagNames(findAllTags(sourceValue))
 	targetTags := normalizedMarkupTagNames(findAllTags(targetValue))
 	return !slices.Equal(sourceTags, targetTags)
@@ -19,10 +24,13 @@ func Mismatch(sourceValue, targetValue string) bool {
 
 func findAllTags(s string) []string {
 	var out []string
-	for i := 0; i < len(s); i++ {
-		if s[i] != '<' {
-			continue
+	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
+	for i := 0; i < len(s); {
+		idx := strings.IndexByte(s[i:], '<')
+		if idx < 0 {
+			break
 		}
+		i += idx
 
 		// Potential tag start.
 		start := i
@@ -39,6 +47,7 @@ func findAllTags(s string) []string {
 			next = s[i+2]
 		}
 		if (next < 'a' || next > 'z') && (next < 'A' || next > 'Z') {
+			i++
 			continue
 		}
 
@@ -61,7 +70,7 @@ func findAllTags(s string) []string {
 
 			if ch == '>' {
 				out = append(out, s[start:j+1])
-				i = j
+				i = j + 1
 				found = true
 				break
 			}
@@ -69,6 +78,7 @@ func findAllTags(s string) []string {
 
 		if !found {
 			// Unclosed tag, skip it as a potential start.
+			i++
 			continue
 		}
 	}
@@ -81,21 +91,52 @@ func NormalizedTagNames(tags []string) []string {
 }
 
 func normalizeTagNames(tags []string) []string {
+	// BOLT OPTIMIZATION: Single-pass tag name extraction to avoid redundant string allocations.
 	out := make([]string, 0, len(tags))
 	for _, tag := range tags {
-		normalized := strings.ToLower(strings.TrimSpace(tag))
-		normalized = strings.TrimSuffix(normalized, ">")
-		normalized = strings.TrimSpace(normalized)
-		normalized = strings.TrimSuffix(normalized, "/") // Handle flexible " / >"
-		normalized = strings.TrimSpace(normalized)
-		normalized = strings.TrimPrefix(normalized, "<")
-		parts := strings.Fields(normalized)
-		if len(parts) == 0 {
-			continue
+		name := extractTagName(tag)
+		if name != "" {
+			out = append(out, name)
 		}
-		out = append(out, parts[0])
 	}
 	return out
+}
+
+func extractTagName(tag string) string {
+	// tag is like "<strong\n  class=\"foo\">" or "</strong >" or "<br / >"
+	// We want "strong", "/strong", "br"
+	i := 0
+	for i < len(tag) && isHTMLWhitespace(tag[i]) {
+		i++
+	}
+	if i >= len(tag) || tag[i] != '<' {
+		return ""
+	}
+	i++
+	for i < len(tag) && isHTMLWhitespace(tag[i]) {
+		i++
+	}
+
+	start := i
+	// Handle closing tag prefix
+	if i < len(tag) && tag[i] == '/' {
+		i++
+	}
+
+	// Scan name characters
+	for i < len(tag) {
+		ch := tag[i]
+		if isHTMLWhitespace(ch) || ch == '/' || ch == '>' {
+			break
+		}
+		i++
+	}
+
+	if i == start {
+		return ""
+	}
+
+	return strings.ToLower(tag[start:i])
 }
 
 func normalizedMarkupTagNames(tags []string) []string {
@@ -110,6 +151,7 @@ func normalizedMarkupTagNames(tags []string) []string {
 }
 
 func isLikelyMarkupTag(raw, normalized string) bool {
+	// BOLT OPTIMIZATION: strings.TrimPrefix is allocation-free when slicing.
 	tag := strings.TrimPrefix(normalized, "/")
 	if tag == "" {
 		return false
@@ -137,30 +179,82 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 }
 
 func rawTagName(raw string) string {
-	inner := strings.TrimSpace(raw)
-	inner = strings.TrimPrefix(inner, "<")
-	inner = strings.TrimPrefix(inner, "/")
-	for i := 0; i < len(inner); i++ {
-		switch inner[i] {
-		case ' ', '\t', '\n', '\r', '/', '>':
-			return inner[:i]
-		}
+	// BOLT OPTIMIZATION: Manual scan to avoid TrimSpace/TrimPrefix allocations.
+	i := 0
+	for i < len(raw) && isHTMLWhitespace(raw[i]) {
+		i++
 	}
-	return inner
+	if i >= len(raw) || raw[i] != '<' {
+		return ""
+	}
+	i++
+	for i < len(raw) && isHTMLWhitespace(raw[i]) {
+		i++
+	}
+	if i < len(raw) && raw[i] == '/' {
+		i++
+	}
+
+	start := i
+	for i < len(raw) {
+		ch := raw[i]
+		if isHTMLWhitespace(ch) || ch == '/' || ch == '>' {
+			break
+		}
+		i++
+	}
+	return raw[start:i]
 }
 
 func rawTagHasAttributes(raw, rawName string) bool {
-	inner := strings.TrimSpace(raw)
-	inner = strings.TrimPrefix(inner, "<")
-	inner = strings.TrimPrefix(inner, "/")
-	if !strings.HasPrefix(inner, rawName) {
+	// BOLT OPTIMIZATION: Avoid multiple TrimSpace/TrimPrefix/TrimSuffix allocations.
+	i := 0
+	for i < len(raw) && isHTMLWhitespace(raw[i]) {
+		i++
+	}
+	if i >= len(raw) || raw[i] != '<' {
 		return false
 	}
-	rest := strings.TrimSpace(inner[len(rawName):])
-	// Strip trailing ">" and flexible self-closing "/"
-	rest = strings.TrimSuffix(rest, ">")
-	rest = strings.TrimSpace(rest)
-	rest = strings.TrimSuffix(rest, "/")
-	rest = strings.TrimSpace(rest)
-	return rest != ""
+	i++
+	for i < len(raw) && isHTMLWhitespace(raw[i]) {
+		i++
+	}
+	if i < len(raw) && raw[i] == '/' {
+		i++
+	}
+
+	if !strings.HasPrefix(raw[i:], rawName) {
+		return false
+	}
+	i += len(rawName)
+
+	// Scan for attributes
+	hasAttrs := false
+	for i < len(raw) {
+		ch := raw[i]
+		if ch == '>' {
+			break
+		}
+		if ch == '/' {
+			// Peek ahead to see if it's the end of tag
+			next := i + 1
+			for next < len(raw) && isHTMLWhitespace(raw[next]) {
+				next++
+			}
+			if next < len(raw) && raw[next] == '>' {
+				break
+			}
+		}
+
+		if !isHTMLWhitespace(ch) {
+			hasAttrs = true
+			break
+		}
+		i++
+	}
+	return hasAttrs
+}
+
+func isHTMLWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
