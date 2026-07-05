@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/workos/workos-go/v7"
+	"github.com/workos/workos-go/v9"
 )
 
 const workOSSessionCookieName = "wos-session"
