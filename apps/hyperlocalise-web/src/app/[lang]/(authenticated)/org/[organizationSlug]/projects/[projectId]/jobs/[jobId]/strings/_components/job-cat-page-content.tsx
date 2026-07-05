@@ -37,6 +37,8 @@ import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-f
 
 import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
 
+const JOB_CAT_DEFAULT_QUEUE_FILTER = "untranslated" as const;
+
 type JobCatGithubRepository = {
   fullName: string;
   enabled: boolean;
@@ -403,6 +405,7 @@ export function JobCatPageContent({
               selectedRepositoryFullName,
             )}
             initialSegmentKey={initialSegmentKey}
+            initialQueueFilter={JOB_CAT_DEFAULT_QUEUE_FILTER}
             layout="fullscreen"
             className="min-h-0 flex-1"
           />
@@ -539,6 +542,7 @@ export function JobCatPageContent({
             selectedRepositoryFullName,
           )}
           initialSegmentKey={initialSegmentKey}
+          initialQueueFilter={JOB_CAT_DEFAULT_QUEUE_FILTER}
           layout="fullscreen"
           className="min-h-0 flex-1"
         />
