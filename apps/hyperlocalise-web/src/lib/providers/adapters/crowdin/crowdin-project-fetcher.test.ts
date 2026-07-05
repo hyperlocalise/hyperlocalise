@@ -58,10 +58,13 @@ describe("fetchCrowdinProjects", () => {
       {
         externalProjectId: "42",
         name: "Marketing",
+        description: null,
         sourceLocale: "en",
         targetLocales: ["fr"],
         externalProjectUrl: "https://crowdin.com/project/marketing",
         isActive: true,
+        logoUrl: null,
+        lastActivityAt: null,
         metadata: {
           identifier: "marketing",
         },

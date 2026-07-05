@@ -15,6 +15,7 @@ const logger = createLogger("crowdin-api");
 
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
+export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
 export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
 
 export type ListCrowdinTasksOptions = {
@@ -38,10 +39,13 @@ export interface CrowdinProject {
   id: number;
   name: string;
   identifier: string;
+  description?: string;
   sourceLanguageId: string;
   targetLanguageIds: string[];
   webUrl: string;
   isSuspended: boolean;
+  logo?: string;
+  lastActivity?: string;
 }
 
 export interface CrowdinBranch {
@@ -469,10 +473,11 @@ export class CrowdinApiClient {
     const projects: CrowdinProject[] = [];
     let offset = 0;
     const limit = 500;
+    const orderBy = encodeURIComponent(CROWDIN_PROJECT_LIST_ORDER_BY);
 
     while (true) {
       const response = await this.get<CrowdinListResponse<CrowdinProject>>(
-        `/projects?limit=${limit}&offset=${offset}`,
+        `/projects?limit=${limit}&offset=${offset}&orderBy=${orderBy}`,
       );
 
       const page = response.data.map((item) => item.data);

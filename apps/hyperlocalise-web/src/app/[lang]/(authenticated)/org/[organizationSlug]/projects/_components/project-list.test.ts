@@ -62,4 +62,18 @@ describe("mapProjectToListRow", () => {
     expect(row.created).toContain("2026");
     expect(row.updated).toContain("2026");
   });
+
+  it("maps logo and last activity fields for live TMS projects", () => {
+    const row = mapProjectToListRow(
+      createProject({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        logoUrl: "data:image/png;base64,abc123",
+        lastActivityAt: "2026-04-30T03:20:00.000Z",
+      }),
+    );
+
+    expect(row.logoUrl).toBe("data:image/png;base64,abc123");
+    expect(row.lastActivityAt).toBe("2026-04-30T03:20:00.000Z");
+  });
 });
