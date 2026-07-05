@@ -211,6 +211,36 @@ describe("JobCatPageContent guard ordering", () => {
       screen.queryByText("This project does not have a source locale."),
     ).not.toBeInTheDocument();
   });
+
+  it("shows a target-locale message when native files exist without a target locale", async () => {
+    useProjectPageQueryMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: false,
+      data: undefined,
+      error: null,
+    });
+    loadJobCatJobSourceFilesMock.mockResolvedValue([nativeFile]);
+    routerReplaceMock.mockClear();
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath={null}
+          storedFileId={null}
+          targetLocale={null}
+        />
+      </CatTestProviders>,
+    );
+
+    expect(
+      await screen.findByText("No target locale is specified for this task."),
+    ).toBeInTheDocument();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("JobCatPageContent CAT shell", () => {

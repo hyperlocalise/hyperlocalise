@@ -149,7 +149,10 @@ export function JobCatPageContent({
         targetLocale,
       });
 
-      return resolveDefaultJobCatFileReference(files, targetLocale);
+      return {
+        files,
+        reference: resolveDefaultJobCatFileReference(files, targetLocale),
+      };
     },
   });
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
@@ -242,7 +245,11 @@ export function JobCatPageContent({
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
   useEffect(() => {
-    if (hasFileReference || didAutoSelectDefaultFileRef.current || !defaultFileQuery.data) {
+    if (
+      hasFileReference ||
+      didAutoSelectDefaultFileRef.current ||
+      !defaultFileQuery.data?.reference
+    ) {
       return;
     }
 
@@ -252,9 +259,9 @@ export function JobCatPageContent({
         organizationSlug,
         projectId,
         jobId,
-        sourcePath: defaultFileQuery.data.sourcePath ?? undefined,
-        storedFileId: defaultFileQuery.data.storedFileId ?? undefined,
-        targetLocale: defaultFileQuery.data.targetLocale,
+        sourcePath: defaultFileQuery.data.reference.sourcePath ?? undefined,
+        storedFileId: defaultFileQuery.data.reference.storedFileId ?? undefined,
+        targetLocale: defaultFileQuery.data.reference.targetLocale,
         segment: initialSegmentKey,
       }),
     );
@@ -294,13 +301,17 @@ export function JobCatPageContent({
       );
     }
 
-    if (!defaultFileQuery.data) {
+    if (!defaultFileQuery.data?.reference) {
+      const hasSourceFiles = (defaultFileQuery.data?.files.length ?? 0) > 0;
+      const emptyStateMessage =
+        hasSourceFiles && !targetLocale
+          ? "No target locale is specified for this task."
+          : "No source file is linked to this task.";
+
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-muted-foreground">
-              No source file is linked to this task.
-            </TypographyP>
+            <TypographyP className="text-sm text-muted-foreground">{emptyStateMessage}</TypographyP>
           </div>
         </ProjectPageShell>
       );
