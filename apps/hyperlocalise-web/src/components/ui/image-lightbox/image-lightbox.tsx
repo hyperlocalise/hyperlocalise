@@ -177,6 +177,10 @@ function ImageLightboxViewport({ alt, imageUrl, markers = [] }: ImageLightboxVie
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
         zoomIn();
@@ -370,13 +374,6 @@ function ImageLightboxViewport({ alt, imageUrl, markers = [] }: ImageLightboxVie
     [toggleDoubleTapZoom],
   );
 
-  const handleDoubleClick = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      toggleDoubleTapZoom({ x: event.clientX, y: event.clientY });
-    },
-    [toggleDoubleTapZoom],
-  );
-
   return (
     <>
       <div
@@ -391,7 +388,6 @@ function ImageLightboxViewport({ alt, imageUrl, markers = [] }: ImageLightboxVie
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onDoubleClick={handleDoubleClick}
       >
         <div className="flex size-full items-center justify-center">
           <div
