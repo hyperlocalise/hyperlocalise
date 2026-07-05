@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@/lib/workos/server-auth";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
@@ -27,6 +27,12 @@ type RequireAppAuthContextOptions = {
 
 export async function requireAppAuthContext(options: RequireAppAuthContextOptions = {}) {
   const session = await withAuth({ ensureSignedIn: true });
+
+  if (!session.user) {
+    redirect("/auth/sign-in");
+  }
+
+  const sessionUser = session.user;
 
   let auth: ApiAuthContext | null;
   try {
@@ -58,8 +64,8 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
 
     if (error instanceof Error && error.message === "organization_access_denied") {
       return redirectForMissingOrganizationAccess({
-        email: session.user.email,
-        workosUserId: session.user.id,
+        email: sessionUser.email,
+        workosUserId: sessionUser.id,
       });
     }
 
@@ -72,14 +78,14 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
 
   if (!auth) {
     return redirectForMissingOrganizationAccess({
-      email: session.user.email,
-      workosUserId: session.user.id,
+      email: sessionUser.email,
+      workosUserId: sessionUser.id,
     });
   }
 
   return {
     ...auth,
-    sessionUser: session.user,
+    sessionUser,
   } satisfies AppAuthContext;
 }
 

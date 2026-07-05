@@ -7,14 +7,40 @@ import {
   getAppLocaleFromRequest,
   normalizeAppLocale,
 } from "@/lib/app-i18n/locales";
+import { isFixtureAuthEnabled } from "@/lib/e2e/config";
+import { hasFixtureSessionCookie } from "@/lib/e2e/fixture-auth";
 
 const workosProxy = authkitProxy();
 type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
 
+function shouldBypassWorkosProxy(request: NextRequest) {
+  if (!isFixtureAuthEnabled()) {
+    return false;
+  }
+
+  if (request.nextUrl.pathname.startsWith("/api/e2e/")) {
+    return true;
+  }
+
+  if (request.nextUrl.pathname.startsWith("/e2e/")) {
+    return true;
+  }
+
+  return hasFixtureSessionCookie(request.headers.get("cookie") ?? undefined);
+}
+
+async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
+  if (shouldBypassWorkosProxy(request)) {
+    return NextResponse.next();
+  }
+
+  return workosProxy(request, event);
+}
+
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/e2e"];
 
 function splitLocalePath(pathname: string): {
   locale: string | null;
@@ -114,12 +140,12 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   const { locale, pathnameWithoutLocale } = splitLocalePath(pathname);
 
   if (locale && isPublicLocalizedPath(pathnameWithoutLocale)) {
-    const response = await workosProxy(request, event);
+    const response = await maybeWorkosProxy(request, event);
     return applyLocaleToResponse(response, locale);
   }
 
   if (locale && isProtectedLocalizedPath(pathnameWithoutLocale)) {
-    const response = await workosProxy(request, event);
+    const response = await maybeWorkosProxy(request, event);
     return applyLocaleToResponse(response, locale);
   }
 
@@ -130,7 +156,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
     return NextResponse.redirect(nextUrl);
   }
 
-  return workosProxy(request, event);
+  return maybeWorkosProxy(request, event);
 }
 
 export const config = {

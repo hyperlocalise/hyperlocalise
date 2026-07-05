@@ -1,7 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@/lib/workos/server-auth";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { QueryProvider } from "@/components/query-provider";

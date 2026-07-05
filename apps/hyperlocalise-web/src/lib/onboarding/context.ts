@@ -1,4 +1,4 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@/lib/workos/server-auth";
 
 import {
   OrganizationSlugUnresolvableError,

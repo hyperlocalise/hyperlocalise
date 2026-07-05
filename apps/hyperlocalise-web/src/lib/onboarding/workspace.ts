@@ -104,8 +104,10 @@ export async function createWorkspaceForSessionUser(input: {
         });
 
         return {
-          user,
           organization,
+          user,
+          workosMembershipId: adminMembership.workosMembershipId,
+          workosOrganizationId: identity.workosOrganizationId,
         };
       });
     } catch (error) {
