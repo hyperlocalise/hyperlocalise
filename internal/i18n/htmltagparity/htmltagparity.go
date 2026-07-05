@@ -151,11 +151,8 @@ func normalizedMarkupTagNames(tags []string) []string {
 }
 
 func isLikelyMarkupTag(raw, normalized string) bool {
-	// BOLT OPTIMIZATION: Avoid strings.TrimPrefix allocation.
-	tag := normalized
-	if strings.HasPrefix(tag, "/") {
-		tag = tag[1:]
-	}
+	// BOLT OPTIMIZATION: strings.TrimPrefix is allocation-free when slicing.
+	tag := strings.TrimPrefix(normalized, "/")
 	if tag == "" {
 		return false
 	}
