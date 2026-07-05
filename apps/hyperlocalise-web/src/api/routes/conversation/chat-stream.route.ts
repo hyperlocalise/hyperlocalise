@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { and, desc, eq } from "drizzle-orm";
 import { createWebAdapter } from "@chat-adapter/web";
 import { createMemoryState } from "@chat-adapter/state-memory";
 import { Chat } from "chat";
@@ -14,7 +15,7 @@ import {
   postWebClarificationReply,
   runWebChatAgentTurn,
 } from "@/agents/hyperlocalise/agent/channels/web";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import {
   addInteractionMessage,
   interactionHasTranslationAttachments,
@@ -82,6 +83,17 @@ export function createChatStreamRoutes() {
           throw new Error("web_thread_conversation_mismatch");
         }
 
+        const [latestUserMessage] = await db
+          .select({ id: schema.interactionMessages.id })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .orderBy(desc(schema.interactionMessages.createdAt))
+          .limit(1);
         const hasTranslationAttachments =
           await interactionHasTranslationAttachments(conversationId);
 
@@ -97,6 +109,9 @@ export function createChatStreamRoutes() {
             db,
           },
           hasTranslationAttachments,
+          usageOperationKey: latestUserMessage
+            ? `chat-agent-turn:${latestUserMessage.id}:agent_runs`
+            : undefined,
         });
 
         if (turn.clarificationFollowUp) {

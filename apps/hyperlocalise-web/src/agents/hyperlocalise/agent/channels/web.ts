@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { Thread } from "chat";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 import {
   acquireWebRepositorySandboxLease,
@@ -44,6 +49,21 @@ async function* streamWithSandboxLeaseRelease(
   }
 }
 
+async function* streamWithUsageTracking(
+  stream: AsyncIterable<string>,
+  input: {
+    organizationId: string;
+    operationKey: string;
+    dimensions: Record<string, string | number | boolean | null>;
+  },
+) {
+  for await (const chunk of stream) {
+    yield chunk;
+  }
+
+  await trackSucceededAgentRuntimeUsage(input);
+}
+
 async function prepareAndCommitWebConversationTurn(
   conversationId: string,
   prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
@@ -84,6 +104,7 @@ export async function runWebChatAgentTurn(input: {
   messageText: string;
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
+  usageOperationKey?: string;
 }) {
   const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
     surface: "web",
@@ -109,15 +130,36 @@ export async function runWebChatAgentTurn(input: {
   const releaseSandboxLease = prepared.repositorySandboxId
     ? acquireWebRepositorySandboxLease(prepared.repositorySandboxId)
     : null;
+  const usageOperationKey =
+    input.usageOperationKey ?? `chat-agent-turn:${input.conversationId}:${randomUUID()}`;
+  const usageDimensions = {
+    surface: "web",
+    agent_surface: "chat",
+    repository_tools: Boolean(prepared.repositorySandboxId),
+  };
 
   try {
+    await reserveAgentRuntimeUsage({
+      organizationId: input.toolContext.organizationId,
+      operationKey: usageOperationKey,
+      source: "chat_agent_turn",
+      interactionId: input.conversationId,
+      dimensions: usageDimensions,
+    });
+
     const result = await prepared.agent.stream({ messages: prepared.chatMessages });
+    const trackedStream = streamWithUsageTracking(result.textStream, {
+      organizationId: input.toolContext.organizationId,
+      operationKey: usageOperationKey,
+      dimensions: usageDimensions,
+    });
+
     return {
       classification: prepared.classification,
       clarificationFollowUp: null,
       textStream: releaseSandboxLease
-        ? streamWithSandboxLeaseRelease(result.textStream, releaseSandboxLease)
-        : result.textStream,
+        ? streamWithSandboxLeaseRelease(trackedStream, releaseSandboxLease)
+        : trackedStream,
     };
   } catch (error) {
     releaseSandboxLease?.();

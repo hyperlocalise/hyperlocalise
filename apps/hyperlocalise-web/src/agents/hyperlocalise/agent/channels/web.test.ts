@@ -4,10 +4,14 @@ const {
   prepareConversationAgentTurnMock,
   getWebConversationRepositorySessionMock,
   setWebConversationRepositorySessionMock,
+  reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsageMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
   getWebConversationRepositorySessionMock: vi.fn(),
   setWebConversationRepositorySessionMock: vi.fn(),
+  reserveAgentRuntimeUsageMock: vi.fn(),
+  trackSucceededAgentRuntimeUsageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-turn", () => ({
@@ -20,6 +24,11 @@ vi.mock("@/lib/agent-runtime/loops/conversation-repository-session", () => ({
   getWebConversationRepositorySession: getWebConversationRepositorySessionMock,
   setWebConversationRepositorySession: setWebConversationRepositorySessionMock,
   acquireWebRepositorySandboxLease: vi.fn(() => vi.fn()),
+}));
+
+vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  reserveAgentRuntimeUsage: reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
 }));
 
 import { runWebChatAgentTurn } from "./web";
@@ -57,6 +66,8 @@ describe("runWebChatAgentTurn", () => {
       version: 1,
     });
     setWebConversationRepositorySessionMock.mockReturnValue(false);
+    reserveAgentRuntimeUsageMock.mockResolvedValue(true);
+    trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
     prepareConversationAgentTurnMock.mockResolvedValue({
       classification: baseClassification,
       agent: { stream: vi.fn(async () => ({ textStream: (async function* () {})() })) },
@@ -145,5 +156,59 @@ describe("runWebChatAgentTurn", () => {
       "I'm still preparing repository access for this conversation. Please send your message again in a moment.",
     );
     expect(turn.textStream).toBeNull();
+    expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
+    expect(trackSucceededAgentRuntimeUsageMock).not.toHaveBeenCalled();
+  });
+
+  it("tracks agent runtime usage after a successful response stream", async () => {
+    async function* textStream() {
+      yield "Done";
+    }
+
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      agent: { stream: vi.fn(async () => ({ textStream: textStream() })) },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+
+    const turn = await runWebChatAgentTurn({
+      conversationId: "conv_123",
+      messageText: "where is the login copy?",
+      toolContext: {
+        conversationId: "conv_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "admin",
+        projectId: null,
+        db: {} as never,
+      },
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of turn.textStream ?? []) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Done"]);
+    expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        operationKey: "chat-agent-turn:msg_123:agent_runs",
+        source: "chat_agent_turn",
+        interactionId: "conv_123",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        operationKey: "chat-agent-turn:msg_123:agent_runs",
+      }),
+    );
   });
 });
