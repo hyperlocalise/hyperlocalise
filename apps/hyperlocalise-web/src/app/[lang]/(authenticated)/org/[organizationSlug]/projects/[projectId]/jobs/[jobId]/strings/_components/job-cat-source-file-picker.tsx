@@ -132,7 +132,7 @@ export function JobCatSourceFilePicker({
             Task
           </Button>
           <TypographyP className="text-sm text-muted-foreground">
-            Choose a source file to open in the CAT workspace.
+            Opening the CAT workspace for this task.
           </TypographyP>
         </div>
 

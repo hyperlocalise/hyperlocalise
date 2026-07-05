@@ -95,8 +95,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
     );
   });
 
-  it("opens CAT immediately when openInCatOnSelect is enabled", async () => {
-    const user = userEvent.setup();
+  it("auto-opens the first openable file when openInCatOnSelect is enabled", async () => {
     routerPushMock.mockClear();
 
     render(
@@ -110,8 +109,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "en-US.json" }));
-
+    expect(screen.getByText("Opening workspace…")).toBeInTheDocument();
     expect(routerPushMock).toHaveBeenCalledWith(
       "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&storedFileId=en-US.json",
     );
@@ -125,7 +123,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
         projectId="proj_1"
         encodedJobId="job_1"
         files={[nativeFile]}
-        highlightLocale="vi"
+        highlightLocale={null}
         openInCatOnSelect
       />,
     );
