@@ -14,6 +14,7 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
+import { isLiveProviderMemoryId } from "@/lib/providers/tms-provider-resource-id";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
 
@@ -100,12 +101,16 @@ function MemoryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-muted-foreground"
           />
-          <Link
-            href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            {memory.name}
-          </Link>
+          {isLiveProviderMemoryId(memory.id) ? (
+            <span className="truncate text-sm font-medium text-foreground">{memory.name}</span>
+          ) : (
+            <Link
+              href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
+              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              {memory.name}
+            </Link>
+          )}
           <SourceLabel memory={memory} />
         </div>
         <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
