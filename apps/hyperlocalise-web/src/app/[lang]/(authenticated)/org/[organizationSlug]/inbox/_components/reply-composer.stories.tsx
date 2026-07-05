@@ -3,7 +3,7 @@ import { expect, fn } from "storybook/test";
 
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 
-import { projectsFixture } from "./inbox.fixture";
+import { repositoriesFixture } from "./inbox.fixture";
 import { ReplyComposerView } from "./reply-composer";
 
 const meta = {
@@ -22,12 +22,11 @@ const meta = {
     ),
   ],
   args: {
-    conversationProjectId: "project_website",
     disabled: false,
     isStreaming: false,
-    projects: projectsFixture,
-    projectsIsLoading: false,
-    projectsIsError: false,
+    repositories: repositoriesFixture,
+    repositoriesIsLoading: false,
+    repositoriesIsError: false,
     onSend: fn(),
   },
 } satisfies Meta<typeof ReplyComposerView>;
@@ -41,7 +40,7 @@ export const Default: Story = {
       canvas.getByPlaceholderText("Paste text or describe what to translate..."),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
-    await expect(canvas.getByText("Website")).toBeInTheDocument();
+    await expect(canvas.getByText("GitHub repo")).toBeInTheDocument();
   },
 };
 
@@ -61,23 +60,28 @@ export const Disabled: Story = {
   },
 };
 
-export const LoadingProjects: Story = {
+export const LoadingRepositories: Story = {
   args: {
-    projects: [],
-    projectsIsLoading: true,
+    repositories: [],
+    repositoriesIsLoading: true,
   },
 };
 
-export const ProjectsLoadError: Story = {
+export const RepositoriesLoadError: Story = {
   args: {
-    projects: [],
-    projectsIsError: true,
+    repositories: [],
+    repositoriesIsError: true,
   },
 };
 
-export const NoProjects: Story = {
+export const NoRepositories: Story = {
   args: {
-    projects: [],
-    conversationProjectId: null,
+    repositories: [],
+  },
+};
+
+export const SingleRepository: Story = {
+  args: {
+    repositories: repositoriesFixture.slice(0, 1),
   },
 };

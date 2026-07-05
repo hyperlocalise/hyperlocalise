@@ -43,7 +43,11 @@ export function InboxPageView({
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
   onSelectConversation: (conversationId: string) => void;
-  onSendMessage: (text: string, files: File[], projectId?: string) => void | Promise<void>;
+  onSendMessage: (
+    text: string,
+    files: File[],
+    options?: { projectId?: string; repositoryFullName?: string },
+  ) => void | Promise<void>;
   organizationSlug: string;
   selectedConversation: Conversation | undefined;
   selectedConversationId: string;
@@ -52,11 +56,11 @@ export function InboxPageView({
   return (
     <main
       data-organization={organizationSlug}
-      className="-mx-4 -my-5 bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:min-h-[calc(100svh-3.5rem)] lg:overflow-hidden"
+      className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
     >
       <div
         className={cn(
-          "grid grid-cols-1 lg:min-h-[calc(100svh-3.5rem)]",
+          "grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden lg:grid-rows-1",
           isSparseInbox
             ? "lg:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)]"
             : "lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]",

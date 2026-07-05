@@ -1,18 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Add01Icon,
-  AiImageIcon,
-  AiWebBrowsingIcon,
-  ArrowDown01Icon,
   BubbleChatTranslateIcon,
   Cancel01Icon,
   SentIcon,
   CheckmarkCircle02Icon,
   FileAttachmentIcon,
-  FolderLibraryIcon,
   MailReceive01Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
@@ -20,24 +15,16 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  ComingSoonBadge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import type { GithubRepository } from "../../_components/github-repository";
+import { RepositorySelector } from "../../_components/repository-selector";
 
 const suggestedRequests = [
   {
@@ -55,21 +42,6 @@ const suggestedRequests = [
   {
     icon: MailReceive01Icon,
     text: "Suggest glossary updates from this copy, including product terms and forbidden translations.",
-  },
-] as const;
-
-const attachOptions = [
-  {
-    icon: FileAttachmentIcon,
-    label: "Add source files",
-  },
-  {
-    icon: AiImageIcon,
-    label: "Create Image",
-  },
-  {
-    icon: AiWebBrowsingIcon,
-    label: "Research",
   },
 ] as const;
 
@@ -95,35 +67,43 @@ const maxTranslationSourceFiles = 5;
 export function ChatPageContent({ organizationSlug }: { organizationSlug: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
+  const repositoriesQuery = useQuery({
+    queryKey: ["github-repositories", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
+      const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
+        "repositories"
+      ].$get({ param: { organizationSlug }, query: {} });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load projects");
+        throw await readApiResponseError(response, "Failed to load GitHub repositories");
       }
 
-      const body = await response.json();
-      return body.projects;
+      const body = (await response.json()) as { repositories: GithubRepository[] };
+      return body.repositories.filter((repository) => repository.enabled && !repository.archived);
     },
   });
-  const projects = projectsQuery.data ?? [];
-  const selectedProject =
-    projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
-  const projectTriggerLabel = selectedProject?.name ?? "Project";
+  const repositories = repositoriesQuery.data ?? [];
+  const resolvedRepositoryFullName =
+    selectedRepositoryFullName || (repositories.length === 1 ? repositories[0]?.fullName : "");
+
+  useEffect(() => {
+    if (
+      selectedRepositoryFullName &&
+      !repositories.some((repository) => repository.fullName === selectedRepositoryFullName)
+    ) {
+      setSelectedRepositoryFullName("");
+    }
+  }, [repositories, selectedRepositoryFullName]);
 
   const createConversationMutation = useMutation({
     mutationFn: async () => {
       const formData = new FormData();
       formData.set("text", text.trim() || "Please translate the attached source file.");
-      if (selectedProject?.id) {
-        formData.set("projectId", selectedProject.id);
+      if (resolvedRepositoryFullName) {
+        formData.set("repositoryFullName", resolvedRepositoryFullName);
       }
       for (const file of files) {
         formData.append("files", file);
@@ -235,118 +215,38 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-background/70 px-4 py-3 sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
-                            aria-label="Add translation context"
-                          >
-                            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                          </Button>
-                        }
-                      />
-                    }
-                  />
-                  <TooltipContent>Add translation context</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent className="min-w-52" align="start">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      closeOnClick={false}
-                      onClick={() => {
-                        fileInputRef.current?.click();
-                      }}
-                    >
-                      <HugeiconsIcon
-                        icon={attachOptions[0].icon}
-                        strokeWidth={1.8}
-                        className="size-4"
-                      />
-                      {attachOptions[0].label}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    {attachOptions.slice(1).map((option) => (
-                      <DropdownMenuItem key={option.label} disabled>
-                        <HugeiconsIcon icon={option.icon} strokeWidth={1.8} className="size-4" />
-                        <span className="min-w-0 flex-1">{option.label}</span>
-                        <ComingSoonBadge />
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <DropdownMenu>
-                <DropdownMenuTrigger
+              <Tooltip>
+                <TooltipTrigger
                   render={
                     <Button
                       type="button"
                       variant="ghost"
-                      size="sm"
-                      className="rounded-full px-2.5 text-muted-foreground hover:bg-accent/20 hover:text-foreground"
-                    />
+                      size="icon-sm"
+                      className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
+                      aria-label="Add source files"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <HugeiconsIcon
+                        icon={FileAttachmentIcon}
+                        strokeWidth={1.8}
+                        className="size-4"
+                      />
+                    </Button>
                   }
-                >
-                  <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
-                  {projectsQuery.isLoading ? (
-                    <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
-                  ) : (
-                    projectTriggerLabel
-                  )}
-                  <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="min-w-56" align="end">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Projects</DropdownMenuLabel>
-                    {projectsQuery.isLoading ? (
-                      <>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted" />
-                          <Skeleton className="h-3.5 w-28 rounded-full bg-muted" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted" />
-                          <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted" />
-                          <Skeleton className="h-3.5 w-32 rounded-full bg-muted" />
-                        </DropdownMenuItem>
-                      </>
-                    ) : null}
-                    {projectsQuery.isError ? (
-                      <DropdownMenuItem disabled>Unable to load projects</DropdownMenuItem>
-                    ) : null}
-                    {projectsQuery.isSuccess && projects.length === 0 ? (
-                      <DropdownMenuItem disabled>No projects found</DropdownMenuItem>
-                    ) : null}
-                    {projects.map((project) => (
-                      <DropdownMenuItem
-                        key={project.id}
-                        onClick={() => setSelectedProjectId(project.id)}
-                      >
-                        <HugeiconsIcon
-                          icon={FolderLibraryIcon}
-                          strokeWidth={1.8}
-                          className="size-4"
-                        />
-                        {project.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                />
+                <TooltipContent>Add source files</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RepositorySelector
+                repositories={repositories}
+                repositoriesIsError={repositoriesQuery.isError}
+                repositoriesIsLoading={repositoriesQuery.isLoading}
+                selectedRepositoryFullName={resolvedRepositoryFullName}
+                onSelectRepository={setSelectedRepositoryFullName}
+                triggerStyle="button"
+              />
               <Tooltip>
                 <TooltipTrigger
                   render={

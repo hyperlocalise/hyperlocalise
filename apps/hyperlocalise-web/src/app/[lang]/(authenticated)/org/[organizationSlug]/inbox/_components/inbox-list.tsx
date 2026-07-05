@@ -32,7 +32,7 @@ export const InboxList = memo(function InboxList({
   selectedConversationId: string;
 }) {
   return (
-    <section className="flex max-h-[40vh] shrink-0 flex-col overflow-hidden border-border lg:max-h-none lg:min-h-0 lg:h-full lg:shrink lg:border-r">
+    <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {isLoading ? (
           <ConversationListSkeleton />

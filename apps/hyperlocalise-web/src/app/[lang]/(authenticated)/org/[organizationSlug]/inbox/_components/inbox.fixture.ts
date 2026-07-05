@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 
-import type { InboxProjectSummary } from "./inbox-api";
+import type { InboxGithubRepository } from "./inbox-api";
 import type {
   Conversation,
   ConversationMessage,
@@ -72,30 +72,18 @@ export function createLinkedJob(overrides: Partial<LinkedJob> = {}): LinkedJob {
   };
 }
 
-export function createProjectSummary(
-  overrides: Partial<InboxProjectSummary> = {},
-): InboxProjectSummary {
+export function createGithubRepository(
+  overrides: Partial<InboxGithubRepository> = {},
+): InboxGithubRepository {
   return {
-    id: "project_website",
-    organizationId: "org_001",
-    teamId: null,
-    createdByUserId: "user_001",
-    name: "Website",
-    description: "Marketing website localization",
-    translationContext: "Public marketing copy",
-    source: "native",
-    externalProviderKind: null,
-    externalProjectId: null,
-    sourceLocale: "en-US",
-    targetLocales: ["fr-FR", "de-DE"],
-    externalProjectUrl: null,
-    isActive: true,
-    lastSyncedAt: null,
-    lastSyncErrorAt: null,
-    lastSyncErrorMessage: null,
-    createdAt: iso(-604_800_000),
-    updatedAt: iso(-86_400_000),
-    openJobCount: 2,
+    id: "repo_website",
+    githubRepositoryId: "101",
+    owner: "hyperlocalise",
+    name: "hyperlocalise-web",
+    fullName: "hyperlocalise/hyperlocalise-web",
+    archived: false,
+    defaultBranch: "main",
+    enabled: true,
     ...overrides,
   };
 }
@@ -181,10 +169,12 @@ export const linkedJobsFixture: LinkedJob[] = [
   }),
 ];
 
-export const projectsFixture: InboxProjectSummary[] = [
-  createProjectSummary(),
-  createProjectSummary({
-    id: "project_mobile",
-    name: "Mobile app",
+export const repositoriesFixture: InboxGithubRepository[] = [
+  createGithubRepository(),
+  createGithubRepository({
+    id: "repo_mobile",
+    githubRepositoryId: "102",
+    name: "mobile-app",
+    fullName: "hyperlocalise/mobile-app",
   }),
 ];

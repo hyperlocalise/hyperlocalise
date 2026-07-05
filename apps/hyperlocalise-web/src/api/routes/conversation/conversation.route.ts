@@ -15,6 +15,13 @@ import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
+import {
+  getRepositoryContextKey,
+  getWebConversationRepositorySession,
+  setWebConversationRepositorySession,
+} from "@/lib/agent-runtime/loops/conversation-repository-session";
+import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
 import {
@@ -63,6 +70,61 @@ function tooManyFilesResponse(c: {
 
 function buildOrganizationFileUrl(organizationSlug: string, fileId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/files/${fileId}`;
+}
+
+function normalizeRepositoryFullName(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().slice(0, 255);
+  return normalized || undefined;
+}
+
+function seedConversationRepositorySession(
+  conversationId: string,
+  repositoryGitHubContext: RepositoryAgentGitHubContext,
+) {
+  const repositoryContextKey = getRepositoryContextKey(repositoryGitHubContext);
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = getWebConversationRepositorySession(conversationId);
+    const repositorySandboxSession =
+      current?.session.repositorySandboxSession?.repositoryContextKey === repositoryContextKey
+        ? current.session.repositorySandboxSession
+        : undefined;
+
+    const committed = setWebConversationRepositorySession(conversationId, {
+      baseVersion: current?.version ?? null,
+      session: {
+        ...current?.session,
+        repositoryGitHubContext,
+        ...(repositorySandboxSession ? { repositorySandboxSession } : {}),
+      },
+    });
+
+    if (committed) {
+      return;
+    }
+  }
+
+  throw new Error("failed to seed repository context");
+}
+
+async function resolveSelectedRepositoryGitHubContext(input: {
+  organizationId: string;
+  repositoryFullName?: string;
+}) {
+  if (!input.repositoryFullName) {
+    return null;
+  }
+
+  const resolution = await resolveWebProjectRepositoryGitHubContext({
+    organizationId: input.organizationId,
+    repositoryFullName: input.repositoryFullName,
+  });
+
+  return resolution.status === "resolved" ? resolution.context : null;
 }
 
 const validateConversationParams = validator("param", (value, c) => {
@@ -207,6 +269,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const parsed = createConversationRequestSchema.safeParse({
           text: asString(body.text),
           projectId: asString(body.projectId),
+          repositoryFullName: asString(body.repositoryFullName),
         });
 
         if (!parsed.success) {
@@ -243,6 +306,18 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
 
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
+        const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+          organizationId: orgId,
+          repositoryFullName: parsed.data.repositoryFullName,
+        });
+        if (parsed.data.repositoryFullName && !repositoryGitHubContext) {
+          return badRequestResponse(
+            c,
+            "github_repository_not_available",
+            "Selected GitHub repository is not enabled for this workspace.",
+          );
+        }
+
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
@@ -288,6 +363,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             projectId,
           });
           conversation = createdConversation;
+
+          if (repositoryGitHubContext) {
+            seedConversationRepositorySession(createdConversation.id, repositoryGitHubContext);
+          }
 
           if (storedFiles.length > 0) {
             await db
@@ -391,6 +470,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const normalizedProjectId = normalizeProjectId(asString(body.projectId));
         const requestedProjectId =
           typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
+        const repositoryFullName = normalizeRepositoryFullName(asString(body.repositoryFullName));
 
         if (!text.trim() && files.length === 0) {
           return invalidMessagePayloadResponse(c);
@@ -402,6 +482,18 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
         if (conversation.source !== "chat_ui") {
           return c.json({ error: "conversation_not_replyable" }, 400);
+        }
+
+        const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+          organizationId: orgId,
+          repositoryFullName,
+        });
+        if (repositoryFullName && !repositoryGitHubContext) {
+          return badRequestResponse(
+            c,
+            "github_repository_not_available",
+            "Selected GitHub repository is not enabled for this workspace.",
+          );
         }
 
         if (requestedProjectId && requestedProjectId !== conversation.projectId) {
@@ -458,6 +550,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           throw failedUpload.reason instanceof Error
             ? failedUpload.reason
             : new Error("failed to store uploaded file");
+        }
+
+        if (repositoryGitHubContext) {
+          seedConversationRepositorySession(conversationId, repositoryGitHubContext);
         }
 
         let message;

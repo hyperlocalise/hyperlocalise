@@ -1,22 +1,23 @@
-import type { ProjectsResponse } from "@/api/routes/project/project.schema";
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
 
+import type { GithubRepository } from "../../_components/github-repository";
 import type { Conversation, ConversationMessage, LinkedJob } from "./inbox-types";
 
-export type InboxProjectSummary = ProjectsResponse["projects"][number];
+export type InboxGithubRepository = GithubRepository;
 
 export type SendConversationMessageInput = {
   text: string;
   files: File[];
   projectId?: string;
+  repositoryFullName?: string;
 };
 
 export type InboxApi = {
   listConversations(organizationSlug: string, limit?: number): Promise<Conversation[]>;
   listMessages(organizationSlug: string, conversationId: string): Promise<ConversationMessage[]>;
   listLinkedJobs(organizationSlug: string, conversationId: string): Promise<LinkedJob[]>;
-  listProjects(organizationSlug: string): Promise<InboxProjectSummary[]>;
+  listGithubRepositories(organizationSlug: string): Promise<InboxGithubRepository[]>;
   sendMessage(
     organizationSlug: string,
     conversationId: string,
@@ -64,15 +65,18 @@ export function createInboxApi(client: ApiClient): InboxApi {
       return body.jobs;
     },
 
-    async listProjects(organizationSlug) {
-      const response = await client.api.orgs[":organizationSlug"].projects.$get({
+    async listGithubRepositories(organizationSlug) {
+      const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+        "repositories"
+      ].$get({
         param: { organizationSlug },
+        query: {},
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load projects");
+        throw await readApiResponseError(response, "Failed to load GitHub repositories");
       }
-      const body = (await response.json()) as ProjectsResponse;
-      return body.projects;
+      const body = (await response.json()) as { repositories: InboxGithubRepository[] };
+      return body.repositories.filter((repository) => repository.enabled && !repository.archived);
     },
 
     async sendMessage(organizationSlug, conversationId, input) {
@@ -80,6 +84,9 @@ export function createInboxApi(client: ApiClient): InboxApi {
       formData.append("text", input.text);
       if (input.projectId) {
         formData.append("projectId", input.projectId);
+      }
+      if (input.repositoryFullName) {
+        formData.append("repositoryFullName", input.repositoryFullName);
       }
       for (const file of input.files) {
         formData.append("files", file);
