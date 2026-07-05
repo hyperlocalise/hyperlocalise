@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/github-repository-automation-dispatch",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

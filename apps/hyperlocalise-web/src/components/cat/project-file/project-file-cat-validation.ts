@@ -21,6 +21,9 @@ const catSegmentValidationResponseSchema = z.object({
 
 export const CAT_SEGMENT_QA_MODES = ["not_localized", "whitespace_only", "same_as_source"] as const;
 
+/** Disabled until go-svc is deployed as a separate service. */
+const CAT_SEGMENT_VALIDATION_ENABLED = false;
+
 export type CatSegmentValidationError =
   | { code: "aborted" }
   | { code: "invalid_response"; message: string }
@@ -36,6 +39,10 @@ export async function fetchCatSegmentValidation(
   },
   fetcher: typeof fetch = fetch,
 ): Promise<Result<CatFormatCheck[], CatSegmentValidationError>> {
+  if (!CAT_SEGMENT_VALIDATION_ENABLED) {
+    return ok([]);
+  }
+
   const responseResult = await fromThrowableAsync(
     fetcher("/api/go-svc/v1/validate/segment", {
       method: "POST",
