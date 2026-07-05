@@ -89,7 +89,10 @@ function renderCatWorkspace(ui: ReactElement) {
 }
 
 function getQueueSegmentButton(sourceText: string) {
-  const queueButton = screen.getByText(sourceText).closest("button");
+  const queueButton = screen
+    .getAllByText(sourceText)
+    .map((element) => element.closest("button"))
+    .find((button) => button !== null);
   expect(queueButton).toBeTruthy();
   return queueButton as HTMLButtonElement;
 }
@@ -110,6 +113,39 @@ describe("CatWorkspaceContainer queue navigation", () => {
     await user.click(getQueueSegmentButton("Reviews awaiting approval"));
 
     expect(onSelectSegment).toHaveBeenCalledWith("seg-01");
+  });
+
+  it("removes filtered-out queue rows when the server snapshot refreshes", async () => {
+    const initialState = createUiCatWorkspaceState();
+    const filteredState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "reviews.awaitingApproval",
+          sourceText: "Reviews awaiting approval",
+        },
+      ],
+    });
+    const view = renderCatWorkspace(<CatWorkspaceContainer initialState={initialState} />);
+
+    expect(
+      getQueueSegmentButton("Dashboard card showing how many reviews still need approval."),
+    ).toBeInTheDocument();
+
+    view.rerender(
+      <div style={{ height: "900px", width: "1280px" }} className="bg-background text-foreground">
+        <CatWorkspaceContainer initialState={initialState} queueSnapshot={filteredState} />
+      </div>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryAllByText("Dashboard card showing how many reviews still need approval."),
+      ).toHaveLength(0);
+    });
+    expect(getQueueSegmentButton("Reviews awaiting approval")).toBeInTheDocument();
   });
 
   it("shows the unsaved navigation dialog when leaving a dirty segment", async () => {

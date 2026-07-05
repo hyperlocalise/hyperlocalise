@@ -680,7 +680,7 @@ export class CatWorkspaceOrchestrator {
     }
 
     const nextSegmentIds = new Set(nextInitialState.queueSegments.map((meta) => meta.id));
-    for (const segmentId of this.drafts.keys()) {
+    for (const segmentId of this.segmentMeta.keys()) {
       if (!nextSegmentIds.has(segmentId)) {
         const draft = this.drafts.get(segmentId);
         if (!draft?.isDirty) {

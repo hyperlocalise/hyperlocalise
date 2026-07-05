@@ -175,6 +175,34 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     expect(store.getSegmentView("seg-03")?.targetText).toBe("");
   });
 
+  it("removes stale unedited segments while preserving dirty drafts on queue refresh", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+      }),
+    );
+    store.setTargetText("seg-03", "Unsaved third");
+    store.toggleSegmentChecked("seg-02", true);
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+
+    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01", "seg-03"]);
+    expect(store.getSegmentView("seg-02")).toBeUndefined();
+    expect(store.getSegmentView("seg-03")?.targetText).toBe("Unsaved third");
+    expect(store.selectedSegmentId).toBe("seg-01");
+    expect([...store.checkedSegmentIds]).toEqual([]);
+  });
+
   it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
