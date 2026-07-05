@@ -8,7 +8,7 @@ import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
-import { useCrowdinJobLocaleReadiness } from "../../../../../_hooks/use-crowdin-job-locale-readiness";
+import { useProviderJobLocaleReadiness } from "../../../../../_hooks/use-provider-job-locale-readiness";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 
@@ -25,7 +25,9 @@ export function ProviderLiveJobDetailContent({
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
-  const showComments = parseProviderJobId(jobId)?.providerKind === "crowdin";
+  const showComments =
+    parseProviderJobId(jobId)?.providerKind === "crowdin" ||
+    parseProviderJobId(jobId)?.providerKind === "lokalise";
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
@@ -46,7 +48,7 @@ export function ProviderLiveJobDetailContent({
   });
 
   const parsedJobId = parseProviderJobId(jobId);
-  const localeReadinessQuery = useCrowdinJobLocaleReadiness({
+  const localeReadinessQuery = useProviderJobLocaleReadiness({
     organizationSlug,
     externalProjectId: parsedJobId?.externalProjectId,
     providerKind: jobQuery.data?.externalProviderKind,

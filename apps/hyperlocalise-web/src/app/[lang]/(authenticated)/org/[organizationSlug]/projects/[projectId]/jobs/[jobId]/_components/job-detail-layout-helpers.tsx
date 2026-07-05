@@ -18,12 +18,12 @@ import {
   formatLocaleList,
   formatReadinessProgress,
   formatWordsToDo,
-  getCrowdinLanguageLabel,
-  getCrowdinTargetLocales,
-  getCrowdinTaskTypeLabel,
   getReadinessNumber,
-  resolveCrowdinLocaleReadiness,
-} from "../../../../../jobs/_components/provider-crowdin-job-display";
+  resolveProviderLocaleReadiness,
+  resolveProviderTargetLocales,
+  resolveProviderTaskLanguageLabel,
+  resolveProviderTaskTypeLabel,
+} from "../../../../../jobs/_components/provider-tms-job-display";
 
 import { formatJobDetailDate, isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import type { JobDetailViewMetric, JobDetailViewProperty } from "./job-detail-view";
@@ -76,7 +76,7 @@ function resolveTaskLocaleReadiness(input: JobDetailTaskLayoutInput) {
     return input.localeReadinessOverride;
   }
 
-  return resolveCrowdinLocaleReadiness(input.externalProviderPayload);
+  return resolveProviderLocaleReadiness(input.externalProviderKind, input.externalProviderPayload);
 }
 
 function getProgressValue(readiness: Record<string, unknown> | null) {
@@ -115,8 +115,10 @@ export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetail
     {
       icon: LanguageSquareIcon,
       label:
-        getCrowdinLanguageLabel(payload) ??
-        formatLocaleList(getCrowdinTargetLocales(payload, input.externalTargetLocales ?? [])) ??
+        resolveProviderTaskLanguageLabel(providerKind, payload) ??
+        formatLocaleList(
+          resolveProviderTargetLocales(providerKind, payload, input.externalTargetLocales ?? []),
+        ) ??
         "—",
     },
     {
@@ -148,9 +150,15 @@ export function jobDetailTaskProperties(input: JobDetailTaskLayoutInput): {
       : null;
   const providerName = formatProviderKind(input.externalProviderKind);
   const targetLocales = formatLocaleList(
-    getCrowdinTargetLocales(payload, input.externalTargetLocales ?? []),
+    resolveProviderTargetLocales(
+      input.externalProviderKind,
+      payload,
+      input.externalTargetLocales ?? [],
+    ),
   );
-  const taskType = getCrowdinTaskTypeLabel(payload) ?? formatJobKind(input.kind);
+  const taskType =
+    resolveProviderTaskTypeLabel(input.externalProviderKind, payload, formatJobKind(input.kind)) ??
+    formatJobKind(input.kind);
   const wordsToDo = formatWordsToDo(readiness);
 
   const properties: JobDetailViewProperty[] = [
@@ -194,7 +202,7 @@ export function jobDetailTaskProperties(input: JobDetailTaskLayoutInput): {
     { label: "Project", value: input.projectName ?? input.projectId ?? "—" },
     {
       label: "Language",
-      value: getCrowdinLanguageLabel(payload) ?? "—",
+      value: resolveProviderTaskLanguageLabel(input.externalProviderKind, payload) ?? "—",
     },
     { label: "External job ID", value: input.externalJobId },
     { label: "External task ID", value: input.externalTaskId },

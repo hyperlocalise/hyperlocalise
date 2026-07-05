@@ -3,6 +3,11 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import {
+  LokaliseApiClient,
+  LokaliseApiError,
+  LOKALISE_DEFAULT_BUNDLE_STRUCTURE,
+} from "@/lib/providers/adapters/lokalise/lokalise-api";
 import type {
   ExternalTmsCredential,
   ExternalTmsProviderKind,
@@ -212,6 +217,158 @@ async function downloadCrowdinSourceFile(input: {
   }
 }
 
+function resolveLokaliseSourceFileMetadata(input: { externalFileId: string; sourcePath: string }):
+  | {
+      ok: true;
+      filename: string;
+      fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+      filterFilename: string;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+    } {
+  const fileFormat = inferSupportedFileTranslationFileFormat(input.sourcePath);
+  if (!fileFormat) {
+    return {
+      ok: false,
+      code: "unsupported_file_format",
+      message: `Source path ${input.sourcePath} is not a supported translation file format`,
+    };
+  }
+
+  const [, filename] = input.externalFileId.split("::");
+  const resolvedFilename = filename?.trim() || input.sourcePath.split("/").pop() || "";
+  if (!resolvedFilename) {
+    return {
+      ok: false,
+      code: "invalid_provider_file_id",
+      message: "Provider file identifiers are invalid",
+    };
+  }
+
+  return {
+    ok: true,
+    filename: resolvedFilename,
+    fileFormat,
+    filterFilename: resolvedFilename,
+  };
+}
+
+async function resolveLokaliseSourceFileDownload(input: {
+  credential: ExternalTmsCredential;
+  secretMaterial: string;
+  externalProjectId: string;
+  externalFileId: string;
+  sourcePath: string;
+  sourceLocale?: string | null;
+}): Promise<ResolveProviderSourceFileDownloadResult> {
+  const metadata = resolveLokaliseSourceFileMetadata({
+    externalFileId: input.externalFileId,
+    sourcePath: input.sourcePath,
+  });
+  if (!metadata.ok) {
+    return metadata;
+  }
+
+  if (!input.externalProjectId.trim()) {
+    return {
+      ok: false,
+      code: "invalid_provider_file_id",
+      message: "Provider file identifiers are invalid",
+    };
+  }
+
+  const client = new LokaliseApiClient({
+    token: input.secretMaterial,
+    baseUrl: input.credential.baseUrl ?? undefined,
+  });
+
+  const sourceLocale = input.sourceLocale?.trim();
+  if (!sourceLocale) {
+    return {
+      ok: false,
+      code: "provider_source_locale_missing",
+      message: "Source locale is required to download Lokalise source files",
+    };
+  }
+
+  try {
+    const download = await client.requestFileDownload(input.externalProjectId, {
+      format: metadata.fileFormat,
+      originalFilenames: true,
+      bundleStructure: LOKALISE_DEFAULT_BUNDLE_STRUCTURE,
+      filterLangs: [sourceLocale],
+      filterFilenames: [metadata.filterFilename],
+    });
+    const downloadUrl = normalizeProviderDownloadUrl(download.bundleUrl);
+    if (!downloadUrl) {
+      return {
+        ok: false,
+        code: "provider_file_download_url_invalid",
+        message: "Provider file download URL is invalid or unsafe",
+      };
+    }
+
+    return {
+      ok: true,
+      downloadUrl,
+      filename: metadata.filename,
+      fileFormat: metadata.fileFormat,
+    };
+  } catch (error) {
+    if (error instanceof LokaliseApiError && error.status === 401) {
+      return {
+        ok: false,
+        code: "provider_auth_invalid",
+        message: "Provider credentials are invalid",
+      };
+    }
+
+    return {
+      ok: false,
+      code: "provider_file_download_failed",
+      message: error instanceof Error ? error.message : "Provider file download failed",
+    };
+  }
+}
+
+async function downloadLokaliseSourceFile(input: {
+  credential: ExternalTmsCredential;
+  secretMaterial: string;
+  externalProjectId: string;
+  externalFileId: string;
+  sourcePath: string;
+  sourceLocale?: string | null;
+}): Promise<DownloadProviderSourceFileResult> {
+  const resolved = await resolveLokaliseSourceFileDownload(input);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const client = new LokaliseApiClient({
+    token: input.secretMaterial,
+    baseUrl: input.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const bytes = await client.downloadUrl(resolved.downloadUrl);
+    return {
+      ok: true,
+      content: Buffer.from(bytes),
+      filename: resolved.filename,
+      fileFormat: resolved.fileFormat,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "provider_file_download_failed",
+      message: error instanceof Error ? error.message : "Provider file download failed",
+    };
+  }
+}
+
 export async function loadProviderCrowdinDownloadContext(input: {
   organizationId: string;
   projectId: string;
@@ -304,6 +461,18 @@ export async function resolveProviderSourceFileDownload(input: {
     });
   }
 
+  if (input.providerKind === "lokalise") {
+    const sourceLocaleMatch = input.sourcePath.match(/^locales\/([^/]+)\//);
+    return resolveLokaliseSourceFileDownload({
+      credential: context.credential,
+      secretMaterial,
+      externalProjectId: context.externalProjectId,
+      externalFileId: input.externalFileId,
+      sourcePath: input.sourcePath,
+      sourceLocale: sourceLocaleMatch?.[1] ?? null,
+    });
+  }
+
   return {
     ok: false,
     code: "provider_file_download_unsupported",
@@ -346,6 +515,18 @@ export async function downloadProviderSourceFile(input: {
       externalProjectId: context.externalProjectId,
       externalFileId: input.externalFileId,
       sourcePath: input.sourcePath,
+    });
+  }
+
+  if (input.providerKind === "lokalise") {
+    const sourceLocaleMatch = input.sourcePath.match(/^locales\/([^/]+)\//);
+    return downloadLokaliseSourceFile({
+      credential: context.credential,
+      secretMaterial,
+      externalProjectId: context.externalProjectId,
+      externalFileId: input.externalFileId,
+      sourcePath: input.sourcePath,
+      sourceLocale: sourceLocaleMatch?.[1] ?? null,
     });
   }
 

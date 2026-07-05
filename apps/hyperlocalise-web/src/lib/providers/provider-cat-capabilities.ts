@@ -25,7 +25,7 @@ export function supportsProviderCatFile(file: ProviderCatFile): boolean {
     return provider.resourceType === "file";
   }
 
-  if (provider.kind === "phrase") {
+  if (provider.kind === "phrase" || provider.kind === "lokalise") {
     return provider.resourceType === "file" || provider.resourceType === "key";
   }
 
