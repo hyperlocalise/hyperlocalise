@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import type { CatWorkspaceState } from "@/components/cat/shared/types";
 
-import { useCatWorkspaceStore } from "../store/cat-workspace-store-context";
+import { useCatWorkspace } from "../cat-workspace-context";
 
 export function CatQueryBridge({
   snapshot,
@@ -13,7 +13,7 @@ export function CatQueryBridge({
   snapshot: CatWorkspaceState | null;
   initialSegmentKeyOrId?: string | null;
 }) {
-  const store = useCatWorkspaceStore();
+  const store = useCatWorkspace();
 
   useEffect(() => {
     if (!snapshot) {

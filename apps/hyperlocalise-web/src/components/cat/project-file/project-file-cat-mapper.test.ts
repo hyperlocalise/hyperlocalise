@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-import { createCatWorkspaceStore } from "@/components/cat/workspace/store/cat-workspace-store";
+import { createCatWorkspace } from "@/components/cat/workspace/cat-workspace-orchestrator";
 
 import {
   projectFileCatToWorkspaceState,
@@ -144,7 +144,7 @@ describe("projectFileCatToWorkspaceState", () => {
   });
 });
 
-describe("CatWorkspaceStore lazy segment ingest", () => {
+describe("CatWorkspaceOrchestrator lazy segment ingest", () => {
   it("merges lazy segment target without clobbering queue-only metadata", () => {
     const file = catFile({
       pagination: {
@@ -172,7 +172,7 @@ describe("CatWorkspaceStore lazy segment ingest", () => {
       ],
     });
     const state = projectFileCatToWorkspaceState(file, "en-US", testIntl);
-    const store = createCatWorkspaceStore(state);
+    const store = createCatWorkspace(state);
     const untouchedSegment = store.getQueuePanelSegments("all", false)[1];
 
     store.applySegmentTarget("segment-with-detail", {
@@ -192,9 +192,7 @@ describe("CatWorkspaceStore lazy segment ingest", () => {
   });
 
   it("ignores target updates for segments that are not in the queue", () => {
-    const store = createCatWorkspaceStore(
-      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
-    );
+    const store = createCatWorkspace(projectFileCatToWorkspaceState(catFile(), "en-US", testIntl));
 
     store.applySegmentTarget("missing-segment", {
       text: "Missing",
@@ -206,11 +204,9 @@ describe("CatWorkspaceStore lazy segment ingest", () => {
   });
 });
 
-describe("CatWorkspaceStore lazy comments ingest", () => {
+describe("CatWorkspaceOrchestrator lazy comments ingest", () => {
   it("updates one segment's comments and issue tags while preserving other segments", () => {
-    const store = createCatWorkspaceStore(
-      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
-    );
+    const store = createCatWorkspace(projectFileCatToWorkspaceState(catFile(), "en-US", testIntl));
     const untouchedSegment = store.getQueuePanelSegments("all", false)[0];
 
     store.applySegmentComments("issue-string", [
@@ -258,9 +254,7 @@ describe("CatWorkspaceStore lazy comments ingest", () => {
   });
 
   it("ignores comments for segments that are not in the queue", () => {
-    const store = createCatWorkspaceStore(
-      projectFileCatToWorkspaceState(catFile(), "en-US", testIntl),
-    );
+    const store = createCatWorkspace(projectFileCatToWorkspaceState(catFile(), "en-US", testIntl));
 
     store.applySegmentComments("missing-segment", []);
 

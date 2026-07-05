@@ -2,14 +2,14 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createCatWorkspaceState } from "@/components/cat/shared/cat.fixture";
 
-import { createCatWorkspaceStore } from "./cat-workspace-store";
+import { createCatWorkspace } from "./cat-workspace-orchestrator";
 import {
   addSaveFailureFormatCheck,
   getAiSuggestionForSegment,
   resolveSegmentIntelligenceForDisplay,
-} from "./cat-workspace-store-utils";
+} from "./store/cat-workspace-store-utils";
 
-describe("CatWorkspaceStore hydration", () => {
+describe("CatWorkspaceOrchestrator hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
     const previousInitialState = createCatWorkspaceState({
       selectedSegmentId: "seg-02",
@@ -36,7 +36,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(previousInitialState);
+    const store = createCatWorkspace(previousInitialState);
     store.setTargetText("seg-02", "Unsaved second");
     store.setFormatChecks(
       "seg-02",
@@ -111,7 +111,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(previousInitialState);
+    const store = createCatWorkspace(previousInitialState);
     store.addSaveFailureCheck("seg-02", "Provider rejected the update.", "Save failed");
 
     const nextInitialState = createCatWorkspaceState({
@@ -151,7 +151,7 @@ describe("CatWorkspaceStore hydration", () => {
         { id: "seg-02", index: 2, key: "settings.title", sourceText: "Settings" },
       ],
     });
-    const store = createCatWorkspaceStore(pageOne);
+    const store = createCatWorkspace(pageOne);
 
     store.applySegmentTarget("seg-01", {
       text: "Bonjour",
@@ -175,6 +175,96 @@ describe("CatWorkspaceStore hydration", () => {
     expect(store.getSegmentView("seg-03")?.targetText).toBe("");
   });
 
+  it("removes stale unedited segments while preserving dirty drafts on queue refresh", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+      }),
+    );
+    store.setTargetText("seg-03", "Unsaved third");
+    store.toggleSegmentChecked("seg-02", true);
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+
+    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01", "seg-03"]);
+    expect(store.getSegmentView("seg-02")).toBeUndefined();
+    expect(store.getSegmentView("seg-03")?.targetText).toBe("Unsaved third");
+    expect(store.selectedSegmentId).toBe("seg-01");
+    expect([...store.checkedSegmentIds]).toEqual([]);
+  });
+
+  it("keeps the selected dirty segment visible when a queue refresh filters it out", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+      }),
+    );
+    store.setTargetText("seg-02", "Unsaved second");
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+
+    expect(store.selectedSegmentId).toBe("seg-02");
+    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01", "seg-02"]);
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("Unsaved second");
+  });
+
+  it("uses the new selected segment checks when a refresh removes the previous selection", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-02",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        formatChecks: [
+          {
+            id: "old-selected-check",
+            label: "Old selected check",
+            status: "warn",
+            message: "This belongs to the removed segment.",
+          },
+        ],
+      }),
+    );
+
+    store.hydrateFromServerSnapshot(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+        formatChecks: [
+          {
+            id: "new-selected-check",
+            label: "New selected check",
+            status: "pass",
+            message: "This belongs to the remaining segment.",
+          },
+        ],
+      }),
+    );
+
+    expect(store.selectedSegmentId).toBe("seg-01");
+    expect(store.formatChecks.map((check) => check.id)).toEqual(["new-selected-check"]);
+  });
+
   it("keeps lazy-loaded targets when queue snapshots omit target text", () => {
     const initialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
@@ -191,7 +281,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(initialState);
+    const store = createCatWorkspace(initialState);
 
     store.applySegmentTarget("seg-01", {
       text: "Hola",
@@ -208,7 +298,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("does not overwrite unsaved target edits when lazy target sync refetches", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
         queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
@@ -251,7 +341,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(queueState);
+    const store = createCatWorkspace(queueState);
     store.applySegmentComments("seg-01", [
       {
         externalCommentId: "comment-1",
@@ -304,7 +394,7 @@ describe("CatWorkspaceStore hydration", () => {
         },
       ],
     });
-    const store = createCatWorkspaceStore(initialState);
+    const store = createCatWorkspace(initialState);
 
     expect(store.matchesQueueFilter("seg-01", "skipped")).toBe(true);
     expect(store.matchesQueueFilter("seg-02", "skipped")).toBe(false);
@@ -314,7 +404,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("creates a draft when skipping an unedited pending segment", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
         segments: [],
@@ -338,7 +428,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("stores file locale context separately from queue segment metadata", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         fileContext: {
           sourcePath: "locales/en.json",
@@ -382,7 +472,7 @@ describe("CatWorkspaceStore hydration", () => {
   });
 
   it("tracks dirty segment ids from draft baselines", () => {
-    const store = createCatWorkspaceStore(
+    const store = createCatWorkspace(
       createCatWorkspaceState({
         segments: [
           {

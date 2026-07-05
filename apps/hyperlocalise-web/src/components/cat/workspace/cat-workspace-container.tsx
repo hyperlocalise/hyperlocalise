@@ -28,12 +28,9 @@ import { CatQueryBridge } from "./bridge/cat-query-bridge";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { CatWorkspaceLazySegmentSync } from "./cat-workspace-lazy-segment-sync";
 import { CatWorkspaceView } from "./cat-workspace";
-import {
-  CatWorkspaceStoreProvider,
-  useCatWorkspaceStore,
-} from "./store/cat-workspace-store-context";
-import type { CatWorkspaceStore } from "./store/cat-workspace-store";
-import { useCatWorkspaceController } from "./use-cat-workspace-controller";
+import { CatWorkspaceProvider, useCatWorkspace } from "./cat-workspace-context";
+import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
+import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
@@ -73,7 +70,6 @@ export interface CatWorkspaceContainerProps {
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
   store,
-  initialState,
   queueSnapshot,
   lazySegment,
   initialSegmentKeyOrId,
@@ -96,11 +92,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   onLoadMoreQueue,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
-}: CatWorkspaceContainerProps & { store: CatWorkspaceStore }) {
-  const controller = useCatWorkspaceController({
+}: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
+  const controller = useCatWorkspaceRuntime({
     store,
-    initialState,
-    initialSegmentKeyOrId,
     dependencies,
     navigation,
     editing,
@@ -235,23 +229,20 @@ export function CatWorkspaceContainer({
   ...props
 }: CatWorkspaceContainerProps) {
   return (
-    <CatWorkspaceStoreProvider
-      initialState={initialState}
-      initialSegmentKeyOrId={initialSegmentKeyOrId}
-    >
+    <CatWorkspaceProvider initialState={initialState} initialSegmentKeyOrId={initialSegmentKeyOrId}>
       <CatWorkspaceContainerInner
         initialState={initialState}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
         {...props}
       />
-    </CatWorkspaceStoreProvider>
+    </CatWorkspaceProvider>
   );
 }
 
 const CatWorkspaceContainerInner = observer(function CatWorkspaceContainerInner(
   props: CatWorkspaceContainerProps,
 ) {
-  const store = useCatWorkspaceStore();
+  const store = useCatWorkspace();
 
   return <CatWorkspaceContainerObserver store={store} {...props} />;
 });

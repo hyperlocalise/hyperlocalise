@@ -9,7 +9,7 @@ import { resolveCatFileIdentity } from "@/components/cat/project-file/project-fi
 import { useCatSegmentComments } from "@/components/cat/project-file/use-cat-segment-comments";
 import { useCatSegmentTarget } from "@/components/cat/project-file/use-cat-segment-target";
 
-import { useCatWorkspaceStore } from "./store/cat-workspace-store-context";
+import { useCatWorkspace } from "./cat-workspace-context";
 
 export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySegmentSync({
   organizationSlug,
@@ -32,7 +32,7 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   catFile: ProjectFileCatQueueFile | null | undefined;
   enabled: boolean;
 }) {
-  const store = useCatWorkspaceStore();
+  const store = useCatWorkspace();
   const segmentId =
     store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
 

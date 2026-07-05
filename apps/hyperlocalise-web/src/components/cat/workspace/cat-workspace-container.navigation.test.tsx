@@ -89,7 +89,10 @@ function renderCatWorkspace(ui: ReactElement) {
 }
 
 function getQueueSegmentButton(sourceText: string) {
-  const queueButton = screen.getByText(sourceText).closest("button");
+  const queueButton = screen
+    .getAllByText(sourceText)
+    .map((element) => element.closest("button"))
+    .find((button) => button !== null);
   expect(queueButton).toBeTruthy();
   return queueButton as HTMLButtonElement;
 }
@@ -110,6 +113,39 @@ describe("CatWorkspaceContainer queue navigation", () => {
     await user.click(getQueueSegmentButton("Reviews awaiting approval"));
 
     expect(onSelectSegment).toHaveBeenCalledWith("seg-01");
+  });
+
+  it("removes filtered-out queue rows when the server snapshot refreshes", async () => {
+    const initialState = createUiCatWorkspaceState();
+    const filteredState = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "reviews.awaitingApproval",
+          sourceText: "Reviews awaiting approval",
+        },
+      ],
+    });
+    const view = renderCatWorkspace(<CatWorkspaceContainer initialState={initialState} />);
+
+    expect(
+      getQueueSegmentButton("Dashboard card showing how many reviews still need approval."),
+    ).toBeInTheDocument();
+
+    view.rerender(
+      <div style={{ height: "900px", width: "1280px" }} className="bg-background text-foreground">
+        <CatWorkspaceContainer initialState={initialState} queueSnapshot={filteredState} />
+      </div>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryAllByText("Dashboard card showing how many reviews still need approval."),
+      ).toHaveLength(0);
+    });
+    expect(getQueueSegmentButton("Reviews awaiting approval")).toBeInTheDocument();
   });
 
   it("shows the unsaved navigation dialog when leaving a dirty segment", async () => {
@@ -160,6 +196,35 @@ describe("CatWorkspaceContainer queue navigation", () => {
     await user.click(within(dialog).getByRole("button", { name: "Stay" }));
 
     expect(onSelectSegment).not.toHaveBeenCalled();
+    await waitFor(() => {
+      const targetEditor = document.querySelector(
+        '[aria-label="Target translation"][contenteditable="true"]',
+      );
+      expect(targetEditor?.textContent).toContain(" unsaved");
+    });
+  });
+
+  it("prompts before a local queue filter hides the dirty segment", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard(" unsaved");
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Leave segment with unsaved changes?")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Stay" }));
+
+    expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("All strings");
     await waitFor(() => {
       const targetEditor = document.querySelector(
         '[aria-label="Target translation"][contenteditable="true"]',
