@@ -348,7 +348,7 @@ export function ProjectFileCatPageContent({
         {catFiles.length > 0 ? (
           <CatFileTreePicker
             files={catFiles}
-            selectedSourcePath={sourcePath}
+            selectedSourcePath={sourcePath ?? ""}
             onSelectFile={handleFileChange}
           />
         ) : (
