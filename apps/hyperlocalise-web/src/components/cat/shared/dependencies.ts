@@ -61,6 +61,7 @@ export interface CatWorkspaceServices {
     segment: CatSegment,
     value: string,
     glossaryTerms?: CatGlossaryTerm[],
+    options?: { signal?: AbortSignal },
   ) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (

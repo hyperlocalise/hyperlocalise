@@ -44,6 +44,8 @@ import {
 } from "./store/cat-workspace-store-utils";
 import type { CatWorkspaceStore } from "./store/cat-workspace-store";
 
+const SEGMENT_VALIDATION_DEBOUNCE_MS = 300;
+
 function getSegmentQueueIndex(segments: Pick<CatSegment, "id" | "key">[], segmentIdOrKey: string) {
   const resolvedId = findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey) ?? segmentIdOrKey;
   return segments.findIndex((segment) => segment.id === resolvedId);
@@ -131,6 +133,8 @@ export function useCatWorkspaceController({
   const canRunSegmentReview = Boolean(validateFormat || runQaChecks);
 
   const isInitialHydrationRef = useRef(true);
+  const validationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const validationAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (isInitialHydrationRef.current) {
@@ -185,28 +189,71 @@ export function useCatWorkspaceController({
 
   const runSegmentChecks = useCallback(
     async (segment: CatSegment, value: string, glossaryTermsOverride?: CatGlossaryTerm[]) => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+
       if (!validateFormat && !runQaChecks) {
         return;
       }
 
+      validationAbortControllerRef.current?.abort();
+      const abortController = new AbortController();
+      validationAbortControllerRef.current = abortController;
       const sequence = store.beginValidation();
       try {
         const glossaryTerms =
           glossaryTermsOverride ?? glossaryTermsForSegment(store.shellState, segment.id);
         const [formatChecks, qaChecks] = await Promise.all([
-          validateFormat ? validateFormat(segment, value, glossaryTerms) : Promise.resolve([]),
+          validateFormat
+            ? validateFormat(segment, value, glossaryTerms, {
+                signal: abortController.signal,
+              })
+            : Promise.resolve([]),
           runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
         ]);
-        if (!store.isValidationCurrent(sequence)) {
+        if (abortController.signal.aborted || !store.isValidationCurrent(sequence)) {
           return;
         }
         const checks = [...formatChecks, ...qaChecks];
         store.setFormatChecks(segment.id, checks, store.selectedSegmentId === segment.id);
+      } catch (error) {
+        if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+          throw error;
+        }
       } finally {
+        if (validationAbortControllerRef.current === abortController) {
+          validationAbortControllerRef.current = null;
+        }
         store.completeValidation(sequence);
       }
     },
     [runQaChecks, store, validateFormat],
+  );
+
+  const scheduleSegmentChecks = useCallback(
+    (segment: CatSegment, value: string) => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+      validationAbortControllerRef.current?.abort();
+      validationTimeoutRef.current = setTimeout(() => {
+        validationTimeoutRef.current = null;
+        void runSegmentChecks(segment, value);
+      }, SEGMENT_VALIDATION_DEBOUNCE_MS);
+    },
+    [runSegmentChecks],
+  );
+
+  useEffect(
+    () => () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+      validationAbortControllerRef.current?.abort();
+    },
+    [],
   );
 
   const concordanceLoadedSegmentIdsRef = useRef(new Set<string>());
@@ -335,6 +382,14 @@ export function useCatWorkspaceController({
         return;
       }
 
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+      validationAbortControllerRef.current?.abort();
+      const abortController = new AbortController();
+      validationAbortControllerRef.current = abortController;
+
       await onReviewWithAiOverride?.(segmentId);
 
       const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
@@ -387,13 +442,14 @@ export function useCatWorkspaceController({
                   segmentForReview,
                   segmentForReview.targetText,
                   intelligenceForRecommendation.glossaryTerms,
+                  { signal: abortController.signal },
                 )
               : Promise.resolve([]),
             includeFormatChecks && runQaChecks
               ? runQaChecks(segmentForReview, segmentForReview.targetText)
               : Promise.resolve([]),
           ]);
-          if (!store.isReviewCurrent(sequence)) {
+          if (abortController.signal.aborted || !store.isReviewCurrent(sequence)) {
             return;
           }
           const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
@@ -413,7 +469,14 @@ export function useCatWorkspaceController({
             });
           }
         }
+      } catch (error) {
+        if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+          throw error;
+        }
       } finally {
+        if (validationAbortControllerRef.current === abortController) {
+          validationAbortControllerRef.current = null;
+        }
         store.setReviewPhaseLoading(sequence, "ai", false);
         store.setReviewPhaseLoading(sequence, "formatChecks", false);
       }
@@ -429,17 +492,17 @@ export function useCatWorkspaceController({
     ],
   );
 
-  const runSegmentReviewRef = useRef(runSegmentReview);
-  runSegmentReviewRef.current = runSegmentReview;
-
   useEffect(() => {
     const segmentId = store.selectedSegmentId;
     if (!segmentId || !canRunSegmentReview) {
       return;
     }
 
-    void runSegmentReviewRef.current(segmentId, { includeAi: false });
-  }, [canRunSegmentReview, store.selectedSegmentId]);
+    const segment = store.getSegmentView(segmentId);
+    if (segment) {
+      void runSegmentChecks(segment, segment.targetText);
+    }
+  }, [canRunSegmentReview, runSegmentChecks, store, store.selectedSegmentId]);
 
   const concordanceLookupAttemptedRef = useRef(new Set<string>());
   const cachedContextLookupAttemptedRef = useRef(new Set<string>());
@@ -548,7 +611,7 @@ export function useCatWorkspaceController({
         store.setTargetText(segmentId, value);
         const segmentToValidate = store.getSegmentView(segmentId);
         if (segmentToValidate) {
-          void runSegmentChecks(segmentToValidate, value);
+          scheduleSegmentChecks(segmentToValidate, value);
         }
         onTargetChange?.(segmentId, value);
       },
@@ -778,7 +841,7 @@ export function useCatWorkspaceController({
     onUseAiSuggestion,
     queueFilter,
     runQaChecks,
-    runSegmentChecks,
+    scheduleSegmentChecks,
     runSegmentReview,
     store,
     usesServerQueueFilter,

@@ -78,15 +78,62 @@ afterEach(() => {
 });
 
 describe("useCatWorkspaceController", () => {
-  it("runs format checks when the target text changes", async () => {
-    const { result, store } = renderController();
+  it("debounces format checks and validates the latest target text", async () => {
+    const validateFormat = vi.fn(mockValidateFormat);
+    const { result, store } = renderController(undefined, {
+      services: { validateFormat },
+    });
+
+    await waitFor(() => expect(validateFormat).toHaveBeenCalled());
+    validateFormat.mockClear();
 
     act(() => {
+      result.current.dependencies.editing.onTargetChange("seg-02", "Deux");
       result.current.dependencies.editing.onTargetChange("seg-02", "Deuxième");
     });
 
-    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
+    expect(validateFormat).not.toHaveBeenCalled();
+    await waitFor(() => expect(validateFormat).toHaveBeenCalledTimes(1));
+    expect(validateFormat).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      "Deuxième",
+      expect.any(Array),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
+  });
+
+  it("cancels the previous segment debounce when selection triggers direct validation", async () => {
+    const validateFormat = vi.fn(mockValidateFormat);
+    const { result, rerender, store } = renderController(undefined, {
+      services: { validateFormat },
+    });
+
+    await waitFor(() => expect(validateFormat).toHaveBeenCalled());
+    validateFormat.mockClear();
+
+    act(() => {
+      result.current.dependencies.editing.onTargetChange("seg-02", "Deuxième");
+      store.setSelectedSegmentId("seg-03");
+    });
+    rerender();
+
+    await waitFor(() =>
+      expect(validateFormat).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "seg-03" }),
+        "Troisième",
+        expect.any(Array),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(validateFormat).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      "Deuxième",
+      expect.any(Array),
+      expect.any(Object),
+    );
   });
 
   it("applies AI suggestions through the editing pipeline", () => {
@@ -346,6 +393,57 @@ describe("useCatWorkspaceController", () => {
 
     expect(onReviewWithAi).toHaveBeenCalledWith("seg-02");
     expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts superseded format validation during AI review", async () => {
+    const signals: AbortSignal[] = [];
+    const resolvers: Array<(checks: CatFormatCheck[]) => void> = [];
+    const validateFormat = vi.fn(
+      (
+        _segment,
+        _value,
+        _glossaryTerms,
+        options?: {
+          signal?: AbortSignal;
+        },
+      ) =>
+        new Promise<CatFormatCheck[]>((resolve) => {
+          const signal = options?.signal;
+          if (signal) {
+            signals.push(signal);
+            signal.addEventListener("abort", () => resolve([]), { once: true });
+          }
+          resolvers.push(resolve);
+        }),
+    );
+    const { result } = renderController(undefined, {
+      services: { validateFormat },
+    });
+
+    await waitFor(() => expect(validateFormat).toHaveBeenCalled());
+    resolvers.shift()?.([]);
+    validateFormat.mockClear();
+    signals.length = 0;
+
+    let firstReview: Promise<void> | undefined;
+    act(() => {
+      firstReview = result.current.dependencies.review.onReviewWithAi("seg-02") as Promise<void>;
+    });
+    await waitFor(() => expect(validateFormat).toHaveBeenCalledTimes(1));
+
+    let secondReview: Promise<void> | undefined;
+    act(() => {
+      secondReview = result.current.dependencies.review.onReviewWithAi("seg-02") as Promise<void>;
+    });
+    await waitFor(() => expect(validateFormat).toHaveBeenCalledTimes(2));
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+
+    resolvers.at(-1)?.([]);
+    await act(async () => {
+      await Promise.all([firstReview, secondReview]);
+    });
   });
 
   it("runs generateAiRecommendation once when Review with AI is triggered twice during concordance", async () => {
