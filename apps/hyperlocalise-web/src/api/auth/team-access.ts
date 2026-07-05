@@ -4,6 +4,10 @@ import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
+import {
+  isLiveProviderGlossaryId,
+  isLiveProviderMemoryId,
+} from "@/lib/providers/tms-provider-resource-id";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
@@ -250,6 +254,10 @@ export async function canAccessInteraction(auth: ApiAuthContext, interactionId: 
 }
 
 export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string) {
+  if (isLiveProviderGlossaryId(glossaryId)) {
+    return null;
+  }
+
   if (hasOrganizationWideProjectAccess(auth)) {
     const [glossary] = await db
       .select({ id: schema.glossaries.id })
@@ -324,6 +332,10 @@ export async function canAccessStoredFile(
 }
 
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {
+  if (isLiveProviderMemoryId(memoryId)) {
+    return null;
+  }
+
   if (hasOrganizationWideProjectAccess(auth)) {
     const [memory] = await db
       .select({ id: schema.memories.id })

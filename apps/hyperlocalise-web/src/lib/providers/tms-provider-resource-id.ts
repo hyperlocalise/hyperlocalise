@@ -21,12 +21,90 @@ export type EncodedProviderJobId = EncodedProviderProjectId & {
   externalJobId: string;
 };
 
+export type LiveProviderMemoryId = {
+  providerKind: ExternalTmsProviderKind;
+  externalMemoryId: string;
+};
+
+export type LiveProviderGlossaryId = {
+  providerKind: ExternalTmsProviderKind;
+  externalGlossaryId: string;
+};
+
+export type LiveProviderResourceId = LiveProviderMemoryId | LiveProviderGlossaryId;
+
 export function encodeProviderProjectId(input: EncodedProviderProjectId) {
   return `ext:${input.providerKind}:${input.externalProjectId}`;
 }
 
 export function encodeProviderJobId(input: EncodedProviderJobId) {
   return `ext:${input.providerKind}:${input.externalProjectId}:${input.externalJobId}`;
+}
+
+function parseLiveProviderResourceIdParts(value: string, resourceKind: "tm" | "glossary") {
+  for (const providerKind of externalTmsProviderKinds) {
+    const prefix = `${providerKind}:${resourceKind}:`;
+    if (!value.startsWith(prefix)) {
+      continue;
+    }
+
+    const externalResourceId = value.slice(prefix.length);
+    if (!externalResourceId) {
+      return null;
+    }
+
+    return { providerKind, externalResourceId };
+  }
+
+  return null;
+}
+
+export function parseLiveProviderMemoryId(
+  value: string | null | undefined,
+): LiveProviderMemoryId | null {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+
+  const parsed = parseLiveProviderResourceIdParts(value, "tm");
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    providerKind: parsed.providerKind,
+    externalMemoryId: parsed.externalResourceId,
+  };
+}
+
+export function parseLiveProviderGlossaryId(
+  value: string | null | undefined,
+): LiveProviderGlossaryId | null {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+
+  const parsed = parseLiveProviderResourceIdParts(value, "glossary");
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    providerKind: parsed.providerKind,
+    externalGlossaryId: parsed.externalResourceId,
+  };
+}
+
+export function isLiveProviderMemoryId(value: string | null | undefined) {
+  return parseLiveProviderMemoryId(value) !== null;
+}
+
+export function isLiveProviderGlossaryId(value: string | null | undefined) {
+  return parseLiveProviderGlossaryId(value) !== null;
+}
+
+export function isLiveProviderResourceId(value: string | null | undefined) {
+  return isLiveProviderMemoryId(value) || isLiveProviderGlossaryId(value);
 }
 
 function parseProviderKindAndRemainder(value: string) {

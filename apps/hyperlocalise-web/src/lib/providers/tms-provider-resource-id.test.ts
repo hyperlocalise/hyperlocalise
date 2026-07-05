@@ -3,6 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
+  isLiveProviderResourceId,
+  parseLiveProviderGlossaryId,
+  parseLiveProviderMemoryId,
   parseProviderJobId,
   parseProviderProjectId,
   resolveEncodedProviderJobId,
@@ -132,5 +135,23 @@ describe("tms-provider-resource-id", () => {
     );
     expect(resolveJobProjectId(null, "ext:crowdin:902807:2001")).toBe("ext:crowdin:902807");
     expect(resolveJobProjectId(null, "job_native")).toBeNull();
+  });
+
+  it("parses live provider memory and glossary ids", () => {
+    expect(parseLiveProviderMemoryId("crowdin:tm:718373")).toEqual({
+      providerKind: "crowdin",
+      externalMemoryId: "718373",
+    });
+    expect(parseLiveProviderGlossaryId("smartling:glossary:term-base-1")).toEqual({
+      providerKind: "smartling",
+      externalGlossaryId: "term-base-1",
+    });
+    expect(isLiveProviderResourceId("crowdin:tm:718373")).toBe(true);
+    expect(isLiveProviderResourceId("crowdin:glossary:42")).toBe(true);
+    expect(isLiveProviderResourceId("ext:crowdin:42")).toBe(false);
+    expect(parseLiveProviderMemoryId("unknown:tm:1")).toBeNull();
+    expect(parseLiveProviderMemoryId("crowdin:tm:")).toBeNull();
+    expect(parseLiveProviderGlossaryId("unknown:glossary:1")).toBeNull();
+    expect(parseLiveProviderGlossaryId("crowdin:glossary:")).toBeNull();
   });
 });

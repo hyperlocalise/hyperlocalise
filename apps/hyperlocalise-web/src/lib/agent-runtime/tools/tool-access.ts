@@ -14,7 +14,11 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import {
+  isLiveProviderGlossaryId,
+  isLiveProviderMemoryId,
+  parseProviderProjectId,
+} from "@/lib/providers/tms-provider-resource-id";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
@@ -128,6 +132,10 @@ export function toolCanAccessMemory(ctx: ToolContext, memoryId: string) {
 
 /** Single-query glossary fetch with team scoping (replaces check + select). */
 export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: string) {
+  if (isLiveProviderGlossaryId(glossaryId)) {
+    return null;
+  }
+
   const [glossary] = await ctx.db
     .select()
     .from(schema.glossaries)
@@ -139,6 +147,10 @@ export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: st
 
 /** Single-query memory fetch with team scoping (replaces check + select). */
 export async function toolGetAccessibleMemory(ctx: ToolContext, memoryId: string) {
+  if (isLiveProviderMemoryId(memoryId)) {
+    return null;
+  }
+
   const [memory] = await ctx.db
     .select()
     .from(schema.memories)

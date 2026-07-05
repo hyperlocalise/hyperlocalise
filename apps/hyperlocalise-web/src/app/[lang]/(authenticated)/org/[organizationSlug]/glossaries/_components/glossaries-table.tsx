@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 
+import { isLiveProviderGlossaryId } from "@/lib/providers/tms-provider-resource-id";
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { GlossaryListRow } from "./glossary-list";
@@ -110,12 +111,16 @@ function GlossaryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-muted-foreground"
           />
-          <Link
-            href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            {glossary.name}
-          </Link>
+          {isLiveProviderGlossaryId(glossary.id) ? (
+            <span className="truncate text-sm font-medium text-foreground">{glossary.name}</span>
+          ) : (
+            <Link
+              href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
+              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              {glossary.name}
+            </Link>
+          )}
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>
