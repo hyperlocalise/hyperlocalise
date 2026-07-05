@@ -563,6 +563,36 @@ export class PhraseApiClient {
     });
   }
 
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      filename: string;
+      content: Uint8Array;
+      contentType: string;
+      fileFormat: string;
+      localeId: string;
+      branch?: string | null;
+    },
+  ): Promise<PhraseUpload> {
+    const form = new FormData();
+    form.append("file", new Blob([input.content], { type: input.contentType }), input.filename);
+    form.append("file_format", input.fileFormat);
+    form.append("locale_id", input.localeId);
+
+    const record = await this.request<PhraseUploadApiRecord>(
+      this.buildPath(`/projects/${encodeURIComponent(projectId)}/uploads`, {
+        branch: input.branch,
+      }),
+      {
+        method: "POST",
+        headers: this.authHeaders(),
+        body: form,
+      },
+    );
+
+    return normalizePhraseUpload(record);
+  }
+
   async createKey(
     projectId: string,
     input: {

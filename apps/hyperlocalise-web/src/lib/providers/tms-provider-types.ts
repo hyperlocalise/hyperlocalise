@@ -60,6 +60,36 @@ export type ExternalTmsFileKeyFetcher = (input: {
   branch?: string | null;
 }) => Promise<ExternalTmsFileKeyMetadata[]>;
 
+export type ExternalTmsSourceFileUpload = {
+  sourcePath: string;
+  filename: string;
+  contentType: string;
+  content: Uint8Array;
+  sourceHash?: string | null;
+  sourceLocale?: string | null;
+  format?: string | null;
+  branch?: string | null;
+};
+
+export type ExternalTmsSourceFileUploadResult = {
+  sourcePath: string;
+  externalResourceId?: string | null;
+  revision?: string | null;
+  asyncOperation?: Record<string, unknown> | null;
+  providerPayload?: Record<string, unknown>;
+};
+
+export type ExternalTmsSourceFileUploader = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+  file: ExternalTmsSourceFileUpload;
+}) => Promise<ExternalTmsSourceFileUploadResult>;
+
 export type ExternalTmsJobTaskMetadata = {
   externalJobId: string;
   externalTaskId?: string | null;

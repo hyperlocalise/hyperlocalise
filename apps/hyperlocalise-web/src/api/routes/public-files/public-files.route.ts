@@ -11,12 +11,10 @@ import {
 import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
-import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
-import { createLogger } from "@/lib/log";
+import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
-import { payloadTooLargeResponse } from "@/api/response.schema";
+import { badRequestResponse, payloadTooLargeResponse } from "@/api/response.schema";
 
 import { uploadBodySchema, fileParamsSchema, maxPublicUploadBytes } from "./public-files.schema";
 import {
@@ -25,8 +23,6 @@ import {
   fileNotFoundResponse,
   unsupportedFileResponse,
 } from "./public-files.shared";
-
-const logger = createLogger("public-files");
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : undefined;
@@ -40,6 +36,33 @@ function asFile(value: unknown) {
 type CreatePublicFileRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
 };
+
+function sourceUploadErrorResponse(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
+  const code = error instanceof Error ? error.message : "source_upload_failed";
+  switch (code) {
+    case "external_tms_project_not_found":
+      return projectNotFoundResponse(c);
+    case "provider_credential_not_found":
+      return badRequestResponse(c, "provider_credential_not_found");
+    case "crowdin_branch_not_found":
+    case "phrase_source_locale_not_found":
+    case "phrase_source_file_format_required":
+    case "lokalise_source_locale_required":
+    case "lokalise_source_file_format_required":
+    case "smartling_source_file_type_required":
+      return badRequestResponse(c, "invalid_file_payload", code);
+    case "source_upload_unsupported":
+      return badRequestResponse(c, "source_upload_unsupported");
+    default:
+      return c.json(
+        {
+          error: "source_upload_failed",
+          message: "External TMS source upload failed.",
+        },
+        502,
+      );
+  }
+}
 
 export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
@@ -59,6 +82,9 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           sourceHash: asString(body.sourceHash),
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
+          sourceLocale: asString(body.sourceLocale),
+          format: asString(body.format),
+          branch: asString(body.branch),
         });
 
         if (!parsed.success) {
@@ -70,8 +96,8 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           return invalidFilePayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(file.name)) {
-          return unsupportedFileResponse(c, file.name);
+        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+          return unsupportedFileResponse(c, parsed.data.sourcePath);
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
@@ -84,81 +110,41 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           return projectNotFoundResponse(c);
         }
 
-        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
-        let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
-
-        const { storedFile, version } = await db
-          .transaction(async (tx) => {
-            uploadedFile = await createStoredFile({
-              organizationId,
-              projectId: project.id,
-              role: "source",
-              sourceKind: "repository_file",
+        try {
+          const content = new Uint8Array(await file.arrayBuffer());
+          const result = await uploadSourceFile({
+            organizationId,
+            project,
+            file: {
               filename: file.name,
               contentType: file.type || "application/octet-stream",
-              content: await file.arrayBuffer(),
-              metadata: {
-                sourcePath: parsed.data.sourcePath,
-                sourceHash: parsed.data.sourceHash,
-                commitSha: parsed.data.commitSha,
-                workflowRunId: parsed.data.workflowRunId,
-                uploadSurface: "public_api",
-              },
-              adapter,
-              db: tx,
-            });
-
-            const version = await createRepositorySourceFileVersion({
-              storedFile: uploadedFile,
-              sourcePath: parsed.data.sourcePath,
-              sourceHash: parsed.data.sourceHash,
-              commitSha: parsed.data.commitSha,
-              workflowRunId: parsed.data.workflowRunId,
-              uploadedByApiKeyId: c.var.auth.apiKey.id,
-              uploadSurface: "public_api",
-              db: tx,
-            });
-
-            return { storedFile: uploadedFile, version };
-          })
-          .catch(async (error) => {
-            if (uploadedFile) {
-              await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => {});
-            }
-            throw error;
+              content,
+            },
+            sourcePath: parsed.data.sourcePath,
+            sourceHash: parsed.data.sourceHash,
+            commitSha: parsed.data.commitSha,
+            workflowRunId: parsed.data.workflowRunId,
+            sourceLocale: parsed.data.sourceLocale,
+            format: parsed.data.format,
+            branch: parsed.data.branch,
+            uploadSurface: "public_api",
+            uploadedByApiKeyId: c.var.auth.apiKey.id,
+            actorUserId: c.var.auth.teamAccess.user.localUserId,
+            fileStorageAdapter: options.fileStorageAdapter,
           });
 
-        void enqueueSourceFileIngestAfterUpload({
-          organizationId,
-          projectId: project.id,
-          storedFileId: storedFile.id,
-          sourceFileVersionId: version.id,
-          sourcePath: parsed.data.sourcePath,
-          sourceHash: parsed.data.sourceHash ?? storedFile.sha256,
-        }).catch((error) => {
-          logger.warn(
+          return c.json(
             {
-              projectId: project.id,
-              sourceFileVersionId: version.id,
-              error: error instanceof Error ? error.message : String(error),
+              file: {
+                ...result.file,
+                destination: result.destination,
+              },
             },
-            "public-files source ingest enqueue failed",
+            201,
           );
-        });
-
-        return c.json(
-          {
-            file: {
-              id: storedFile.id,
-              sourceFileVersionId: version.id,
-              filename: storedFile.filename,
-              contentType: storedFile.contentType,
-              byteSize: storedFile.byteSize,
-              sha256: storedFile.sha256,
-            },
-          },
-          201,
-        );
+        } catch (error) {
+          return sourceUploadErrorResponse(c, error);
+        }
       },
     )
     .get("/:fileId/download", requireApiKeyPermission("files:read"), async (c) => {

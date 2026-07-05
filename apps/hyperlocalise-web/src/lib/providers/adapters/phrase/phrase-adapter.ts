@@ -4,6 +4,7 @@ import { fetchPhraseGlossaries } from "@/lib/providers/adapters/phrase/phrase-gl
 import { fetchPhraseJobTasks } from "@/lib/providers/adapters/phrase/phrase-job-task-fetcher";
 import { fetchPhraseProjects } from "@/lib/providers/adapters/phrase/phrase-project-fetcher";
 import { pullPhraseProviderReview } from "@/lib/providers/adapters/phrase/phrase-review-puller";
+import { uploadPhraseSourceFile } from "@/lib/providers/adapters/phrase/phrase-source-uploader";
 import { searchPhraseTranslationMemoryMatches } from "@/lib/providers/adapters/phrase/phrase-tm-matcher";
 import { fetchPhraseTranslationMemories } from "@/lib/providers/adapters/phrase/phrase-translation-memory-fetcher";
 import { pushPhraseTranslations } from "@/lib/providers/adapters/phrase/phrase-translation-pusher";
@@ -14,6 +15,7 @@ import {
   type TmsProviderProjectScope,
   type TmsProviderPullReviewScope,
   type TmsProviderPushTranslationsScope,
+  type TmsProviderSourceFileUploadScope,
 } from "@/lib/providers/contracts/tms-provider-adapter";
 import type { ExternalTmsTranslationMemoryMatcherInput } from "@/lib/providers/contracts/translation-memory-matcher";
 
@@ -42,6 +44,10 @@ export class PhraseTmsAdapter extends TmsProviderAdapter {
 
   pullTaskContent(scope: TmsProviderJobScope) {
     return pullPhraseTaskContent({ ...scope, providerKind: this.kind });
+  }
+
+  uploadSourceFile(scope: TmsProviderSourceFileUploadScope) {
+    return uploadPhraseSourceFile({ ...scope, providerKind: this.kind });
   }
 
   pushTranslations(scope: TmsProviderPushTranslationsScope) {

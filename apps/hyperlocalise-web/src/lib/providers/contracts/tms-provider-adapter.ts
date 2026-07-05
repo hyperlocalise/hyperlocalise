@@ -6,6 +6,8 @@ import type {
   ExternalTmsGlossaryMetadata,
   ExternalTmsJobTaskMetadata,
   ExternalTmsProjectMetadata,
+  ExternalTmsSourceFileUpload,
+  ExternalTmsSourceFileUploadResult,
   ExternalTmsTaskContent,
   ExternalTmsTranslationMemoryMetadata,
 } from "@/lib/providers/tms-provider-types";
@@ -45,6 +47,10 @@ export type TmsProviderPushTranslationsScope = TmsProviderJobScope & {
 
 export type TmsProviderPullReviewScope = TmsProviderJobScope & {
   content: ExternalTmsTaskContent;
+};
+
+export type TmsProviderSourceFileUploadScope = TmsProviderProjectScope & {
+  file: ExternalTmsSourceFileUpload;
 };
 
 export type TmsProviderCommentPushScope = {
@@ -93,6 +99,10 @@ export abstract class TmsProviderAdapter {
   ): Promise<ExternalTmsTranslationMemoryMetadata[]>;
 
   abstract pullTaskContent(scope: TmsProviderJobScope): Promise<ExternalTmsTaskContent>;
+
+  abstract uploadSourceFile(
+    scope: TmsProviderSourceFileUploadScope,
+  ): Promise<ExternalTmsSourceFileUploadResult>;
 
   abstract pushTranslations(
     scope: TmsProviderPushTranslationsScope,

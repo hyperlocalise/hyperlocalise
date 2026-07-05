@@ -154,6 +154,13 @@ export type LokaliseFileDownloadResult = {
   warning: string | null;
 };
 
+export type LokaliseSourceUploadResult = {
+  processId: string;
+  type: string | null;
+  status: string | null;
+  message: string | null;
+};
+
 export interface LokaliseComment {
   commentId: number;
   keyId: number;
@@ -529,6 +536,40 @@ export class LokaliseApiClient {
     return {
       bundleUrl,
       warning: response.warning?.trim() || null,
+    };
+  }
+
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      filename: string;
+      content: Uint8Array;
+      sourceLocale: string;
+      format: string;
+      branch?: string | null;
+    },
+  ): Promise<LokaliseSourceUploadResult> {
+    const response = await this.post<LokaliseFileUploadResponse>(
+      `/projects/${lokaliseProjectPathSegment(projectId, input.branch)}/files/upload`,
+      {
+        data: Buffer.from(input.content).toString("base64"),
+        filename: input.filename,
+        lang_iso: input.sourceLocale,
+        format: input.format,
+        queue: true,
+      },
+    );
+
+    const process = response.process;
+    if (!process?.process_id) {
+      throw new LokaliseApiError("Lokalise source upload response is missing a process id", 502, response);
+    }
+
+    return {
+      processId: process.process_id,
+      type: process.type ?? null,
+      status: process.status ?? null,
+      message: process.message ?? null,
     };
   }
 
@@ -1042,6 +1083,16 @@ type LokaliseFileDownloadResponse = {
   warning?: string | null;
 };
 
+type LokaliseFileUploadResponse = {
+  project_id?: string;
+  process?: {
+    process_id?: string;
+    type?: string | null;
+    status?: string | null;
+    message?: string | null;
+  };
+};
+
 type LokaliseTaskLanguageUserApiRecord = {
   user_id?: number;
   email?: string;
@@ -1343,6 +1394,12 @@ function normalizeLokaliseProject(record: LokaliseProjectApiRecord): LokalisePro
     baseLanguageIso: record.base_language_iso ?? null,
     createdAt: record.created_at ?? null,
   };
+}
+
+function lokaliseProjectPathSegment(projectId: string, branch?: string | null) {
+  const projectSegment = encodeURIComponent(projectId.trim());
+  const normalizedBranch = branch?.trim();
+  return normalizedBranch ? `${projectSegment}:${encodeURIComponent(normalizedBranch)}` : projectSegment;
 }
 
 function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseLanguage {

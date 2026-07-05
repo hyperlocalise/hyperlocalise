@@ -3,6 +3,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
@@ -69,6 +74,47 @@ export async function createPublicApiFixture() {
   });
 
   return { apiKey, project };
+}
+
+export async function createExternalTmsPublicApiFixture(
+  providerKind: ExternalTmsProviderKind = "phrase",
+) {
+  const fixture = await createPublicApiFixture();
+  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("provider-token"));
+  const [credential] = await db
+    .insert(schema.organizationExternalTmsProviderCredentials)
+    .values({
+      organizationId: fixture.project.organizationId,
+      createdByUserId: fixture.project.createdByUserId,
+      providerKind,
+      displayName: `${providerKind} test credential`,
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "token",
+    })
+    .returning();
+
+  const externalProjectId = "external-project-1";
+  const externalProjectCanonicalId = `ext:${providerKind}:${externalProjectId}`;
+  const [project] = await db
+    .update(schema.projects)
+    .set({
+      id: externalProjectCanonicalId,
+      source: "external_tms",
+      externalProviderKind: providerKind,
+      externalProviderCredentialId: credential.id,
+      externalProjectId,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    })
+    .where(eq(schema.projects.id, fixture.project.id))
+    .returning();
+
+  return { ...fixture, project, credential, externalProjectId };
 }
 
 export async function cleanupPublicApiFixture() {

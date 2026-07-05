@@ -80,6 +80,11 @@ export interface CrowdinFile {
   revisionId: number;
 }
 
+export interface CrowdinSourceFileUploadResult {
+  file: CrowdinFile;
+  storageId: number;
+}
+
 export interface CrowdinFileRevision {
   id: number;
   fileId: number;
@@ -585,6 +590,58 @@ export class CrowdinApiClient {
     }
 
     return files;
+  }
+
+  async addDirectory(
+    projectId: number,
+    input: { name: string; branchId?: number | null; directoryId?: number | null },
+  ): Promise<CrowdinDirectory> {
+    const response = await this.post<CrowdinGetResponse<CrowdinDirectory>>(
+      `/projects/${projectId}/directories`,
+      {
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
+
+    return response.data;
+  }
+
+  async addSourceFile(
+    projectId: number,
+    input: {
+      storageId: number;
+      name: string;
+      branchId?: number | null;
+      directoryId?: number | null;
+    },
+  ): Promise<CrowdinFile> {
+    const response = await this.post<CrowdinGetResponse<CrowdinFile>>(`/projects/${projectId}/files`, {
+      storageId: input.storageId,
+      name: input.name,
+      ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+      ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+    });
+
+    return response.data;
+  }
+
+  async updateSourceFile(
+    projectId: number,
+    fileId: number,
+    input: { storageId: number; name: string },
+  ): Promise<CrowdinFile> {
+    const response = await this.put<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files/${fileId}`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        updateOption: "keep_translations_and_approvals",
+      },
+    );
+
+    return response.data;
   }
 
   /**
@@ -1647,6 +1704,14 @@ export class CrowdinApiClient {
   private async patch<T>(path: string, body: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "PATCH",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PUT",
       headers: this.authHeaders(),
       body: JSON.stringify(body),
     });

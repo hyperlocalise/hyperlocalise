@@ -6,6 +6,7 @@ import { searchCrowdinGlossaryMatches } from "@/lib/providers/adapters/crowdin/c
 import { fetchCrowdinJobTasks } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import { fetchCrowdinProjects } from "@/lib/providers/adapters/crowdin/crowdin-project-fetcher";
 import { pullCrowdinProviderReview } from "@/lib/providers/adapters/crowdin/crowdin-review-puller";
+import { uploadCrowdinSourceFile } from "@/lib/providers/adapters/crowdin/crowdin-source-uploader";
 import { fetchCrowdinTranslationMemories } from "@/lib/providers/adapters/crowdin/crowdin-tm-fetcher";
 import { searchCrowdinTranslationMemoryMatches } from "@/lib/providers/adapters/crowdin/crowdin-tm-matcher";
 import { pushCrowdinTranslations } from "@/lib/providers/adapters/crowdin/crowdin-translation-pusher";
@@ -17,6 +18,7 @@ import {
   type TmsProviderProjectScope,
   type TmsProviderPullReviewScope,
   type TmsProviderPushTranslationsScope,
+  type TmsProviderSourceFileUploadScope,
 } from "@/lib/providers/contracts/tms-provider-adapter";
 import type { ExternalTmsGlossaryMatcherInput } from "@/lib/providers/contracts/glossary-matcher";
 import type { ExternalTmsTranslationMemoryMatcherInput } from "@/lib/providers/contracts/translation-memory-matcher";
@@ -46,6 +48,10 @@ export class CrowdinTmsAdapter extends TmsProviderAdapter {
 
   pullTaskContent(scope: TmsProviderJobScope) {
     return pullCrowdinTaskContent({ ...scope, providerKind: this.kind });
+  }
+
+  uploadSourceFile(scope: TmsProviderSourceFileUploadScope) {
+    return uploadCrowdinSourceFile({ ...scope, providerKind: this.kind });
   }
 
   pushTranslations(scope: TmsProviderPushTranslationsScope) {

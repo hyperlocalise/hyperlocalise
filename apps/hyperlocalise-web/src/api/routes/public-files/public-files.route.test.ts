@@ -2,16 +2,25 @@ import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 
 import {
   createMemoryFileStorageAdapter,
+  createExternalTmsPublicApiFixture,
   createPublicApiFixture,
   cleanupPublicApiFixture,
 } from "./public-files.fixture";
+
+const uploadSourceFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", () => ({
+  getTmsProviderAdapter: () => ({
+    uploadSourceFile: uploadSourceFileMock,
+  }),
+}));
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient(createApp({ fileStorageAdapter }));
@@ -21,6 +30,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  uploadSourceFileMock.mockReset();
   await cleanupPublicApiFixture();
 });
 
@@ -46,12 +56,82 @@ describe("publicFileRoutes", () => {
     );
 
     expect(uploadResponse.status).toBe(201);
+    const uploadBody = (await uploadResponse.json()) as {
+      file: { destination: "native" };
+    };
+    expect(uploadBody.file.destination).toBe("native");
     const [storedFile] = await db
       .select({ projectId: schema.storedFiles.projectId })
       .from(schema.storedFiles)
       .where(eq(schema.storedFiles.projectId, projectId))
       .limit(1);
     expect(storedFile?.projectId).toBe(projectId);
+  });
+
+  it("uploads a source file to an external TMS project through the provider adapter", async () => {
+    const { apiKey, project, externalProjectId } = await createExternalTmsPublicApiFixture("phrase");
+    uploadSourceFileMock.mockResolvedValue({
+      sourcePath: "content/en/home.json",
+      externalResourceId: "upload_1",
+      revision: "rev_1",
+      asyncOperation: null,
+      providerPayload: { state: "success" },
+    });
+
+    const uploadResponse = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.json",
+          sourceLocale: "en",
+          format: "json",
+          branch: "main",
+          file: new File([`{"hello":"Hello"}`], "home.json", { type: "application/json" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(uploadResponse.status).toBe(201);
+    await expect(uploadResponse.json()).resolves.toEqual({
+      file: {
+        id: "upload_1",
+        destination: "external_tms",
+        sourcePath: "content/en/home.json",
+        providerKind: "phrase",
+        externalProjectId,
+        externalResourceId: "upload_1",
+        revision: "rev_1",
+        asyncOperation: null,
+        providerPayload: { state: "success" },
+      },
+    });
+
+    expect(uploadSourceFileMock).toHaveBeenCalledTimes(1);
+    const adapterInput = uploadSourceFileMock.mock.calls[0]?.[0];
+    expect(adapterInput).toEqual(
+      expect.objectContaining({
+        organizationId: project.organizationId,
+        projectId: project.id,
+        externalProjectId,
+        secretMaterial: "provider-token",
+        file: expect.objectContaining({
+          sourcePath: "content/en/home.json",
+          filename: "home.json",
+          contentType: "application/json",
+          sourceLocale: "en",
+          format: "json",
+          branch: "main",
+        }),
+      }),
+    );
+    expect(Buffer.from(adapterInput.file.content).toString("utf8")).toBe(`{"hello":"Hello"}`);
+
+    const storedFiles = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.projectId, project.id));
+    expect(storedFiles).toHaveLength(0);
   });
 
   it("uploads and downloads a repository source file with an API key", async () => {
