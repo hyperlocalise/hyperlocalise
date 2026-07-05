@@ -16,11 +16,16 @@ import {
 
 const uploadSourceFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", () => ({
-  getTmsProviderAdapter: () => ({
-    uploadSourceFile: uploadSourceFileMock,
-  }),
-}));
+vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
+  return {
+    ...actual,
+    getTmsProviderAdapter: () => ({
+      uploadSourceFile: uploadSourceFileMock,
+    }),
+  };
+});
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient(createApp({ fileStorageAdapter }));
@@ -69,7 +74,8 @@ describe("publicFileRoutes", () => {
   });
 
   it("uploads a source file to an external TMS project through the provider adapter", async () => {
-    const { apiKey, project, externalProjectId } = await createExternalTmsPublicApiFixture("phrase");
+    const { apiKey, project, externalProjectId } =
+      await createExternalTmsPublicApiFixture("phrase");
     uploadSourceFileMock.mockResolvedValue({
       sourcePath: "content/en/home.json",
       externalResourceId: "upload_1",

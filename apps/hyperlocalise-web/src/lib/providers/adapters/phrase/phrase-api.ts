@@ -575,7 +575,11 @@ export class PhraseApiClient {
     },
   ): Promise<PhraseUpload> {
     const form = new FormData();
-    form.append("file", new Blob([input.content], { type: input.contentType }), input.filename);
+    const content = input.content.buffer.slice(
+      input.content.byteOffset,
+      input.content.byteOffset + input.content.byteLength,
+    ) as ArrayBuffer;
+    form.append("file", new Blob([content], { type: input.contentType }), input.filename);
     form.append("file_format", input.fileFormat);
     form.append("locale_id", input.localeId);
 

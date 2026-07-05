@@ -63,7 +63,9 @@ export type SourceFileUploadResult =
   | NativeSourceFileUploadResult
   | ExternalTmsSourceFileUploadResult;
 
-export async function uploadSourceFile(input: SourceFileUploadInput): Promise<SourceFileUploadResult> {
+export async function uploadSourceFile(
+  input: SourceFileUploadInput,
+): Promise<SourceFileUploadResult> {
   if (input.project.source === "external_tms") {
     return uploadExternalTmsSourceFile(input);
   }
@@ -159,7 +161,10 @@ async function uploadExternalTmsSourceFile(
     .from(schema.organizationExternalTmsProviderCredentials)
     .where(
       and(
-        eq(schema.organizationExternalTmsProviderCredentials.id, input.project.externalProviderCredentialId),
+        eq(
+          schema.organizationExternalTmsProviderCredentials.id,
+          input.project.externalProviderCredentialId,
+        ),
         eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
         eq(schema.organizationExternalTmsProviderCredentials.providerKind, providerKind),
       ),

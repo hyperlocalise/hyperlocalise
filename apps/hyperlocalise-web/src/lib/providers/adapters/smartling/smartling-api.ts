@@ -550,7 +550,11 @@ export class SmartlingApiClient {
     const form = new FormData();
     form.append("fileUri", input.fileUri);
     form.append("fileType", input.fileType);
-    form.append("file", new Blob([input.content], { type: input.contentType }), input.filename);
+    const content = input.content.buffer.slice(
+      input.content.byteOffset,
+      input.content.byteOffset + input.content.byteLength,
+    ) as ArrayBuffer;
+    form.append("file", new Blob([content], { type: input.contentType }), input.filename);
 
     const url = `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file`;
     const response = await this.fetchFn(url, {

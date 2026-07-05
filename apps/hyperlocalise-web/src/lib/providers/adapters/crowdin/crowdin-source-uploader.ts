@@ -33,11 +33,7 @@ export const uploadCrowdinSourceFile: ExternalTmsSourceFileUploader = async ({
     contentType: file.contentType,
   });
 
-  const files = await client.listFiles(
-    projectId,
-    branchId ?? undefined,
-    directoryId ?? undefined,
-  );
+  const files = await client.listFiles(projectId, branchId ?? undefined, directoryId ?? undefined);
   const existing = files.find((item) => item.name === name);
   const uploaded = existing
     ? await client.updateSourceFile(projectId, existing.id, { storageId: storage.id, name })

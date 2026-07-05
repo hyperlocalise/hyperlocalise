@@ -562,7 +562,11 @@ export class LokaliseApiClient {
 
     const process = response.process;
     if (!process?.process_id) {
-      throw new LokaliseApiError("Lokalise source upload response is missing a process id", 502, response);
+      throw new LokaliseApiError(
+        "Lokalise source upload response is missing a process id",
+        502,
+        response,
+      );
     }
 
     return {
@@ -1399,7 +1403,9 @@ function normalizeLokaliseProject(record: LokaliseProjectApiRecord): LokalisePro
 function lokaliseProjectPathSegment(projectId: string, branch?: string | null) {
   const projectSegment = encodeURIComponent(projectId.trim());
   const normalizedBranch = branch?.trim();
-  return normalizedBranch ? `${projectSegment}:${encodeURIComponent(normalizedBranch)}` : projectSegment;
+  return normalizedBranch
+    ? `${projectSegment}:${encodeURIComponent(normalizedBranch)}`
+    : projectSegment;
 }
 
 function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseLanguage {

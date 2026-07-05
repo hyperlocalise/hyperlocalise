@@ -5,6 +5,18 @@ import { LokaliseApiClient } from "./lokalise/lokalise-api";
 import { PhraseApiClient } from "./phrase/phrase-api";
 import { SmartlingApiClient } from "./smartling/smartling-api";
 
+function requestUrl(input: RequestInfo | URL | undefined) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  if (input instanceof Request) return input.url;
+  return "";
+}
+
+function requestBodyText(input: BodyInit | null | undefined) {
+  if (typeof input === "string") return input;
+  throw new Error("expected string request body");
+}
+
 describe("source file upload API clients", () => {
   it("constructs Phrase multipart source uploads", async () => {
     const fetchFn = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
@@ -38,7 +50,7 @@ describe("source file upload API clients", () => {
       branch: "main",
     });
 
-    expect(String(fetchFn.mock.calls[0]?.[0])).toBe(
+    expect(requestUrl(fetchFn.mock.calls[0]?.[0])).toBe(
       "https://api.phrase.test/api/v2/projects/project-1/uploads?branch=main",
     );
     expect(result.id).toBe("upload-1");
@@ -46,7 +58,7 @@ describe("source file upload API clients", () => {
 
   it("constructs Lokalise queued source imports", async () => {
     const fetchFn = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const body = JSON.parse(requestBodyText(init?.body)) as Record<string, unknown>;
       expect(init?.method).toBe("POST");
       expect(body).toMatchObject({
         filename: "home.json",
@@ -77,7 +89,7 @@ describe("source file upload API clients", () => {
       branch: "main",
     });
 
-    expect(String(fetchFn.mock.calls[0]?.[0])).toBe(
+    expect(requestUrl(fetchFn.mock.calls[0]?.[0])).toBe(
       "https://api.lokalise.test/api2/projects/project-1:main/files/upload",
     );
     expect(result.processId).toBe("process-1");
@@ -85,7 +97,7 @@ describe("source file upload API clients", () => {
 
   it("constructs Smartling multipart source uploads after auth", async () => {
     const fetchFn = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/authenticate")) {
+      if (requestUrl(url).endsWith("/authenticate")) {
         return Response.json({
           response: {
             code: "SUCCESS",
@@ -128,7 +140,7 @@ describe("source file upload API clients", () => {
       contentType: "application/json",
     });
 
-    expect(String(fetchFn.mock.calls[1]?.[0])).toBe(
+    expect(requestUrl(fetchFn.mock.calls[1]?.[0])).toBe(
       "https://api.smartling.test/files-api/v2/projects/project-1/file",
     );
     expect(result.processUid).toBe("process-1");
@@ -137,7 +149,7 @@ describe("source file upload API clients", () => {
   it("constructs Crowdin source file create requests", async () => {
     const fetchFn = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.method).toBe("POST");
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(JSON.parse(requestBodyText(init?.body))).toEqual({
         storageId: 7,
         name: "home.json",
         branchId: 3,
@@ -168,7 +180,7 @@ describe("source file upload API clients", () => {
       branchId: 3,
     });
 
-    expect(String(fetchFn.mock.calls[0]?.[0])).toBe(
+    expect(requestUrl(fetchFn.mock.calls[0]?.[0])).toBe(
       "https://api.crowdin.test/api/v2/projects/123/files",
     );
     expect(result.id).toBe(9);

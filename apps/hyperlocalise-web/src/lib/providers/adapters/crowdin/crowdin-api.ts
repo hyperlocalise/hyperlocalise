@@ -617,12 +617,15 @@ export class CrowdinApiClient {
       directoryId?: number | null;
     },
   ): Promise<CrowdinFile> {
-    const response = await this.post<CrowdinGetResponse<CrowdinFile>>(`/projects/${projectId}/files`, {
-      storageId: input.storageId,
-      name: input.name,
-      ...(input.directoryId ? { directoryId: input.directoryId } : {}),
-      ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
-    });
+    const response = await this.post<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
 
     return response.data;
   }
