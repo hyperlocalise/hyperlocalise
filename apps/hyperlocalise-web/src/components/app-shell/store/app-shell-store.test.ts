@@ -242,3 +242,251 @@ describe("AppShellStore", () => {
     expect(api.setOpen).toHaveBeenCalledWith(false);
   });
 });
+
+describe("HeaderActionsStore", () => {
+  it("unregisters a single slot without affecting the others", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    store.headerActions.register({ id: "a", order: 10, visible: true, render: () => "A" });
+    store.headerActions.register({ id: "b", order: 20, visible: true, render: () => "B" });
+    store.headerActions.unregister("a");
+
+    expect(store.headerActions.orderedSlots.map((slot) => slot.id)).toEqual(["b"]);
+  });
+
+  it("keeps stable ordering for slots that share an order", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    store.headerActions.register({ id: "first", order: 5, visible: true, render: () => "1" });
+    store.headerActions.register({ id: "second", order: 5, visible: true, render: () => "2" });
+
+    expect(store.headerActions.orderedSlots.map((slot) => slot.id)).toEqual(["first", "second"]);
+  });
+
+  it("hides a slot when it is re-registered as not visible", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    store.headerActions.register({ id: "save", order: 0, visible: true, render: () => "Save" });
+    expect(store.headerActions.orderedSlots).toHaveLength(1);
+
+    store.headerActions.register({ id: "save", order: 0, visible: false, render: () => "Save" });
+    expect(store.headerActions.orderedSlots).toEqual([]);
+  });
+});
+
+describe("BreadcrumbStore", () => {
+  it("overrides a crumb by index and preserves the original href", () => {
+    const store = createAppShellStore(sampleGroups);
+    const base = [
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+    ];
+
+    store.breadcrumb.registerOverride({ id: "first", index: 0, label: "Workspace" });
+
+    expect(store.breadcrumb.applyOverrides(base)).toEqual([
+      { label: "Workspace", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+    ]);
+  });
+
+  it("applies a custom href from an override", () => {
+    const store = createAppShellStore(sampleGroups);
+    const base = [{ label: "proj_1", href: "/org/acme/projects/proj_1" }];
+
+    store.breadcrumb.registerOverride({
+      id: "project-name",
+      matchSegment: "proj_1",
+      label: "Checkout",
+      href: "/org/acme/projects/proj_1/overview",
+    });
+
+    expect(store.breadcrumb.applyOverrides(base)).toEqual([
+      { label: "Checkout", href: "/org/acme/projects/proj_1/overview" },
+    ]);
+  });
+
+  it("removes overrides and appends when unregistered", () => {
+    const store = createAppShellStore(sampleGroups);
+    const base = [{ label: "proj_1", href: "/org/acme/projects/proj_1" }];
+
+    store.breadcrumb.registerOverride({ id: "name", matchSegment: "proj_1", label: "Checkout" });
+    store.breadcrumb.registerAppend({ id: "detail", label: "Detail" });
+    store.breadcrumb.unregisterOverride("name");
+    store.breadcrumb.unregisterAppend("detail");
+
+    expect(store.breadcrumb.applyOverrides(base)).toEqual(base);
+  });
+
+  it("returns the base crumbs when no overrides or appends are registered", () => {
+    const store = createAppShellStore(sampleGroups);
+    const base = [{ label: "Inbox" }];
+
+    expect(store.breadcrumb.applyOverrides(base)).toEqual(base);
+  });
+});
+
+describe("NavigationStore", () => {
+  it("exposes the default groups in route mode", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    expect(store.navigation.mode).toBe("route");
+    expect(store.navigation.defaultNavigationGroups).toEqual(sampleGroups);
+    expect(store.navigation.activeGroups).toEqual(sampleGroups);
+    expect(store.navigation.activeProjectContext).toBeNull();
+  });
+
+  it("returns default groups after clearing custom mode", () => {
+    const store = createAppShellStore(sampleGroups);
+    const customGroups = [
+      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: Chat01Icon }] },
+    ] as const;
+
+    store.navigation.setCustomNavigation(customGroups, {
+      organizationSlug: "acme",
+      projectId: "proj_1",
+    });
+    store.navigation.clearCustomMode();
+
+    expect(store.navigation.mode).toBe("route");
+    expect(store.navigation.activeGroups).toEqual(sampleGroups);
+    expect(store.navigation.activeProjectContext).toBeNull();
+  });
+
+  it("enters custom mode without a project context", () => {
+    const store = createAppShellStore(sampleGroups);
+    const customGroups = [
+      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: Chat01Icon }] },
+    ] as const;
+
+    store.navigation.setCustomNavigation(customGroups);
+
+    expect(store.navigation.mode).toBe("custom");
+    expect(store.navigation.activeGroups).toEqual(customGroups);
+    expect(store.navigation.activeProjectContext).toBeNull();
+  });
+});
+
+describe("SidebarStore", () => {
+  it("reports default state before an api binds", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    expect(store.sidebar.isBound).toBe(false);
+    expect(store.sidebar.isOpen).toBe(true);
+    expect(store.sidebar.isMobile).toBe(false);
+    expect(store.sidebar.state).toBe("expanded");
+  });
+
+  it("reflects the bound api state through getters", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi({ open: false, isMobile: true, state: "collapsed" });
+
+    store.sidebar.bindSidebarApi(api);
+
+    expect(store.sidebar.isBound).toBe(true);
+    expect(store.sidebar.isOpen).toBe(false);
+    expect(store.sidebar.isMobile).toBe(true);
+    expect(store.sidebar.state).toBe("collapsed");
+  });
+
+  it("stores the open preference locally while unbound", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    store.sidebar.setOpen(false);
+
+    expect(store.sidebar.preferredOpen).toBe(false);
+  });
+
+  it("routes open changes to the desktop api", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.setOpen(false);
+
+    expect(api.setOpen).toHaveBeenCalledWith(false);
+    expect(api.setOpenMobile).not.toHaveBeenCalled();
+  });
+
+  it("routes open changes to the mobile api", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi({ isMobile: true });
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.setOpen(true);
+
+    expect(api.setOpenMobile).toHaveBeenCalledWith(true);
+    expect(api.setOpen).not.toHaveBeenCalled();
+  });
+
+  it("collapses and expands through the api", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.collapse();
+    store.sidebar.expand();
+
+    expect(api.setOpen).toHaveBeenNthCalledWith(1, false);
+    expect(api.setOpen).toHaveBeenNthCalledWith(2, true);
+  });
+
+  it("toggles the bound api", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.toggle();
+
+    expect(api.toggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing on toggle while unbound", () => {
+    const store = createAppShellStore(sampleGroups);
+
+    expect(() => store.sidebar.toggle()).not.toThrow();
+  });
+
+  it("does not sync a neutral preference when binding", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.bindSidebarApi(api);
+
+    expect(api.setOpen).not.toHaveBeenCalled();
+    expect(api.setOpenMobile).not.toHaveBeenCalled();
+  });
+
+  it("stops syncing preferences after the api unbinds", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.unbindSidebarApi();
+    store.sidebar.setPreferredOpen(false);
+
+    expect(store.sidebar.isBound).toBe(false);
+    expect(api.setOpen).not.toHaveBeenCalled();
+  });
+
+  it("forces a collapse on mobile through setOpenMobile", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi({ isMobile: true });
+
+    store.sidebar.bindSidebarApi(api);
+    store.sidebar.setForceCollapsed(true);
+
+    expect(api.setOpenMobile).toHaveBeenCalledWith(false);
+  });
+
+  it("prefers the forced collapse over an open preference", () => {
+    const store = createAppShellStore(sampleGroups);
+    const api = createSidebarApi();
+
+    store.sidebar.setPreferredOpen(true);
+    store.sidebar.setForceCollapsed(true);
+    store.sidebar.bindSidebarApi(api);
+
+    expect(api.setOpen).toHaveBeenLastCalledWith(false);
+  });
+});
