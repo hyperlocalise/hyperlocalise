@@ -6,10 +6,17 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // AndroidXMLResourcesParser parses Android string resource XML files.
 type AndroidXMLResourcesParser struct{}
+
+var androidXMLFragmentPool = sync.Pool{
+	New: func() any {
+		return &bytes.Buffer{}
+	},
+}
 
 type androidResourceEntry struct {
 	key         string
@@ -124,7 +131,7 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	rootSeen := false
 	var plural *androidPluralState
 	var capture *androidValueCapture
-	seenKeys := map[string]struct{}{}
+	seenKeys := make(map[string]struct{}, capacity)
 
 	currentLine := 1
 	lastOffset := 0
@@ -228,23 +235,31 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 }
 
 func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, *androidPluralState, error) {
-	if !androidResourceTranslatable(token.Attr) {
+	var name string
+	translatable := true
+	for _, attr := range token.Attr {
+		switch attr.Name.Local {
+		case "name":
+			name = attr.Value
+		case "translatable":
+			if strings.EqualFold(strings.TrimSpace(attr.Value), "false") {
+				translatable = false
+			}
+		}
+	}
+
+	if !translatable {
 		return nil, nil, nil
+	}
+	if name == "" {
+		return nil, nil, fmt.Errorf("android resources: <%s> is missing required \"name\" attribute at line %d", token.Name.Local, currentLine)
 	}
 
 	switch token.Name.Local {
 	case "string":
-		key, err := androidRequiredAttr(token, "name")
-		if err != nil {
-			return nil, nil, err
-		}
-		capture, err := startAndroidValueCapture(text, decoder, token, key, seenKeys)
+		capture, err := startAndroidValueCapture(text, decoder, token, name, seenKeys)
 		return capture, nil, err
 	case "plurals":
-		name, err := androidRequiredAttr(token, "name")
-		if err != nil {
-			return nil, nil, err
-		}
 		return nil, &androidPluralState{name: name, startLine: currentLine}, nil
 	default:
 		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, currentLine)
@@ -255,10 +270,18 @@ func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.
 	if token.Name.Local != "item" {
 		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, currentLine)
 	}
-	quantity, err := androidRequiredAttr(token, "quantity")
-	if err != nil {
-		return nil, err
+
+	var quantity string
+	for _, attr := range token.Attr {
+		if attr.Name.Local == "quantity" {
+			quantity = attr.Value
+			break
+		}
 	}
+	if quantity == "" {
+		return nil, fmt.Errorf("android resources: <item> inside <plurals name=%q> at line %d is missing required \"quantity\" attribute", plural.name, currentLine)
+	}
+
 	if !androidValidPluralQuantity(quantity) {
 		return nil, fmt.Errorf("android resources: <plurals name=%q> has unsupported quantity %q", plural.name, quantity)
 	}
@@ -298,19 +321,6 @@ func finishAndroidValueCapture(text string, decoder *xml.Decoder, capture *andro
 	}, nil
 }
 
-func androidRequiredAttr(token xml.StartElement, name string) (string, error) {
-	value := attrValue(token.Attr, name)
-	if value == "" {
-		return "", fmt.Errorf("android resources: <%s> is missing required %q attribute", token.Name.Local, name)
-	}
-	return value, nil
-}
-
-func androidResourceTranslatable(attrs []xml.Attr) bool {
-	// BOLT OPTIMIZATION: attrValue already performs strings.TrimSpace.
-	return !strings.EqualFold(attrValue(attrs, "translatable"), "false")
-}
-
 func androidValidPluralQuantity(quantity string) bool {
 	switch quantity {
 	case "zero", "one", "two", "few", "many", "other":
@@ -321,14 +331,20 @@ func androidValidPluralQuantity(quantity string) bool {
 }
 
 func isSelfClosingXMLStart(text string, endOffset int) bool {
-	if endOffset <= 0 || endOffset > len(text) {
+	if endOffset < 2 || endOffset > len(text) {
 		return false
 	}
-	start := strings.LastIndex(text[:endOffset], "<")
-	if start < 0 {
+
+	// Manual backward scan for "/>" suffix within the element tag.
+	// We scan from endOffset - 1 backwards.
+	idx := endOffset - 1
+	for idx >= 0 && isXMLWhitespace(text[idx]) {
+		idx--
+	}
+	if idx < 1 || text[idx] != '>' || text[idx-1] != '/' {
 		return false
 	}
-	return strings.HasSuffix(strings.TrimSpace(text[start:endOffset]), "/>")
+	return true
 }
 
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
@@ -344,8 +360,17 @@ func encodeAndroidResourceValue(value, namespaceAttrs string) string {
 }
 
 func androidXMLFragmentWellFormed(value, namespaceAttrs string) bool {
-	wrapped := "<resources" + namespaceAttrs + ">" + value + "</resources>"
-	decoder := xml.NewDecoder(strings.NewReader(wrapped))
+	b := androidXMLFragmentPool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer androidXMLFragmentPool.Put(b)
+
+	b.WriteString("<resources")
+	b.WriteString(namespaceAttrs)
+	b.WriteString(">")
+	b.WriteString(value)
+	b.WriteString("</resources>")
+
+	decoder := xml.NewDecoder(b)
 	for {
 		if _, err := decoder.Token(); err != nil {
 			return isEOFError(err)
@@ -355,7 +380,8 @@ func androidXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 
 func androidNamespaceAttrs(attrs []xml.Attr) string {
 	// BOLT OPTIMIZATION: Avoid double iteration and builder allocation until needed.
-	var b *strings.Builder
+	var b strings.Builder
+	initialized := false
 	for _, attr := range attrs {
 		isNamespace := false
 		switch {
@@ -366,9 +392,9 @@ func androidNamespaceAttrs(attrs []xml.Attr) string {
 		}
 
 		if isNamespace {
-			if b == nil {
-				b = &strings.Builder{}
+			if !initialized {
 				b.Grow(128) // Typical namespace string size
+				initialized = true
 			}
 
 			if attr.Name.Space == "xmlns" {
@@ -383,7 +409,7 @@ func androidNamespaceAttrs(attrs []xml.Attr) string {
 		}
 	}
 
-	if b == nil {
+	if !initialized {
 		return ""
 	}
 	return b.String()
