@@ -223,3 +223,7 @@
 ## 2027-02-15 - Optimizing locale list normalization via capacity hinting and allocation avoidance
 **Learning:** For functions that perform string splitting and deduplication (like `NormalizeList`), pre-calculating the total expected elements (e.g., by counting delimiters) to provide accurate map and slice capacity hints significantly reduces re-allocation overhead. Additionally, manual checks for common string states (like `isAlreadyLower` for ASCII) can bypass expensive standard library calls that might otherwise perform redundant allocations.
 **Action:** Implement capacity hints based on delimiter counts and use fast-path checks for common string properties to avoid unnecessary heap allocations in hot-path utility functions.
+
+## 2027-02-20 - Optimizing HTML tag parity checks via fast-paths and allocation reduction
+**Learning:** HTML tag parity checks are frequently performed during translation validation. Repeated use of `strings.TrimSpace`, `strings.TrimPrefix`, `strings.TrimSuffix`, and `strings.Fields` in a loop creates significant garbage collection pressure due to many intermediate string allocations. A manual scanning approach that extracts tag names in a single pass is much more efficient. Additionally, a simple fast-path for identical strings avoids expensive parsing entirely for the most common case.
+**Action:** Implement fast-paths for identical inputs and replace chained string manipulation functions with manual index-based scanning in hot paths like tag discovery and normalization.

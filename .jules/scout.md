@@ -119,7 +119,3 @@
 ## 2025-08-05 - [ICU Invariant Styles]
 **Learning:** ICU invariant analysis must capture styles for typed elements (number, date, time) in the BlockSignature Options field. This ensures that changes to the formatting style are detected as invariant mismatches, which is critical for maintaining consistency between source and translations.
 **Action:** Always include the Style field from NumberElement, DateElement, and TimeElement in the ICUBlocks signature when collecting message invariants.
-
-## 2026-07-20 - [Robust Token Extraction from Formatted Slices]
-**Learning:** Extracting tokens from formatted Go slices (e.g., those produced by %q or %v) requires a scanner that robustly handles container brackets ('[' and ']'), separators (spaces and commas), and quoted literals. Naive splitting on whitespace fails for tokens containing spaces (e.g., %{my key}). Switching to %q for slice formatting provides clear boundaries but requires a quote-aware parser.
-**Action:** When parsing RelatedTokens from error messages, always trim container brackets and use a scanner-based approach that respects quotes and correctly skips delimiters. Ensure the resulting list is sorted to maintain test determinism.

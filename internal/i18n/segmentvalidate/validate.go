@@ -301,7 +301,7 @@ func formatPlaceholderNames(rawList string) []string {
 			}
 			if j < len(rawList) {
 				// We found a closing quote. In Go, %q produces a valid string literal.
-				val, err := strconv.Unquote(rawList[i:j+1])
+				val, err := strconv.Unquote(rawList[i : j+1])
 				if err != nil {
 					// Fallback for failed unquoting
 					val = strings.ReplaceAll(rawList[i+1:j], `\"`, `"`)
