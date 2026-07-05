@@ -5,6 +5,7 @@ import type {
 
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../projects/_components/project-list";
+import type { RecentProjectVisit } from "../../projects/_components/recent-projects";
 
 export type DashboardIntegrationId = "tms" | "github" | "slack";
 
@@ -13,6 +14,7 @@ export type DashboardIntegrationItem = {
   label: string;
   description: string;
   connected: boolean;
+  providerKind?: ProjectListRow["externalProviderKind"];
 };
 
 export type DashboardJobItem = {
@@ -50,7 +52,7 @@ export type DashboardHeroState =
       mode: "setup";
       title: string;
       description: string;
-      connectedCount: number;
+      completedCount: number;
       totalCount: number;
       ctaLabel: string;
       ctaHref: string;
@@ -73,6 +75,31 @@ const JOB_STATUS_PRIORITY: Record<ApiJob["status"], number> = {
   cancelled: 5,
 };
 
+function mergeDashboardSources<T extends { id: string }>(
+  primary: readonly T[],
+  secondary: readonly T[],
+) {
+  const itemsById = new Map(primary.map((item) => [item.id, item]));
+  for (const item of secondary) {
+    itemsById.set(item.id, item);
+  }
+  return [...itemsById.values()];
+}
+
+export function mergeDashboardJobSources<T extends Pick<ApiJob, "id">>(
+  nativeJobs: readonly T[],
+  tmsJobs: readonly T[],
+) {
+  return mergeDashboardSources(nativeJobs, tmsJobs);
+}
+
+export function mergeDashboardProjectSources(
+  nativeProjects: readonly ProjectListRow[],
+  tmsProjects: readonly ProjectListRow[],
+) {
+  return mergeDashboardSources(nativeProjects, tmsProjects);
+}
+
 export function formatDashboardLocaleRoute(
   sourceLocale: string | null,
   targetLocales: readonly string[],
@@ -89,15 +116,20 @@ export function formatDashboardLocaleRoute(
 
 export function resolveDashboardIntegrations(input: {
   tmsConnected: boolean;
+  tmsProviderKind?: ProjectListRow["externalProviderKind"];
+  tmsProviderName?: string;
   githubConnected: boolean;
   slackConnected: boolean;
 }): DashboardIntegrationItem[] {
   return [
     {
       id: "tms",
-      label: "Translation management",
-      description: "Connect Crowdin, Lokalise, Phrase, or use Hyperlocalise native projects.",
+      label: input.tmsProviderName ?? "Translation management",
+      description: input.tmsProviderName
+        ? `${input.tmsProviderName} projects and translation work are available.`
+        : "Connect Crowdin, Lokalise, Phrase, or Smartling.",
       connected: input.tmsConnected,
+      providerKind: input.tmsProviderKind,
     },
     {
       id: "github",
@@ -145,6 +177,7 @@ export function resolveDashboardHero(input: {
   newRequestHref: string;
 }): DashboardHeroState {
   const connectedCount = input.integrations.filter((item) => item.connected).length;
+  const completedCount = connectedCount + (input.projectCount > 0 ? 1 : 0);
   const setupComplete = isDashboardSetupComplete(input.integrations, input.projectCount);
 
   if (!setupComplete) {
@@ -153,8 +186,8 @@ export function resolveDashboardHero(input: {
       title: "Get your workspace ready",
       description:
         "Connect your tools and create a project so Hyperlocalise can route translation work to you.",
-      connectedCount,
-      totalCount: input.integrations.length,
+      completedCount,
+      totalCount: input.integrations.length + 1,
       ctaLabel: "Finish setup",
       ctaHref: input.integrationsHref,
     };
@@ -195,8 +228,34 @@ export function sortDashboardJobs<T extends Pick<ApiJob, "status" | "updatedAt">
   });
 }
 
-export function sortDashboardProjects(projects: readonly ProjectListRow[]) {
+export function sortDashboardLatestJobs<T extends Pick<ApiJob, "updatedAt">>(jobs: readonly T[]) {
+  return [...jobs].toSorted(
+    (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
+}
+
+export function sortDashboardProjects(
+  projects: readonly ProjectListRow[],
+  recentVisits: readonly RecentProjectVisit[] = [],
+) {
+  const visitedAtByProjectId = new Map(
+    recentVisits.map((visit) => [visit.projectId, visit.visitedAt]),
+  );
+
   return [...projects].toSorted((left, right) => {
+    const leftVisitedAt = visitedAtByProjectId.get(left.id);
+    const rightVisitedAt = visitedAtByProjectId.get(right.id);
+
+    if (leftVisitedAt !== undefined || rightVisitedAt !== undefined) {
+      if (leftVisitedAt === undefined) {
+        return 1;
+      }
+      if (rightVisitedAt === undefined) {
+        return -1;
+      }
+      return rightVisitedAt - leftVisitedAt;
+    }
+
     const pendingDelta = right.openJobCount - left.openJobCount;
     if (pendingDelta !== 0) {
       return pendingDelta;

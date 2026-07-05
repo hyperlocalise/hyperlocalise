@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { ProjectListRow } from "./project-list";
+import { recordRecentProjectVisit } from "./recent-projects";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 
 function ProviderBadge({
@@ -135,6 +136,9 @@ export function ProjectsTable({
                 <Link
                   href={`/org/${organizationSlug}/projects/${project.id}`}
                   className="min-w-0 flex-1"
+                  onClick={() => {
+                    recordRecentProjectVisit(organizationSlug, project.id);
+                  }}
                 >
                   <div className="flex items-center gap-2">
                     <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground md:text-base group-hover:text-foreground">
