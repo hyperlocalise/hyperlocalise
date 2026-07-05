@@ -14,7 +14,7 @@ import {
   TranslationIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { siGithub } from "simple-icons";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,18 @@ import type {
   DashboardJobItem,
   DashboardProjectItem,
 } from "./dashboard-page-view-model";
+
+type AutomationRunStatus = DashboardAutomationRunItem["status"];
+type AutomationRunBadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
+
+const AUTOMATION_RUN_BADGE_VARIANTS: Record<AutomationRunStatus, AutomationRunBadgeVariant> = {
+  queued: "warning",
+  running: "warning",
+  succeeded: "success",
+  failed: "destructive",
+  cancelled: "warning",
+  skipped: "warning",
+};
 
 export type DashboardLinkRenderer = (props: {
   href: string;
@@ -446,7 +458,10 @@ function DashboardAutomationsSection({
                               <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
                                 {run.automationName}
                               </TypographyP>
-                              <Badge variant="outline" className="rounded-full capitalize">
+                              <Badge
+                                variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
+                                className="rounded-full capitalize"
+                              >
                                 {run.status}
                               </Badge>
                             </div>
