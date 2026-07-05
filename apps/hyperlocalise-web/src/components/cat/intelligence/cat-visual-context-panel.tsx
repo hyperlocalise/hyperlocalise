@@ -2,6 +2,7 @@
 
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
   CatVisualContext,
@@ -20,8 +21,46 @@ function VisualContextSkeleton() {
   );
 }
 
+function VisualContextScreenshotPreview({
+  screenshot,
+  alt,
+}: {
+  screenshot: CatVisualContextScreenshot;
+  alt: string;
+}) {
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={screenshot.imageUrl}
+        alt={alt}
+        className="block h-auto w-full"
+        loading="lazy"
+        decoding="async"
+      />
+      {screenshot.markers.map((marker, index) => (
+        <span
+          key={`${screenshot.id}-${index}`}
+          className={cn(
+            "pointer-events-none absolute rounded-sm border-2 border-grove-300/80 bg-grove-300/15",
+            "shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset]",
+          )}
+          style={{
+            left: `${marker.left}%`,
+            top: `${marker.top}%`,
+            width: `${marker.width}%`,
+            height: `${marker.height}%`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 function VisualContextScreenshotCard({ screenshot }: { screenshot: CatVisualContextScreenshot }) {
   const intl = useIntl();
+  const alt =
+    screenshot.name ?? intl.formatMessage(catVisualContextPanelMessages.screenshotAltFallback);
 
   return (
     <figure className="overflow-hidden rounded-xl border border-border bg-background">
@@ -30,34 +69,18 @@ function VisualContextScreenshotCard({ screenshot }: { screenshot: CatVisualCont
           {screenshot.name}
         </figcaption>
       ) : null}
-      <div className="relative bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={screenshot.imageUrl}
-          alt={
-            screenshot.name ??
-            intl.formatMessage(catVisualContextPanelMessages.screenshotAltFallback)
-          }
-          className="block h-auto w-full"
-          loading="lazy"
-          decoding="async"
-        />
-        {screenshot.markers.map((marker, index) => (
-          <span
-            key={`${screenshot.id}-${index}`}
-            className={cn(
-              "pointer-events-none absolute rounded-sm border-2 border-grove-300/80 bg-grove-300/15",
-              "shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset]",
-            )}
-            style={{
-              left: `${marker.left}%`,
-              top: `${marker.top}%`,
-              width: `${marker.width}%`,
-              height: `${marker.height}%`,
-            }}
-          />
-        ))}
-      </div>
+      <ImageLightbox
+        alt={alt}
+        imageUrl={screenshot.imageUrl}
+        markers={screenshot.markers}
+        title={screenshot.name}
+        trigger={
+          <div className="group relative bg-muted">
+            <VisualContextScreenshotPreview screenshot={screenshot} alt={alt} />
+            <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10 group-focus-visible:bg-black/10" />
+          </div>
+        }
+      />
     </figure>
   );
 }
