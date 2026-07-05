@@ -9,6 +9,7 @@ export const conversationIdParamsSchema = z.object({
 export const createConversationRequestSchema = z.object({
   text: z.string().trim().max(10000).default(""),
   projectId: optionalProjectIdSchema,
+  repositoryFullName: z.string().trim().min(1).max(255).optional(),
 });
 
 export const listConversationsQuerySchema = z.object({

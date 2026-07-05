@@ -41,13 +41,17 @@ export function ConversationPanel({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
-  onSendMessage: (text: string, files: File[], projectId?: string) => void | Promise<void>;
+  onSendMessage: (
+    text: string,
+    files: File[],
+    options?: { projectId?: string; repositoryFullName?: string },
+  ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
   if (!conversation) {
     return (
-      <section className="flex min-h-[50vh] flex-col bg-background lg:min-h-0">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
           <TypographyMuted>Select a conversation to view details</TypographyMuted>
         </div>
@@ -59,10 +63,10 @@ export function ConversationPanel({
   const composerDisabled = isSending || isStreaming;
 
   return (
-    <section className="flex min-h-[50vh] min-w-0 flex-1 flex-col bg-background lg:min-h-0">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
-      <div className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100svh-7.5rem)]">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <ConversationDetails
           conversation={conversation}
           jobs={jobs}
@@ -82,7 +86,6 @@ export function ConversationPanel({
 
           {isChatUi ? (
             <ReplyComposer
-              conversationProjectId={conversation.projectId}
               disabled={composerDisabled}
               isStreaming={isStreaming}
               onSend={onSendMessage}

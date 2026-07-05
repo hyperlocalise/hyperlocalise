@@ -73,8 +73,12 @@ export function InboxPageContent({
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (input: { text: string; files: File[]; projectId?: string }) =>
-      injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
+    mutationFn: (input: {
+      text: string;
+      files: File[];
+      projectId?: string;
+      repositoryFullName?: string;
+    }) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
     onSuccess: () => {
       void messagesQuery.refetch();
       void conversationsQuery.refetch();
@@ -83,8 +87,12 @@ export function InboxPageContent({
 
   const mutateAsync = sendMessageMutation.mutateAsync;
   const onSendMessage = useCallback(
-    async (text: string, files: File[], projectId?: string) => {
-      await mutateAsync({ text, files, projectId });
+    async (
+      text: string,
+      files: File[],
+      options?: { projectId?: string; repositoryFullName?: string },
+    ) => {
+      await mutateAsync({ text, files, ...options });
     },
     [mutateAsync],
   );
