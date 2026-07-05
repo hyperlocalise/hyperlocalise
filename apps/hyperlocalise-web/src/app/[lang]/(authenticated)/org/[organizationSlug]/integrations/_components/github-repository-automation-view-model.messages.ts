@@ -73,4 +73,49 @@ export const githubRepositoryAutomationViewModelMessages = defineMessages({
     id: "88mR250rV4",
     description: "Validation error when the branch pattern limit is reached",
   },
+  weekdaySunday: {
+    defaultMessage: "Sunday",
+    id: "oQckCPSvLu",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdayMonday: {
+    defaultMessage: "Monday",
+    id: "qxBrl7Yxqo",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdayTuesday: {
+    defaultMessage: "Tuesday",
+    id: "WCzohOaFyx",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdayWednesday: {
+    defaultMessage: "Wednesday",
+    id: "/bH75mQmVa",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdayThursday: {
+    defaultMessage: "Thursday",
+    id: "1ESwnn506c",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdayFriday: {
+    defaultMessage: "Friday",
+    id: "0XCfYzdREi",
+    description: "Weekday option for scheduled automation",
+  },
+  weekdaySaturday: {
+    defaultMessage: "Saturday",
+    id: "Cv5dtJ6iTe",
+    description: "Weekday option for scheduled automation",
+  },
 });
+
+export const AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE = {
+  0: githubRepositoryAutomationViewModelMessages.weekdaySunday,
+  1: githubRepositoryAutomationViewModelMessages.weekdayMonday,
+  2: githubRepositoryAutomationViewModelMessages.weekdayTuesday,
+  3: githubRepositoryAutomationViewModelMessages.weekdayWednesday,
+  4: githubRepositoryAutomationViewModelMessages.weekdayThursday,
+  5: githubRepositoryAutomationViewModelMessages.weekdayFriday,
+  6: githubRepositoryAutomationViewModelMessages.weekdaySaturday,
+} as const;

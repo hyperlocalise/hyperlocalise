@@ -232,41 +232,6 @@ export const repositoryAutomationSettingsPanelMessages = defineMessages({
     id: "Zy8ZOSNNhB",
     description: "Placeholder for scheduled automation timezone input",
   },
-  weekdaySunday: {
-    defaultMessage: "Sunday",
-    id: "oQckCPSvLu",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdayMonday: {
-    defaultMessage: "Monday",
-    id: "qxBrl7Yxqo",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdayTuesday: {
-    defaultMessage: "Tuesday",
-    id: "WCzohOaFyx",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdayWednesday: {
-    defaultMessage: "Wednesday",
-    id: "/bH75mQmVa",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdayThursday: {
-    defaultMessage: "Thursday",
-    id: "1ESwnn506c",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdayFriday: {
-    defaultMessage: "Friday",
-    id: "0XCfYzdREi",
-    description: "Weekday option for scheduled automation",
-  },
-  weekdaySaturday: {
-    defaultMessage: "Saturday",
-    id: "Cv5dtJ6iTe",
-    description: "Weekday option for scheduled automation",
-  },
   statusCheckTitle: {
     defaultMessage: "GitHub status check",
     id: "WZko2fwHOK",
@@ -356,13 +321,3 @@ export const repositoryAutomationSettingsPanelMessages = defineMessages({
     description: "Button label while repository automation settings are resetting",
   },
 });
-
-export const AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE = {
-  0: repositoryAutomationSettingsPanelMessages.weekdaySunday,
-  1: repositoryAutomationSettingsPanelMessages.weekdayMonday,
-  2: repositoryAutomationSettingsPanelMessages.weekdayTuesday,
-  3: repositoryAutomationSettingsPanelMessages.weekdayWednesday,
-  4: repositoryAutomationSettingsPanelMessages.weekdayThursday,
-  5: repositoryAutomationSettingsPanelMessages.weekdayFriday,
-  6: repositoryAutomationSettingsPanelMessages.weekdaySaturday,
-} as const;

@@ -59,7 +59,8 @@ import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
-import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/repository-automation-settings-panel.messages";
+import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
+import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
@@ -223,7 +224,9 @@ function triggerSummary(
 ) {
   if (form.triggerMode === "scheduled") {
     if (form.scheduledCadence === "hourly") {
-      return `Every hour · ${form.scheduledTimezone}`;
+      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly, {
+        timezone: form.scheduledTimezone,
+      });
     }
 
     if (form.scheduledCadence === "weekly") {
@@ -234,10 +237,17 @@ function triggerSummary(
       const weekday = weekdayMessage
         ? intl.formatMessage(weekdayMessage)
         : intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[1]);
-      return `Every ${weekday} at ${formatHour(form.scheduledHourUtc)} · ${form.scheduledTimezone}`;
+      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerWeekly, {
+        weekday,
+        time: formatHour(form.scheduledHourUtc),
+        timezone: form.scheduledTimezone,
+      });
     }
 
-    return `Every day at ${formatHour(form.scheduledHourUtc)} · ${form.scheduledTimezone}`;
+    return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerDaily, {
+      time: formatHour(form.scheduledHourUtc),
+      timezone: form.scheduledTimezone,
+    });
   }
 
   if (form.triggerMode === "github") {

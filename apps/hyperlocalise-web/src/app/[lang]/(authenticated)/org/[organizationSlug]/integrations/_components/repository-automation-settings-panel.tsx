@@ -18,10 +18,8 @@ import {
   mapAutomationApiErrorToFieldErrors,
   validateAutomationFormState,
 } from "./github-repository-automation-view-model";
-import {
-  AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE,
-  repositoryAutomationSettingsPanelMessages,
-} from "./repository-automation-settings-panel.messages";
+import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "./github-repository-automation-view-model.messages";
+import { repositoryAutomationSettingsPanelMessages } from "./repository-automation-settings-panel.messages";
 import {
   AlertDialog,
   AlertDialogCancel,
