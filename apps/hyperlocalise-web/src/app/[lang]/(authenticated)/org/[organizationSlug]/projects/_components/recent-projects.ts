@@ -92,3 +92,20 @@ export function recordRecentProjectVisit(
     // Recent history is an enhancement; navigation must still succeed.
   }
 }
+
+export function resolveRecentProjects(
+  organizationSlug: string,
+  projects: readonly { id: string; name: string }[],
+  options?: {
+    storage?: RecentProjectsStorage;
+    limit?: number;
+  },
+) {
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const limit = options?.limit ?? 5;
+
+  return readRecentProjectVisits(organizationSlug, options?.storage)
+    .map((visit) => projectsById.get(visit.projectId))
+    .filter((project): project is { id: string; name: string } => project !== undefined)
+    .slice(0, limit);
+}

@@ -20,6 +20,8 @@ export const projectOverviewFixture: ProjectListRow = {
   targetLocales: ["fr-FR", "de-DE", "es-ES"],
   externalProjectUrl: "https://crowdin.com/project/website",
   isActive: true,
+  logoUrl: null,
+  lastActivityAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   lastSyncErrorAt: null,
   lastSyncErrorMessage: null,

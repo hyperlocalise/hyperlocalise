@@ -18,6 +18,9 @@ export type ExternalTmsProjectMetadata = {
   targetLocales?: string[];
   externalProjectUrl?: string | null;
   isActive?: boolean;
+  logoUrl?: string | null;
+  lastActivityAt?: string | null;
+  description?: string | null;
   metadata?: Record<string, unknown>;
 };
 

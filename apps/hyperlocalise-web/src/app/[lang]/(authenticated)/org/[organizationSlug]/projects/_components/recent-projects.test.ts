@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { readRecentProjectVisits, recordRecentProjectVisit } from "./recent-projects";
+import {
+  readRecentProjectVisits,
+  recordRecentProjectVisit,
+  resolveRecentProjects,
+} from "./recent-projects";
 
 function createStorage() {
   const values = new Map<string, string>();
@@ -35,5 +39,41 @@ describe("recent-projects", () => {
 
     expect(readRecentProjectVisits("other", storage)).toEqual([]);
     expect(readRecentProjectVisits("broken", storage)).toEqual([]);
+  });
+
+  it("resolves recent visits to known projects in visit order", () => {
+    const storage = createStorage();
+
+    recordRecentProjectVisit("acme", "project_b", { storage, visitedAt: 10 });
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 20 });
+    recordRecentProjectVisit("acme", "project_c", { storage, visitedAt: 30 });
+
+    expect(
+      resolveRecentProjects(
+        "acme",
+        [
+          { id: "project_a", name: "Alpha" },
+          { id: "project_c", name: "Charlie" },
+        ],
+        { storage },
+      ),
+    ).toEqual([
+      { id: "project_c", name: "Charlie" },
+      { id: "project_a", name: "Alpha" },
+    ]);
+  });
+
+  it("applies the limit after ignoring visits for unavailable projects", () => {
+    const storage = createStorage();
+
+    recordRecentProjectVisit("acme", "project_a", { storage, visitedAt: 10 });
+    recordRecentProjectVisit("acme", "deleted_project", { storage, visitedAt: 20 });
+
+    expect(
+      resolveRecentProjects("acme", [{ id: "project_a", name: "Alpha" }], {
+        storage,
+        limit: 1,
+      }),
+    ).toEqual([{ id: "project_a", name: "Alpha" }]);
   });
 });

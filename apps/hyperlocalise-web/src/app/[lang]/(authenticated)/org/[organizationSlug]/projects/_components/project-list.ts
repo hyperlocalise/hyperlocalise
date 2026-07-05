@@ -14,6 +14,8 @@ export type ApiProject = {
   targetLocales?: string[];
   externalProjectUrl?: string | null;
   isActive?: boolean;
+  logoUrl?: string | null;
+  lastActivityAt?: string | Date | null;
   lastSyncedAt?: string | Date | null;
   lastSyncErrorAt?: string | Date | null;
   lastSyncErrorMessage?: string | null;
@@ -37,6 +39,8 @@ export type ProjectListRow = {
   targetLocales: string[];
   externalProjectUrl: string | null;
   isActive: boolean;
+  logoUrl: string | null;
+  lastActivityAt: string | null;
   lastSyncedAt: string | null;
   lastSyncErrorAt: string | null;
   lastSyncErrorMessage: string | null;
@@ -100,9 +104,38 @@ function createProjectKey(project: ApiProject) {
   );
 }
 
+function normalizeIsoTimestamp(value: string | Date | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+export function formatProjectLocaleRoute(
+  sourceLocale: string | null,
+  targetLocales: readonly string[],
+) {
+  const source = sourceLocale ?? "—";
+  if (targetLocales.length === 0) {
+    return source;
+  }
+
+  const preview = targetLocales.slice(0, 2).join(", ");
+  const suffix = targetLocales.length > 2 ? ` +${targetLocales.length - 2}` : "";
+  return `${source} → ${preview}${suffix}`;
+}
+
 export function mapProjectToListRow(project: ApiProject): ProjectListRow {
   const descriptionValue = project.description?.trim() ?? "";
   const translationContextValue = project.translationContext?.trim() ?? "";
+  const lastActivityAt =
+    normalizeIsoTimestamp(project.lastActivityAt) ?? normalizeIsoTimestamp(project.updatedAt);
 
   return {
     id: project.id,
@@ -121,6 +154,8 @@ export function mapProjectToListRow(project: ApiProject): ProjectListRow {
     targetLocales: project.targetLocales ?? [],
     externalProjectUrl: sanitizeExternalUrl(project.externalProjectUrl),
     isActive: project.isActive ?? true,
+    logoUrl: project.logoUrl?.trim() || null,
+    lastActivityAt,
     lastSyncedAt: formatTimestampOrNull(project.lastSyncedAt),
     lastSyncErrorAt: formatTimestampOrNull(project.lastSyncErrorAt),
     lastSyncErrorMessage: project.lastSyncErrorMessage ?? null,

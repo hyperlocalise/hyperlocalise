@@ -197,7 +197,7 @@ describe("CrowdinApiClient", () => {
     await client.listProjects();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.crowdin.com/api/v2/projects?limit=500&offset=0",
+      "https://api.crowdin.com/api/v2/projects?limit=500&offset=0&orderBy=lastActivity%20desc",
       expect.anything(),
     );
   });
@@ -215,7 +215,7 @@ describe("CrowdinApiClient", () => {
     await client.listProjects();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://enterprise.crowdin.com/api/v2/projects?limit=500&offset=0",
+      "https://enterprise.crowdin.com/api/v2/projects?limit=500&offset=0&orderBy=lastActivity%20desc",
       expect.anything(),
     );
   });

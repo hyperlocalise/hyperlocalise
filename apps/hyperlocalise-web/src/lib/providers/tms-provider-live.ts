@@ -25,6 +25,7 @@ import {
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { mapCrowdinProjectToMetadata } from "@/lib/providers/adapters/crowdin/crowdin-project-fetcher";
 import {
   fetchCrowdinUserJobTasks,
   mapCrowdinLanguageProgressToLocaleReadiness,
@@ -148,6 +149,8 @@ export type TmsProviderLiveProject = {
   targetLocales: string[];
   externalProjectUrl: string | null;
   isActive: boolean;
+  logoUrl?: string | null;
+  lastActivityAt?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -598,14 +601,16 @@ function mapLiveProject(
   const timestamp = new Date().toISOString();
   const sourceLocale = project.sourceLocale ?? "en";
   const targetLocales = project.targetLocales ?? [];
+  const lastActivityAt = normalizeExternalTimestamp(project.lastActivityAt);
+  const updatedAt = lastActivityAt ?? timestamp;
 
   return {
     id: encodeProviderProjectId({ providerKind, externalProjectId: project.externalProjectId }),
     name: project.name,
-    description: null,
+    description: project.description?.trim() || null,
     translationContext: null,
     createdAt: timestamp,
-    updatedAt: timestamp,
+    updatedAt,
     source: "external_tms",
     externalProviderKind: providerKind,
     externalProjectId: project.externalProjectId,
@@ -613,6 +618,8 @@ function mapLiveProject(
     targetLocales,
     externalProjectUrl: project.externalProjectUrl ?? null,
     isActive: project.isActive ?? true,
+    logoUrl: project.logoUrl ?? null,
+    lastActivityAt,
     metadata: project.metadata,
   };
 }
@@ -1576,17 +1583,7 @@ async function resolveLiveProjectMetadata(
 
     try {
       const project = await client.getProject(crowdinProjectId);
-      return {
-        externalProjectId: String(project.id),
-        name: project.name,
-        sourceLocale: project.sourceLanguageId,
-        targetLocales: project.targetLanguageIds,
-        externalProjectUrl: project.webUrl,
-        isActive: !project.isSuspended,
-        metadata: {
-          identifier: project.identifier,
-        },
-      };
+      return mapCrowdinProjectToMetadata(project);
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
         return null;
