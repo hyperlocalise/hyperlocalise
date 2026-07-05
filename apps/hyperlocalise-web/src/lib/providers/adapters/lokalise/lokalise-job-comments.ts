@@ -36,7 +36,7 @@ export async function listLokaliseTaskComments(input: {
   try {
     task = await client.getTask(projectId, parsedJobId.taskId);
   } catch (error) {
-    if (error instanceof LokaliseApiError && error.status === 401) {
+    if (error instanceof LokaliseApiError && (error.status === 401 || error.status === 403)) {
       throw new Error("lokalise_auth_invalid");
     }
     if (error instanceof LokaliseApiError && error.status === 404) {
@@ -61,7 +61,7 @@ export async function listLokaliseTaskComments(input: {
       }
     }
   } catch (error) {
-    if (error instanceof LokaliseApiError && error.status === 401) {
+    if (error instanceof LokaliseApiError && (error.status === 401 || error.status === 403)) {
       throw new Error("lokalise_auth_invalid");
     }
     throw error;

@@ -51,8 +51,11 @@ type LokaliseQueueSegmentDraft = {
 };
 
 function mapLokaliseApiError(error: unknown): never {
-  if (error instanceof LokaliseApiError && error.status === 401) {
-    throw new LokaliseLiveCatError("lokalise_auth_invalid", "Lokalise credentials are invalid.");
+  if (error instanceof LokaliseApiError && (error.status === 401 || error.status === 403)) {
+    throw new LokaliseLiveCatError(
+      "lokalise_auth_invalid",
+      "Lokalise credentials are invalid or lack permission for this project.",
+    );
   }
   throw error;
 }

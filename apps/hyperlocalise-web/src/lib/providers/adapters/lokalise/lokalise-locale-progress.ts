@@ -84,7 +84,7 @@ export async function loadLokaliseProjectLocaleReadiness(input: {
       input.client.listProjectLanguages(input.projectId),
     ]);
   } catch (error) {
-    if (error instanceof LokaliseApiError && error.status === 401) {
+    if (error instanceof LokaliseApiError && (error.status === 401 || error.status === 403)) {
       throw new Error("lokalise_auth_invalid");
     }
     throw error;
