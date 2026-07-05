@@ -13,6 +13,12 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/files", "Files"],
     ["/org/acme/projects/proj_1/jobs", "Jobs"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
+    ["/org/acme/projects/proj_1/activity", "Activity"],
+    ["/org/acme/projects/proj_1/context", "Context"],
+    ["/org/acme/projects/proj_1/locales", "Locales"],
+    ["/org/acme/projects/proj_1/qa", "QA"],
+    ["/org/acme/projects/proj_1/reviews", "Reviews"],
+    ["/org/acme/projects/proj_1/settings", "Settings"],
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Knowledge"],
@@ -32,7 +38,23 @@ describe("getAppShellTitle", () => {
 
   it("falls back to overview for unknown or empty paths", () => {
     expect(getAppShellTitle(null)).toBe("Overview");
+    expect(getAppShellTitle("")).toBe("Overview");
     expect(getAppShellTitle("/org/acme/unknown")).toBe("Overview");
+  });
+
+  it("falls back to overview when the org slug is missing", () => {
+    expect(getAppShellTitle("/org")).toBe("Overview");
+    expect(getAppShellTitle("/org/")).toBe("Overview");
+    expect(getAppShellTitle("/dashboard")).toBe("Overview");
+  });
+
+  it("resolves the title from locale-prefixed paths", () => {
+    expect(getAppShellTitle("/en/org/acme/inbox")).toBe("Inbox");
+    expect(getAppShellTitle("/en/org/acme/settings/billing")).toBe("Billing");
+  });
+
+  it("uses the project id as the title for unknown project sections", () => {
+    expect(getAppShellTitle("/org/acme/projects/proj_1/unknown-section")).toBe("proj_1");
   });
 });
 
@@ -85,6 +107,67 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1")).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "proj_1" },
+    ]);
+  });
+
+  it("falls back to the dashboard crumb when there is no org route", () => {
+    expect(getAppShellBreadcrumbs(null)).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("")).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("/org")).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("/dashboard")).toEqual([{ label: "Overview" }]);
+  });
+
+  it("resolves breadcrumbs from locale-prefixed paths", () => {
+    expect(getAppShellBreadcrumbs("/en/org/acme/settings/account")).toEqual([
+      { label: "Settings", href: "/org/acme/settings" },
+      { label: "Account" },
+    ]);
+  });
+
+  it("returns the settings section verbatim for unknown subsections", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/settings/unknown")).toEqual([
+      { label: "Settings", href: "/org/acme/settings" },
+      { label: "unknown" },
+    ]);
+  });
+
+  it("decodes encoded team detail segments", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/teams/team%20alpha")).toEqual([
+      { label: "Teams", href: "/org/acme/teams" },
+      { label: "team alpha" },
+    ]);
+  });
+
+  it("keeps a malformed team segment untouched when it cannot be decoded", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/teams/%E0%A4%A")).toEqual([
+      { label: "Teams", href: "/org/acme/teams" },
+      { label: "%E0%A4%A" },
+    ]);
+  });
+
+  it("decodes encoded external project ids while keeping hrefs encoded", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/projects/ext%3Acrowdin%3A902807/files")).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "ext:crowdin:902807", href: "/org/acme/projects/ext%3Acrowdin%3A902807" },
+      { label: "Files" },
+    ]);
+  });
+
+  it("ignores unknown project sections and keeps the project crumb", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/unknown-section", {
+        projectName: "Checkout",
+      }),
+    ).toEqual([{ label: "Projects", href: "/org/acme/projects" }, { label: "Checkout" }]);
+  });
+
+  it("falls back to the project id when the project name is only whitespace", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", { projectName: "   " }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+      { label: "Files" },
     ]);
   });
 });

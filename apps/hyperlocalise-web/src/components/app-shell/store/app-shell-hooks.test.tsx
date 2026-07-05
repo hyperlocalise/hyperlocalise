@@ -1,13 +1,17 @@
 // @vitest-environment happy-dom
 
 import { isValidElement, type ReactNode } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { render, renderHook, waitFor } from "@testing-library/react";
 import { Chat01Icon } from "@hugeicons/core-free-icons";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 
-import { AppShellStoreProvider, useAppShellStore } from "./app-shell-store-context";
+import {
+  AppShellStoreProvider,
+  useAppShellStore,
+  useOptionalAppShellStore,
+} from "./app-shell-store-context";
 import type { AppShellStore } from "./app-shell-store";
 import {
   useAppShellBreadcrumbAppend,
@@ -17,9 +21,16 @@ import { useAppShellHeaderAction } from "./use-app-shell-header-action";
 import { useAppShellNavigationCustom } from "./use-app-shell-navigation";
 import { useAppShellSidebar } from "./use-app-shell-sidebar";
 
+const DEFAULT_PATHNAME = "/org/acme/projects/proj_1/jobs";
+const navigationMock = vi.hoisted(() => ({ pathname: "/org/acme/projects/proj_1/jobs" }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/org/acme/projects/proj_1/jobs",
+  usePathname: () => navigationMock.pathname,
 }));
+
+afterEach(() => {
+  navigationMock.pathname = DEFAULT_PATHNAME;
+});
 
 const defaultGroups = [
   {
@@ -241,5 +252,91 @@ describe("app shell page hooks", () => {
       expect(storeRef.current?.sidebar.forceCollapsed).toBe(false);
       expect(storeRef.current?.sidebar.preferredOpen).toBeNull();
     });
+  });
+
+  it("skips sidebar registration when no preference is provided", async () => {
+    const storeRef: { current: AppShellStore | null } = { current: null };
+
+    function NeutralSidebarDemo() {
+      useAppShellSidebar();
+      return null;
+    }
+
+    render(
+      <AppShellHookTestProvider onStore={(nextStore) => (storeRef.current = nextStore)}>
+        <NeutralSidebarDemo />
+      </AppShellHookTestProvider>,
+    );
+
+    await waitFor(() => expect(storeRef.current).not.toBeNull());
+    expect(storeRef.current?.sidebar.forceCollapsed).toBe(false);
+    expect(storeRef.current?.sidebar.preferredOpen).toBeNull();
+  });
+
+  it("resets page-scoped state when the pathname changes", async () => {
+    const storeRef: { current: AppShellStore | null } = { current: null };
+    const baseBreadcrumbs = [{ label: "Jobs", href: "/org/acme/projects/proj_1/jobs" }];
+
+    function BreadcrumbDemo() {
+      useAppShellBreadcrumbAppend({ id: "job-name", label: "Translate homepage" });
+      return null;
+    }
+
+    const view = render(
+      <AppShellHookTestProvider onStore={(nextStore) => (storeRef.current = nextStore)}>
+        <BreadcrumbDemo />
+      </AppShellHookTestProvider>,
+    );
+
+    await waitFor(() =>
+      expect(storeRef.current?.breadcrumb.applyOverrides(baseBreadcrumbs)).toEqual([
+        { label: "Jobs", href: "/org/acme/projects/proj_1/jobs" },
+        { label: "Translate homepage", href: undefined },
+      ]),
+    );
+
+    navigationMock.pathname = "/org/acme/inbox";
+    view.rerender(
+      <AppShellHookTestProvider onStore={(nextStore) => (storeRef.current = nextStore)}>
+        <BreadcrumbDemo />
+      </AppShellHookTestProvider>,
+    );
+
+    expect(storeRef.current?.breadcrumb.applyOverrides(baseBreadcrumbs)).toEqual(baseBreadcrumbs);
+  });
+});
+
+describe("app shell store context", () => {
+  it("throws when useAppShellStore is used outside the provider", () => {
+    expect(() => renderHook(() => useAppShellStore())).toThrow(
+      "useAppShellStore must be used within AppShellStoreProvider",
+    );
+  });
+
+  it("returns null from useOptionalAppShellStore outside the provider", () => {
+    const { result } = renderHook(() => useOptionalAppShellStore());
+
+    expect(result.current).toBeNull();
+  });
+
+  it("keeps the same store instance across rerenders", async () => {
+    const stores: AppShellStore[] = [];
+
+    const view = render(
+      <AppShellStoreProvider defaultNavigationGroups={defaultGroups}>
+        <StoreCapture onStore={(store) => stores.push(store)} />
+      </AppShellStoreProvider>,
+    );
+
+    await waitFor(() => expect(stores.length).toBeGreaterThan(0));
+    expect(stores[0]?.navigation.defaultNavigationGroups).toEqual(defaultGroups);
+
+    view.rerender(
+      <AppShellStoreProvider defaultNavigationGroups={defaultGroups}>
+        <StoreCapture onStore={(store) => stores.push(store)} />
+      </AppShellStoreProvider>,
+    );
+
+    expect(new Set(stores).size).toBe(1);
   });
 });
