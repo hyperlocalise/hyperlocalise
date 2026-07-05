@@ -23,6 +23,7 @@ import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-
 import { cn } from "@/lib/primitives/cn";
 
 import { resolveAvailableCatQueueFilters } from "@/components/cat/queue/cat-queue-filter";
+import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/cat/segment/cat-segment-share-link";
 import type {
   CatGlossaryTerm,
@@ -33,7 +34,8 @@ import type {
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
 
-import { projectFileCatToWorkspaceState, validateSegmentFormat } from "./project-file-cat-mapper";
+import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
+import { fetchCatSegmentValidation } from "./project-file-cat-validation";
 import { useCatMutations } from "./use-cat-mutations";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 
@@ -153,9 +155,45 @@ export function ProjectFileCatWorkspace({
   }, [catFile, intl, sourceLocale]);
 
   const validateFormat = useCallback(
-    (segment: CatSegment, value: string, glossaryTerms: CatGlossaryTerm[] = []) =>
-      validateSegmentFormat(segment, value, intl, glossaryTerms),
-    [intl],
+    async (
+      segment: CatSegment,
+      value: string,
+      glossaryTerms: CatGlossaryTerm[] = [],
+      options?: { signal?: AbortSignal },
+    ) => {
+      const validation = await fetchCatSegmentValidation({
+        sourceText: segment.sourceText,
+        targetText: value,
+        sourcePath,
+        maxLength: segment.maxLength,
+        signal: options?.signal,
+      });
+
+      if (!validation.ok) {
+        if (validation.error.code === "aborted") {
+          const abortError = new Error("Segment validation aborted.");
+          abortError.name = "AbortError";
+          throw abortError;
+        }
+
+        return [
+          {
+            id: "validation-unavailable",
+            label: "Validation unavailable",
+            status: "warn" as const,
+            message: validation.error.message,
+            category: "qa" as const,
+          },
+          ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+        ];
+      }
+
+      return [
+        ...validation.value,
+        ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+      ];
+    },
+    [intl, sourcePath],
   );
 
   const isNativeProject = !catFile?.provider;

@@ -78,14 +78,28 @@ afterEach(() => {
 });
 
 describe("useCatWorkspaceController", () => {
-  it("runs format checks when the target text changes", async () => {
-    const { result, store } = renderController();
+  it("debounces format checks and validates the latest target text", async () => {
+    const validateFormat = vi.fn(mockValidateFormat);
+    const { result, store } = renderController(undefined, {
+      services: { validateFormat },
+    });
+
+    await waitFor(() => expect(validateFormat).toHaveBeenCalled());
+    validateFormat.mockClear();
 
     act(() => {
+      result.current.dependencies.editing.onTargetChange("seg-02", "Deux");
       result.current.dependencies.editing.onTargetChange("seg-02", "Deuxième");
     });
 
-    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
+    expect(validateFormat).not.toHaveBeenCalled();
+    await waitFor(() => expect(validateFormat).toHaveBeenCalledTimes(1));
+    expect(validateFormat).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      "Deuxième",
+      expect.any(Array),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
   });
 
