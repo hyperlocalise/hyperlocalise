@@ -24,7 +24,12 @@ export function createE2eAuthRoutes() {
         return notFoundResponse(c, "e2e_auth_disabled");
       }
 
-      const body = createSessionBodySchema.parse(await c.req.json().catch(() => ({})));
+      const parsed = createSessionBodySchema.safeParse(await c.req.json().catch(() => ({})));
+      if (!parsed.success) {
+        return c.json({ error: "invalid_request", message: parsed.error.message }, 400);
+      }
+
+      const body = parsed.data;
 
       if (body.mode === "onboarding") {
         const session = await createFixtureOnboardingSession();

@@ -66,6 +66,20 @@ describe("e2e auth route", () => {
     expect(response.headers.get("set-cookie")).toContain("wos-session=");
   });
 
+  it("returns 400 for an invalid request body", async () => {
+    const { createE2eAuthRoutes } = await import("./e2e-auth.route");
+    const client = testClient(createE2eAuthRoutes());
+
+    const response = await client.auth.session.$post({
+      json: { role: "godmode" },
+    });
+
+    expect(response.status).toBe(400);
+
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("invalid_request");
+  });
+
   it("creates an onboarding fixture session without an organization", async () => {
     const { createE2eAuthRoutes } = await import("./e2e-auth.route");
     const client = testClient(createE2eAuthRoutes());

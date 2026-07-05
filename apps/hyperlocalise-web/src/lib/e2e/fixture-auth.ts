@@ -112,7 +112,7 @@ export async function resolveFixtureApiAuthContext(options: {
     return null;
   }
 
-  if (!record || record.onboarding || !record.authContext) {
+  if (record.onboarding || !record.authContext) {
     return null;
   }
 
