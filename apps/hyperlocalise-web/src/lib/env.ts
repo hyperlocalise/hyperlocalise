@@ -146,9 +146,6 @@ export const env = createEnv({
     /** Enables fixture auth routes and session bypass for browser e2e tests. */
     E2E_AUTH_MODE: z.enum(["fixture", "workos"]).optional(),
 
-    /** Target environment for browser e2e tests (`local` or `staging`). */
-    E2E_TARGET: z.enum(["local", "staging"]).optional(),
-
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
   },
@@ -233,7 +230,6 @@ export const env = createEnv({
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
     E2E_AUTH_MODE: process.env.E2E_AUTH_MODE,
-    E2E_TARGET: process.env.E2E_TARGET,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??

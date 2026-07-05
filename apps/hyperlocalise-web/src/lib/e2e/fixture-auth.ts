@@ -5,6 +5,7 @@ import type { UserInfo } from "@workos-inc/authkit-nextjs";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { cleanupWorkosTestRecords } from "@/api/test-cleanup";
 import { syncWorkosUser } from "@/api/auth/workos-sync";
 import { db } from "@/lib/database";
 import {
@@ -19,6 +20,10 @@ import { FIXTURE_SESSION_PREFIX, isFixtureAuthEnabled, isFixtureSessionToken } f
 
 type FixtureSessionRecord = {
   authContext: ApiAuthContext | null;
+  cleanup: {
+    workosOrganizationIds: string[];
+    workosUserIds: string[];
+  };
   session: UserInfo;
   onboarding: boolean;
 };
@@ -54,6 +59,26 @@ export function getFixtureSessionRecord(token: string | null | undefined) {
 
 export function hasFixtureSessionCookie(cookieHeader: string | undefined) {
   return Boolean(parseFixtureSessionToken(cookieHeader));
+}
+
+export async function cleanupFixtureAuthSession(token: string | null | undefined) {
+  if (!token || !isFixtureSessionToken(token)) {
+    return;
+  }
+
+  const record = fixtureSessions.get(token);
+  if (!record) {
+    return;
+  }
+
+  await cleanupWorkosTestRecords(record.cleanup);
+  fixtureSessions.delete(token);
+}
+
+export async function cleanupAllFixtureAuthSessions() {
+  for (const token of fixtureSessions.keys()) {
+    await cleanupFixtureAuthSession(token);
+  }
 }
 
 export async function resolveFixtureAuthSession(): Promise<UserInfo | null> {
@@ -135,6 +160,10 @@ export async function createFixtureOnboardingSession() {
 
   fixtureSessions.set(sessionToken, {
     authContext: null,
+    cleanup: {
+      workosOrganizationIds: [],
+      workosUserIds: [user.workosUserId],
+    },
     session,
     onboarding: true,
   });
@@ -201,6 +230,15 @@ export async function attachOrganizationToFixtureSession(input: {
 
   fixtureSessions.set(input.sessionToken, {
     authContext,
+    cleanup: {
+      ...record.cleanup,
+      workosOrganizationIds: [
+        ...new Set([
+          ...record.cleanup.workosOrganizationIds,
+          input.organization.workosOrganizationId,
+        ]),
+      ],
+    },
     onboarding: false,
     session: {
       ...record.session,
@@ -240,7 +278,15 @@ export async function createFixtureAuthSession(input: { role?: OrganizationMembe
     accessToken: `fixture_${sessionToken}`,
   };
 
-  fixtureSessions.set(sessionToken, { authContext, session, onboarding: false });
+  fixtureSessions.set(sessionToken, {
+    authContext,
+    cleanup: {
+      workosOrganizationIds: [organization.workosOrganizationId],
+      workosUserIds: [user.workosUserId],
+    },
+    session,
+    onboarding: false,
+  });
 
   return {
     authContext,
@@ -250,8 +296,4 @@ export async function createFixtureAuthSession(input: { role?: OrganizationMembe
     workosOrganizationId: organization.workosOrganizationId,
     workosUserId: user.workosUserId,
   };
-}
-
-export function clearFixtureAuthSessions() {
-  fixtureSessions.clear();
 }

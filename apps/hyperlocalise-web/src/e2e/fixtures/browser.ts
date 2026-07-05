@@ -18,8 +18,23 @@ export function useE2eBrowser() {
   });
 
   afterAll(async () => {
-    await sharedContext?.browser.close();
+    const context = sharedContext;
     sharedContext = null;
+
+    if (!context) {
+      return;
+    }
+
+    try {
+      const response = await context.page.request.delete(
+        new URL("/api/e2e/auth/session", E2E_BASE_URL).toString(),
+      );
+      if (response.status() !== 204) {
+        throw new Error(`E2E fixture cleanup failed with status ${response.status()}`);
+      }
+    } finally {
+      await context.browser.close();
+    }
   });
 }
 
@@ -34,11 +49,11 @@ export function getE2ePage() {
 export async function loginForOnboarding(page: Page) {
   const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
   loginUrl.searchParams.set("mode", "onboarding");
-  await page.goto(loginUrl.toString(), { waitUntil: "networkidle" });
+  await page.goto(loginUrl.toString(), { waitUntil: "domcontentloaded" });
 }
 
 export async function loginAsAdmin(page: Page) {
   const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
   loginUrl.searchParams.set("role", "admin");
-  await page.goto(loginUrl.toString(), { waitUntil: "networkidle" });
+  await page.goto(loginUrl.toString(), { waitUntil: "domcontentloaded" });
 }
