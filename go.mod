@@ -22,7 +22,8 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
-	github.com/workos/workos-go/v7 v7.0.0
+	github.com/workos/workos-go/v7 v7.1.2
+	github.com/workos/workos-go/v9 v9.4.0
 	github.com/yuin/goldmark v1.8.2
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0
