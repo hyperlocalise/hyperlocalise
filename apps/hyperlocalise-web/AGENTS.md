@@ -48,7 +48,7 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 ## Browser E2E
 
 - Unit and API tests: `vp test --project unit` (default when running `vp test`).
-- Browser e2e: `vp test run --project e2e` (Playwright-driven, Vitest runner). First run migrates, builds production, and starts the app with `E2E_AUTH_MODE=fixture` (~75s setup). Repeat runs skip the build when `.next` exists.
+- Browser e2e: `vp test run --project e2e` (Playwright-driven, Vitest runner). **Not run in CI** — the e2e project is excluded when `CI=true`. First run migrates, builds production, and starts the app with `E2E_AUTH_MODE=fixture` (~75s setup). Repeat runs skip the build when `.next` exists.
 - Speed flags: `E2E_SKIP_BUILD=1` (never build), `E2E_SKIP_MIGRATE=1`, `E2E_REUSE_SERVER=1` (reuse a server you already started with fixture auth), `E2E_FORCE_BUILD=1` (rebuild even when `.next` exists).
 - E2E specs live in [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/). Shared helpers are in [`src/e2e/fixtures/`](src/e2e/fixtures/) and [`src/e2e/constants.ts`](src/e2e/constants.ts).
 - Full-app navigation uses the `playwright` library from Node tests. Vitest Browser Mode (iframe component tests) is not used for route-level e2e because it cannot `page.goto` external origins.
