@@ -11,6 +11,10 @@ import {
 } from "drizzle-orm/pg-core";
 
 import {
+  agentTaskRunEventTypeEnum,
+  agentTaskRunKindEnum,
+  agentTaskRunStatusEnum,
+  agentTaskRunSurfaceEnum,
   agentRunKindEnum,
   agentRunStatusEnum,
   externalTmsProviderKindEnum,
@@ -180,6 +184,98 @@ export const agentRuns = pgTable(
     index("idx_agent_runs_org_status").on(table.organizationId, table.status),
     index("idx_agent_runs_hyperlocalise_job").on(table.hyperlocaliseJobId),
     index("idx_agent_runs_org_actor").on(table.organizationId, table.actorUserId),
+  ],
+);
+
+/**
+ * Stores generic durable agent task executions across CAT, inbox, automation, provider, GitHub, and Contentful surfaces.
+ */
+export const agentTaskRuns = pgTable(
+  "agent_task_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id"),
+    surface: agentTaskRunSurfaceEnum("surface").notNull(),
+    kind: agentTaskRunKindEnum("kind").notNull(),
+    status: agentTaskRunStatusEnum("status").notNull().default("queued"),
+    currentStage: text("current_stage"),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    inputSnapshot: jsonb("input_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    contextSnapshot: jsonb("context_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    outputSummary: jsonb("output_summary")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    resultRef: jsonb("result_ref")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    error: jsonb("error").$type<Record<string, unknown>>(),
+    idempotencyKey: text("idempotency_key"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_agent_task_runs_org_created").on(table.organizationId, table.createdAt),
+    index("idx_agent_task_runs_org_status").on(table.organizationId, table.status),
+    index("idx_agent_task_runs_org_project").on(
+      table.organizationId,
+      table.projectId,
+      table.createdAt,
+    ),
+    index("idx_agent_task_runs_org_actor").on(table.organizationId, table.actorUserId),
+    uniqueIndex("idx_agent_task_runs_active_idempotency")
+      .on(table.organizationId, table.idempotencyKey)
+      .where(
+        sql`${table.idempotencyKey} IS NOT NULL AND ${table.status} IN ('queued', 'running', 'waiting')`,
+      ),
+  ],
+);
+
+/**
+ * Stores append-only progress, tool, warning, error, and result events for generic durable agent task runs.
+ */
+export const agentTaskRunEvents = pgTable(
+  "agent_task_run_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => agentTaskRuns.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    type: agentTaskRunEventTypeEnum("type").notNull(),
+    stage: text("stage"),
+    message: text("message").notNull(),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("agent_task_run_events_run_sequence").on(table.runId, table.sequence),
+    index("idx_agent_task_run_events_org_run").on(
+      table.organizationId,
+      table.runId,
+      table.sequence,
+    ),
   ],
 );
 

@@ -186,6 +186,49 @@ export const agentRunStatusEnum = pgEnum("agent_run_status", [
   "cancelled",
 ]);
 /**
+ * Identifies the product surface that requested a generic durable agent task run.
+ */
+export const agentTaskRunSurfaceEnum = pgEnum("agent_task_run_surface", [
+  "cat",
+  "inbox",
+  "automation",
+  "provider_job",
+  "github",
+  "contentful",
+]);
+/**
+ * Classifies generic durable agent task runs across product surfaces.
+ */
+export const agentTaskRunKindEnum = pgEnum("agent_task_run_kind", [
+  "repository_context_lookup",
+  "qa_review",
+  "translation",
+  "writeback",
+  "automation",
+]);
+/**
+ * Tracks generic durable agent task execution state.
+ */
+export const agentTaskRunStatusEnum = pgEnum("agent_task_run_status", [
+  "queued",
+  "running",
+  "waiting",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+/**
+ * Classifies append-only progress and result events for generic durable agent task runs.
+ */
+export const agentTaskRunEventTypeEnum = pgEnum("agent_task_run_event_type", [
+  "stage",
+  "tool_call",
+  "tool_result",
+  "warning",
+  "error",
+  "result",
+]);
+/**
  * Tracks persisted workspace automation definitions from active scheduling through user-paused and archived states.
  */
 export const workspaceAutomationStatusEnum = pgEnum("workspace_automation_status", [

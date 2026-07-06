@@ -2,6 +2,12 @@ import type {
   agentRuns,
   agentRunKindEnum,
   agentRunStatusEnum,
+  agentTaskRunEventTypeEnum,
+  agentTaskRunEvents,
+  agentTaskRunKindEnum,
+  agentTaskRuns,
+  agentTaskRunStatusEnum,
+  agentTaskRunSurfaceEnum,
   githubInstallations,
   glossaries,
   memories,
@@ -76,6 +82,14 @@ export type AgentRun = typeof agentRuns.$inferSelect;
 export type NewAgentRun = typeof agentRuns.$inferInsert;
 export type AgentRunKind = (typeof agentRunKindEnum.enumValues)[number];
 export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
+export type AgentTaskRun = typeof agentTaskRuns.$inferSelect;
+export type NewAgentTaskRun = typeof agentTaskRuns.$inferInsert;
+export type AgentTaskRunEvent = typeof agentTaskRunEvents.$inferSelect;
+export type NewAgentTaskRunEvent = typeof agentTaskRunEvents.$inferInsert;
+export type AgentTaskRunSurface = (typeof agentTaskRunSurfaceEnum.enumValues)[number];
+export type AgentTaskRunKind = (typeof agentTaskRunKindEnum.enumValues)[number];
+export type AgentTaskRunStatus = (typeof agentTaskRunStatusEnum.enumValues)[number];
+export type AgentTaskRunEventType = (typeof agentTaskRunEventTypeEnum.enumValues)[number];
 export type ProviderSyncRun = typeof providerSyncRuns.$inferSelect;
 export type NewProviderSyncRun = typeof providerSyncRuns.$inferInsert;
 export type ProviderSyncRunKind = (typeof providerSyncRunKindEnum.enumValues)[number];

@@ -16,6 +16,7 @@ import type {
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
+import { createAgentTaskRunRoutes } from "./routes/agent-task-run/agent-task-run.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
@@ -168,6 +169,7 @@ function createOrgScopedAppRoutes(
     .route("/tms-dashboard-summary", createTmsDashboardSummaryRoutes())
     .route("/agent-email", createAgentEmailRoutes())
     .route("/agent-slack", createAgentSlackRoutes())
+    .route("/agent-task-runs", createAgentTaskRunRoutes())
     .route("/teams", createTeamRoutes())
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/workspace-files", createWorkspaceFilesRoutes())

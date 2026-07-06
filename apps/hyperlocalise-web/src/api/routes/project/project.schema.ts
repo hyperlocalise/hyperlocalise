@@ -6,6 +6,7 @@ import {
   maxProjectTargetLocales,
   projectTargetLocalesSchema,
 } from "@/lib/i18n/locales";
+import { schema } from "@/lib/database";
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -338,6 +339,15 @@ export const projectFileStringContextResponseSchema = z.object({
   }),
 });
 
+export const projectFileStringContextRunResponseSchema = z.object({
+  run: z.object({
+    id: z.string(),
+    status: z.enum(schema.agentTaskRunStatusEnum.enumValues),
+    currentStage: z.string().nullable(),
+    reused: z.boolean(),
+  }),
+});
+
 export const projectFileVersionRecordSchema = z.object({
   id: z.string(),
   origin: z.enum(["repository", "provider"]).default("repository"),
@@ -643,6 +653,9 @@ export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
 export type ProjectFileStringContextBody = z.infer<typeof projectFileStringContextBodySchema>;
 export type ProjectFileStringContextResponse = z.infer<
   typeof projectFileStringContextResponseSchema
+>;
+export type ProjectFileStringContextRunResponse = z.infer<
+  typeof projectFileStringContextRunResponseSchema
 >;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;
 export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSchema>;

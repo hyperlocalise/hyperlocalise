@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -58,6 +58,7 @@ import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-
 import {
   lookupCachedProjectFileStringRepositoryContext,
   lookupProjectFileStringRepositoryContext,
+  resolveProjectFileStringRepositoryFullName,
 } from "@/lib/projects/string-context/project-string-context-service";
 import {
   getRepositorySourceFileByPath,
@@ -134,6 +135,10 @@ import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-r
 import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
 import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  buildAgentTaskRunIdempotencyKey,
+  createOrReuseActiveAgentTaskRun,
+} from "@/lib/agent-runtime/task-runs/agent-task-runs";
 
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
@@ -499,6 +504,10 @@ function asFile(value: unknown) {
 const stringContextRouteLogger = createLogger("project-file-string-context-route");
 const projectDetailRouteLogger = createLogger("project-detail-route");
 const projectFileRouteLogger = createLogger("project-file-route");
+
+function hashProjectFileStringContextSourceText(text: string) {
+  return createHash("sha256").update(text.trim()).digest("hex");
+}
 
 function projectIdEncodingDiagnostics(rawProjectId: string, validatedProjectId: string) {
   let singleDecodedProjectId: string | undefined;
@@ -1282,6 +1291,106 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ file }, 200);
+      },
+    )
+    .post(
+      "/:projectId/files/string-context/runs",
+      validateProjectParams,
+      validateProjectFileStringContextBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+
+        if (!isAiActionAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        const repositoryResult = await resolveProjectFileStringRepositoryFullName({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          repositoryFullName: body.repositoryFullName ?? null,
+        });
+
+        if (isErr(repositoryResult)) {
+          stringContextRouteLogger.warn(
+            {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              stringKey: body.key,
+              code: repositoryResult.error.code,
+            },
+            "project file string context run rejected",
+          );
+          return badRequestResponse(c, repositoryResult.error.code, repositoryResult.error.message);
+        }
+
+        const repositoryFullName = repositoryResult.value;
+        const sourceTextHash = hashProjectFileStringContextSourceText(body.text);
+        const idempotencyKey = buildAgentTaskRunIdempotencyKey([
+          "repository_context_lookup",
+          c.var.auth.organization.localOrganizationId,
+          params.projectId,
+          body.sourcePath,
+          body.key,
+          repositoryFullName,
+          sourceTextHash,
+        ]);
+
+        const { run, reused } = await createOrReuseActiveAgentTaskRun({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          surface: "cat",
+          kind: "repository_context_lookup",
+          actorUserId: c.var.auth.user.localUserId,
+          idempotencyKey,
+          inputSnapshot: {
+            sourcePath: body.sourcePath,
+            stringKey: body.key,
+            sourceText: body.text,
+            sourceTextHash,
+            context: body.context ?? null,
+            repositoryFullName,
+            forceRefresh: body.forceRefresh ?? false,
+          },
+          contextSnapshot: {
+            membershipRole: c.var.auth.membership.role,
+            projectId: params.projectId,
+          },
+          resultRef: {
+            cacheTable: "project_file_string_repository_contexts",
+            sourcePath: body.sourcePath,
+            stringKey: body.key,
+            repositoryFullName,
+            sourceTextHash,
+          },
+        });
+
+        stringContextRouteLogger.debug(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            stringKey: body.key,
+            runId: run.id,
+            reused,
+          },
+          "project file string context run created",
+        );
+
+        return c.json(
+          {
+            run: {
+              id: run.id,
+              status: run.status,
+              currentStage: run.currentStage,
+              reused,
+            },
+          },
+          reused ? 200 : 201,
+        );
       },
     )
     .post(
