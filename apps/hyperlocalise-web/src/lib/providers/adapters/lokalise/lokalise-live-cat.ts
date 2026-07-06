@@ -239,11 +239,16 @@ async function advanceLokaliseKeysCursor(input: {
 }): Promise<{ cursor: string; scanComplete: boolean }> {
   let cursor = "";
   for (let page = 1; page < input.targetScanPage; page++) {
-    const result = await input.client.listKeysCursorPage(input.projectId, {
-      includeTranslations: false,
-      cursor: cursor || undefined,
-      limit: input.pageSize,
-    });
+    let result: Awaited<ReturnType<LokaliseApiClient["listKeysCursorPage"]>>;
+    try {
+      result = await input.client.listKeysCursorPage(input.projectId, {
+        includeTranslations: false,
+        cursor: cursor || undefined,
+        limit: input.pageSize,
+      });
+    } catch (error) {
+      mapLokaliseApiError(error);
+    }
     if (!result.nextCursor) {
       return { cursor: "", scanComplete: true };
     }
