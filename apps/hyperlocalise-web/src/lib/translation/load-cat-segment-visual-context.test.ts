@@ -5,14 +5,18 @@ const {
   loadCrowdinCatVisualContextMock,
   loadLokaliseCatVisualContextMock,
   loadPhraseCatVisualContextMock,
+  loadSmartlingCatVisualContextMock,
   lokaliseClientOptions,
+  smartlingClientOptions,
   tryLoadActiveTmsProviderContextMock,
 } = vi.hoisted(() => ({
   crowdinClientOptions: [] as unknown[],
   loadCrowdinCatVisualContextMock: vi.fn(),
   loadLokaliseCatVisualContextMock: vi.fn(),
   loadPhraseCatVisualContextMock: vi.fn(),
+  loadSmartlingCatVisualContextMock: vi.fn(),
   lokaliseClientOptions: [] as unknown[],
+  smartlingClientOptions: [] as unknown[],
   tryLoadActiveTmsProviderContextMock: vi.fn(),
 }));
 
@@ -49,6 +53,18 @@ vi.mock("@/lib/providers/adapters/phrase/phrase-cat-visual-context", () => ({
   loadPhraseCatVisualContext: (...args: unknown[]) => loadPhraseCatVisualContextMock(...args),
 }));
 
+vi.mock("@/lib/providers/adapters/smartling/smartling-api", () => ({
+  SmartlingApiClient: class MockSmartlingApiClient {
+    constructor(options: unknown) {
+      smartlingClientOptions.push(options);
+    }
+  },
+}));
+
+vi.mock("@/lib/providers/adapters/smartling/smartling-cat-visual-context", () => ({
+  loadSmartlingCatVisualContext: (...args: unknown[]) => loadSmartlingCatVisualContextMock(...args),
+}));
+
 import { loadCatSegmentVisualContext } from "./load-cat-segment-visual-context";
 
 describe("loadCatSegmentVisualContext", () => {
@@ -56,6 +72,7 @@ describe("loadCatSegmentVisualContext", () => {
     vi.clearAllMocks();
     crowdinClientOptions.length = 0;
     lokaliseClientOptions.length = 0;
+    smartlingClientOptions.length = 0;
   });
 
   it("returns empty visual context when no active provider credential is available", async () => {
@@ -195,6 +212,40 @@ describe("loadCatSegmentVisualContext", () => {
       baseUrl: "https://phrase.example",
       externalProjectId: "project_1",
       externalStringId: "string_1",
+    });
+  });
+
+  it("dispatches Smartling visual context with the active credential material", async () => {
+    tryLoadActiveTmsProviderContextMock.mockResolvedValue({
+      providerKind: "smartling",
+      secretMaterial: "user:secret",
+      credential: {
+        baseUrl: "https://api.smartling.com/auth-api/v2",
+        region: null,
+      },
+    });
+    loadSmartlingCatVisualContextMock.mockResolvedValue({
+      screenshots: [{ id: "ctx-1", name: "Checkout", imageUrl: "data:image/png;base64,abc" }],
+    });
+
+    const visualContext = await loadCatSegmentVisualContext({
+      organizationId: "org_1",
+      providerKind: "smartling",
+      externalProjectId: "project_1",
+      externalStringId: "hash-1",
+    });
+
+    expect(visualContext.screenshots).toHaveLength(1);
+    expect(smartlingClientOptions).toEqual([
+      {
+        credentials: "user:secret",
+        authBaseUrl: "https://api.smartling.com/auth-api/v2",
+      },
+    ]);
+    expect(loadSmartlingCatVisualContextMock).toHaveBeenCalledWith({
+      client: expect.any(Object),
+      externalProjectId: "project_1",
+      externalStringId: "hash-1",
     });
   });
 });

@@ -4,6 +4,8 @@ import { loadCrowdinCatVisualContext } from "@/lib/providers/adapters/crowdin/cr
 import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import { loadLokaliseCatVisualContext } from "@/lib/providers/adapters/lokalise/lokalise-cat-visual-context";
 import { loadPhraseCatVisualContext } from "@/lib/providers/adapters/phrase/phrase-cat-visual-context";
+import { loadSmartlingCatVisualContext } from "@/lib/providers/adapters/smartling/smartling-cat-visual-context";
+import { SmartlingApiClient } from "@/lib/providers/adapters/smartling/smartling-api";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { tryLoadActiveTmsProviderContext } from "@/lib/providers/tms-provider-live";
 
@@ -57,8 +59,18 @@ export async function loadCatSegmentVisualContext(input: {
         externalProjectId: input.externalProjectId,
         externalStringId: input.externalStringId,
       });
-    case "smartling":
-      return { screenshots: [] };
+    case "smartling": {
+      const client = new SmartlingApiClient({
+        credentials: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl ?? undefined,
+      });
+
+      return loadSmartlingCatVisualContext({
+        client,
+        externalProjectId: input.externalProjectId,
+        externalStringId: input.externalStringId,
+      });
+    }
     default:
       return { screenshots: [] };
   }

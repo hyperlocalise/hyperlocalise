@@ -5,6 +5,7 @@ import { fetchSmartlingGlossaries } from "@/lib/providers/adapters/smartling/sma
 import { searchSmartlingGlossaryMatches } from "@/lib/providers/adapters/smartling/smartling-glossary-matcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/adapters/smartling/smartling-job-fetcher";
 import { fetchSmartlingProjects } from "@/lib/providers/adapters/smartling/smartling-project-fetcher";
+import { pullSmartlingProviderReview } from "@/lib/providers/adapters/smartling/smartling-review-puller";
 import { uploadSmartlingSourceFile } from "@/lib/providers/adapters/smartling/smartling-source-uploader";
 import { searchSmartlingTranslationMemoryMatches } from "@/lib/providers/adapters/smartling/smartling-tm-matcher";
 import { fetchSmartlingTranslationMemories } from "@/lib/providers/adapters/smartling/smartling-translation-memory-fetcher";
@@ -15,6 +16,7 @@ import {
   type TmsProviderCommentPushScope,
   type TmsProviderJobScope,
   type TmsProviderProjectScope,
+  type TmsProviderPullReviewScope,
   type TmsProviderPushTranslationsScope,
   type TmsProviderSourceFileUploadScope,
 } from "@/lib/providers/contracts/tms-provider-adapter";
@@ -54,6 +56,16 @@ export class SmartlingTmsAdapter extends TmsProviderAdapter {
 
   pushTranslations(scope: TmsProviderPushTranslationsScope) {
     return pushSmartlingTranslations({ ...scope, providerKind: this.kind });
+  }
+
+  pullReview(scope: TmsProviderPullReviewScope) {
+    return pullSmartlingProviderReview({
+      credential: scope.credential,
+      secretMaterial: scope.secretMaterial,
+      externalProjectId: scope.externalProjectId,
+      externalJobId: scope.externalJobId,
+      content: scope.content,
+    });
   }
 
   pushComments(scope: TmsProviderCommentPushScope) {

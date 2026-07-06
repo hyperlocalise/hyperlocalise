@@ -30,7 +30,7 @@ const providerOptionalCapabilities: Record<ExternalTmsProviderKind, ProviderOpti
       translationMemoryMatch: true,
     },
     smartling: {
-      reviewPull: false,
+      reviewPull: true,
       commentPush: true,
       glossaryMatch: true,
       translationMemoryMatch: true,

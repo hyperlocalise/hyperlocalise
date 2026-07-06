@@ -26,11 +26,15 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "phrase_user_connection_required":
     case "lokalise_user_auth_invalid":
     case "lokalise_user_connection_required":
+    case "smartling_auth_invalid":
       return 401;
     case "invalid_encoded_job_id":
     case "invalid_crowdin_project_or_file_id":
     case "invalid_crowdin_project_or_string_id":
     case "invalid_phrase_project_id":
+    case "invalid_smartling_project_id":
+    case "invalid_smartling_string_id":
+    case "invalid_smartling_comment_id":
     case "phrase_target_locale_not_found":
       return 400;
     case "provider_fetcher_unavailable":

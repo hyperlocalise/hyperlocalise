@@ -169,7 +169,6 @@ const tmsIntegrationMeta = [
   {
     providerKind: "smartling" as const,
     logo: "/images/tms/smartling.png",
-    comingSoon: true as const,
   },
 ] as const;
 
