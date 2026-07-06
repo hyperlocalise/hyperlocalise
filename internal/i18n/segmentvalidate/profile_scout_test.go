@@ -106,8 +106,9 @@ func TestExtractSpecialCharLiteralsScout(t *testing.T) {
 }
 
 func TestValidateSegmentProfileScout(t *testing.T) {
-	// These tests verify that SegmentValidate actually reports these failures
-	// when placeholders are present (which enables the check).
+	// These tests verify that SegmentValidate actually reports these failures.
+	// Profile parity checks are applied to all non-Markdown segments, including
+	// those without ICU placeholders.
 	tests := []struct {
 		name        string
 		source      string
@@ -128,6 +129,13 @@ func TestValidateSegmentProfileScout(t *testing.T) {
 			target:      "{name}",
 			wantID:      "format-special-char-mismatch",
 			errContains: `\r\n`,
+		},
+		{
+			name:        "whitespace mismatch without placeholders",
+			source:      " Hello ",
+			target:      "Bonjour",
+			wantID:      "format-whitespace-profile",
+			errContains: "leading whitespace",
 		},
 	}
 
