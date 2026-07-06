@@ -128,6 +128,10 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(filters).not.toContain("reviewed");
   });
 
+  it("includes has issues for Smartling projects", () => {
+    expect(resolveAvailableCatQueueFilters("smartling")).toContain("has_issues");
+  });
+
   it("omits translation status filters for Smartling projects", () => {
     const filters = resolveAvailableCatQueueFilters("smartling");
     expect(filters).not.toContain("untranslated");

@@ -27,7 +27,7 @@ export function isQueueFilterSupportedForProvider(
   providerKind: string | null | undefined,
 ) {
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === null;
+    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
   }
 
   if (
