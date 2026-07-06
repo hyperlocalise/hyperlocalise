@@ -1,7 +1,7 @@
-import type { Post } from "@/lib/blog/blog-post";
+import type { PostSummary } from "@/lib/blog/blog-post";
 import { getBlogPostOgImagePath } from "@/lib/blog/blog-post-og-image-path";
 
-export function getBlogPostCoverUrl(post: Post, lang: string) {
+export function getBlogPostCoverUrl(post: PostSummary, lang: string) {
   if (post.coverImage) {
     return post.coverImage;
   }
@@ -9,7 +9,7 @@ export function getBlogPostCoverUrl(post: Post, lang: string) {
   return getBlogPostOgImagePath(lang, post.slug) ?? `/${lang}/blog`;
 }
 
-export function getBlogPostCoverAbsoluteUrl(post: Post, lang: string, baseUrl: string) {
+export function getBlogPostCoverAbsoluteUrl(post: PostSummary, lang: string, baseUrl: string) {
   const coverUrl = getBlogPostCoverUrl(post, lang);
   return new URL(coverUrl, baseUrl).toString();
 }
