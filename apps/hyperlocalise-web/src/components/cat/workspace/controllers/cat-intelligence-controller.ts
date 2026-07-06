@@ -231,10 +231,7 @@ export class CatIntelligenceController {
       });
   }
 
-  async askQuestion(
-    segmentId: string,
-    options?: { forceRefresh?: boolean },
-  ): Promise<boolean> {
+  async askQuestion(segmentId: string, options?: { forceRefresh?: boolean }): Promise<boolean> {
     const lookup = this.ports.services?.lookupSegmentContext;
     if (!lookup) {
       return false;
