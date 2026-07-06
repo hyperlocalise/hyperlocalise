@@ -48,7 +48,7 @@ func validateExtraPlaceholderParity(source, translated string) error {
 		return nil
 	}
 	return fmt.Errorf(
-		"translation invariant violation: extra placeholder parity mismatch (expected %v, got %v) | %s",
+		"translation invariant violation: extra placeholder parity mismatch (expected %q, got %q) | %s",
 		expected,
 		got,
 		formatInvariantDebugContext(source, translated),

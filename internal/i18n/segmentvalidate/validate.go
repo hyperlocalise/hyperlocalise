@@ -2,6 +2,8 @@ package segmentvalidate
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -271,28 +273,74 @@ func icuTokensFromMessage(message string) []string {
 }
 
 func formatPlaceholderNames(rawList string) []string {
-	rawList = strings.TrimSpace(rawList)
-	rawList = strings.TrimPrefix(rawList, "[")
-	rawList = strings.TrimSuffix(rawList, "]")
+	rawList = strings.Trim(rawList, "[] ")
 	if rawList == "" {
 		return nil
 	}
-	parts := strings.FieldsFunc(rawList, func(r rune) bool {
-		return r == ' ' || r == ','
-	})
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
+
+	// Use a simple scanner to extract quoted strings (from %q) or unquoted tokens.
+	var out []string
+	for i := 0; i < len(rawList); {
+		// Skip separators
+		if rawList[i] == ' ' || rawList[i] == ',' {
+			i++
 			continue
 		}
-		if strings.HasPrefix(part, "%") || strings.HasPrefix(part, "$") {
-			out = append(out, part)
-			continue
+
+		if rawList[i] == '"' {
+			j := i + 1
+			for j < len(rawList) {
+				if rawList[j] == '"' {
+					break
+				}
+				if rawList[j] == '\\' && j+1 < len(rawList) {
+					j += 2
+				} else {
+					j++
+				}
+			}
+			if j < len(rawList) {
+				// We found a closing quote. In Go, %q produces a valid string literal.
+				val, err := strconv.Unquote(rawList[i : j+1])
+				if err != nil {
+					// Fallback for failed unquoting
+					val = strings.ReplaceAll(rawList[i+1:j], `\"`, `"`)
+				}
+				if placeholder := finalizePlaceholderName(val); placeholder != "" {
+					out = append(out, placeholder)
+				}
+				i = j + 1
+				continue
+			}
 		}
-		out = append(out, "{"+part+"}")
+
+		// Fallback for unquoted parts (backward compatibility or non-quoted output)
+		j := i
+		for j < len(rawList) && rawList[j] != ' ' && rawList[j] != ',' {
+			j++
+		}
+		if i != j {
+			val := rawList[i:j]
+			if placeholder := finalizePlaceholderName(val); placeholder != "" {
+				out = append(out, placeholder)
+			}
+		}
+		i = j
 	}
+
+	slices.Sort(out)
 	return out
+}
+
+func finalizePlaceholderName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	if strings.HasPrefix(name, "%") || strings.HasPrefix(name, "$") || strings.HasPrefix(name, "{") {
+		return name
+	}
+	return "{" + name + "}"
 }
 
 func extractListAfter(message, prefix, suffix string) (string, string) {
