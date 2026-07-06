@@ -53,6 +53,17 @@ import {
   getLokaliseUserConnection,
   resolveLokaliseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
+import { listLokaliseTaskComments } from "@/lib/providers/adapters/lokalise/lokalise-job-comments";
+import {
+  buildLokaliseLiveCatFile,
+  getLokaliseLiveCatSegmentComments,
+  getLokaliseLiveCatSegmentTarget,
+  LokaliseLiveCatError,
+  saveLokaliseLiveCatComment,
+  saveLokaliseLiveCatTranslation,
+} from "@/lib/providers/adapters/lokalise/lokalise-live-cat";
+import { loadLokaliseProjectLocaleReadiness } from "@/lib/providers/adapters/lokalise/lokalise-locale-progress";
+import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-match";
@@ -768,6 +779,14 @@ function mapPhraseLiveCatError(error: unknown): never {
   throw error;
 }
 
+function mapLokaliseLiveCatError(error: unknown): never {
+  if (error instanceof LokaliseLiveCatError) {
+    throw new TmsProviderLiveError(error.code, error.message);
+  }
+
+  throw error;
+}
+
 function supportsLiveProviderCat(
   providerKind: ExternalTmsProviderKind,
   file: TmsProviderLiveFile,
@@ -780,7 +799,7 @@ function supportsLiveProviderCat(
     return file.provider.resourceType === "file";
   }
 
-  if (providerKind === "phrase") {
+  if (providerKind === "phrase" || providerKind === "lokalise") {
     return file.provider.resourceType === "file" || file.provider.resourceType === "key";
   }
 
@@ -798,7 +817,9 @@ function resolveLiveCatFileFromExternalResourceId(input: {
     providerKind: input.providerKind,
     externalProjectId: input.externalProjectId,
     file: {
-      resourceType: input.resourceType ?? (input.providerKind === "phrase" ? "key" : "file"),
+      resourceType:
+        input.resourceType ??
+        (input.providerKind === "phrase" || input.providerKind === "lokalise" ? "key" : "file"),
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
     },
@@ -855,6 +876,16 @@ async function resolveLiveCatFile(input: {
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
       resourceType: "file",
+    });
+  }
+
+  if (input.context.providerKind === "lokalise" || input.context.providerKind === "phrase") {
+    return resolveLiveCatFileFromExternalResourceId({
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
+      resourceType: input.resourceType ?? "key",
     });
   }
 
@@ -1995,6 +2026,22 @@ export async function getTmsProviderLiveCatFile(
     }
   }
 
+  if (context.providerKind === "lokalise") {
+    try {
+      return await buildLokaliseLiveCatFile({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        canEditTranslations: options?.canEditTranslations ?? false,
+        pagination: options?.pagination,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
+    }
+  }
+
   return buildCrowdinLiveCatFile({
     context,
     file,
@@ -2051,6 +2098,21 @@ export async function getTmsProviderLiveCatSegmentTarget(
       });
     } catch (error) {
       mapPhraseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "lokalise") {
+    try {
+      return await getLokaliseLiveCatSegmentTarget({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        externalStringId,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
     }
   }
 
@@ -2112,6 +2174,21 @@ export async function getTmsProviderLiveCatSegmentComments(
     }
   }
 
+  if (context.providerKind === "lokalise") {
+    try {
+      return await getLokaliseLiveCatSegmentComments({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        externalStringId,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
+    }
+  }
+
   return buildCrowdinLiveCatSegmentComments({
     context,
     file,
@@ -2170,6 +2247,22 @@ export async function saveTmsProviderLiveCatTranslation(
     }
   }
 
+  if (context.providerKind === "lokalise") {
+    try {
+      return await saveLokaliseLiveCatTranslation({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
+    }
+  }
+
   return saveCrowdinLiveCatTranslation({
     context,
     file,
@@ -2214,14 +2307,16 @@ export async function saveTmsProviderLiveCatComment(
     );
   }
 
-  if (context.providerKind === "phrase") {
+  if (context.providerKind === "phrase" || context.providerKind === "lokalise") {
     if (input.type === "issue") {
       throw new TmsProviderLiveError(
         "provider_cat_unsupported",
-        "Issue comments are not available for Phrase files.",
+        `Issue comments are not available for ${context.providerKind} files.`,
       );
     }
+  }
 
+  if (context.providerKind === "phrase") {
     try {
       return await savePhraseLiveCatComment({
         secretMaterial: context.secretMaterial,
@@ -2235,6 +2330,22 @@ export async function saveTmsProviderLiveCatComment(
       });
     } catch (error) {
       mapPhraseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "lokalise") {
+    try {
+      return await saveLokaliseLiveCatComment({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
     }
   }
 
@@ -2370,6 +2481,34 @@ export async function getTmsProviderLiveProjectLocaleReadiness(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
+
+  if (context.providerKind === "lokalise") {
+    if (!externalProjectId.trim()) {
+      return null;
+    }
+
+    const client = new LokaliseApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+    });
+
+    try {
+      return await loadLokaliseProjectLocaleReadiness({
+        client,
+        projectId: externalProjectId,
+        languageId: options?.languageId,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "lokalise_auth_invalid") {
+        throw new TmsProviderLiveError(
+          "lokalise_auth_invalid",
+          "Lokalise credentials are invalid.",
+        );
+      }
+      throw error;
+    }
+  }
+
   if (context.providerKind !== "crowdin") {
     return null;
   }
@@ -2571,6 +2710,25 @@ export async function listTmsProviderLiveJobComments(
   });
   if (context.providerKind !== parsed.providerKind) {
     return null;
+  }
+
+  if (context.providerKind === "lokalise") {
+    try {
+      return await listLokaliseTaskComments({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl ?? undefined,
+        externalProjectId: parsed.externalProjectId,
+        externalJobId: parsed.externalJobId,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "lokalise_auth_invalid") {
+        throw new TmsProviderLiveError(
+          "lokalise_auth_invalid",
+          "Lokalise credentials are invalid.",
+        );
+      }
+      throw error;
+    }
   }
 
   if (context.providerKind !== "crowdin") {

@@ -34,12 +34,20 @@ describe("supportsProviderCatFile", () => {
     ).toBe(true);
   });
 
-  it("returns false for providers without live CAT yet", () => {
+  it("supports Lokalise file and key resources", () => {
     expect(
       supportsProviderCatFile({
         provider: { kind: "lokalise", resourceType: "file" },
       }),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      supportsProviderCatFile({
+        provider: { kind: "lokalise", resourceType: "key" },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for providers without live CAT yet", () => {
     expect(
       supportsProviderCatFile({
         provider: { kind: "smartling", resourceType: "file" },

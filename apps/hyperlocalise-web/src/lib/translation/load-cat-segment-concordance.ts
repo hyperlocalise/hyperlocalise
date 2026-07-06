@@ -6,6 +6,12 @@ import {
   loadCrowdinProjectCredential,
   type CrowdinProjectCredential,
 } from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
+import { searchLokaliseCatConcordance } from "@/lib/providers/adapters/lokalise/lokalise-cat-concordance";
+import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
+import {
+  loadLokaliseProjectCredential,
+  type LokaliseProjectCredential,
+} from "@/lib/providers/adapters/lokalise/load-lokalise-project-credential";
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
@@ -57,6 +63,8 @@ type CrowdinLiveConcordance = {
   translationMemoryMatches: NormalizedTranslationMemoryMatch[];
 };
 
+type LokaliseLiveConcordance = CrowdinLiveConcordance;
+
 const CROWDIN_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
   crowdin_user_connection_required:
     "Connect your Crowdin account before loading glossary and translation memory matches.",
@@ -71,6 +79,20 @@ const CROWDIN_OAUTH_ERROR_CODES = new Set([
 
 const CROWDIN_USER_AUTH_INVALID_MESSAGE =
   "Your Crowdin connection is invalid. Reconnect Crowdin and try again.";
+
+const LOKALISE_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
+  lokalise_user_connection_required:
+    "Connect your Lokalise account before loading glossary and translation memory matches.",
+};
+
+const LOKALISE_OAUTH_ERROR_CODES = new Set([
+  "lokalise_oauth_refresh_failed",
+  "lokalise_oauth_token_invalid",
+  "lokalise_oauth_token_response_invalid",
+]);
+
+const LOKALISE_USER_AUTH_INVALID_MESSAGE =
+  "Your Lokalise connection is invalid. Reconnect Lokalise and try again.";
 
 async function resolveCrowdinConcordanceToken(input: {
   organizationId: string;
@@ -138,6 +160,72 @@ async function loadCrowdinLiveConcordance(input: {
   });
 }
 
+async function resolveLokaliseConcordanceToken(input: {
+  organizationId: string;
+  credential: LokaliseProjectCredential["credential"];
+  actorUserId?: string | null;
+}): Promise<string> {
+  try {
+    return await resolveExternalTmsSecretMaterialForActor({
+      credential: input.credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      const message = LOKALISE_USER_CONNECTION_ERROR_MESSAGES[error.message];
+      if (message) {
+        throw new TmsProviderLiveError(error.message, message);
+      }
+
+      if (LOKALISE_OAUTH_ERROR_CODES.has(error.message)) {
+        throw new TmsProviderLiveError(
+          "lokalise_user_auth_invalid",
+          LOKALISE_USER_AUTH_INVALID_MESSAGE,
+        );
+      }
+    }
+
+    throw error;
+  }
+}
+
+async function loadLokaliseLiveConcordance(input: {
+  organizationId: string;
+  projectId: string;
+  actorUserId?: string | null;
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+}): Promise<LokaliseLiveConcordance | null> {
+  const projectCredential = await loadLokaliseProjectCredential({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+  if (!projectCredential) {
+    return null;
+  }
+
+  const { credential, externalProjectId } = projectCredential;
+  const token = await resolveLokaliseConcordanceToken({
+    organizationId: input.organizationId,
+    credential,
+    actorUserId: input.actorUserId,
+  });
+  const client = new LokaliseApiClient({
+    token,
+    baseUrl: credential.baseUrl,
+  });
+
+  return searchLokaliseCatConcordance({
+    client,
+    externalProjectId,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    sourceText: input.sourceText,
+  });
+}
+
 export async function loadCatSegmentConcordance(input: {
   organizationId: string;
   projectId: string;
@@ -149,6 +237,26 @@ export async function loadCatSegmentConcordance(input: {
 }): Promise<CatSegmentConcordance> {
   if (input.providerKind === "crowdin") {
     const liveMatches = await loadCrowdinLiveConcordance({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      sourceText: input.sourceText,
+    });
+
+    if (liveMatches) {
+      return {
+        glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
+        translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
+          toCatTranslationMemoryMatch(match, input.sourceText),
+        ),
+      };
+    }
+  }
+
+  if (input.providerKind === "lokalise") {
+    const liveMatches = await loadLokaliseLiveConcordance({
       organizationId: input.organizationId,
       projectId: input.projectId,
       actorUserId: input.actorUserId,
