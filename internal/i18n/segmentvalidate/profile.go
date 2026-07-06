@@ -83,7 +83,7 @@ func profileEdgeWhitespace(value string) (leading, trailing string) {
 }
 
 func isProfileEdgeWhitespace(r rune) bool {
-	return r == '\u00a0' || r == ' ' || r == '\t'
+	return r == '\u00a0' || r == ' ' || r == '\t' || r == '\r' || r == '\n'
 }
 
 func countNBSP(value string) int {
@@ -145,7 +145,7 @@ func readSpecialCharLiteral(value string, start int) (token string, width int, o
 
 	switch {
 	case strings.HasPrefix(value[start:], `\r\n`):
-		return `\r\n`, 3, true
+		return `\r\n`, 4, true
 	case strings.HasPrefix(value[start:], `\r`):
 		return `\r`, 2, true
 	case strings.HasPrefix(value[start:], `\n`):

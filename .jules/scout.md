@@ -119,3 +119,7 @@
 ## 2025-08-05 - [ICU Invariant Styles]
 **Learning:** ICU invariant analysis must capture styles for typed elements (number, date, time) in the BlockSignature Options field. This ensures that changes to the formatting style are detected as invariant mismatches, which is critical for maintaining consistency between source and translations.
 **Action:** Always include the Style field from NumberElement, DateElement, and TimeElement in the ICUBlocks signature when collecting message invariants.
+
+## 2026-08-12 - [Newline Parity and CRLF Literal Width]
+**Learning:** Localization validation must protect leading/trailing newlines (`\n`, `\r`) as they often affect UI layout. Naive whitespace definitions that only include space and tab skip these critical characters. Additionally, escaped special character scanners must correctly track the width of multibackslash sequences (e.g., `\r\n` is 4 bytes: `\`, `r`, `\`, `n`) to avoid index misalignment during extraction.
+**Action:** Include `\r` and `\n` in edge whitespace parity checks. Ensure special character literal width matches the source representation (e.g., `width: 4` for `\r\n`) to maintain scanner integrity.
