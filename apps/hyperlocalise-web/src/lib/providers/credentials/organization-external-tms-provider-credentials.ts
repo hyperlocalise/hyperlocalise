@@ -11,7 +11,6 @@ import {
   unwrapProviderCredentialCrypto,
   type EncryptedProviderCredential,
 } from "@/lib/security/provider-credential-crypto";
-import { getTmsProviderCapability } from "@/lib/providers/capabilities/tms-capabilities";
 import { assertProviderUrlResolvable } from "@/lib/providers/shared/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-api";
@@ -298,6 +297,9 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
   const projectCountByProvider = Object.fromEntries(
     projectCounts.map((row) => [row.providerKind, row.count]),
   ) as Record<string, number>;
+
+  const { getTmsProviderCapability } =
+    await import("@/lib/providers/capabilities/tms-capabilities");
 
   return credentials.map((credential) => ({
     ...credential,
