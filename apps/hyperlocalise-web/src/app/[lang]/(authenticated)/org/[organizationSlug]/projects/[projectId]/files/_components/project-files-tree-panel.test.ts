@@ -22,10 +22,9 @@ describe("project files browser capacity", () => {
     await fetchProjectFiles("acme", "proj_1");
 
     expect(PROJECT_FILES_PAGE_SIZE).toBe(500);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/orgs/acme/projects/proj_1/files?limit=500",
-      { method: "GET" },
-    );
+    expect(fetchMock).toHaveBeenCalledWith("/api/orgs/acme/projects/proj_1/files?limit=500", {
+      method: "GET",
+    });
   });
 
   it("uses a 480 pixel tree viewport", () => {
