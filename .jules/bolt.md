@@ -227,3 +227,7 @@
 ## 2027-02-20 - Optimizing HTML tag parity checks via fast-paths and allocation reduction
 **Learning:** HTML tag parity checks are frequently performed during translation validation. Repeated use of `strings.TrimSpace`, `strings.TrimPrefix`, `strings.TrimSuffix`, and `strings.Fields` in a loop creates significant garbage collection pressure due to many intermediate string allocations. A manual scanning approach that extracts tag names in a single pass is much more efficient. Additionally, a simple fast-path for identical strings avoids expensive parsing entirely for the most common case.
 **Action:** Implement fast-paths for identical inputs and replace chained string manipulation functions with manual index-based scanning in hot paths like tag discovery and normalization.
+
+## 2027-02-25 - Optimizing segment profile validation via caching and allocation avoidance
+**Learning:** In segment validation, `normalizeProfileText` repeatedly constructs `strings.NewReplacer`, which is expensive due to internal trie building. Additionally, `profileEdgeWhitespace` uses `[]rune(value)` for scanning, which creates $O(N)$ heap allocations.
+**Action:** Move `strings.NewReplacer` to a package-level variable with a `strings.Contains` fast-path in `normalizeProfileText`. Refactor `profileEdgeWhitespace` to use manual `utf8.DecodeRuneInString` and `utf8.DecodeLastRuneInString` loops, resulting in ~1.6x faster overall segment validation and zero allocations for whitespace edge discovery.

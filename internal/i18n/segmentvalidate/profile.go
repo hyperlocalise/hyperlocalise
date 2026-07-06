@@ -17,13 +17,17 @@ func validateProfileParity(source, translated string) error {
 	return validateSpecialCharParity(source, translated)
 }
 
+var profileNBSPReplacer = strings.NewReplacer(
+	"&nbsp;", "\u00a0",
+	"&NBSP;", "\u00a0",
+	"&Nbsp;", "\u00a0",
+)
+
 func normalizeProfileText(value string) string {
-	replacer := strings.NewReplacer(
-		"&nbsp;", "\u00a0",
-		"&NBSP;", "\u00a0",
-		"&Nbsp;", "\u00a0",
-	)
-	return replacer.Replace(value)
+	if !strings.Contains(value, "&") {
+		return value
+	}
+	return profileNBSPReplacer.Replace(value)
 }
 
 func validateWhitespaceProfile(source, translated string) error {
@@ -55,16 +59,27 @@ func validateWhitespaceProfile(source, translated string) error {
 }
 
 func profileEdgeWhitespace(value string) (leading, trailing string) {
-	runes := []rune(value)
 	start := 0
-	for start < len(runes) && isProfileEdgeWhitespace(runes[start]) {
-		start++
+	for start < len(value) {
+		r, w := utf8.DecodeRuneInString(value[start:])
+		if !isProfileEdgeWhitespace(r) {
+			break
+		}
+		start += w
 	}
-	end := len(runes)
-	for end > start && isProfileEdgeWhitespace(runes[end-1]) {
-		end--
+	leading = value[:start]
+
+	end := len(value)
+	for end > start {
+		r, w := utf8.DecodeLastRuneInString(value[start:end])
+		if !isProfileEdgeWhitespace(r) {
+			break
+		}
+		end -= w
 	}
-	return string(runes[:start]), string(runes[end:])
+	trailing = value[end:]
+
+	return leading, trailing
 }
 
 func isProfileEdgeWhitespace(r rune) bool {
