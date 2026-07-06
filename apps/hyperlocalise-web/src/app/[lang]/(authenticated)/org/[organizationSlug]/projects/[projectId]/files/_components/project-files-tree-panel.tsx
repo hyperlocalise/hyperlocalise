@@ -16,7 +16,7 @@ import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
 
-export const PROJECT_FILES_PAGE_SIZE = 50;
+export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
 
 export function projectFilesQueryKey(

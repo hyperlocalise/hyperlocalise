@@ -9,7 +9,7 @@ import "@pierre/trees/web-components";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { formatBytes } from "./project-files-shared";
 
-const TREE_MIN_HEIGHT_PX = 320;
+export const TREE_HEIGHT_PX = 480;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -19,7 +19,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 const projectFilesTreeStyle = {
   width: "100%",
   minWidth: "100%",
-  height: `${TREE_MIN_HEIGHT_PX}px`,
+  height: `${TREE_HEIGHT_PX}px`,
   backgroundColor: "transparent",
   color: "var(--foreground)",
   borderColor: "var(--border)",
