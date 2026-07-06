@@ -41,7 +41,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 });
 
 vi.mock("./project-files-tree-panel", () => ({
-  PROJECT_FILES_PAGE_SIZE: 50,
+  PROJECT_FILES_PAGE_SIZE: 500,
   PROJECT_FILES_MAX_LIMIT: 1000,
   projectFilesQueryKey: () => ["project-files"],
   sortFilesByPath: (files: unknown[]) => files,
