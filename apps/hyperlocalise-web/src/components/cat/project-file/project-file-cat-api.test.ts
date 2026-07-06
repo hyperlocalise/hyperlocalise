@@ -67,7 +67,6 @@ describe("fetchProjectFileCatQueuePage", () => {
 
     const result = await fetchProjectFileCatQueuePage({
       ...catApiTestContext,
-      repositoryFullName: null,
       search: "",
       queueFilter: "all",
       limit: 50,
@@ -91,7 +90,7 @@ describe("fetchProjectFileCatQueuePage", () => {
     );
   });
 
-  it("forwards search, queue filter, repository, and phrase scan params", async () => {
+  it("forwards search, queue filter, and phrase scan params without repository context", async () => {
     catQueueGetMock.mockResolvedValue(jsonResponse(createCatQueueResponse()));
 
     await fetchProjectFileCatQueuePage({
@@ -113,7 +112,6 @@ describe("fetchProjectFileCatQueuePage", () => {
           limit: 25,
           search: "hero",
           queueFilter: "needs_review",
-          repositoryFullName: catApiTestContext.repositoryFullName,
           phraseScanPage: 2,
           phraseScanSkip: 10,
         },
@@ -129,7 +127,6 @@ describe("fetchProjectFileCatQueuePage", () => {
     await expect(
       fetchProjectFileCatQueuePage({
         ...catApiTestContext,
-        repositoryFullName: null,
         search: "",
         queueFilter: "all",
         limit: 50,
@@ -153,7 +150,6 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       externalResourceId: "101",
       resourceType: "file",
       externalStringId: "segment-42",
-      repositoryFullName: null,
     });
 
     expect(result).toEqual(target);
@@ -183,7 +179,6 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       fetchProjectFileCatSegmentTarget({
         ...catApiTestContext,
         externalStringId: "missing",
-        repositoryFullName: null,
       }),
     ).rejects.toThrow("Segment was not found.");
   });
@@ -236,7 +231,6 @@ describe("projectFileCatQueryKey", () => {
         projectId: "project_1",
         sourcePath: "locales/en.json",
         targetLocale: "fr",
-        repositoryFullName: "acme/web",
         search: "hero",
         queueFilter: "needs_review",
         limit: 50,
@@ -250,7 +244,6 @@ describe("projectFileCatQueryKey", () => {
       null,
       null,
       "fr",
-      "acme/web",
       "hero",
       "needs_review",
       50,
@@ -264,7 +257,6 @@ describe("projectFileCatQueryKey", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
-      repositoryFullName: null,
       search: "",
       queueFilter: "all" as const,
       limit: 50,
@@ -282,7 +274,6 @@ describe("projectFileCatBaseQueryKey", () => {
   it("omits offset so infinite-query pages share a base key", () => {
     const key = projectFileCatBaseQueryKey({
       ...catApiTestContext,
-      repositoryFullName: null,
       search: "",
       queueFilter: "all",
       limit: 50,
@@ -296,7 +287,6 @@ describe("projectFileCatBaseQueryKey", () => {
       null,
       null,
       "fr",
-      null,
       "",
       "all",
       50,

@@ -389,7 +389,7 @@ export function ProjectFileCatPageContent({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}:${selectedRepositoryFullName ?? "default"}`}
+          key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}

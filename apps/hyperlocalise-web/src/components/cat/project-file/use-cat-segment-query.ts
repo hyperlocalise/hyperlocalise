@@ -42,12 +42,10 @@ export function useCatSegmentQuery(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName?: string | null;
   enabled?: boolean;
   initialQueueFilter?: CatQueueFilter;
 }) {
   const queryClient = useQueryClient();
-  const repositoryFullName = input.repositoryFullName ?? null;
   const [search, setSearch] = useState("");
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>(
     () => input.initialQueueFilter ?? "all",
@@ -75,7 +73,6 @@ export function useCatSegmentQuery(input: {
         externalResourceId: input.externalResourceId,
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
-        repositoryFullName,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         limit,
@@ -89,7 +86,6 @@ export function useCatSegmentQuery(input: {
       input.resourceType,
       input.targetLocale,
       limit,
-      repositoryFullName,
       serverQueueFilter,
     ],
   );
@@ -124,7 +120,6 @@ export function useCatSegmentQuery(input: {
         externalResourceId: resolveExternalResourceId(),
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
-        repositoryFullName,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         limit,
@@ -169,7 +164,6 @@ export function useCatSegmentQuery(input: {
         externalResourceId: input.externalResourceId,
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
-        repositoryFullName,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         limit,
@@ -184,7 +178,6 @@ export function useCatSegmentQuery(input: {
       input.resourceType,
       input.targetLocale,
       limit,
-      repositoryFullName,
       serverQueueFilter,
     ],
   );

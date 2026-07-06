@@ -871,7 +871,7 @@ describe("useCatWorkspaceRuntime", () => {
     );
   });
 
-  it("stores null from full agent context lookups and allows retry", async () => {
+  it("stores null from full context lookups and reloads cached context when the service changes", async () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue(null);
     const nextLookupSegmentContext = vi
       .fn()
@@ -888,16 +888,14 @@ describe("useCatWorkspaceRuntime", () => {
     services.lookupSegmentContext = nextLookupSegmentContext;
     rerender();
 
-    await act(async () => {
-      await result.current.dependencies.review.onAskQuestion("seg-02");
-    });
-
+    await waitFor(() =>
+      expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
+        "Cached context from the repository.",
+      ),
+    );
     expect(nextLookupSegmentContext).toHaveBeenCalledWith(
       expect.objectContaining({ id: "seg-02" }),
-      { forceRefresh: false },
-    );
-    expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(
-      "Cached context from the repository.",
+      { cachedOnly: true },
     );
   });
 

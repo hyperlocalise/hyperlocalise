@@ -465,6 +465,41 @@ describe("CatIntelligenceController", () => {
       );
       expect(workspace.revealedAgentContextSegmentIds.has("seg-02")).toBe(true);
     });
+
+    it("replaces repository context without resetting CAT state or accepting a stale response", async () => {
+      let resolveOldContext: ((context: string) => void) | undefined;
+      const oldLookup = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveOldContext = resolve;
+          }),
+      );
+      const newLookup = vi.fn().mockResolvedValue("New repository context.");
+      const { controller, workspace } = createController(undefined, {
+        intl,
+        services: { lookupSegmentContext: oldLookup },
+      });
+      workspace.setTargetText("seg-02", "Unsaved draft");
+
+      controller.panelVisible("seg-02");
+      controller.configure({
+        intl,
+        services: { lookupSegmentContext: newLookup },
+      });
+
+      await vi.waitFor(() =>
+        expect(workspace.segmentIntelligence["seg-02"]?.agentContext).toBe(
+          "New repository context.",
+        ),
+      );
+      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Unsaved draft");
+      expect(workspace.selectedSegmentId).toBe("seg-02");
+
+      resolveOldContext?.("Old repository context.");
+      await Promise.resolve();
+
+      expect(workspace.segmentIntelligence["seg-02"]?.agentContext).toBe("New repository context.");
+    });
   });
 
   describe("askQuestion", () => {

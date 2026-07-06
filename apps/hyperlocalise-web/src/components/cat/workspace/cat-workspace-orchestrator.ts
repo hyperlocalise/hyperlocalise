@@ -781,6 +781,10 @@ export class CatWorkspaceOrchestrator {
     this.intelligenceState.mergeSegment(segmentId, patch);
   }
 
+  clearAgentContexts() {
+    this.intelligenceState.clearAgentContexts();
+  }
+
   addSaveFailureCheck(segmentId: string, message: string, label: string) {
     const saveFailureCheck: CatFormatCheck = {
       id: `save-failed-${segmentId}`,

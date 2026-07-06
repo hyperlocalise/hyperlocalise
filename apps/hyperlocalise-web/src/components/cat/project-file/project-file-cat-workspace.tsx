@@ -126,7 +126,6 @@ export function ProjectFileCatWorkspace({
     externalResourceId,
     resourceType,
     targetLocale,
-    repositoryFullName,
     enabled: Boolean(targetLocale),
     initialQueueFilter,
   });
@@ -149,7 +148,6 @@ export function ProjectFileCatWorkspace({
     projectId,
     sourcePath,
     targetLocale,
-    repositoryFullName,
     catFile,
     invalidateQueue,
   });
@@ -470,7 +468,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}:${repositoryFullName ?? "default"}`}
+        key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
         initialState={workspaceForRender}
         queueSnapshot={workspaceState}
         lazySegment={{
@@ -480,7 +478,6 @@ export function ProjectFileCatWorkspace({
           targetLocale,
           externalResourceId,
           resourceType,
-          repositoryFullName,
           catFile,
           enabled: Boolean(catFile),
         }}

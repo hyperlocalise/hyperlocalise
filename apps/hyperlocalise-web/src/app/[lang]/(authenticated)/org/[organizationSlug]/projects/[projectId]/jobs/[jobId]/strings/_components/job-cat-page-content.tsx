@@ -484,7 +484,7 @@ export function JobCatPageContent({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
           <ProjectFileCatWorkspace
-            key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
+            key={selectedFile.sourcePath}
             organizationSlug={organizationSlug}
             projectId={projectId}
             sourceLocale={sourceLocale}
@@ -600,7 +600,7 @@ export function JobCatPageContent({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
+          key={selectedFile.sourcePath}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}

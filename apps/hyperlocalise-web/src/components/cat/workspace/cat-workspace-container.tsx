@@ -42,7 +42,6 @@ export interface CatWorkspaceContainerProps {
     targetLocale: string;
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
-    repositoryFullName?: string | null;
     catFile: ProjectFileCatQueueFile | null | undefined;
     enabled: boolean;
   };

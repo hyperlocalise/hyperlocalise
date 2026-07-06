@@ -15,7 +15,6 @@ export function projectFileCatQueryKey(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
@@ -29,7 +28,6 @@ export function projectFileCatQueryKey(input: {
     input.externalResourceId ?? null,
     input.resourceType ?? null,
     input.targetLocale,
-    input.repositoryFullName,
     input.search,
     input.queueFilter,
     input.limit,
@@ -44,7 +42,6 @@ export function projectFileCatBaseQueryKey(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
@@ -57,7 +54,6 @@ export function projectFileCatBaseQueryKey(input: {
     input.externalResourceId ?? null,
     input.resourceType ?? null,
     input.targetLocale,
-    input.repositoryFullName,
     input.search,
     input.queueFilter,
     input.limit,
@@ -77,7 +73,6 @@ export async function fetchProjectFileCatQueuePage(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
@@ -98,7 +93,6 @@ export async function fetchProjectFileCatQueuePage(input: {
       limit: input.limit,
       ...(input.search ? { search: input.search } : {}),
       ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
-      ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
       ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
       ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
     },

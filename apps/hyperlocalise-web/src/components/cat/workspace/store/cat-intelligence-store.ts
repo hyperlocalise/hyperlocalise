@@ -36,6 +36,26 @@ export class CatIntelligenceStore {
     this.setSegment(segmentId, { ...current, ...patch });
   }
 
+  clearAgentContexts() {
+    this.bySegment = Object.fromEntries(
+      Object.entries(this.bySegment).map(([segmentId, intelligence]) => [
+        segmentId,
+        { ...intelligence, agentContext: undefined },
+      ]),
+    );
+    this.revealedAgentContextSegmentIds = new Set();
+    this.contextLoadingSegmentIds = new Set();
+    this.segmentFormatChecks = Object.fromEntries(
+      Object.entries(this.segmentFormatChecks).map(([segmentId, checks]) => [
+        segmentId,
+        checks.filter((check) => !check.id.startsWith("context-lookup-failed-")),
+      ]),
+    );
+    this.formatChecks = this.formatChecks.filter(
+      (check) => !check.id.startsWith("context-lookup-failed-"),
+    );
+  }
+
   revealAgentContext(segmentId: string) {
     this.revealedAgentContextSegmentIds.add(segmentId);
   }
