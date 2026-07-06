@@ -778,7 +778,7 @@ describe("useCatWorkspaceRuntime", () => {
     expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
   });
 
-  it("does not request an AI recommendation when cached context is hydrated", async () => {
+  it("does not request an AI recommendation when context is loaded via panel visibility", async () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue("Cached context from the repository.");
     const generateAiRecommendation = vi.fn();
     const { result } = renderController(undefined, {
