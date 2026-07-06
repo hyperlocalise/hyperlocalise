@@ -56,9 +56,7 @@ export class CatIntelligenceController {
       this.inFlight.clear();
     }
     if (previousServices?.lookupSegmentContext !== ports.services?.lookupSegmentContext) {
-      this.contextGeneration += 1;
-      this.contextAttempts.clear();
-      this.workspace.clearAgentContexts();
+      this.invalidateContextLookupGeneration();
       this.panelVisible(this.workspace.selectedSegmentId);
     }
     if (
@@ -277,6 +275,14 @@ export class CatIntelligenceController {
         this.workspace.endContextLookup(segmentId);
       }
     }
+  }
+
+  private invalidateContextLookupGeneration() {
+    this.contextAttempts.clear();
+    // clearAgentContexts resets contextLoadingSegmentIds; increment invalidates in-flight
+    // askQuestion handlers whose finally blocks skip endContextLookup on stale generations.
+    this.workspace.clearAgentContexts();
+    this.contextGeneration += 1;
   }
 
   private applyAutoFill(segmentId: string, concordance: CatSegmentConcordanceResult) {
