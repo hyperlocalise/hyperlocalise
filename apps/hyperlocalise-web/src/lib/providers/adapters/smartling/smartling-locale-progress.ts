@@ -1,3 +1,5 @@
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+
 import type { SmartlingApiClient, SmartlingFileLocaleStatus } from "./smartling-api";
 
 export function mapSmartlingFileLocaleStatusToReadiness(
@@ -40,15 +42,16 @@ export async function loadSmartlingProjectLocaleReadiness(input: {
   const files = await input.client.listProjectFiles(input.projectId);
   const localeReadiness: Record<string, unknown> = {};
 
-  for (const file of files) {
-    let statuses: SmartlingFileLocaleStatus[] = [];
+  const fileReadinessResults = await mapWithConcurrency(files, 5, async (file) => {
     try {
-      statuses = await input.client.getFileStatusForAllLocales(input.projectId, file.fileUri);
+      const statuses = await input.client.getFileStatusForAllLocales(input.projectId, file.fileUri);
+      return mapSmartlingFileLocaleStatusToReadiness(statuses);
     } catch {
-      continue;
+      return {} as Record<string, unknown>;
     }
+  });
 
-    const fileReadiness = mapSmartlingFileLocaleStatusToReadiness(statuses);
+  for (const fileReadiness of fileReadinessResults) {
     for (const [localeId, value] of Object.entries(fileReadiness)) {
       if (input.languageId && localeId !== input.languageId) {
         continue;

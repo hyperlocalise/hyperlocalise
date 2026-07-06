@@ -104,7 +104,13 @@ function mapBindingMarker(
 }
 
 export function readImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
-  if (bytes.length >= 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e) {
+  if (
+    bytes.length >= 24 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return {
       width: view.getUint32(16),

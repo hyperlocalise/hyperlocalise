@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
 import { buildProviderReviewReport } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
@@ -71,12 +72,16 @@ export async function pullSmartlingProviderReview(
 
   const fileUris = jobFiles.map((file) => file.fileUri).filter(Boolean);
   if (fileUris.length > 0) {
-    for (const fileUri of fileUris) {
+    const hashcodesByFile = await mapWithConcurrency(fileUris, 5, async (fileUri) => {
       const strings = await client.listSourceStrings(projectId, { fileUri });
-      for (const sourceString of strings) {
-        if (sourceString.hashcode) {
-          hashcodes.add(sourceString.hashcode);
-        }
+      return strings
+        .map((sourceString) => sourceString.hashcode?.trim() ?? "")
+        .filter((hashcode) => hashcode.length > 0);
+    });
+
+    for (const fileHashcodes of hashcodesByFile) {
+      for (const hashcode of fileHashcodes) {
+        hashcodes.add(hashcode);
       }
     }
   }
