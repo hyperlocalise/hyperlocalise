@@ -626,6 +626,43 @@ export class SmartlingApiClient {
     return strings;
   }
 
+  async listSourceStringsPage(
+    projectId: string,
+    options: { fileUri?: string; offset: number; limit: number },
+  ): Promise<{ strings: SmartlingSourceString[]; hasMore: boolean; totalCount?: number }> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams({
+      limit: String(options.limit),
+      offset: String(options.offset),
+    });
+    if (options.fileUri) {
+      params.set("fileUri", options.fileUri);
+    }
+
+    const data = await this.get<{ items?: SmartlingSourceString[]; totalCount?: number }>(
+      `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/source-strings?${params.toString()}`,
+      token,
+    );
+
+    const strings = (data.items ?? []).map(normalizeSmartlingSourceString);
+    const totalCount = data.totalCount;
+    const hasMore =
+      typeof totalCount === "number"
+        ? options.offset + strings.length < totalCount
+        : strings.length >= options.limit;
+
+    return { strings, hasMore, totalCount };
+  }
+
+  async downloadSourceFile(projectId: string, fileUri: string): Promise<Uint8Array> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams({ fileUri });
+    return this.downloadBinary(
+      `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file?${params.toString()}`,
+      token,
+    );
+  }
+
   async listJobs(projectId: string): Promise<SmartlingJobSummary[]> {
     const jobs: SmartlingJobSummary[] = [];
 
@@ -1007,6 +1044,15 @@ export class SmartlingApiClient {
     );
   }
 
+  async closeIssue(projectId: string, issueUid: string): Promise<SmartlingIssue> {
+    const token = await this.getAccessToken();
+    return this.post<SmartlingIssue>(
+      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/close`,
+      token,
+      {},
+    );
+  }
+
   async listWebhookSubscriptions(accountUid: string): Promise<SmartlingWebhookSubscription[]> {
     const token = await this.getAccessToken();
     const subscriptions: SmartlingWebhookSubscription[] = [];
@@ -1137,6 +1183,30 @@ export class SmartlingApiClient {
     });
 
     await parseSmartlingResponse<Record<string, never>>(response, url);
+  }
+
+  private async downloadBinary(url: string, token: string): Promise<Uint8Array> {
+    const response = await this.fetchFn(url, {
+      method: "GET",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+      const classified = classifySmartlingHttpError(response.status, body);
+      throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
   }
 }
 

@@ -64,6 +64,22 @@ import {
 } from "@/lib/providers/adapters/lokalise/lokalise-live-cat";
 import { loadLokaliseProjectLocaleReadiness } from "@/lib/providers/adapters/lokalise/lokalise-locale-progress";
 import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
+import {
+  buildSmartlingLiveCatFile,
+  getSmartlingLiveCatSegmentComments,
+  getSmartlingLiveCatSegmentTarget,
+  resolveSmartlingLiveCatComment,
+  saveSmartlingLiveCatComment,
+  saveSmartlingLiveCatTranslation,
+  SmartlingLiveCatError,
+} from "@/lib/providers/adapters/smartling/smartling-live-cat";
+import {
+  SmartlingApiClient,
+  SmartlingApiError,
+  type SmartlingJobDetails,
+} from "@/lib/providers/adapters/smartling/smartling-api";
+import { parseSmartlingCredentials } from "@/lib/providers/adapters/smartling/smartling-credentials";
+import { loadSmartlingProjectLocaleReadiness } from "@/lib/providers/adapters/smartling/smartling-locale-progress";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-match";
@@ -557,6 +573,12 @@ function rethrowProviderFetcherError(error: unknown): never {
     if (error.message === "crowdin_auth_invalid") {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
     }
+    if (error.message === "smartling_auth_invalid") {
+      throw new TmsProviderLiveError(
+        "smartling_auth_invalid",
+        "Smartling credentials are invalid.",
+      );
+    }
     throw error;
   }
 
@@ -787,6 +809,14 @@ function mapLokaliseLiveCatError(error: unknown): never {
   throw error;
 }
 
+function mapSmartlingLiveCatError(error: unknown): never {
+  if (error instanceof SmartlingLiveCatError) {
+    throw new TmsProviderLiveError(error.code, error.message);
+  }
+
+  throw error;
+}
+
 function supportsLiveProviderCat(
   providerKind: ExternalTmsProviderKind,
   file: TmsProviderLiveFile,
@@ -799,7 +829,7 @@ function supportsLiveProviderCat(
     return file.provider.resourceType === "file";
   }
 
-  if (providerKind === "phrase" || providerKind === "lokalise") {
+  if (providerKind === "phrase" || providerKind === "lokalise" || providerKind === "smartling") {
     return file.provider.resourceType === "file" || file.provider.resourceType === "key";
   }
 
@@ -886,6 +916,16 @@ async function resolveLiveCatFile(input: {
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
       resourceType: input.resourceType ?? "key",
+    });
+  }
+
+  if (input.context.providerKind === "smartling") {
+    return resolveLiveCatFileFromExternalResourceId({
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
+      resourceType: input.resourceType ?? "file",
     });
   }
 
@@ -1360,6 +1400,51 @@ async function downloadLiveProviderFileContent(input: {
   content: ProjectFileContent | null;
   contentType: string | null;
 }> {
+  if (input.context.providerKind === "smartling") {
+    if (!inferSupportedFileTranslationFileFormat(input.sourcePath)) {
+      return { byteSize: null, content: null, contentType: null };
+    }
+
+    const credentials = parseSmartlingCredentials(input.context.secretMaterial);
+    const client = new SmartlingApiClient({
+      credentials,
+      authBaseUrl: input.context.credential.baseUrl ?? undefined,
+    });
+
+    try {
+      const bytes = await client.downloadSourceFile(
+        input.externalProjectId,
+        input.externalResourceId,
+      );
+      const byteSize = bytes.byteLength;
+
+      return {
+        byteSize,
+        content:
+          byteSize <= maxLiveProviderInlineTextBytes
+            ? { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) }
+            : null,
+        contentType: sourceContentType(input.sourcePath),
+      };
+    } catch (error) {
+      if (error instanceof SmartlingApiError && error.status === 401) {
+        throw new TmsProviderLiveError(
+          "smartling_auth_invalid",
+          "Smartling credentials are invalid.",
+        );
+      }
+
+      logger.warn("tms_provider_live_file_content_failed", {
+        organizationId: input.context.organizationId,
+        providerKind: input.context.providerKind,
+        externalProjectId: input.externalProjectId,
+        externalResourceId: input.externalResourceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { byteSize: null, content: null, contentType: null };
+    }
+  }
+
   if (input.context.providerKind !== "crowdin") {
     return { byteSize: null, content: null, contentType: null };
   }
@@ -2042,6 +2127,22 @@ export async function getTmsProviderLiveCatFile(
     }
   }
 
+  if (context.providerKind === "smartling") {
+    try {
+      return await buildSmartlingLiveCatFile({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        canEditTranslations: options?.canEditTranslations ?? false,
+        pagination: options?.pagination,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
+    }
+  }
+
   return buildCrowdinLiveCatFile({
     context,
     file,
@@ -2113,6 +2214,21 @@ export async function getTmsProviderLiveCatSegmentTarget(
       });
     } catch (error) {
       mapLokaliseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "smartling") {
+    try {
+      return await getSmartlingLiveCatSegmentTarget({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        externalStringId,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
     }
   }
 
@@ -2189,6 +2305,21 @@ export async function getTmsProviderLiveCatSegmentComments(
     }
   }
 
+  if (context.providerKind === "smartling") {
+    try {
+      return await getSmartlingLiveCatSegmentComments({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        externalStringId,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
+    }
+  }
+
   return buildCrowdinLiveCatSegmentComments({
     context,
     file,
@@ -2260,6 +2391,22 @@ export async function saveTmsProviderLiveCatTranslation(
       });
     } catch (error) {
       mapLokaliseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "smartling") {
+    try {
+      return await saveSmartlingLiveCatTranslation({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
     }
   }
 
@@ -2349,6 +2496,24 @@ export async function saveTmsProviderLiveCatComment(
     }
   }
 
+  if (context.providerKind === "smartling") {
+    try {
+      return await saveSmartlingLiveCatComment({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+        type: input.type,
+        issueType: input.issueType,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
+    }
+  }
+
   return saveCrowdinLiveCatComment({
     context,
     file,
@@ -2391,11 +2556,24 @@ export async function resolveTmsProviderLiveCatComment(
     );
   }
 
-  if (context.providerKind !== "crowdin") {
+  if (context.providerKind !== "crowdin" && context.providerKind !== "smartling") {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
-      "Resolving issue comments is only available for Crowdin files.",
+      "Resolving issue comments is only available for Crowdin and Smartling files.",
     );
+  }
+
+  if (context.providerKind === "smartling") {
+    try {
+      return await resolveSmartlingLiveCatComment({
+        secretMaterial: context.secretMaterial,
+        authBaseUrl: context.credential.baseUrl,
+        externalProjectId,
+        externalCommentId: input.externalCommentId,
+      });
+    } catch (error) {
+      mapSmartlingLiveCatError(error);
+    }
   }
 
   return resolveCrowdinLiveCatComment({
@@ -2473,6 +2651,84 @@ async function fetchCrowdinLiveJobTaskMetadata(input: {
   return mapCrowdinTaskToJobTaskMetadata(crowdinTask, {});
 }
 
+async function fetchSmartlingLiveJobTaskMetadata(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalJobId: string;
+  enrichResources?: boolean;
+}): Promise<ExternalTmsJobTaskMetadata | null> {
+  const projectId = input.externalProjectId.trim();
+  const jobUid = input.externalJobId.trim();
+  if (!projectId || !jobUid) {
+    return null;
+  }
+
+  const credentials = parseSmartlingCredentials(input.context.secretMaterial);
+  const client = new SmartlingApiClient({
+    credentials,
+    authBaseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  let job: SmartlingJobDetails;
+  let projectDetails: Awaited<ReturnType<typeof client.getProjectDetails>>;
+  try {
+    [job, projectDetails] = await Promise.all([
+      client.getJob(projectId, jobUid),
+      client.getProjectDetails(projectId),
+    ]);
+  } catch (error) {
+    if (error instanceof SmartlingApiError && error.status === 401) {
+      throw new TmsProviderLiveError(
+        "smartling_auth_invalid",
+        "Smartling credentials are invalid.",
+      );
+    }
+    if (error instanceof SmartlingApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
+  let fileIds: string[] | undefined;
+  if (input.enrichResources) {
+    try {
+      const jobFiles = await client.listJobFiles(projectId, jobUid);
+      fileIds = jobFiles.map((file) => file.fileUri).filter(Boolean);
+    } catch {
+      fileIds = [];
+    }
+  }
+
+  const accountUid = projectDetails.accountUid;
+  const normalizedStatus = job.jobStatus.toLowerCase().trim();
+  const kind = ["in_review", "in-review", "in review", "in_edit", "in-edit", "in edit"].includes(
+    normalizedStatus,
+  )
+    ? "review"
+    : "translation";
+
+  return {
+    externalJobId: job.translationJobUid,
+    externalTaskId: null,
+    externalStatus: job.jobStatus,
+    title: job.jobName,
+    dueDate: job.dueDate ? new Date(job.dueDate) : null,
+    targetLocales: job.targetLocaleIds,
+    assignedUsers: [],
+    externalUrl: `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(accountUid)}/project/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.translationJobUid)}`,
+    providerPayload: {
+      description: job.description,
+      createdDate: job.createdDate,
+      modifiedDate: job.modifiedDate,
+      referenceNumber: job.referenceNumber,
+      jobNumber: job.jobNumber,
+      rawJobStatus: job.jobStatus,
+      ...(fileIds ? { fileIds } : {}),
+    },
+    kind,
+  };
+}
+
 export async function getTmsProviderLiveProjectLocaleReadiness(
   organizationId: string,
   externalProjectId: string,
@@ -2503,6 +2759,34 @@ export async function getTmsProviderLiveProjectLocaleReadiness(
         throw new TmsProviderLiveError(
           "lokalise_auth_invalid",
           "Lokalise credentials are invalid.",
+        );
+      }
+      throw error;
+    }
+  }
+
+  if (context.providerKind === "smartling") {
+    if (!externalProjectId.trim()) {
+      return null;
+    }
+
+    const credentials = parseSmartlingCredentials(context.secretMaterial);
+    const client = new SmartlingApiClient({
+      credentials,
+      authBaseUrl: context.credential.baseUrl ?? undefined,
+    });
+
+    try {
+      return await loadSmartlingProjectLocaleReadiness({
+        client,
+        projectId: externalProjectId,
+        languageId: options?.languageId,
+      });
+    } catch (error) {
+      if (error instanceof SmartlingApiError && error.status === 401) {
+        throw new TmsProviderLiveError(
+          "smartling_auth_invalid",
+          "Smartling credentials are invalid.",
         );
       }
       throw error;
@@ -2565,6 +2849,13 @@ export async function getTmsProviderLiveJobDetail(
       context,
       externalProjectId: parsed.externalProjectId,
       externalJobId: parsed.externalJobId,
+    });
+  } else if (context.providerKind === "smartling") {
+    task = await fetchSmartlingLiveJobTaskMetadata({
+      context,
+      externalProjectId: parsed.externalProjectId,
+      externalJobId: parsed.externalJobId,
+      enrichResources: true,
     });
   } else {
     const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
