@@ -1,5 +1,5 @@
 export { ChapterSection } from "./chapter-section";
-export { ChangelogSection } from "./changelog-section";
+export { RecentBlogPostsSection } from "./recent-blog-posts-section";
 export { FinalCtaSection } from "./final-cta-section";
 export { HeroSection } from "./hero-section";
 export { IntakeSourcesIllustration } from "./intake-sources-illustration";

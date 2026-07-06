@@ -6,12 +6,13 @@ import { chapters, footerColumns } from "@/components/marketing/marketing-page-c
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   ChapterSection,
-  ChangelogSection,
   FinalCtaSection,
   HeroSection,
   PrinciplesSection,
+  RecentBlogPostsSection,
 } from "@/components/marketing";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAllPosts } from "@/lib/blog/blog-post";
 
 const metadataKeywords = [
   "localisation",
@@ -91,6 +92,7 @@ function buildJsonLd(locale: string): WithContext<WebApplication> & object {
 export default async function Home({ params }: HomePageProps) {
   const { lang } = await params;
   const jsonLd = buildJsonLd(lang);
+  const recentPosts = getAllPosts(lang);
 
   return (
     <>
@@ -121,7 +123,7 @@ export default async function Home({ params }: HomePageProps) {
 
           <section className="border-t border-border">
             <div className="px-5 py-20 sm:px-8 lg:px-10">
-              <ChangelogSection />
+              <RecentBlogPostsSection lang={lang} posts={recentPosts} />
             </div>
           </section>
 
