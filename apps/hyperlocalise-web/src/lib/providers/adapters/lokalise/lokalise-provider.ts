@@ -42,7 +42,7 @@ import type {
   ExternalTmsFileKeyFetcher,
 } from "@/lib/providers/jobs/tms-provider-types";
 import type { ExternalTmsCommentPusher } from "@/lib/providers/shared/provider-feedback-types";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 import { buildFindingId } from "@/lib/providers/provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";

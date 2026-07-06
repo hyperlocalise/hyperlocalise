@@ -1,7 +1,7 @@
 import type { TypedResponse } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 
 type JsonContext = {
   json<T extends object, U extends ContentfulStatusCode>(

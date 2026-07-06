@@ -12,7 +12,7 @@ import {
   lokaliseAuth,
   type LokaliseProjectCredential,
 } from "@/lib/providers/adapters/lokalise/lokalise-auth";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";

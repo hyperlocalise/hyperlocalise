@@ -9,6 +9,10 @@ import {
   tmsUserConnectionRequiredMessage,
 } from "./tms-user-connection";
 
+const { getCrowdinUserConnectionMock } = vi.hoisted(() => ({
+  getCrowdinUserConnectionMock: vi.fn(),
+}));
+
 vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
   OAUTH_AUTH_MODE: "oauth",
   PAT_AUTH_MODE: "pat",
@@ -18,7 +22,7 @@ vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credenti
 
 vi.mock("@/lib/providers/adapters/crowdin/crowdin-auth", () => ({
   crowdinAuth: {
-    getUserConnection: vi.fn(),
+    getUserConnection: (...args: unknown[]) => getCrowdinUserConnectionMock(...args),
   },
 }));
 
@@ -27,7 +31,6 @@ vi.mock("@/lib/providers/adapters/phrase/phrase-auth", () => ({
 }));
 
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { getPhraseUserConnection } from "@/lib/providers/adapters/phrase/phrase-auth";
 
 describe("getTmsUserConnectCtaState", () => {
@@ -50,7 +53,7 @@ describe("getTmsUserConnectCtaState", () => {
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
     ).resolves.toEqual({ showConnectCta: false });
 
-    expect(crowdinAuth.getUserConnection).not.toHaveBeenCalled();
+    expect(getCrowdinUserConnectionMock).not.toHaveBeenCalled();
     expect(getPhraseUserConnection).not.toHaveBeenCalled();
   });
 
@@ -60,7 +63,7 @@ describe("getTmsUserConnectCtaState", () => {
       authMode: "oauth",
       displayName: "My Crowdin",
     } as never);
-    vi.mocked(crowdinAuth.getUserConnection).mockResolvedValue(null);
+    getCrowdinUserConnectionMock.mockResolvedValue(null);
 
     await expect(
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
@@ -78,7 +81,7 @@ describe("getTmsUserConnectCtaState", () => {
       authMode: "pat",
       displayName: "My Crowdin",
     } as never);
-    vi.mocked(crowdinAuth.getUserConnection).mockResolvedValue(null);
+    getCrowdinUserConnectionMock.mockResolvedValue(null);
 
     await expect(
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
@@ -96,7 +99,7 @@ describe("getTmsUserConnectCtaState", () => {
       authMode: "oauth",
       displayName: "Crowdin",
     } as never);
-    vi.mocked(crowdinAuth.getUserConnection).mockResolvedValue({ id: "conn-1" } as never);
+    getCrowdinUserConnectionMock.mockResolvedValue({ id: "conn-1" } as never);
 
     await expect(
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),

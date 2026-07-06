@@ -55,6 +55,7 @@ import {
 } from "@/lib/providers/adapters/smartling/smartling-provider";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
@@ -151,15 +152,7 @@ function mapCrowdinLiveProjectToMetadata(project: CrowdinProject): ExternalTmsPr
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
-export class TmsProviderLiveError extends Error {
-  constructor(
-    readonly code: string,
-    message?: string,
-  ) {
-    super(message ?? code);
-    this.name = "TmsProviderLiveError";
-  }
-}
+export { TmsProviderLiveError };
 
 export type TmsProviderConnection = {
   providerKind: ExternalTmsProviderKind;

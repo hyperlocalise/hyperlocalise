@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { crowdinTmsProvider } from "./crowdin-provider";
 
+const { loadProjectCredentialMock } = vi.hoisted(() => ({
+  loadProjectCredentialMock: vi.fn(),
+}));
+
 const baseCredential = {
   encryptionAlgorithm: "aes-256-gcm",
   keyVersion: 1,
@@ -15,10 +19,7 @@ const baseCredential = {
 
 vi.mock("./crowdin-auth", () => ({
   crowdinAuth: {
-    loadProjectCredential: vi.fn(async () => ({
-      externalProjectId: "42",
-      credential: baseCredential,
-    })),
+    loadProjectCredential: (...args: unknown[]) => loadProjectCredentialMock(...args),
   },
 }));
 
@@ -234,15 +235,14 @@ vi.stubGlobal("fetch", crowdinFetchMock);
 
 describe("checkCrowdinProgress", () => {
   beforeEach(async () => {
-    const { crowdinAuth } = await import("./crowdin-auth");
     const { resolveExternalTmsSecretMaterialForActor } =
       await import("@/lib/providers/shared/tms-provider-content");
 
     vi.clearAllMocks();
-    vi.mocked(crowdinAuth.loadProjectCredential).mockResolvedValue({
+    loadProjectCredentialMock.mockResolvedValue({
       externalProjectId: "42",
       credential: baseCredential,
-    } as NonNullable<Awaited<ReturnType<typeof crowdinAuth.loadProjectCredential>>>);
+    });
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockResolvedValue("token");
   });
 
@@ -292,16 +292,14 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("uses the credential enterprise base URL for API requests", async () => {
-    const { crowdinAuth } = await import("./crowdin-auth");
-
     crowdinFetchMock.mockClear();
-    vi.mocked(crowdinAuth.loadProjectCredential).mockResolvedValueOnce({
+    loadProjectCredentialMock.mockResolvedValueOnce({
       externalProjectId: "42",
       credential: {
         ...baseCredential,
         baseUrl: "https://acme.api.crowdin.com/api/v2",
       },
-    } as NonNullable<Awaited<ReturnType<typeof crowdinAuth.loadProjectCredential>>>);
+    });
 
     const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
@@ -322,8 +320,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an error when Crowdin is not configured", async () => {
-    const { crowdinAuth } = await import("./crowdin-auth");
-    vi.mocked(crowdinAuth.loadProjectCredential).mockResolvedValueOnce(null);
+    loadProjectCredentialMock.mockResolvedValueOnce(null);
 
     const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",

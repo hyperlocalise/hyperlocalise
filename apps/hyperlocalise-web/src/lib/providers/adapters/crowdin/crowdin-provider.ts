@@ -56,7 +56,7 @@ import type {
   ExternalTmsJobTaskMetadata,
   ExternalTmsProjectMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import {

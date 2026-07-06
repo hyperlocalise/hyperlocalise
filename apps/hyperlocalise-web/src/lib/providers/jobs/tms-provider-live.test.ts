@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+const {
+  getActiveOrganizationExternalTmsProviderCredentialRowMock,
+  resolveExternalTmsSecretMaterialMock,
+  getPhraseUserConnectionMock,
+  resolvePhraseUserConnectionSecretMaterialMock,
+} = vi.hoisted(() => ({
+  getActiveOrganizationExternalTmsProviderCredentialRowMock: vi.fn(),
+  resolveExternalTmsSecretMaterialMock: vi.fn(),
+  getPhraseUserConnectionMock: vi.fn(),
+  resolvePhraseUserConnectionSecretMaterialMock: vi.fn(),
+}));
+
 vi.mock(
   "@/lib/providers/credentials/organization-external-tms-provider-credentials",
   async (importOriginal) => {
@@ -9,8 +21,10 @@ vi.mock(
       >();
     return {
       ...actual,
-      getActiveOrganizationExternalTmsProviderCredentialRow: vi.fn(),
-      resolveExternalTmsSecretMaterial: vi.fn(),
+      getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
+        getActiveOrganizationExternalTmsProviderCredentialRowMock(...args),
+      resolveExternalTmsSecretMaterial: (...args: unknown[]) =>
+        resolveExternalTmsSecretMaterialMock(...args),
     };
   },
 );
@@ -23,8 +37,9 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-auth", () => ({
 }));
 
 vi.mock("@/lib/providers/adapters/phrase/phrase-auth", () => ({
-  getPhraseUserConnection: vi.fn(),
-  resolvePhraseUserConnectionSecretMaterial: vi.fn(),
+  getPhraseUserConnection: (...args: unknown[]) => getPhraseUserConnectionMock(...args),
+  resolvePhraseUserConnectionSecretMaterial: (...args: unknown[]) =>
+    resolvePhraseUserConnectionSecretMaterialMock(...args),
 }));
 
 vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
@@ -46,19 +61,8 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
 }));
 
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import {
-  getActiveOrganizationExternalTmsProviderCredentialRow,
-  resolveExternalTmsSecretMaterial,
-} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import {
-  getPhraseUserConnection,
-  resolvePhraseUserConnectionSecretMaterial,
-} from "@/lib/providers/adapters/phrase/phrase-auth";
-
-import * as tmsProviderLive from "./tms-provider-live";
-
-const { getTmsProviderLiveProject, TmsProviderLiveError, tryLoadActiveTmsProviderContext } =
-  tmsProviderLive;
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+import { getTmsProviderLiveProject, tryLoadActiveTmsProviderContext } from "./tms-provider-live";
 
 const phraseOAuthCredential = {
   id: "credential-1",
@@ -97,11 +101,11 @@ describe("tryLoadActiveTmsProviderContext", () => {
   it.each(["phrase_oauth_token_response_invalid", "phrase_user_connection_not_found"] as const)(
     "normalizes %s to a Phrase auth error",
     async (errorCode) => {
-      vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue(
-        phraseOAuthCredential as never,
+      getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(
+        phraseOAuthCredential,
       );
-      vi.mocked(getPhraseUserConnection).mockResolvedValue({ id: "connection-1" } as never);
-      vi.mocked(resolvePhraseUserConnectionSecretMaterial).mockRejectedValue(new Error(errorCode));
+      getPhraseUserConnectionMock.mockResolvedValue({ id: "connection-1" });
+      resolvePhraseUserConnectionSecretMaterialMock.mockRejectedValue(new Error(errorCode));
 
       const promise = tryLoadActiveTmsProviderContext("org-1", { actorUserId: "user-1" });
 
@@ -116,15 +120,12 @@ describe("tryLoadActiveTmsProviderContext", () => {
 
 describe("getTmsProviderLiveProject", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
   it("returns the live Crowdin project with branch metadata", async () => {
-    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue(
-      crowdinCredential as never,
-    );
-    vi.mocked(resolveExternalTmsSecretMaterial).mockResolvedValue("crowdin-token");
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(crowdinCredential);
+    resolveExternalTmsSecretMaterialMock.mockResolvedValue("crowdin-token");
 
     const getProject = vi.fn().mockResolvedValue({
       id: 42,
