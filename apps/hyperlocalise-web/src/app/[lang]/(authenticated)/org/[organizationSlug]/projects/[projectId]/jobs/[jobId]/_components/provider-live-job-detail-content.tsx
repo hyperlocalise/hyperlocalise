@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
 import { useProviderJobLocaleReadiness } from "../../../../../_hooks/use-provider-job-locale-readiness";

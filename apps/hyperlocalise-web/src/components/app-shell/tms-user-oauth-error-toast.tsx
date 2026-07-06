@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { getTmsUserOAuthErrorCopy } from "@/lib/providers/tms-user-oauth-error-copy";
+import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
 
 function shouldShowToastForPath(pathname: string) {
   // Integrations renders a persistent in-page error banner from server props.

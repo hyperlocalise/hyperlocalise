@@ -8,7 +8,7 @@ import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { forbiddenResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
-import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
+import { assertProviderCredentialAdmin } from "@/lib/providers/credentials/organization-provider-credentials";
 
 import { updateEmailAgentBodySchema } from "./agent-email.schema";
 

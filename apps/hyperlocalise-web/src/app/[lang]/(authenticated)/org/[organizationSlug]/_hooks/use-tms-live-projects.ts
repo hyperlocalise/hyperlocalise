@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
 
 import type { ApiProject } from "../projects/_components/project-list";
 import { useActiveTmsProvider } from "./use-active-tms-provider";

@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 
-import { isLiveProviderMemoryId } from "@/lib/providers/tms-provider-resource-id";
+import { isLiveProviderMemoryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { MemoryListRow } from "./memory-list";

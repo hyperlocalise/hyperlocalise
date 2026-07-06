@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
-import { checkCrowdinProgress } from "@/lib/providers/adapters/crowdin/crowdin-progress";
+import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -117,7 +117,7 @@ export function createCheckCrowdinProgressTool(
         };
       }
 
-      const result = await checkCrowdinProgress({
+      const result = await crowdinTmsProvider.checkProgress({
         organizationId: ctx.organizationId,
         projectId,
         actorUserId: ctx.localUserId,

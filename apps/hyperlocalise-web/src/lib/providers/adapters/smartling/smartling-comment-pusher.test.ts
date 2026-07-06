@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { buildFindingId } from "@/lib/providers/provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";
 
-import { buildHyperlocaliseFindingMarker } from "./smartling-comment-write-back";
-import { pushSmartlingProviderComments } from "./smartling-comment-pusher";
+import { buildHyperlocaliseFindingMarker, smartlingTmsProvider } from "./smartling-provider";
 
 function sampleFinding(overrides?: Partial<ProviderQaFinding>): ProviderQaFinding {
   return {
@@ -21,7 +20,7 @@ function sampleFinding(overrides?: Partial<ProviderQaFinding>): ProviderQaFindin
   };
 }
 
-describe("pushSmartlingProviderComments", () => {
+describe("smartlingTmsProvider.pushComments", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -86,10 +85,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -155,10 +153,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -230,10 +227,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -297,10 +293,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -363,10 +358,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -398,10 +392,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },
@@ -480,10 +473,9 @@ describe("pushSmartlingProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingProviderComments({
+    const result = await smartlingTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { baseUrl: null },

@@ -7,7 +7,7 @@ import {
   getOrganizationProviderCredentialSummary,
   revealOrganizationProviderCredential,
   upsertOrganizationProviderCredential,
-} from "@/lib/providers/organization-provider-credentials";
+} from "@/lib/providers/credentials/organization-provider-credentials";
 
 import {
   revealProviderCredentialBodySchema,

@@ -8,19 +8,19 @@ import {
 import {
   loadProviderCrowdinDownloadContext,
   resolveProviderSourceFileDownload,
-} from "@/lib/providers/download-provider-source-file";
+} from "@/lib/providers/jobs/download-provider-source-file";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
 import { loadTranslationContextProject } from "@/lib/translation/assemble-translation-context";
 

@@ -1,4 +1,4 @@
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 
 export type JobDetailRecord = {
   id: string;

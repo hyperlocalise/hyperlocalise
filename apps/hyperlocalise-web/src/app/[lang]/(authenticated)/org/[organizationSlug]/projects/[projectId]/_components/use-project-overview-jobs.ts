@@ -7,7 +7,7 @@ import {
   fetchTmsProjectJobs,
   filterOpenProjectJobs,
 } from "@/lib/projects/jobs/fetch-project-jobs";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
 

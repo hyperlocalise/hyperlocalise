@@ -8,7 +8,7 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
@@ -21,8 +21,8 @@ const { getTmsProviderLiveProjectMock } = vi.hoisted(() => ({
   getTmsProviderLiveProjectMock: vi.fn(),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-live")>();
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
   return {
     ...actual,
     getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),

@@ -5,10 +5,10 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { createLogger } from "@/lib/log";
-import { getTmsProviderAdapter } from "@/lib/providers/adapters/tms-provider-adapter-registry";
+import { getTmsProvider } from "@/lib/providers/adapters/tms-provider-registry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import type { ExternalTmsSourceFileUploadError } from "@/lib/providers/tms-provider-types";
-import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
+import type { ExternalTmsSourceFileUploadError } from "@/lib/providers/jobs/tms-provider-types";
+import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
@@ -202,7 +202,7 @@ async function uploadExternalTmsSourceFile(
       organizationId: input.organizationId,
       actorUserId: input.actorUserId,
     });
-    providerResult = await getTmsProviderAdapter(providerKind).uploadSourceFile({
+    providerResult = await getTmsProvider(providerKind).uploadSourceFile({
       organizationId: input.organizationId,
       projectId: input.project.id,
       externalProjectId,

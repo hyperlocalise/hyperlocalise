@@ -13,7 +13,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import {

@@ -9,8 +9,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
-import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 
 import { formatJobStatusLabel } from "../../../../../jobs/_components/jobs-page-view";
 import { toneClass } from "../../../../../_components/workspace-resource-shared";

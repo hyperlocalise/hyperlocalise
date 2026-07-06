@@ -1,6 +1,6 @@
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
 import type { JobDetailRecord } from "../job-detail-types";
 import type { ProviderSourceFile } from "../job-provider-detail-section";

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
 import { hasCapability } from "@/api/auth/policy";
-import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
+import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/shared/catalog";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
@@ -77,7 +77,7 @@ import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./i
 import { ModelProviderCard, type ModelProviderCardConfig } from "./model-provider-card";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
-import { getTmsUserOAuthErrorCopy } from "@/lib/providers/tms-user-oauth-error-copy";
+import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();

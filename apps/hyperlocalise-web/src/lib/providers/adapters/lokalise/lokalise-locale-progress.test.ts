@@ -1,14 +1,11 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import {
-  loadLokaliseProjectLocaleReadiness,
-  mapLokaliseLocaleProgressToReadiness,
-} from "./lokalise-locale-progress";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("mapLokaliseLocaleProgressToReadiness", () => {
+describe("mapLocaleProgressToReadiness", () => {
   it("maps phrase counts to crowdin-compatible readiness fields", () => {
     expect(
-      mapLokaliseLocaleProgressToReadiness({
+      lokaliseTmsProvider.mapLocaleProgressToReadiness({
         locale: "fr",
         counts: { total: 4, translated: 3, approved: 2 },
       }),
@@ -21,7 +18,7 @@ describe("mapLokaliseLocaleProgressToReadiness", () => {
   });
 });
 
-describe("loadLokaliseProjectLocaleReadiness", () => {
+describe("loadProjectLocaleReadiness", () => {
   it("aggregates key translation states per locale", async () => {
     const client = {
       listKeys: vi.fn(async () => [
@@ -74,7 +71,7 @@ describe("loadLokaliseProjectLocaleReadiness", () => {
       ]),
     };
 
-    const readiness = await loadLokaliseProjectLocaleReadiness({
+    const readiness = await lokaliseTmsProvider.loadProjectLocaleReadiness({
       client: client as never,
       projectId: "proj.123",
       languageId: "fr",

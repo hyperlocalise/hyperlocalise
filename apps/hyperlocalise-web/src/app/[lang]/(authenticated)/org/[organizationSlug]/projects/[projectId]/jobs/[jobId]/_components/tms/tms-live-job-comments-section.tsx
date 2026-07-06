@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsProviderLiveJobComment } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveJobComment } from "@/lib/providers/jobs/tms-provider-live";
 
 import { formatJobDetailDate } from "../job-detail-types";
 

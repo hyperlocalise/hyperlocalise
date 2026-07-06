@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { checkCrowdinProgress } from "./crowdin-progress";
+import { crowdinTmsProvider } from "./crowdin-provider";
+
+const { loadProjectCredentialMock } = vi.hoisted(() => ({
+  loadProjectCredentialMock: vi.fn(),
+}));
 
 const baseCredential = {
   encryptionAlgorithm: "aes-256-gcm",
@@ -13,14 +17,13 @@ const baseCredential = {
   authMode: "api_token",
 };
 
-vi.mock("./load-crowdin-project-credential", () => ({
-  loadCrowdinProjectCredential: vi.fn(async () => ({
-    externalProjectId: "42",
-    credential: baseCredential,
-  })),
+vi.mock("./crowdin-auth", () => ({
+  crowdinAuth: {
+    loadProjectCredential: (...args: unknown[]) => loadProjectCredentialMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/tms-provider-content", () => ({
+vi.mock("@/lib/providers/shared/tms-provider-content", () => ({
   resolveExternalTmsSecretMaterialForActor: vi.fn(async () => "token"),
 }));
 
@@ -232,20 +235,19 @@ vi.stubGlobal("fetch", crowdinFetchMock);
 
 describe("checkCrowdinProgress", () => {
   beforeEach(async () => {
-    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
     const { resolveExternalTmsSecretMaterialForActor } =
-      await import("@/lib/providers/tms-provider-content");
+      await import("@/lib/providers/shared/tms-provider-content");
 
     vi.clearAllMocks();
-    vi.mocked(loadCrowdinProjectCredential).mockResolvedValue({
+    loadProjectCredentialMock.mockResolvedValue({
       externalProjectId: "42",
       credential: baseCredential,
-    } as NonNullable<Awaited<ReturnType<typeof loadCrowdinProjectCredential>>>);
+    });
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockResolvedValue("token");
   });
 
   it("returns project-level language progress", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "project",
@@ -271,11 +273,11 @@ describe("checkCrowdinProgress", () => {
 
   it("resolves Crowdin credentials for the acting user", async () => {
     const { resolveExternalTmsSecretMaterialForActor } =
-      await import("@/lib/providers/tms-provider-content");
+      await import("@/lib/providers/shared/tms-provider-content");
 
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockClear();
 
-    await checkCrowdinProgress({
+    await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       actorUserId: "user_1",
@@ -290,18 +292,16 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("uses the credential enterprise base URL for API requests", async () => {
-    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
-
     crowdinFetchMock.mockClear();
-    vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce({
+    loadProjectCredentialMock.mockResolvedValueOnce({
       externalProjectId: "42",
       credential: {
         ...baseCredential,
         baseUrl: "https://acme.api.crowdin.com/api/v2",
       },
-    } as NonNullable<Awaited<ReturnType<typeof loadCrowdinProjectCredential>>>);
+    });
 
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "project",
@@ -320,10 +320,9 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an error when Crowdin is not configured", async () => {
-    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
-    vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce(null);
+    loadProjectCredentialMock.mockResolvedValueOnce(null);
 
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "project",
@@ -337,13 +336,13 @@ describe("checkCrowdinProgress", () => {
 
   it("returns an error when the acting user has not connected Crowdin", async () => {
     const { resolveExternalTmsSecretMaterialForActor } =
-      await import("@/lib/providers/tms-provider-content");
+      await import("@/lib/providers/shared/tms-provider-content");
 
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockRejectedValueOnce(
       new Error("crowdin_user_connection_required"),
     );
 
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       actorUserId: "user_1",
@@ -360,7 +359,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns file progress for a normalized Crowdin file path with queue counts", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       actorUserId: "user_1",
@@ -392,7 +391,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("requires a precise file locator when a path matches multiple Crowdin files", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "file",
@@ -411,7 +410,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns a not found error when no Crowdin file matches the path", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "file",
@@ -428,7 +427,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an invalid input error when file scope has no locator", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "file",
@@ -444,7 +443,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns string translation and approval status for an escaped Crowdin identifier", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "string",
@@ -507,7 +506,7 @@ describe("checkCrowdinProgress", () => {
   it("fetches numeric string locators with the Get String endpoint", async () => {
     crowdinFetchMock.mockClear();
 
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "string",
@@ -557,7 +556,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns not found when a numeric Crowdin string is missing", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "string",
@@ -574,7 +573,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an ambiguity error when an exact string identifier matches multiple strings", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "string",
@@ -592,7 +591,7 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an invalid input error when string scope has no locator", async () => {
-    const result = await checkCrowdinProgress({
+    const result = await crowdinTmsProvider.checkProgress({
       organizationId: "org_1",
       projectId: "proj_1",
       scope: "string",

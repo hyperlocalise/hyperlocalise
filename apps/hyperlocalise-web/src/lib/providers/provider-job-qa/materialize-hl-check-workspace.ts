@@ -3,7 +3,7 @@ import path from "node:path";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 
 export type HlCheckKeyManifestEntry = {
   externalStringId: string;

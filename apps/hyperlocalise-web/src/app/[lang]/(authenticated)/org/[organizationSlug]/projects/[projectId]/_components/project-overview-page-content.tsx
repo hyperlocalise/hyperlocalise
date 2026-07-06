@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   projectFilesResponseSchema,
   type ProjectFileRecord,

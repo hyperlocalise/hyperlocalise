@@ -25,7 +25,7 @@ import {
   type ApiGlossary,
   type GlossaryListRow,
 } from "./glossary-list";
-import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
 import {
   GlossariesPageView,
   GLOSSARIES_PAGE_SIZE,

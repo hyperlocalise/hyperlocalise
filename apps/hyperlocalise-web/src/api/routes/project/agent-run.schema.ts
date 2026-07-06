@@ -5,7 +5,7 @@ import { providerQaFindingSchema } from "@/api/routes/project/job-qa.schema";
 import {
   jobProviderActionDefinitions,
   type JobProviderActionId,
-} from "@/lib/providers/job-provider-actions";
+} from "@/lib/providers/jobs/job-provider-actions";
 
 export const supportedJobProviderActionIds = jobProviderActionDefinitions.map(
   (action) => action.id,

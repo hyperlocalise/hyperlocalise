@@ -1,16 +1,16 @@
 import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { TmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import type { TmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   mapProviderStatusToNormalized,
   type ExternalTmsJobTaskMetadata,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 function normalizeDate(value: Date | string | null | undefined) {

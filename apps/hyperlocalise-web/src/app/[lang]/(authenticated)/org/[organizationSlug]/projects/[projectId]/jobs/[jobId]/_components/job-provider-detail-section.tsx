@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
-import { resolveEncodedProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
+import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";

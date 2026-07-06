@@ -11,22 +11,28 @@ import {
   getActiveOrganizationExternalTmsProviderCredential,
   upsertCrowdinOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
-import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
-import type { TmsProviderLiveFileDetail } from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import * as tmsProviderLive from "@/lib/providers/jobs/tms-provider-live";
+import type { TmsProviderLiveFileDetail } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const {
+  resolveApiAuthContextFromSessionMock,
+  getTmsProviderLiveJobDetailMock,
+  listTmsProviderLiveJobFilesMock,
+} = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  getTmsProviderLiveJobDetailMock: vi.fn(),
+  listTmsProviderLiveJobFilesMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -40,6 +46,15 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 vi.mock("workflow/api", () => ({
   start: vi.fn(async () => ({ runId: "wrun_provider_sync_test" })),
 }));
+
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
+  return {
+    ...actual,
+    getTmsProviderLiveJobDetail: (...args: unknown[]) => getTmsProviderLiveJobDetailMock(...args),
+    listTmsProviderLiveJobFiles: (...args: unknown[]) => listTmsProviderLiveJobFilesMock(...args),
+  };
+});
 
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
@@ -521,7 +536,7 @@ describe("tmsProviderRoutes", () => {
       isActive: true,
     });
 
-    vi.spyOn(tmsProviderLive, "getTmsProviderLiveJobDetail").mockResolvedValue({
+    getTmsProviderLiveJobDetailMock.mockResolvedValue({
       id: "ext:crowdin:902807:99",
       projectId,
       projectName: "Crowdin project",
@@ -556,7 +571,7 @@ describe("tmsProviderRoutes", () => {
       externalProviderPayload: { type: 0 },
     });
 
-    vi.spyOn(tmsProviderLive, "listTmsProviderLiveJobFiles").mockResolvedValue([
+    listTmsProviderLiveJobFilesMock.mockResolvedValue([
       {
         origin: "provider",
         sourcePath: "locales/en.json",

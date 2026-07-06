@@ -7,11 +7,11 @@ import {
   evaluateWorkspaceFeatureFlags,
   filterNavigationByWorkspaceFlags,
 } from "@/lib/flags/workspace-flags";
-import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
   getTmsUserConnectCtaState,
   type TmsUserConnectCta,
-} from "@/lib/providers/tms-user-connection";
+} from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";

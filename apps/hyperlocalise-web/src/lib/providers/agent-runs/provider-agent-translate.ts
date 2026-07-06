@@ -12,16 +12,16 @@ import {
   getAgentRun,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import { pullExternalTmsTaskContent } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
-import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
+} from "@/lib/providers/jobs/tms-provider-types";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import {
   resolveProviderAgentRunSourceFiles,
   readProviderAgentRunSourceFilesFromSnapshot,
-} from "@/lib/providers/job-provider-source-files";
+} from "@/lib/providers/jobs/job-provider-source-files";
 import {
   shouldUseProviderFileTranslation,
   summarizeProviderUnitFileIds,
@@ -34,11 +34,11 @@ import {
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
 const logger = createLogger("provider-agent-translate");

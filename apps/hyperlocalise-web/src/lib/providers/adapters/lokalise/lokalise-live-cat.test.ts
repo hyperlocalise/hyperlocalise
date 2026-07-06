@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
-import {
-  buildLokaliseLiveCatFile,
-  getLokaliseLiveCatSegmentTarget,
-  LokaliseLiveCatError,
-  saveLokaliseLiveCatTranslation,
-} from "./lokalise-live-cat";
+import { LokaliseLiveCatError, lokaliseTmsProvider } from "./lokalise-provider";
 
 function createLokaliseKeyFile(overrides: Partial<TmsProviderLiveFile> = {}): TmsProviderLiveFile {
   return {
@@ -44,7 +39,7 @@ function createLokaliseKeyFile(overrides: Partial<TmsProviderLiveFile> = {}): Tm
   };
 }
 
-describe("buildLokaliseLiveCatFile", () => {
+describe("lokaliseTmsProvider.buildLiveCatFile", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -106,7 +101,7 @@ describe("buildLokaliseLiveCatFile", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const catFile = await buildLokaliseLiveCatFile({
+    const catFile = await lokaliseTmsProvider.buildLiveCatFile({
       secretMaterial: "token",
       baseUrl: "https://api.lokalise.test/api2",
       externalProjectId: "proj.123",
@@ -144,7 +139,7 @@ describe("buildLokaliseLiveCatFile", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(
-      buildLokaliseLiveCatFile({
+      lokaliseTmsProvider.buildLiveCatFile({
         secretMaterial: "token",
         baseUrl: "https://api.lokalise.test/api2",
         externalProjectId: "proj.123",
@@ -222,7 +217,7 @@ describe("buildLokaliseLiveCatFile", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const catFile = await buildLokaliseLiveCatFile({
+    const catFile = await lokaliseTmsProvider.buildLiveCatFile({
       secretMaterial: "token",
       baseUrl: "https://api.lokalise.test/api2",
       externalProjectId: "proj.123",
@@ -261,7 +256,7 @@ describe("buildLokaliseLiveCatFile", () => {
   });
 });
 
-describe("getLokaliseLiveCatSegmentTarget", () => {
+describe("lokaliseTmsProvider.getLiveCatSegmentTarget", () => {
   it("maps reviewed translations to approved targets", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
@@ -305,7 +300,7 @@ describe("getLokaliseLiveCatSegmentTarget", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const target = await getLokaliseLiveCatSegmentTarget({
+    const target = await lokaliseTmsProvider.getLiveCatSegmentTarget({
       secretMaterial: "token",
       baseUrl: "https://api.lokalise.test/api2",
       externalProjectId: "proj.123",
@@ -322,7 +317,7 @@ describe("getLokaliseLiveCatSegmentTarget", () => {
   });
 });
 
-describe("saveLokaliseLiveCatTranslation", () => {
+describe("lokaliseTmsProvider.saveLiveCatTranslation", () => {
   it("writes reviewed translations back to Lokalise", async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const path = String(url);
@@ -370,7 +365,7 @@ describe("saveLokaliseLiveCatTranslation", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const saved = await saveLokaliseLiveCatTranslation({
+    const saved = await lokaliseTmsProvider.saveLiveCatTranslation({
       secretMaterial: "token",
       baseUrl: "https://api.lokalise.test/api2",
       externalProjectId: "proj.123",

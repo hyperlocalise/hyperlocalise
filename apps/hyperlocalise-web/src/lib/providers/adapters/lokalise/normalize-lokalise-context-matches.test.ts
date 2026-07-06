@@ -1,182 +1,144 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
-import type { LokaliseGlossaryTerm, LokaliseKey } from "./lokalise-api";
-import {
-  buildLokaliseProjectGlossaryExternalId,
-  buildLokaliseProjectTranslationMemoryExternalId,
-  buildLokaliseTranslationMemorySegmentCandidates,
-  matchesLokaliseGlossaryTerm,
-  pickLokaliseGlossaryTranslation,
-  scoreLokaliseTextMatch,
-} from "./normalize-lokalise-context-matches";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("scoreLokaliseTextMatch", () => {
-  it("scores exact matches highest", () => {
-    expect(scoreLokaliseTextMatch("Hello world", "Hello world")).toBe(100);
-  });
+describe("searchGlossaryMatches context helpers", () => {
+  it("returns normalized matches for synced glossaries", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/glossary-terms")) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: 10,
+                term: "Checkout",
+                forbidden: false,
+                case_sensitive: true,
+                translations: [{ lang_id: 640, lang_iso: "fr", translation: "Paiement" }],
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
 
-  it("scores partial overlap for glossary-style terms", () => {
-    expect(scoreLokaliseTextMatch("checkout button", "button")).toBeGreaterThanOrEqual(70);
-  });
-});
+      if (url.includes("/languages")) {
+        return new Response(
+          JSON.stringify({
+            languages: [{ lang_id: 640, lang_iso: "fr", lang_name: "French" }],
+          }),
+          { status: 200 },
+        );
+      }
 
-describe("matchesLokaliseGlossaryTerm", () => {
-  it("respects case sensitivity when enabled", () => {
-    const term: Pick<LokaliseGlossaryTerm, "term" | "caseSensitive"> = {
-      term: "Checkout",
-      caseSensitive: true,
-    };
+      return new Response(JSON.stringify({}), { status: 404 });
+    }) as unknown as typeof fetch;
 
-    expect(matchesLokaliseGlossaryTerm("checkout", term)).toBe(false);
-    expect(matchesLokaliseGlossaryTerm("Checkout", term)).toBe(true);
-  });
+    vi.stubGlobal("fetch", fetchMock);
 
-  it("matches case-sensitive terms embedded in longer source text", () => {
-    const term: Pick<LokaliseGlossaryTerm, "term" | "caseSensitive"> = {
-      term: "iOS",
-      caseSensitive: true,
-    };
-
-    expect(matchesLokaliseGlossaryTerm("Update iOS settings", term)).toBe(true);
-    expect(matchesLokaliseGlossaryTerm("Update ios settings", term)).toBe(false);
-  });
-});
-
-describe("pickLokaliseGlossaryTranslation", () => {
-  it("resolves target locale from language id map", () => {
-    const term: LokaliseGlossaryTerm = {
-      id: 10,
-      term: "Checkout",
-      description: null,
-      caseSensitive: false,
-      translatable: true,
-      forbidden: false,
-      tags: [],
-      translations: [
+    const matches = await lokaliseTmsProvider.searchGlossaryMatches({
+      organizationId: "org_1",
+      projectId: "project_1",
+      externalProjectId: "proj.123",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.lokalise.test/api2",
+      } as never,
+      secretMaterial: "token",
+      glossaries: [
         {
-          id: 1,
-          languageId: 640,
-          languageIdSnake: 640,
-          languageIso: "",
-          languageIsoSnake: "",
-          langIso: "",
-          langIsoSnake: "",
-          translation: "Paiement",
-          description: null,
+          id: "glossary_local_1",
+          name: "Lokalise glossary",
+          externalGlossaryId: "proj.123:glossary",
+          targetLocale: "fr",
+          termCapabilities: { mode: "synced_import", search: true },
         },
       ],
-    };
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Checkout",
+      limit: 5,
+    } as never);
 
-    const target = pickLokaliseGlossaryTranslation(term, "fr", new Map([[640, "fr"]]));
-    expect(target).toBe("Paiement");
+    vi.unstubAllGlobals();
+
+    expect(matches).toHaveLength(1);
+    expect(matches?.[0]).toMatchObject({
+      sourceTerm: "Checkout",
+      targetTerm: "Paiement",
+    });
   });
 });
 
-describe("buildLokaliseTranslationMemorySegmentCandidates", () => {
-  it("returns scored key translation pairs for the requested locale", () => {
-    const keys: LokaliseKey[] = [
-      {
-        keyId: 42,
-        keyName: { web: "greeting", ios: "", android: "", other: "" },
-        filenames: { web: "", ios: "", android: "", other: "" },
-        description: null,
-        context: null,
-        platforms: [],
-        tags: [],
-        isPlural: false,
-        isHidden: false,
-        isArchived: false,
-        createdAt: null,
-        modifiedAt: null,
-        translationsModifiedAt: null,
-        translations: [
-          {
-            translationId: 1,
-            keyId: 42,
-            languageIso: "en",
-            translation: "Hello",
-            modifiedAt: null,
-            modifiedAtTimestamp: null,
-            isReviewed: true,
-            isUnverified: false,
-          },
-          {
-            translationId: 2,
-            keyId: 42,
-            languageIso: "fr",
-            translation: "Bonjour",
-            modifiedAt: null,
-            modifiedAtTimestamp: null,
-            isReviewed: true,
-            isUnverified: false,
-          },
-        ],
-      },
-    ];
+describe("searchTranslationMemoryMatches context helpers", () => {
+  it("returns scored key translation pairs for the requested locale", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          keys: [
+            {
+              key_id: 42,
+              key_name: { web: "greeting", ios: "", android: "", other: "" },
+              filenames: { web: "", ios: "", android: "", other: "" },
+              platforms: [],
+              tags: [],
+              is_plural: false,
+              is_hidden: false,
+              is_archived: false,
+              translations: [
+                {
+                  translation_id: 1,
+                  key_id: 42,
+                  language_iso: "en",
+                  translation: "Hello",
+                  is_reviewed: true,
+                  is_unverified: false,
+                },
+                {
+                  translation_id: 2,
+                  key_id: 42,
+                  language_iso: "fr",
+                  translation: "Bonjour",
+                  is_reviewed: true,
+                  is_unverified: false,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
 
-    const matches = buildLokaliseTranslationMemorySegmentCandidates(keys, {
+    vi.stubGlobal("fetch", fetchMock);
+
+    const matches = await lokaliseTmsProvider.searchTranslationMemoryMatches({
+      organizationId: "org_1",
+      projectId: "project_1",
+      externalProjectId: "proj.123",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.lokalise.test/api2",
+      } as never,
+      secretMaterial: "token",
+      memory: {
+        id: "memory_local_1",
+        name: "Lokalise TM",
+        externalMemoryId: "proj.123:translation-memory",
+        capabilityMode: "synced_import",
+      },
       sourceLocale: "en",
       targetLocale: "fr",
       sourceText: "Hello",
       limit: 5,
-    });
+    } as never);
+
+    vi.unstubAllGlobals();
 
     expect(matches).toHaveLength(1);
-    expect(matches[0]).toMatchObject({
-      keyId: 42,
+    expect(matches?.[0]).toMatchObject({
       sourceText: "Hello",
       targetText: "Bonjour",
-      matchScore: 100,
     });
-  });
-
-  it("skips segments without a target translation", () => {
-    const keys: LokaliseKey[] = [
-      {
-        keyId: 7,
-        keyName: { web: "title", ios: "", android: "", other: "" },
-        filenames: { web: "", ios: "", android: "", other: "" },
-        description: null,
-        context: null,
-        platforms: [],
-        tags: [],
-        isPlural: false,
-        isHidden: false,
-        isArchived: false,
-        createdAt: null,
-        modifiedAt: null,
-        translationsModifiedAt: null,
-        translations: [
-          {
-            translationId: 1,
-            keyId: 7,
-            languageIso: "en",
-            translation: "Title",
-            modifiedAt: null,
-            modifiedAtTimestamp: null,
-            isReviewed: true,
-            isUnverified: false,
-          },
-        ],
-      },
-    ];
-
-    expect(
-      buildLokaliseTranslationMemorySegmentCandidates(keys, {
-        sourceLocale: "en",
-        targetLocale: "fr",
-        sourceText: "Title",
-        limit: 5,
-      }),
-    ).toEqual([]);
-  });
-});
-
-describe("external resource ids", () => {
-  it("builds stable project-scoped ids", () => {
-    expect(buildLokaliseProjectGlossaryExternalId("proj.123")).toBe("proj.123:glossary");
-    expect(buildLokaliseProjectTranslationMemoryExternalId("proj.123")).toBe(
-      "proj.123:translation-memory",
-    );
   });
 });

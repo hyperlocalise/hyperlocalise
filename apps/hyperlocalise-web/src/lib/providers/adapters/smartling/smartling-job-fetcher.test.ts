@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchSmartlingJobTasks } from "./smartling-job-fetcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("fetchSmartlingJobTasks", () => {
+describe("smartlingTmsProvider.fetchJobTasks", () => {
   let originalFetch: typeof fetch;
 
   const credential = {
@@ -117,10 +117,9 @@ describe("fetchSmartlingJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchSmartlingJobTasks({
+    const result = await smartlingTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       credential,
       project: {} as never,
@@ -227,8 +226,8 @@ describe("fetchSmartlingJobTasks", () => {
       secretMaterial: "user:secret:acct-1",
     };
 
-    const first = await fetchSmartlingJobTasks(input);
-    const second = await fetchSmartlingJobTasks(input);
+    const first = await smartlingTmsProvider.fetchJobTasks(input);
+    const second = await smartlingTmsProvider.fetchJobTasks(input);
 
     expect(first[0]?.externalJobId).toBe("job-stable-1");
     expect(second[0]?.externalJobId).toBe("job-stable-1");
@@ -237,10 +236,9 @@ describe("fetchSmartlingJobTasks", () => {
 
   it("throws on invalid project id", async () => {
     await expect(
-      fetchSmartlingJobTasks({
+      smartlingTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "smartling",
         externalProjectId: "",
         credential,
         project: {} as never,
@@ -274,10 +272,9 @@ describe("fetchSmartlingJobTasks", () => {
     globalThis.fetch = fetchMock;
 
     await expect(
-      fetchSmartlingJobTasks({
+      smartlingTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "smartling",
         externalProjectId: "proj-1",
         credential,
         project: {} as never,

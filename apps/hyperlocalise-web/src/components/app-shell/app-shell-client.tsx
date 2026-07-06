@@ -22,7 +22,7 @@ import type { NavigationGroup } from "./navigation-config";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
-import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";
+import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";

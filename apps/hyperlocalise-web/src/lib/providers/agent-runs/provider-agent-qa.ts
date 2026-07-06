@@ -5,19 +5,19 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import { pullExternalTmsTaskContent } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
-} from "@/lib/providers/tms-provider-types";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
 import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
-import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {
   buildProviderJobQaReport,
@@ -34,8 +34,8 @@ import {
 } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import { providerReviewReportSchema } from "@/api/routes/project/job-qa.schema";
-import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
-import { pullProviderReviewForJob } from "@/lib/providers/provider-review-for-job";
+import { readInputSnapshotAction } from "@/lib/providers/jobs/read-input-snapshot-action";
+import { pullProviderReviewForJob } from "@/lib/providers/jobs/provider-review-for-job";
 
 export type ProviderAgentQaResult =
   | {

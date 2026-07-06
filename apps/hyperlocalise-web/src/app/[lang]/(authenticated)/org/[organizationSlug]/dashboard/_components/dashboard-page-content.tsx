@@ -11,8 +11,8 @@ import { createApiClient } from "@/lib/api-client";
 import { WORKSPACE_FEATURE_UNAVAILABLE_REASON } from "@/lib/flags/workos-flag-entities";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 
 import { buildJobDetailHref } from "../../jobs/_components/jobs-view-helpers";

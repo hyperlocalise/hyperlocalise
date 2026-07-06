@@ -12,7 +12,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,

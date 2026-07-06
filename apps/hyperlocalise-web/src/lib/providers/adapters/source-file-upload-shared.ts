@@ -1,4 +1,4 @@
-import type { ExternalTmsSourceFileUpload } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsSourceFileUpload } from "@/lib/providers/jobs/tms-provider-types";
 
 export function providerSourcePath(file: ExternalTmsSourceFileUpload) {
   return file.sourcePath.trim().replaceAll("\\", "/").replace(/^\/+/, "");

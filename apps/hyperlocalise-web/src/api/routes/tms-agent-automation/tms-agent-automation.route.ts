@@ -7,7 +7,7 @@ import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
 import {
   assertExternalTmsCredentialAdmin,
   getOrganizationExternalTmsProviderCredentialSummaryById,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   deleteTmsAgentAutomationSettingsForScope,
   getTmsAgentAutomationSettingsForScope,

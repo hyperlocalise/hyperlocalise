@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import {
   parseProviderJobId,
   resolveEncodedProviderJobId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { useActiveTmsProvider } from "../../../../../_hooks/use-active-tms-provider";
 

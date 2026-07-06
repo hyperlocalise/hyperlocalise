@@ -8,7 +8,7 @@ import {
   buildSmartlingCommentWriteBackEntries,
   mapProviderSeverityToSmartling,
   parseHyperlocaliseFindingMarker,
-} from "./smartling-comment-write-back";
+} from "./smartling-provider";
 
 function sampleFinding(overrides?: Partial<ProviderQaFinding>): ProviderQaFinding {
   return {

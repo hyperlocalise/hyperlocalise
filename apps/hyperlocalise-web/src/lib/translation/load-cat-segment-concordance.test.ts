@@ -18,15 +18,19 @@ const {
   searchLokaliseCatConcordanceMock: vi.fn(),
 }));
 
-vi.mock("@/lib/providers/adapters/crowdin/load-crowdin-project-credential", () => ({
-  loadCrowdinProjectCredential: (...args: unknown[]) => loadCrowdinProjectCredentialMock(...args),
+vi.mock("@/lib/providers/adapters/crowdin/crowdin-auth", () => ({
+  crowdinAuth: {
+    loadProjectCredential: (...args: unknown[]) => loadCrowdinProjectCredentialMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/adapters/lokalise/load-lokalise-project-credential", () => ({
-  loadLokaliseProjectCredential: (...args: unknown[]) => loadLokaliseProjectCredentialMock(...args),
+vi.mock("@/lib/providers/adapters/lokalise/lokalise-auth", () => ({
+  lokaliseAuth: {
+    loadProjectCredential: (...args: unknown[]) => loadLokaliseProjectCredentialMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/tms-provider-content", () => ({
+vi.mock("@/lib/providers/shared/tms-provider-content", () => ({
   resolveExternalTmsSecretMaterialForActor: (...args: unknown[]) =>
     resolveExternalTmsSecretMaterialForActorMock(...args),
 }));
@@ -47,15 +51,19 @@ vi.mock("@/lib/providers/adapters/lokalise/lokalise-api", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/adapters/crowdin/crowdin-cat-concordance", () => ({
-  searchCrowdinCatConcordance: (...args: unknown[]) => searchCrowdinCatConcordanceMock(...args),
+vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
+  crowdinTmsProvider: {
+    searchCatConcordance: (...args: unknown[]) => searchCrowdinCatConcordanceMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/adapters/lokalise/lokalise-cat-concordance", () => ({
-  searchLokaliseCatConcordance: (...args: unknown[]) => searchLokaliseCatConcordanceMock(...args),
+vi.mock("@/lib/providers/adapters/lokalise/lokalise-provider", () => ({
+  lokaliseTmsProvider: {
+    searchCatConcordance: (...args: unknown[]) => searchLokaliseCatConcordanceMock(...args),
+  },
 }));
 
-import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 import { loadCatSegmentConcordance } from "./load-cat-segment-concordance";
 
 const baseCredential = {

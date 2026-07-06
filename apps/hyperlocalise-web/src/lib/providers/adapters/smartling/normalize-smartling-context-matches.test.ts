@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildSmartlingTranslationMemoryCandidates,
   matchesSmartlingGlossaryEntry,
-} from "./normalize-smartling-context-matches";
+} from "./smartling-provider";
 import { pickSmartlingGlossaryTranslation, scoreSmartlingTextMatch } from "./smartling-api";
 
 describe("scoreSmartlingTextMatch", () => {

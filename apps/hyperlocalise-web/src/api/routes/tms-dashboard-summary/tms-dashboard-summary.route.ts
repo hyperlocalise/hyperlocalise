@@ -6,7 +6,7 @@ import {
 } from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse, internalErrorResponse } from "@/api/response.schema";
-import { getOrganizationTmsDashboardSummary } from "@/lib/providers/organization-tms-dashboard-summary";
+import { getOrganizationTmsDashboardSummary } from "@/lib/providers/jobs/organization-tms-dashboard-summary";
 
 export function createTmsDashboardSummaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()

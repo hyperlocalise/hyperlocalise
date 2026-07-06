@@ -1,7 +1,7 @@
 import type {
   TmsProviderCapability,
   TmsProviderCapabilityAction,
-} from "@/lib/providers/tms-capabilities";
+} from "@/lib/providers/capabilities/tms-capabilities";
 
 import type { ExternalTmsProviderKind } from "./external-tms-provider-kind";
 

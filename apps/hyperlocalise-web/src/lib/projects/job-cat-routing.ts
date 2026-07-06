@@ -2,7 +2,7 @@ import {
   canOpenNativeJobCat,
   canOpenProviderJobCat,
 } from "@/lib/projects/workspace-resource-capabilities";
-import { resolveJobProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type JobCatTarget = {
   id: string;

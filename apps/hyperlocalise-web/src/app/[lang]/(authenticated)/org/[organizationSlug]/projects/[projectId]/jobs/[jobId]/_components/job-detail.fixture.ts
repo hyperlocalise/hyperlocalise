@@ -2,7 +2,7 @@ import type { AgentRunRecord, JobDetailRecord, ProviderBackedJobFields } from ".
 import type {
   TmsProviderLiveJobComment,
   TmsProviderLiveJobDetail,
-} from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-live";
 
 const fixedNow = Date.UTC(2026, 5, 6, 12, 0, 0);
 

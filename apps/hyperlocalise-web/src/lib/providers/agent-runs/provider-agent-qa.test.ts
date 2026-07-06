@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import * as agentRuns from "../agent-runs/agent-runs";
@@ -16,14 +16,14 @@ const pullExternalTmsTaskContentMock = vi.fn();
 const runHlCheckOnProviderContentMock = vi.fn();
 const pullProviderReviewForJobMock = vi.fn();
 
-vi.mock("@/lib/providers/provider-review-for-job", () => ({
+vi.mock("@/lib/providers/jobs/provider-review-for-job", () => ({
   pullProviderReviewForJob: (...args: unknown[]) => pullProviderReviewForJobMock(...args),
 }));
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
-    providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind,
-  ) => import("@/lib/providers/tms-provider-types").ExternalTmsContentPuller | null;
+    providerKind: import("@/lib/providers/credentials/organization-external-tms-provider-credentials").ExternalTmsProviderKind,
+  ) => import("@/lib/providers/jobs/tms-provider-types").ExternalTmsContentPuller | null;
 
   const state: { actual: GetProviderContentPuller } = {
     actual: () => null,
@@ -35,9 +35,9 @@ const providerContentPullerMocks = vi.hoisted(() => {
   return { state, getProviderContentPullerMock };
 });
 
-vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-registry")>();
   providerContentPullerMocks.state.actual = actual.getProviderContentPuller;
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     actual.getProviderContentPuller,
@@ -53,8 +53,9 @@ vi.mock("@/lib/providers/provider-job-qa/run-hl-check", () => ({
   runHlCheckOnProviderContent: (...args: unknown[]) => runHlCheckOnProviderContentMock(...args),
 }));
 
-vi.mock("@/lib/providers/tms-provider-content", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-content")>();
+vi.mock("@/lib/providers/shared/tms-provider-content", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/shared/tms-provider-content")>();
   return {
     ...actual,
     pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),

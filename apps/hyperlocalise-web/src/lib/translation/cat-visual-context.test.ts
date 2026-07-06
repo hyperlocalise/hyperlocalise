@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { loadCrowdinCatVisualContext } from "@/lib/providers/adapters/crowdin/crowdin-cat-visual-context";
+import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { pixelRectToPercentMarkers } from "@/lib/translation/cat-visual-context";
 
 describe("pixelRectToPercentMarkers", () => {
@@ -63,7 +63,7 @@ describe("loadCrowdinCatVisualContext", () => {
       ],
     };
 
-    const visualContext = await loadCrowdinCatVisualContext({
+    const visualContext = await crowdinTmsProvider.loadCatVisualContext({
       client: client as never,
       externalProjectId: "7",
       externalStringId: "99",

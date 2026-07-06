@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";

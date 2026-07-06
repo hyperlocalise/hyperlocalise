@@ -1,5 +1,5 @@
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 
 export function canOpenProjectFileCat(file: ProjectFileRecord) {
   if (file.provider) {

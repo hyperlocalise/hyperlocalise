@@ -9,7 +9,7 @@ import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
-import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { ok } from "@/lib/primitives/result/results";
@@ -63,8 +63,8 @@ vi.mock("@/lib/projects/organization/organization-project-service", () => ({
     ensureOrganizationProjectRecordMock(...args),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-live")>();
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
   return {
     ...actual,
     getTmsProviderConnection: (...args: unknown[]) => getTmsProviderConnectionMock(...args),

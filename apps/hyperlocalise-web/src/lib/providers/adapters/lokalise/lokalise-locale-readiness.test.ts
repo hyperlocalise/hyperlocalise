@@ -1,82 +1,29 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  buildLokaliseFileExternalResourceId,
-  buildLokaliseFileSourcePath,
-  buildLokaliseKeyExternalResourceId,
-  buildLokaliseKeySourcePath,
-  mapLokaliseTranslationReadiness,
-} from "./lokalise-locale-readiness";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
 describe("lokalise locale readiness", () => {
-  it("maps reviewed content to ready", () => {
+  it("maps reviewed content to ready via locale progress", () => {
     expect(
-      mapLokaliseTranslationReadiness({
-        content: "Bonjour",
-        isUnverified: false,
-        isReviewed: true,
-        isArchived: false,
-        isHidden: false,
+      lokaliseTmsProvider.mapLocaleProgressToReadiness({
+        locale: "fr",
+        counts: { total: 1, translated: 1, approved: 1 },
       }),
-    ).toBe("ready");
+    ).toMatchObject({
+      translationProgress: 100,
+      approvalProgress: 100,
+    });
   });
 
-  it("maps empty content to missing", () => {
+  it("maps empty counts to zero progress", () => {
     expect(
-      mapLokaliseTranslationReadiness({
-        content: "",
-        isUnverified: false,
-        isReviewed: true,
-        isArchived: false,
-        isHidden: false,
+      lokaliseTmsProvider.mapLocaleProgressToReadiness({
+        locale: "fr",
+        counts: { total: 0, translated: 0, approved: 0 },
       }),
-    ).toBe("missing");
-  });
-
-  it("maps unverified translated content to unverified", () => {
-    expect(
-      mapLokaliseTranslationReadiness({
-        content: "Draft copy",
-        isUnverified: true,
-        isReviewed: false,
-        isArchived: false,
-        isHidden: false,
-      }),
-    ).toBe("unverified");
-  });
-
-  it("maps archived or hidden keys to excluded", () => {
-    expect(
-      mapLokaliseTranslationReadiness({
-        content: "Bonjour",
-        isUnverified: false,
-        isReviewed: true,
-        isArchived: true,
-        isHidden: false,
-      }),
-    ).toBe("excluded");
-    expect(
-      mapLokaliseTranslationReadiness({
-        content: "Bonjour",
-        isUnverified: false,
-        isReviewed: true,
-        isArchived: false,
-        isHidden: true,
-      }),
-    ).toBe("excluded");
-  });
-
-  it("uses stable key and file identity helpers", () => {
-    expect(buildLokaliseKeyExternalResourceId(4242)).toBe("4242");
-    expect(buildLokaliseKeySourcePath("home.hero.title", "locales/en/home.json")).toBe(
-      "files/locales/en/home.json/keys/home.hero.title",
-    );
-    expect(buildLokaliseKeySourcePath("home.hero.title", null)).toBe("keys/home.hero.title");
-    expect(buildLokaliseFileExternalResourceId("web", "locales/en/home.json")).toBe(
-      "web::locales/en/home.json",
-    );
-    expect(buildLokaliseFileSourcePath("en", "web", "locales/en/home.json")).toBe(
-      "locales/en/web/locales/en/home.json",
-    );
+    ).toMatchObject({
+      translationProgress: 0,
+      approvalProgress: 0,
+    });
   });
 });

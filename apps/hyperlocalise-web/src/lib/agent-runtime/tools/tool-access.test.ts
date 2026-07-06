@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 const ownedProjectWhereMock = vi.fn(async () => ({}));
 const getTmsProviderLiveProjectMock = vi.fn();
@@ -16,7 +16,7 @@ vi.mock("@/api/auth/team-access", () => ({
   canAccessStoredFile: vi.fn(),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", () => ({
+vi.mock("@/lib/providers/jobs/tms-provider-live", () => ({
   getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
 }));
 

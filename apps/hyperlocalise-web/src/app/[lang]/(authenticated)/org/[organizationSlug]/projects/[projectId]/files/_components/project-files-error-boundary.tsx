@@ -7,7 +7,7 @@ import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { cn } from "@/lib/primitives/cn";
 
 function logProjectFilesPanelError(scope: "tree" | "detail", error: Error, info: ErrorInfo) {

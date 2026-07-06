@@ -78,9 +78,9 @@ import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-source-files";
-import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { resolveProviderSourceFilesForJob } from "@/lib/providers/jobs/job-provider-source-files";
+import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/shared/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 

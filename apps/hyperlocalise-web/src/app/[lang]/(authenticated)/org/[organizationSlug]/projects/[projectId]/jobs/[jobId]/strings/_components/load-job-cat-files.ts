@@ -7,8 +7,8 @@ import {
   parseProviderJobId,
   parseProviderProjectId,
   resolveEncodedProviderJobId,
-} from "@/lib/providers/tms-provider-resource-id";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
 import type { JobDetailRecord } from "../../_components/job-detail-types";
 import {

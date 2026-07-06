@@ -4,7 +4,7 @@ import {
   defaultModelByProvider,
   llmProviderSchema,
   llmProviderCatalog,
-} from "@/lib/providers/catalog";
+} from "@/lib/providers/shared/catalog";
 
 export const updateProviderCredentialBodySchema = z
   .object({

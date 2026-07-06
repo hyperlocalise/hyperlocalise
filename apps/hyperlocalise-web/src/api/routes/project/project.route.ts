@@ -38,7 +38,7 @@ import {
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
   resolveTmsProviderLiveCatComment,
-} from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
@@ -63,7 +63,7 @@ import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
-import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
 import type {
   JobQueue,
   TranslationFileImportQueue,
@@ -106,7 +106,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   isAiActionAllowed,

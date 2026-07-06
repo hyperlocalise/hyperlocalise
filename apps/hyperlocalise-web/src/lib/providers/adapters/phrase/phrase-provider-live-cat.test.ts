@@ -1,0 +1,723 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
+
+import { phraseTmsProvider, PhraseLiveCatError } from "./phrase-provider";
+
+function createPhraseKeyFile(overrides: Partial<TmsProviderLiveFile> = {}): TmsProviderLiveFile {
+  return {
+    origin: "provider",
+    sourcePath: "keys/home.hero.title",
+    sourceHash: null,
+    commitSha: null,
+    workflowRunId: null,
+    uploadedAt: "2026-06-08T00:00:00Z",
+    storedFileId: null,
+    metadata: {
+      id: "key-1",
+      key: "home.hero.title",
+      branch: null,
+      tags: ["app"],
+    },
+    filename: "home.hero.title",
+    byteSize: null,
+    provider: {
+      kind: "phrase",
+      resourceType: "key",
+      externalProjectId: "project-1",
+      externalResourceId: "key-1",
+      externalUrl: null,
+      syncState: "synced",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      localeReadiness: {},
+      revision: null,
+      format: "json",
+      lastSyncedAt: null,
+    },
+    latestJob: null,
+    ...overrides,
+  };
+}
+
+describe("phraseTmsProvider.buildLiveCatFile", () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  it("loads a single key file without fetching translations or comments", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
+        return new Response(
+          JSON.stringify({
+            id: "key-1",
+            name: "home.hero.title",
+            description: "Hero headline",
+            plural: false,
+            tags: ["app"],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      canEditTranslations: true,
+    });
+
+    expect(catFile.segments).toHaveLength(1);
+    expect(catFile.segments[0]).toMatchObject({
+      externalStringId: "key-1",
+      key: "home.hero.title",
+      sourceText: "home.hero.title",
+      context: "Hero headline",
+    });
+    expect(catFile.segments[0]).not.toHaveProperty("target");
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/translations"),
+      expect.anything(),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/keys/key-1/comments"),
+      expect.anything(),
+    );
+  });
+
+  it("loads comments from the segment comments endpoint", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
+        return new Response(
+          JSON.stringify({
+            id: "key-1",
+            name: "home.hero.title",
+            description: "Hero headline",
+            plural: false,
+            tags: ["app"],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/translations")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "tr-en",
+              key_id: "key-1",
+              locale_name: "en",
+              content: "Hello",
+              state: "translated",
+              unverified: false,
+              excluded: false,
+            },
+            {
+              id: "tr-fr",
+              key_id: "key-1",
+              locale_name: "fr",
+              content: "Bonjour",
+              state: "translated",
+              unverified: false,
+              excluded: false,
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/comments")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "comment-1",
+              message: "Check tone",
+              has_replies: false,
+              user: { id: "user-1", username: "reviewer", name: "Reviewer" },
+              created_at: "2026-06-08T00:01:00Z",
+              locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { phraseTmsProvider } = await import("./phrase-provider");
+    const comments = await phraseTmsProvider.getLiveCatSegmentComments({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      externalStringId: "key-1",
+    });
+
+    expect(comments).toMatchObject([
+      { externalCommentId: "comment-1", type: "comment", text: "Check tone" },
+    ]);
+  });
+
+  it("filters upload-scoped keys by tags and paginates search results", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-hero",
+              name: "home.hero.title",
+              description: null,
+              plural: false,
+              tags: ["app"],
+            },
+            {
+              id: "key-footer",
+              name: "home.footer.title",
+              description: null,
+              plural: false,
+              tags: ["marketing"],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-hero/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/keys/key-footer/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/comments")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile({
+        sourcePath: "locales/en/home.json",
+        filename: "home.json",
+        metadata: {
+          id: "upload-1",
+          name: "home.json",
+          branch: null,
+          tags: ["app"],
+        },
+        provider: {
+          kind: "phrase",
+          resourceType: "file",
+          externalProjectId: "project-1",
+          externalResourceId: "upload-1",
+          externalUrl: null,
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: null,
+          format: "json",
+          lastSyncedAt: null,
+        },
+      }),
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 10,
+        search: "hero",
+        queueFilter: "all",
+        paginated: true,
+      },
+    });
+
+    expect(catFile.segments).toHaveLength(1);
+    expect(catFile.segments[0]?.key).toBe("home.hero.title");
+    expect(catFile.pagination).toMatchObject({
+      offset: 0,
+      limit: 10,
+      returnedCount: 1,
+      totalCount: 1,
+      hasMore: false,
+    });
+  });
+
+  it("continues filtered Phrase queue scans from the scan cursor instead of page 1", async () => {
+    const pageOneKeys = Array.from({ length: 100 }, (_, index) => ({
+      id: `key-${index + 1}`,
+      name: index < 2 ? `home.${index + 1}` : `other.${index + 1}`,
+      tags: ["app"],
+    }));
+    const keyPages: Record<number, Array<{ id: string; name: string; tags: string[] }>> = {
+      1: pageOneKeys,
+      2: [{ id: "key-101", name: "home.three", tags: ["app"] }],
+    };
+    const listKeyPageRequests: number[] = [];
+
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        const page = Number(new URL(path).searchParams.get("page") ?? "1");
+        listKeyPageRequests.push(page);
+        const keys = keyPages[page] ?? [];
+        return new Response(
+          JSON.stringify(
+            keys.map((key) => ({
+              id: key.id,
+              name: key.name,
+              description: null,
+              plural: false,
+              tags: key.tags,
+            })),
+          ),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const file = createPhraseKeyFile({
+      sourcePath: "locales/en/home.json",
+      filename: "home.json",
+      metadata: {
+        id: "upload-1",
+        name: "home.json",
+        branch: null,
+        tags: ["app"],
+      },
+      provider: {
+        kind: "phrase",
+        resourceType: "file",
+        externalProjectId: "project-1",
+        externalResourceId: "upload-1",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: null,
+        format: "json",
+        lastSyncedAt: null,
+      },
+    });
+
+    const firstPage = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file,
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 1,
+        search: "home",
+        queueFilter: "all",
+        paginated: true,
+      },
+    });
+
+    expect(firstPage.segments).toHaveLength(1);
+    expect(firstPage.segments[0]?.key).toBe("home.1");
+    expect(firstPage.pagination).toMatchObject({
+      hasMore: true,
+      nextPhraseScanPage: 1,
+      nextPhraseScanSkip: 1,
+    });
+
+    listKeyPageRequests.length = 0;
+
+    const secondPage = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file,
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 1,
+        limit: 1,
+        search: "home",
+        queueFilter: "all",
+        paginated: true,
+        phraseScanPage: firstPage.pagination?.nextPhraseScanPage,
+        phraseScanSkip: firstPage.pagination?.nextPhraseScanSkip,
+      },
+    });
+
+    expect(secondPage.segments).toHaveLength(1);
+    expect(secondPage.segments[0]?.key).toBe("home.2");
+    expect(listKeyPageRequests).toEqual([1]);
+  });
+
+  it("throws when the requested target locale cannot be matched", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      phraseTmsProvider.buildLiveCatFile({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        canEditTranslations: true,
+      }),
+    ).rejects.toMatchObject({
+      code: "phrase_target_locale_not_found",
+    });
+  });
+
+  it("leaves comment timestamps null when Phrase omits created and updated times", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
+        return new Response(
+          JSON.stringify({
+            id: "key-1",
+            name: "home.hero.title",
+            description: null,
+            plural: false,
+            tags: ["app"],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/keys/key-1/comments")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "comment-1",
+              message: "Check tone",
+              has_replies: false,
+              user: { id: "user-1", username: "reviewer", name: "Reviewer" },
+              locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { phraseTmsProvider } = await import("./phrase-provider");
+    const comments = await phraseTmsProvider.getLiveCatSegmentComments({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      externalStringId: "key-1",
+    });
+
+    expect(comments[0]?.createdAt).toBeNull();
+  });
+});
+
+describe("phraseTmsProvider.saveLiveCatTranslation", () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  it("upserts a verified translation for the target locale", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            id: "tr-fr-new",
+            key_id: "key-1",
+            locale_name: "fr",
+            content: "Bonjour amélioré",
+            state: "translated",
+            unverified: false,
+            excluded: false,
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const translation = await phraseTmsProvider.saveLiveCatTranslation({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      externalStringId: "key-1",
+      text: "Bonjour amélioré",
+    });
+
+    expect(translation).toEqual({
+      text: "Bonjour amélioré",
+      externalTranslationId: "tr-fr-new",
+      isApproved: true,
+    });
+  });
+
+  it("throws when saving to an unmatched target locale", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      phraseTmsProvider.saveLiveCatTranslation({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        externalStringId: "key-1",
+        text: "Bonjour",
+      }),
+    ).rejects.toBeInstanceOf(PhraseLiveCatError);
+  });
+});
+
+describe("phraseTmsProvider.saveLiveCatComment", () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  it("creates a key comment in Phrase with the resolved locale name", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/comments") && init?.method === "POST") {
+        const rawBody = init.body;
+        const body =
+          typeof rawBody === "string"
+            ? (JSON.parse(rawBody) as { locale?: { name?: string } })
+            : {};
+        expect(body.locale?.name).toBe("fr");
+
+        return new Response(
+          JSON.stringify({
+            id: "comment-new",
+            message: "Please review wording",
+            has_replies: false,
+            user: { id: "user-1", username: "editor", name: "Editor" },
+            created_at: "2026-06-08T00:02:00Z",
+            locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const comment = await phraseTmsProvider.saveLiveCatComment({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr-FR",
+      externalStringId: "key-1",
+      text: "Please review wording",
+    });
+
+    expect(comment).toMatchObject({
+      externalCommentId: "comment-new",
+      type: "comment",
+      text: "Please review wording",
+      locale: "fr-FR",
+      author: "Editor",
+    });
+  });
+
+  it("throws when creating a comment for an unmatched target locale", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      phraseTmsProvider.saveLiveCatComment({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        externalStringId: "key-1",
+        text: "Please review wording",
+      }),
+    ).rejects.toBeInstanceOf(PhraseLiveCatError);
+  });
+});

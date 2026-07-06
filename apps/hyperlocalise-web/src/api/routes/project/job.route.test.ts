@@ -8,8 +8,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
-import * as tmsProviderAssigneeCandidates from "@/lib/providers/tms-provider-assignee-candidates";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";

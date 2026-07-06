@@ -15,7 +15,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", () => ({
+vi.mock("@/lib/providers/jobs/tms-provider-live", () => ({
   listTmsProviderLiveProjects: (...args: unknown[]) => listTmsProviderLiveProjectsMock(...args),
   TmsProviderLiveError: class TmsProviderLiveError extends Error {
     constructor(
@@ -28,7 +28,7 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
+vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
   getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
     getActiveCredentialMock(...args),
 }));
@@ -110,7 +110,7 @@ describe("listAgentProjects", () => {
   });
 
   it("returns native projects with an error when the user Crowdin connection is missing", async () => {
-    const { TmsProviderLiveError } = await import("@/lib/providers/tms-provider-live");
+    const { TmsProviderLiveError } = await import("@/lib/providers/jobs/tms-provider-live");
 
     getActiveCredentialMock.mockResolvedValueOnce({ providerKind: "crowdin" });
     listTmsProviderLiveProjectsMock.mockRejectedValueOnce(

@@ -1,4 +1,4 @@
-import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import type { HlCheckReport } from "./hl-check-types";
 import type { HlCheckKeyManifest } from "./materialize-hl-check-workspace";

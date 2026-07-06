@@ -13,12 +13,12 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   isLiveProviderGlossaryId,
   isLiveProviderMemoryId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 

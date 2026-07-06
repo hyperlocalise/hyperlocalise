@@ -9,8 +9,8 @@ import {
   createAgentRun,
   failAgentRun,
 } from "../agent-runs/agent-runs";
-import { getJobProviderActionDefinition } from "../job-provider-actions";
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+import { getJobProviderActionDefinition } from "@/lib/providers/jobs/job-provider-actions";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { resolveEffectiveTmsAgentAutomationSettings } from "./tms-agent-automation-settings-store";
 import { shouldAutoRunQaOnSyncedJob } from "./tms-agent-automation-settings";
 

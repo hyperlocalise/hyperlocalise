@@ -1,8 +1,8 @@
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
-} from "@/lib/providers/tms-provider-types";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import type { RunHlCheckResult } from "@/lib/providers/provider-job-qa/run-hl-check";
 
 export async function prepareProviderAgentQaStep(input: {
@@ -30,7 +30,8 @@ export async function completeProviderAgentQaStep(input: {
   const { getAgentRun } = await import("@/lib/providers/agent-runs/agent-runs");
   const { completeProviderAgentQaRun } =
     await import("@/lib/providers/agent-runs/provider-agent-qa");
-  const { readInputSnapshotAction } = await import("@/lib/providers/read-input-snapshot-action");
+  const { readInputSnapshotAction } =
+    await import("@/lib/providers/jobs/read-input-snapshot-action");
 
   const run = await getAgentRun({
     runId: input.agentRunId,
