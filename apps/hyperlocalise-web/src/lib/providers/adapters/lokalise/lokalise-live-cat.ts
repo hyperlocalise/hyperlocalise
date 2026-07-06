@@ -338,11 +338,16 @@ async function loadLokaliseQueuePage(input: {
     let hasMore = false;
 
     while (collected.length < limit) {
-      const page = await input.client.listKeysCursorPage(input.scope.projectId, {
-        includeTranslations: false,
-        cursor: cursor || undefined,
-        limit: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
-      });
+      let page: Awaited<ReturnType<LokaliseApiClient["listKeysCursorPage"]>>;
+      try {
+        page = await input.client.listKeysCursorPage(input.scope.projectId, {
+          includeTranslations: false,
+          cursor: cursor || undefined,
+          limit: LOKALISE_QUEUE_SCAN_PAGE_SIZE,
+        });
+      } catch (error) {
+        mapLokaliseApiError(error);
+      }
 
       let stoppedEarly = false;
       for (const key of page.keys) {
