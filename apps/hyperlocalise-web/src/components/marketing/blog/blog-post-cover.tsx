@@ -1,9 +1,9 @@
-import type { Post } from "@/lib/blog/blog-post";
+import type { PostSummary } from "@/lib/blog/blog-post";
 import { getBlogPostCoverUrl } from "@/lib/blog/get-blog-post-cover-url";
 import Image from "next/image";
 
 type BlogPostCoverProps = {
-  post: Post;
+  post: PostSummary;
   lang: string;
   alt: string;
   className?: string;

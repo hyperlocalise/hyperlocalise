@@ -3,23 +3,20 @@
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { Post } from "@/lib/blog/blog-post";
+import type { PostSummary } from "@/lib/blog/blog-post";
 import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import { recentBlogPostsSectionMessages } from "./recent-blog-posts-section.messages";
 
-const RECENT_BLOG_POSTS_LIMIT = 4;
-
 type RecentBlogPostsSectionProps = {
-  posts: Post[];
+  posts: PostSummary[];
   lang: string;
 };
 
 export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionProps) {
   const intl = useIntl();
-  const recentPosts = posts.slice(0, RECENT_BLOG_POSTS_LIMIT);
   const blogIndexHref = `/${lang}/blog`;
 
   return (
@@ -37,7 +34,7 @@ export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionPr
           </TypographyP>
         </div>
 
-        {recentPosts.length > 0 ? (
+        {posts.length > 0 ? (
           <Link
             className="inline-flex min-h-11 shrink-0 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             href={blogIndexHref}
@@ -48,9 +45,9 @@ export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionPr
       </div>
 
       <div className="mt-10">
-        {recentPosts.length > 0 ? (
+        {posts.length > 0 ? (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-            {recentPosts.map((post) => (
+            {posts.map((post) => (
               <BlogPostCard key={post.slug} lang={lang} post={post} />
             ))}
           </div>

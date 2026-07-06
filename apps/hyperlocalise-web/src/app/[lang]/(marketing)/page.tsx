@@ -92,7 +92,9 @@ function buildJsonLd(locale: string): WithContext<WebApplication> & object {
 export default async function Home({ params }: HomePageProps) {
   const { lang } = await params;
   const jsonLd = buildJsonLd(lang);
-  const recentPosts = getAllPosts(lang);
+  const recentPosts = getAllPosts(lang)
+    .slice(0, 4)
+    .map(({ content: _content, ...rest }) => rest);
 
   return (
     <>

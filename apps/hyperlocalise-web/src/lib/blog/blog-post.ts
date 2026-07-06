@@ -18,6 +18,8 @@ export interface Post {
   tags?: string[];
 }
 
+export type PostSummary = Omit<Post, "content">;
+
 const DEFAULT_CATEGORY = "Blog";
 
 function frontmatterString(value: unknown, fallback = ""): string {
