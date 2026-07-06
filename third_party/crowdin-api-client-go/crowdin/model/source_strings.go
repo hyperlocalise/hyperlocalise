@@ -39,6 +39,16 @@ type SourceStringsGetResponse struct {
 	Data *SourceString `json:"data"`
 }
 
+// UpdateOption defines whether to keep existing translations and
+// approvals for updated strings.
+type UpdateOption string
+
+const (
+	UpdateOptionClearTranslationsAndApprovals UpdateOption = "clear_translations_and_approvals"
+	UpdateOptionKeepTranslations              UpdateOption = "keep_translations"
+	UpdateOptionKeepTranslationsAndApprovals  UpdateOption = "keep_translations_and_approvals"
+)
+
 // SourceStringsListResponse describes the response when getting
 // a list of source strings.
 type SourceStringsListResponse struct {
@@ -245,9 +255,9 @@ type SourceStringsUpload struct {
 			ImportTranslations      bool           `json:"importTranslations"`
 			Scheme                  map[string]int `json:"scheme"`
 		} `json:"importOptions"`
-		UpdateStrings bool   `json:"updateStrings"`
-		UpdateOption  string `json:"updateOption,omitempty"`
-		CleanupMode   bool   `json:"cleanupMode"`
+		UpdateStrings bool         `json:"updateStrings"`
+		UpdateOption  UpdateOption `json:"updateOption,omitempty"`
+		CleanupMode   bool         `json:"cleanupMode"`
 	} `json:"attributes"`
 	CreatedAt  string `json:"createdAt"`
 	UpdatedAt  string `json:"updatedAt"`
@@ -299,7 +309,7 @@ type SourceStringsUploadRequest struct {
 	// Option for updating strings. Default: "clear_translations_and_approvals".
 	// Enum: "clear_translations_and_approvals" "keep_translations" "keep_translations_and_approvals"
 	// Must be used together with updateStrings = true
-	UpdateOption string `json:"updateOption,omitempty"`
+	UpdateOption UpdateOption `json:"updateOption,omitempty"`
 }
 
 // SourceStringsImportOptions defines the options for importing strings.

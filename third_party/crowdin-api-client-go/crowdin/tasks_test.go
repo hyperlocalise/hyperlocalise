@@ -368,7 +368,7 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 			"languageId":"en",
 			"type":1,
 			"fileIds":[1,2,3],
-		"directoryIds":[4,5,6],
+			"directoryIds":[4,5,6],
 			"labelIds":[1,2,3],
 			"excludeLabelIds":[4,5,6],
 			"status":"todo",

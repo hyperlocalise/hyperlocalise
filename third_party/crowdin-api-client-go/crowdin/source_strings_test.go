@@ -798,20 +798,20 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 		Status:     "finished",
 		Progress:   100,
 		Attributes: struct {
-			BranchID      int    `json:"branchId"`
-			DirectoryID   int    `json:"directoryId"`
-			StorageID     int    `json:"storageId"`
-			FileType      string `json:"fileType"`
-			ParserVersion int    `json:"parserVersion"`
-			LabelIDs      []int  `json:"labelIds"`
+				BranchID      int                `json:"branchId"`
+				DirectoryID   int                `json:"directoryId"`
+				StorageID     int                `json:"storageId"`
+				FileType      string             `json:"fileType"`
+				ParserVersion int                `json:"parserVersion"`
+				LabelIDs      []int              `json:"labelIds"`
 			ImportOptions struct {
 				FirstLineContainsHeader bool           `json:"firstLineContainsHeader"`
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool   `json:"updateStrings"`
-			UpdateOption  string `json:"updateOption,omitempty"`
-			CleanupMode   bool   `json:"cleanupMode"`
+				UpdateStrings bool               `json:"updateStrings"`
+				UpdateOption  model.UpdateOption `json:"updateOption,omitempty"`
+				CleanupMode   bool               `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -833,7 +833,7 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 				},
 			},
 			UpdateStrings: true,
-			UpdateOption:  "keep_translations",
+				UpdateOption:  model.UpdateOptionKeepTranslations,
 			CleanupMode:   false,
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -897,7 +897,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		ParserVersion: 1,
 		LabelIDs:      []int{1, 2},
 		UpdateStrings: ToPtr(true),
-		UpdateOption:  "keep_translations",
+		UpdateOption:  model.UpdateOptionKeepTranslations,
 		CleanupMode:   ToPtr(true),
 		ImportOptions: &model.SourceStringsImportOptions{
 			FirstLineContainsHeader: ToPtr(true),
@@ -926,20 +926,20 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Status:     "finished",
 		Progress:   100,
 		Attributes: struct {
-			BranchID      int    `json:"branchId"`
-			DirectoryID   int    `json:"directoryId"`
-			StorageID     int    `json:"storageId"`
-			FileType      string `json:"fileType"`
-			ParserVersion int    `json:"parserVersion"`
-			LabelIDs      []int  `json:"labelIds"`
+				BranchID      int                `json:"branchId"`
+				DirectoryID   int                `json:"directoryId"`
+				StorageID     int                `json:"storageId"`
+				FileType      string             `json:"fileType"`
+				ParserVersion int                `json:"parserVersion"`
+				LabelIDs      []int              `json:"labelIds"`
 			ImportOptions struct {
 				FirstLineContainsHeader bool           `json:"firstLineContainsHeader"`
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool   `json:"updateStrings"`
-			UpdateOption  string `json:"updateOption,omitempty"`
-			CleanupMode   bool   `json:"cleanupMode"`
+				UpdateStrings bool               `json:"updateStrings"`
+				UpdateOption  model.UpdateOption `json:"updateOption,omitempty"`
+				CleanupMode   bool               `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -961,7 +961,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 				},
 			},
 			UpdateStrings: true,
-			UpdateOption:  "keep_translations",
+				UpdateOption:  model.UpdateOptionKeepTranslations,
 			CleanupMode:   false,
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -1006,8 +1006,8 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
 		{"empty branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
 		{"both branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 12}, "only one of branchId or directoryId may be set"},
-		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
-		{"nil updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
+		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: model.UpdateOptionClearTranslationsAndApprovals}, "updateStrings must be set to true to use updateOption"},
+		{"nil updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: model.UpdateOptionClearTranslationsAndApprovals}, "updateStrings must be set to true to use updateOption"},
 	}
 
 	for _, tt := range cases {
