@@ -127,6 +127,13 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(filters).not.toContain("needs_review");
     expect(filters).not.toContain("reviewed");
   });
+
+  it("omits translation status filters for Smartling projects", () => {
+    const filters = resolveAvailableCatQueueFilters("smartling");
+    expect(filters).not.toContain("untranslated");
+    expect(filters).not.toContain("needs_review");
+    expect(filters).not.toContain("reviewed");
+  });
 });
 
 describe("resolveVisibleQueueSegments", () => {
