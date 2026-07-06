@@ -28,6 +28,7 @@ export class CatIntelligenceController {
   private loadedSegmentIds = new Set<string>();
   private concordanceAttempts = new Set<string>();
   private contextAttempts = new Set<string>();
+  private contextGeneration = 0;
   private visualContextAttempts = new Set<string>();
   private inFlight = new Map<
     string,
@@ -55,7 +56,8 @@ export class CatIntelligenceController {
       this.inFlight.clear();
     }
     if (previousServices?.lookupSegmentContext !== ports.services?.lookupSegmentContext) {
-      this.contextAttempts.clear();
+      this.invalidateContextLookupGeneration();
+      this.panelVisible(this.workspace.selectedSegmentId);
     }
     if (
       previousServices?.lookupSegmentVisualContext !== ports.services?.lookupSegmentVisualContext
@@ -165,10 +167,15 @@ export class CatIntelligenceController {
       this.workspace.segmentIntelligence[segmentId]?.agentContext === undefined &&
       !this.contextAttempts.has(segmentId)
     ) {
+      const contextGeneration = this.contextGeneration;
       this.contextAttempts.add(segmentId);
       void lookupSegmentContext(segment, { cachedOnly: true })
         .then((agentContext) => {
-          if (this.disposed || !agentContext?.trim()) {
+          if (
+            this.disposed ||
+            contextGeneration !== this.contextGeneration ||
+            !agentContext?.trim()
+          ) {
             return;
           }
           this.workspace.mergeSegmentIntelligence(segmentId, { agentContext });
@@ -234,6 +241,7 @@ export class CatIntelligenceController {
       return;
     }
     const existingAgentContext = this.workspace.segmentIntelligence[segmentId]?.agentContext;
+    const contextGeneration = this.contextGeneration;
     this.workspace.revealAgentContext(segmentId);
     if (existingAgentContext?.trim() && !options?.forceRefresh) {
       return;
@@ -244,13 +252,13 @@ export class CatIntelligenceController {
       const agentContext = await lookup(segment, {
         forceRefresh: options?.forceRefresh === true,
       });
-      if (this.disposed) {
+      if (this.disposed || contextGeneration !== this.contextGeneration) {
         return;
       }
       this.workspace.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
       this.workspace.mergeSegmentIntelligence(segmentId, { agentContext });
     } catch (error) {
-      if (!this.disposed) {
+      if (!this.disposed && contextGeneration === this.contextGeneration) {
         this.workspace.upsertFormatCheck(segmentId, {
           id: `context-lookup-failed-${segmentId}`,
           label: this.ports.intl.formatMessage(catWorkspaceContainerMessages.contextLookupLabel),
@@ -263,8 +271,18 @@ export class CatIntelligenceController {
         });
       }
     } finally {
-      this.workspace.endContextLookup(segmentId);
+      if (contextGeneration === this.contextGeneration) {
+        this.workspace.endContextLookup(segmentId);
+      }
     }
+  }
+
+  private invalidateContextLookupGeneration() {
+    this.contextAttempts.clear();
+    // clearAgentContexts resets contextLoadingSegmentIds; increment invalidates in-flight
+    // askQuestion handlers whose finally blocks skip endContextLookup on stale generations.
+    this.workspace.clearAgentContexts();
+    this.contextGeneration += 1;
   }
 
   private applyAutoFill(segmentId: string, concordance: CatSegmentConcordanceResult) {

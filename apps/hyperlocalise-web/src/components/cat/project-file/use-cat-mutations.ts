@@ -21,14 +21,12 @@ export function useCatMutations(input: {
   projectId: string;
   sourcePath: string;
   targetLocale: string;
-  repositoryFullName?: string | null;
   catFile: ProjectFileCatQueueFile | null | undefined;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
-  const repositoryFullName = input.repositoryFullName ?? null;
 
   const saveMutation = useMutation({
     mutationFn: async (mutationInput: {
@@ -85,7 +83,6 @@ export function useCatMutations(input: {
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
-          repositoryFullName,
         }),
       ]);
     },
@@ -143,7 +140,6 @@ export function useCatMutations(input: {
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
-          repositoryFullName,
         }),
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,
@@ -201,7 +197,6 @@ export function useCatMutations(input: {
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
-          repositoryFullName,
         }),
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,

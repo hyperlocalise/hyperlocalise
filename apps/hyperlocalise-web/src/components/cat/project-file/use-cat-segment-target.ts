@@ -14,7 +14,6 @@ export function projectFileCatSegmentTargetQueryKey(input: {
   resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
-  repositoryFullName: string | null;
 }) {
   return [
     "project-file-cat-segment-target",
@@ -25,7 +24,6 @@ export function projectFileCatSegmentTargetQueryKey(input: {
     input.resourceType ?? null,
     input.targetLocale,
     input.externalStringId,
-    input.repositoryFullName,
   ] as const;
 }
 
@@ -37,7 +35,6 @@ export async function fetchProjectFileCatSegmentTarget(input: {
   resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
-  repositoryFullName: string | null;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -52,7 +49,6 @@ export async function fetchProjectFileCatSegmentTarget(input: {
       ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
       ...(input.resourceType ? { resourceType: input.resourceType } : {}),
       targetLocale: input.targetLocale,
-      ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
     },
   });
 
@@ -72,10 +68,8 @@ export function useCatSegmentTarget(input: {
   resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string | null;
-  repositoryFullName?: string | null;
   enabled?: boolean;
 }) {
-  const repositoryFullName = input.repositoryFullName ?? null;
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery({
@@ -87,7 +81,6 @@ export function useCatSegmentTarget(input: {
       resourceType: input.resourceType,
       targetLocale: input.targetLocale,
       externalStringId,
-      repositoryFullName,
     }),
     enabled:
       input.enabled !== false &&
@@ -104,7 +97,6 @@ export function useCatSegmentTarget(input: {
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         externalStringId,
-        repositoryFullName,
       }),
   });
 }
@@ -120,13 +112,9 @@ export function useInvalidateCatSegmentTarget() {
     resourceType?: "file" | "key";
     targetLocale: string;
     externalStringId: string;
-    repositoryFullName?: string | null;
   }) => {
     await queryClient.invalidateQueries({
-      queryKey: projectFileCatSegmentTargetQueryKey({
-        ...input,
-        repositoryFullName: input.repositoryFullName ?? null,
-      }),
+      queryKey: projectFileCatSegmentTargetQueryKey(input),
     });
   };
 }

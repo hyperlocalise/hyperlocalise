@@ -18,7 +18,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   targetLocale,
   externalResourceId = null,
   resourceType,
-  repositoryFullName = null,
   catFile,
   enabled,
 }: {
@@ -28,7 +27,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   targetLocale: string;
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
-  repositoryFullName?: string | null;
   catFile: ProjectFileCatQueueFile | null | undefined;
   enabled: boolean;
 }) {
@@ -51,7 +49,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
     resourceType: resolvedResourceType,
     targetLocale,
     externalStringId: segmentId || null,
-    repositoryFullName,
     enabled: enabled && Boolean(catFile && segmentId),
   });
 

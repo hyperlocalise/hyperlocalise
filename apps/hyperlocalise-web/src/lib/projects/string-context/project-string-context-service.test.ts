@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { and, eq } from "drizzle-orm";
 
 const {
   createRepositorySandboxMock,
@@ -202,6 +203,44 @@ describe("lookupProjectFileStringRepositoryContext", () => {
         organizationId: organization.id,
       }),
     );
+  });
+
+  it("caches context for an external project without materializing it", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity();
+    const projectId = "ext:crowdin:9";
+    const input = baseInput({
+      organizationId: organization.id,
+      projectId,
+      localUserId: user.id,
+      repositoryFullName: "hyperlocalise/explicit",
+    });
+
+    const firstResult = await lookupProjectFileStringRepositoryContext(input);
+    const secondResult = await lookupProjectFileStringRepositoryContext(input);
+
+    expect(firstResult).toEqual({
+      ok: true,
+      value: {
+        summary: "Found this key in the homepage hero.",
+        cached: false,
+      },
+    });
+    expect(secondResult).toEqual({
+      ok: true,
+      value: {
+        summary: "Found this key in the homepage hero.",
+        cached: true,
+      },
+    });
+    expect(runSubagentMock).toHaveBeenCalledTimes(1);
+
+    const projectRows = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(eq(schema.projects.organizationId, organization.id), eq(schema.projects.id, projectId)),
+      );
+    expect(projectRows).toEqual([]);
   });
 
   it("returns repository_not_enabled when no repository is specified and none are enabled", async () => {
