@@ -27,11 +27,11 @@ export function isQueueFilterSupportedForProvider(
   providerKind: string | null | undefined,
 ) {
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === null;
+    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
   }
 
   if (
-    (providerKind === "phrase" || providerKind === "lokalise") &&
+    (providerKind === "phrase" || providerKind === "lokalise" || providerKind === "smartling") &&
     (filter === "untranslated" || filter === "needs_review" || filter === "reviewed")
   ) {
     return false;
