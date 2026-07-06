@@ -2699,8 +2699,21 @@ async function fetchSmartlingLiveJobTaskMetadata(input: {
     }
   }
 
-  const accountUid = projectDetails.accountUid;
-  const normalizedStatus = job.jobStatus.toLowerCase().trim();
+  return mapSmartlingJobToLiveTaskMetadata({
+    job,
+    projectDetails,
+    projectId,
+    fileIds,
+  });
+}
+
+function mapSmartlingJobToLiveTaskMetadata(input: {
+  job: SmartlingJobDetails;
+  projectDetails: Awaited<ReturnType<SmartlingApiClient["getProjectDetails"]>>;
+  projectId: string;
+  fileIds?: string[];
+}): ExternalTmsJobTaskMetadata {
+  const normalizedStatus = input.job.jobStatus.toLowerCase().trim();
   const kind = ["in_review", "in-review", "in review", "in_edit", "in-edit", "in edit"].includes(
     normalizedStatus,
   )
@@ -2708,22 +2721,22 @@ async function fetchSmartlingLiveJobTaskMetadata(input: {
     : "translation";
 
   return {
-    externalJobId: job.translationJobUid,
+    externalJobId: input.job.translationJobUid,
     externalTaskId: null,
-    externalStatus: job.jobStatus,
-    title: job.jobName,
-    dueDate: job.dueDate ? new Date(job.dueDate) : null,
-    targetLocales: job.targetLocaleIds,
+    externalStatus: input.job.jobStatus,
+    title: input.job.jobName,
+    dueDate: input.job.dueDate ? new Date(input.job.dueDate) : null,
+    targetLocales: input.job.targetLocaleIds,
     assignedUsers: [],
-    externalUrl: `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(accountUid)}/project/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.translationJobUid)}`,
+    externalUrl: `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(input.projectDetails.accountUid)}/project/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.job.translationJobUid)}`,
     providerPayload: {
-      description: job.description,
-      createdDate: job.createdDate,
-      modifiedDate: job.modifiedDate,
-      referenceNumber: job.referenceNumber,
-      jobNumber: job.jobNumber,
-      rawJobStatus: job.jobStatus,
-      ...(fileIds ? { fileIds } : {}),
+      description: input.job.description,
+      createdDate: input.job.createdDate,
+      modifiedDate: input.job.modifiedDate,
+      referenceNumber: input.job.referenceNumber,
+      jobNumber: input.job.jobNumber,
+      rawJobStatus: input.job.jobStatus,
+      ...(input.fileIds ? { fileIds: input.fileIds } : {}),
     },
     kind,
   };
@@ -3081,11 +3094,65 @@ export async function updateTmsProviderLiveJobDescription(
     return null;
   }
 
-  if (context.providerKind !== "crowdin") {
+  if (context.providerKind !== "crowdin" && context.providerKind !== "smartling") {
     throw new TmsProviderLiveError(
       "provider_description_edit_unsupported",
       `Description edits are not supported for ${context.providerKind}.`,
     );
+  }
+
+  if (context.providerKind === "smartling") {
+    const projectId = parsed.externalProjectId.trim();
+    const jobUid = parsed.externalJobId.trim();
+    if (!projectId || !jobUid) {
+      return null;
+    }
+
+    const projects = await fetchLiveProjectsCached(context, { actorUserId });
+    const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
+    if (!project) {
+      return null;
+    }
+
+    const credentials = parseSmartlingCredentials(context.secretMaterial);
+    const client = new SmartlingApiClient({
+      credentials,
+      authBaseUrl: context.credential.baseUrl ?? undefined,
+    });
+
+    let updatedJob: SmartlingJobDetails;
+    let projectDetails: Awaited<ReturnType<typeof client.getProjectDetails>>;
+    try {
+      [updatedJob, projectDetails] = await Promise.all([
+        client.updateJobDescription(projectId, jobUid, description),
+        client.getProjectDetails(projectId),
+      ]);
+    } catch (error) {
+      if (error instanceof SmartlingApiError && error.status === 401) {
+        throw new TmsProviderLiveError(
+          "smartling_auth_invalid",
+          "Smartling credentials are invalid.",
+        );
+      }
+      if (error instanceof SmartlingApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+
+    const task = mapSmartlingJobToLiveTaskMetadata({
+      job: updatedJob,
+      projectDetails,
+      projectId,
+    });
+
+    return mapLiveJobDetail({
+      providerKind: context.providerKind,
+      externalProjectId: parsed.externalProjectId,
+      externalJobId: parsed.externalJobId,
+      projectName: project.name,
+      task,
+    });
   }
 
   const projectId = Number(parsed.externalProjectId);
