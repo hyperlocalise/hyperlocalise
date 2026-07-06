@@ -48,7 +48,7 @@ import {
   isCrowdinEnterpriseApiBaseUrl,
   resolveCrowdinApiBaseUrl,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-provider";
+import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import {
   CrowdinApiClient,
   CrowdinApiError,
@@ -59,13 +59,13 @@ import {
   PhraseTmsApiClient,
   PhraseTmsApiError,
 } from "@/lib/providers/adapters/phrase/phrase-tms-api";
-import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-provider";
+import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-api";
 import {
   getPhraseUserConnectionSummary,
   upsertPhraseUserConnection,
 } from "@/lib/providers/adapters/phrase/phrase-auth";
-import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-provider";
+import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import {
   LokaliseApiClient,
   LokaliseApiError,

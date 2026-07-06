@@ -1,11 +1,26 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import { getTmsProvider } from "@/lib/providers/adapters/tms-provider-registry";
 
 type ProviderCatFile = {
   provider?: {
     kind?: string;
     resourceType?: string | null;
   } | null;
+};
+
+type ProviderCatResourceSupport = {
+  file: boolean;
+  key: boolean;
+};
+
+// Keep in sync with TmsProvider.resourceSupport.providerCat in each *-provider.ts file.
+const providerCatResourceSupportByKind: Record<
+  ExternalTmsProviderKind,
+  ProviderCatResourceSupport
+> = {
+  crowdin: { file: true, key: false },
+  phrase: { file: true, key: true },
+  lokalise: { file: true, key: true },
+  smartling: { file: false, key: false },
 };
 
 function isExternalTmsProviderKind(kind: string): kind is ExternalTmsProviderKind {
@@ -18,7 +33,7 @@ export function supportsProviderCatFile(file: ProviderCatFile): boolean {
     return false;
   }
 
-  const resourceSupport = getTmsProvider(provider.kind).resourceSupport.providerCat;
+  const resourceSupport = providerCatResourceSupportByKind[provider.kind];
 
   if (provider.resourceType === "file") {
     return resourceSupport.file;

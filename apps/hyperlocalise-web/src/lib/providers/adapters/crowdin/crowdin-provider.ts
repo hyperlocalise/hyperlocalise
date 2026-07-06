@@ -65,6 +65,13 @@ import {
   type CatVisualContextScreenshot,
 } from "@/lib/translation/cat-visual-context";
 
+export {
+  CROWDIN_OAUTH_SCOPE_GUIDE,
+  CROWDIN_OAUTH_SCOPES,
+  getCrowdinOAuthScopeString,
+  type CrowdinOAuthScopeGuideEntry,
+} from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
+
 /**
  * Crowdin TMS provider adapter.
  *
@@ -94,37 +101,6 @@ const MAX_SEGMENTS_PER_MEMORY = 2_000;
 const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-zA-Z0-9+/=]+$/i;
 const HYPERLOCALISE_FINDING_MARKER_PREFIX = "[hyperlocalise:finding=";
 const MAX_CROWDIN_SCREENSHOTS_PER_SEGMENT = 8;
-
-/** One OAuth scope entry shown in Crowdin connection UI copy. */
-export type CrowdinOAuthScopeGuideEntry = {
-  scope: string;
-  description: string;
-};
-
-/** Human-readable descriptions for each Crowdin OAuth scope Hyperlocalise requests. */
-export const CROWDIN_OAUTH_SCOPE_GUIDE = [
-  { scope: "language", description: "Organization languages used for locale metadata." },
-  { scope: "tm", description: "Translation memories for sync and live reads." },
-  { scope: "glossary", description: "Glossaries and terminology." },
-  { scope: "project", description: "Projects the connected user can access." },
-  { scope: "project.settings", description: "Project settings and configuration." },
-  { scope: "project.member", description: "Project members and teams." },
-  { scope: "project.task", description: "Project tasks and jobs." },
-  { scope: "project.report", description: "Project reports." },
-  { scope: "project.status", description: "Translation status and progress." },
-  { scope: "project.source", description: "Source files, strings, branches, and directories." },
-  { scope: "project.translation", description: "Translations and target-language content." },
-  { scope: "project.screenshot", description: "Screenshots and tags." },
-  { scope: "project.webhook", description: "Project webhook configuration." },
-] as const satisfies readonly CrowdinOAuthScopeGuideEntry[];
-
-/** Flat list of Crowdin OAuth scope strings derived from {@link CROWDIN_OAUTH_SCOPE_GUIDE}. */
-export const CROWDIN_OAUTH_SCOPES = CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => entry.scope);
-
-/** Returns space-delimited OAuth scope string for Crowdin authorization URLs. */
-export function getCrowdinOAuthScopeString() {
-  return CROWDIN_OAUTH_SCOPES.join(" ");
-}
 
 /** Granularity at which {@link CrowdinTmsProvider.checkProgress} reports translation status. */
 export type CrowdinProgressScope = "project" | "file" | "string";

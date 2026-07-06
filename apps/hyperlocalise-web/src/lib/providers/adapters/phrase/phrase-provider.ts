@@ -75,6 +75,13 @@ import {
   type PhraseTmsSearchSegmentResult,
 } from "./phrase-tms-api";
 
+export {
+  PHRASE_OAUTH_SCOPE_GUIDE,
+  PHRASE_OAUTH_SCOPES,
+  getPhraseOAuthScopeString,
+  type PhraseOAuthScopeGuideEntry,
+} from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
+
 /**
  * Phrase TMS provider adapter.
  *
@@ -94,32 +101,6 @@ import {
 
 const implemented = { state: "implemented" } as const satisfies TmsProviderFeature;
 const unsupported = { state: "unsupported" } as const satisfies TmsProviderFeature;
-
-/** One OAuth scope entry shown in Phrase TMS connection UI copy. */
-export type PhraseOAuthScopeGuideEntry = {
-  scope: string;
-  description: string;
-};
-
-/** Scopes Hyperlocalise requests during Phrase TMS OAuth authorization. */
-export const PHRASE_OAUTH_SCOPE_GUIDE = [
-  {
-    scope: "openid",
-    description: "OpenID Connect authorization for Phrase TMS bearer-token API access.",
-  },
-  {
-    scope: "offline_access",
-    description: "Requests refresh-token access so Phrase TMS user connections can be renewed.",
-  },
-] as const satisfies readonly PhraseOAuthScopeGuideEntry[];
-
-/** Flat list of Phrase OAuth scope strings derived from {@link PHRASE_OAUTH_SCOPE_GUIDE}. */
-export const PHRASE_OAUTH_SCOPES = PHRASE_OAUTH_SCOPE_GUIDE.map((entry) => entry.scope);
-
-/** Returns space-delimited OAuth scope string for Phrase TMS authorization URLs. */
-export function getPhraseOAuthScopeString() {
-  return PHRASE_OAUTH_SCOPES.join(" ");
-}
 
 const LOCALE_FETCH_CONCURRENCY = 15;
 const FILE_LOCALE_FETCH_CONCURRENCY = 8;

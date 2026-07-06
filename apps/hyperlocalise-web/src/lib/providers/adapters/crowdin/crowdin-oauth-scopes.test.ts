@@ -4,7 +4,7 @@ import {
   CROWDIN_OAUTH_SCOPE_GUIDE,
   CROWDIN_OAUTH_SCOPES,
   getCrowdinOAuthScopeString,
-} from "./crowdin-provider";
+} from "./crowdin-oauth-scopes";
 
 describe("crowdin-oauth-scopes", () => {
   it("includes all Crowdin project.* scopes", () => {

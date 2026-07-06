@@ -88,6 +88,13 @@ import {
   type LokaliseTranslation,
 } from "./lokalise-api";
 
+export {
+  LOKALISE_OAUTH_SCOPE_GUIDE,
+  LOKALISE_OAUTH_SCOPES,
+  getLokaliseOAuthScopeString,
+  type LokaliseOAuthScopeGuideEntry,
+} from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
+
 /**
  * Lokalise TMS provider adapter.
  *
@@ -114,72 +121,6 @@ const lokaliseScreenshotDetailConcurrency = 5;
 const LOKALISE_KEY_FETCH_CHUNK_SIZE = 50;
 const LOKALISE_QUEUE_SCAN_PAGE_SIZE = 100;
 const LOKALISE_MAX_SCAN_PAGES = 50;
-
-/** One OAuth scope entry shown in Lokalise connection UI copy. */
-export type LokaliseOAuthScopeGuideEntry = {
-  scope: string;
-  description: string;
-};
-
-/** Scopes Hyperlocalise requests during Lokalise OAuth authorization. */
-export const LOKALISE_OAUTH_SCOPE_GUIDE = [
-  {
-    scope: "read_projects",
-    description: "Projects the connected user can access.",
-  },
-  {
-    scope: "read_keys",
-    description: "Keys, filenames, comments, and project string metadata.",
-  },
-  {
-    scope: "write_keys",
-    description: "Key updates needed for approved write-back flows.",
-  },
-  {
-    scope: "read_translations",
-    description: "Target-language translations for content pull and review.",
-  },
-  {
-    scope: "write_translations",
-    description: "Approved translation write-back.",
-  },
-  {
-    scope: "read_tasks",
-    description: "Lokalise tasks shown as provider jobs.",
-  },
-  {
-    scope: "read_comments",
-    description: "Review comments attached to keys.",
-  },
-  {
-    scope: "write_comments",
-    description: "Agent review comments and QA feedback write-back.",
-  },
-  {
-    scope: "read_contributors",
-    description: "Identifies the connected Lokalise contributor for account linking.",
-  },
-  {
-    scope: "read_glossary",
-    description: "Glossary terms for terminology matching.",
-  },
-  {
-    scope: "write_glossary",
-    description: "Glossary term updates when supported by provider flows.",
-  },
-  {
-    scope: "read_translation_memory",
-    description: "Translation memory segments for TM matching.",
-  },
-] as const satisfies readonly LokaliseOAuthScopeGuideEntry[];
-
-/** Flat list of Lokalise OAuth scope strings derived from {@link LOKALISE_OAUTH_SCOPE_GUIDE}. */
-export const LOKALISE_OAUTH_SCOPES = LOKALISE_OAUTH_SCOPE_GUIDE.map((entry) => entry.scope);
-
-/** Returns space-delimited OAuth scope string for Lokalise authorization URLs. */
-export function getLokaliseOAuthScopeString() {
-  return LOKALISE_OAUTH_SCOPES.join(" ");
-}
 
 /** Typed error surfaced by live CAT operations when Lokalise auth or input validation fails. */
 export class LokaliseLiveCatError extends Error {
