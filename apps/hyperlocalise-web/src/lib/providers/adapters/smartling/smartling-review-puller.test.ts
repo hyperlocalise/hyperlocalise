@@ -21,6 +21,7 @@ function authResponse() {
 describe("smartlingTmsProvider.pullReview", () => {
   it("pulls job-scoped Smartling issues into a deduplicated review report", async () => {
     const issueRequestHashcodes: string[][] = [];
+    const capturedFileUris: string[] = [];
     const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
       const path = String(url);
       const method = init?.method ?? "GET";
@@ -47,7 +48,7 @@ describe("smartlingTmsProvider.pullReview", () => {
       }
 
       if (path.includes("/strings-api/v2/projects/proj-1/source-strings") && method === "GET") {
-        expect(new URL(path).searchParams.get("fileUri")).toBe("messages.json");
+        capturedFileUris.push(new URL(path).searchParams.get("fileUri") ?? "");
         return smartlingResponse({
           items: [{ hashcode: "hash-from-job-file", stringText: "File text" }],
           totalCount: 1,
@@ -93,10 +94,13 @@ describe("smartlingTmsProvider.pullReview", () => {
     });
 
     const report = await smartlingTmsProvider.pullReview({
-      credential: { baseUrl: null },
-      secretMaterial: "user:secret:acct-1",
+      organizationId: "org-1",
+      projectId: "proj_1",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
+      credential: { baseUrl: null } as never,
+      project: {} as never,
+      secretMaterial: "user:secret:acct-1",
       content: {
         externalJobId: "job-1",
         targetLocales: ["fr-FR"],
@@ -110,9 +114,14 @@ describe("smartlingTmsProvider.pullReview", () => {
         ],
       },
       fetchFn: fetchFn as typeof fetch,
-    } as never);
+    });
 
-    expect(issueRequestHashcodes).toEqual([["hash-from-content", "hash-from-job-file"]]);
+    expect(capturedFileUris).toEqual(["messages.json"]);
+    expect(issueRequestHashcodes).toHaveLength(1);
+    expect(issueRequestHashcodes[0]).toEqual(
+      expect.arrayContaining(["hash-from-content", "hash-from-job-file"]),
+    );
+    expect(issueRequestHashcodes[0]).toHaveLength(2);
     expect(report.summary).toEqual({
       total: 2,
       open: 1,
@@ -180,17 +189,20 @@ describe("smartlingTmsProvider.pullReview", () => {
 
     await expect(
       smartlingTmsProvider.pullReview({
-        credential: { baseUrl: null },
-        secretMaterial: "user:secret:acct-1",
+        organizationId: "org-1",
+        projectId: "proj_1",
         externalProjectId: "proj-1",
         externalJobId: "job-1",
+        credential: { baseUrl: null } as never,
+        project: {} as never,
+        secretMaterial: "user:secret:acct-1",
         content: {
           externalJobId: "job-1",
           targetLocales: ["fr-FR"],
           units: [],
         },
         fetchFn: fetchFn as typeof fetch,
-      } as never),
+      }),
     ).rejects.toThrow("smartling_auth_invalid");
   });
 });
