@@ -52,7 +52,7 @@
     "terser-webpack-plugin": "5.6.1",
     "ts-loader": "9.6.2",
     "tsx": "4.22.5",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "url-loader": "4.1.1",
     "vite-plus": "0.2.2",
     "webpack": "5.108.3",

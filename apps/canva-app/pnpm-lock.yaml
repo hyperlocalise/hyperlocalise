@@ -50,7 +50,7 @@ importers:
     devDependencies:
       '@canva/cli':
         specifier: ^2.0.0
-        version: 2.6.0(@types/react@19.2.17)(typescript@5.9.3)(zod@4.4.3)
+        version: 2.6.0(@types/react@19.2.17)(supports-color@5.5.0)(typescript@6.0.3)(zod@4.4.3)
       '@formatjs/cli':
         specifier: 6.16.11
         version: 6.16.11
@@ -62,7 +62,7 @@ importers:
         version: 1.7.0
       '@svgr/webpack':
         specifier: 8.1.0
-        version: 8.1.0(supports-color@5.5.0)(typescript@5.9.3)
+        version: 8.1.0(supports-color@5.5.0)(typescript@6.0.3)
       '@testing-library/react':
         specifier: 16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -116,7 +116,7 @@ importers:
         version: 8.4.2
       postcss-loader:
         specifier: 8.2.1
-        version: 8.2.1(postcss@8.5.15)(typescript@5.9.3)(webpack@5.108.3)
+        version: 8.2.1(postcss@8.5.15)(typescript@6.0.3)(webpack@5.108.3)
       style-loader:
         specifier: 4.0.0
         version: 4.0.0(webpack@5.108.3)
@@ -125,19 +125,19 @@ importers:
         version: 5.6.1(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack@5.108.3)
       ts-loader:
         specifier: 9.6.2
-        version: 9.6.2(loader-utils@2.0.4)(typescript@5.9.3)(webpack@5.108.3)
+        version: 9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.108.3)
       tsx:
         specifier: 4.22.5
         version: 4.22.5
       typescript:
-        specifier: 5.9.3
-        version: 5.9.3
+        specifier: 6.0.3
+        version: 6.0.3
       url-loader:
         specifier: 4.1.1
         version: 4.1.1(webpack@5.108.3)
       vite-plus:
         specifier: 0.2.2
-        version: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
+        version: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
       webpack:
         specifier: 5.108.3
         version: 5.108.3(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
@@ -4657,8 +4657,8 @@ packages:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -5807,12 +5807,12 @@ snapshots:
     dependencies:
       '@canva/error': 2.2.1
 
-  '@canva/cli@2.6.0(@types/react@19.2.17)(typescript@5.9.3)(zod@4.4.3)':
+  '@canva/cli@2.6.0(@types/react@19.2.17)(supports-color@5.5.0)(typescript@6.0.3)(zod@4.4.3)':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.27.1(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.27.1(supports-color@5.5.0)(zod@4.4.3)
       ink: 6.3.1(@types/react@19.2.17)(react@19.2.7)
       react: 19.2.7
-      react-docgen-typescript: 2.4.0(typescript@5.9.3)
+      react-docgen-typescript: 2.4.0(typescript@6.0.3)
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - '@types/react'
@@ -6066,7 +6066,7 @@ snapshots:
       '@types/babel__core': 7.20.5
       '@types/node': 24.13.2
       json-stable-stringify: 1.3.0
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   '@hono/node-server@1.19.14(hono@4.12.27)':
     dependencies:
@@ -6225,7 +6225,7 @@ snapshots:
 
   '@leichtgewicht/ip-codec@2.0.5': {}
 
-  '@modelcontextprotocol/sdk@1.27.1(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.27.1(supports-color@5.5.0)(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 1.19.14(hono@4.12.27)
       ajv: 8.20.0
@@ -6235,8 +6235,8 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.0
-      express: 5.2.1
-      express-rate-limit: 8.5.2(express@5.2.1)
+      express: 5.2.1(supports-color@5.5.0)
+      express-rate-limit: 8.5.2(express@5.2.1(supports-color@5.5.0))
       hono: 4.12.27
       jose: 6.2.3
       json-schema-typed: 8.0.2
@@ -6650,12 +6650,12 @@ snapshots:
       '@svgr/babel-plugin-transform-react-native-svg': 8.1.0(@babel/core@7.29.7(supports-color@5.5.0))
       '@svgr/babel-plugin-transform-svg-component': 8.0.0(@babel/core@7.29.7(supports-color@5.5.0))
 
-  '@svgr/core@8.1.0(typescript@5.9.3)':
+  '@svgr/core@8.1.0(typescript@6.0.3)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@5.5.0)
       '@svgr/babel-preset': 8.1.0(@babel/core@7.29.7(supports-color@5.5.0))
       camelcase: 6.3.0
-      cosmiconfig: 8.3.6(typescript@5.9.3)
+      cosmiconfig: 8.3.6(typescript@6.0.3)
       snake-case: 3.0.4
     transitivePeerDependencies:
       - supports-color
@@ -6666,35 +6666,35 @@ snapshots:
       '@babel/types': 7.29.7
       entities: 4.5.0
 
-  '@svgr/plugin-jsx@8.1.0(@svgr/core@8.1.0(typescript@5.9.3))':
+  '@svgr/plugin-jsx@8.1.0(@svgr/core@8.1.0(typescript@6.0.3))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@5.5.0)
       '@svgr/babel-preset': 8.1.0(@babel/core@7.29.7(supports-color@5.5.0))
-      '@svgr/core': 8.1.0(typescript@5.9.3)
+      '@svgr/core': 8.1.0(typescript@6.0.3)
       '@svgr/hast-util-to-babel-ast': 8.0.0
       svg-parser: 2.0.4
     transitivePeerDependencies:
       - supports-color
 
-  '@svgr/plugin-svgo@8.1.0(@svgr/core@8.1.0(typescript@5.9.3))(typescript@5.9.3)':
+  '@svgr/plugin-svgo@8.1.0(@svgr/core@8.1.0(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
-      '@svgr/core': 8.1.0(typescript@5.9.3)
-      cosmiconfig: 8.3.6(typescript@5.9.3)
+      '@svgr/core': 8.1.0(typescript@6.0.3)
+      cosmiconfig: 8.3.6(typescript@6.0.3)
       deepmerge: 4.3.1
       svgo: 3.3.3
     transitivePeerDependencies:
       - typescript
 
-  '@svgr/webpack@8.1.0(supports-color@5.5.0)(typescript@5.9.3)':
+  '@svgr/webpack@8.1.0(supports-color@5.5.0)(typescript@6.0.3)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@5.5.0)
       '@babel/plugin-transform-react-constant-elements': 7.29.7(@babel/core@7.29.7)
       '@babel/preset-env': 7.29.7(@babel/core@7.29.7)(supports-color@5.5.0)
       '@babel/preset-react': 7.29.7(@babel/core@7.29.7)
       '@babel/preset-typescript': 7.29.7(@babel/core@7.29.7)
-      '@svgr/core': 8.1.0(typescript@5.9.3)
-      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))
-      '@svgr/plugin-svgo': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))(typescript@5.9.3)
+      '@svgr/core': 8.1.0(typescript@6.0.3)
+      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@6.0.3))
+      '@svgr/plugin-svgo': 8.1.0(@svgr/core@8.1.0(typescript@6.0.3))(typescript@6.0.3)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -6933,7 +6933,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@voidzero-dev/vite-plus-core@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)':
+  '@voidzero-dev/vite-plus-core@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)':
     dependencies:
       '@oxc-project/runtime': 0.138.0
       '@oxc-project/types': 0.138.0
@@ -6946,7 +6946,7 @@ snapshots:
       jiti: 2.7.0
       terser: 5.48.0
       tsx: 4.22.5
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   '@voidzero-dev/vite-plus-darwin-arm64@0.2.2':
     optional: true
@@ -7216,7 +7216,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  body-parser@2.3.0:
+  body-parser@2.3.0(supports-color@5.5.0):
     dependencies:
       bytes: 3.1.2
       content-type: 2.0.0
@@ -7414,23 +7414,23 @@ snapshots:
       object-assign: 4.1.1
       vary: 1.1.2
 
-  cosmiconfig@8.3.6(typescript@5.9.3):
+  cosmiconfig@8.3.6(typescript@6.0.3):
     dependencies:
       import-fresh: 3.3.1
       js-yaml: 4.2.0
       parse-json: 5.2.0
       path-type: 4.0.0
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
-  cosmiconfig@9.0.1(typescript@5.9.3):
+  cosmiconfig@9.0.1(typescript@6.0.3):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.2.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   cross-spawn@7.0.6:
     dependencies:
@@ -7745,9 +7745,9 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  express-rate-limit@8.5.2(express@5.2.1):
+  express-rate-limit@8.5.2(express@5.2.1(supports-color@5.5.0)):
     dependencies:
-      express: 5.2.1
+      express: 5.2.1(supports-color@5.5.0)
       ip-address: 10.2.0
 
   express@4.22.2:
@@ -7786,10 +7786,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  express@5.2.1:
+  express@5.2.1(supports-color@5.5.0):
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.3.0(supports-color@5.5.0)
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -7799,7 +7799,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 2.1.1
+      finalhandler: 2.1.1(supports-color@5.5.0)
       fresh: 2.0.0
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
@@ -7810,8 +7810,8 @@ snapshots:
       proxy-addr: 2.0.7
       qs: 6.15.3
       range-parser: 1.3.0
-      router: 2.2.0
-      send: 1.2.1
+      router: 2.2.0(supports-color@5.5.0)
+      send: 1.2.1(supports-color@5.5.0)
       serve-static: 2.2.1
       statuses: 2.0.2
       type-is: 2.1.0
@@ -7851,7 +7851,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  finalhandler@2.1.1:
+  finalhandler@2.1.1(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       encodeurl: 2.0.0
@@ -8485,7 +8485,7 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  oxfmt@0.57.0(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))):
+  oxfmt@0.57.0(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -8508,7 +8508,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.57.0
       '@oxfmt/binding-win32-ia32-msvc': 0.57.0
       '@oxfmt/binding-win32-x64-msvc': 0.57.0
-      vite-plus: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
+      vite-plus: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
 
   oxlint-tsgolint@0.24.0:
     optionalDependencies:
@@ -8519,7 +8519,7 @@ snapshots:
       '@oxlint-tsgolint/win32-arm64': 0.24.0
       '@oxlint-tsgolint/win32-x64': 0.24.0
 
-  oxlint@1.72.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))):
+  oxlint@1.72.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.72.0
       '@oxlint/binding-android-arm64': 1.72.0
@@ -8541,7 +8541,7 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.72.0
       '@oxlint/binding-win32-x64-msvc': 1.72.0
       oxlint-tsgolint: 0.24.0
-      vite-plus: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
+      vite-plus: 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
 
   p-limit@2.3.0:
     dependencies:
@@ -8654,9 +8654,9 @@ snapshots:
     dependencies:
       postcss: 8.5.15
 
-  postcss-loader@8.2.1(postcss@8.5.15)(typescript@5.9.3)(webpack@5.108.3):
+  postcss-loader@8.2.1(postcss@8.5.15)(typescript@6.0.3)(webpack@5.108.3):
     dependencies:
-      cosmiconfig: 9.0.1(typescript@5.9.3)
+      cosmiconfig: 9.0.1(typescript@6.0.3)
       jiti: 2.7.0
       postcss: 8.5.15
       semver: 7.8.2
@@ -8886,9 +8886,9 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  react-docgen-typescript@2.4.0(typescript@5.9.3):
+  react-docgen-typescript@2.4.0(typescript@6.0.3):
     dependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   react-dom@19.2.7(react@19.2.7):
     dependencies:
@@ -9025,7 +9025,7 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.0.3
       '@rolldown/binding-win32-x64-msvc': 1.0.3
 
-  router@2.2.0:
+  router@2.2.0(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       depd: 2.0.0
@@ -9097,7 +9097,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  send@1.2.1:
+  send@1.2.1(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       encodeurl: 2.0.0
@@ -9139,7 +9139,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1
+      send: 1.2.1(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9425,12 +9425,12 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  ts-loader@9.6.2(loader-utils@2.0.4)(typescript@5.9.3)(webpack@5.108.3):
+  ts-loader@9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.108.3):
     dependencies:
       chalk: 4.1.2
       picomatch: 4.0.4
       source-map: 0.7.6
-      typescript: 5.9.3
+      typescript: 6.0.3
       webpack: 5.108.3(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
     optionalDependencies:
       loader-utils: 2.0.4
@@ -9462,7 +9462,7 @@ snapshots:
       media-typer: 1.1.0
       mime-types: 3.0.2
 
-  typescript@5.9.3: {}
+  typescript@6.0.3: {}
 
   undefsafe@2.0.5: {}
 
@@ -9512,7 +9512,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)):
+  vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)):
     dependencies:
       '@oxc-project/types': 0.138.0
       '@oxlint/plugins': 1.68.0
@@ -9525,9 +9525,9 @@ snapshots:
       '@vitest/snapshot': 4.1.9
       '@vitest/spy': 4.1.9
       '@vitest/utils': 4.1.9
-      '@voidzero-dev/vite-plus-core': 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)
-      oxfmt: 0.57.0(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)))
-      oxlint: 1.72.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)))
+      '@voidzero-dev/vite-plus-core': 0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)
+      oxfmt: 0.57.0(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)))
+      oxlint: 1.72.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.2(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.5)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5)))
       oxlint-tsgolint: 0.24.0
       vitest: 4.1.9(@types/node@24.13.2)(@vitest/browser-preview@4.1.9)(jsdom@29.1.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.5))
     optionalDependencies:
