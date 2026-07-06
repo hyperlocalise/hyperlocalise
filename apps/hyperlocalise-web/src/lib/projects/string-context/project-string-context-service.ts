@@ -439,7 +439,11 @@ export class ProjectStringContextService extends ProjectServiceBase {
       `String key: ${input.key}`,
       `Source text: ${input.text}`,
       input.context ? `Crowdin/context note: ${input.context}` : null,
-      "Find where this string appears in the connected repository and explain localization-relevant context for translators.",
+      [
+        "Find where this string appears in the connected repository and return localization-relevant context for translators.",
+        "Use the required final summary sections: What it is, Where/how it shows, and Translation guidance (with bullets).",
+        "In Translation guidance, note sibling strings that should stay terminologically consistent when repository evidence supports it.",
+      ].join(" "),
     ]
       .filter((line): line is string => line !== null)
       .join("\n\n");

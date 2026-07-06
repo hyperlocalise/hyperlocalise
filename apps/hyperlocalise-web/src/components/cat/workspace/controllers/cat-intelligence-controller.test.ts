@@ -524,6 +524,24 @@ describe("CatIntelligenceController", () => {
       expect(workspace.revealedAgentContextSegmentIds.has("seg-02")).toBe(true);
     });
 
+    it("returns false when revealing cached context without refetching", async () => {
+      const lookupSegmentContext = vi.fn();
+      const workspace = createTestWorkspace({
+        segmentIntelligence: {
+          "seg-02": {
+            ...createCatWorkspaceState().intelligence,
+            agentContext: "Existing context.",
+          },
+        },
+      });
+      const { controller } = createController(workspace, {
+        intl,
+        services: { lookupSegmentContext },
+      });
+
+      await expect(controller.askQuestion("seg-02")).resolves.toBe(false);
+    });
+
     it("refetches agent context when forceRefresh is true", async () => {
       const lookupSegmentContext = vi.fn().mockResolvedValue("Updated context.");
       const workspace = createTestWorkspace({
@@ -545,6 +563,17 @@ describe("CatIntelligenceController", () => {
         forceRefresh: true,
       });
       expect(workspace.segmentIntelligence["seg-02"]?.agentContext).toBe("Updated context.");
+    });
+
+    it("returns true after a successful fresh lookup", async () => {
+      const lookupSegmentContext = vi.fn().mockResolvedValue("Fresh context.");
+      const workspace = createTestWorkspace();
+      const { controller } = createController(workspace, {
+        intl,
+        services: { lookupSegmentContext },
+      });
+
+      await expect(controller.askQuestion("seg-02")).resolves.toBe(true);
     });
 
     it("records context lookup failures as format checks", async () => {

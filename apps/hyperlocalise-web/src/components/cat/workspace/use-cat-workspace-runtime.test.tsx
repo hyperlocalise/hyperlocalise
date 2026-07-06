@@ -752,6 +752,78 @@ describe("useCatWorkspaceRuntime", () => {
     );
   });
 
+  it("requests an AI recommendation after a fresh context lookup", async () => {
+    const lookupSegmentContext = vi.fn().mockImplementation((_segment, options) => {
+      if (options?.cachedOnly) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve("Hero title on the sign-in page.");
+    });
+    const generateAiRecommendation = vi.fn().mockResolvedValue({
+      aiSuggestion: "Titre héros",
+      aiReasoning: "Sign-in hero headline.",
+      formatChecks: [],
+    });
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentContext,
+        generateAiRecommendation,
+      },
+    });
+
+    await act(async () => {
+      await result.current.dependencies.review.onAskQuestion("seg-02");
+    });
+
+    expect(generateAiRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not request an AI recommendation when cached context is hydrated", async () => {
+    const lookupSegmentContext = vi.fn().mockResolvedValue("Cached context from the repository.");
+    const generateAiRecommendation = vi.fn();
+    const { result } = renderController(undefined, {
+      services: {
+        lookupSegmentContext,
+        generateAiRecommendation,
+      },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
+
+    await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(1));
+
+    expect(generateAiRecommendation).not.toHaveBeenCalled();
+  });
+
+  it("does not request an AI recommendation when revealing existing context", async () => {
+    const initialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-02",
+      segmentIntelligence: {
+        "seg-02": {
+          ...createCatWorkspaceState().intelligence,
+          agentContext: "Existing context.",
+        },
+      },
+    });
+    const lookupSegmentContext = vi.fn();
+    const generateAiRecommendation = vi.fn();
+    const { result } = renderController(initialState, {
+      services: {
+        lookupSegmentContext,
+        generateAiRecommendation,
+      },
+    });
+
+    await act(async () => {
+      await result.current.dependencies.review.onAskQuestion("seg-02");
+    });
+
+    expect(lookupSegmentContext).not.toHaveBeenCalled();
+    expect(generateAiRecommendation).not.toHaveBeenCalled();
+  });
+
   it("keeps context loading scoped to the selected segment across concurrent lookups", async () => {
     const secondSegmentLookup = createDeferred<string>();
     const thirdSegmentLookup = createDeferred<string>();
