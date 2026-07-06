@@ -55,7 +55,8 @@ describe("smartlingTmsProvider.pullReview", () => {
       }
 
       if (path.endsWith("/issues/list") && method === "POST") {
-        const body = JSON.parse(String(init?.body ?? "{}")) as {
+        const requestBody = typeof init?.body === "string" ? init.body : "{}";
+        const body = JSON.parse(requestBody) as {
           stringFilter?: { hashcodes?: string[] };
         };
         issueRequestHashcodes.push(body.stringFilter?.hashcodes ?? []);
