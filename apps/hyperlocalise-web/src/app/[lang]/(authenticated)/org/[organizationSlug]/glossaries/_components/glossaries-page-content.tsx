@@ -3,38 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { Add01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
-import { TypographyP } from "@/components/ui/typography";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
-
-import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
 
 import {
   GLOSSARY_SYNC_FILTERS,
@@ -42,11 +17,6 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import {
-  PageHeader,
-  WorkspaceFilterField,
-  workspaceFilterTriggerClassName,
-} from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
   mapGlossaryToListRow,
@@ -56,33 +26,11 @@ import {
   type GlossaryListRow,
 } from "./glossary-list";
 import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
-import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 import {
-  ProjectSourceLocalePicker,
-  ProjectTargetLocalesPicker,
-} from "../../projects/_components/project-locale-picker";
-
-const GLOSSARIES_PAGE_SIZE = 100;
-
-const sourceFilterLabels = {
-  all: "All sources",
-  native: "Workspace",
-  external_tms: "Provider",
-} as const;
-
-const resourceTypeFilterLabels = {
-  all: "All resource types",
-  glossary: "Glossary",
-  term_base: "Term base",
-} as const;
-
-const syncFilterLabels = {
-  all: "All sync states",
-  synced: "Synced",
-  stale: "Stale",
-  syncing: "Syncing",
-  error: "Sync error",
-} as const;
+  GlossariesPageView,
+  GLOSSARIES_PAGE_SIZE,
+  type GlossaryCreateForm,
+} from "./glossaries-page-view";
 
 type GlossaryListFilters = {
   searchQuery: string;
@@ -147,13 +95,6 @@ const credentialsQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
-type GlossaryCreateForm = {
-  name: string;
-  description: string;
-  sourceLocale: string;
-  targetLocales: string[];
-};
-
 function createEmptyGlossaryForm(): GlossaryCreateForm {
   return {
     name: "",
@@ -199,6 +140,14 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
 
   const hasActiveFilters = activeFilterCount > 0;
 
+  function clearFilters() {
+    setSearchQuery("");
+    setSourceFilter("all");
+    setProviderFilter("all");
+    setResourceTypeFilter("all");
+    setSyncFilter("all");
+  }
+
   return {
     filters,
     searchQuery,
@@ -213,6 +162,7 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
     setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
+    clearFilters,
   };
 }
 
@@ -245,6 +195,7 @@ export function GlossariesPageContent({
     setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
+    clearFilters,
   } = useGlossaryFilters(searchParams);
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderGlossaries = Boolean(activeTmsProvider);
@@ -442,18 +393,6 @@ export function GlossariesPageContent({
     ? Boolean(activeTmsProvider)
     : credentialsQuery.isSuccess && connectedCredentials.length > 0;
 
-  const liveProjectSelectionRequired = useLiveProviderGlossaries && !selectedExternalProjectId;
-
-  const emptyTitle = hasConnectedProvider ? "No glossaries yet" : "Connect a TMS provider";
-  const emptyDescription = hasConnectedProvider
-    ? "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
-    : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace.";
-
-  const glossaryCountLabel =
-    glossariesQuery.isSuccess && glossaryTotal > 0
-      ? `${glossaryTotal} ${glossaryTotal === 1 ? "glossary" : "glossaries"}`
-      : undefined;
-
   function submitCreateGlossary() {
     const errors: { name?: string; targetLocales?: string } = {};
     if (!createForm.name.trim()) {
@@ -470,335 +409,47 @@ export function GlossariesPageContent({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <PageHeader
-        icon={BookOpenTextIcon}
-        label="Workspace"
-        title="Glossaries"
-        description="Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only."
-        statusLabel={glossaryCountLabel}
-        actions={
-          allowCreateGlossaries ? (
-            <Button
-              type="button"
-              onClick={() => setCreateDialogOpen(true)}
-              className="w-full sm:w-fit"
-            >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create glossary
-            </Button>
-          ) : null
-        }
-      />
-
-      {useLiveProviderGlossaries ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <TmsLiveProjectPicker
-            organizationSlug={organizationSlug}
-            value={selectedExternalProjectId}
-            onValueChange={setSelectedExternalProjectId}
-          />
-        </div>
-      ) : null}
-
-      {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
-            <Input
-              placeholder="Name, project, or external ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
-          </WorkspaceFilterField>
-          <WorkspaceFilterField label="Source" className="w-full sm:w-40">
-            <Select
-              value={sourceFilter}
-              onValueChange={(value) => {
-                setSourceFilter(value ?? "all");
-                if (value === "native") {
-                  setProviderFilter("all");
-                  setResourceTypeFilter("all");
-                  setSyncFilter("all");
-                }
-              }}
-            >
-              <SelectTrigger className={workspaceFilterTriggerClassName}>
-                <SelectValue>
-                  {sourceFilterLabels[sourceFilter as keyof typeof sourceFilterLabels] ??
-                    sourceFilter}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" label={sourceFilterLabels.all}>
-                  {sourceFilterLabels.all}
-                </SelectItem>
-                <SelectItem value="native" label={sourceFilterLabels.native}>
-                  {sourceFilterLabels.native}
-                </SelectItem>
-                <SelectItem value="external_tms" label={sourceFilterLabels.external_tms}>
-                  {sourceFilterLabels.external_tms}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </WorkspaceFilterField>
-
-          {hasExternalGlossaries && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Provider" className="w-full sm:w-40">
-              <Select
-                value={providerFilter}
-                onValueChange={(value) => setProviderFilter(value ?? "all")}
-              >
-                <SelectTrigger className={workspaceFilterTriggerClassName}>
-                  <SelectValue>
-                    {providerFilter === "all"
-                      ? "All providers"
-                      : providerLabel(providerFilter as (typeof TMS_PROVIDER_KINDS)[number])}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" label="All providers">
-                    All providers
-                  </SelectItem>
-                  {providerKinds.map((kind) => (
-                    <SelectItem key={kind} value={kind} label={providerLabel(kind)}>
-                      {providerLabel(kind)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </WorkspaceFilterField>
-          ) : null}
-
-          {hasResourceTypes && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Resource" className="w-full sm:w-44">
-              <Select
-                value={resourceTypeFilter}
-                onValueChange={(value) => setResourceTypeFilter(value ?? "all")}
-              >
-                <SelectTrigger className={workspaceFilterTriggerClassName}>
-                  <SelectValue>
-                    {resourceTypeFilterLabels[
-                      resourceTypeFilter as keyof typeof resourceTypeFilterLabels
-                    ] ?? resourceTypeFilter}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" label={resourceTypeFilterLabels.all}>
-                    {resourceTypeFilterLabels.all}
-                  </SelectItem>
-                  <SelectItem value="glossary" label={resourceTypeFilterLabels.glossary}>
-                    {resourceTypeFilterLabels.glossary}
-                  </SelectItem>
-                  <SelectItem value="term_base" label={resourceTypeFilterLabels.term_base}>
-                    {resourceTypeFilterLabels.term_base}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </WorkspaceFilterField>
-          ) : null}
-
-          {hasExternalGlossaries && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Sync" className="w-full sm:w-40">
-              <Select value={syncFilter} onValueChange={(value) => setSyncFilter(value ?? "all")}>
-                <SelectTrigger className={workspaceFilterTriggerClassName}>
-                  <SelectValue>
-                    {syncFilterLabels[syncFilter as keyof typeof syncFilterLabels] ?? syncFilter}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" label={syncFilterLabels.all}>
-                    {syncFilterLabels.all}
-                  </SelectItem>
-                  <SelectItem value="synced" label={syncFilterLabels.synced}>
-                    {syncFilterLabels.synced}
-                  </SelectItem>
-                  <SelectItem value="stale" label={syncFilterLabels.stale}>
-                    {syncFilterLabels.stale}
-                  </SelectItem>
-                  <SelectItem value="syncing" label={syncFilterLabels.syncing}>
-                    {syncFilterLabels.syncing}
-                  </SelectItem>
-                  <SelectItem value="error" label={syncFilterLabels.error}>
-                    {syncFilterLabels.error}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </WorkspaceFilterField>
-          ) : null}
-
-          {activeFilterCount > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery("");
-                setSourceFilter("all");
-                setProviderFilter("all");
-                setResourceTypeFilter("all");
-                setSyncFilter("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {glossariesQuery.isSuccess && hasActiveFilters && glossaryTotal === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          No glossaries match your filters.{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setSourceFilter("all");
-              setProviderFilter("all");
-              setResourceTypeFilter("all");
-              setSyncFilter("all");
-            }}
-            className="text-subtle-foreground underline hover:text-foreground"
-          >
-            Clear filters
-          </button>
-        </div>
-      ) : null}
-
-      {liveProjectSelectionRequired ? (
-        <div className="space-y-3 py-10">
-          <TypographyP className="text-sm font-medium text-foreground">
-            Choose a TMS project
-          </TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
-            Select a project above to load live glossaries and term bases from your connected
-            provider.
-          </TypographyP>
-        </div>
-      ) : (
-        <GlossariesTable
-          glossaries={glossaries}
-          glossariesQuery={glossariesQuery}
-          organizationSlug={organizationSlug}
-          emptyTitle={allowCreateGlossaries ? "No glossaries yet" : emptyTitle}
-          emptyDescription={
-            allowCreateGlossaries
-              ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
-              : emptyDescription
-          }
-          emptyAction={
-            allowCreateGlossaries ? (
-              <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
-                Create glossary
-              </Button>
-            ) : (
-              <GlossariesEmptyAction organizationSlug={organizationSlug} />
-            )
-          }
-        />
-      )}
-
-      {!liveProjectSelectionRequired &&
-      glossariesQuery.isSuccess &&
-      glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              Previous
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-h-[min(85dvh,42rem)] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Create glossary</DialogTitle>
-            <DialogDescription>
-              Add a first-party terminology library. You can import and edit terms after creation.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <Field className="gap-1.5">
-              <FieldLabel>Name</FieldLabel>
-              <Input
-                value={createForm.name}
-                onChange={(event) =>
-                  setCreateForm((current) => ({ ...current, name: event.target.value }))
-                }
-                disabled={createGlossary.isPending}
-                placeholder="Product terminology"
-              />
-              <FieldError
-                errors={createErrors.name ? [{ message: createErrors.name }] : undefined}
-              />
-            </Field>
-            <ProjectSourceLocalePicker
-              value={createForm.sourceLocale}
-              onChange={(sourceLocale) =>
-                setCreateForm((current) => ({ ...current, sourceLocale }))
-              }
-              disabled={createGlossary.isPending}
-            />
-            <ProjectTargetLocalesPicker
-              value={createForm.targetLocales}
-              sourceLocale={createForm.sourceLocale}
-              onChange={(targetLocales) =>
-                setCreateForm((current) => ({
-                  ...current,
-                  targetLocales: targetLocales.slice(0, 1),
-                }))
-              }
-              disabled={createGlossary.isPending}
-              error={createErrors.targetLocales}
-            />
-            <Field className="gap-1.5">
-              <FieldLabel>Description</FieldLabel>
-              <Textarea
-                value={createForm.description}
-                onChange={(event) =>
-                  setCreateForm((current) => ({ ...current, description: event.target.value }))
-                }
-                disabled={createGlossary.isPending}
-                placeholder="Where this glossary should be used"
-              />
-            </Field>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateDialogOpen(false)}
-              disabled={createGlossary.isPending}
-            >
-              Cancel
-            </Button>
-            <Button onClick={submitCreateGlossary} disabled={createGlossary.isPending}>
-              {createGlossary.isPending ? <Spinner /> : null}
-              Create glossary
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </main>
+    <GlossariesPageView
+      organizationSlug={organizationSlug}
+      glossaries={glossaries}
+      glossaryTotal={glossaryTotal}
+      isLoading={glossariesQuery.isLoading}
+      isError={glossariesQuery.isError}
+      isSuccess={glossariesQuery.isSuccess}
+      error={glossariesQuery.error}
+      allowCreateGlossaries={allowCreateGlossaries}
+      hasConnectedProvider={hasConnectedProvider}
+      useLiveProviderGlossaries={useLiveProviderGlossaries}
+      selectedExternalProjectId={selectedExternalProjectId}
+      onSelectedExternalProjectIdChange={setSelectedExternalProjectId}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      sourceFilter={sourceFilter}
+      onSourceFilterChange={setSourceFilter}
+      providerFilter={providerFilter}
+      onProviderFilterChange={setProviderFilter}
+      resourceTypeFilter={resourceTypeFilter}
+      onResourceTypeFilterChange={setResourceTypeFilter}
+      syncFilter={syncFilter}
+      onSyncFilterChange={setSyncFilter}
+      providerKinds={providerKinds}
+      hasExternalGlossaries={hasExternalGlossaries}
+      hasResourceTypes={hasResourceTypes}
+      hasActiveFilters={hasActiveFilters}
+      activeFilterCount={activeFilterCount}
+      onClearFilters={clearFilters}
+      page={page}
+      totalPages={totalPages}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      onPageChange={setPage}
+      createDialogOpen={createDialogOpen}
+      onCreateDialogOpenChange={setCreateDialogOpen}
+      createForm={createForm}
+      onCreateFormChange={setCreateForm}
+      createErrors={createErrors}
+      isCreating={createGlossary.isPending}
+      onSubmitCreateGlossary={submitCreateGlossary}
+    />
   );
 }
