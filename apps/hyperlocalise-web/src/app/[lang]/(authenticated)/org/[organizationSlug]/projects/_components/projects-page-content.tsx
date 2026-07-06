@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
 import {
   PageHeader,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { parseSmartlingCredentials } from "./smartling-credentials";
+import { parseSmartlingCredentials } from "./smartling-api";
 
 describe("parseSmartlingCredentials", () => {
   it("parses JSON credentials with account and project identifiers", () => {

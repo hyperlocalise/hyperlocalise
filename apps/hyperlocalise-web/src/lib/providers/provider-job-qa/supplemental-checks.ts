@@ -1,4 +1,4 @@
-import type { ExternalTmsTranslationUnit } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsTranslationUnit } from "@/lib/providers/jobs/tms-provider-types";
 
 import {
   confidenceForProviderCheckType,

@@ -33,7 +33,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 import type { ProviderQaFinding, ProviderQaSeverity } from "@/lib/providers/provider-job-qa/types";
 import type { ProviderReviewThread } from "@/lib/providers/provider-job-review/types";
 import { cn } from "@/lib/primitives/cn";

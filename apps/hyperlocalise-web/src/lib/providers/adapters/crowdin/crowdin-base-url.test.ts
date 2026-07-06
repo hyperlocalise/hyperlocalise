@@ -6,7 +6,7 @@ import {
   isCrowdinEnterpriseApiBaseUrl,
   normalizeCrowdinApiBaseUrl,
   resolveCrowdinApiBaseUrl,
-} from "./crowdin-base-url";
+} from "./crowdin-api";
 
 describe("crowdin-base-url", () => {
   it("resolves the default SaaS API base URL", () => {

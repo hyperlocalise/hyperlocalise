@@ -14,8 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { ProjectAvatar } from "./project-avatar";

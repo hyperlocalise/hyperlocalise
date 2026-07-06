@@ -15,7 +15,7 @@ import {
   assertProviderCredentialAdmin,
   getOrganizationProviderCredentialSummary,
   upsertOrganizationProviderCredential,
-} from "@/lib/providers/organization-provider-credentials";
+} from "@/lib/providers/credentials/organization-provider-credentials";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import {
   clearStoredOnboardingState,

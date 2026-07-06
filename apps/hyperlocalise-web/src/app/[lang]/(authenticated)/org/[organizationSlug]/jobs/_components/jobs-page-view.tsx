@@ -25,8 +25,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
-import { TmsProviderBrandMark } from "@/lib/providers/tms-provider-brand-mark";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
+import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-mark";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
 import { JobsKanbanBoard, JobRowActions } from "./jobs-kanban-board";
 import {

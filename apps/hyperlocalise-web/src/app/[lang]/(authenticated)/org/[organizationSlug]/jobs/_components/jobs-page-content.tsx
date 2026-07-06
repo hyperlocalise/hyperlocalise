@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 

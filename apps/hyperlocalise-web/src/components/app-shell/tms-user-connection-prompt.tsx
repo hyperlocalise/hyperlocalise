@@ -2,7 +2,7 @@
 
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { TmsUserConnectButton } from "@/components/app-shell/tms-user-connect-button";
-import { tmsUserConnectionRequiredMessage } from "@/lib/providers/tms-user-connection-shared";
+import { tmsUserConnectionRequiredMessage } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 export function TmsUserConnectionErrorPanel({
   organizationSlug,

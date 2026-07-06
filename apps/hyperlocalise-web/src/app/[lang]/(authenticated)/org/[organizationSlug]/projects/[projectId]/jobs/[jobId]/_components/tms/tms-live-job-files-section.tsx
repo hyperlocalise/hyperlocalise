@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
 import { tmsLiveFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";

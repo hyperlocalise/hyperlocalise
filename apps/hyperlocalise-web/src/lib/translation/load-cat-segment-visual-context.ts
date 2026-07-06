@@ -1,13 +1,14 @@
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import { loadCrowdinCatVisualContext } from "@/lib/providers/adapters/crowdin/crowdin-cat-visual-context";
+import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
-import { loadLokaliseCatVisualContext } from "@/lib/providers/adapters/lokalise/lokalise-cat-visual-context";
-import { loadPhraseCatVisualContext } from "@/lib/providers/adapters/phrase/phrase-cat-visual-context";
-import { loadSmartlingCatVisualContext } from "@/lib/providers/adapters/smartling/smartling-cat-visual-context";
+import { lokaliseTmsProvider } from "@/lib/providers/adapters/lokalise/lokalise-provider";
+import { PhraseApiClient } from "@/lib/providers/adapters/phrase/phrase-api";
+import { phraseTmsProvider } from "@/lib/providers/adapters/phrase/phrase-provider";
 import { SmartlingApiClient } from "@/lib/providers/adapters/smartling/smartling-api";
+import { smartlingTmsProvider } from "@/lib/providers/adapters/smartling/smartling-provider";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import { tryLoadActiveTmsProviderContext } from "@/lib/providers/tms-provider-live";
+import { tryLoadActiveTmsProviderContext } from "@/lib/providers/jobs/tms-provider-live";
 
 export async function loadCatSegmentVisualContext(input: {
   organizationId: string;
@@ -33,7 +34,7 @@ export async function loadCatSegmentVisualContext(input: {
         baseUrl: context.credential.baseUrl ?? undefined,
       });
 
-      return loadCrowdinCatVisualContext({
+      return crowdinTmsProvider.loadCatVisualContext({
         client,
         externalProjectId: input.externalProjectId,
         externalStringId: input.externalStringId,
@@ -45,27 +46,32 @@ export async function loadCatSegmentVisualContext(input: {
         baseUrl: context.credential.baseUrl ?? undefined,
       });
 
-      return loadLokaliseCatVisualContext({
+      return lokaliseTmsProvider.loadCatVisualContext({
         client,
         externalProjectId: input.externalProjectId,
         externalStringId: input.externalStringId,
       });
     }
-    case "phrase":
-      return loadPhraseCatVisualContext({
+    case "phrase": {
+      const client = new PhraseApiClient({
         token: context.secretMaterial,
         region: context.credential.region,
         baseUrl: context.credential.baseUrl ?? undefined,
+      });
+
+      return phraseTmsProvider.loadCatVisualContext({
+        client,
         externalProjectId: input.externalProjectId,
         externalStringId: input.externalStringId,
       });
+    }
     case "smartling": {
       const client = new SmartlingApiClient({
         credentials: context.secretMaterial,
         authBaseUrl: context.credential.baseUrl ?? undefined,
       });
 
-      return loadSmartlingCatVisualContext({
+      return smartlingTmsProvider.loadCatVisualContext({
         client,
         externalProjectId: input.externalProjectId,
         externalStringId: input.externalStringId,

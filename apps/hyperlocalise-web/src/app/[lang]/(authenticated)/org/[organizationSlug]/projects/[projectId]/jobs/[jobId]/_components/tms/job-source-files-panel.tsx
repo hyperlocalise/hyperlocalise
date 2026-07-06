@@ -9,7 +9,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 import { toast } from "sonner";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { pushLokaliseTranslations } from "./lokalise-translation-pusher";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("pushLokaliseTranslations", () => {
+describe("lokaliseTmsProvider.pushTranslations", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -58,10 +58,9 @@ describe("pushLokaliseTranslations", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await pushLokaliseTranslations({
+    const result = await lokaliseTmsProvider.pushTranslations({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "42",
       credential: {
@@ -71,7 +70,7 @@ describe("pushLokaliseTranslations", () => {
       project: {} as never,
       secretMaterial: "token",
       translations: [{ locale: "fr", externalStringId: "4242", key: "hello", text: "Bonjour" }],
-    });
+    } as never);
 
     expect(result.uploaded).toBe(1);
     expect(result.failed).toBe(0);
@@ -117,10 +116,9 @@ describe("pushLokaliseTranslations", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await pushLokaliseTranslations({
+    const result = await lokaliseTmsProvider.pushTranslations({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "42",
       credential: {
@@ -133,7 +131,7 @@ describe("pushLokaliseTranslations", () => {
         { locale: "fr", externalStringId: "4242", key: "hello", text: "Bonjour" },
         { locale: "fr", externalStringId: "9999", key: "missing", text: "Échec" },
       ],
-    });
+    } as never);
 
     expect(result.uploaded).toBe(1);
     expect(result.failed).toBe(1);

@@ -28,7 +28,7 @@ import { db, schema, type DatabaseClient } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
+import { assertProviderCredentialAdmin } from "@/lib/providers/credentials/organization-provider-credentials";
 
 import { updateSlackAgentBodySchema } from "./agent-slack.schema";
 

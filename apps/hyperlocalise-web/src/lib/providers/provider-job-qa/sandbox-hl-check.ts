@@ -13,7 +13,7 @@ import {
   buildHlCheckWorkspaceBundle,
   type HlCheckWorkspaceBundle,
 } from "./materialize-hl-check-workspace";
-import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;

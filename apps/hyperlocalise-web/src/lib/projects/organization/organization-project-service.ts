@@ -4,12 +4,12 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encodeProviderProjectId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { ExternalTmsSyncService } from "@/lib/projects/external-tms/external-tms-sync-service";

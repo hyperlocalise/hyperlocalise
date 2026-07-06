@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { searchSmartlingGlossaryMatches } from "./smartling-glossary-matcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("searchSmartlingGlossaryMatches", () => {
+describe("smartlingTmsProvider.searchGlossaryMatches", () => {
   it("normalizes live glossary matches for attached glossaries", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       if (String(url).endsWith("/authenticate") && init?.method === "POST") {
@@ -42,7 +42,7 @@ describe("searchSmartlingGlossaryMatches", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchSmartlingGlossaryMatches({
+    const matches = await smartlingTmsProvider.searchGlossaryMatches({
       organizationId: "org_1",
       projectId: "project_1",
       providerKind: "smartling",
@@ -86,7 +86,7 @@ describe("searchSmartlingGlossaryMatches", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchSmartlingGlossaryMatches({
+    const matches = await smartlingTmsProvider.searchGlossaryMatches({
       organizationId: "org_1",
       projectId: "project_1",
       providerKind: "smartling",

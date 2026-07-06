@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { LokaliseApiClient } from "./lokalise-api";
-import { searchLokaliseCatConcordance } from "./lokalise-cat-concordance";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("searchLokaliseCatConcordance", () => {
+describe("searchCatConcordance", () => {
   it("maps Lokalise glossary and project-key TM matches without attached resource filtering", async () => {
     const listGlossaryTerms = vi.fn().mockResolvedValue([
       {
@@ -46,7 +46,7 @@ describe("searchLokaliseCatConcordance", () => {
       listKeys,
     } as unknown as LokaliseApiClient;
 
-    const result = await searchLokaliseCatConcordance({
+    const result = await lokaliseTmsProvider.searchCatConcordance({
       client,
       externalProjectId: "proj.123",
       sourceLocale: "en",
@@ -98,7 +98,7 @@ describe("searchLokaliseCatConcordance", () => {
       listKeys: vi.fn().mockResolvedValue([]),
     } as unknown as LokaliseApiClient;
 
-    const result = await searchLokaliseCatConcordance({
+    const result = await lokaliseTmsProvider.searchCatConcordance({
       client,
       externalProjectId: "proj.123",
       sourceLocale: "en",

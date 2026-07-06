@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { requestUrlString } from "../../fetch-mock-helpers";
-import { pullLokaliseTaskContent } from "./lokalise-content-puller";
+import { requestUrlString } from "@/lib/providers/shared/fetch-mock-helpers";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("pullLokaliseTaskContent", () => {
+describe("lokaliseTmsProvider.pullTaskContent", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -93,10 +93,9 @@ describe("pullLokaliseTaskContent", () => {
 
     globalThis.fetch = fetchMock;
 
-    const content = await pullLokaliseTaskContent({
+    const content = await lokaliseTmsProvider.pullTaskContent({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "42",
       credential: {

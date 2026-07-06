@@ -3,11 +3,11 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   isEncodedProviderProjectId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 
 import { listAgentProjects } from "@/lib/tools/list-agent-projects";

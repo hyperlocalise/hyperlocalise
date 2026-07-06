@@ -1,26 +1,26 @@
 import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
 import { inferTmMatchKind } from "@/components/cat/intelligence/tm-match-quality";
-import { searchCrowdinCatConcordance } from "@/lib/providers/adapters/crowdin/crowdin-cat-concordance";
+import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
-  loadCrowdinProjectCredential,
+  crowdinAuth,
   type CrowdinProjectCredential,
-} from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
-import { searchLokaliseCatConcordance } from "@/lib/providers/adapters/lokalise/lokalise-cat-concordance";
+} from "@/lib/providers/adapters/crowdin/crowdin-auth";
+import { lokaliseTmsProvider } from "@/lib/providers/adapters/lokalise/lokalise-provider";
 import { LokaliseApiClient } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import {
-  loadLokaliseProjectCredential,
+  lokaliseAuth,
   type LokaliseProjectCredential,
-} from "@/lib/providers/adapters/lokalise/load-lokalise-project-credential";
-import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
-import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
+} from "@/lib/providers/adapters/lokalise/lokalise-auth";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 
@@ -132,7 +132,7 @@ async function loadCrowdinLiveConcordance(input: {
   targetLocale: string;
   sourceText: string;
 }): Promise<CrowdinLiveConcordance | null> {
-  const projectCredential = await loadCrowdinProjectCredential({
+  const projectCredential = await crowdinAuth.loadProjectCredential({
     organizationId: input.organizationId,
     projectId: input.projectId,
   });
@@ -151,7 +151,7 @@ async function loadCrowdinLiveConcordance(input: {
     baseUrl: credential.baseUrl ?? undefined,
   });
 
-  return searchCrowdinCatConcordance({
+  return crowdinTmsProvider.searchCatConcordance({
     client,
     externalProjectId,
     sourceLocale: input.sourceLocale,
@@ -198,7 +198,7 @@ async function loadLokaliseLiveConcordance(input: {
   targetLocale: string;
   sourceText: string;
 }): Promise<LokaliseLiveConcordance | null> {
-  const projectCredential = await loadLokaliseProjectCredential({
+  const projectCredential = await lokaliseAuth.loadProjectCredential({
     organizationId: input.organizationId,
     projectId: input.projectId,
   });
@@ -217,7 +217,7 @@ async function loadLokaliseLiveConcordance(input: {
     baseUrl: credential.baseUrl,
   });
 
-  return searchLokaliseCatConcordance({
+  return lokaliseTmsProvider.searchCatConcordance({
     client,
     externalProjectId,
     sourceLocale: input.sourceLocale,

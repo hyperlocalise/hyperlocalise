@@ -3,13 +3,13 @@ import {
   crowdinAuthenticatedUserUrl,
   isCrowdinEnterpriseApiBaseUrl,
   resolveCrowdinApiBaseUrl,
-} from "@/lib/providers/adapters/crowdin/crowdin-base-url";
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { LOKALISE_DEFAULT_BASE_URL } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import {
   PHRASE_TMS_DEFAULT_BASE_URL,
   resolvePhraseTmsBaseUrl,
-} from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
-import { requireProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+} from "@/lib/providers/adapters/phrase/phrase-tms-api";
+import { requireProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
 
 const PROVIDER_API_PATH_PATTERN = / returned HTTP \d+ for (.+)$/;
 

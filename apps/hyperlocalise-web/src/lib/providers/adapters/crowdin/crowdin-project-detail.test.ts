@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchCrowdinProjectDetailMetadata } from "./crowdin-project-detail";
+import { crowdinTmsProvider } from "./crowdin-provider";
 
 describe("fetchCrowdinProjectDetailMetadata", () => {
   let originalFetch: typeof fetch;
@@ -56,7 +56,7 @@ describe("fetchCrowdinProjectDetailMetadata", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinProjectDetailMetadata({
+    const result = await crowdinTmsProvider.fetchProjectDetailMetadata({
       projectId: 42,
       token: "test-token",
       baseUrl: "https://api.crowdin.test/api/v2",

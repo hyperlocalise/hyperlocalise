@@ -11,9 +11,9 @@ import {
   getActiveOrganizationExternalTmsProviderCredential,
   upsertCrowdinOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
-import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
-import type { TmsProviderLiveFileDetail } from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import * as tmsProviderLive from "@/lib/providers/jobs/tms-provider-live";
+import type { TmsProviderLiveFileDetail } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,

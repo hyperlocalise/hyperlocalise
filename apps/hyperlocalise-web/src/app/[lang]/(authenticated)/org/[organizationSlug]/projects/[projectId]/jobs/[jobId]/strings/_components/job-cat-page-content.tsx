@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 
 import { CatFileTreePicker, CatRepositorySelect } from "../../../../_components/cat-header-pickers";
 import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";

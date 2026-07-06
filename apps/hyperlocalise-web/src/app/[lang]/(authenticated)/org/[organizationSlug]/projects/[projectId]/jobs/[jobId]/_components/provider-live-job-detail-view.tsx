@@ -8,7 +8,7 @@ import { ListIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
-import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 

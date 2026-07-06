@@ -8,7 +8,7 @@ import { loadOrganizationTranslationModel } from "./load-organization-translatio
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 
 const catAiRecommendationOutputSchema = z.object({
   suggestion: z.string().refine((text) => text.trim().length > 0, {

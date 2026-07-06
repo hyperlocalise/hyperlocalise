@@ -12,7 +12,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   formatTmsUserConnectProviderLabel,
   type TmsUserConnectProviderKind,
-} from "@/lib/providers/tms-user-connection-shared";
+} from "@/lib/providers/credentials/tms-user-connection-shared";
 
 export function TmsUserConnectButton({
   organizationSlug,

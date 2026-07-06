@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import type { ProviderSourceFile } from "../job-provider-detail-section";
 import { providerSourceFileToProjectFileRecord } from "./job-source-file-mappers";

@@ -15,12 +15,12 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
-import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
-import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
+import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
 import {
   parseProviderProjectId,
   type EncodedProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 const logger = createLogger("project-routes");
 const externalTmsProviderKinds = new Set<string>(schema.externalTmsProviderKindEnum.enumValues);

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { requestUrlString } from "../../fetch-mock-helpers";
-import { fetchLokaliseProjects } from "./lokalise-project-fetcher";
+import { requestUrlString } from "@/lib/providers/shared/fetch-mock-helpers";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("fetchLokaliseProjects", () => {
+describe("lokaliseTmsProvider.fetchProjects", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const credential = {
@@ -66,9 +66,8 @@ describe("fetchLokaliseProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchLokaliseProjects({
+    const projects = await lokaliseTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "lokalise",
       credential,
       secretMaterial: "lokalise-token",
     });
@@ -132,9 +131,8 @@ describe("fetchLokaliseProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchLokaliseProjects({
+      lokaliseTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "lokalise",
         credential,
         secretMaterial: "invalid-token",
       }),
@@ -156,9 +154,8 @@ describe("fetchLokaliseProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchLokaliseProjects({
+      lokaliseTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "lokalise",
         credential,
         secretMaterial: "invalid-token",
       }),

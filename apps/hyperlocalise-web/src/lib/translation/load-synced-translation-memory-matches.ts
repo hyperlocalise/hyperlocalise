@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   normalizeSyncedDatabaseTranslationMemoryMatch,
   type NormalizedTranslationMemoryMatch,

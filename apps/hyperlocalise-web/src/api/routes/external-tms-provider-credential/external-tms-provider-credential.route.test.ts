@@ -10,8 +10,8 @@ import {
   EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
   EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
 } from "@/lib/providers/adapters/crowdin/crowdin-test-urls";
-import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
-import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
+import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-provider";
+import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-provider";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({

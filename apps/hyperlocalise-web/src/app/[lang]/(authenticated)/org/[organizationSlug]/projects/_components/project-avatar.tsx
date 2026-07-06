@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/primitives/cn";
-import { TmsProviderBrandMark } from "@/lib/providers/tms-provider-brand-mark";
+import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-mark";
 
 import type { ProjectListRow } from "./project-list";
 

@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
-import { CROWDIN_DEFAULT_API_BASE_URL } from "./crowdin-base-url";
+import { CROWDIN_DEFAULT_API_BASE_URL } from "./crowdin-api";
 
 type EndpointCheck = {
   label: string;

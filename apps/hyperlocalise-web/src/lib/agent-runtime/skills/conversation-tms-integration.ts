@@ -1,4 +1,4 @@
-import { getActiveOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { getActiveOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 
 export async function resolveOrganizationHasTmsIntegration(
   organizationId: string,

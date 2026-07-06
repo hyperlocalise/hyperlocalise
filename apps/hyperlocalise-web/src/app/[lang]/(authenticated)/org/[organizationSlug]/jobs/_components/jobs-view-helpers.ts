@@ -1,5 +1,5 @@
 import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
-import { resolveJobProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type JobsViewMode = "row" | "kanban";
 

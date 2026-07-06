@@ -17,12 +17,12 @@ import {
 
 const uploadSourceFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-registry")>();
   return {
     ...actual,
-    getTmsProviderAdapter: () => ({
+    getTmsProvider: () => ({
       uploadSourceFile: uploadSourceFileMock,
     }),
   };

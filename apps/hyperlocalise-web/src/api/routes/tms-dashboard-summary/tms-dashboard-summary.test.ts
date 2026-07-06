@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
-import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({

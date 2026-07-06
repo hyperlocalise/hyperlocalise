@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { searchSmartlingTranslationMemoryMatches } from "./smartling-tm-matcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("searchSmartlingTranslationMemoryMatches", () => {
+describe("smartlingTmsProvider.searchTranslationMemoryMatches", () => {
   it("normalizes TM entry matches for attached memories", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       if (String(url).endsWith("/authenticate") && init?.method === "POST") {
@@ -43,7 +43,7 @@ describe("searchSmartlingTranslationMemoryMatches", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchSmartlingTranslationMemoryMatches({
+    const matches = await smartlingTmsProvider.searchTranslationMemoryMatches({
       organizationId: "org_1",
       projectId: "project_1",
       providerKind: "smartling",
@@ -84,7 +84,7 @@ describe("searchSmartlingTranslationMemoryMatches", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchSmartlingTranslationMemoryMatches({
+    const matches = await smartlingTmsProvider.searchTranslationMemoryMatches({
       organizationId: "org_1",
       projectId: "project_1",
       providerKind: "smartling",

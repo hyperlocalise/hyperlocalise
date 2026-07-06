@@ -2,11 +2,12 @@ import "dotenv/config";
 
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { crowdinAuth } from "./crowdin-auth";
 
 const getActiveCredentialMock = vi.fn();
 
-vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
+vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
   getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
     getActiveCredentialMock(...args),
 }));
@@ -57,8 +58,7 @@ describe("loadCrowdinProjectCredential", () => {
 
     getActiveCredentialMock.mockResolvedValueOnce(credential);
 
-    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
-    const result = await loadCrowdinProjectCredential({
+    const result = await crowdinAuth.loadProjectCredential({
       organizationId: "org_1",
       projectId,
     });

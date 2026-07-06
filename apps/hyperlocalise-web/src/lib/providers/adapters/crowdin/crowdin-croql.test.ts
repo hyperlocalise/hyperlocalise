@@ -4,7 +4,7 @@ import {
   buildCrowdinFileQueueCroql,
   buildCrowdinFileSearchCroql,
   escapeCrowdinCroqlString,
-} from "./crowdin-croql";
+} from "./crowdin-api";
 
 describe("buildCrowdinFileQueueCroql", () => {
   it("scopes untranslated segments to a file and target locale", () => {

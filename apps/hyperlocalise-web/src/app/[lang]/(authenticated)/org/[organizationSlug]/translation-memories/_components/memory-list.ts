@@ -1,7 +1,7 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/jobs/tms-provider-live";
 
 export type ApiMemory = MemoryRecord;
 

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { requestUrlString } from "../../fetch-mock-helpers";
-import { fetchLokaliseFileKeys } from "./lokalise-file-fetcher";
+import { requestUrlString } from "@/lib/providers/shared/fetch-mock-helpers";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("fetchLokaliseFileKeys", () => {
+describe("lokaliseTmsProvider.fetchFileKeys", () => {
   let originalFetch: typeof fetch;
 
   const credential = {
@@ -197,10 +197,9 @@ describe("fetchLokaliseFileKeys", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchLokaliseFileKeys({
+    const result = await lokaliseTmsProvider.fetchFileKeys({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential,
       project,
@@ -337,10 +336,9 @@ describe("fetchLokaliseFileKeys", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchLokaliseFileKeys({
+    const result = await lokaliseTmsProvider.fetchFileKeys({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential,
       project: {
@@ -362,10 +360,9 @@ describe("fetchLokaliseFileKeys", () => {
     }) as unknown as typeof fetch;
 
     await expect(
-      fetchLokaliseFileKeys({
+      lokaliseTmsProvider.fetchFileKeys({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "lokalise",
         externalProjectId: "proj.123",
         credential,
         project,

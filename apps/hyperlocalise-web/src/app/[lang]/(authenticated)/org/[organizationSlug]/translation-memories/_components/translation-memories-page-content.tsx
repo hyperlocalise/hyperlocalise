@@ -24,7 +24,7 @@ import {
   type ApiMemory,
   type MemoryListRow,
 } from "./memory-list";
-import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/jobs/tms-provider-live";
 import {
   TranslationMemoriesPageView,
   MEMORIES_PAGE_SIZE,

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { pullLokaliseProviderReview } from "./lokalise-review-puller";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("pullLokaliseProviderReview", () => {
+describe("lokaliseTmsProvider.pullReview", () => {
   it("pulls task-scoped key comments into a review report", async () => {
     const fetchFn = vi.fn(async (url: string) => {
       if (url.includes("/tasks/55392") && !url.includes("/comments")) {
@@ -51,8 +51,8 @@ describe("pullLokaliseProviderReview", () => {
       return new Response("Not Found", { status: 404 });
     });
 
-    const report = await pullLokaliseProviderReview({
-      credential: { baseUrl: "https://api.lokalise.test/api2" },
+    const report = await lokaliseTmsProvider.pullReview({
+      credential: { baseUrl: "https://api.lokalise.test/api2" } as never,
       secretMaterial: "token",
       externalProjectId: "proj.123",
       externalJobId: "55392",
@@ -69,7 +69,7 @@ describe("pullLokaliseProviderReview", () => {
         ],
       },
       fetchFn: fetchFn as typeof fetch,
-    });
+    } as never);
 
     expect(report.threads).toHaveLength(1);
     expect(report.threads[0]).toMatchObject({
@@ -120,8 +120,8 @@ describe("pullLokaliseProviderReview", () => {
     });
 
     await expect(
-      pullLokaliseProviderReview({
-        credential: { baseUrl: "https://api.lokalise.test/api2" },
+      lokaliseTmsProvider.pullReview({
+        credential: { baseUrl: "https://api.lokalise.test/api2" } as never,
         secretMaterial: "token",
         externalProjectId: "proj.123",
         externalJobId: "55392",
@@ -138,7 +138,7 @@ describe("pullLokaliseProviderReview", () => {
           ],
         },
         fetchFn: fetchFn as typeof fetch,
-      }),
+      } as never),
     ).rejects.toThrow("lokalise_auth_invalid");
   });
 });

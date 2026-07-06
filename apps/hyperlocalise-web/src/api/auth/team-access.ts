@@ -3,11 +3,11 @@ import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
+import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import {
   isLiveProviderGlossaryId,
   isLiveProviderMemoryId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {

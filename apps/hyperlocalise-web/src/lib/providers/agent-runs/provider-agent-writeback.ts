@@ -10,13 +10,13 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import { pushExternalTmsTranslations } from "../tms-provider-content";
+import { pushExternalTmsTranslations } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsApprovedTranslationUpload,
   ExternalTmsContentSyncFailure,
-} from "../tms-provider-types";
-import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
-import { getProviderTranslationPusher } from "../adapters/tms-provider-adapter-registry";
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ProviderTranslationWritebackChangedItem } from "@/lib/providers/shared/provider-feedback-types";
+import { getProviderTranslationPusher } from "@/lib/providers/adapters/tms-provider-registry";
 
 export type ProviderAgentWritebackResult =
   | {

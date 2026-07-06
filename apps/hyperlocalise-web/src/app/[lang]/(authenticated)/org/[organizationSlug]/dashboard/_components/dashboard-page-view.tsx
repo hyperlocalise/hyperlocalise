@@ -37,7 +37,7 @@ import { formatJobStatusLabel, jobTone } from "../../jobs/_components/jobs-page-
 import { formatPendingActionCount } from "../../_components/overview/overview-attention";
 import { SimpleBrandIcon } from "../../integrations/_components/simple-brand-icon";
 import { recordRecentProjectVisit } from "../../projects/_components/recent-projects";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
 import type {
   DashboardAutomationRunItem,

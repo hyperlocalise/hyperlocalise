@@ -1,7 +1,7 @@
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import type { TmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
 import {
   formatTermCapabilityLabel,
   parseTermCapabilitySupport,

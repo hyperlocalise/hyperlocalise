@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { agentRunHasReviewableProposals } from "@/lib/providers/agent-runs/agent-run-proposals";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";

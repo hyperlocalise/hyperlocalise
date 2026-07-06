@@ -6,12 +6,93 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
-import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
+import {
+  normalizeProviderBaseUrl,
+  normalizeProviderDownloadUrl,
+  requireProviderBaseUrl,
+} from "@/lib/providers/shared/provider-url-safety";
 
 const logger = createLogger("crowdin-api");
+
+export const CROWDIN_DEFAULT_API_BASE_URL = "https://api.crowdin.com/api/v2";
+
+export function resolveCrowdinApiBaseUrl(baseUrl?: string | null): string {
+  return requireProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL, "Crowdin");
+}
+
+export function normalizeCrowdinApiBaseUrl(baseUrl?: string | null): string | null {
+  return normalizeProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL);
+}
+
+export function crowdinAuthenticatedUserUrl(baseUrl?: string | null): string | null {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return null;
+  }
+
+  return `${normalized}/user`;
+}
+
+export function isCrowdinEnterpriseApiBaseUrl(baseUrl?: string | null): boolean {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return false;
+  }
+
+  return new URL(normalized).hostname !== "api.crowdin.com";
+}
+
+export function escapeCrowdinCroqlString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+export function buildCrowdinFileQueueCroql(input: {
+  fileId: number;
+  targetLocale: string;
+  queueFilter?: ProjectFileCatQueueFilter;
+  search?: string;
+}) {
+  const parts: string[] = [`id of file = ${input.fileId}`];
+
+  if (input.search?.trim()) {
+    const escaped = escapeCrowdinCroqlString(input.search.trim());
+    parts.push(`(identifier contains "${escaped}" or text contains "${escaped}")`);
+  }
+
+  const locale = escapeCrowdinCroqlString(input.targetLocale);
+  const languageSummary = `language = @language:"${locale}"`;
+
+  switch (input.queueFilter) {
+    case "untranslated":
+      parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+      break;
+    case "needs_review":
+      parts.push(
+        `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
+      );
+      parts.push("count of comments where (has unresolved issue) = 0");
+      break;
+    case "reviewed":
+      parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
+      break;
+    case "has_issues":
+      parts.push("count of comments where (has unresolved issue) > 0");
+      break;
+    case "all":
+    default:
+      break;
+  }
+
+  return parts.join(" and ");
+}
+
+export function buildCrowdinFileSearchCroql(fileId: number, search: string) {
+  const escaped = escapeCrowdinCroqlString(search.trim());
+  return `id of file = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
+}
 
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";

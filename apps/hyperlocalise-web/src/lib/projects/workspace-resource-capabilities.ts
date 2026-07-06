@@ -1,7 +1,7 @@
 import {
   parseProviderJobId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type WorkspaceProjectSource = "native" | "external_tms";
 

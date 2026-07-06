@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchCrowdinJobTasks, fetchCrowdinUserJobTasks } from "./crowdin-job-task-fetcher";
+import { crowdinTmsProvider } from "./crowdin-provider";
 
 describe("fetchCrowdinJobTasks", () => {
   let originalFetch: typeof fetch;
@@ -66,10 +66,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -132,10 +131,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -150,10 +148,9 @@ describe("fetchCrowdinJobTasks", () => {
 
   it("throws on invalid project id", async () => {
     await expect(
-      fetchCrowdinJobTasks({
+      crowdinTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "crowdin",
         externalProjectId: "not-a-number",
         credential: {} as never,
         project: {} as never,
@@ -198,10 +195,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -229,10 +225,9 @@ describe("fetchCrowdinJobTasks", () => {
     globalThis.fetch = fetchMock;
 
     await expect(
-      fetchCrowdinJobTasks({
+      crowdinTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "crowdin",
         externalProjectId: "1",
         credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
         project: {} as never,
@@ -275,7 +270,7 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinUserJobTasks({
+    const result = await crowdinTmsProvider.fetchUserJobTasks({
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       secretMaterial: "test-token",
       externalProjectId: "2",

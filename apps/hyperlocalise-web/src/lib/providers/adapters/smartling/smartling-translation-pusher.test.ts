@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { pushSmartlingTranslations } from "./smartling-translation-pusher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("pushSmartlingTranslations", () => {
+describe("smartlingTmsProvider.pushTranslations", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -82,10 +82,9 @@ describe("pushSmartlingTranslations", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingTranslations({
+    const result = await smartlingTmsProvider.pushTranslations({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { id: "cred_1" } as never,
@@ -144,10 +143,9 @@ describe("pushSmartlingTranslations", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingTranslations({
+    const result = await smartlingTmsProvider.pushTranslations({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { id: "cred_1" } as never,

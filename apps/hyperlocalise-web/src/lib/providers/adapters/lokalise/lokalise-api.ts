@@ -5,7 +5,7 @@
 import {
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
-} from "@/lib/providers/provider-url-safety";
+} from "@/lib/providers/shared/provider-url-safety";
 
 export const LOKALISE_DEFAULT_BASE_URL = "https://api.lokalise.com/api2";
 

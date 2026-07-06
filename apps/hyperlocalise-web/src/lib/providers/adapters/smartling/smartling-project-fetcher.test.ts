@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchSmartlingProjects } from "./smartling-project-fetcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("fetchSmartlingProjects", () => {
+describe("smartlingTmsProvider.fetchProjects", () => {
   const credential = {
     id: "cred-1",
     organizationId: "org-1",
@@ -91,9 +91,8 @@ describe("fetchSmartlingProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchSmartlingProjects({
+    const projects = await smartlingTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "smartling",
       credential,
       secretMaterial: JSON.stringify({
         userIdentifier: "user-1",
@@ -187,9 +186,8 @@ describe("fetchSmartlingProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchSmartlingProjects({
+    const projects = await smartlingTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "smartling",
       credential,
       secretMaterial: JSON.stringify({
         userIdentifier: "user-1",
@@ -218,9 +216,8 @@ describe("fetchSmartlingProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchSmartlingProjects({
+      smartlingTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "smartling",
         credential,
         secretMaterial: "user-1:secret-1:acct-1",
       }),

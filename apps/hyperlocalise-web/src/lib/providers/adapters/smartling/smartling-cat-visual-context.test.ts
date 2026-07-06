@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { loadSmartlingCatVisualContext, readImageDimensions } from "./smartling-cat-visual-context";
+import { readImageDimensions, smartlingTmsProvider } from "./smartling-provider";
 
 function pngBytes(width: number, height: number) {
   const bytes = new Uint8Array(24);
@@ -41,7 +41,7 @@ describe("smartling-cat-visual-context", () => {
       }),
     };
 
-    const visualContext = await loadSmartlingCatVisualContext({
+    const visualContext = await smartlingTmsProvider.loadCatVisualContext({
       client: client as never,
       externalProjectId: "project-1",
       externalStringId: "hash-1",
@@ -84,7 +84,7 @@ describe("smartling-cat-visual-context", () => {
     };
 
     await expect(
-      loadSmartlingCatVisualContext({
+      smartlingTmsProvider.loadCatVisualContext({
         client: client as never,
         externalProjectId: "project-1",
         externalStringId: "hash-1",

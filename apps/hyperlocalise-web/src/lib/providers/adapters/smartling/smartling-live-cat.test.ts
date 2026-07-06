@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
-import {
-  buildSmartlingLiveCatFile,
-  getSmartlingLiveCatSegmentTarget,
-  saveSmartlingLiveCatTranslation,
-  SmartlingLiveCatError,
-} from "./smartling-live-cat";
+import { SmartlingLiveCatError, smartlingTmsProvider } from "./smartling-provider";
 
 function createSmartlingFile(overrides: Partial<TmsProviderLiveFile> = {}): TmsProviderLiveFile {
   return {
@@ -99,7 +94,7 @@ describe("smartling-live-cat", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const catFile = await buildSmartlingLiveCatFile({
+    const catFile = await smartlingTmsProvider.buildLiveCatFile({
       secretMaterial: "user:secret",
       externalProjectId: "proj-1",
       file: createSmartlingFile(),
@@ -153,7 +148,7 @@ describe("smartling-live-cat", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const target = await getSmartlingLiveCatSegmentTarget({
+    const target = await smartlingTmsProvider.getLiveCatSegmentTarget({
       secretMaterial: "user:secret",
       externalProjectId: "proj-1",
       file: createSmartlingFile(),
@@ -193,7 +188,7 @@ describe("smartling-live-cat", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const saved = await saveSmartlingLiveCatTranslation({
+    const saved = await smartlingTmsProvider.saveLiveCatTranslation({
       secretMaterial: "user:secret",
       externalProjectId: "proj-1",
       file: createSmartlingFile(),
@@ -225,7 +220,7 @@ describe("smartling-live-cat", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(
-      buildSmartlingLiveCatFile({
+      smartlingTmsProvider.buildLiveCatFile({
         secretMaterial: "user:secret",
         externalProjectId: "proj-1",
         file: createSmartlingFile(),
@@ -235,7 +230,7 @@ describe("smartling-live-cat", () => {
     ).rejects.toBeInstanceOf(SmartlingLiveCatError);
 
     await expect(
-      buildSmartlingLiveCatFile({
+      smartlingTmsProvider.buildLiveCatFile({
         secretMaterial: "user:secret",
         externalProjectId: "proj-1",
         file: createSmartlingFile(),

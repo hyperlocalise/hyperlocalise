@@ -11,7 +11,7 @@ import { db, schema } from "@/lib/database";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
 
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 
 type AgentRunInputSnapshot = Record<string, unknown>;
 type AgentRunOutputSummary = Record<string, unknown>;

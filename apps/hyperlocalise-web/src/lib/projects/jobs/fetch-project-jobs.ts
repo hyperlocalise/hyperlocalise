@@ -1,7 +1,7 @@
 import { jobsResponseSchema, openJobStatusValues } from "@/api/routes/project/job.schema";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
 
 const openJobStatuses = new Set<string>(openJobStatusValues);
 

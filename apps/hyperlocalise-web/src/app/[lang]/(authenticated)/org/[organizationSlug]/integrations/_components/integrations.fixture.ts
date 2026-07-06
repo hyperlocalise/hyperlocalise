@@ -1,7 +1,7 @@
 import type { LlmProvider } from "@/lib/database/types";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/contracts/external-tms-provider-credential";
 import { OAUTH_AUTH_MODE } from "@/lib/providers/contracts/external-tms-provider-credential";
-import type { TmsProviderCapabilityAction } from "@/lib/providers/tms-capabilities";
+import type { TmsProviderCapabilityAction } from "@/lib/providers/capabilities/tms-capabilities";
 
 import type { ContentfulConnectionSummary } from "./contentful-connection-panel";
 

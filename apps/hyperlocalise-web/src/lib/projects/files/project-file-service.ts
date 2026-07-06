@@ -20,8 +20,8 @@ import {
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { bufferFromStream } from "@/lib/primitives/streams";
-import { listTmsProviderLiveFilesForProject } from "@/lib/providers/tms-provider-live";
-import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
+import { listTmsProviderLiveFilesForProject } from "@/lib/providers/jobs/tms-provider-live";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 export type ProjectFileListContext = {

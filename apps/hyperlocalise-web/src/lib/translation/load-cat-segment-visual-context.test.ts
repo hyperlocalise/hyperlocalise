@@ -7,6 +7,7 @@ const {
   loadPhraseCatVisualContextMock,
   loadSmartlingCatVisualContextMock,
   lokaliseClientOptions,
+  phraseClientOptions,
   smartlingClientOptions,
   tryLoadActiveTmsProviderContextMock,
 } = vi.hoisted(() => ({
@@ -16,11 +17,12 @@ const {
   loadPhraseCatVisualContextMock: vi.fn(),
   loadSmartlingCatVisualContextMock: vi.fn(),
   lokaliseClientOptions: [] as unknown[],
+  phraseClientOptions: [] as unknown[],
   smartlingClientOptions: [] as unknown[],
   tryLoadActiveTmsProviderContextMock: vi.fn(),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", () => ({
+vi.mock("@/lib/providers/jobs/tms-provider-live", () => ({
   tryLoadActiveTmsProviderContext: (...args: unknown[]) =>
     tryLoadActiveTmsProviderContextMock(...args),
 }));
@@ -41,16 +43,30 @@ vi.mock("@/lib/providers/adapters/lokalise/lokalise-api", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/adapters/crowdin/crowdin-cat-visual-context", () => ({
-  loadCrowdinCatVisualContext: (...args: unknown[]) => loadCrowdinCatVisualContextMock(...args),
+vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
+  crowdinTmsProvider: {
+    loadCatVisualContext: (...args: unknown[]) => loadCrowdinCatVisualContextMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/adapters/lokalise/lokalise-cat-visual-context", () => ({
-  loadLokaliseCatVisualContext: (...args: unknown[]) => loadLokaliseCatVisualContextMock(...args),
+vi.mock("@/lib/providers/adapters/lokalise/lokalise-provider", () => ({
+  lokaliseTmsProvider: {
+    loadCatVisualContext: (...args: unknown[]) => loadLokaliseCatVisualContextMock(...args),
+  },
 }));
 
-vi.mock("@/lib/providers/adapters/phrase/phrase-cat-visual-context", () => ({
-  loadPhraseCatVisualContext: (...args: unknown[]) => loadPhraseCatVisualContextMock(...args),
+vi.mock("@/lib/providers/adapters/phrase/phrase-api", () => ({
+  PhraseApiClient: class MockPhraseApiClient {
+    constructor(options: unknown) {
+      phraseClientOptions.push(options);
+    }
+  },
+}));
+
+vi.mock("@/lib/providers/adapters/phrase/phrase-provider", () => ({
+  phraseTmsProvider: {
+    loadCatVisualContext: (...args: unknown[]) => loadPhraseCatVisualContextMock(...args),
+  },
 }));
 
 vi.mock("@/lib/providers/adapters/smartling/smartling-api", () => ({
@@ -61,8 +77,10 @@ vi.mock("@/lib/providers/adapters/smartling/smartling-api", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/adapters/smartling/smartling-cat-visual-context", () => ({
-  loadSmartlingCatVisualContext: (...args: unknown[]) => loadSmartlingCatVisualContextMock(...args),
+vi.mock("@/lib/providers/adapters/smartling/smartling-provider", () => ({
+  smartlingTmsProvider: {
+    loadCatVisualContext: (...args: unknown[]) => loadSmartlingCatVisualContextMock(...args),
+  },
 }));
 
 import { loadCatSegmentVisualContext } from "./load-cat-segment-visual-context";
@@ -72,6 +90,7 @@ describe("loadCatSegmentVisualContext", () => {
     vi.clearAllMocks();
     crowdinClientOptions.length = 0;
     lokaliseClientOptions.length = 0;
+    phraseClientOptions.length = 0;
     smartlingClientOptions.length = 0;
   });
 
@@ -207,12 +226,17 @@ describe("loadCatSegmentVisualContext", () => {
     });
 
     expect(loadPhraseCatVisualContextMock).toHaveBeenCalledWith({
-      token: "phrase-token",
-      region: "us",
-      baseUrl: "https://phrase.example",
+      client: expect.any(Object),
       externalProjectId: "project_1",
       externalStringId: "string_1",
     });
+    expect(phraseClientOptions).toEqual([
+      {
+        token: "phrase-token",
+        region: "us",
+        baseUrl: "https://phrase.example",
+      },
+    ]);
   });
 
   it("dispatches Smartling visual context with the active credential material", async () => {

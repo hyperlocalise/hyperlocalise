@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { type LokaliseApiClient } from "./lokalise-api";
-import { loadLokaliseCatVisualContext } from "./lokalise-cat-visual-context";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("loadLokaliseCatVisualContext", () => {
+describe("lokaliseTmsProvider.loadCatVisualContext", () => {
   it("fetches screenshot details when the list response omits key coordinates", async () => {
     const getScreenshot = vi.fn(async () => ({
       screenshotId: 123,
@@ -39,7 +39,7 @@ describe("loadLokaliseCatVisualContext", () => {
       getScreenshot,
     } as unknown as LokaliseApiClient;
 
-    const visualContext = await loadLokaliseCatVisualContext({
+    const visualContext = await lokaliseTmsProvider.loadCatVisualContext({
       client,
       externalProjectId: "proj.123",
       externalStringId: "4242",

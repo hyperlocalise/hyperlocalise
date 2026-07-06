@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { buildFindingId } from "@/lib/providers/provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";
 
-import { buildHyperlocaliseFindingMarker } from "../smartling/smartling-comment-write-back";
-import { pushLokaliseProviderComments } from "./lokalise-comment-pusher";
+import { buildHyperlocaliseFindingMarker } from "../smartling/smartling-provider";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
 function sampleFinding(overrides?: Partial<ProviderQaFinding>): ProviderQaFinding {
   return {
@@ -21,7 +21,7 @@ function sampleFinding(overrides?: Partial<ProviderQaFinding>): ProviderQaFindin
   };
 }
 
-describe("pushLokaliseProviderComments", () => {
+describe("lokaliseTmsProvider.pushComments", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -70,13 +70,12 @@ describe("pushLokaliseProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushLokaliseProviderComments({
+    const result = await lokaliseTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "55392",
-      credential: { baseUrl: null },
+      credential: { baseUrl: null } as never,
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds: new Map(),
@@ -137,13 +136,12 @@ describe("pushLokaliseProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushLokaliseProviderComments({
+    const result = await lokaliseTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "55392",
-      credential: { baseUrl: null },
+      credential: { baseUrl: null } as never,
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds: new Map(),
@@ -179,13 +177,12 @@ describe("pushLokaliseProviderComments", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushLokaliseProviderComments({
+    const result = await lokaliseTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "55392",
-      credential: { baseUrl: null },
+      credential: { baseUrl: null } as never,
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds: new Map(),
@@ -227,13 +224,12 @@ describe("pushLokaliseProviderComments", () => {
 
     const knownExternalIds = new Map([[findingId, { issueUid: "88", commentUid: "88" }]]);
 
-    const result = await pushLokaliseProviderComments({
+    const result = await lokaliseTmsProvider.pushComments({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "55392",
-      credential: { baseUrl: null },
+      credential: { baseUrl: null } as never,
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds,

@@ -7,8 +7,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createProjectTestFixture } from "./project.fixture";
 import type {
@@ -44,8 +44,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-live")>();
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
   return {
     ...actual,
     getTmsProviderLiveProject: getTmsProviderLiveProjectMock,

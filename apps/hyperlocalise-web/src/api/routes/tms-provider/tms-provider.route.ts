@@ -17,8 +17,8 @@ import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-r
 import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
   getTmsProviderConnection,
@@ -35,9 +35,9 @@ import {
   listTmsProviderLiveJobsForProject,
   listTmsProviderLiveProjects,
   listTmsProviderLiveTranslationMemories,
-} from "@/lib/providers/tms-provider-live";
-import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
-import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
+} from "@/lib/providers/jobs/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
+import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 const mineQuerySchema = z.object({
