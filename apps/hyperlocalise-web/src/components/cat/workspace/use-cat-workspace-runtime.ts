@@ -245,7 +245,10 @@ export function useCatWorkspaceRuntime({
         reviewController.resolveComment(segmentId, commentId),
       onAskQuestion: async (segmentId: string, options?: { forceRefresh?: boolean }) => {
         await onAskQuestion?.(segmentId, options);
-        await intelligenceController.askQuestion(segmentId, options);
+        const receivedFreshContext = await intelligenceController.askQuestion(segmentId, options);
+        if (receivedFreshContext && generateAiRecommendation) {
+          await reviewController.runReview(segmentId, { includeAi: true });
+        }
       },
       onReviewWithAi: async (segmentId: string) => {
         await reviewController.runReview(segmentId, { includeAi: true });
@@ -263,6 +266,7 @@ export function useCatWorkspaceRuntime({
       },
     };
   }, [
+    generateAiRecommendation,
     intelligenceController,
     onAskQuestion,
     onNextSegment,

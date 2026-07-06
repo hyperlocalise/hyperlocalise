@@ -231,20 +231,20 @@ export class CatIntelligenceController {
       });
   }
 
-  async askQuestion(segmentId: string, options?: { forceRefresh?: boolean }) {
+  async askQuestion(segmentId: string, options?: { forceRefresh?: boolean }): Promise<boolean> {
     const lookup = this.ports.services?.lookupSegmentContext;
     if (!lookup) {
-      return;
+      return false;
     }
     const segment = this.workspace.getSegmentView(segmentId);
     if (!segment) {
-      return;
+      return false;
     }
     const existingAgentContext = this.workspace.segmentIntelligence[segmentId]?.agentContext;
     const contextGeneration = this.contextGeneration;
     this.workspace.revealAgentContext(segmentId);
     if (existingAgentContext?.trim() && !options?.forceRefresh) {
-      return;
+      return false;
     }
 
     this.workspace.beginContextLookup(segmentId);
@@ -253,10 +253,11 @@ export class CatIntelligenceController {
         forceRefresh: options?.forceRefresh === true,
       });
       if (this.disposed || contextGeneration !== this.contextGeneration) {
-        return;
+        return false;
       }
       this.workspace.removeFormatCheck(segmentId, `context-lookup-failed-${segmentId}`);
       this.workspace.mergeSegmentIntelligence(segmentId, { agentContext });
+      return Boolean(agentContext?.trim());
     } catch (error) {
       if (!this.disposed && contextGeneration === this.contextGeneration) {
         this.workspace.upsertFormatCheck(segmentId, {
@@ -270,6 +271,7 @@ export class CatIntelligenceController {
           category: "qa",
         });
       }
+      return false;
     } finally {
       if (contextGeneration === this.contextGeneration) {
         this.workspace.endContextLookup(segmentId);
