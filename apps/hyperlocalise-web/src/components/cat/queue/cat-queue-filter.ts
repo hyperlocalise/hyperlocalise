@@ -31,9 +31,7 @@ export function isQueueFilterSupportedForProvider(
   }
 
   if (
-    (providerKind === "phrase" ||
-      providerKind === "lokalise" ||
-      providerKind === "smartling") &&
+    (providerKind === "phrase" || providerKind === "lokalise" || providerKind === "smartling") &&
     (filter === "untranslated" || filter === "needs_review" || filter === "reviewed")
   ) {
     return false;
