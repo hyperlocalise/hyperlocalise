@@ -1,4 +1,4 @@
 packages: []
 
 overrides:
-  "undici@^7.0.0": "7.28.0"
+  "undici@^7.0.0": "8.6.0"
