@@ -11,16 +11,9 @@ import {
   integrationsSlackAgentFixture,
 } from "./integrations.fixture";
 
-type IntegrationsSlackAgentFixture = {
-  enabled: boolean;
-  teamId: string | null;
-  teamName: string | null;
-};
+type IntegrationsSlackAgentFixture = typeof integrationsSlackAgentFixture;
 
-type IntegrationsEmailAgentFixture = {
-  enabled: boolean;
-  inboundEmailAddress: string | null;
-};
+type IntegrationsEmailAgentFixture = typeof integrationsEmailAgentFixture;
 
 function createIntegrationsGetHandlers({
   providerCredential = integrationsProviderCredentialFixture,

@@ -52,16 +52,9 @@ export const integrationsCrowdinCredentialFixture = createTmsCredentialFixture({
   baseUrl: "https://api.crowdin.com/api/v2",
 });
 
-export const integrationsPhraseCredentialFixture = createTmsCredentialFixture({
-  providerKind: "phrase",
-  displayName: "Phrase TMS",
-});
-
 export const integrationsExternalTmsCredentialsFixture: ExternalTmsProviderCredentialListItem[] = [
   integrationsCrowdinCredentialFixture,
 ];
-
-export const integrationsActiveExternalTmsCredentialFixture = integrationsCrowdinCredentialFixture;
 
 export const integrationsGitHubInstallationFixture = {
   githubInstallationId: "12345678",
@@ -92,13 +85,13 @@ export const integrationsGitHubRepositoriesFixture = [
 
 export const integrationsSlackAgentFixture = {
   enabled: true,
-  teamId: "T01234567",
-  teamName: "Acme",
+  teamId: "T01234567" as string | null,
+  teamName: "Acme" as string | null,
 };
 
 export const integrationsEmailAgentFixture = {
   enabled: true,
-  inboundEmailAddress: "automation@inbound.hyperlocalise.test",
+  inboundEmailAddress: "automation@inbound.hyperlocalise.test" as string | null,
 };
 
 export const integrationsContentfulConnectionsFixture: ContentfulConnectionSummary[] = [
