@@ -109,6 +109,7 @@ func TestTasksService_Get(t *testing.T) {
 				"vendor": "gengo",
 				"filesCount": 3,
 				"fileIds": [24,25,38],
+				"directoryIds": [4, 5, 6],
 				"splitFiles": true,
 				"branchIds": [24,25,38],
 				"fields": {
@@ -213,6 +214,7 @@ func TestTasksService_Get(t *testing.T) {
 		Vendor:          "gengo",
 		FilesCount:      3,
 		FileIDs:         []int{24, 25, 38},
+		DirectoryIDs:    []int{4, 5, 6},
 		SplitFiles:      ToPtr(true),
 		BranchIDs:       []int{24, 25, 38},
 		Fields: map[string]any{
@@ -366,6 +368,7 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 			"languageId":"en",
 			"type":1,
 			"fileIds":[1,2,3],
+		"directoryIds":[4,5,6],
 			"labelIds":[1,2,3],
 			"excludeLabelIds":[4,5,6],
 			"status":"todo",
@@ -487,6 +490,7 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 		LanguageID:                      "en",
 		Type:                            ToPtr(model.TaskTypeProofread),
 		FileIDs:                         []int{1, 2, 3},
+		DirectoryIDs:                    []int{4, 5, 6},
 		LabelIDs:                        []int{1, 2, 3},
 		ExcludeLabelIDs:                 []int{4, 5, 6},
 		Status:                          model.TaskStatusTodo,

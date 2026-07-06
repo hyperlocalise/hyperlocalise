@@ -776,7 +776,8 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 							"de": 3
 						}
 					},
-					"updateStrings": false,
+					"updateStrings": true,
+					"updateOption": "keep_translations",
 					"cleanupMode": false
 				},
 				"createdAt": "2023-09-23T11:26:54+00:00",
@@ -808,8 +809,9 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool `json:"updateStrings"`
-			CleanupMode   bool `json:"cleanupMode"`
+			UpdateStrings bool   `json:"updateStrings"`
+			UpdateOption  string `json:"updateOption,omitempty"`
+			CleanupMode   bool   `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -830,7 +832,8 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 					"de":           3,
 				},
 			},
-			UpdateStrings: false,
+			UpdateStrings: true,
+			UpdateOption:  "keep_translations",
 			CleanupMode:   false,
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -852,7 +855,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 	mux.HandleFunc(fmt.Sprintf("/api/v2/projects/%d/strings/uploads", projectID), func(w http.ResponseWriter, r *http.Request) {
 		testURL(t, r, fmt.Sprintf("/api/v2/projects/%d/strings/uploads", projectID))
 		testMethod(t, r, http.MethodPost)
-		testBody(t, r, `{"storageId":61,"branchId":34,"type":"xliff","parserVersion":1,"labelIds":[1,2],"updateStrings":false,"cleanupMode":true,"importOptions":{"firstLineContainsHeader":true,"importTranslations":false,"scheme":{"context":5,"de":9,"en":8,"identifier":1,"labels":7,"maxLength":6,"none":0,"sourceOrTranslation":3,"sourcePhrase":2,"translation":4}}}`+"\n")
+		testBody(t, r, `{"storageId":61,"branchId":34,"type":"xliff","parserVersion":1,"labelIds":[1,2],"updateStrings":true,"cleanupMode":true,"importOptions":{"firstLineContainsHeader":true,"importTranslations":false,"scheme":{"context":5,"de":9,"en":8,"identifier":1,"labels":7,"maxLength":6,"none":0,"sourceOrTranslation":3,"sourcePhrase":2,"translation":4}},"updateOption":"keep_translations"}`+"\n")
 
 		fmt.Fprint(w, `{
 			"data": {
@@ -875,7 +878,8 @@ func TestSourceStringsService_Upload(t *testing.T) {
 							"de": 3
 						}
 					},
-					"updateStrings": false,
+					"updateStrings": true,
+					"updateOption": "keep_translations",
 					"cleanupMode": false
 				},
 				"createdAt": "2023-09-23T11:26:54+00:00",
@@ -892,7 +896,8 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Type:          "xliff",
 		ParserVersion: 1,
 		LabelIDs:      []int{1, 2},
-		UpdateStrings: ToPtr(false),
+		UpdateStrings: ToPtr(true),
+		UpdateOption:  "keep_translations",
 		CleanupMode:   ToPtr(true),
 		ImportOptions: &model.SourceStringsImportOptions{
 			FirstLineContainsHeader: ToPtr(true),
@@ -932,8 +937,9 @@ func TestSourceStringsService_Upload(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool `json:"updateStrings"`
-			CleanupMode   bool `json:"cleanupMode"`
+			UpdateStrings bool   `json:"updateStrings"`
+			UpdateOption  string `json:"updateOption,omitempty"`
+			CleanupMode   bool   `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -954,7 +960,8 @@ func TestSourceStringsService_Upload(t *testing.T) {
 					"de":           3,
 				},
 			},
-			UpdateStrings: false,
+			UpdateStrings: true,
+			UpdateOption:  "keep_translations",
 			CleanupMode:   false,
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",

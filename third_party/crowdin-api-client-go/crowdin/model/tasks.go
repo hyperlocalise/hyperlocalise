@@ -52,6 +52,7 @@ type (
 		PrecedingTaskID   int                 `json:"precedingTaskId"`
 		FilesCount        int                 `json:"filesCount"`
 		FileIDs           []int               `json:"fileIds,omitempty"`
+		DirectoryIDs      []int               `json:"directoryIds,omitempty"`
 		SplitFiles        *bool               `json:"splitFiles,omitempty"`
 		Vendor            string              `json:"vendor,omitempty"`
 		BranchIDs         []int               `json:"branchIds,omitempty"`
@@ -228,13 +229,16 @@ type (
 		// Task type. Enum: 0 - translate, 1 - proofread.
 		Type *TaskType `json:"type"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// Task string identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// Task file identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -280,13 +284,16 @@ type (
 		// Task vendor. Enum: "crowdin_language_service".
 		Vendor TaskVendor `json:"vendor"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// String identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// File identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -320,13 +327,16 @@ type (
 		// Task vendor. Enum: "oht" - OneHourTranslation.
 		Vendor TaskVendor `json:"vendor"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// String identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// File identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -369,13 +379,16 @@ type (
 		// Task vendor. Enum: "gengo" - Gengo.
 		Vendor TaskVendor `json:"vendor"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// String identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// File identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -419,13 +432,16 @@ type (
 		// gte_localize, kettu_solutions, languageline_solutions.
 		Vendor TaskVendor `json:"vendor"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// String identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// File identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -516,17 +532,20 @@ type (
 		// Note: Can't be used with `type` in same request.
 		WorkflowStepID int `json:"workflowStepId,omitempty"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// Task title
 		Title string `json:"title"`
 		// Task language identifier.
 		LanguageID string `json:"languageId"`
 		// Task string identifiers.
-		// One of stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// Task file identifiers.
-		// One of stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -570,17 +589,20 @@ type (
 		// Task workflow step id with type `Translate by Vendor` or `Proofread by Vendor`.
 		WorkflowStepID int `json:"workflowStepId"`
 		// Branch identifiers.
-		// One of branchIds, stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		BranchIDs []int `json:"branchIds,omitempty"`
+		// Directory identifiers.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
 		// Task title.
 		Title string `json:"title"`
 		// Language identifier.
 		LanguageID string `json:"languageId"`
 		// String identifiers.
-		// One of stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		StringIDs []int `json:"stringIds,omitempty"`
 		// File identifiers.
-		// One of stringIds or fileIds is required.
+		// One of branchIds, directoryIds, stringIds or fileIds is required.
 		FileIDs []int `json:"fileIds,omitempty"`
 		// Label identifiers.
 		LabelIDs []int `json:"labelIds,omitempty"`
@@ -648,8 +670,8 @@ func (r *TaskCreateForm) ValidateRequest() error {
 	if r.Type == nil || (*r.Type != TaskTypeTranslate && *r.Type != TaskTypeProofread) {
 		return fmt.Errorf("type is required and must be one of %d, %d", TaskTypeTranslate, TaskTypeProofread)
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -679,8 +701,8 @@ func (r *LanguageServiceTaskCreateForm) ValidateRequest() error {
 	if r.Vendor != TaskVendorCrowdinLanguageService {
 		return fmt.Errorf("vendor is required and must be %q", TaskVendorCrowdinLanguageService)
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -710,8 +732,8 @@ func (r *VendorOhtTaskCreateForm) ValidateRequest() error {
 	if r.Vendor != TaskVendorOht {
 		return fmt.Errorf("vendor is required and must be %q", TaskVendorOht)
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -740,8 +762,8 @@ func (r *VendorGengoTaskCreateForm) ValidateRequest() error {
 	if r.Vendor != TaskVendorGengo {
 		return fmt.Errorf("vendor is required and must be %q", TaskVendorGengo)
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -771,8 +793,8 @@ func (r *VendorManualTaskCreateForm) ValidateRequest() error {
 	if r.Vendor == "" {
 		return errors.New("vendor is required")
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -879,8 +901,8 @@ func (r *EnterpriseTaskCreateForm) ValidateRequest() error {
 	if r.LanguageID == "" {
 		return errors.New("languageId is required")
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil
@@ -906,8 +928,8 @@ func (r *EnterpriseVendorTaskCreateForm) ValidateRequest() error {
 	if r.LanguageID == "" {
 		return errors.New("languageId is required")
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
-		return errors.New("one of stringIds, fileIds or branchIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of stringIds, fileIds, branchIds or directoryIds is required")
 	}
 
 	return nil

@@ -215,3 +215,9 @@
 **Learning:** The Crowdin API v2 Language resource includes an `internalCode` field in its response, which was missing from the Go SDK's `Language` model. This field provides the internal Crowdin language code, which can differ from standard ISO codes.
 
 **Action:** Added `InternalCode` (string) to the `Language` struct in `model/languages.go`. Updated contract tests in `languages_test.go` to include the `internalCode` field in mock responses and verify correct unmarshaling across List, Get, and Add operations.
+
+## 2026-11-07 - Improve Task and Source Strings upload parity
+
+**Learning:** Crowdin API v2 allows specifying task content via `directoryIds`, and the Source Strings upload response includes an `updateOption` attribute indicating how string updates were handled. These were missing from the Go SDK models.
+
+**Action:** Added `DirectoryIDs` to the `Task` model and all relevant task creation forms (`TaskCreateForm`, `EnterpriseTaskCreateForm`, etc.) and updated validation logic. Added `UpdateOption` to the `SourceStringsUpload` attributes. Updated contract tests to verify correct unmarshaling and request validation.

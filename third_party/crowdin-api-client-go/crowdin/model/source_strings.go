@@ -245,8 +245,9 @@ type SourceStringsUpload struct {
 			ImportTranslations      bool           `json:"importTranslations"`
 			Scheme                  map[string]int `json:"scheme"`
 		} `json:"importOptions"`
-		UpdateStrings bool `json:"updateStrings"`
-		CleanupMode   bool `json:"cleanupMode"`
+		UpdateStrings bool   `json:"updateStrings"`
+		UpdateOption  string `json:"updateOption,omitempty"`
+		CleanupMode   bool   `json:"cleanupMode"`
 	} `json:"attributes"`
 	CreatedAt  string `json:"createdAt"`
 	UpdatedAt  string `json:"updatedAt"`
