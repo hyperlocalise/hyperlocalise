@@ -258,6 +258,32 @@ export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
 }
 
+export interface CrowdinCreateTaskAssignee {
+  id: number;
+  wordsCount?: number;
+}
+
+export interface CrowdinCreateTaskRequest {
+  title: string;
+  languageId: string;
+  type: 0 | 1;
+  fileIds?: number[];
+  stringIds?: number[];
+  branchIds?: number[];
+  labelIds?: number[];
+  excludeLabelIds?: number[];
+  status?: "todo" | "in_progress";
+  description?: string;
+  splitContent?: boolean;
+  skipAssignedStrings?: boolean;
+  includePreTranslatedStringsOnly?: boolean;
+  assignees?: CrowdinCreateTaskAssignee[];
+  deadline?: string;
+  startedAt?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface CrowdinLanguageTranslation {
   stringId: number;
   contentType: string;
@@ -1044,6 +1070,14 @@ export class CrowdinApiClient {
   async getTask(projectId: number, taskId: number): Promise<CrowdinTaskDetails> {
     const response = await this.get<CrowdinGetResponse<CrowdinTaskDetails>>(
       `/projects/${projectId}/tasks/${taskId}`,
+    );
+    return response.data;
+  }
+
+  async addTask(projectId: number, request: CrowdinCreateTaskRequest): Promise<CrowdinTaskDetails> {
+    const response = await this.post<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks`,
+      request,
     );
     return response.data;
   }

@@ -5,6 +5,7 @@ import type {
   ExternalTmsApprovedTranslationUpload,
   ExternalTmsFileKeyMetadata,
   ExternalTmsGlossaryMetadata,
+  ExternalTmsJobTaskCreateRequest,
   ExternalTmsJobTaskMetadata,
   ExternalTmsProjectMetadata,
   ExternalTmsSourceFileUpload,
@@ -45,6 +46,10 @@ export type TmsProviderProjectScope = TmsProviderContext & {
 
 export type TmsProviderJobScope = TmsProviderProjectScope & {
   externalJobId: string;
+};
+
+export type TmsProviderCreateJobTaskScope = TmsProviderProjectScope & {
+  task: ExternalTmsJobTaskCreateRequest;
 };
 
 export type TmsProviderPushTranslationsScope = TmsProviderJobScope & {
@@ -203,6 +208,10 @@ export abstract class TmsProvider {
   abstract fetchFileKeys(scope: TmsProviderProjectScope): Promise<ExternalTmsFileKeyMetadata[]>;
 
   abstract fetchJobTasks(scope: TmsProviderProjectScope): Promise<ExternalTmsJobTaskMetadata[]>;
+
+  createJobTask(_scope: TmsProviderCreateJobTaskScope): Promise<ExternalTmsJobTaskMetadata | null> {
+    return Promise.resolve(null);
+  }
 
   abstract fetchGlossaries(scope: TmsProviderProjectScope): Promise<ExternalTmsGlossaryMetadata[]>;
 
