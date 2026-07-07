@@ -263,4 +263,109 @@ describe("Issue Sheet routes", () => {
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(1);
   });
+
+  it("imports issues from csv with dry run and duplicate skip", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const csv = `Summary,Status,External ID,Priority
+First import issue,Open,EXT-1,P1
+Second import issue,Done,EXT-2,P2`;
+
+    const mapping = [
+      { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+      { csvHeader: "Status", target: { kind: "system", field: "status" } },
+      { csvHeader: "External ID", target: { kind: "system", field: "external_ref" } },
+      {
+        csvHeader: "Priority",
+        target: { kind: "create", key: "csv_priority", label: "CSV Priority", type: "select" },
+      },
+    ];
+
+    const previewResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: true,
+          mapping,
+        },
+      },
+    );
+    expect(previewResponse.status).toBe(200);
+    const previewBody = (await previewResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(previewBody.import.created).toBe(2);
+    expect(previewBody.import.skippedDuplicates).toBe(0);
+
+    const importResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: false,
+          mapping,
+        },
+      },
+    );
+    expect(importResponse.status).toBe(201);
+    const importBody = (await importResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(importBody.import.created).toBe(2);
+
+    const reimportResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: true,
+          mapping,
+        },
+      },
+    );
+    const reimportBody = (await reimportResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(reimportBody.import.created).toBe(0);
+    expect(reimportBody.import.skippedDuplicates).toBe(2);
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { status: "all" },
+    });
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(2);
+  });
+
+  it("rejects duplicate system field mappings", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id, "/import"), {
+      method: "POST",
+      headers,
+      body: {
+        content: "Title,Summary\nIssue one,Issue two",
+        dryRun: true,
+        mapping: [
+          { csvHeader: "Title", target: { kind: "system", field: "title" } },
+          { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+        ],
+      },
+    });
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("invalid_issue_sheet_import_payload");
+  });
 });

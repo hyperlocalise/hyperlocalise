@@ -30,6 +30,7 @@ import { readApiResponseError } from "@/lib/api-error";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { useProjectPageQuery } from "../../_components/project-page-shell";
+import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
 
 type IssueSheetColumn = {
   id: string;
@@ -182,6 +183,7 @@ export function IssueSheetPageContent({
   const [search, setSearch] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const queryKey = ["issue-sheet", organizationSlug, projectId, view, search];
   const issueSheetQuery = useQuery({
@@ -252,6 +254,9 @@ export function IssueSheetPageContent({
           description="Track localization issues in Hyperlocalise, then link rows to CAT segments, native issues, provider threads, or external context."
           actions={
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                Import CSV
+              </Button>
               <Button variant="outline" onClick={() => setColumnDialogOpen(true)}>
                 <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
                 Column
@@ -441,6 +446,14 @@ export function IssueSheetPageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         onCreated={refresh}
+      />
+      <IssueSheetImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        columns={data?.columns ?? []}
+        onImported={refresh}
       />
     </ProjectPageShell>
   );

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { issueSheetImportContentExceedsByteLimit } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
+
 import { projectIdParamsSchema } from "./project.schema";
 
 export const issueSheetIssueStatusSchema = z.enum(["open", "in_progress", "resolved", "wont_fix"]);
@@ -118,8 +120,93 @@ export const issueSheetSetValueBodySchema = z.object({
   value: z.unknown(),
 });
 
+export const issueSheetSystemFieldSchema = z.enum([
+  "title",
+  "description",
+  "status",
+  "issue_type",
+  "target_locale",
+  "source_path",
+  "segment_id",
+  "external_ref",
+  "link_url",
+  "assignee",
+]);
+
+export const issueSheetImportColumnMappingSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("system"),
+    field: issueSheetSystemFieldSchema,
+  }),
+  z.object({
+    kind: z.literal("column"),
+    columnId: z.string().uuid(),
+  }),
+  z.object({
+    kind: z.literal("create"),
+    key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores"),
+    label: z.string().trim().min(1).max(120),
+    type: issueSheetColumnTypeSchema.exclude(["enrichment", "user"]),
+  }),
+  z.object({
+    kind: z.literal("skip"),
+  }),
+]);
+
+export const issueSheetImportBodySchema = z.object({
+  content: z
+    .string()
+    .min(1)
+    .superRefine((value, ctx) => {
+      if (issueSheetImportContentExceedsByteLimit(value)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "CSV file is too large",
+        });
+      }
+    }),
+  dryRun: z.boolean(),
+  mapping: z
+    .array(
+      z.object({
+        csvHeader: z.string().trim().min(1).max(256),
+        target: issueSheetImportColumnMappingSchema,
+      }),
+    )
+    .min(1)
+    .max(200)
+    .superRefine((mapping, ctx) => {
+      const seenSystemFields = new Set<string>();
+      for (const [index, entry] of mapping.entries()) {
+        if (entry.target.kind !== "system") {
+          continue;
+        }
+        if (seenSystemFields.has(entry.target.field)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `System field "${entry.target.field}" is mapped more than once`,
+            path: [index, "target", "field"],
+          });
+          continue;
+        }
+        seenSystemFields.add(entry.target.field);
+      }
+    }),
+  options: z
+    .object({
+      skipInvalidRows: z.boolean().optional(),
+    })
+    .optional(),
+});
+
 export type IssueSheetQuery = z.infer<typeof issueSheetQuerySchema>;
 export type IssueSheetCreateIssueBody = z.infer<typeof issueSheetCreateIssueBodySchema>;
 export type IssueSheetUpdateIssueBody = z.infer<typeof issueSheetUpdateIssueBodySchema>;
 export type IssueSheetCreateColumnBody = z.infer<typeof issueSheetCreateColumnBodySchema>;
 export type IssueSheetSetValueBody = z.infer<typeof issueSheetSetValueBodySchema>;
+export type IssueSheetImportBody = z.infer<typeof issueSheetImportBodySchema>;
