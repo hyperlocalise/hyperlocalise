@@ -11,8 +11,10 @@ import {
 } from "@/lib/security/provider-credential-crypto";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
-import { loadOrganizationTranslationGenerator } from "./generation";
-import * as stringJobExecutor from "./generation";
+import {
+  loadOrganizationTranslationGenerator,
+  organizationTranslationGeneratorDeps,
+} from "./generation";
 
 const projectFixture = createProjectTestFixture();
 
@@ -86,7 +88,10 @@ describe("loadOrganizationTranslationGenerator", () => {
   });
 
   it("fails when neither BYOK nor managed translation is available", async () => {
-    vi.spyOn(stringJobExecutor, "isManagedTranslationModelAvailable").mockReturnValue(false);
+    vi.spyOn(
+      organizationTranslationGeneratorDeps,
+      "isManagedTranslationModelAvailable",
+    ).mockReturnValue(false);
     const { project } = await projectFixture.createStoredProjectFixture();
 
     const result = await loadOrganizationTranslationGenerator(project.id);

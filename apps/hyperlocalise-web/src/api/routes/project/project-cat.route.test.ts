@@ -48,9 +48,6 @@ const {
 
 vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
-}));
-
-vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentVisualContext: (...args: unknown[]) => loadCatSegmentVisualContextMock(...args),
 }));
 

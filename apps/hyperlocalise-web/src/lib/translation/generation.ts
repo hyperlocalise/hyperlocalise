@@ -332,6 +332,14 @@ export function resolveProviderLanguageModel(input: {
   }
 }
 
+export const organizationTranslationGeneratorDeps = {
+  isManagedTranslationModelAvailable: (): boolean => Boolean(env.OPENAI_API_KEY),
+};
+
+export function isManagedTranslationModelAvailable() {
+  return organizationTranslationGeneratorDeps.isManagedTranslationModelAvailable();
+}
+
 export class OrganizationModelResolver {
   async resolve(projectId: string) {
     const [project] = await db
@@ -412,7 +420,7 @@ export class OrganizationModelResolver {
       };
     }
 
-    if (!isManagedTranslationModelAvailable()) {
+    if (!organizationTranslationGeneratorDeps.isManagedTranslationModelAvailable()) {
       return {
         ok: false as const,
         code: "provider_credential_missing" as const,
@@ -577,10 +585,6 @@ export function getManagedTranslationLanguageModel(): LanguageModel {
 
 export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
   return createStringTranslationGenerator({ model: getManagedTranslationLanguageModel() });
-}
-
-export function isManagedTranslationModelAvailable() {
-  return Boolean(env.OPENAI_API_KEY);
 }
 
 export const translateStringJobWithOpenAI: StringTranslationGenerator = async (input) => {
