@@ -16,6 +16,7 @@ export function ProjectFileSelectionActions({
   projectId,
   file,
   highlightLocale,
+  projectTargetLocales,
   branch = null,
   layout = "default",
 }: {
@@ -23,6 +24,7 @@ export function ProjectFileSelectionActions({
   projectId: string;
   file: ProjectFileRecord;
   highlightLocale: string | null;
+  projectTargetLocales?: readonly string[] | null;
   branch?: string | null;
   layout?: "default" | "compact";
 }) {
@@ -33,6 +35,7 @@ export function ProjectFileSelectionActions({
     file,
     highlightLocale,
     branch,
+    projectTargetLocales,
   );
 
   if (layout === "compact") {

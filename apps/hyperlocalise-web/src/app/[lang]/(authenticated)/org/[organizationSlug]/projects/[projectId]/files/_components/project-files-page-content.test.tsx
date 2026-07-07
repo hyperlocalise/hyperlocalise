@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "./project-files.fixture";
 
@@ -13,8 +13,9 @@ const enUsFile = createProjectFileRecord({
   filename: "en-US.json",
 });
 
-const { routerPushMock } = vi.hoisted(() => ({
+const { routerPushMock, searchParamsMock } = vi.hoisted(() => ({
   routerPushMock: vi.fn(),
+  searchParamsMock: vi.fn(() => "sourcePath=en-US.json&locale=vi"),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -23,7 +24,7 @@ vi.mock("next/navigation", () => ({
     push: routerPushMock,
     replace: vi.fn(),
   }),
-  useSearchParams: () => new URLSearchParams("sourcePath=en-US.json&locale=vi"),
+  useSearchParams: () => new URLSearchParams(searchParamsMock()),
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => {
@@ -83,16 +84,33 @@ vi.mock("../../_components/project-page-shell", () => ({
   useProjectPageQuery: () => ({
     isLoading: false,
     isError: false,
-    data: { sourceLocale: "en" },
+    data: { sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
   }),
 }));
 
 import { ProjectFilesPageContent } from "./project-files-page-content";
 
 describe("ProjectFilesPageContent CAT entry UX", () => {
+  beforeEach(() => {
+    searchParamsMock.mockReturnValue("sourcePath=en-US.json&locale=vi");
+    routerPushMock.mockClear();
+  });
+
   it("opens CAT when a project file is double-clicked", async () => {
     const user = userEvent.setup();
-    routerPushMock.mockClear();
+
+    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/org/acme/projects/proj_1/files/cat?sourcePath=en-US.json&locale=vi",
+    );
+  });
+
+  it("falls back to a native project target locale when no URL locale is selected", async () => {
+    const user = userEvent.setup();
+    searchParamsMock.mockReturnValue("sourcePath=en-US.json");
 
     render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 

@@ -9,23 +9,62 @@ export function canOpenProjectFileCat(file: ProjectFileRecord) {
   return Boolean(file.storedFileId);
 }
 
+function normalizeTargetLocales(locales: readonly string[] | null | undefined) {
+  if (!locales) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const locale of locales) {
+    const trimmed = locale.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      normalized.push(trimmed);
+    }
+  }
+  return normalized;
+}
+
+export function resolveProjectFileCatTargetLocales(
+  file: ProjectFileRecord,
+  projectTargetLocales?: readonly string[] | null,
+) {
+  if (file.provider) {
+    return normalizeTargetLocales(file.provider.targetLocales);
+  }
+
+  const configuredTargetLocales = normalizeTargetLocales(projectTargetLocales);
+  if (projectTargetLocales != null || configuredTargetLocales.length > 0) {
+    return configuredTargetLocales;
+  }
+
+  return normalizeTargetLocales(Object.keys(file.localeReadiness ?? {}));
+}
+
 export function resolveProjectFileCatTargetLocale(
   file: ProjectFileRecord,
   highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
 ) {
-  if (file.provider) {
-    if (highlightLocale && file.provider.targetLocales.includes(highlightLocale)) {
-      return highlightLocale;
-    }
-
-    return file.provider.targetLocales[0] ?? null;
+  const targetLocales = resolveProjectFileCatTargetLocales(file, projectTargetLocales);
+  if (highlightLocale && targetLocales.includes(highlightLocale)) {
+    return highlightLocale;
   }
 
-  return highlightLocale;
+  if (!file.provider && targetLocales.length === 0 && projectTargetLocales == null) {
+    return highlightLocale;
+  }
+
+  return targetLocales[0] ?? null;
 }
 
-function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale: string | null) {
-  return resolveProjectFileCatTargetLocale(file, highlightLocale);
+function resolveProjectFileTargetLocale(
+  file: ProjectFileRecord,
+  highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
+) {
+  return resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales);
 }
 
 export type ProjectFileCatUrlParams = {
@@ -83,6 +122,7 @@ export function buildProjectFileCatHref(
   file: ProjectFileRecord,
   highlightLocale: string | null = null,
   branch: string | null = null,
+  projectTargetLocales?: readonly string[] | null,
 ) {
   if (!canOpenProjectFileCat(file)) {
     return null;
@@ -92,7 +132,7 @@ export function buildProjectFileCatHref(
     sourcePath: file.sourcePath,
   });
 
-  const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale);
+  const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale, projectTargetLocales);
   if (targetLocale) {
     params.set("locale", targetLocale);
   }

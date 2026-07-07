@@ -26,6 +26,7 @@ import {
   ProjectPageShell,
   ProjectSectionHeader,
   ProjectSectionTitle,
+  useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
@@ -202,6 +203,8 @@ export function ProjectFilesPageContent({
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId);
+  const projectTargetLocales = projectQuery.data?.targetLocales;
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -210,7 +213,7 @@ export function ProjectFilesPageContent({
         return;
       }
 
-      const targetLocale = resolveProjectFileCatTargetLocale(file, highlightLocale);
+      const targetLocale = resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales);
       if (!canOpenProjectFileCat(file) || !targetLocale) {
         toast.error(
           targetLocale
@@ -226,12 +229,21 @@ export function ProjectFilesPageContent({
         file,
         highlightLocale,
         selectedBranch,
+        projectTargetLocales,
       );
       if (href) {
         router.push(href);
       }
     },
-    [highlightLocale, organizationSlug, projectId, resolvedFiles, router, selectedBranch],
+    [
+      highlightLocale,
+      organizationSlug,
+      projectId,
+      projectTargetLocales,
+      resolvedFiles,
+      router,
+      selectedBranch,
+    ],
   );
 
   const selectedFileForTree = useMemo(
@@ -243,6 +255,7 @@ export function ProjectFilesPageContent({
         const targetLocale = resolveProjectFileCatTargetLocale(
           selectedFileForTree,
           highlightLocale,
+          projectTargetLocales,
         );
         if (targetLocale) {
           return `Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
@@ -297,6 +310,7 @@ export function ProjectFilesPageContent({
                   projectId={projectId}
                   file={selectedFile}
                   highlightLocale={highlightLocale}
+                  projectTargetLocales={projectTargetLocales}
                   branch={selectedBranch}
                   layout="compact"
                 />

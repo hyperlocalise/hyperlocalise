@@ -17,6 +17,8 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
   hasProjectFileCatIdentityFromUrl,
+  resolveProjectFileCatTargetLocale,
+  resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
@@ -25,7 +27,6 @@ import {
   readCatFileRepositoryPreference,
   writeCatFileRepositoryPreference,
 } from "../../jobs/[jobId]/strings/_components/job-cat-repository-preference";
-import { selectJobCatTargetLocale } from "../../jobs/[jobId]/strings/_components/job-cat-target-locale";
 import {
   canLookupFreshCatRepositoryContext,
   selectJobCatRepository,
@@ -255,11 +256,12 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  const targetLocale = file?.provider
-    ? selectJobCatTargetLocale({
-        requestedTargetLocale: highlightLocale,
-        providerTargetLocales: file.provider.targetLocales,
-      })
+  const projectTargetLocales = projectQuery.data?.targetLocales;
+  const workspaceTargetLocales = file
+    ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
+    : [];
+  const targetLocale = file
+    ? resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales)
     : highlightLocale;
 
   if (!targetLocale) {
@@ -318,6 +320,7 @@ export function ProjectFileCatPageContent({
       nextFile,
       highlightLocale,
       branch,
+      projectTargetLocales,
     );
     if (href) {
       router.push(href);
@@ -397,7 +400,7 @@ export function ProjectFileCatPageContent({
           externalResourceId={resolvedExternalResourceId}
           resourceType={resolvedResourceType}
           targetLocale={targetLocale}
-          targetLocales={file?.provider?.targetLocales}
+          targetLocales={workspaceTargetLocales}
           highlightLocale={highlightLocale}
           repositoryFullName={selectedRepositoryFullName}
           canLookupFreshContext={canLookupFreshCatRepositoryContext(
