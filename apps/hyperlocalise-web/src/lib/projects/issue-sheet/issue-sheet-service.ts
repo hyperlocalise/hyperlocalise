@@ -318,7 +318,7 @@ export class IssueSheetService {
     body: IssueSheetCreateIssueBody;
   }): Promise<IssueSheetIssue> {
     await this.ensureStarterColumns(input);
-    const existing = await this.findExistingLinkedOpenIssue(input);
+    const existing = await this.findExistingLinkedIssue(input);
     if (existing) {
       return existing;
     }
@@ -347,9 +347,14 @@ export class IssueSheetService {
         resolvedAt:
           input.body.status === "resolved" || input.body.status === "wont_fix" ? new Date() : null,
       })
+      .onConflictDoNothing()
       .returning({ id: schema.issueSheetIssues.id });
 
     if (!issue) {
+      const conflicted = await this.findExistingLinkedIssue(input);
+      if (conflicted) {
+        return conflicted;
+      }
       throw new Error("issue_sheet_issue_create_failed");
     }
 
@@ -491,22 +496,28 @@ export class IssueSheetService {
     };
   }
 
-  private async findExistingLinkedOpenIssue(input: {
+  private async findExistingLinkedIssue(input: {
     organizationId: string;
     projectId: string;
     actorUserId: string;
     body: IssueSheetCreateIssueBody;
   }) {
-    const conditions: SQL[] = [
+    const baseConditions: SQL[] = [
       eq(schema.issueSheetIssues.organizationId, input.organizationId),
       eq(schema.issueSheetIssues.projectId, input.projectId),
-      inArray(schema.issueSheetIssues.status, ["open", "in_progress"]),
     ];
 
-    const linkConditions: SQL[] = [];
     if (input.body.externalRef) {
-      linkConditions.push(eq(schema.issueSheetIssues.externalRef, input.body.externalRef));
+      const existingByExternalRef = await this.findFirstIssueByConditions(input, [
+        ...baseConditions,
+        eq(schema.issueSheetIssues.externalRef, input.body.externalRef),
+      ]);
+      if (existingByExternalRef) {
+        return existingByExternalRef;
+      }
     }
+
+    const linkConditions: SQL[] = [];
     if (input.body.linkedCommentId) {
       linkConditions.push(eq(schema.issueSheetIssues.linkedCommentId, input.body.linkedCommentId));
     }
@@ -523,12 +534,26 @@ export class IssueSheetService {
       return null;
     }
 
-    conditions.push(or(...linkConditions)!);
+    return this.findFirstIssueByConditions(input, [
+      ...baseConditions,
+      inArray(schema.issueSheetIssues.status, ["open", "in_progress"]),
+      or(...linkConditions)!,
+    ]);
+  }
 
+  private async findFirstIssueByConditions(
+    input: {
+      organizationId: string;
+      projectId: string;
+      actorUserId: string;
+    },
+    conditions: SQL[],
+  ) {
     const [existing] = await this.database
       .select({ id: schema.issueSheetIssues.id })
       .from(schema.issueSheetIssues)
       .where(and(...conditions))
+      .orderBy(desc(schema.issueSheetIssues.createdAt))
       .limit(1);
 
     if (!existing) {

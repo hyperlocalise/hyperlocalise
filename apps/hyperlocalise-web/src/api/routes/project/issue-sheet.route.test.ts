@@ -212,4 +212,55 @@ describe("Issue Sheet routes", () => {
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(1);
   });
+
+  it("returns a resolved row for repeated external references", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const payload = {
+      title: "Resolved CAT context request",
+      issueType: "context_request",
+      targetLocale: "fr-FR",
+      sourcePath: "messages/home.json",
+      segmentId: "headline",
+      externalRef: "cat:home:fr-FR:resolved-headline",
+    };
+
+    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as IssueResponse;
+
+    const resolveResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${firstBody.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { status: "resolved" },
+      },
+    );
+    expect(resolveResponse.status).toBe(200);
+
+    const repeated = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+
+    expect(repeated.status).toBe(201);
+    const repeatedBody = (await repeated.json()) as IssueResponse;
+    expect(repeatedBody.issue.id).toBe(firstBody.issue.id);
+    expect(repeatedBody.issue.status).toBe("resolved");
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { status: "all" },
+    });
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(1);
+  });
 });
