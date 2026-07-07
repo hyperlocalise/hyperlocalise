@@ -79,6 +79,7 @@ export const Error: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Issue Sheet")).toBeInTheDocument();
-    await expect(canvas.getByText("No issues in this view.")).toBeInTheDocument();
+    await expect(canvas.getByText("Issues could not be loaded.")).toBeInTheDocument();
+    await expect(canvas.queryByText("No issues in this view.")).not.toBeInTheDocument();
   },
 };

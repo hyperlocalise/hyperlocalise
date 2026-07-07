@@ -6,48 +6,38 @@ import {
   issueSheetResponseFixture,
 } from "./issue-sheet.fixture";
 
-function issueSheetPath(organizationSlug: string, projectId: string, suffix = "") {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet${suffix}`;
-}
+const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
 
 export const issueSheetMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
-  http.get(issueSheetPath(":organizationSlug", ":projectId"), () =>
-    HttpResponse.json(issueSheetResponseFixture),
-  ),
-  http.patch(
-    issueSheetPath(":organizationSlug", ":projectId", "/:issueId"),
-    async ({ params, request }) => {
-      const body = (await request.json()) as Record<string, unknown>;
-      const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
-      if (!issue) {
-        return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
-      }
-      return HttpResponse.json({
-        issue: {
-          ...issue,
-          ...body,
-          updatedAt: new Date().toISOString(),
-        },
-      });
-    },
-  ),
-  http.patch(
-    issueSheetPath(":organizationSlug", ":projectId", "/:issueId/values"),
-    async ({ params, request }) => {
-      const body = (await request.json()) as { columnKey: string; value: unknown };
-      const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
-      if (!issue) {
-        return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
-      }
-      return HttpResponse.json({
-        value: body.value,
-      });
-    },
-  ),
-  http.post(issueSheetPath(":organizationSlug", ":projectId"), async ({ request }) => {
+  http.get(issueSheetBasePath, () => HttpResponse.json(issueSheetResponseFixture)),
+  http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({
+      issue: {
+        ...issue,
+        ...body,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }),
+  http.patch(`${issueSheetBasePath}/:issueId/values`, async ({ params, request }) => {
+    const body = (await request.json()) as { columnKey: string; value: unknown };
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({
+      value: body.value,
+    });
+  }),
+  http.post(issueSheetBasePath, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const issue = issueSheetIssuesFixture[0];
     return HttpResponse.json(
@@ -62,7 +52,7 @@ export const issueSheetMswHandlers = [
       { status: 201 },
     );
   }),
-  http.post(issueSheetPath(":organizationSlug", ":projectId", "/columns"), async ({ request }) => {
+  http.post(`${issueSheetBasePath}/columns`, async ({ request }) => {
     const body = (await request.json()) as {
       key: string;
       label: string;
@@ -90,7 +80,7 @@ export const issueSheetEmptyMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
-  http.get(issueSheetPath(":organizationSlug", ":projectId"), () =>
+  http.get(issueSheetBasePath, () =>
     HttpResponse.json({
       issues: [],
       columns: issueSheetResponseFixture.columns,
@@ -110,7 +100,7 @@ export const issueSheetLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ project: issueSheetProjectFixture });
   }),
-  http.get(issueSheetPath(":organizationSlug", ":projectId"), async () => {
+  http.get(issueSheetBasePath, async () => {
     await delay("infinite");
     return HttpResponse.json(issueSheetResponseFixture);
   }),
@@ -120,7 +110,7 @@ export const issueSheetErrorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
-  http.get(issueSheetPath(":organizationSlug", ":projectId"), () =>
+  http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_load_failed" }, { status: 500 }),
   ),
 ];
