@@ -172,15 +172,23 @@ func TestTaskCreateFormValidate(t *testing.T) {
 			err:  "type is required and must be one of 0, 1",
 		},
 		{
-			name: "missing one of stringIds, fileIds, branchIds",
+			name: "missing one of stringIds, fileIds, branchIds, directoryIds",
 			req:  &TaskCreateForm{Title: "Test task", LanguageID: "uk", Type: toPtr(TaskTypeProofread)},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid request",
 			req: &TaskCreateForm{
 				Title: "Test task", LanguageID: "uk", Type: toPtr(TaskTypeProofread),
 				FileIDs: []int{1, 2},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with directoryIds",
+			req: &TaskCreateForm{
+				Title: "Test task", LanguageID: "uk", Type: toPtr(TaskTypeProofread),
+				DirectoryIDs: []int{4, 5},
 			},
 			valid: true,
 		},
@@ -243,12 +251,12 @@ func TestLanguageServiceTaskCreateFormValidate(t *testing.T) {
 			err: "vendor is required and must be \"crowdin_language_service\"",
 		},
 		{
-			name: "required fileIds/branchIds/stringIds",
+			name: "required fileIds/branchIds/stringIds/directoryIds",
 			req: &LanguageServiceTaskCreateForm{
 				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
 				Vendor: TaskVendorCrowdinLanguageService,
 			},
-			err: "one of stringIds, fileIds or branchIds is required",
+			err: "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid validation",
@@ -314,9 +322,9 @@ func TestVendorOhtTaskCreateFormValidate(t *testing.T) {
 			err:  "vendor is required and must be \"oht\"",
 		},
 		{
-			name: "required fileIds/branchIds/stringIds",
+			name: "required fileIds/branchIds/stringIds/directoryIds",
 			req:  &VendorOhtTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor, Vendor: TaskVendorOht},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid validation",
@@ -382,9 +390,9 @@ func TestVendorGengoTaskCreateFormValidate(t *testing.T) {
 			err:  "vendor is required and must be \"gengo\"",
 		},
 		{
-			name: "required fileIds/branchIds/stringIds",
+			name: "required fileIds/branchIds/stringIds/directoryIds",
 			req:  &VendorGengoTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor, Vendor: TaskVendorGengo},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid validation",
@@ -445,9 +453,9 @@ func TestVendorManualTaskCreateFormValidate(t *testing.T) {
 			err:  "vendor is required",
 		},
 		{
-			name: "required fileIds/branchIds/stringIds",
+			name: "required fileIds/branchIds/stringIds/directoryIds",
 			req:  &VendorManualTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor, Vendor: TaskVendorAlconost},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 
 		{
@@ -655,9 +663,9 @@ func TestEnterpriseTaskCreateFormValidate(t *testing.T) {
 			err:  "languageId is required",
 		},
 		{
-			name: "stringIds, fileIds or branchIds is required",
+			name: "stringIds, fileIds, branchIds or directoryIds is required",
 			req:  &EnterpriseTaskCreateForm{WorkflowStepID: 1, Title: "French", LanguageID: "en"},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid data validation with branchIds",
@@ -666,6 +674,16 @@ func TestEnterpriseTaskCreateFormValidate(t *testing.T) {
 				Title:          "French",
 				LanguageID:     "en",
 				BranchIDs:      []int{1, 2},
+			},
+			valid: true,
+		},
+		{
+			name: "valid data validation with directoryIds",
+			req: &EnterpriseTaskCreateForm{
+				WorkflowStepID: 1,
+				Title:          "French",
+				LanguageID:     "en",
+				DirectoryIDs:   []int{1, 2},
 			},
 			valid: true,
 		},
@@ -726,9 +744,9 @@ func TestEnterpriseVendorTaskCreateFormValidate(t *testing.T) {
 			err:  "languageId is required",
 		},
 		{
-			name: "stringIds, fileIds or branchIds is required",
+			name: "stringIds, fileIds, branchIds or directoryIds is required",
 			req:  &EnterpriseVendorTaskCreateForm{WorkflowStepID: 1, Title: "French", LanguageID: "en"},
-			err:  "one of stringIds, fileIds or branchIds is required",
+			err:  "one of stringIds, fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid data validation with branchIds",
@@ -737,6 +755,16 @@ func TestEnterpriseVendorTaskCreateFormValidate(t *testing.T) {
 				Title:          "French",
 				LanguageID:     "en",
 				BranchIDs:      []int{1, 2},
+			},
+			valid: true,
+		},
+		{
+			name: "valid data validation with directoryIds",
+			req: &EnterpriseVendorTaskCreateForm{
+				WorkflowStepID: 1,
+				Title:          "French",
+				LanguageID:     "en",
+				DirectoryIDs:   []int{1, 2},
 			},
 			valid: true,
 		},
