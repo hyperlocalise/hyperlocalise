@@ -51,13 +51,8 @@ async function runSandboxCommand(
 async function prepareSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const installResult = await runSandboxCommand(sandboxId, "bash", [
-    "-lc",
-    'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
-  ]);
-  if (installResult.exitCode !== 0) {
-    throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);
-  }
+  const { prepareSandbox: prepareTranslationSandbox } = await import("@/lib/translation/sandbox");
+  await prepareTranslationSandbox(sandboxId);
 }
 
 async function downloadAttachment(
@@ -146,7 +141,7 @@ async function runTranslationCommand(
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+      `hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
     ],
     {
       env: getSandboxTranslationEnv(),
@@ -298,7 +293,10 @@ async function sendFailureReplyEmail(
 function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
-  if (message.includes("hyperlocalise CLI installation failed")) {
+  if (
+    message.includes("hyperlocalise CLI installation failed") ||
+    message.includes("sandbox tool installation failed")
+  ) {
     return "something went wrong while setting up the translation environment on our end.";
   }
 

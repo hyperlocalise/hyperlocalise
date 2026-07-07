@@ -113,7 +113,7 @@ export function createApplyHyperlocaliseFixesTool(ctx: ToolContext) {
       try {
         const result = await runSandboxCommand(ctx.sandboxId, "bash", [
           "-lc",
-          `export PATH="$HOME/.local/bin:$PATH"; hl ${args.map((a) => `'${a.replaceAll("'", "'\\''")}'`).join(" ")}`,
+          `hl ${args.map((a) => `'${a.replaceAll("'", "'\\''")}'`).join(" ")}`,
         ]);
 
         if (result.exitCode !== 0) {

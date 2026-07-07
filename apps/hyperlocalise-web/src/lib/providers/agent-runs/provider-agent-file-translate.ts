@@ -206,7 +206,7 @@ async function runFileTranslationInSandbox(input: {
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
+      `hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     { env: getSandboxTranslationEnv() },
   );

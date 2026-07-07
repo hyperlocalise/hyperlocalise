@@ -59,6 +59,11 @@ describe("sandbox command runner", () => {
       args: ["-c", expect.stringContaining("apt-get update && apt-get install -y ripgrep")],
       sudo: true,
     });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "sh",
+      args: ["-c", expect.stringContaining("install_hyperlocalise_from_github_release")],
+      sudo: true,
+    });
   });
 
   it("captures combined output by default", async () => {
