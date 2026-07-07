@@ -1,0 +1,45 @@
+name: Hyperlocalise Localize
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - tests/**
+      - i18n.yml
+      - .github/workflows/hyperlocalise-localize.yml
+      - sync/action.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyperlocalise-localize-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  localize:
+    name: Localize Repository
+    if: ${{ secrets.HYPERLOCALISE_API_KEY != '' && secrets.HYPERLOCALISE_PROJECT_ID != '' }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: hyperlocalise-localize
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Sync sources and translations
+        uses: ./sync
+        with:
+          config-path: i18n.yml
+          extract-path: tests/formatjs/src
+          extract-out-file: tests/formatjs/en-US.json
+          fail-on-findings: true
+          upload-artifact: true
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}

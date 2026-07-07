@@ -267,32 +267,45 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 	for _, bucketName := range bucketNames {
 		bucket := cfg.Buckets[bucketName]
 		for _, mapping := range bucket.Files {
-			sourcePath := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
-			fileFormat := inferHyperlocaliseFileFormat(sourcePath)
-			if fileFormat == "" {
-				return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
+			sourcePattern := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
+			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			if err != nil {
+				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
-			sourceHash := ""
-			if hashSources {
-				var err error
-				sourceHash, err = sha256File(sourcePath)
-				if err != nil {
-					return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+			for _, sourcePath := range sourcePaths {
+				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+					continue
 				}
+				fileFormat := inferHyperlocaliseFileFormat(sourcePath)
+				if fileFormat == "" {
+					return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
+				}
+				sourceHash := ""
+				if hashSources {
+					sourceHash, err = sha256File(sourcePath)
+					if err != nil {
+						return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+					}
+				}
+				targetPaths := make(map[string]string, len(targetLocales))
+				for _, locale := range targetLocales {
+					targetPattern := pathresolver.ResolveTargetPath(mapping.To, cfg.Locales.Source, locale)
+					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					if err != nil {
+						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+					}
+					targetPaths[locale] = targetPath
+				}
+				plans = append(plans, hyperlocaliseFilePlan{
+					Bucket:        bucketName,
+					SourcePath:    sourcePath,
+					SourceHash:    sourceHash,
+					FileFormat:    fileFormat,
+					SourceLocale:  cfg.Locales.Source,
+					TargetLocales: append([]string(nil), targetLocales...),
+					TargetPaths:   targetPaths,
+				})
 			}
-			targetPaths := make(map[string]string, len(targetLocales))
-			for _, locale := range targetLocales {
-				targetPaths[locale] = pathresolver.ResolveTargetPath(mapping.To, cfg.Locales.Source, locale)
-			}
-			plans = append(plans, hyperlocaliseFilePlan{
-				Bucket:        bucketName,
-				SourcePath:    sourcePath,
-				SourceHash:    sourceHash,
-				FileFormat:    fileFormat,
-				SourceLocale:  cfg.Locales.Source,
-				TargetLocales: append([]string(nil), targetLocales...),
-				TargetPaths:   targetPaths,
-			})
 		}
 	}
 

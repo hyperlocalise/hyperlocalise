@@ -59,6 +59,48 @@ jobs:
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
+  sync-action-self-test:
+    name: Sync Action Self Test
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    env:
+      HYPERLOCALISE_API_KEY: hl_sync_self_test
+      HYPERLOCALISE_PROJECT_ID: project_sync_self_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Run Hyperlocalise sync action
+        id: hyperlocalise-sync
+        uses: ./sync
+        with:
+          config-path: i18n.yml
+          extract-path: tests/formatjs/src
+          extract-out-file: tests/formatjs/en-US.json
+          dry-run: true
+          fail-on-findings: false
+          upload-artifact: false
+
+      - name: Verify sync action outputs
+        shell: bash
+        env:
+          FINDINGS_DETECTED: ${{ steps.hyperlocalise-sync.outputs.findings-detected }}
+          FINDINGS_TOTAL: ${{ steps.hyperlocalise-sync.outputs.findings-total }}
+          ERROR_COUNT: ${{ steps.hyperlocalise-sync.outputs.error-count }}
+          WARNING_COUNT: ${{ steps.hyperlocalise-sync.outputs.warning-count }}
+        run: |
+          set -euo pipefail
+          case "${FINDINGS_DETECTED}" in
+            true|false) ;;
+            *)
+              echo "Unexpected findings-detected output: ${FINDINGS_DETECTED}" >&2
+              exit 1
+              ;;
+          esac
+          [[ "${FINDINGS_TOTAL}" =~ ^[0-9]+$ ]]
+          [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
+          [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
+
   bazel-build-test:
     name: Bazel Build/Test
     runs-on: blacksmith-4vcpu-ubuntu-2404

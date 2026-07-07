@@ -1,0 +1,260 @@
+name: Hyperlocalise Sync
+description: Upload sources with React Intl extraction and download translations with git diff validation.
+
+branding:
+  icon: sync
+  color: gray-dark
+
+inputs:
+  config-path:
+    description: Path to the i18n config file.
+    default: i18n.yml
+  working-directory:
+    description: Working directory for sync commands.
+    default: .
+  hyperlocalise-version:
+    description: Hyperlocalise release version to install.
+    default: latest
+  extract-path:
+    description: Optional path to scan for React Intl extraction before upload. Leave empty to skip extraction.
+    default: ""
+  extract-out-file:
+    description: Output file for extracted FormatJS catalog. Required when extract-path is set.
+    default: ""
+  dry-run:
+    description: Preview sync push and pull without uploading, downloading, or writing files.
+    default: "false"
+  fail-on-findings:
+    description: Fail the action when git diff validation reports findings.
+    default: "true"
+  prefix-id:
+    description: Pass --prefix-id to git diff validation when source keys use extract --prefix-id prefixes.
+    default: "false"
+  upload-artifact:
+    description: Upload the validation JSON report and summary artifacts.
+    default: "true"
+
+outputs:
+  push-report-path:
+    description: Path to the sync push JSON report.
+    value: ${{ steps.prepare.outputs.push-report-path }}
+  pull-report-path:
+    description: Path to the sync pull JSON report.
+    value: ${{ steps.prepare.outputs.pull-report-path }}
+  validation-report-path:
+    description: Path to the git diff validation JSON report.
+    value: ${{ steps.prepare.outputs.validation-report-path }}
+  validation-summary-path:
+    description: Path to the git diff validation text summary.
+    value: ${{ steps.prepare.outputs.validation-summary-path }}
+  findings-detected:
+    description: Whether git diff validation found issues.
+    value: ${{ steps.analyze-validation.outputs.findings-detected }}
+  findings-total:
+    description: Total number of validation errors and warnings.
+    value: ${{ steps.analyze-validation.outputs.findings-total }}
+  error-count:
+    description: Number of error-level validation findings.
+    value: ${{ steps.analyze-validation.outputs.error-count }}
+  warning-count:
+    description: Number of warning-level validation findings.
+    value: ${{ steps.analyze-validation.outputs.warning-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        EXTRACT_PATH: ${{ inputs.extract-path }}
+        EXTRACT_OUT_FILE: ${{ inputs.extract-out-file }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        PREFIX_ID: ${{ inputs.prefix-id }}
+      run: |
+        set -euo pipefail
+        if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
+          echo "Unsupported dry-run value: ${DRY_RUN}" >&2
+          exit 1
+        fi
+        if [[ "${PREFIX_ID}" != "true" && "${PREFIX_ID}" != "false" ]]; then
+          echo "Unsupported prefix-id value: ${PREFIX_ID}" >&2
+          exit 1
+        fi
+        if [[ -n "${EXTRACT_PATH}" && -z "${EXTRACT_OUT_FILE}" ]]; then
+          echo "extract-out-file is required when extract-path is set." >&2
+          exit 1
+        fi
+        if [[ -z "${EXTRACT_PATH}" && -n "${EXTRACT_OUT_FILE}" ]]; then
+          echo "extract-path is required when extract-out-file is set." >&2
+          exit 1
+        fi
+
+    - name: Prepare artifact paths
+      id: prepare
+      shell: bash
+      run: |
+        set -euo pipefail
+        artifact_dir="${RUNNER_TEMP}/hyperlocalise-sync/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
+        mkdir -p "${artifact_dir}"
+        echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-sync-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
+        echo "push-report-path=${artifact_dir}/push-report.json" >>"${GITHUB_OUTPUT}"
+        echo "pull-report-path=${artifact_dir}/pull-report.json" >>"${GITHUB_OUTPUT}"
+        echo "validation-report-path=${artifact_dir}/validation-report.json" >>"${GITHUB_OUTPUT}"
+        echo "validation-summary-path=${artifact_dir}/validation-summary.txt" >>"${GITHUB_OUTPUT}"
+
+    - name: Install Hyperlocalise
+      shell: bash
+      env:
+        VERSION: ${{ inputs.hyperlocalise-version }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
+        mkdir -p "${install_dir}"
+        bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        echo "${install_dir}" >>"${GITHUB_PATH}"
+
+    - name: Extract React Intl messages
+      if: ${{ inputs.extract-path != '' }}
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        EXTRACT_PATH: ${{ inputs.extract-path }}
+        EXTRACT_OUT_FILE: ${{ inputs.extract-out-file }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        hyperlocalise extract "${EXTRACT_PATH}" --out-file "${EXTRACT_OUT_FILE}"
+        popd >/dev/null
+
+    - name: Upload sources
+      id: sync-push
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        PUSH_REPORT_PATH: ${{ steps.prepare.outputs.push-report-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        args=(sync push --output json)
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          args+=(--dry-run)
+        fi
+        if [[ -n "${CONFIG_PATH}" ]]; then
+          args+=(--config "${CONFIG_PATH}")
+        fi
+
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        hyperlocalise "${args[@]}" | tee "${PUSH_REPORT_PATH}"
+        popd >/dev/null
+
+    - name: Download translations
+      id: sync-pull
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        PULL_REPORT_PATH: ${{ steps.prepare.outputs.pull-report-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        args=(sync pull --output json)
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          args+=(--dry-run)
+        fi
+        if [[ -n "${CONFIG_PATH}" ]]; then
+          args+=(--config "${CONFIG_PATH}")
+        fi
+
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        hyperlocalise "${args[@]}" | tee "${PULL_REPORT_PATH}"
+        popd >/dev/null
+
+    - name: Validate pulled changes
+      id: validate-diff
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        PREFIX_ID: ${{ inputs.prefix-id }}
+        VALIDATION_REPORT_PATH: ${{ steps.prepare.outputs.validation-report-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set +e
+        set -u
+
+        args=(check --no-fail --json-report "${VALIDATION_REPORT_PATH}")
+        if [[ "${PREFIX_ID}" == "true" ]]; then
+          args+=(--prefix-id)
+        fi
+        if [[ -n "${CONFIG_PATH}" ]]; then
+          args+=(--config "${CONFIG_PATH}")
+        fi
+
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        git diff | hyperlocalise "${args[@]}"
+        cli_exit=$?
+        popd >/dev/null
+
+        echo "cli-exit-code=${cli_exit}" >>"${GITHUB_OUTPUT}"
+        exit 0
+
+    - name: Analyze validation report
+      id: analyze-validation
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        VALIDATION_REPORT_PATH: ${{ steps.prepare.outputs.validation-report-path }}
+        VALIDATION_SUMMARY_PATH: ${{ steps.prepare.outputs.validation-summary-path }}
+        CLI_EXIT_CODE: ${{ steps.validate-diff.outputs.cli-exit-code }}
+      run: |
+        set -euo pipefail
+        node "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
+          "check" \
+          "${CONFIG_PATH}" \
+          "${VALIDATION_REPORT_PATH}" \
+          "${VALIDATION_SUMMARY_PATH}" \
+          "${CLI_EXIT_CODE}" \
+          "compact" \
+          "20"
+
+    - name: Upload artifacts
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}
+        if-no-files-found: error
+        path: |
+          ${{ steps.prepare.outputs.push-report-path }}
+          ${{ steps.prepare.outputs.pull-report-path }}
+          ${{ steps.prepare.outputs.validation-report-path }}
+          ${{ steps.prepare.outputs.validation-summary-path }}
+
+    - name: Fail on CLI error
+      if: ${{ steps.validate-diff.outputs.cli-exit-code != '0' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Hyperlocalise git diff validation failed before a clean report could be produced." >&2
+        exit 1
+
+    - name: Fail on unknown validation state
+      if: ${{ steps.analyze-validation.outputs.findings-detected == 'unknown' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Hyperlocalise validation result state is unknown. Check the uploaded artifacts and workflow log." >&2
+        exit 1
+
+    - name: Fail on findings
+      if: ${{ inputs.fail-on-findings == 'true' && steps.analyze-validation.outputs.findings-detected == 'true' }}
+      shell: bash
+      env:
+        ERROR_COUNT: ${{ steps.analyze-validation.outputs.error-count }}
+        WARNING_COUNT: ${{ steps.analyze-validation.outputs.warning-count }}
+      run: |
+        set -euo pipefail
+        echo "Localization validation findings detected after sync pull (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings). Review the uploaded report artifacts for details." >&2
+        exit 1
