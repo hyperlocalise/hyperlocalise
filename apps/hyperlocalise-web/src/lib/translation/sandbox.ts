@@ -8,6 +8,24 @@ import type { SandboxTranslationContext } from "@/lib/translation/domain";
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
 
+export const installHyperlocaliseCliCommand = [
+  'export PATH="$HOME/.local/bin:$PATH"',
+  'export INSTALL_DIR="$HOME/.local/bin"',
+  'mkdir -p "$INSTALL_DIR"',
+  "if ! command -v hl >/dev/null 2>&1 && ! command -v hyperlocalise >/dev/null 2>&1; then",
+  "  curl -fsSL https://hyperlocalise.com/install | bash",
+  "fi",
+  "if ! command -v hl >/dev/null 2>&1; then",
+  '  hyperlocalise_path="$(command -v hyperlocalise || true)"',
+  '  if [ -z "$hyperlocalise_path" ]; then',
+  '    echo "hyperlocalise CLI not found after install" >&2',
+  "    exit 1",
+  "  fi",
+  '  ln -sf "$hyperlocalise_path" "$HOME/.local/bin/hl"',
+  "fi",
+  "command -v hl >/dev/null 2>&1",
+].join("\n");
+
 export type { SandboxTranslationContext };
 
 function shellQuote(value: string): string {
@@ -269,7 +287,7 @@ export class HyperlocaliseCliRunner {
   async prepare(sandboxId: string): Promise<void> {
     const installResult = await this.lifecycle.runCommand(sandboxId, "bash", [
       "-lc",
-      'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
+      installHyperlocaliseCliCommand,
     ]);
     if (installResult.exitCode !== 0) {
       throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);

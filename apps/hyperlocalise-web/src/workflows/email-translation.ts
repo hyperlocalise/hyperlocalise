@@ -51,9 +51,10 @@ async function runSandboxCommand(
 async function prepareSandbox(sandboxId: string): Promise<void> {
   "use step";
 
+  const { installHyperlocaliseCliCommand } = await import("@/lib/translation/sandbox");
   const installResult = await runSandboxCommand(sandboxId, "bash", [
     "-lc",
-    'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
+    installHyperlocaliseCliCommand,
   ]);
   if (installResult.exitCode !== 0) {
     throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);

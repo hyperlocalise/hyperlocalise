@@ -71,17 +71,21 @@ trap cleanup EXIT
 archive=""
 base_url=""
 
+tag_candidates="$(make_tag_candidates "${resolved_version}")"
 while IFS= read -r tag_candidate; do
+  [ -n "${tag_candidate}" ] || continue
   candidate_base_url="https://github.com/${repo}/releases/download/${tag_candidate}"
+  asset_version_candidates="$(make_asset_version_candidates "${resolved_version}")"
   while IFS= read -r asset_version_candidate; do
+    [ -n "${asset_version_candidate}" ] || continue
     candidate_archive="${binary_name}_${asset_version_candidate}_${os}_${arch}.tar.gz"
     if curl -fsSL "${candidate_base_url}/${candidate_archive}" -o "${tmp_dir}/${candidate_archive}"; then
       archive="${candidate_archive}"
       base_url="${candidate_base_url}"
       break 2
     fi
-  done < <(make_asset_version_candidates "${resolved_version}")
-done < <(make_tag_candidates "${resolved_version}")
+  done <<< "${asset_version_candidates}"
+done <<< "${tag_candidates}"
 
 if [[ -z "${archive}" ]]; then
   echo "Failed to download a Hyperlocalise release archive for ${resolved_version} (${os}/${arch})." >&2
