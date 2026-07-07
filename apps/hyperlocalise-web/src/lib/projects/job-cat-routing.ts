@@ -19,7 +19,10 @@ export type JobCatTarget = {
   inputPayload: unknown;
 };
 
-export type JobCatQueueFilterContext = Pick<JobCatTarget, "kind" | "status">;
+export type JobCatQueueFilterContext = {
+  kind?: JobCatTarget["kind"];
+  status?: JobCatTarget["status"];
+};
 
 export function resolveDefaultJobCatQueueFilter(
   job: JobCatQueueFilterContext,
@@ -28,7 +31,7 @@ export function resolveDefaultJobCatQueueFilter(
     return "needs_review";
   }
 
-  if (job.kind === "translation") {
+  if (job.kind === "translation" || job.kind === undefined) {
     return "untranslated";
   }
 

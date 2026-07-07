@@ -181,7 +181,7 @@ describe("JobCatPageContent guard ordering", () => {
 
     await waitFor(() => {
       expect(routerReplaceMock).toHaveBeenCalledWith(
-        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json",
+        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json&queueFilter=untranslated",
       );
     });
     expect(

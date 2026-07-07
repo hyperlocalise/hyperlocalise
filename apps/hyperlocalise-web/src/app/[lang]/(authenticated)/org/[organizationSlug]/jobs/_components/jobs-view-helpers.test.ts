@@ -93,11 +93,7 @@ describe("jobs-view-helpers", () => {
       "queueFilter=needs_review",
     );
     expect(
-      buildJobCatHref(
-        "acme",
-        "project-1",
-        createJob({ status: "waiting_for_review" }),
-      ),
+      buildJobCatHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
     ).toContain("queueFilter=needs_review");
   });
 

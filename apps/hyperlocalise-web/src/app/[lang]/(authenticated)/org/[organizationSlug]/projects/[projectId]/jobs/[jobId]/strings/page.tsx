@@ -24,7 +24,8 @@ export default async function ProjectJobStringsPage({
   await requireAppAuthContext({ organizationSlug });
 
   const initialQueueFilter =
-    parseJobCatQueueFilterParam(queueFilter) ?? resolveDefaultJobCatQueueFilter({ kind: "translation" });
+    parseJobCatQueueFilterParam(queueFilter) ??
+    resolveDefaultJobCatQueueFilter({ kind: "translation" });
 
   return (
     <JobCatPageContent
