@@ -131,7 +131,7 @@ function DashboardPanel({
             aria-label={`Loading ${title.toLowerCase()}`}
           >
             {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-16 rounded-lg bg-muted" />
+              <DashboardPanelCardSkeleton key={index} />
             ))}
           </div>
         ) : isError ? (
@@ -246,28 +246,46 @@ function DashboardSetupHero({
 
 function DashboardHeroSkeleton() {
   return (
-    <Card
-      className="rounded-2xl border border-border bg-card py-0 ring-0 lg:col-span-2"
-      aria-busy="true"
-      aria-label="Loading workspace overview"
-    >
-      <CardContent className="grid min-h-52 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] lg:items-end">
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-8 w-72 max-w-full" />
-          <Skeleton className="h-4 w-full max-w-xl" />
-          <Skeleton className="h-4 w-4/5 max-w-lg" />
-          <div className="mt-2 flex gap-2">
-            <Skeleton className="h-9 w-32 rounded-full" />
-            <Skeleton className="h-9 w-32 rounded-full" />
+    <>
+      <Card
+        className="rounded-2xl border border-border bg-card py-0 ring-0"
+        aria-busy="true"
+        aria-label="Loading workspace overview"
+      >
+        <CardContent className="flex h-full min-h-52 flex-col justify-between gap-6 px-6 py-6">
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-8 w-72 max-w-full" />
+            <Skeleton className="h-4 w-full max-w-xl" />
+            <Skeleton className="h-4 w-4/5 max-w-lg" />
+            <Skeleton className="mt-2 h-9 w-32 rounded-full" />
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-2 w-full rounded-full" />
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl border border-border bg-muted py-0 ring-0" aria-hidden>
+        <CardContent className="flex h-full min-h-52 flex-col justify-between gap-4 px-6 py-6">
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-7 w-56 max-w-full" />
+            <Skeleton className="h-4 w-full max-w-sm" />
+            <Skeleton className="h-4 w-4/5 max-w-xs" />
+          </div>
+          <Skeleton className="h-9 w-32 rounded-full" />
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+function DashboardPanelCardSkeleton() {
+  return (
+    <div className="rounded-lg border border-border px-3 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <Skeleton className="mt-2 h-3 w-full max-w-xs" />
+    </div>
   );
 }
 

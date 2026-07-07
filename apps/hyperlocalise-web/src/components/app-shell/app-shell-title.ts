@@ -10,6 +10,7 @@ const ROUTE_TITLES = {
   glossaries: "Glossaries",
   inbox: "Inbox",
   integrations: "Integrations",
+  issues: "Issues",
   "issue-sheet": "Issue Sheet",
   jobs: "Jobs",
   knowledge: "Knowledge",

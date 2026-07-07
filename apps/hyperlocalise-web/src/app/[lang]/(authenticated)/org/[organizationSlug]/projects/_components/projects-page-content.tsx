@@ -31,7 +31,7 @@ import {
 } from "./project-form";
 import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
-import { ProjectsTable } from "./projects-table";
+import { PROJECTS_PAGE_SIZE, ProjectsTable } from "./projects-table";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
@@ -117,6 +117,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
   const [sourceFilter, setSourceFilter] = useState<ProjectSourceFilter>("all");
   const [recentProjects, setRecentProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [nativeVisibleCount, setNativeVisibleCount] = useState(PROJECTS_PAGE_SIZE);
+  const [tmsVisibleCount, setTmsVisibleCount] = useState(PROJECTS_PAGE_SIZE);
 
   const nativeProjectsQuery = useQuery({
     queryKey: nativeProjectsQueryKey(organizationSlug),
@@ -233,6 +235,24 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     });
   }, [searchQuery, tmsProjects]);
 
+  useEffect(() => {
+    setNativeVisibleCount(PROJECTS_PAGE_SIZE);
+    setTmsVisibleCount(PROJECTS_PAGE_SIZE);
+  }, [searchQuery, sourceFilter]);
+
+  const visibleNativeProjects = filteredNativeProjects.slice(0, nativeVisibleCount);
+  const visibleTmsProjects = filteredTmsProjects.slice(0, tmsVisibleCount);
+  const hasMoreNativeProjects = visibleNativeProjects.length < filteredNativeProjects.length;
+  const hasMoreTmsProjects = visibleTmsProjects.length < filteredTmsProjects.length;
+
+  const loadMoreNativeProjects = useCallback(() => {
+    setNativeVisibleCount((current) => current + PROJECTS_PAGE_SIZE);
+  }, []);
+
+  const loadMoreTmsProjects = useCallback(() => {
+    setTmsVisibleCount((current) => current + PROJECTS_PAGE_SIZE);
+  }, []);
+
   const handleOpenProject = useCallback(
     (projectId: string) => {
       recordRecentProjectVisit(organizationSlug, projectId);
@@ -266,8 +286,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     (sourceFilter === "all" || sourceFilter === "tms");
   const showNativeSection = sourceFilter === "all" || sourceFilter === "native";
   const hasFilteredResults =
-    (showNativeSection && filteredNativeProjects.length > 0) ||
-    (showTmsSection && filteredTmsProjects.length > 0);
+    (showNativeSection && visibleNativeProjects.length > 0) ||
+    (showTmsSection && visibleTmsProjects.length > 0);
   const tmsProviderName = activeTmsProviderQuery.data
     ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
     : "TMS";
@@ -337,12 +357,14 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         description="Live projects fetched from your connected TMS provider, ordered by recent activity."
       />
       <ProjectsTable
-        projects={filteredTmsProjects}
+        projects={visibleTmsProjects}
         projectsQuery={tmsProjectsQuery}
         isSavingProject={isSavingProject}
         isDeletingProject={deleteProjectMutation.isPending}
         organizationSlug={organizationSlug}
         variant="tms"
+        hasMore={hasMoreTmsProjects}
+        onLoadMore={loadMoreTmsProjects}
         onOpenProject={handleOpenProject}
       />
     </section>
@@ -355,13 +377,15 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         description="Projects created and managed in this workspace."
       />
       <ProjectsTable
-        projects={filteredNativeProjects}
+        projects={visibleNativeProjects}
         projectsQuery={nativeProjectsQuery}
         isSavingProject={isSavingProject}
         isDeletingProject={deleteProjectMutation.isPending}
         organizationSlug={organizationSlug}
         variant="native"
         compactEmptyNative={compactNativeEmpty}
+        hasMore={hasMoreNativeProjects}
+        onLoadMore={loadMoreNativeProjects}
         onEditProject={openEditProjectDialog}
         onDeleteProject={setDeleteProject}
         onCreateProject={openCreateProjectDialog}
