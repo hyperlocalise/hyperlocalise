@@ -5,7 +5,7 @@
 
 ## Summary
 
-Issue Sheet is a per-project team workspace for viewing, querying, and resolving localization issues. It unifies issues from the CAT editor, provider QA, TMS review threads, and manual entry into one spreadsheet-like table. Teams can extend the sheet with custom columns and run AI enrichment on demand.
+Issue Sheet is a per-project team workspace for viewing, querying, and resolving localization issues inside Hyperlocalise. It unifies CAT issues, native QA findings, source string issues, agent warnings, and manual entries into one spreadsheet-like table. Teams can extend the sheet with custom columns and run AI enrichment on demand.
 
 Design goals:
 
@@ -21,19 +21,19 @@ Hyperlocalise tracks issues in several places today:
 | Source | Surface | Gap |
 |--------|---------|-----|
 | Native CAT comments | Segment editor | No team-wide query or assignment |
-| Provider QA findings | Job detail | Tied to a single job run |
-| TMS review threads | Provider sync | Siloed per external job |
+| Native QA findings | Job detail | Tied to a single job run |
+| Source string issues | File and CAT surfaces | Hard to triage with translators and engineering together |
 | Agent warnings | Agent run review | Not browsable across work |
 
-Teams export to spreadsheets or external trackers and lose links to source strings, TMS state, and AI context.
+Teams export to spreadsheets or external trackers and lose links to source strings, CAT state, and AI context. Issue Sheet should make Hyperlocalise the place where teams coordinate localization quality, not a mirror of another TMS.
 
 ## Vision
 
-One row per actionable issue. System columns guarantee CAT deep links and provider write-back. Custom columns carry team workflow. AI enrichment is a column type, not a separate feature.
+One row per actionable issue. System columns guarantee CAT deep links and source-string context. Custom columns carry team workflow. AI enrichment is a column type, not a separate feature. External provider data can be imported later, but MVP should promote the native Hyperlocalise workflow.
 
 ```
 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│ CAT editor  │   │ Provider QA │   │ TMS threads │   │ Manual add  │
+│ CAT editor  │   │ Native QA   │   │ Agent runs  │   │ Manual add  │
 └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘
        │                 │                 │                 │
        └─────────────────┴────────┬────────┴─────────────────┘
@@ -48,7 +48,7 @@ One row per actionable issue. System columns guarantee CAT deep links and provid
                                   │
                     ┌─────────────┼─────────────┐
                     ▼             ▼             ▼
-              Open in CAT    Assign/resolve   Write-back to TMS
+              Open in CAT    Assign/resolve   Enrich with agent
 ```
 
 ## Users and preset views
@@ -58,7 +58,7 @@ Everyone uses the same page. Preset views set filters and visible columns.
 | View | Default filter | Primary audience |
 |------|----------------|------------------|
 | **My work** | Assignee = me, status ≠ resolved | Translators |
-| **QA triage** | Source = QA or TMS, severity ≥ warning, unassigned | LQA / PMs |
+| **QA triage** | Source = QA, severity ≥ warning, unassigned | LQA / PMs |
 | **Source & context** | Type ∈ `source_mistake`, `context_request`, `general_question` | Engineering / product |
 | **All open** | Status = open or in_progress | Everyone |
 
@@ -66,14 +66,14 @@ Users can hide or reorder columns within a view. Saved custom views are out of M
 
 ## Column model
 
-Columns live in a per-project registry. All columns — system, provider, custom, and enrichment — use the same schema and rendering path.
+Columns live in a per-project registry. All columns — system, generated, custom, and enrichment — use the same schema and rendering path.
 
 ### Layers
 
 | Layer | Defined by | Examples | Deletable |
 |-------|------------|----------|-----------|
 | **System** | Platform (seeded) | key, locale, source, target, type, status, severity, file, reporter, assignee | No (hide only) |
-| **Provider** | Auto on TMS/QA sync | thread ID, QA rule, TMS state | No (hide only) |
+| **Generated** | Hyperlocalise QA / agents | QA rule, agent run, confidence | No (hide only) |
 | **Custom** | Project team | Priority, Sprint, Component | Yes |
 | **Enrichment** | Project team (AI type) | Context, Suggested fix | Yes |
 
@@ -87,7 +87,7 @@ IssueSheetColumn {
   projectId: string
   key: string              // slug: "priority", "context_summary"
   label: string
-  layer: "system" | "provider" | "custom" | "enrichment"
+  layer: "system" | "generated" | "custom" | "enrichment"
   type: ColumnType
   config?: ColumnConfig
   sortOrder: number
@@ -146,8 +146,8 @@ Each row normalizes one issue regardless of origin.
 IssueSheetRow {
   id: string
   projectId: string
-  source: "cat" | "qa" | "tms" | "manual"
-  externalRef?: string    // provider thread ID or native comment ID
+  source: "cat" | "qa" | "agent" | "manual"
+  externalRef?: string    // native comment ID, QA finding ID, or agent run ID
 
   // Resolved from source + overlay + column values
   key: string
@@ -172,7 +172,7 @@ IssueSheetRow {
 
 ### Issue types
 
-Reuse existing Crowdin-aligned types:
+Use a simple issue taxonomy that works across translation, source, and context problems:
 
 - `translation_mistake`
 - `source_mistake`
@@ -181,7 +181,7 @@ Reuse existing Crowdin-aligned types:
 
 ### Deduplication
 
-One row per underlying issue. If a segment already has an open CAT issue, "Add to Issue Sheet" shows a link instead of creating a duplicate. QA findings and TMS threads map by `externalRef`.
+One row per underlying issue. If a segment already has an open CAT issue, "Add to Issue Sheet" shows a link instead of creating a duplicate. QA findings and agent warnings map by `externalRef`.
 
 ## Data architecture
 
@@ -192,8 +192,8 @@ MVP uses a query layer over existing data rather than a materialized issue index
 | Table / source | Role |
 |----------------|------|
 | `project_translation_comments` (type = issue) | Native CAT issues |
-| `ProviderQaFinding` (in job outcome) | QA rows |
-| `ProviderReviewThread` (on sync) | TMS rows |
+| Native QA findings (in job outcome) | QA rows |
+| `agent_runs` warnings / findings | Agent-surfaced rows |
 | `issue_sheet_overlays` | Row identity, status/assignee overrides, manual rows |
 | `issue_sheet_columns` | Per-project column registry |
 | `issue_sheet_row_values` | Custom and enrichment cell values |
@@ -207,7 +207,7 @@ issue_sheet_overlays {
   id: uuid PK
   project_id: uuid FK
   source: enum
-  external_ref: text nullable     // links to comment / thread / finding
+  external_ref: text nullable     // links to comment / QA finding / agent run
   segment_id: text nullable
   status: enum nullable           // override when source has no status
   assignee_id: uuid nullable
@@ -319,27 +319,71 @@ Results write to `issue_sheet_row_values`. Show per-cell spinner during run. Mar
 
 New kind: `issue_enrichment` (or extend `comment_only` with structured output). Each run links to `computedByRunId` on the cell value.
 
-## Provider integration
+## External data stance
 
-### Ingest (read-only in MVP)
+MVP should not depend on external providers. Issue Sheet should make Hyperlocalise feel like the system of record for localization quality.
+
+External provider data can appear later as import-only context, behind explicit connectors. It should not drive the core product shape, default views, or first-run experience.
+
+### Native ingest
 
 | Source | Trigger | Row mapping |
 |--------|---------|-------------|
 | Native CAT issue | On create / page load | `source: cat`, `externalRef: commentId` |
 | QA finding | After job QA run | `source: qa`, severity from finding |
-| TMS review thread | On provider sync | `source: tms`, status mirrors thread |
+| Agent warning / finding | After agent run | `source: agent`, link to run |
+| Manual issue | User adds from sheet | `source: manual`, user-provided fields |
 
-Provider-layer columns (thread ID, QA rule) seed when a provider connects.
+### Resolve behavior
 
-### Resolve / write-back
+Status change on sheet updates Hyperlocalise state first:
 
-Status change on sheet queues write-back through existing provider paths:
-
-- TMS thread → resolve via provider write-back
 - Native comment → update comment status
 - QA finding → mark resolved locally; re-QA on next run clears or reopens
+- Agent warning → mark reviewed or convert to a tracked issue
 
-User sees one "Resolve" action. Backend routes by `source` and `externalRef`.
+No external write-back in MVP. Import/export can come later as acquisition support, not as the primary workflow.
+
+## Product management recommendations
+
+### Make the first-run experience opinionated
+
+Create every project with the same starter sheet:
+
+- Views: **My work**, **QA triage**, **Source & context**, **All open**
+- Custom columns: **Priority** (`P0`, `P1`, `P2`), **Owner note**
+- Enrichment column: **Context**
+
+The product should show value before users configure anything.
+
+### Anchor the habit in CAT
+
+The sheet only wins if translators use it while working. Put **Add to Issue Sheet** in the segment actions, keyboard shortcut, and issue/comment composer. Make the success toast say: "Added to Issue Sheet · View row".
+
+### Treat source issues as a wedge
+
+Most localization tools are target-language centric. Hyperlocalise can differentiate by helping teams find and fix ambiguous source strings with engineering context. Keep **Source & context** as a first-class view, not a filter hidden under QA.
+
+### Make AI enrichment explainable
+
+Each enriched cell should show why it was filled:
+
+- repo/file snippets used
+- glossary/TM matches used
+- agent run link
+- "stale" state when source text changes
+
+This builds trust and lets PMs route issues without reading raw logs.
+
+### Create a weekly team ritual
+
+Ship a lightweight **Review open issues** action later:
+
+- summarizes new issues by type and locale
+- highlights unresolved `source_mistake` and `context_request` rows
+- suggests owners for unassigned rows
+
+This makes Issue Sheet a recurring collaboration surface, not a passive table.
 
 ## Permissions
 
@@ -352,14 +396,14 @@ User sees one "Resolve" action. Backend routes by `source` and `externalRef`.
 | Run enrichment | ✓ | ✓ | ✓ |
 | Delete custom columns | — | — | ✓ |
 
-TMS OAuth users see the sheet for projects they can access. Row scope is not restricted per user in MVP.
+Project membership controls sheet access in MVP.
 
 ## MVP scope
 
 ### In
 
 - Per-project Issue Sheet page
-- Virtual sheet over comments, QA, TMS threads
+- Virtual sheet over comments, QA findings, agent warnings, and manual rows
 - Overlay for manual rows and workflow overrides
 - Column registry with seeded system and Context enrichment columns
 - Custom columns: text, select, long_text, user
@@ -368,7 +412,7 @@ TMS OAuth users see the sheet for projects they can access. Row scope is not res
 - Inline edit, filter, sort
 - On-demand enrichment via Run column
 - Deep link to CAT segment
-- Read-only ingest of QA and TMS issues
+- Native ingest of QA findings and agent warnings
 
 ### Out (v1.1+)
 
@@ -381,6 +425,7 @@ TMS OAuth users see the sheet for projects they can access. Row scope is not res
 - CSV / Excel export
 - Auto-enrich on create
 - Desktop CAT plugins
+- Optional external issue import / export
 - Materialized issue index
 
 ## Success criteria
@@ -398,7 +443,7 @@ When virtual queries slow down, add `issue_sheet_rows` populated by events:
 
 - Comment created / updated
 - QA run completed
-- Provider sync finished
+- Agent run completed
 - Overlay or value changed
 
 Keep the column registry and row values schema unchanged. Migration is additive.
@@ -408,7 +453,6 @@ Keep the column registry and row values schema unchanged. Migration is additive.
 Existing models and surfaces to integrate:
 
 - `project_translation_comments` — native issues (`type`, `issueType`)
-- `ProviderQaFinding` / `ProviderQaReport` — automated QA
-- `ProviderReviewThread` — TMS review threads
+- `ProviderQaFinding` / `ProviderQaReport` — reusable QA finding types
 - CAT workspace — `components/cat/`, queue `has_issues` filter
-- `agent_runs` — provider agent work and audit trail
+- `agent_runs` — agent work and audit trail
