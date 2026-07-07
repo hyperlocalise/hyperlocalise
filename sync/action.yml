@@ -31,7 +31,7 @@ inputs:
     description: Preview sync push and pull without uploading, downloading, or writing files.
     default: "false"
   fail-on-findings:
-    description: Fail the action when git diff validation reports findings.
+    description: Fail the action when git diff validation reports errors. Warnings are ignored.
     default: "true"
   prefix-id:
     description: Pass --prefix-id to git diff validation when source keys use extract --prefix-id prefixes.
@@ -210,7 +210,7 @@ runs:
         set +e
         set -u
 
-        args=(check --no-fail --json-report "${VALIDATION_REPORT_PATH}")
+        args=(check --diff-stdin --no-fail --json-report "${VALIDATION_REPORT_PATH}")
         if [[ "${PREFIX_ID}" == "true" ]]; then
           args+=(--prefix-id)
         fi
@@ -283,12 +283,12 @@ runs:
         exit 1
 
     - name: Fail on findings
-      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && inputs.fail-on-findings == 'true' && steps.analyze-validation.outputs.findings-detected == 'true' }}
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && inputs.fail-on-findings == 'true' && steps.analyze-validation.outputs.error-count != '0' }}
       shell: bash
       env:
         ERROR_COUNT: ${{ steps.analyze-validation.outputs.error-count }}
         WARNING_COUNT: ${{ steps.analyze-validation.outputs.warning-count }}
       run: |
         set -euo pipefail
-        echo "Localization validation findings detected after sync pull (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings). Review the uploaded report artifacts for details." >&2
+        echo "Localization validation errors detected after sync pull (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings ignored). Review the uploaded report artifacts for details." >&2
         exit 1
