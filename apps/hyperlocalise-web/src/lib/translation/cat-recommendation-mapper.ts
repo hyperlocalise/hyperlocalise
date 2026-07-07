@@ -1,16 +1,29 @@
 import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
 
-import type { CatAiRecommendationInput } from "./generate-cat-ai-recommendation";
-
 export type CatConcordanceForAiRecommendation = {
   glossaryTerms: CatGlossaryTerm[];
   translationMemoryMatches: CatTranslationMemoryMatch[];
 };
 
+export type CatRecommendationConcordanceContext = {
+  glossaryTerms: Array<{
+    sourceTerm: string;
+    targetTerm: string;
+    targetLocale: string;
+    forbidden?: boolean | null;
+    description?: string | null;
+  }>;
+  translationMemoryMatches: Array<{
+    sourceText: string;
+    targetText: string;
+    targetLocale: string;
+  }>;
+};
+
 export function mapCatConcordanceForAiRecommendation(
   concordance: CatConcordanceForAiRecommendation,
   targetLocale: string,
-): Pick<CatAiRecommendationInput, "glossaryTerms" | "translationMemoryMatches"> {
+): CatRecommendationConcordanceContext {
   return {
     glossaryTerms: concordance.glossaryTerms.map((term) => ({
       sourceTerm: term.source,

@@ -6,9 +6,9 @@ import type { StringTranslationJobInput } from "@/api/routes/project/job.schema"
 import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 

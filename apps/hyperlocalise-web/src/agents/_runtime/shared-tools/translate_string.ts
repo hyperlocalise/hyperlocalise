@@ -3,8 +3,8 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { loadSharedSkill } from "@/agents/_runtime/loader";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
+import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
 
 const translateStringInputSchema = z.object({
   projectId: z.string().trim().min(1).optional(),

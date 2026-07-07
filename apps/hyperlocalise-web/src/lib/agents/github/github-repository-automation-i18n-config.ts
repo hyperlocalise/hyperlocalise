@@ -1,5 +1,5 @@
 import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
-import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox-translation";
+import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox";
 import { isErr } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import { shellQuote } from "@/lib/primitives/shell-quote/shell-quote";

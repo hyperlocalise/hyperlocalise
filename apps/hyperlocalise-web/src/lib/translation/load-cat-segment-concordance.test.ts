@@ -64,7 +64,7 @@ vi.mock("@/lib/providers/adapters/lokalise/lokalise-provider", () => ({
 }));
 
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
-import { loadCatSegmentConcordance } from "./load-cat-segment-concordance";
+import { loadCatSegmentConcordance } from "./cat";
 
 const baseCredential = {
   id: "cred_1",

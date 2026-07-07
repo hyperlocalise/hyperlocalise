@@ -18,11 +18,11 @@ import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
-import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
-import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
+import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
+import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
-import { loadTranslationContextProject } from "@/lib/translation/assemble-translation-context";
+import { loadTranslationContextProject } from "@/lib/translation/context";
 
 const logger = createLogger("provider-agent-file-translate");
 
@@ -174,7 +174,7 @@ async function runFileTranslationInSandbox(input: {
     runSandboxCommand,
     writeFileToSandbox,
     writeTempConfig,
-  } = await import("@/lib/translation/sandbox-translation");
+  } = await import("@/lib/translation/sandbox");
 
   const inputFilename = sanitizeSandboxFilename(input.sourceFilename);
   const outputFilename = getSandboxOutputFilename(input.sourceFilename, input.targetLocale);
@@ -417,7 +417,7 @@ export async function translateProviderJobFiles(input: {
       prepareSandbox,
       readTranslatedFile,
       stopTranslationSandbox,
-    } = await import("@/lib/translation/sandbox-translation");
+    } = await import("@/lib/translation/sandbox");
     const { sandboxId } = await createTranslationSandbox();
 
     let sourceText = "";

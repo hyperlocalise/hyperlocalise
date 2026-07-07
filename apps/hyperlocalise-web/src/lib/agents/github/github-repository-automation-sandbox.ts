@@ -3,7 +3,7 @@ import {
   stopWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { getInstallationOctokit } from "@/lib/agents/github/app";
-import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox-translation";
+import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 

@@ -33,8 +33,8 @@ vi.mock("@vercel/sandbox", () => ({
   },
 }));
 
-vi.mock("@/lib/translation/sandbox-translation", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/translation/sandbox-translation")>();
+vi.mock("@/lib/translation/sandbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/translation/sandbox")>();
   return {
     ...actual,
     createTranslationSandbox: vi.fn(async () => ({ sandboxId: "sandbox_qa_1" })),
@@ -107,7 +107,7 @@ describe("hl check sandbox integration", () => {
     });
 
     expect(findings.some((finding) => finding.checkType === "placeholder_mismatch")).toBe(true);
-    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");
     expect(stopTranslationSandbox).toHaveBeenCalledWith("sandbox_qa_1");
   });
 });

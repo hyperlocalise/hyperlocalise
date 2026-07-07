@@ -162,6 +162,7 @@ describe("path builders", () => {
       ["Overview", "/org/acme/projects/proj_1"],
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
+      ["Issue Sheet", "/org/acme/projects/proj_1/issue-sheet"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
   });

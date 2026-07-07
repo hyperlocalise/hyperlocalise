@@ -8,7 +8,7 @@ import {
   isImageTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
-import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
+import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
@@ -77,19 +77,19 @@ function userFacingFailureReason(error: unknown): string {
 
 async function createSandboxStep() {
   "use step";
-  const { createTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { createTranslationSandbox } = await import("@/lib/translation/sandbox");
   return createTranslationSandbox();
 }
 
 async function prepareSandboxStep(sandboxId: string) {
   "use step";
-  const { prepareSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { prepareSandbox } = await import("@/lib/translation/sandbox");
   return prepareSandbox(sandboxId);
 }
 
 async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer) {
   "use step";
-  const { writeFileToSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
@@ -111,7 +111,7 @@ async function runTranslationStep(
     runSandboxCommand,
     writeFileToSandbox,
     writeTempConfig,
-  } = await import("@/lib/translation/sandbox-translation");
+  } = await import("@/lib/translation/sandbox");
 
   const configPath = "/tmp/hyperlocalise-file.yml";
   const config = buildTempConfig(
@@ -150,8 +150,7 @@ async function runTranslationStep(
 
 async function extractEntriesStep(sandboxId: string, path: string) {
   "use step";
-  const { getSandboxTranslationEnv, runSandboxCommand } =
-    await import("@/lib/translation/sandbox-translation");
+  const { getSandboxTranslationEnv, runSandboxCommand } = await import("@/lib/translation/sandbox");
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
@@ -165,13 +164,13 @@ async function extractEntriesStep(sandboxId: string, path: string) {
 }
 async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";
-  const { readTranslatedFile } = await import("@/lib/translation/sandbox-translation");
+  const { readTranslatedFile } = await import("@/lib/translation/sandbox");
   return readTranslatedFile(sandboxId, outputFile);
 }
 
 async function stopSandboxStep(sandboxId: string) {
   "use step";
-  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");
   return stopTranslationSandbox(sandboxId);
 }
 

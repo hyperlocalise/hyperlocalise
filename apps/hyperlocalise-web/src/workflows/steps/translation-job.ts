@@ -1,5 +1,5 @@
-import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
-import type { ClaimedTranslationJob } from "@/lib/translation/translation-job-queued-function";
+import type { StringTranslationJobResult } from "@/lib/translation/domain";
+import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -7,14 +7,13 @@ export async function claimTranslationJobStep(input: {
   runId: string;
 }) {
   "use step";
-  const { claimTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
+  const { claimTranslationJob } = await import("@/lib/translation/jobs");
   return claimTranslationJob(input);
 }
 
 export async function executeClaimedTranslationJobStep(job: ClaimedTranslationJob) {
   "use step";
-  const { executeClaimedTranslationJob } =
-    await import("@/lib/translation/translation-job-queued-function");
+  const { executeClaimedTranslationJob } = await import("@/lib/translation/jobs");
   return executeClaimedTranslationJob(job);
 }
 
@@ -25,8 +24,7 @@ export async function completeTranslationJobStep(input: {
   result: StringTranslationJobResult;
 }) {
   "use step";
-  const { completeTranslationJob } =
-    await import("@/lib/translation/translation-job-queued-function");
+  const { completeTranslationJob } = await import("@/lib/translation/jobs");
   return completeTranslationJob(input);
 }
 
@@ -38,7 +36,7 @@ export async function failTranslationJobStep(input: {
   message: string;
 }) {
   "use step";
-  const { failTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
+  const { failTranslationJob } = await import("@/lib/translation/jobs");
   return failTranslationJob(input);
 }
 
@@ -324,8 +322,7 @@ export async function reuseFileTranslationMemoryEntriesStep(input: {
   sourceEntries: Record<string, string>;
 }) {
   "use step";
-  const { reuseFileTranslationMemoryEntries } =
-    await import("@/lib/translation/file-translation-memory");
+  const { reuseFileTranslationMemoryEntries } = await import("@/lib/translation/file-memory");
   return reuseFileTranslationMemoryEntries(input);
 }
 
@@ -352,8 +349,7 @@ export async function persistFileTranslationMemoryEntriesStep(input: {
   targetEntries: Record<string, string>;
 }) {
   "use step";
-  const { persistFileTranslationMemoryEntries } =
-    await import("@/lib/translation/file-translation-memory");
+  const { persistFileTranslationMemoryEntries } = await import("@/lib/translation/file-memory");
   return persistFileTranslationMemoryEntries(input);
 }
 

@@ -31,7 +31,7 @@ import {
   createTranslationSandbox,
   runSandboxCommand,
   userFacingFailureReason,
-} from "@/lib/translation/sandbox-translation";
+} from "@/lib/translation/sandbox";
 
 describe("sandbox command runner", () => {
   beforeEach(() => {

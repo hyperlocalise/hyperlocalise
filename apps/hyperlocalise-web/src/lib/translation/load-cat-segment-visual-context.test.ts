@@ -83,7 +83,7 @@ vi.mock("@/lib/providers/adapters/smartling/smartling-provider", () => ({
   },
 }));
 
-import { loadCatSegmentVisualContext } from "./load-cat-segment-visual-context";
+import { loadCatSegmentVisualContext } from "./cat";
 
 describe("loadCatSegmentVisualContext", () => {
   beforeEach(() => {

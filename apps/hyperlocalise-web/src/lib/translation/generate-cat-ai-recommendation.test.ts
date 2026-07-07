@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const generateTextMock = vi.fn();
 const loadOrganizationTranslationModelMock = vi.fn();
@@ -12,19 +12,27 @@ vi.mock("ai", async (importOriginal) => {
   };
 });
 
-vi.mock("./load-organization-translation-generator", () => ({
-  loadOrganizationTranslationModel: (...args: unknown[]) =>
-    loadOrganizationTranslationModelMock(...args),
-}));
-
-vi.mock("./assemble-translation-context", () => ({
+vi.mock("./context", () => ({
   assembleStringTranslationContextSnapshot: (...args: unknown[]) =>
     assembleStringTranslationContextSnapshotMock(...args),
 }));
 
-import { generateCatAiRecommendation } from "./generate-cat-ai-recommendation";
+vi.mock("./generation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./generation")>();
+  return {
+    ...actual,
+    loadOrganizationTranslationModel: (...args: unknown[]) =>
+      loadOrganizationTranslationModelMock(...args),
+  };
+});
+
+import { generateCatAiRecommendation } from "./cat";
 
 describe("generateCatAiRecommendation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns a recommendation using file and agent context", async () => {
     loadOrganizationTranslationModelMock.mockResolvedValue({
       ok: true,
@@ -77,12 +85,12 @@ describe("generateCatAiRecommendation", () => {
 
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining("Heading on the sign-in screen"),
+        system: expect.stringContaining("Heading on the sign-in screen"),
       }),
     );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining("Hero title on the sign-in page."),
+        system: expect.stringContaining("Hero title on the sign-in page."),
       }),
     );
   });
