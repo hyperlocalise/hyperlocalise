@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import {
   type IssueSheetCreateColumnBody,
@@ -91,6 +92,38 @@ const starterColumns = [
   },
 ] as const;
 
+const assigneeUsers = alias(schema.users, "assignee_users");
+
+type IssueRow = {
+  id: string;
+  title: string;
+  description: string;
+  issueType: string;
+  status: string;
+  targetLocale: string | null;
+  sourcePath: string | null;
+  segmentId: string | null;
+  translationKeyId: string | null;
+  linkedCommentId: string | null;
+  linkedAgentRunId: string | null;
+  linkKind: string | null;
+  linkLabel: string | null;
+  linkUrl: string | null;
+  externalRef: string | null;
+  assigneeUserId: string | null;
+  reporterFirstName: string | null;
+  reporterLastName: string | null;
+  reporterEmail: string | null;
+  assigneeFirstName: string | null;
+  assigneeLastName: string | null;
+  assigneeEmail: string | null;
+  key: string | null;
+  sourceText: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt: Date | null;
+};
+
 function formatUser(row: {
   firstName: string | null;
   lastName: string | null;
@@ -101,6 +134,43 @@ function formatUser(row: {
   }
   const name = [row.firstName, row.lastName].filter(Boolean).join(" ");
   return name || row.email;
+}
+
+function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheetIssue {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    issueType: row.issueType,
+    status: row.status,
+    targetLocale: row.targetLocale,
+    sourcePath: row.sourcePath,
+    segmentId: row.segmentId,
+    translationKeyId: row.translationKeyId,
+    linkedCommentId: row.linkedCommentId,
+    linkedAgentRunId: row.linkedAgentRunId,
+    linkKind: row.linkKind,
+    linkLabel: row.linkLabel,
+    linkUrl: row.linkUrl,
+    externalRef: row.externalRef,
+    assigneeUserId: row.assigneeUserId,
+    reporter: formatUser({
+      firstName: row.reporterFirstName,
+      lastName: row.reporterLastName,
+      email: row.reporterEmail,
+    }),
+    assignee: formatUser({
+      firstName: row.assigneeFirstName,
+      lastName: row.assigneeLastName,
+      email: row.assigneeEmail,
+    }),
+    key: row.key,
+    sourceText: row.sourceText,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    values,
+  };
 }
 
 export class IssueSheetService {
@@ -134,7 +204,6 @@ export class IssueSheetService {
     projectId: string;
     actorUserId?: string;
   }): Promise<IssueSheetColumn[]> {
-    await this.ensureStarterColumns(input);
     const rows = await this.database
       .select({
         id: schema.issueSheetColumns.id,
@@ -221,45 +290,10 @@ export class IssueSheetService {
   }): Promise<IssueSheetListResult> {
     const columns = await this.listColumns(input);
     const conditions = this.buildIssueConditions(input);
-
-    const rows = await this.database
-      .select({
-        id: schema.issueSheetIssues.id,
-        title: schema.issueSheetIssues.title,
-        description: schema.issueSheetIssues.description,
-        issueType: schema.issueSheetIssues.issueType,
-        status: schema.issueSheetIssues.status,
-        targetLocale: schema.issueSheetIssues.targetLocale,
-        sourcePath: schema.issueSheetIssues.sourcePath,
-        segmentId: schema.issueSheetIssues.segmentId,
-        translationKeyId: schema.issueSheetIssues.translationKeyId,
-        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
-        linkedAgentRunId: schema.issueSheetIssues.linkedAgentRunId,
-        linkKind: schema.issueSheetIssues.linkKind,
-        linkLabel: schema.issueSheetIssues.linkLabel,
-        linkUrl: schema.issueSheetIssues.linkUrl,
-        externalRef: schema.issueSheetIssues.externalRef,
-        assigneeUserId: schema.issueSheetIssues.assigneeUserId,
-        reporterFirstName: schema.users.firstName,
-        reporterLastName: schema.users.lastName,
-        reporterEmail: schema.users.email,
-        key: schema.projectTranslationKeys.key,
-        sourceText: schema.projectTranslationKeys.sourceText,
-        createdAt: schema.issueSheetIssues.createdAt,
-        updatedAt: schema.issueSheetIssues.updatedAt,
-        resolvedAt: schema.issueSheetIssues.resolvedAt,
-      })
-      .from(schema.issueSheetIssues)
-      .leftJoin(schema.users, eq(schema.issueSheetIssues.reporterUserId, schema.users.id))
-      .leftJoin(
-        schema.projectTranslationKeys,
-        eq(schema.issueSheetIssues.translationKeyId, schema.projectTranslationKeys.id),
-      )
-      .where(and(...conditions))
-      .orderBy(desc(schema.issueSheetIssues.createdAt))
-      .limit(input.query.limit)
-      .offset(input.query.offset);
-
+    const rows = await this.fetchIssueRows(conditions, {
+      limit: input.query.limit,
+      offset: input.query.offset,
+    });
     const issueIds = rows.map((row) => row.id);
     const valuesByIssueId = await this.loadValuesByIssueId({
       organizationId: input.organizationId,
@@ -273,36 +307,7 @@ export class IssueSheetService {
     return {
       columns,
       summary,
-      issues: rows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        issueType: row.issueType,
-        status: row.status,
-        targetLocale: row.targetLocale,
-        sourcePath: row.sourcePath,
-        segmentId: row.segmentId,
-        translationKeyId: row.translationKeyId,
-        linkedCommentId: row.linkedCommentId,
-        linkedAgentRunId: row.linkedAgentRunId,
-        linkKind: row.linkKind,
-        linkLabel: row.linkLabel,
-        linkUrl: row.linkUrl,
-        externalRef: row.externalRef,
-        assigneeUserId: row.assigneeUserId,
-        reporter: formatUser({
-          firstName: row.reporterFirstName,
-          lastName: row.reporterLastName,
-          email: row.reporterEmail,
-        }),
-        assignee: null,
-        key: row.key,
-        sourceText: row.sourceText,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        resolvedAt: row.resolvedAt?.toISOString() ?? null,
-        values: valuesByIssueId.get(row.id) ?? {},
-      })),
+      issues: rows.map((row) => mapIssueRow(row, valuesByIssueId.get(row.id) ?? {})),
     };
   }
 
@@ -422,7 +427,6 @@ export class IssueSheetService {
     issueId: string;
     body: IssueSheetSetValueBody;
   }) {
-    await this.ensureStarterColumns(input);
     const [column] = await this.database
       .select({
         id: schema.issueSheetColumns.id,
@@ -529,20 +533,75 @@ export class IssueSheetService {
     issueId: string;
     actorUserId: string;
   }) {
-    const result = await this.listIssues({
+    const columns = await this.listColumns(input);
+    const rows = await this.fetchIssueRows(
+      [
+        eq(schema.issueSheetIssues.organizationId, input.organizationId),
+        eq(schema.issueSheetIssues.projectId, input.projectId),
+        eq(schema.issueSheetIssues.id, input.issueId),
+      ],
+      { limit: 1 },
+    );
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+
+    const valuesByIssueId = await this.loadValuesByIssueId({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      actorUserId: input.actorUserId,
-      query: {
-        limit: 1,
-        offset: 0,
-        search: undefined,
-        status: "all",
-        issueType: "all",
-      },
-      issueId: input.issueId,
+      issueIds: [row.id],
+      columns,
     });
-    return result.issues.find((issue) => issue.id === input.issueId) ?? null;
+
+    return mapIssueRow(row, valuesByIssueId.get(row.id) ?? {});
+  }
+
+  private fetchIssueRows(
+    conditions: SQL[],
+    pagination: { limit: number; offset?: number },
+  ): Promise<IssueRow[]> {
+    return this.database
+      .select({
+        id: schema.issueSheetIssues.id,
+        title: schema.issueSheetIssues.title,
+        description: schema.issueSheetIssues.description,
+        issueType: schema.issueSheetIssues.issueType,
+        status: schema.issueSheetIssues.status,
+        targetLocale: schema.issueSheetIssues.targetLocale,
+        sourcePath: schema.issueSheetIssues.sourcePath,
+        segmentId: schema.issueSheetIssues.segmentId,
+        translationKeyId: schema.issueSheetIssues.translationKeyId,
+        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
+        linkedAgentRunId: schema.issueSheetIssues.linkedAgentRunId,
+        linkKind: schema.issueSheetIssues.linkKind,
+        linkLabel: schema.issueSheetIssues.linkLabel,
+        linkUrl: schema.issueSheetIssues.linkUrl,
+        externalRef: schema.issueSheetIssues.externalRef,
+        assigneeUserId: schema.issueSheetIssues.assigneeUserId,
+        reporterFirstName: schema.users.firstName,
+        reporterLastName: schema.users.lastName,
+        reporterEmail: schema.users.email,
+        assigneeFirstName: assigneeUsers.firstName,
+        assigneeLastName: assigneeUsers.lastName,
+        assigneeEmail: assigneeUsers.email,
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        createdAt: schema.issueSheetIssues.createdAt,
+        updatedAt: schema.issueSheetIssues.updatedAt,
+        resolvedAt: schema.issueSheetIssues.resolvedAt,
+      })
+      .from(schema.issueSheetIssues)
+      .leftJoin(schema.users, eq(schema.issueSheetIssues.reporterUserId, schema.users.id))
+      .leftJoin(assigneeUsers, eq(schema.issueSheetIssues.assigneeUserId, assigneeUsers.id))
+      .leftJoin(
+        schema.projectTranslationKeys,
+        eq(schema.issueSheetIssues.translationKeyId, schema.projectTranslationKeys.id),
+      )
+      .where(and(...conditions))
+      .orderBy(desc(schema.issueSheetIssues.createdAt))
+      .limit(pagination.limit)
+      .offset(pagination.offset ?? 0);
   }
 
   private buildIssueConditions(input: {

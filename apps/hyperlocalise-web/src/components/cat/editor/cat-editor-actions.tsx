@@ -100,7 +100,7 @@ export function CatEditorActions({
           onClick={onAddToIssueSheet}
           disabled={isNavigationBlocked}
         >
-          Add to Issue Sheet
+          <FormattedMessage {...catEditorPanelMessages.addToIssueSheet} />
         </Button>
       ) : null}
       <Button

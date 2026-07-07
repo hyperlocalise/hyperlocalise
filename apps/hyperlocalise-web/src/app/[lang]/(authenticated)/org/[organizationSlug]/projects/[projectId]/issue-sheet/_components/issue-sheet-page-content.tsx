@@ -157,6 +157,18 @@ function buildCatHref(organizationSlug: string, projectId: string, issue: IssueS
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`;
 }
 
+function isExternalHttpUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.origin !== window.location.origin
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function IssueSheetPageContent({
   organizationSlug,
   projectId,
@@ -435,8 +447,18 @@ function IssueLink({
   if (!href) {
     return <span className="text-muted-foreground">—</span>;
   }
+  const openExternalLinkInNewTab = issue.linkUrl != null && isExternalHttpUrl(issue.linkUrl);
   return (
-    <Button variant="link" className="h-auto p-0" render={<a href={href} />}>
+    <Button
+      variant="link"
+      className="h-auto p-0"
+      render={
+        <a
+          href={href}
+          {...(openExternalLinkInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        />
+      }
+    >
       {issue.linkLabel || (catHref ? "Open in CAT" : "Open link")}
     </Button>
   );

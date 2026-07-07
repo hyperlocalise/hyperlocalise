@@ -293,7 +293,6 @@ export function ProjectFileCatWorkspace({
             targetLocale,
             sourcePath,
             segmentId,
-            translationKeyId: segmentId,
             linkKind: "cat_segment",
             linkLabel: "Open in CAT",
             linkUrl: linkUrl ?? undefined,
