@@ -96,6 +96,7 @@ describe("tmsProviderCapabilityRegistry", () => {
     ["phrase", "tasks.create", true],
     ["phrase", "qa.run", false],
     ["crowdin", "projects.write", true],
+    ["crowdin", "tasks.create", true],
     ["crowdin", "translation_memory.export", true],
     ["lokalise", "glossary.export", true],
     ["lokalise", "translation_memory.export", true],

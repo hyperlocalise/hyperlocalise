@@ -15,6 +15,7 @@ import type {
   ExternalTmsContentPuller,
   ExternalTmsFileKeyFetcher,
   ExternalTmsGlossaryFetcher,
+  ExternalTmsJobTaskCreator,
   ExternalTmsJobTaskFetcher,
   ExternalTmsProjectFetcher,
   ExternalTmsReviewPuller,
@@ -38,6 +39,7 @@ function hasProviderMethodOverride(
   methodName:
     | "pullReview"
     | "pushComments"
+    | "createJobTask"
     | "searchGlossaryMatches"
     | "searchTranslationMemoryMatches",
 ): boolean {
@@ -97,6 +99,26 @@ function asJobTaskFetcher(provider: TmsProvider): ExternalTmsJobTaskFetcher {
       includeLocaleProgress: input.includeLocaleProgress,
       fetchAllTasks: input.fetchAllTasks,
     });
+}
+
+function asJobTaskCreator(provider: TmsProvider): ExternalTmsJobTaskCreator {
+  const bound = provider.createJobTask.bind(provider);
+  // Callers pass providerKind for routing/logging; the bound provider resolves kind from this.kind.
+  return async (input) => {
+    const created = await bound({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      externalProjectId: input.externalProjectId,
+      credential: input.credential,
+      project: input.project,
+      secretMaterial: input.secretMaterial,
+      task: input.task,
+    });
+    if (!created) {
+      throw new Error(`task_create_unsupported:${provider.kind}`);
+    }
+    return created;
+  };
 }
 
 function asGlossaryFetcher(provider: TmsProvider): ExternalTmsGlossaryFetcher {
@@ -266,6 +288,13 @@ export function providerSupportsCommentPush(providerKind: ExternalTmsProviderKin
   return hasProviderMethodOverride(tmsProviders[providerKind], "pushComments");
 }
 
+export function providerSupportsTaskCreate(providerKind: ExternalTmsProviderKind): boolean {
+  return (
+    providerSupportsFeature(providerKind, "tasks.create") &&
+    hasProviderMethodOverride(tmsProviders[providerKind], "createJobTask")
+  );
+}
+
 export function providerSupportsGlossaryMatch(providerKind: ExternalTmsProviderKind): boolean {
   return (
     providerSupportsFeature(providerKind, "glossary.search") &&
@@ -298,6 +327,15 @@ export function getProviderCommentPusher(
     return null;
   }
   return asCommentPusher(tmsProviders[providerKind]);
+}
+
+export function getProviderJobTaskCreator(
+  providerKind: ExternalTmsProviderKind,
+): ExternalTmsJobTaskCreator | null {
+  if (!providerSupportsTaskCreate(providerKind)) {
+    return null;
+  }
+  return asJobTaskCreator(tmsProviders[providerKind]);
 }
 
 export function getProviderGlossaryMatcher(

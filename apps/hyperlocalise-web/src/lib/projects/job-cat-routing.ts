@@ -10,7 +10,7 @@ export const jobCatQueueFilterParam = "queueFilter";
 
 export type JobCatTarget = {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   externalProviderKind: string | null;
@@ -27,7 +27,7 @@ export type JobCatQueueFilterContext = {
 export function resolveDefaultJobCatQueueFilter(
   job: JobCatQueueFilterContext,
 ): ProjectFileCatQueueFilter {
-  if (job.kind === "review" || job.status === "waiting_for_review") {
+  if (job.kind === "review" || job.kind === "proofread" || job.status === "waiting_for_review") {
     return "needs_review";
   }
 

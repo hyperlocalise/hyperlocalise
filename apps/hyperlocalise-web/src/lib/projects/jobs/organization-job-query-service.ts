@@ -52,7 +52,7 @@ const jobWithProjectSelect = {
 };
 
 type JobListQuery = {
-  kind?: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind?: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   open?: boolean;

@@ -44,10 +44,10 @@ export function isNativeWorkspaceJob(job: { id: string; externalProviderKind: st
 
 export function canOpenProviderJobCat(job: {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   externalProviderKind: string | null;
 }) {
-  if (job.kind !== "translation" && job.kind !== "review") {
+  if (job.kind !== "translation" && job.kind !== "review" && job.kind !== "proofread") {
     return false;
   }
 
@@ -56,7 +56,7 @@ export function canOpenProviderJobCat(job: {
 
 export function canOpenNativeJobCat(job: {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   externalProviderKind: string | null;
   inputPayload: unknown;

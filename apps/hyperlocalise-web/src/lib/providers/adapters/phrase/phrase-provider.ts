@@ -113,14 +113,9 @@ const PHRASE_LIVE_CAT_LOCALE_FETCH_CONCURRENCY = 8;
 const PHRASE_QUEUE_SCAN_PAGE_SIZE = 100;
 const PHRASE_MAX_SCAN_PAGES = 50;
 
-const PHRASE_TMS_REVIEW_STEP_TOKENS = new Set([
-  "review",
-  "proofread",
-  "proofreading",
-  "editing",
-  "revision",
-  "lqa",
-]);
+const PHRASE_TMS_PROOFREAD_STEP_TOKENS = new Set(["proofread", "proofreading"]);
+
+const PHRASE_TMS_REVIEW_STEP_TOKENS = new Set(["review", "editing", "revision", "lqa"]);
 
 type JobResourceBundle = {
   translationMemories: PhraseTmsResourceReference[];
@@ -1555,12 +1550,16 @@ export class PhraseTmsProvider extends TmsProvider {
 
   private mapPhraseTmsJobKind(
     workflowStepName: string | null | undefined,
-  ): "translation" | "review" {
+  ): "translation" | "review" | "proofread" {
     const tokens = (workflowStepName ?? "")
       .toLowerCase()
       .trim()
       .split(/[^a-z0-9]+/)
       .filter((token) => token.length > 0);
+
+    if (tokens.some((token) => PHRASE_TMS_PROOFREAD_STEP_TOKENS.has(token))) {
+      return "proofread";
+    }
 
     if (tokens.some((token) => PHRASE_TMS_REVIEW_STEP_TOKENS.has(token))) {
       return "review";

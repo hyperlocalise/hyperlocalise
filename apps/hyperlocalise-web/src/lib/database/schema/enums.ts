@@ -7,6 +7,7 @@ export const jobKindEnum = pgEnum("job_kind", [
   "translation",
   "research",
   "review",
+  "proofread",
   "sync",
   "asset_management",
 ]);

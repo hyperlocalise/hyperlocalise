@@ -36,7 +36,7 @@ export type ConversationMessage = {
 export type LinkedJob = {
   id: string;
   projectId: string | null;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   outcomeKind: "string_result" | "file_result" | "error" | null;

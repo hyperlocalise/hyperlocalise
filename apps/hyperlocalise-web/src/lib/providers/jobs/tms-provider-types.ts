@@ -114,6 +114,43 @@ export type ExternalTmsJobTaskMetadata = {
   kind?: JobKind;
 };
 
+export type ExternalTmsJobTaskCreateAssignee = {
+  externalUserId: string;
+  wordsCount?: number;
+};
+
+export type ExternalTmsJobTaskCreateRequest = {
+  title: string;
+  targetLocale: string;
+  kind?: Extract<JobKind, "translation" | "review" | "proofread">;
+  description?: string | null;
+  dueDate?: Date | string | null;
+  fileIds?: string[];
+  stringIds?: string[];
+  branchIds?: string[];
+  labelIds?: string[];
+  excludeLabelIds?: string[];
+  assignees?: ExternalTmsJobTaskCreateAssignee[];
+  status?: "todo" | "in_progress";
+  splitContent?: boolean;
+  skipAssignedStrings?: boolean;
+  includePreTranslatedStringsOnly?: boolean;
+  startedAt?: Date | string | null;
+  dateFrom?: Date | string | null;
+  dateTo?: Date | string | null;
+};
+
+export type ExternalTmsJobTaskCreator = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+  task: ExternalTmsJobTaskCreateRequest;
+}) => Promise<ExternalTmsJobTaskMetadata>;
+
 export type ExternalTmsJobTaskFetcher = (input: {
   organizationId: string;
   projectId: string;

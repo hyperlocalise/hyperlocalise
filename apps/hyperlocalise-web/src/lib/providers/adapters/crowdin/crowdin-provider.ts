@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { JobKind } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -22,6 +23,7 @@ import {
   CrowdinApiError,
   escapeCrowdinCroqlString,
   type CrowdinBranch,
+  type CrowdinCreateTaskRequest,
   type CrowdinDirectory,
   type CrowdinFile,
   type CrowdinProject,
@@ -37,6 +39,7 @@ import {
   TmsProvider,
   type TmsProviderCommentPushScope,
   type TmsProviderContext,
+  type TmsProviderCreateJobTaskScope,
   type TmsProviderCommentPushResult,
   type TmsProviderFeature,
   type TmsProviderFeatureId,
@@ -93,7 +96,6 @@ export {
  */
 
 const implemented = { state: "implemented" } as const satisfies TmsProviderFeature;
-const unsupported = { state: "unsupported" } as const satisfies TmsProviderFeature;
 const logger = createLogger("crowdin-provider");
 const CROWDIN_GLOSSARY_FETCH_CONCURRENCY = 5;
 const CROWDIN_TM_FETCH_CONCURRENCY = 5;
@@ -195,7 +197,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     "keys.write": implemented,
     "jobs.create": implemented,
     "jobs.read": implemented,
-    "tasks.create": unsupported,
+    "tasks.create": implemented,
     "tasks.read": implemented,
     "comments.read": implemented,
     "comments.write": implemented,
@@ -334,6 +336,29 @@ export class CrowdinTmsProvider extends TmsProvider {
       : {};
 
     return tasks.map((task) => this.mapTaskToJobTaskMetadata(task, localeReadiness));
+  }
+
+  /**
+   * Creates a Crowdin translation or proofreading task from file, string, or branch ids.
+   *
+   * Crowdin accepts exactly one source scope per request (`fileIds`, `stringIds`, or `branchIds`).
+   * Hyperlocalise keeps ids as strings at integration boundaries, so this method validates and
+   * converts them before sending the API request.
+   */
+  async createJobTask(scope: TmsProviderCreateJobTaskScope) {
+    const client = this.createClient(scope);
+    const projectId = this.parseProjectId(scope.externalProjectId);
+    const request = this.buildCreateTaskRequest(scope.task);
+
+    let created: CrowdinTaskDetails;
+    try {
+      created = await client.addTask(projectId, request);
+    } catch (error) {
+      this.rethrowAuthError(error);
+      throw error;
+    }
+
+    return this.mapTaskToJobTaskMetadata(created, {});
   }
 
   /**
@@ -1234,6 +1259,124 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     return tasks.map((task) => this.mapTaskToJobTaskMetadata(task, {}));
+  }
+
+  private buildCreateTaskRequest(
+    task: TmsProviderCreateJobTaskScope["task"],
+  ): CrowdinCreateTaskRequest {
+    const title = task.title.trim();
+    if (!title) {
+      throw new Error("crowdin_task_title_required");
+    }
+
+    const languageId = task.targetLocale.trim();
+    if (!languageId) {
+      throw new Error("crowdin_task_target_locale_required");
+    }
+
+    const fileIds = this.parseCrowdinIdList(task.fileIds, "fileIds");
+    const stringIds = this.parseCrowdinIdList(task.stringIds, "stringIds");
+    const branchIds = this.parseCrowdinIdList(task.branchIds, "branchIds");
+    const sourceScopeCount = [fileIds, stringIds, branchIds].filter(
+      (ids) => ids !== undefined && ids.length > 0,
+    ).length;
+
+    if (sourceScopeCount === 0) {
+      throw new Error("crowdin_task_source_scope_required");
+    }
+    if (sourceScopeCount > 1) {
+      throw new Error("crowdin_task_source_scope_ambiguous");
+    }
+
+    const labelIds = this.parseCrowdinIdList(task.labelIds, "labelIds");
+    const excludeLabelIds = this.parseCrowdinIdList(task.excludeLabelIds, "excludeLabelIds");
+    const assignees = task.assignees?.map((assignee) => {
+      const id = this.parseCrowdinId(assignee.externalUserId, "assigneeId");
+      return {
+        id,
+        ...(assignee.wordsCount !== undefined ? { wordsCount: assignee.wordsCount } : {}),
+      };
+    });
+
+    return {
+      title,
+      languageId,
+      type: this.mapCreateTaskKindToCrowdinType(task.kind),
+      ...(fileIds ? { fileIds } : {}),
+      ...(stringIds ? { stringIds } : {}),
+      ...(branchIds ? { branchIds } : {}),
+      ...(labelIds ? { labelIds } : {}),
+      ...(excludeLabelIds ? { excludeLabelIds } : {}),
+      ...(task.status ? { status: task.status } : {}),
+      ...(task.description?.trim() ? { description: task.description.trim() } : {}),
+      ...(task.splitContent !== undefined ? { splitContent: task.splitContent } : {}),
+      ...(task.skipAssignedStrings !== undefined
+        ? { skipAssignedStrings: task.skipAssignedStrings }
+        : {}),
+      ...(task.includePreTranslatedStringsOnly !== undefined
+        ? { includePreTranslatedStringsOnly: task.includePreTranslatedStringsOnly }
+        : {}),
+      ...(assignees?.length ? { assignees } : {}),
+      ...this.optionalDateFields({
+        deadline: task.dueDate,
+        startedAt: task.startedAt,
+        dateFrom: task.dateFrom,
+        dateTo: task.dateTo,
+      }),
+    };
+  }
+
+  private parseCrowdinIdList(values: string[] | undefined, fieldName: string) {
+    if (!values || values.length === 0) {
+      return undefined;
+    }
+
+    return values.map((value) => this.parseCrowdinId(value, fieldName));
+  }
+
+  private parseCrowdinId(value: string, fieldName: string) {
+    const id = Number(value.trim());
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error(`invalid_crowdin_task_${fieldName}`);
+    }
+
+    return id;
+  }
+
+  private mapCreateTaskKindToCrowdinType(
+    kind: TmsProviderCreateJobTaskScope["task"]["kind"],
+  ): 0 | 1 {
+    switch (kind) {
+      case "proofread":
+        return 1;
+      case "translation":
+      case undefined:
+        return 0;
+      case "review":
+        throw new Error("crowdin_task_kind_not_supported:review");
+      default: {
+        const unsupportedKind: never = kind;
+        throw new Error(`crowdin_task_kind_not_supported:${String(unsupportedKind)}`);
+      }
+    }
+  }
+
+  private optionalDateFields(input: {
+    deadline?: Date | string | null;
+    startedAt?: Date | string | null;
+    dateFrom?: Date | string | null;
+    dateTo?: Date | string | null;
+  }): Pick<CrowdinCreateTaskRequest, "deadline" | "startedAt" | "dateFrom" | "dateTo"> {
+    return {
+      ...(input.deadline ? { deadline: this.formatCrowdinTaskDate(input.deadline) } : {}),
+      ...(input.startedAt ? { startedAt: this.formatCrowdinTaskDate(input.startedAt) } : {}),
+      ...(input.dateFrom ? { dateFrom: this.formatCrowdinTaskDate(input.dateFrom) } : {}),
+      ...(input.dateTo ? { dateTo: this.formatCrowdinTaskDate(input.dateTo) } : {}),
+    };
+  }
+
+  private formatCrowdinTaskDate(value: Date | string) {
+    return value instanceof Date ? value.toISOString() : value;
   }
 
   /** Maps a Crowdin task API record to shared {@link ExternalTmsJobTaskMetadata}. */
@@ -2712,16 +2855,14 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
   }
 
-  private mapTaskTypeToKind(
-    taskType: number,
-  ): "translation" | "research" | "review" | "sync" | "asset_management" {
+  private mapTaskTypeToKind(taskType: number): JobKind {
     switch (taskType) {
       case 0:
       case 2:
         return "translation";
       case 1:
       case 3:
-        return "review";
+        return "proofread";
       default:
         return "translation";
     }

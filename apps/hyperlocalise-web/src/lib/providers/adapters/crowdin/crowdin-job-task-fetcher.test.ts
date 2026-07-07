@@ -290,4 +290,132 @@ describe("fetchCrowdinJobTasks", () => {
       expect.anything(),
     );
   });
+
+  it("creates a Crowdin task from provider task input", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path === "https://api.crowdin.test/api/v2/projects/1/tasks") {
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          title: "Review homepage",
+          languageId: "fr",
+          type: 1,
+          fileIds: [101],
+          labelIds: [7],
+          description: "Proofread launch strings",
+          assignees: [{ id: 55, wordsCount: 250 }],
+          deadline: "2026-08-01T00:00:00.000Z",
+        });
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 5001,
+              projectId: 1,
+              type: 1,
+              status: "todo",
+              title: "Review homepage",
+              description: "Proofread launch strings",
+              languageId: "fr",
+              sourceLanguageId: "en",
+              targetLanguageId: "fr",
+              fileIds: [101],
+              assignees: [{ id: 55, username: "reviewer1" }],
+              deadline: "2026-08-01T00:00:00Z",
+              webUrl: "https://crowdin.com/project/1/tasks/5001",
+              stringIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await crowdinTmsProvider.createJobTask({
+      organizationId: "org-1",
+      projectId: "project-1",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+      task: {
+        title: "Review homepage",
+        targetLocale: "fr",
+        kind: "proofread",
+        fileIds: ["101"],
+        labelIds: ["7"],
+        description: "Proofread launch strings",
+        dueDate: new Date("2026-08-01T00:00:00.000Z"),
+        assignees: [{ externalUserId: "55", wordsCount: 250 }],
+      },
+    });
+
+    expect(result).toMatchObject({
+      externalJobId: "5001",
+      externalStatus: "todo",
+      title: "Review homepage",
+      targetLocales: ["fr"],
+      assignedUsers: ["reviewer1"],
+      kind: "proofread",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects review kind when creating a Crowdin task", async () => {
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "Review homepage",
+          targetLocale: "fr",
+          kind: "review",
+          fileIds: ["101"],
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_kind_not_supported:review");
+  });
+
+  it("requires exactly one source scope when creating a Crowdin task", async () => {
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "French task",
+          targetLocale: "fr",
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_source_scope_required");
+
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "French task",
+          targetLocale: "fr",
+          fileIds: ["101"],
+          stringIds: ["202"],
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_source_scope_ambiguous");
+  });
 });
