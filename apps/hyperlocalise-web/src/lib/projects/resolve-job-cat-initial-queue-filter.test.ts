@@ -76,4 +76,15 @@ describe("resolveJobCatInitialQueueFilter", () => {
       }),
     ).resolves.toBe("untranslated");
   });
+
+  it("falls back to untranslated when provider job lookup throws", async () => {
+    getTmsProviderLiveJobDetailMock.mockRejectedValue(new Error("provider_fetcher_unavailable"));
+
+    await expect(
+      resolveJobCatInitialQueueFilter({
+        auth,
+        jobId: "ext:crowdin:project-1:job-1",
+      }),
+    ).resolves.toBe("untranslated");
+  });
 });

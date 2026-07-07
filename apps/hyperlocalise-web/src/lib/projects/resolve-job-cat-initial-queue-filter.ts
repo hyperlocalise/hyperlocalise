@@ -15,16 +15,20 @@ async function loadJobCatQueueFilterContext(
   auth: ApiAuthContext,
   jobId: string,
 ): Promise<JobCatQueueFilterContext | null> {
-  if (parseProviderJobId(jobId)) {
-    const job = await getTmsProviderLiveJobDetail(auth.organization.localOrganizationId, jobId, {
-      actorUserId: auth.user.localUserId,
-    });
+  try {
+    if (parseProviderJobId(jobId)) {
+      const job = await getTmsProviderLiveJobDetail(auth.organization.localOrganizationId, jobId, {
+        actorUserId: auth.user.localUserId,
+      });
 
+      return job ? { kind: job.kind, status: job.status } : null;
+    }
+
+    const job = await getOrganizationJobById(auth, jobId);
     return job ? { kind: job.kind, status: job.status } : null;
+  } catch {
+    return null;
   }
-
-  const job = await getOrganizationJobById(auth, jobId);
-  return job ? { kind: job.kind, status: job.status } : null;
 }
 
 export async function resolveJobCatInitialQueueFilter(input: {
