@@ -200,6 +200,9 @@ export function createIssueSheetRoutes() {
         }
         return c.json({ value }, 200);
       } catch (error) {
+        if (error instanceof Error && error.message === "issue_sheet_issue_not_found") {
+          return badRequestResponse(c, "issue_sheet_issue_not_found", "Issue not found");
+        }
         if (error instanceof Error && error.message === "invalid_issue_sheet_select_value") {
           return badRequestResponse(c, "invalid_issue_sheet_select_value", "Invalid select value");
         }

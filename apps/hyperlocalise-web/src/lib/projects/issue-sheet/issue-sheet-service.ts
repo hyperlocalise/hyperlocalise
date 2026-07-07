@@ -427,6 +427,22 @@ export class IssueSheetService {
     issueId: string;
     body: IssueSheetSetValueBody;
   }) {
+    const [issue] = await this.database
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, input.organizationId),
+          eq(schema.issueSheetIssues.projectId, input.projectId),
+          eq(schema.issueSheetIssues.id, input.issueId),
+        ),
+      )
+      .limit(1);
+
+    if (!issue) {
+      throw new Error("issue_sheet_issue_not_found");
+    }
+
     const [column] = await this.database
       .select({
         id: schema.issueSheetColumns.id,
