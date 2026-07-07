@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import type {
   ProjectFileCatConcordanceResponse,
@@ -263,6 +264,61 @@ export function ProjectFileCatWorkspace({
     [catFile?.canEditTranslations, resolveComment],
   );
 
+  const handleAddToIssueSheet = useCallback(
+    async (segmentId: string) => {
+      const segment = catFile?.segments.find((item) => item.externalStringId === segmentId);
+      if (!segment) {
+        throw new Error("Segment not found.");
+      }
+
+      const issueSheetUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
+      const linkUrl =
+        typeof window === "undefined"
+          ? null
+          : buildCatSegmentShareUrl({
+              baseUrl: window.location.href,
+              segmentId,
+              segmentKey: segment.key,
+            });
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `Context needed: ${segment.key}`,
+            description: segment.sourceText,
+            issueType: "context_request",
+            targetLocale,
+            sourcePath,
+            segmentId,
+            translationKeyId: segmentId,
+            linkKind: "cat_segment",
+            linkLabel: "Open in CAT",
+            linkUrl: linkUrl ?? undefined,
+            externalRef: `cat:${projectId}:${sourcePath}:${targetLocale}:${segmentId}`,
+            priority: "P2",
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to add to Issue Sheet"));
+      }
+
+      toast.success("Added to Issue Sheet", {
+        action: {
+          label: "View row",
+          onClick: () => {
+            window.location.href = issueSheetUrl;
+          },
+        },
+      });
+    },
+    [catFile?.segments, organizationSlug, projectId, sourcePath, targetLocale],
+  );
+
   const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
     if (typeof window === "undefined") {
       return null;
@@ -497,6 +553,7 @@ export function ProjectFileCatWorkspace({
           onApprove: handleApprove,
           onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
           onAddComment: handleAddComment,
+          onAddToIssueSheet: handleAddToIssueSheet,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
         }}

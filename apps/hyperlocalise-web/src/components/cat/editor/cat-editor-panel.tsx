@@ -49,6 +49,7 @@ export function CatEditorPanel({
   onApprove,
   onSaveDraft,
   onAddComment,
+  onAddToIssueSheet,
   onResolveComment,
   primaryActionLabel,
   onAskQuestion,
@@ -159,6 +160,7 @@ export function CatEditorPanel({
             hasNextSegment={hasNextSegment}
             onApprove={onApprove}
             onSaveDraft={onSaveDraft}
+            onAddToIssueSheet={onAddToIssueSheet}
             onAskQuestion={onAskQuestion}
             onPrevious={onPrevious}
             onNext={onNext}

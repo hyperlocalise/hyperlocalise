@@ -130,6 +130,7 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
+import { createIssueSheetRoutes } from "./issue-sheet.route";
 import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
 import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
 import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
@@ -672,6 +673,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,

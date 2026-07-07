@@ -5,35 +5,35 @@
 
 ## Summary
 
-Issue Sheet is a per-project team workspace for viewing, querying, and resolving localization issues inside Hyperlocalise. It unifies CAT issues, native QA findings, source string issues, agent warnings, and manual entries into one spreadsheet-like table. Teams can extend the sheet with custom columns and run AI enrichment on demand.
+Issue Sheet is a per-project generic issue tracker for localization work inside Hyperlocalise. It owns its own issue rows and can link those rows to CAT segments, native comments, provider threads, external URLs, agent runs, or manual context. Teams can extend the sheet with custom columns and run AI enrichment on demand.
 
 Design goals:
 
 - **Balanced** — one sheet serves translators, LQA, and engineering via preset views
-- **Simple first** — virtual read model over existing data; thin overlay for workflow fields
+- **Simple first** — first-class generic issue rows with optional links to existing context
 - **Excel-familiar** — sortable columns, filters, inline edit, bulk select
 - **Extensible** — per-project custom columns without fixed-field limits
 
 ## Problem
 
-Hyperlocalise tracks issues in several places today:
+Hyperlocalise tracks useful context in several places today:
 
 | Source | Surface | Gap |
 |--------|---------|-----|
-| Native CAT comments | Segment editor | No team-wide query or assignment |
-| Native QA findings | Job detail | Tied to a single job run |
-| Source string issues | File and CAT surfaces | Hard to triage with translators and engineering together |
-| Agent warnings | Agent run review | Not browsable across work |
+| Native CAT comments | Segment editor | Useful link target, but too narrow as the primary tracker |
+| Native QA findings | Job detail | Useful link target, but tied to a single job run |
+| Source string issues | File and CAT surfaces | Need a team-owned triage surface |
+| Agent warnings | Agent run review | Need a persistent team-owned follow-up row |
 
 Teams export to spreadsheets or external trackers and lose links to source strings, CAT state, and AI context. Issue Sheet should make Hyperlocalise the place where teams coordinate localization quality, not a mirror of another TMS.
 
 ## Vision
 
-One row per actionable issue. System columns guarantee CAT deep links and source-string context. Custom columns carry team workflow. AI enrichment is a column type, not a separate feature. External provider data can be imported later, but MVP should promote the native Hyperlocalise workflow.
+One row per actionable issue. The row belongs to Issue Sheet first. Optional link fields connect it to native or provider context when useful. Custom columns carry team workflow. AI enrichment is a column type, not a separate feature.
 
 ```
 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│ CAT editor  │   │ Native QA   │   │ Agent runs  │   │ Manual add  │
+│ CAT editor  │   │ Native QA   │   │ Provider ctx│   │ Manual add  │
 └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘
        │                 │                 │                 │
        └─────────────────┴────────┬────────┴─────────────────┘
@@ -48,7 +48,7 @@ One row per actionable issue. System columns guarantee CAT deep links and source
                                   │
                     ┌─────────────┼─────────────┐
                     ▼             ▼             ▼
-              Open in CAT    Assign/resolve   Enrich with agent
+              Linked context  Assign/resolve   Enrich with agent
 ```
 
 ## Users and preset views

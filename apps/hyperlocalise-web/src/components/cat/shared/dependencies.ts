@@ -48,6 +48,7 @@ export interface CatWorkspaceReview {
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
+  onAddToIssueSheet?: (segmentId: string) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string, options?: { forceRefresh?: boolean }) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;

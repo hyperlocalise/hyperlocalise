@@ -254,6 +254,11 @@ export function CatWorkspaceView({
               ? (input) => review.onAddComment?.(editorSegment.id, input)
               : undefined
           }
+          onAddToIssueSheet={
+            review.onAddToIssueSheet
+              ? () => void review.onAddToIssueSheet?.(editorSegment.id)
+              : undefined
+          }
           onResolveComment={
             review.onResolveComment
               ? (commentId) => review.onResolveComment?.(editorSegment.id, commentId)
