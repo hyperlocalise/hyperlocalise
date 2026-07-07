@@ -153,6 +153,11 @@ export function buildProjectNavigationItems(
       icon: Task01Icon,
     },
     {
+      label: "Issue Sheet",
+      href: project("issue-sheet"),
+      icon: Task01Icon,
+    },
+    {
       label: "Settings",
       href: project("settings"),
       icon: Settings01Icon,

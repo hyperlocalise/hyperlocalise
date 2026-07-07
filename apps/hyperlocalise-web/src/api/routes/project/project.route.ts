@@ -130,9 +130,12 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
-import { generateCatAiRecommendation } from "@/lib/translation/cat";
-import { loadCatSegmentConcordance } from "@/lib/translation/cat";
-import { loadCatSegmentVisualContext } from "@/lib/translation/cat";
+import { createIssueSheetRoutes } from "./issue-sheet.route";
+import {
+  generateCatAiRecommendation,
+  loadCatSegmentConcordance,
+  loadCatSegmentVisualContext,
+} from "@/lib/translation/cat";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
@@ -672,6 +675,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,

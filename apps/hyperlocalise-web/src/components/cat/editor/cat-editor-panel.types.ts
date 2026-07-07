@@ -36,6 +36,7 @@ export type CatEditorPanelProps = {
   onApprove: () => void;
   onSaveDraft?: () => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onAddToIssueSheet?: () => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
