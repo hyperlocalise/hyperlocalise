@@ -71,6 +71,11 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: WorkHistoryIcon,
         },
         {
+          label: "Issues",
+          href: org("issues"),
+          icon: ClipboardListIcon,
+        },
+        {
           label: "Overview",
           href: org("dashboard"),
           icon: DashboardSquare01Icon,

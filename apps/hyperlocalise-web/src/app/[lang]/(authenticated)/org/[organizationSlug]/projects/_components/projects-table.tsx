@@ -11,6 +11,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
@@ -20,6 +21,42 @@ import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tm
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { ProjectAvatar } from "./project-avatar";
 import { formatProjectLocaleRoute, type ProjectListRow } from "./project-list";
+
+export const PROJECTS_PAGE_SIZE = 12;
+
+function TmsProjectCardSkeleton() {
+  return (
+    <article className="rounded-lg border border-border bg-muted p-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-48 max-w-full" />
+          <Skeleton className="h-3 w-full max-w-sm" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function NativeProjectCardSkeleton() {
+  return (
+    <article className="rounded-lg border border-border bg-muted p-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-40 max-w-full" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+        </div>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </dl>
+    </article>
+  );
+}
 
 function NativeEmptyState({
   compact,
@@ -270,6 +307,8 @@ export function ProjectsTable({
   organizationSlug,
   variant,
   compactEmptyNative = false,
+  hasMore = false,
+  onLoadMore,
   onEditProject,
   onDeleteProject,
   onCreateProject,
@@ -282,6 +321,8 @@ export function ProjectsTable({
   organizationSlug: string;
   variant: "native" | "tms";
   compactEmptyNative?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
   onEditProject?: (project: ProjectListRow) => void;
   onDeleteProject?: (project: ProjectListRow) => void;
   onCreateProject?: () => void;
@@ -294,8 +335,18 @@ export function ProjectsTable({
   return (
     <section>
       {projectsQuery.isLoading ? (
-        <div className={cn("text-sm text-muted-foreground", variant === "tms" ? "py-4" : "py-8")}>
-          Loading projects...
+        <div
+          className={cn(variant === "tms" ? "grid gap-2 py-4" : "grid gap-3 py-8 lg:grid-cols-2")}
+          aria-busy="true"
+          aria-label="Loading projects"
+        >
+          {Array.from({ length: 4 }).map((_, index) =>
+            variant === "tms" ? (
+              <TmsProjectCardSkeleton key={index} />
+            ) : (
+              <NativeProjectCardSkeleton key={index} />
+            ),
+          )}
         </div>
       ) : null}
       {projectsQuery.isError ? (
@@ -364,6 +415,13 @@ export function ProjectsTable({
               onOpenProject={onOpenProject}
             />
           ))}
+        </div>
+      ) : null}
+      {hasMore && projectsQuery.isSuccess && projects.length > 0 && onLoadMore ? (
+        <div className={cn("flex justify-center", variant === "tms" ? "pt-4" : "pt-6")}>
+          <Button type="button" variant="outline" onClick={onLoadMore} className="rounded-full">
+            Load more
+          </Button>
         </div>
       ) : null}
     </section>
