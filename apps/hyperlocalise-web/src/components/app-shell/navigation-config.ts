@@ -9,6 +9,7 @@ import {
   AiBrain01Icon,
   BookOpenTextIcon,
   Chat01Icon,
+  ClipboardListIcon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
@@ -155,7 +156,7 @@ export function buildProjectNavigationItems(
     {
       label: "Issue Sheet",
       href: project("issue-sheet"),
-      icon: Task01Icon,
+      icon: ClipboardListIcon,
     },
     {
       label: "Settings",

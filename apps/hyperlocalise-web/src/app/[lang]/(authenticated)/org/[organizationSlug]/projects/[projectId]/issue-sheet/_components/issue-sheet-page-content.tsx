@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { PlusSignIcon, Task01Icon } from "@hugeicons/core-free-icons";
+import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -247,7 +247,7 @@ export function IssueSheetPageContent({
     <ProjectPageShell>
       <div className="space-y-6">
         <ProjectSectionHeader
-          icon={Task01Icon}
+          icon={ClipboardListIcon}
           section="Issue Sheet"
           description="Track localization issues in Hyperlocalise, then link rows to CAT segments, native issues, provider threads, or external context."
           actions={
@@ -274,7 +274,7 @@ export function IssueSheetPageContent({
             </SelectTrigger>
             <SelectContent>
               {views.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
+                <SelectItem key={item.value} value={item.value} label={item.label}>
                   {item.label}
                 </SelectItem>
               ))}
@@ -351,7 +351,11 @@ export function IssueSheetPageContent({
                         </SelectTrigger>
                         <SelectContent>
                           {statuses.map((status) => (
-                            <SelectItem key={status.value} value={status.value}>
+                            <SelectItem
+                              key={status.value}
+                              value={status.value}
+                              label={status.label}
+                            >
                               {status.label}
                             </SelectItem>
                           ))}
@@ -370,7 +374,7 @@ export function IssueSheetPageContent({
                         </SelectTrigger>
                         <SelectContent>
                           {issueTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
+                            <SelectItem key={type.value} value={type.value} label={type.label}>
                               {type.label}
                             </SelectItem>
                           ))}
@@ -491,7 +495,7 @@ function CustomCell({
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
+            <SelectItem key={option.id} value={option.id} label={option.label}>
               {option.label}
             </SelectItem>
           ))}
@@ -587,7 +591,7 @@ function CreateIssueDialog({
               </SelectTrigger>
               <SelectContent>
                 {issueTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
+                  <SelectItem key={type.value} value={type.value} label={type.label}>
                     {type.label}
                   </SelectItem>
                 ))}
@@ -598,9 +602,15 @@ function CreateIssueDialog({
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="P0">P0</SelectItem>
-                <SelectItem value="P1">P1</SelectItem>
-                <SelectItem value="P2">P2</SelectItem>
+                <SelectItem value="P0" label="P0">
+                  P0
+                </SelectItem>
+                <SelectItem value="P1" label="P1">
+                  P1
+                </SelectItem>
+                <SelectItem value="P2" label="P2">
+                  P2
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -688,10 +698,18 @@ function CreateColumnDialog({
               <SelectValue placeholder="Column type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="text">Text</SelectItem>
-              <SelectItem value="long_text">Long text</SelectItem>
-              <SelectItem value="select">Select</SelectItem>
-              <SelectItem value="user">User ID</SelectItem>
+              <SelectItem value="text" label="Text">
+                Text
+              </SelectItem>
+              <SelectItem value="long_text" label="Long text">
+                Long text
+              </SelectItem>
+              <SelectItem value="select" label="Select">
+                Select
+              </SelectItem>
+              <SelectItem value="user" label="User ID">
+                User ID
+              </SelectItem>
             </SelectContent>
           </Select>
           <Input name="options" placeholder="For select: Backlog, Sprint 24, Blocked" />
