@@ -106,10 +106,18 @@ jobs:
           HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
           HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 
+      - name: Prepare translation branch name
+        id: branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          timestamp="$(date -u +%Y%m%d-%H%M%S)"
+          echo "name=hyperlocalise/web-translations-${timestamp}" >>"${GITHUB_OUTPUT}"
+
       - name: Create pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: hyperlocalise/web-translations
+          branch: ${{ steps.branch.outputs.name }}
           delete-branch: true
           commit-message: "chore(web): sync Hyperlocalise translations"
           title: "chore(web): sync Hyperlocalise translations"
