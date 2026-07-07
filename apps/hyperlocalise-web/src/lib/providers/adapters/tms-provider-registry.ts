@@ -103,6 +103,7 @@ function asJobTaskFetcher(provider: TmsProvider): ExternalTmsJobTaskFetcher {
 
 function asJobTaskCreator(provider: TmsProvider): ExternalTmsJobTaskCreator {
   const bound = provider.createJobTask.bind(provider);
+  // Callers pass providerKind for routing/logging; the bound provider resolves kind from this.kind.
   return async (input) => {
     const created = await bound({
       organizationId: input.organizationId,

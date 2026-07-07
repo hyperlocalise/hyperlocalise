@@ -26,6 +26,7 @@ describe("canOpenJobCat", () => {
   it("allows provider-backed translation and review jobs", () => {
     expect(canOpenJobCat(createJob())).toBe(true);
     expect(canOpenJobCat(createJob({ kind: "review" }))).toBe(true);
+    expect(canOpenJobCat(createJob({ kind: "proofread" }))).toBe(true);
     expect(canOpenJobCat(createJob({ kind: "sync" }))).toBe(false);
   });
 
@@ -66,6 +67,7 @@ describe("canOpenJobCat", () => {
 describe("resolveDefaultJobCatQueueFilter", () => {
   it("defaults review jobs and waiting-for-review tasks to needs_review", () => {
     expect(resolveDefaultJobCatQueueFilter({ kind: "review" })).toBe("needs_review");
+    expect(resolveDefaultJobCatQueueFilter({ kind: "proofread" })).toBe("needs_review");
     expect(
       resolveDefaultJobCatQueueFilter({ kind: "translation", status: "waiting_for_review" }),
     ).toBe("needs_review");

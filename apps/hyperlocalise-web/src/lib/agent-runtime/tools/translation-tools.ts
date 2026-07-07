@@ -35,7 +35,14 @@ import {
 } from "@/lib/agent-runtime/tools/tool-access";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
+const jobKinds = [
+  "translation",
+  "research",
+  "review",
+  "proofread",
+  "sync",
+  "asset_management",
+] as const;
 type JobKind = (typeof jobKinds)[number];
 type JobRecord = typeof schema.jobs.$inferSelect;
 
@@ -248,7 +255,7 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
     details:
       job.kind === "translation"
         ? { type: job.translationType, outcomeKind: job.translationOutcomeKind }
-        : job.kind === "review"
+        : job.kind === "review" || job.kind === "proofread"
           ? {
               criteria: job.reviewCriteria,
               targetLocale: job.reviewTargetLocale,

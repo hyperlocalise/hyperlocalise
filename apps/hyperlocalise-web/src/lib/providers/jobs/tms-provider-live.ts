@@ -185,7 +185,7 @@ export type TmsProviderLiveJob = {
   projectId: string;
   projectName: string | null;
   createdByUserId: string | null;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: null;
   status: ReturnType<typeof mapProviderStatusToNormalized>;
   createdAt: string;

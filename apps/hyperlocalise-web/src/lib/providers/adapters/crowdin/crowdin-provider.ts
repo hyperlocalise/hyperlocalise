@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { JobKind } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -1345,11 +1346,19 @@ export class CrowdinTmsProvider extends TmsProvider {
   private mapCreateTaskKindToCrowdinType(
     kind: TmsProviderCreateJobTaskScope["task"]["kind"],
   ): 0 | 1 {
-    if (kind === "review" || kind === "proofread") {
-      return 1;
+    switch (kind) {
+      case "proofread":
+        return 1;
+      case "translation":
+      case undefined:
+        return 0;
+      case "review":
+        throw new Error("crowdin_task_kind_not_supported:review");
+      default: {
+        const unsupportedKind: never = kind;
+        throw new Error(`crowdin_task_kind_not_supported:${String(unsupportedKind)}`);
+      }
     }
-
-    return 0;
   }
 
   private optionalDateFields(input: {
@@ -2846,16 +2855,14 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
   }
 
-  private mapTaskTypeToKind(
-    taskType: number,
-  ): "translation" | "research" | "review" | "sync" | "asset_management" {
+  private mapTaskTypeToKind(taskType: number): JobKind {
     switch (taskType) {
       case 0:
       case 2:
         return "translation";
       case 1:
       case 3:
-        return "review";
+        return "proofread";
       default:
         return "translation";
     }

@@ -122,7 +122,7 @@ export type ExternalTmsJobTaskCreateAssignee = {
 export type ExternalTmsJobTaskCreateRequest = {
   title: string;
   targetLocale: string;
-  kind?: Extract<JobKind, "translation" | "review"> | "proofread";
+  kind?: Extract<JobKind, "translation" | "review" | "proofread">;
   description?: string | null;
   dueDate?: Date | string | null;
   fileIds?: string[];

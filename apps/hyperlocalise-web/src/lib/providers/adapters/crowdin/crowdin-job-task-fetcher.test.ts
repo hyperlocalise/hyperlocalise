@@ -346,7 +346,7 @@ describe("fetchCrowdinJobTasks", () => {
       task: {
         title: "Review homepage",
         targetLocale: "fr",
-        kind: "review",
+        kind: "proofread",
         fileIds: ["101"],
         labelIds: ["7"],
         description: "Proofread launch strings",
@@ -361,9 +361,28 @@ describe("fetchCrowdinJobTasks", () => {
       title: "Review homepage",
       targetLocales: ["fr"],
       assignedUsers: ["reviewer1"],
-      kind: "review",
+      kind: "proofread",
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects review kind when creating a Crowdin task", async () => {
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "Review homepage",
+          targetLocale: "fr",
+          kind: "review",
+          fileIds: ["101"],
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_kind_not_supported:review");
   });
 
   it("requires exactly one source scope when creating a Crowdin task", async () => {
