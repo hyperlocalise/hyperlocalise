@@ -129,7 +129,7 @@ jobs:
 
             - Source catalog: `apps/hyperlocalise-web/lang/en-US.json` (refreshed via `hyperlocalise extract` before pull)
             - Target catalogs: `apps/hyperlocalise-web/lang/*.json`
-            - Validation: `hyperlocalise check` on all configured catalogs (warnings ignored)
+            - Validation: `hyperlocalise check --diff-stdin` on the pulled diff (warnings ignored)
 
             Review ICU placeholders, message ids, and locale coverage before merging.
           add-paths: |

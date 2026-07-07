@@ -1,5 +1,5 @@
 name: Hyperlocalise Sync
-description: Extract React Intl catalogs, upload sources, or download translations with full-catalog validation.
+description: Extract React Intl catalogs, upload sources, or download translations with git diff validation.
 
 branding:
   icon: sync
@@ -31,10 +31,10 @@ inputs:
     description: Preview sync push and pull without uploading, downloading, or writing files.
     default: "false"
   fail-on-findings:
-    description: Fail the action when validation reports errors. Warnings are ignored.
+    description: Fail the action when git diff validation reports errors. Warnings are ignored.
     default: "true"
   prefix-id:
-    description: Pass --prefix-id to validation when source keys use extract --prefix-id prefixes.
+    description: Pass --prefix-id to git diff validation when source keys use extract --prefix-id prefixes.
     default: "false"
   upload-artifact:
     description: Upload JSON reports and validation summary artifacts.
@@ -48,13 +48,13 @@ outputs:
     description: Path to the sync pull JSON report.
     value: ${{ steps.prepare.outputs.pull-report-path }}
   validation-report-path:
-    description: Path to the validation JSON report.
+    description: Path to the git diff validation JSON report.
     value: ${{ steps.prepare.outputs.validation-report-path }}
   validation-summary-path:
-    description: Path to the validation text summary.
+    description: Path to the git diff validation text summary.
     value: ${{ steps.prepare.outputs.validation-summary-path }}
   findings-detected:
-    description: Whether validation found issues.
+    description: Whether git diff validation found issues.
     value: ${{ steps.analyze-validation.outputs.findings-detected }}
   findings-total:
     description: Total number of validation errors and warnings.
@@ -197,9 +197,9 @@ runs:
         hyperlocalise "${args[@]}" | tee "${PULL_REPORT_PATH}"
         popd >/dev/null
 
-    - name: Validate pulled translations
+    - name: Validate pulled changes
       if: ${{ inputs.mode == 'download' || inputs.mode == 'all' }}
-      id: validate
+      id: validate-diff
       shell: bash
       env:
         CONFIG_PATH: ${{ inputs.config-path }}
@@ -210,7 +210,7 @@ runs:
         set +e
         set -u
 
-        args=(check --no-fail --json-report "${VALIDATION_REPORT_PATH}")
+        args=(check --diff-stdin --no-fail --json-report "${VALIDATION_REPORT_PATH}")
         if [[ "${PREFIX_ID}" == "true" ]]; then
           args+=(--prefix-id)
         fi
@@ -219,7 +219,8 @@ runs:
         fi
 
         pushd "${WORKING_DIRECTORY}" >/dev/null
-        hyperlocalise "${args[@]}"
+        git add -A .
+        git diff --staged | hyperlocalise "${args[@]}"
         cli_exit=$?
         popd >/dev/null
 
@@ -234,7 +235,7 @@ runs:
         CONFIG_PATH: ${{ inputs.config-path }}
         VALIDATION_REPORT_PATH: ${{ steps.prepare.outputs.validation-report-path }}
         VALIDATION_SUMMARY_PATH: ${{ steps.prepare.outputs.validation-summary-path }}
-        CLI_EXIT_CODE: ${{ steps.validate.outputs.cli-exit-code }}
+        CLI_EXIT_CODE: ${{ steps.validate-diff.outputs.cli-exit-code }}
       run: |
         set -euo pipefail
         node "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
@@ -266,11 +267,11 @@ runs:
           ${{ steps.prepare.outputs.validation-summary-path }}
 
     - name: Fail on CLI error
-      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && steps.validate.outputs.cli-exit-code != '0' }}
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && steps.validate-diff.outputs.cli-exit-code != '0' }}
       shell: bash
       run: |
         set -euo pipefail
-        echo "Hyperlocalise validation failed before a clean report could be produced." >&2
+        echo "Hyperlocalise git diff validation failed before a clean report could be produced." >&2
         exit 1
 
     - name: Fail on unknown validation state
