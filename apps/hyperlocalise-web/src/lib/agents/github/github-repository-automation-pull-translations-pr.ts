@@ -4,7 +4,7 @@ import {
   prepareGithubRepositoryAutomationSandboxForPush,
   runGitDiffInSandbox,
 } from "@/lib/agents/github/github-repository-automation-sandbox";
-import { runSandboxCommand, writeFilesToSandbox } from "@/lib/translation/sandbox-translation";
+import { runSandboxCommand, writeFilesToSandbox } from "@/lib/translation/sandbox";
 
 import { buildPullTranslationsBranchName } from "./github-repository-automation-pull-translations-branch";
 import type { PullTranslationExportCandidate } from "./github-repository-automation-pull-translations-export";

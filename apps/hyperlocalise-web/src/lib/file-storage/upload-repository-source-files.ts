@@ -10,7 +10,7 @@ import {
   sha256Hex,
 } from "@/lib/file-storage/records";
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
-import { runSandboxCommand } from "@/lib/translation/sandbox-translation";
+import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("upload-repository-source-files");

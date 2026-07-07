@@ -94,7 +94,7 @@ vi.mock("@/lib/database", () => ({
 import {
   persistFileTranslationMemoryEntries,
   reuseFileTranslationMemoryEntries,
-} from "./file-translation-memory";
+} from "./file-memory";
 
 describe("persistFileTranslationMemoryEntries", () => {
   beforeEach(() => {

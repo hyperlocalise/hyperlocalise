@@ -130,9 +130,9 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
-import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
-import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
-import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
+import { generateCatAiRecommendation } from "@/lib/translation/generation";
+import { loadCatSegmentConcordance } from "@/lib/translation/cat";
+import { loadCatSegmentVisualContext } from "@/lib/translation/cat";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =

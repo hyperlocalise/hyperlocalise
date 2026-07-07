@@ -4,7 +4,7 @@ export async function extractTranslationImportEntriesStep(input: {
   targetLocale: string;
 }) {
   "use step";
-  const { extractSandboxEntries } = await import("@/lib/translation/sandbox-translation");
+  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const entries = await extractSandboxEntries(input.sandboxId, input.filePath, {
     locale: input.targetLocale,
   });

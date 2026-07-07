@@ -15,8 +15,8 @@ import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
-import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
-import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
+import { collectGlossaryUsageForUnits } from "@/lib/translation/concordance";
+import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/concordance";
 import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {

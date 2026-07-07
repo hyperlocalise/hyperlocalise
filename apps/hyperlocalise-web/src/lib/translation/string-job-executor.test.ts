@@ -7,10 +7,8 @@ vi.hoisted(() => {
   process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
 });
 
-import {
-  createStringTranslationGenerator,
-  type StringTranslationGeneratorInput,
-} from "@/lib/translation/string-job-executor";
+import { createStringTranslationGenerator } from "@/lib/translation/generation";
+import type { StringTranslationGeneratorInput } from "@/lib/translation/domain";
 
 function createMockStructuredModel(...outputs: unknown[]) {
   const nextId = mockId();

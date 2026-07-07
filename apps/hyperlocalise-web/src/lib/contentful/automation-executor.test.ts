@@ -46,7 +46,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/translation/assemble-translation-context", () => ({
+vi.mock("@/lib/translation/context", () => ({
   assembleStringTranslationContextSnapshot: mocks.assembleStringTranslationContextSnapshot,
 }));
 

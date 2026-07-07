@@ -9,7 +9,7 @@ import type {
   ContentfulDraftTranslation,
   ContentfulTranslatableFieldUnit,
 } from "@/lib/contentful/types";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 export type ContentfulAgentSession = {
   organizationId: string;

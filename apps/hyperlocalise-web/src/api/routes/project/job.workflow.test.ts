@@ -21,8 +21,8 @@ import {
   completeTranslationJob,
   executeClaimedTranslationJob,
   failTranslationJob,
-} from "@/lib/translation/translation-job-queued-function";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+} from "@/lib/translation/jobs";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";

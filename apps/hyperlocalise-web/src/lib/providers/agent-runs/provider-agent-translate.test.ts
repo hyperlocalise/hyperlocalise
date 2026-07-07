@@ -58,7 +58,7 @@ vi.mock("@/lib/providers/shared/tms-provider-content", async (importOriginal) =>
   };
 });
 
-vi.mock("@/lib/translation/load-organization-translation-generator", () => ({
+vi.mock("@/lib/translation/generation", () => ({
   loadOrganizationTranslationGenerator: (...args: unknown[]) =>
     loadOrganizationTranslationGeneratorMock(...args),
 }));

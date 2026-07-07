@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const generateTextMock = vi.fn();
 const loadOrganizationTranslationModelMock = vi.fn();
@@ -12,19 +12,25 @@ vi.mock("ai", async (importOriginal) => {
   };
 });
 
-vi.mock("./load-organization-translation-generator", () => ({
-  loadOrganizationTranslationModel: (...args: unknown[]) =>
-    loadOrganizationTranslationModelMock(...args),
-}));
+import { catRecommendationDeps, generateCatAiRecommendation } from "./generation";
 
-vi.mock("./assemble-translation-context", () => ({
-  assembleStringTranslationContextSnapshot: (...args: unknown[]) =>
-    assembleStringTranslationContextSnapshotMock(...args),
-}));
-
-import { generateCatAiRecommendation } from "./generate-cat-ai-recommendation";
+const originalCatRecommendationDeps = { ...catRecommendationDeps };
 
 describe("generateCatAiRecommendation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    catRecommendationDeps.loadOrganizationTranslationModel = loadOrganizationTranslationModelMock;
+    catRecommendationDeps.assembleStringTranslationContextSnapshot =
+      assembleStringTranslationContextSnapshotMock;
+  });
+
+  afterEach(() => {
+    catRecommendationDeps.loadOrganizationTranslationModel =
+      originalCatRecommendationDeps.loadOrganizationTranslationModel;
+    catRecommendationDeps.assembleStringTranslationContextSnapshot =
+      originalCatRecommendationDeps.assembleStringTranslationContextSnapshot;
+  });
+
   it("returns a recommendation using file and agent context", async () => {
     loadOrganizationTranslationModelMock.mockResolvedValue({
       ok: true,
@@ -77,12 +83,12 @@ describe("generateCatAiRecommendation", () => {
 
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining("Heading on the sign-in screen"),
+        system: expect.stringContaining("Heading on the sign-in screen"),
       }),
     );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining("Hero title on the sign-in page."),
+        system: expect.stringContaining("Hero title on the sign-in page."),
       }),
     );
   });

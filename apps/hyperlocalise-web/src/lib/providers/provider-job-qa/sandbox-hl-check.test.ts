@@ -18,7 +18,7 @@ const stopTranslationSandboxMock = vi.fn();
 const runSandboxCommandMock = vi.fn();
 const writeFilesToSandboxMock = vi.fn();
 
-vi.mock("@/lib/translation/sandbox-translation", () => ({
+vi.mock("@/lib/translation/sandbox", () => ({
   createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
   prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
   stopTranslationSandbox: (...args: unknown[]) => stopTranslationSandboxMock(...args),

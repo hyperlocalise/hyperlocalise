@@ -46,15 +46,15 @@ const {
   ensureOrganizationProjectRecordMock: vi.fn(),
 }));
 
-vi.mock("@/lib/translation/load-cat-segment-concordance", () => ({
+vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
 }));
 
-vi.mock("@/lib/translation/load-cat-segment-visual-context", () => ({
+vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentVisualContext: (...args: unknown[]) => loadCatSegmentVisualContextMock(...args),
 }));
 
-vi.mock("@/lib/translation/generate-cat-ai-recommendation", () => ({
+vi.mock("@/lib/translation/generation", () => ({
   generateCatAiRecommendation: (...args: unknown[]) => generateCatAiRecommendationMock(...args),
 }));
 

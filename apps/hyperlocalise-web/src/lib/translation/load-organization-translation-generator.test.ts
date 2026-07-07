@@ -11,8 +11,8 @@ import {
 } from "@/lib/security/provider-credential-crypto";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
-import { loadOrganizationTranslationGenerator } from "./load-organization-translation-generator";
-import * as stringJobExecutor from "./string-job-executor";
+import { loadOrganizationTranslationGenerator } from "./generation";
+import * as stringJobExecutor from "./generation";
 
 const projectFixture = createProjectTestFixture();
 
