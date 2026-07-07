@@ -268,6 +268,26 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-target-locales", "vi,fr-FR");
   });
 
+  it("shows a warning when a requested native locale falls back", async () => {
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="ja-JP"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-target-locale", "vi");
+    });
+    expect(
+      screen.getByText("ja-JP is not a target locale for this file. Showing vi instead."),
+    ).toBeInTheDocument();
+  });
+
   it("prompts for a repository when multiple GitHub repos are enabled and none is selected", async () => {
     render(
       <CatTestProviders>

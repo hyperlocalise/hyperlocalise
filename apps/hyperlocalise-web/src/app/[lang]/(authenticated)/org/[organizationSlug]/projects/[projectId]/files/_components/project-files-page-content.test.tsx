@@ -128,4 +128,16 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
       screen.getByText(/Double-click a file or use View strings to open the CAT workspace for vi/i),
     ).toBeInTheDocument();
   });
+
+  it("shows when a requested native locale will fall back to a project locale", () => {
+    searchParamsMock.mockReturnValue("sourcePath=en-US.json&locale=ja-JP");
+
+    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    expect(
+      screen.getByText(
+        "ja-JP is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for vi.",
+      ),
+    ).toBeInTheDocument();
+  });
 });

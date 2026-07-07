@@ -6,6 +6,7 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
   resolveProjectFileCatTargetLocale,
+  resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "./project-file-cat-routing";
 
@@ -152,10 +153,15 @@ describe("resolveProjectFileCatTargetLocale", () => {
     ).toBe("vi");
   });
 
-  it("falls back from an unknown requested native locale to a project locale", () => {
-    expect(resolveProjectFileCatTargetLocale(createProjectFileRecord(), "ja-JP", ["vi"])).toBe(
-      "vi",
-    );
+  it("reports fallback from an unknown requested native locale to a project locale", () => {
+    expect(
+      resolveProjectFileCatTargetLocaleResolution(createProjectFileRecord(), "ja-JP", ["vi"]),
+    ).toMatchObject({
+      requestedLocale: "ja-JP",
+      status: "fallback",
+      targetLocale: "vi",
+      targetLocales: ["vi"],
+    });
   });
 
   it("returns null when native project locales are known to be empty", () => {

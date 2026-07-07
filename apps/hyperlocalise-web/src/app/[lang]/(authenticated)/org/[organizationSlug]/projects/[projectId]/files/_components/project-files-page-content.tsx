@@ -19,7 +19,7 @@ import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resour
 import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
-  resolveProjectFileCatTargetLocale,
+  resolveProjectFileCatTargetLocaleResolution,
 } from "@/lib/projects/project-file-cat-routing";
 
 import {
@@ -213,11 +213,12 @@ export function ProjectFilesPageContent({
         return;
       }
 
-      const targetLocale = resolveProjectFileCatTargetLocale(
+      const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
         file,
         highlightLocale,
         projectTargetLocales,
       );
+      const targetLocale = targetLocaleResolution.targetLocale;
       if (!canOpenProjectFileCat(file) || !targetLocale) {
         toast.error(
           targetLocale
@@ -225,6 +226,16 @@ export function ProjectFilesPageContent({
             : "No target locale is available for this file.",
         );
         return;
+      }
+
+      if (
+        targetLocaleResolution.status === "fallback" &&
+        targetLocaleResolution.requestedLocale &&
+        targetLocaleResolution.requestedLocale !== targetLocale
+      ) {
+        toast.warning(
+          `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Opening ${targetLocale} instead.`,
+        );
       }
 
       const href = buildProjectFileCatHref(
@@ -256,12 +267,21 @@ export function ProjectFilesPageContent({
   );
   const catOpenHint = selectedFileForTree
     ? (() => {
-        const targetLocale = resolveProjectFileCatTargetLocale(
+        const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
           selectedFileForTree,
           highlightLocale,
           projectTargetLocales,
         );
+        const targetLocale = targetLocaleResolution.targetLocale;
         if (targetLocale) {
+          if (
+            targetLocaleResolution.status === "fallback" &&
+            targetLocaleResolution.requestedLocale &&
+            targetLocaleResolution.requestedLocale !== targetLocale
+          ) {
+            return `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
+          }
+
           return `Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
         }
 

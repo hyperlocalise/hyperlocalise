@@ -17,7 +17,7 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
   hasProjectFileCatIdentityFromUrl,
-  resolveProjectFileCatTargetLocale,
+  resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
 
@@ -260,9 +260,21 @@ export function ProjectFileCatPageContent({
   const workspaceTargetLocales = file
     ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
     : [];
-  const targetLocale = file
-    ? resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales)
-    : highlightLocale;
+  const targetLocaleResolution = file
+    ? resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+    : {
+        requestedLocale: highlightLocale,
+        status: highlightLocale ? ("exact" as const) : ("none" as const),
+        targetLocale: highlightLocale,
+        targetLocales: [],
+      };
+  const targetLocale = targetLocaleResolution.targetLocale;
+  const localeFallbackMessage =
+    targetLocaleResolution.status === "fallback" &&
+    targetLocaleResolution.requestedLocale &&
+    targetLocaleResolution.requestedLocale !== targetLocale
+      ? `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Showing ${targetLocale} instead.`
+      : null;
 
   if (!targetLocale) {
     return (
@@ -389,6 +401,14 @@ export function ProjectFileCatPageContent({
           )}
         </div>
       )}
+
+      {localeFallbackMessage ? (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          <TypographyP className="text-xs text-muted-foreground">
+            {localeFallbackMessage}
+          </TypographyP>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace

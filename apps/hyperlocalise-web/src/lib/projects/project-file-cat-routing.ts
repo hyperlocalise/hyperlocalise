@@ -35,11 +35,57 @@ export function resolveProjectFileCatTargetLocales(
   }
 
   const configuredTargetLocales = normalizeTargetLocales(projectTargetLocales);
-  if (projectTargetLocales != null || configuredTargetLocales.length > 0) {
+  if (projectTargetLocales != null) {
     return configuredTargetLocales;
   }
 
   return normalizeTargetLocales(Object.keys(file.localeReadiness ?? {}));
+}
+
+export type ProjectFileCatTargetLocaleResolution = {
+  requestedLocale: string | null;
+  status: "exact" | "fallback" | "none";
+  targetLocale: string | null;
+  targetLocales: string[];
+};
+
+export function resolveProjectFileCatTargetLocaleResolution(
+  file: ProjectFileRecord,
+  highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
+): ProjectFileCatTargetLocaleResolution {
+  const targetLocales = resolveProjectFileCatTargetLocales(file, projectTargetLocales);
+  const requestedLocale = highlightLocale?.trim() ? highlightLocale.trim() : null;
+  if (requestedLocale && targetLocales.includes(requestedLocale)) {
+    return {
+      requestedLocale,
+      status: "exact",
+      targetLocale: requestedLocale,
+      targetLocales,
+    };
+  }
+
+  if (
+    !file.provider &&
+    targetLocales.length === 0 &&
+    projectTargetLocales == null &&
+    requestedLocale
+  ) {
+    return {
+      requestedLocale,
+      status: "exact",
+      targetLocale: requestedLocale,
+      targetLocales,
+    };
+  }
+
+  const fallbackLocale = targetLocales[0] ?? null;
+  return {
+    requestedLocale,
+    status: fallbackLocale ? "fallback" : "none",
+    targetLocale: fallbackLocale,
+    targetLocales,
+  };
 }
 
 export function resolveProjectFileCatTargetLocale(
@@ -47,16 +93,8 @@ export function resolveProjectFileCatTargetLocale(
   highlightLocale: string | null,
   projectTargetLocales?: readonly string[] | null,
 ) {
-  const targetLocales = resolveProjectFileCatTargetLocales(file, projectTargetLocales);
-  if (highlightLocale && targetLocales.includes(highlightLocale)) {
-    return highlightLocale;
-  }
-
-  if (!file.provider && targetLocales.length === 0 && projectTargetLocales == null) {
-    return highlightLocale;
-  }
-
-  return targetLocales[0] ?? null;
+  return resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+    .targetLocale;
 }
 
 function resolveProjectFileTargetLocale(
