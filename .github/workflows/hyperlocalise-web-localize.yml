@@ -94,12 +94,15 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Download and validate web translations
+      - name: Extract, download, and validate web translations
         uses: ./sync
         with:
           mode: download
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
           config-path: ${{ env.WEB_I18N_CONFIG }}
+          extract-path: ${{ env.WEB_EXTRACT_PATH }}
+          extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
+          extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
           fail-on-findings: true
           upload-artifact: true
         env:
@@ -124,7 +127,7 @@ jobs:
           body: |
             Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
 
-            - Source catalog: `apps/hyperlocalise-web/lang/en-US.json`
+            - Source catalog: `apps/hyperlocalise-web/lang/en-US.json` (refreshed via `hyperlocalise extract` before pull)
             - Target catalogs: `apps/hyperlocalise-web/lang/*.json`
             - Validation: `hyperlocalise check --diff-stdin` on the pulled diff
 

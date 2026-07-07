@@ -97,6 +97,15 @@ jobs:
           mode: download
           working-directory: apps/hyperlocalise-web
           config-path: i18n.yml
+          extract-path: src
+          extract-out-file: lang/en-US.json
+          extract-ignore: |
+            **/*.test.ts
+            **/*.test.tsx
+            **/*.stories.tsx
+            **/*.fixture.ts
+            **/*.e2e.ts
+            **/__tests__/**
           dry-run: true
           fail-on-findings: false
           upload-artifact: false
