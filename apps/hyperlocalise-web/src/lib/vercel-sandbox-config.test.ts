@@ -25,6 +25,8 @@ describe("installRequiredSandboxToolsCommand", () => {
     expect(installRequiredSandboxToolsCommand).toContain(
       "https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep-${RG_VERSION}-${RG_ARCH}.tar.gz",
     );
+    expect(installRequiredSandboxToolsCommand).toContain('RG_TMP_DIR="$(mktemp -d)"');
+    expect(installRequiredSandboxToolsCommand).toContain("trap 'rm -rf \"$RG_TMP_DIR\"' EXIT");
   });
 
   it("installs hyperlocalise from pinned GitHub releases", () => {
@@ -39,6 +41,11 @@ describe("installRequiredSandboxToolsCommand", () => {
     );
     expect(installRequiredSandboxToolsCommand).toContain(
       "ln -sfn /usr/local/bin/hyperlocalise /usr/local/bin/hl",
+    );
+    expect(installRequiredSandboxToolsCommand).toContain('HL_TMP_DIR="$(mktemp -d)"');
+    expect(installRequiredSandboxToolsCommand).toContain("trap 'rm -rf \"$HL_TMP_DIR\"' EXIT");
+    expect(installRequiredSandboxToolsCommand).toContain(
+      'https://github.com/hyperlocalise/hyperlocalise/releases/download/${HL_VERSION}/${ARCHIVE}" || return 1',
     );
     expect(installRequiredSandboxToolsCommand).toContain("command -v hl >/dev/null 2>&1");
   });
