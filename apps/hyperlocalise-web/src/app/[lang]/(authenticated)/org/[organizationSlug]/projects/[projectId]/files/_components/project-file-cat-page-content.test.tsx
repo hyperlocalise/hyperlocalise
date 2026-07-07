@@ -22,14 +22,20 @@ const {
     ({
       repositoryFullName,
       sourcePath,
+      targetLocale,
+      targetLocales,
     }: {
       repositoryFullName?: string | null;
       sourcePath: string;
+      targetLocale: string;
+      targetLocales?: string[];
     }) => (
       <div
         data-testid="cat-workspace"
         data-repo={repositoryFullName ?? ""}
         data-source-path={sourcePath}
+        data-target-locale={targetLocale}
+        data-target-locales={(targetLocales ?? []).join(",")}
       />
     ),
   ),
@@ -78,8 +84,12 @@ vi.mock("@/lib/api-client-instance", () => ({
 }));
 
 vi.mock("@/components/cat/project-file/project-file-cat-workspace", () => ({
-  ProjectFileCatWorkspace: (props: { repositoryFullName?: string | null; sourcePath: string }) =>
-    ProjectFileCatWorkspaceMock(props),
+  ProjectFileCatWorkspace: (props: {
+    repositoryFullName?: string | null;
+    sourcePath: string;
+    targetLocale: string;
+    targetLocales?: string[];
+  }) => ProjectFileCatWorkspaceMock(props),
 }));
 
 import { ProjectFileCatPageContent } from "./project-file-cat-page-content";
@@ -124,7 +134,7 @@ function mockReadyProjectQuery() {
     isLoading: false,
     isError: false,
     isSuccess: true,
-    data: { sourceLocale: "en" },
+    data: { sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
     error: null,
   });
 }
@@ -238,6 +248,44 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     await waitFor(() => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
     });
+  });
+
+  it("opens native CAT with the first project target locale when the URL has no locale", async () => {
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale={null}
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-target-locale", "vi");
+    });
+    expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-target-locales", "vi,fr-FR");
+  });
+
+  it("shows a warning when a requested native locale falls back", async () => {
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="ja-JP"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-target-locale", "vi");
+    });
+    expect(
+      screen.getByText("ja-JP is not a target locale for this file. Showing vi instead."),
+    ).toBeInTheDocument();
   });
 
   it("prompts for a repository when multiple GitHub repos are enabled and none is selected", async () => {

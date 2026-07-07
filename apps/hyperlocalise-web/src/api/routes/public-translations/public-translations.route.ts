@@ -90,7 +90,7 @@ export function createPublicTranslationRoutes() {
           return sourceFileTooLargeResponse(c, result.maxKeyCount);
         }
 
-        if (result.translatedKeyCount === 0) {
+        if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
 

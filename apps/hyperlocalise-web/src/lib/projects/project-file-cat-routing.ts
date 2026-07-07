@@ -9,23 +9,100 @@ export function canOpenProjectFileCat(file: ProjectFileRecord) {
   return Boolean(file.storedFileId);
 }
 
+function normalizeTargetLocales(locales: readonly string[] | null | undefined) {
+  if (!locales) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const locale of locales) {
+    const trimmed = locale.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      normalized.push(trimmed);
+    }
+  }
+  return normalized;
+}
+
+export function resolveProjectFileCatTargetLocales(
+  file: ProjectFileRecord,
+  projectTargetLocales?: readonly string[] | null,
+) {
+  if (file.provider) {
+    return normalizeTargetLocales(file.provider.targetLocales);
+  }
+
+  const configuredTargetLocales = normalizeTargetLocales(projectTargetLocales);
+  if (projectTargetLocales != null) {
+    return configuredTargetLocales;
+  }
+
+  return normalizeTargetLocales(Object.keys(file.localeReadiness ?? {}));
+}
+
+export type ProjectFileCatTargetLocaleResolution = {
+  requestedLocale: string | null;
+  status: "exact" | "fallback" | "none";
+  targetLocale: string | null;
+  targetLocales: string[];
+};
+
+export function resolveProjectFileCatTargetLocaleResolution(
+  file: ProjectFileRecord,
+  highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
+): ProjectFileCatTargetLocaleResolution {
+  const targetLocales = resolveProjectFileCatTargetLocales(file, projectTargetLocales);
+  const requestedLocale = highlightLocale?.trim() ? highlightLocale.trim() : null;
+  if (requestedLocale && targetLocales.includes(requestedLocale)) {
+    return {
+      requestedLocale,
+      status: "exact",
+      targetLocale: requestedLocale,
+      targetLocales,
+    };
+  }
+
+  if (
+    !file.provider &&
+    targetLocales.length === 0 &&
+    projectTargetLocales == null &&
+    requestedLocale
+  ) {
+    return {
+      requestedLocale,
+      status: "exact",
+      targetLocale: requestedLocale,
+      targetLocales,
+    };
+  }
+
+  const fallbackLocale = targetLocales[0] ?? null;
+  return {
+    requestedLocale,
+    status: fallbackLocale ? "fallback" : "none",
+    targetLocale: fallbackLocale,
+    targetLocales,
+  };
+}
+
 export function resolveProjectFileCatTargetLocale(
   file: ProjectFileRecord,
   highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
 ) {
-  if (file.provider) {
-    if (highlightLocale && file.provider.targetLocales.includes(highlightLocale)) {
-      return highlightLocale;
-    }
-
-    return file.provider.targetLocales[0] ?? null;
-  }
-
-  return highlightLocale;
+  return resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+    .targetLocale;
 }
 
-function resolveProjectFileTargetLocale(file: ProjectFileRecord, highlightLocale: string | null) {
-  return resolveProjectFileCatTargetLocale(file, highlightLocale);
+function resolveProjectFileTargetLocale(
+  file: ProjectFileRecord,
+  highlightLocale: string | null,
+  projectTargetLocales?: readonly string[] | null,
+) {
+  return resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales);
 }
 
 export type ProjectFileCatUrlParams = {
@@ -83,6 +160,7 @@ export function buildProjectFileCatHref(
   file: ProjectFileRecord,
   highlightLocale: string | null = null,
   branch: string | null = null,
+  projectTargetLocales?: readonly string[] | null,
 ) {
   if (!canOpenProjectFileCat(file)) {
     return null;
@@ -92,7 +170,7 @@ export function buildProjectFileCatHref(
     sourcePath: file.sourcePath,
   });
 
-  const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale);
+  const targetLocale = resolveProjectFileTargetLocale(file, highlightLocale, projectTargetLocales);
   if (targetLocale) {
     params.set("locale", targetLocale);
   }

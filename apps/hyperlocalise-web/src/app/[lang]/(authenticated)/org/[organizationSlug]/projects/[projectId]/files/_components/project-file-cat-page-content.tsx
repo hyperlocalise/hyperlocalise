@@ -17,6 +17,8 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
   hasProjectFileCatIdentityFromUrl,
+  resolveProjectFileCatTargetLocaleResolution,
+  resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
@@ -25,7 +27,6 @@ import {
   readCatFileRepositoryPreference,
   writeCatFileRepositoryPreference,
 } from "../../jobs/[jobId]/strings/_components/job-cat-repository-preference";
-import { selectJobCatTargetLocale } from "../../jobs/[jobId]/strings/_components/job-cat-target-locale";
 import {
   canLookupFreshCatRepositoryContext,
   selectJobCatRepository,
@@ -255,12 +256,25 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  const targetLocale = file?.provider
-    ? selectJobCatTargetLocale({
-        requestedTargetLocale: highlightLocale,
-        providerTargetLocales: file.provider.targetLocales,
-      })
-    : highlightLocale;
+  const projectTargetLocales = projectQuery.data?.targetLocales;
+  const workspaceTargetLocales = file
+    ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
+    : [];
+  const targetLocaleResolution = file
+    ? resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+    : {
+        requestedLocale: highlightLocale,
+        status: highlightLocale ? ("exact" as const) : ("none" as const),
+        targetLocale: highlightLocale,
+        targetLocales: [],
+      };
+  const targetLocale = targetLocaleResolution.targetLocale;
+  const localeFallbackMessage =
+    targetLocaleResolution.status === "fallback" &&
+    targetLocaleResolution.requestedLocale &&
+    targetLocaleResolution.requestedLocale !== targetLocale
+      ? `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Showing ${targetLocale} instead.`
+      : null;
 
   if (!targetLocale) {
     return (
@@ -318,6 +332,7 @@ export function ProjectFileCatPageContent({
       nextFile,
       highlightLocale,
       branch,
+      projectTargetLocales,
     );
     if (href) {
       router.push(href);
@@ -387,6 +402,14 @@ export function ProjectFileCatPageContent({
         </div>
       )}
 
+      {localeFallbackMessage ? (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          <TypographyP className="text-xs text-muted-foreground">
+            {localeFallbackMessage}
+          </TypographyP>
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
           key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
@@ -397,7 +420,7 @@ export function ProjectFileCatPageContent({
           externalResourceId={resolvedExternalResourceId}
           resourceType={resolvedResourceType}
           targetLocale={targetLocale}
-          targetLocales={file?.provider?.targetLocales}
+          targetLocales={workspaceTargetLocales}
           highlightLocale={highlightLocale}
           repositoryFullName={selectedRepositoryFullName}
           canLookupFreshContext={canLookupFreshCatRepositoryContext(

@@ -21,7 +21,6 @@ import { formatBytes } from "./project-files-shared";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
-  countReadyLocales,
   resolveFileLocaleReadiness,
   summarizeNativeLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
@@ -257,10 +256,7 @@ export function ProjectFileDetailPanelView({
     : jobsByLocale;
   const localeReadiness = resolveFileLocaleReadiness(file);
   const readinessSummary = summarizeNativeLocaleReadiness(localeReadiness, targetLocales.length);
-  const readyLocaleCount = countReadyLocales(localeReadiness);
-  const downloadableLocales = targetLocales.filter(
-    (locale) => localeReadiness[locale] === "ready" || localeReadiness[locale] === "complete",
-  );
+  const downloadableLocales = targetLocales;
 
   function downloadTranslation(locale: string) {
     if (!sourcePath) return;
@@ -354,24 +350,20 @@ export function ProjectFileDetailPanelView({
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
               Import translations
             </Button>
-            {downloadableLocales.length > 0 ? (
-              downloadableLocales.map((locale) => (
-                <Button
-                  key={locale}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadTranslation(locale)}
-                >
-                  <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-                  Download {locale}
-                </Button>
-              ))
-            ) : readyLocaleCount === 0 && targetLocales.length > 0 ? (
-              <TypographyP className="self-center text-xs text-muted-foreground">
-                Translations will be downloadable after jobs complete.
-              </TypographyP>
-            ) : null}
+            {downloadableLocales.length > 0
+              ? downloadableLocales.map((locale) => (
+                  <Button
+                    key={locale}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadTranslation(locale)}
+                  >
+                    <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                    Download {locale}
+                  </Button>
+                ))
+              : null}
           </div>
         ) : null}
       </header>

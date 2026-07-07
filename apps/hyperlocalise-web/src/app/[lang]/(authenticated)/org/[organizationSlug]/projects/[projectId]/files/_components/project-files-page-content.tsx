@@ -19,13 +19,14 @@ import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resour
 import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
-  resolveProjectFileCatTargetLocale,
+  resolveProjectFileCatTargetLocaleResolution,
 } from "@/lib/projects/project-file-cat-routing";
 
 import {
   ProjectPageShell,
   ProjectSectionHeader,
   ProjectSectionTitle,
+  useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
@@ -202,6 +203,8 @@ export function ProjectFilesPageContent({
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId);
+  const projectTargetLocales = projectQuery.data?.targetLocales;
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -210,7 +213,12 @@ export function ProjectFilesPageContent({
         return;
       }
 
-      const targetLocale = resolveProjectFileCatTargetLocale(file, highlightLocale);
+      const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
+        file,
+        highlightLocale,
+        projectTargetLocales,
+      );
+      const targetLocale = targetLocaleResolution.targetLocale;
       if (!canOpenProjectFileCat(file) || !targetLocale) {
         toast.error(
           targetLocale
@@ -220,18 +228,37 @@ export function ProjectFilesPageContent({
         return;
       }
 
+      if (
+        targetLocaleResolution.status === "fallback" &&
+        targetLocaleResolution.requestedLocale &&
+        targetLocaleResolution.requestedLocale !== targetLocale
+      ) {
+        toast.warning(
+          `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Opening ${targetLocale} instead.`,
+        );
+      }
+
       const href = buildProjectFileCatHref(
         organizationSlug,
         projectId,
         file,
         highlightLocale,
         selectedBranch,
+        projectTargetLocales,
       );
       if (href) {
         router.push(href);
       }
     },
-    [highlightLocale, organizationSlug, projectId, resolvedFiles, router, selectedBranch],
+    [
+      highlightLocale,
+      organizationSlug,
+      projectId,
+      projectTargetLocales,
+      resolvedFiles,
+      router,
+      selectedBranch,
+    ],
   );
 
   const selectedFileForTree = useMemo(
@@ -240,11 +267,21 @@ export function ProjectFilesPageContent({
   );
   const catOpenHint = selectedFileForTree
     ? (() => {
-        const targetLocale = resolveProjectFileCatTargetLocale(
+        const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
           selectedFileForTree,
           highlightLocale,
+          projectTargetLocales,
         );
+        const targetLocale = targetLocaleResolution.targetLocale;
         if (targetLocale) {
+          if (
+            targetLocaleResolution.status === "fallback" &&
+            targetLocaleResolution.requestedLocale &&
+            targetLocaleResolution.requestedLocale !== targetLocale
+          ) {
+            return `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
+          }
+
           return `Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
         }
 
@@ -297,6 +334,7 @@ export function ProjectFilesPageContent({
                   projectId={projectId}
                   file={selectedFile}
                   highlightLocale={highlightLocale}
+                  projectTargetLocales={projectTargetLocales}
                   branch={selectedBranch}
                   layout="compact"
                 />
