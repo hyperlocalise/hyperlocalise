@@ -179,7 +179,24 @@ export const issueSheetImportBodySchema = z.object({
       }),
     )
     .min(1)
-    .max(200),
+    .max(200)
+    .superRefine((mapping, ctx) => {
+      const seenSystemFields = new Set<string>();
+      for (const [index, entry] of mapping.entries()) {
+        if (entry.target.kind !== "system") {
+          continue;
+        }
+        if (seenSystemFields.has(entry.target.field)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `System field "${entry.target.field}" is mapped more than once`,
+            path: [index, "target", "field"],
+          });
+          continue;
+        }
+        seenSystemFields.add(entry.target.field);
+      }
+    }),
   options: z
     .object({
       skipInvalidRows: z.boolean().optional(),

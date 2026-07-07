@@ -345,4 +345,27 @@ Second import issue,Done,EXT-2,P2`;
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(2);
   });
+
+  it("rejects duplicate system field mappings", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id, "/import"), {
+      method: "POST",
+      headers,
+      body: {
+        content: "Title,Summary\nIssue one,Issue two",
+        dryRun: true,
+        mapping: [
+          { csvHeader: "Title", target: { kind: "system", field: "title" } },
+          { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+        ],
+      },
+    });
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("invalid_issue_sheet_import_payload");
+  });
 });
