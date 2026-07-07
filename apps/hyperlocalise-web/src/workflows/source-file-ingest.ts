@@ -28,7 +28,10 @@ function basename(filePath: string): string {
 
 function userFacingIngestFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "source file ingest failed";
-  if (message.includes("hyperlocalise CLI installation failed")) {
+  if (
+    message.includes("hyperlocalise CLI installation failed") ||
+    message.includes("sandbox tool installation failed")
+  ) {
     return "failed to prepare the translation parser environment";
   }
   if (message.includes("failed to extract entries")) {

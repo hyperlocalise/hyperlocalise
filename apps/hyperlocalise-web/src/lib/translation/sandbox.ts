@@ -8,24 +8,6 @@ import type { SandboxTranslationContext } from "@/lib/translation/domain";
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
 
-export const installHyperlocaliseCliCommand = [
-  'export PATH="$HOME/.local/bin:$PATH"',
-  'export INSTALL_DIR="$HOME/.local/bin"',
-  'mkdir -p "$INSTALL_DIR"',
-  "if ! command -v hl >/dev/null 2>&1 && ! command -v hyperlocalise >/dev/null 2>&1; then",
-  "  curl -fsSL https://hyperlocalise.com/install | bash",
-  "fi",
-  "if ! command -v hl >/dev/null 2>&1; then",
-  '  hyperlocalise_path="$(command -v hyperlocalise || true)"',
-  '  if [ -z "$hyperlocalise_path" ]; then',
-  '    echo "hyperlocalise CLI not found after install" >&2',
-  "    exit 1",
-  "  fi",
-  '  ln -sf "$hyperlocalise_path" "$HOME/.local/bin/hl"',
-  "fi",
-  "command -v hl >/dev/null 2>&1",
-].join("\n");
-
 export type { SandboxTranslationContext };
 
 function shellQuote(value: string): string {
@@ -40,7 +22,10 @@ export class SandboxErrorMapper {
       return message;
     }
 
-    if (message.includes("hyperlocalise CLI installation failed")) {
+    if (
+      message.includes("hyperlocalise CLI installation failed") ||
+      message.includes("sandbox tool installation failed")
+    ) {
       return "something went wrong while setting up the translation environment on our end.";
     }
 
@@ -229,7 +214,7 @@ export class CrowdinSandboxOperations {
       "bash",
       [
         "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; hl crowdin download sources --config ${shellQuote(crowdinSandboxConfigPath)} --file-id ${fileId} --output ${shellQuote(input.sourceFilename)} --force`,
+        `hl crowdin download sources --config ${shellQuote(crowdinSandboxConfigPath)} --file-id ${fileId} --output ${shellQuote(input.sourceFilename)} --force`,
       ],
       { env: this.getEnv(input) },
     );
@@ -253,7 +238,7 @@ export class CrowdinSandboxOperations {
       "bash",
       [
         "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; hl crowdin download translations --config ${shellQuote(crowdinSandboxConfigPath)} --language ${shellQuote(input.targetLocale)}${mergeFlag}`,
+        `hl crowdin download translations --config ${shellQuote(crowdinSandboxConfigPath)} --language ${shellQuote(input.targetLocale)}${mergeFlag}`,
       ],
       { env: this.getEnv(input) },
     );
@@ -284,14 +269,8 @@ export class HyperlocaliseCliRunner {
     return this.errorMapper;
   }
 
-  async prepare(sandboxId: string): Promise<void> {
-    const installResult = await this.lifecycle.runCommand(sandboxId, "bash", [
-      "-lc",
-      installHyperlocaliseCliCommand,
-    ]);
-    if (installResult.exitCode !== 0) {
-      throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);
-    }
+  async prepare(_sandboxId: string): Promise<void> {
+    // hyperlocalise CLI is installed during sandbox creation in vercel-sandbox-config.
   }
 
   async downloadAttachment(
@@ -370,7 +349,7 @@ export class HyperlocaliseCliRunner {
       "bash",
       [
         "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+        `hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
       ],
       { env: getSandboxTranslationEnv() },
     );
@@ -390,7 +369,7 @@ export class HyperlocaliseCliRunner {
     const result = await this.lifecycle.runCommand(
       sandboxId,
       "bash",
-      ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries ${shellQuote(path)}${localeFlag}`],
+      ["-lc", `hl entries ${shellQuote(path)}${localeFlag}`],
       { env: getSandboxTranslationEnv(), output: "stdout" },
     );
     if (result.exitCode !== 0) {

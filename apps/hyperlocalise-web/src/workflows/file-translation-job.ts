@@ -56,7 +56,10 @@ function userFacingFailureReason(error: unknown): string {
     return message;
   }
 
-  if (message.includes("hyperlocalise CLI installation failed")) {
+  if (
+    message.includes("hyperlocalise CLI installation failed") ||
+    message.includes("sandbox tool installation failed")
+  ) {
     return "something went wrong while setting up the translation environment on our end.";
   }
 
@@ -140,7 +143,7 @@ async function runTranslationStep(
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off${prefilledFlags}`,
+      `hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     {
       env: getSandboxTranslationEnv(),
@@ -154,7 +157,7 @@ async function extractEntriesStep(sandboxId: string, path: string) {
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
-    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(path)}'`],
+    ["-lc", `hl entries '${shellSingleQuote(path)}'`],
     { env: getSandboxTranslationEnv(), output: "stdout" },
   );
   if (result.exitCode !== 0) {
