@@ -20,7 +20,10 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
-function systemMapping(csvHeader: string, field: IssueSheetImportBody["mapping"][number]["target"]) {
+function systemMapping(
+  csvHeader: string,
+  field: IssueSheetImportBody["mapping"][number]["target"],
+) {
   return { csvHeader, target: field };
 }
 
@@ -138,7 +141,12 @@ Check copy,missing-assignee@example.com,Low`,
           systemMapping("Assignee", { kind: "system", field: "assignee" }),
           {
             csvHeader: "Severity",
-            target: { kind: "create", key: "imported_severity", label: "Imported Severity", type: "select" },
+            target: {
+              kind: "create",
+              key: "imported_severity",
+              label: "Imported Severity",
+              type: "select",
+            },
           },
         ],
       },
@@ -151,7 +159,8 @@ Check copy,missing-assignee@example.com,Low`,
       warnings: [
         {
           row: 0,
-          message: "No External ID column mapped — re-importing the same file may create duplicates",
+          message:
+            "No External ID column mapped — re-importing the same file may create duplicates",
         },
         {
           row: 3,
