@@ -265,6 +265,9 @@ export async function runIssueSheetCsvImport(
     if (!title) {
       result.skippedInvalid += 1;
       result.errors.push({ row: row.rowNumber, message: "Title is required" });
+      if (!skipInvalidRows) {
+        return result;
+      }
       continue;
     }
 
@@ -292,9 +295,7 @@ export async function runIssueSheetCsvImport(
     let assigneeUserId: string | null = null;
     const assigneeRaw = row.system.assignee?.trim();
     if (assigneeRaw) {
-      const email = assigneeRaw.includes("@")
-        ? assigneeRaw.toLowerCase()
-        : assigneeRaw.toLowerCase();
+      const email = assigneeRaw.toLowerCase();
       assigneeUserId = memberByEmail.get(email) ?? null;
       if (!assigneeUserId) {
         result.warnings.push({
@@ -352,6 +353,9 @@ export async function runIssueSheetCsvImport(
 
     if (rowInvalid) {
       result.skippedInvalid += 1;
+      if (!skipInvalidRows) {
+        return result;
+      }
       continue;
     }
 

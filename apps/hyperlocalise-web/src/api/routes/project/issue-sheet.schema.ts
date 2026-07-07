@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { issueSheetImportContentExceedsByteLimit } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
+
 import { projectIdParamsSchema } from "./project.schema";
 
 export const issueSheetIssueStatusSchema = z.enum(["open", "in_progress", "resolved", "wont_fix"]);
@@ -157,7 +159,17 @@ export const issueSheetImportColumnMappingSchema = z.discriminatedUnion("kind", 
 ]);
 
 export const issueSheetImportBodySchema = z.object({
-  content: z.string().min(1).max(2_097_152),
+  content: z
+    .string()
+    .min(1)
+    .superRefine((value, ctx) => {
+      if (issueSheetImportContentExceedsByteLimit(value)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "CSV file is too large",
+        });
+      }
+    }),
   dryRun: z.boolean(),
   mapping: z
     .array(

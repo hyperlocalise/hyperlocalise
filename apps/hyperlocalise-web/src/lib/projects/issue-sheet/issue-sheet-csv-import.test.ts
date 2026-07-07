@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  getIssueSheetImportContentByteLength,
   inferIssueSheetImportColumnType,
+  issueSheetImportContentExceedsByteLimit,
   issueSheetImportHasTitleMapping,
   normalizeIssueSheetImportIssueType,
   normalizeIssueSheetImportStatus,
   parseIssueSheetImportCsv,
   slugifyIssueSheetColumnKey,
   suggestIssueSheetImportMappings,
+  uniqueIssueSheetColumnKey,
 } from "./issue-sheet-csv-import";
 
 describe("issue-sheet-csv-import", () => {
@@ -66,5 +69,21 @@ Update glossary term,Done,P2,S24,2`;
   it("slugifies column labels into valid keys", () => {
     expect(slugifyIssueSheetColumnKey("Reviewer Notes")).toBe("reviewer_notes");
     expect(slugifyIssueSheetColumnKey("123-start")).toBe("col_123_start");
+  });
+
+  it("enforces import size by utf-8 byte length", () => {
+    const cjk = "你".repeat(700_000);
+    expect(getIssueSheetImportContentByteLength(cjk)).toBeGreaterThan(2 * 1024 * 1024);
+    expect(issueSheetImportContentExceedsByteLimit(cjk)).toBe(true);
+    expect(() => parseIssueSheetImportCsv(`Title\n${cjk}`)).toThrow(
+      "issue_sheet_import_file_too_large",
+    );
+  });
+
+  it("keeps generated column keys within the schema limit", () => {
+    const used = new Set<string>(["x".repeat(64)]);
+    const key = uniqueIssueSheetColumnKey("x".repeat(80), used, ["priority"]);
+    expect(key.length).toBeLessThanOrEqual(64);
+    expect(used.has(key)).toBe(false);
   });
 });

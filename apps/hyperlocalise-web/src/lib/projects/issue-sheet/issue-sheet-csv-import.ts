@@ -2,7 +2,18 @@ import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 
 export const ISSUE_SHEET_IMPORT_MAX_ROWS = 2_000;
 export const ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES = 2 * 1024 * 1024;
+export const ISSUE_SHEET_IMPORT_MAX_COLUMN_KEY_LENGTH = 64;
 export const ISSUE_SHEET_IMPORT_MAX_NEW_COLUMNS = 20;
+
+const textEncoder = new TextEncoder();
+
+export function getIssueSheetImportContentByteLength(content: string) {
+  return textEncoder.encode(content).byteLength;
+}
+
+export function issueSheetImportContentExceedsByteLimit(content: string) {
+  return getIssueSheetImportContentByteLength(content) > ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES;
+}
 
 export type IssueSheetSystemField =
   | "title"
@@ -231,6 +242,29 @@ export function inferIssueSheetImportColumnType(values: string[]): IssueSheetImp
   return "text";
 }
 
+export function uniqueIssueSheetColumnKey(
+  label: string,
+  usedKeys: Set<string>,
+  existingKeys: Iterable<string>,
+) {
+  const existing = new Set(existingKeys);
+  const base = slugifyIssueSheetColumnKey(label).slice(0, ISSUE_SHEET_IMPORT_MAX_COLUMN_KEY_LENGTH);
+  if (!usedKeys.has(base) && !existing.has(base)) {
+    return base;
+  }
+
+  for (let suffix = 2; suffix < 1_000; suffix += 1) {
+    const suffixText = `_${suffix}`;
+    const trimmedBase = base.slice(0, ISSUE_SHEET_IMPORT_MAX_COLUMN_KEY_LENGTH - suffixText.length);
+    const candidate = `${trimmedBase}${suffixText}`;
+    if (!usedKeys.has(candidate) && !existing.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error("issue_sheet_import_column_key_collision");
+}
+
 export function suggestIssueSheetImportMappings(input: {
   headers: string[];
   rows: string[][];
@@ -259,10 +293,11 @@ export function suggestIssueSheetImportMappings(input: {
 
     const columnValues = input.rows.map((row) => row[columnIndex] ?? "");
     const inferredType = inferIssueSheetImportColumnType(columnValues);
-    let key = slugifyIssueSheetColumnKey(csvHeader);
-    while (usedCreateKeys.has(key) || input.columns.some((column) => column.key === key)) {
-      key = `${key}_import`;
-    }
+    const key = uniqueIssueSheetColumnKey(
+      csvHeader,
+      usedCreateKeys,
+      input.columns.map((column) => column.key),
+    );
     usedCreateKeys.add(key);
 
     return {
@@ -278,7 +313,7 @@ export function suggestIssueSheetImportMappings(input: {
 }
 
 export function parseIssueSheetImportCsv(content: string) {
-  if (content.length > ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES) {
+  if (issueSheetImportContentExceedsByteLimit(content)) {
     throw new Error("issue_sheet_import_file_too_large");
   }
 

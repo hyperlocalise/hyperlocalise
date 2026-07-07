@@ -216,9 +216,6 @@ export function IssueSheetImportDialog({
         if (option) {
           return { csvHeader, target: option.target };
         }
-        if (entry.target.kind === "create") {
-          return entry;
-        }
         return entry;
       }),
     );
