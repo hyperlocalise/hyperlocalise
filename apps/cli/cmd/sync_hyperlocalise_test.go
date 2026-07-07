@@ -121,6 +121,54 @@ func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePushDryRunPlansGlobSourcePaths(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writePushSourceFile(t, "docs/getting-started/quickstart.mdx", "# Quickstart")
+	writePushSourceFile(t, "docs/zh-CN/getting-started/quickstart.mdx", "# 快速开始")
+
+	var requestCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		t.Fail()
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en-US",
+				Targets: []string{"zh-CN"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"docs": {
+					Files: []config.BucketFileMapping{{
+						From: "docs/**/*.mdx",
+						To:   "docs/{{localeDir}}/**/*.mdx",
+					}},
+				},
+			},
+		},
+		projectID: "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePush(context.Background(), rt, syncCommonOptions{dryRun: true})
+	if err != nil {
+		t.Fatalf("dry-run push with glob sources: %v", err)
+	}
+	if requestCount.Load() != 0 {
+		t.Fatalf("requestCount = %d, want no upload requests", requestCount.Load())
+	}
+	if !report.Complete || !report.DryRun || report.PlannedFiles != 1 || report.UploadedFiles != 1 {
+		t.Fatalf("report = %#v, want one complete dry-run plan for English docs source", report)
+	}
+}
+
 func TestHyperlocalisePushDryRunPlansWithoutUploading(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

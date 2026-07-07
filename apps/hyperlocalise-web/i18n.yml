@@ -1,0 +1,24 @@
+# Hyperlocalise sync config for the web app (react-intl / FormatJS).
+locales:
+  source: en-US
+  targets:
+    - zh-CN
+    - vi-VN
+
+buckets:
+  web:
+    files:
+      - from: lang/en-US.json
+        to: lang/{{target}}.json
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.4-mini
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  timeout_seconds: 1200
