@@ -187,7 +187,7 @@ function ProjectCard({
                     size="icon-sm"
                     variant="ghost"
                     aria-label={`Actions for ${project.name}`}
-                    disabled={isDeletingProject}
+                    disabled={isDeletingProject || isSavingProject}
                     className="text-muted-foreground hover:text-foreground"
                   />
                 }
