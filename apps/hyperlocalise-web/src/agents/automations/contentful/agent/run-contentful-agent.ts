@@ -12,7 +12,7 @@ import type {
   ContentfulAutomationExecutionSuccess,
 } from "@/lib/contentful/types";
 import { hasContentfulNoWriteback } from "@/lib/contentful/types";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import { composeContentfulAutomationInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 
 import { createContentfulAgentSession, type ContentfulAgentSession } from "./context";

@@ -4,7 +4,7 @@ import {
   runSandboxCommand,
   stopTranslationSandbox,
   writeFilesToSandbox,
-} from "@/lib/translation/sandbox-translation";
+} from "@/lib/translation/sandbox";
 import { isErr } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 

@@ -35,13 +35,13 @@ export async function getStoredFileMetadataStep(fileId: string, organizationId: 
 
 export async function createSourceIngestSandboxStep() {
   "use step";
-  const { createTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { createTranslationSandbox } = await import("@/lib/translation/sandbox");
   return createTranslationSandbox();
 }
 
 export async function prepareSourceIngestSandboxStep(sandboxId: string) {
   "use step";
-  const { prepareSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { prepareSandbox } = await import("@/lib/translation/sandbox");
   return prepareSandbox(sandboxId);
 }
 
@@ -51,13 +51,13 @@ export async function writeSourceIngestFileStep(
   content: Buffer,
 ) {
   "use step";
-  const { writeFileToSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
 export async function extractSourceIngestEntriesStep(sandboxId: string, filePath: string) {
   "use step";
-  const { extractSandboxEntries } = await import("@/lib/translation/sandbox-translation");
+  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const entries = await extractSandboxEntries(sandboxId, filePath);
   if (!entries) {
     throw new Error(`failed to extract entries for ${filePath}`);
@@ -75,7 +75,7 @@ export async function parseHlEntriesStep(
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {
   "use step";
-  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");
   return stopTranslationSandbox(sandboxId);
 }
 

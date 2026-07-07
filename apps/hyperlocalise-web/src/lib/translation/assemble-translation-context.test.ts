@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
+import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
 
 const fixture = createProjectTestFixture();
 

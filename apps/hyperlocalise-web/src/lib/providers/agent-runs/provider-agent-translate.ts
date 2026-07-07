@@ -30,16 +30,16 @@ import {
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
-} from "@/lib/translation/assemble-translation-context";
+} from "@/lib/translation/context";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
 import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
 

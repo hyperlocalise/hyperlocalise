@@ -51,7 +51,7 @@ import type {
   ProviderReviewThread,
   ProviderReviewThreadState,
 } from "@/lib/providers/provider-job-review/types";
-import type { StringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
+import type { StringTranslationContextSnapshot } from "@/lib/translation/domain";
 
 import {
   createPhraseStringsApiClient,
