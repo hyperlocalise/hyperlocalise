@@ -52,8 +52,6 @@ export type CatSegmentConcordance = {
   translationMemoryMatches: CatTranslationMemoryMatch[];
 };
 
-export type CatConcordanceForAiRecommendation = CatSegmentConcordance;
-
 function toCatGlossaryTerm(match: NormalizedGlossaryMatch): CatGlossaryTerm {
   return {
     id: match.id,
@@ -403,26 +401,6 @@ export async function loadCatSegmentVisualContext(
   input: Parameters<CatVisualContextService["loadSegmentVisualContext"]>[0],
 ) {
   return defaultVisualContextService.loadSegmentVisualContext(input);
-}
-
-export function mapCatConcordanceForAiRecommendation(
-  concordance: CatConcordanceForAiRecommendation,
-  targetLocale: string,
-): Pick<CatAiRecommendationInput, "glossaryTerms" | "translationMemoryMatches"> {
-  return {
-    glossaryTerms: concordance.glossaryTerms.map((term) => ({
-      sourceTerm: term.source,
-      targetTerm: term.target,
-      targetLocale,
-      forbidden: term.forbidden,
-      description: null,
-    })),
-    translationMemoryMatches: concordance.translationMemoryMatches.map((match) => ({
-      sourceText: match.sourceText,
-      targetText: match.targetText,
-      targetLocale,
-    })),
-  };
 }
 
 export async function generateCatAiRecommendation(

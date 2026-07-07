@@ -19,7 +19,7 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/cat";
+import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/cat-recommendation-mapper";
 import { cn } from "@/lib/primitives/cn";
 
 import {
