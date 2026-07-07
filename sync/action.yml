@@ -221,7 +221,8 @@ runs:
         fi
 
         pushd "${WORKING_DIRECTORY}" >/dev/null
-        git diff | hyperlocalise "${args[@]}"
+        git add -A .
+        git diff --staged | hyperlocalise "${args[@]}"
         cli_exit=$?
         popd >/dev/null
 
