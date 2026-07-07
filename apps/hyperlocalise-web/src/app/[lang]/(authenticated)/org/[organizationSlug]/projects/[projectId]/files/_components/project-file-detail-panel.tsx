@@ -350,20 +350,20 @@ export function ProjectFileDetailPanelView({
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
               Import translations
             </Button>
-            {downloadableLocales.length > 0 ? (
-              downloadableLocales.map((locale) => (
-                <Button
-                  key={locale}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadTranslation(locale)}
-                >
-                  <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-                  Download {locale}
-                </Button>
-              ))
-            ) : null}
+            {downloadableLocales.length > 0
+              ? downloadableLocales.map((locale) => (
+                  <Button
+                    key={locale}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadTranslation(locale)}
+                  >
+                    <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                    Download {locale}
+                  </Button>
+                ))
+              : null}
           </div>
         ) : null}
       </header>
