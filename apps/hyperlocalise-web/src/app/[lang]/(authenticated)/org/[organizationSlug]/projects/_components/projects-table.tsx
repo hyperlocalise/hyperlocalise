@@ -340,7 +340,7 @@ export function ProjectsTable({
           aria-busy="true"
           aria-label="Loading projects"
         >
-          {Array.from({ length: variant === "tms" ? 4 : 4 }).map((_, index) =>
+          {Array.from({ length: 4 }).map((_, index) =>
             variant === "tms" ? (
               <TmsProjectCardSkeleton key={index} />
             ) : (

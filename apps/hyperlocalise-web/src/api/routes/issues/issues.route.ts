@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import { hasCapability } from "@/api/auth/policy";
 import { createZodValidator } from "@/api/errors";
+import { forbiddenResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 
@@ -18,7 +19,7 @@ export function createOrganizationIssuesRoutes() {
     .use("*", workosAuthMiddleware)
     .get("/", validateOrganizationIssuesQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
-        return c.json({ error: "forbidden" }, 403);
+        return forbiddenResponse(c, "forbidden");
       }
 
       const query = c.req.valid("query");

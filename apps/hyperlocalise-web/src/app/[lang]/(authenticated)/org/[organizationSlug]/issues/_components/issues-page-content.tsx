@@ -5,7 +5,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
-import { ISSUES_PAGE_SIZE, IssuesPageView } from "./issues-page-view";
+import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
 
 const issuesQueryKey = (organizationSlug: string, view: string, search: string) =>
   ["organization-issues", organizationSlug, view, search] as const;
@@ -13,25 +13,6 @@ const issuesQueryKey = (organizationSlug: string, view: string, search: string) 
 function organizationIssuesPath(organizationSlug: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/issues`;
 }
-
-type OrganizationIssue = {
-  id: string;
-  projectId: string;
-  projectName: string;
-  title: string;
-  description: string;
-  issueType: string;
-  status: string;
-  targetLocale: string | null;
-  sourcePath: string | null;
-  linkKind: string | null;
-  linkLabel: string | null;
-  linkUrl: string | null;
-  reporter: string | null;
-  assignee: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type OrganizationIssuesResponse = {
   issues: OrganizationIssue[];

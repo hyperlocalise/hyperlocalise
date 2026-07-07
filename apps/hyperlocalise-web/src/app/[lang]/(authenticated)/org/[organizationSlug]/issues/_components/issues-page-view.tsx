@@ -29,7 +29,7 @@ const views = [
 
 type IssueView = (typeof views)[number]["value"];
 
-type OrganizationIssue = {
+export type OrganizationIssue = {
   id: string;
   projectId: string;
   projectName: string;
