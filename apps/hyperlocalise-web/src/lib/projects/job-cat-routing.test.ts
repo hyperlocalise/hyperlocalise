@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildJobCatHref, canOpenJobCat } from "./job-cat-routing";
+import {
+  buildJobCatHref,
+  canOpenJobCat,
+  parseJobCatQueueFilterParam,
+  resolveDefaultJobCatQueueFilter,
+} from "./job-cat-routing";
 
 function createJob(
   overrides: Partial<Parameters<typeof canOpenJobCat>[0]> = {},
@@ -58,16 +63,56 @@ describe("canOpenJobCat", () => {
   });
 });
 
+describe("resolveDefaultJobCatQueueFilter", () => {
+  it("defaults review jobs and waiting-for-review tasks to needs_review", () => {
+    expect(resolveDefaultJobCatQueueFilter({ kind: "review" })).toBe("needs_review");
+    expect(
+      resolveDefaultJobCatQueueFilter({ kind: "translation", status: "waiting_for_review" }),
+    ).toBe("needs_review");
+  });
+
+  it("defaults translation jobs to untranslated", () => {
+    expect(resolveDefaultJobCatQueueFilter({ kind: "translation", status: "running" })).toBe(
+      "untranslated",
+    );
+  });
+
+  it("falls back to all for other job kinds", () => {
+    expect(resolveDefaultJobCatQueueFilter({ kind: "sync" })).toBe("all");
+  });
+});
+
+describe("parseJobCatQueueFilterParam", () => {
+  it("accepts supported queue filters and rejects unknown values", () => {
+    expect(parseJobCatQueueFilterParam("needs_review")).toBe("needs_review");
+    expect(parseJobCatQueueFilterParam("invalid")).toBeUndefined();
+    expect(parseJobCatQueueFilterParam(undefined)).toBeUndefined();
+  });
+});
+
 describe("buildJobCatHref", () => {
   it("builds provider CAT hrefs with locale and source path when available", () => {
     expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
-      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
+      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
     );
     expect(buildJobCatHref("acme", null, createJob())).toBe(
-      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
     );
     expect(buildJobCatHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
+  });
+
+  it("includes needs_review queue filter for review jobs", () => {
+    expect(buildJobCatHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
+      "queueFilter=needs_review",
+    );
+    expect(
+      buildJobCatHref(
+        "acme",
+        "project-1",
+        createJob({ status: "waiting_for_review" }),
+      ),
+    ).toContain("queueFilter=needs_review");
   });
 
   it("builds native CAT hrefs with stored file id and target locale", () => {
@@ -86,7 +131,7 @@ describe("buildJobCatHref", () => {
         }),
       ),
     ).toBe(
-      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR",
+      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=untranslated",
     );
   });
 });

@@ -1,18 +1,50 @@
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import { projectFileCatQueueFilterSchema } from "@/api/routes/project/project.schema";
 import {
   canOpenNativeJobCat,
   canOpenProviderJobCat,
 } from "@/lib/projects/workspace-resource-capabilities";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
+export const jobCatQueueFilterParam = "queueFilter";
+
 export type JobCatTarget = {
   id: string;
   kind: "translation" | "research" | "review" | "sync" | "asset_management";
   type: "string" | "file" | null;
+  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   externalProviderKind: string | null;
   externalTargetLocales: string[] | null;
   reviewTargetLocale: string | null;
   inputPayload: unknown;
 };
+
+export type JobCatQueueFilterContext = Pick<JobCatTarget, "kind" | "status">;
+
+export function resolveDefaultJobCatQueueFilter(
+  job: JobCatQueueFilterContext,
+): ProjectFileCatQueueFilter {
+  if (job.kind === "review" || job.status === "waiting_for_review") {
+    return "needs_review";
+  }
+
+  if (job.kind === "translation") {
+    return "untranslated";
+  }
+
+  return "all";
+}
+
+export function parseJobCatQueueFilterParam(
+  value: string | undefined,
+): ProjectFileCatQueueFilter | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const result = projectFileCatQueueFilterSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
 
 function getInputPayloadString(job: JobCatTarget, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -73,6 +105,11 @@ export function buildJobCatHref(
     if (targetLocale) {
       params.set("targetLocale", targetLocale);
     }
+  }
+
+  const queueFilter = resolveDefaultJobCatQueueFilter(job);
+  if (queueFilter !== "all") {
+    params.set(jobCatQueueFilterParam, queueFilter);
   }
 
   const base = `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(job.id)}/strings`;

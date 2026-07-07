@@ -7,6 +7,7 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 import type { ProviderSourceFile } from "../job-provider-detail-section";
 import { providerSourceFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 export function SyncedJobSourceFilesSection({
   organizationSlug,
@@ -15,6 +16,7 @@ export function SyncedJobSourceFilesSection({
   providerKind,
   sourceFiles,
   highlightLocale,
+  queueFilter,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -22,6 +24,7 @@ export function SyncedJobSourceFilesSection({
   providerKind: string;
   sourceFiles: ProviderSourceFile[];
   highlightLocale?: string | null;
+  queueFilter?: CatQueueFilter;
 }) {
   const encodedProjectId = parseProviderProjectId(projectId);
   const externalProjectId = encodedProjectId?.externalProjectId ?? projectId;
@@ -43,6 +46,7 @@ export function SyncedJobSourceFilesSection({
       files={files}
       emptyMessage="No synced source files linked to this job."
       highlightLocale={highlightLocale ?? null}
+      queueFilter={queueFilter}
     />
   );
 }

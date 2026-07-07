@@ -294,6 +294,31 @@ describe("JobCatPageContent CAT shell", () => {
     });
   });
 
+  it("opens with needs_review queue filter when provided", async () => {
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
+    loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="crowdin/home.json"
+          targetLocale="vi"
+          initialQueueFilter="needs_review"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
+        "data-initial-queue-filter",
+        "needs_review",
+      );
+    });
+  });
+
   it("passes a saved repository preference into provider task CAT", async () => {
     localStorage.setItem("job-cat-repository:acme:proj_1:crowdin/home.json", "acme/docs");
     loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
