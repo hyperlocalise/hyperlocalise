@@ -1,5 +1,5 @@
 name: Hyperlocalise Sync
-description: Upload sources with React Intl extraction or download translations with git diff validation.
+description: Extract React Intl catalogs, upload sources, or download translations with git diff validation.
 
 branding:
   icon: sync
@@ -19,7 +19,7 @@ inputs:
     description: Hyperlocalise release version to install.
     default: latest
   extract-path:
-    description: Optional path to scan for React Intl extraction before upload. Leave empty to skip extraction.
+    description: Optional path to scan for React Intl extraction before upload or download. Leave empty to skip extraction.
     default: ""
   extract-out-file:
     description: Output file for extracted FormatJS catalog. Required when extract-path is set.
@@ -95,15 +95,13 @@ runs:
           echo "Unsupported prefix-id value: ${PREFIX_ID}" >&2
           exit 1
         fi
-        if [[ "${MODE}" == "upload" || "${MODE}" == "all" ]]; then
-          if [[ -n "${EXTRACT_PATH}" && -z "${EXTRACT_OUT_FILE}" ]]; then
-            echo "extract-out-file is required when extract-path is set." >&2
-            exit 1
-          fi
-          if [[ -z "${EXTRACT_PATH}" && -n "${EXTRACT_OUT_FILE}" ]]; then
-            echo "extract-path is required when extract-out-file is set." >&2
-            exit 1
-          fi
+        if [[ -n "${EXTRACT_PATH}" && -z "${EXTRACT_OUT_FILE}" ]]; then
+          echo "extract-out-file is required when extract-path is set." >&2
+          exit 1
+        fi
+        if [[ -z "${EXTRACT_PATH}" && -n "${EXTRACT_OUT_FILE}" ]]; then
+          echo "extract-path is required when extract-out-file is set." >&2
+          exit 1
         fi
 
     - name: Prepare artifact paths
@@ -133,7 +131,7 @@ runs:
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Extract React Intl messages
-      if: ${{ (inputs.mode == 'upload' || inputs.mode == 'all') && inputs.extract-path != '' }}
+      if: ${{ inputs.extract-path != '' }}
       shell: bash
       env:
         EXTRACT_PATH: ${{ inputs.extract-path }}
