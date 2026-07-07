@@ -213,7 +213,11 @@ export function ProjectFilesPageContent({
         return;
       }
 
-      const targetLocale = resolveProjectFileCatTargetLocale(file, highlightLocale, projectTargetLocales);
+      const targetLocale = resolveProjectFileCatTargetLocale(
+        file,
+        highlightLocale,
+        projectTargetLocales,
+      );
       if (!canOpenProjectFileCat(file) || !targetLocale) {
         toast.error(
           targetLocale

@@ -133,20 +133,23 @@ describe("buildProjectFileCatHref", () => {
 
     expect(
       buildProjectFileCatHref("acme", "project_website", file, null, null, ["vi", "fr-FR"]),
-    ).toBe("/org/acme/projects/project_website/files/cat?sourcePath=marketing%2Fhome.json&locale=vi");
+    ).toBe(
+      "/org/acme/projects/project_website/files/cat?sourcePath=marketing%2Fhome.json&locale=vi",
+    );
   });
 });
 
 describe("resolveProjectFileCatTargetLocale", () => {
   it("uses the requested native locale when it belongs to the project", () => {
-    expect(resolveProjectFileCatTargetLocale(createProjectFileRecord(), "fr-FR", ["vi", "fr-FR"]))
-      .toBe("fr-FR");
+    expect(
+      resolveProjectFileCatTargetLocale(createProjectFileRecord(), "fr-FR", ["vi", "fr-FR"]),
+    ).toBe("fr-FR");
   });
 
   it("falls back to the first configured native project target locale", () => {
-    expect(resolveProjectFileCatTargetLocale(createProjectFileRecord(), null, ["vi", "fr-FR"])).toBe(
-      "vi",
-    );
+    expect(
+      resolveProjectFileCatTargetLocale(createProjectFileRecord(), null, ["vi", "fr-FR"]),
+    ).toBe("vi");
   });
 
   it("falls back from an unknown requested native locale to a project locale", () => {
