@@ -322,6 +322,15 @@ export function IssueSheetPageContent({
                     Loading issues...
                   </td>
                 </tr>
+              ) : issueSheetQuery.isError ? (
+                <tr>
+                  <td
+                    colSpan={5 + editableColumns.length}
+                    className="px-4 py-10 text-center text-muted-foreground"
+                  >
+                    Issues could not be loaded.
+                  </td>
+                </tr>
               ) : data?.issues.length ? (
                 data.issues.map((issue) => (
                   <tr key={issue.id} className="align-top">
