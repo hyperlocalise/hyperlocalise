@@ -124,6 +124,15 @@ describe("Issue Sheet routes", () => {
       "context",
     ]);
 
+    const viewWithStatusResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "all_open", status: "resolved" },
+    });
+
+    expect(viewWithStatusResponse.status).toBe(200);
+    const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
+    expect(viewWithStatusBody.issues).toHaveLength(1);
+
     const issueId = createdBody.issue.id;
     const updateResponse = await requestJson(
       issueSheetUrl(organizationSlug, project.id, `/${issueId}`),

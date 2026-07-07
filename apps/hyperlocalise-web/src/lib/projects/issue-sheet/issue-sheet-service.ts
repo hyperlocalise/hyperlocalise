@@ -656,7 +656,7 @@ export class IssueSheetService {
       conditions.push(inArray(schema.issueSheetIssues.status, ["open", "in_progress"]));
     }
 
-    if (input.query.status && input.query.status !== "all") {
+    if (!view && input.query.status && input.query.status !== "all") {
       conditions.push(eq(schema.issueSheetIssues.status, input.query.status));
     }
     if (input.query.issueType && input.query.issueType !== "all") {
