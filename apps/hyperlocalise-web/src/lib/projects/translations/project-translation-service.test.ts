@@ -208,6 +208,49 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.translatedKeyCount).toBe(1);
   });
 
+  it("exports source fallback entries when no target translations exist", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "greeting", sourceText: "Hello" },
+      { id: "key_2", key: "farewell", sourceText: "Goodbye" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      includeAllSourceKeys: true,
+    });
+
+    expect(result).toEqual({
+      prefilled: {
+        greeting: "Hello",
+        farewell: "Goodbye",
+      },
+      truncated: false,
+      loadedKeyCount: 2,
+      maxKeyCount: 5_000,
+      translatedKeyCount: 0,
+    });
+  });
+
   it("reports truncation when the source file exceeds the prefill key cap", async () => {
     const overLimitKeys = Array.from({ length: 5_001 }, (_, index) => ({
       id: `key_${index}`,

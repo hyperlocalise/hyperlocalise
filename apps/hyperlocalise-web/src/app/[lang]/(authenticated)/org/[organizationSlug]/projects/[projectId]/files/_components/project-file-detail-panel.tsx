@@ -21,7 +21,6 @@ import { formatBytes } from "./project-files-shared";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
-  countReadyLocales,
   resolveFileLocaleReadiness,
   summarizeNativeLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
@@ -257,10 +256,7 @@ export function ProjectFileDetailPanelView({
     : jobsByLocale;
   const localeReadiness = resolveFileLocaleReadiness(file);
   const readinessSummary = summarizeNativeLocaleReadiness(localeReadiness, targetLocales.length);
-  const readyLocaleCount = countReadyLocales(localeReadiness);
-  const downloadableLocales = targetLocales.filter(
-    (locale) => localeReadiness[locale] === "ready" || localeReadiness[locale] === "complete",
-  );
+  const downloadableLocales = targetLocales;
 
   function downloadTranslation(locale: string) {
     if (!sourcePath) return;
@@ -367,10 +363,6 @@ export function ProjectFileDetailPanelView({
                   Download {locale}
                 </Button>
               ))
-            ) : readyLocaleCount === 0 && targetLocales.length > 0 ? (
-              <TypographyP className="self-center text-xs text-muted-foreground">
-                Translations will be downloadable after jobs complete.
-              </TypographyP>
             ) : null}
           </div>
         ) : null}

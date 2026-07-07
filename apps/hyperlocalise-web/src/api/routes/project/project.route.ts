@@ -1429,7 +1429,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
-        if (result.translatedKeyCount === 0) {
+        if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
 

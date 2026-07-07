@@ -138,7 +138,7 @@ describe("publicTranslationRoutes", () => {
     expect(body.error).toBe("source_file_not_found");
   });
 
-  it("returns 404 when source keys exist but no translations are ready", async () => {
+  it("downloads source fallbacks when source keys exist but no translations are ready", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db
       .update(schema.organizationApiKeys)
@@ -166,9 +166,9 @@ describe("publicTranslationRoutes", () => {
       { headers: { "x-api-key": apiKey } },
     );
 
-    expect(response.status).toBe(404);
-    const body = (await response.json()) as { error: string };
-    expect(body.error).toBe("translations_not_found");
+    expect(response.status).toBe(200);
+    const content = await response.text();
+    expect(JSON.parse(content)).toEqual({ greeting: "Hello" });
   });
 
   it("exports every source key while preserving translated values", async () => {
