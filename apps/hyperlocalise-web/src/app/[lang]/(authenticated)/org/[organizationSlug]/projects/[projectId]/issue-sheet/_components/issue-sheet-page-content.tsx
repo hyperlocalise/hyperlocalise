@@ -351,7 +351,11 @@ export function IssueSheetPageContent({
                         </SelectTrigger>
                         <SelectContent>
                           {statuses.map((status) => (
-                            <SelectItem key={status.value} value={status.value} label={status.label}>
+                            <SelectItem
+                              key={status.value}
+                              value={status.value}
+                              label={status.label}
+                            >
                               {status.label}
                             </SelectItem>
                           ))}
