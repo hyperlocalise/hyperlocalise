@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const generateTextMock = vi.fn();
 const loadOrganizationTranslationModelMock = vi.fn();
@@ -12,23 +12,25 @@ vi.mock("ai", async (importOriginal) => {
   };
 });
 
-import { catRecommendationDeps, generateCatAiRecommendation } from "./generation";
+vi.mock("./context", () => ({
+  assembleStringTranslationContextSnapshot: (...args: unknown[]) =>
+    assembleStringTranslationContextSnapshotMock(...args),
+}));
 
-const originalCatRecommendationDeps = { ...catRecommendationDeps };
+vi.mock("./generation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./generation")>();
+  return {
+    ...actual,
+    loadOrganizationTranslationModel: (...args: unknown[]) =>
+      loadOrganizationTranslationModelMock(...args),
+  };
+});
+
+import { generateCatAiRecommendation } from "./cat";
 
 describe("generateCatAiRecommendation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    catRecommendationDeps.loadOrganizationTranslationModel = loadOrganizationTranslationModelMock;
-    catRecommendationDeps.assembleStringTranslationContextSnapshot =
-      assembleStringTranslationContextSnapshotMock;
-  });
-
-  afterEach(() => {
-    catRecommendationDeps.loadOrganizationTranslationModel =
-      originalCatRecommendationDeps.loadOrganizationTranslationModel;
-    catRecommendationDeps.assembleStringTranslationContextSnapshot =
-      originalCatRecommendationDeps.assembleStringTranslationContextSnapshot;
   });
 
   it("returns a recommendation using file and agent context", async () => {

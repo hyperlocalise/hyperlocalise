@@ -130,7 +130,7 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
-import { generateCatAiRecommendation } from "@/lib/translation/generation";
+import { generateCatAiRecommendation } from "@/lib/translation/cat";
 import { loadCatSegmentConcordance } from "@/lib/translation/cat";
 import { loadCatSegmentVisualContext } from "@/lib/translation/cat";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";

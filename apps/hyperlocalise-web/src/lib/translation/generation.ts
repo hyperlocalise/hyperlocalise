@@ -12,14 +12,7 @@ import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
-import {
-  defaultGlossaryMatchResolution,
-  defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/capabilities/match-resolution";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
 import type {
-  CatAiRecommendationError,
   CatAiRecommendationInput,
   CatAiRecommendationResult,
   SandboxTranslationContext,
@@ -614,72 +607,7 @@ export async function loadOrganizationTranslationModel(projectId: string) {
   return defaultModelResolver.resolveModel(projectId);
 }
 
-export const catRecommendationDeps = {
-  loadOrganizationTranslationModel,
-  assembleStringTranslationContextSnapshot,
-};
-
 /** @deprecated Use `loadOrganizationTranslationGenerator` instead. */
 export const loadOrganizationOpenAITranslationGenerator = loadOrganizationTranslationGenerator;
-
-export async function generateCatAiRecommendation(
-  input: CatAiRecommendationInput,
-): Promise<Result<CatAiRecommendationResult, CatAiRecommendationError>> {
-  const modelResult = await catRecommendationDeps.loadOrganizationTranslationModel(input.projectId);
-  if (!modelResult.ok) {
-    return err({ code: modelResult.code, message: modelResult.message });
-  }
-
-  const hasPreloadedConcordance =
-    input.glossaryTerms !== undefined || input.translationMemoryMatches !== undefined;
-
-  const contextResult = await catRecommendationDeps.assembleStringTranslationContextSnapshot(
-    input.projectId,
-    {
-      sourceLocale: input.sourceLocale,
-      targetLocales: [input.targetLocale],
-      sourceText: input.sourceText,
-      context: input.context ?? undefined,
-      maxLength: input.maxLength,
-      metadata: {
-        sourcePath: input.sourcePath,
-        key: input.key,
-      },
-    },
-    undefined,
-    {
-      organizationId: input.organizationId,
-      glossaryMatchResolution: defaultGlossaryMatchResolution,
-      translationMemoryMatchResolution: defaultTranslationMemoryMatchResolution,
-      skipConcordance: hasPreloadedConcordance,
-    },
-  );
-
-  if (!contextResult.ok) {
-    return err({
-      code: "translation_context_assembly_failed",
-      message: contextResult.message,
-    });
-  }
-
-  try {
-    const recommendation = await new CatRecommendationEngine(modelResult.model).recommend(input, {
-      projectName: contextResult.snapshot.project.name,
-      projectTranslationContext: contextResult.snapshot.project.translationContext,
-      knowledgeMemory: contextResult.snapshot.knowledgeMemory ?? undefined,
-      glossaryTerms: input.glossaryTerms ?? contextResult.snapshot.glossaryTerms ?? [],
-      translationMemoryMatches:
-        input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches ?? [],
-    });
-
-    return ok(recommendation);
-  } catch (error) {
-    return err({
-      code: "ai_recommendation_failed",
-      message:
-        error instanceof Error ? error.message : "Failed to generate AI translation recommendation",
-    });
-  }
-}
 
 export const translationPromptPolicy = new TranslationPromptPolicy();

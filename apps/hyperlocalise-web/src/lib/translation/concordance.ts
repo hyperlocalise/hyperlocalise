@@ -262,21 +262,12 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
   AttachedGlossaryRecord,
   NormalizedGlossaryMatch
 > {
-  private glossaryMatchResolution?: GlossaryMatchResolution;
-
-  withResolution(resolution?: GlossaryMatchResolution) {
-    this.glossaryMatchResolution = resolution;
-    return this;
-  }
-
   protected defaultLimit() {
     return 20;
   }
 
   protected getResolution(input: ConcordanceQuery) {
-    return (
-      (input as GlossaryConcordanceQuery).glossaryMatchResolution ?? this.glossaryMatchResolution
-    );
+    return (input as GlossaryConcordanceQuery).glossaryMatchResolution;
   }
 
   protected logLiveSearchFailure(
@@ -519,22 +510,12 @@ class TranslationMemoryConcordancePipeline extends ConcordancePipeline<
   AttachedMemoryRecord,
   NormalizedTranslationMemoryMatch
 > {
-  private memoryMatchResolution?: TranslationMemoryMatchResolution;
-
-  withResolution(resolution?: TranslationMemoryMatchResolution) {
-    this.memoryMatchResolution = resolution;
-    return this;
-  }
-
   protected defaultLimit() {
     return 10;
   }
 
   protected getResolution(input: ConcordanceQuery) {
-    return (
-      (input as MemoryConcordanceQuery).translationMemoryMatchResolution ??
-      this.memoryMatchResolution
-    );
+    return (input as MemoryConcordanceQuery).translationMemoryMatchResolution;
   }
 
   protected logLiveSearchFailure(
@@ -805,7 +786,7 @@ export class GlossaryConcordanceService {
   private readonly pipeline = new GlossaryConcordancePipeline();
 
   searchForContext(input: GlossaryConcordanceQuery) {
-    return this.pipeline.withResolution(input.glossaryMatchResolution).search(input);
+    return this.pipeline.search(input);
   }
 
   async collectUsageForUnits(input: {
@@ -858,7 +839,7 @@ export class TranslationMemoryConcordanceService {
   private readonly pipeline = new TranslationMemoryConcordancePipeline();
 
   searchForContext(input: MemoryConcordanceQuery) {
-    return this.pipeline.withResolution(input.translationMemoryMatchResolution).search(input);
+    return this.pipeline.search(input);
   }
 
   async collectUsageForUnits(input: {

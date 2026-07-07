@@ -49,9 +49,6 @@ const {
 vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
   loadCatSegmentVisualContext: (...args: unknown[]) => loadCatSegmentVisualContextMock(...args),
-}));
-
-vi.mock("@/lib/translation/generation", () => ({
   generateCatAiRecommendation: (...args: unknown[]) => generateCatAiRecommendationMock(...args),
 }));
 
