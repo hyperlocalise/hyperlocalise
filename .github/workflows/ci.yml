@@ -70,13 +70,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - name: Run Hyperlocalise sync action
-        id: hyperlocalise-sync
+      - name: Run Hyperlocalise upload sync action
+        id: hyperlocalise-sync-upload
         uses: ./sync
         with:
+          mode: upload
+          working-directory: apps/hyperlocalise-web
           config-path: i18n.yml
-          extract-path: tests/formatjs/src
-          extract-out-file: tests/formatjs/en-US.json
+          extract-path: src
+          extract-out-file: lang/en-US.json
+          extract-ignore: |
+            **/*.test.ts
+            **/*.test.tsx
+            **/*.stories.tsx
+            **/*.fixture.ts
+            **/*.e2e.ts
+            **/__tests__/**
+          dry-run: true
+          fail-on-findings: false
+          upload-artifact: false
+
+      - name: Run Hyperlocalise download sync action
+        id: hyperlocalise-sync-download
+        uses: ./sync
+        with:
+          mode: download
+          working-directory: apps/hyperlocalise-web
+          config-path: i18n.yml
           dry-run: true
           fail-on-findings: false
           upload-artifact: false
@@ -84,10 +104,10 @@ jobs:
       - name: Verify sync action outputs
         shell: bash
         env:
-          FINDINGS_DETECTED: ${{ steps.hyperlocalise-sync.outputs.findings-detected }}
-          FINDINGS_TOTAL: ${{ steps.hyperlocalise-sync.outputs.findings-total }}
-          ERROR_COUNT: ${{ steps.hyperlocalise-sync.outputs.error-count }}
-          WARNING_COUNT: ${{ steps.hyperlocalise-sync.outputs.warning-count }}
+          FINDINGS_DETECTED: ${{ steps.hyperlocalise-sync-download.outputs.findings-detected }}
+          FINDINGS_TOTAL: ${{ steps.hyperlocalise-sync-download.outputs.findings-total }}
+          ERROR_COUNT: ${{ steps.hyperlocalise-sync-download.outputs.error-count }}
+          WARNING_COUNT: ${{ steps.hyperlocalise-sync-download.outputs.warning-count }}
         run: |
           set -euo pipefail
           case "${FINDINGS_DETECTED}" in

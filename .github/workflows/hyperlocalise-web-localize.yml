@@ -1,0 +1,128 @@
+name: Hyperlocalise Web Localize
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which sync job to run
+        type: choice
+        options:
+          - upload
+          - download
+        default: upload
+  schedule:
+    # Upload English source catalogs shortly after UTC midnight.
+    - cron: "0 2 * * *"
+    # Download translated catalogs later so Hyperlocalise has time to finish jobs.
+    - cron: "0 10 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - apps/hyperlocalise-web/src/**
+      - apps/hyperlocalise-web/i18n.yml
+      - .github/workflows/hyperlocalise-web-localize.yml
+      - sync/action.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'push' }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  WEB_WORKING_DIRECTORY: apps/hyperlocalise-web
+  WEB_I18N_CONFIG: i18n.yml
+  WEB_EXTRACT_PATH: src
+  WEB_EXTRACT_OUT_FILE: lang/en-US.json
+  WEB_EXTRACT_IGNORE: |
+    **/*.test.ts
+    **/*.test.tsx
+    **/*.stories.tsx
+    **/*.fixture.ts
+    **/*.e2e.ts
+    **/__tests__/**
+
+jobs:
+  upload:
+    name: Upload Web Sources
+    if: >-
+      ${{
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'upload') ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
+      }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: hyperlocalise-web-localize
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Extract and upload web sources
+        uses: ./sync
+        with:
+          mode: upload
+          working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
+          config-path: ${{ env.WEB_I18N_CONFIG }}
+          extract-path: ${{ env.WEB_EXTRACT_PATH }}
+          extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
+          extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
+          fail-on-findings: false
+          upload-artifact: true
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+
+  download:
+    name: Download Web Translations
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'download') ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 10 * * *')
+      }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: hyperlocalise-web-localize
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: true
+
+      - name: Download and validate web translations
+        uses: ./sync
+        with:
+          mode: download
+          working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
+          config-path: ${{ env.WEB_I18N_CONFIG }}
+          fail-on-findings: true
+          upload-artifact: true
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: hyperlocalise/web-translations
+          delete-branch: true
+          commit-message: "chore(web): sync Hyperlocalise translations"
+          title: "chore(web): sync Hyperlocalise translations"
+          body: |
+            Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
+
+            - Source catalog: `apps/hyperlocalise-web/lang/en-US.json`
+            - Target catalogs: `apps/hyperlocalise-web/lang/*.json`
+            - Validation: `hyperlocalise check --diff-stdin` on the pulled diff
+
+            Review ICU placeholders, message ids, and locale coverage before merging.
+          add-paths: |
+            apps/hyperlocalise-web/lang/**
+          labels: |
+            localization
+            hyperlocalise-web

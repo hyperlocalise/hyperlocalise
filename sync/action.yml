@@ -1,11 +1,14 @@
 name: Hyperlocalise Sync
-description: Upload sources with React Intl extraction and download translations with git diff validation.
+description: Upload sources with React Intl extraction or download translations with git diff validation.
 
 branding:
   icon: sync
   color: gray-dark
 
 inputs:
+  mode:
+    description: "Sync mode. Supported values: upload, download, and all."
+    default: all
   config-path:
     description: Path to the i18n config file.
     default: i18n.yml
@@ -21,6 +24,9 @@ inputs:
   extract-out-file:
     description: Output file for extracted FormatJS catalog. Required when extract-path is set.
     default: ""
+  extract-ignore:
+    description: Optional newline-separated glob patterns passed to extract --ignore.
+    default: ""
   dry-run:
     description: Preview sync push and pull without uploading, downloading, or writing files.
     default: "false"
@@ -31,7 +37,7 @@ inputs:
     description: Pass --prefix-id to git diff validation when source keys use extract --prefix-id prefixes.
     default: "false"
   upload-artifact:
-    description: Upload the validation JSON report and summary artifacts.
+    description: Upload JSON reports and validation summary artifacts.
     default: "true"
 
 outputs:
@@ -66,12 +72,21 @@ runs:
     - name: Validate inputs
       shell: bash
       env:
+        MODE: ${{ inputs.mode }}
         EXTRACT_PATH: ${{ inputs.extract-path }}
         EXTRACT_OUT_FILE: ${{ inputs.extract-out-file }}
         DRY_RUN: ${{ inputs.dry-run }}
         PREFIX_ID: ${{ inputs.prefix-id }}
       run: |
         set -euo pipefail
+        case "${MODE}" in
+          upload|download|all) ;;
+          *)
+            echo "Unsupported mode: ${MODE}" >&2
+            echo "Supported values are upload, download, and all." >&2
+            exit 1
+            ;;
+        esac
         if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
           echo "Unsupported dry-run value: ${DRY_RUN}" >&2
           exit 1
@@ -80,13 +95,15 @@ runs:
           echo "Unsupported prefix-id value: ${PREFIX_ID}" >&2
           exit 1
         fi
-        if [[ -n "${EXTRACT_PATH}" && -z "${EXTRACT_OUT_FILE}" ]]; then
-          echo "extract-out-file is required when extract-path is set." >&2
-          exit 1
-        fi
-        if [[ -z "${EXTRACT_PATH}" && -n "${EXTRACT_OUT_FILE}" ]]; then
-          echo "extract-path is required when extract-out-file is set." >&2
-          exit 1
+        if [[ "${MODE}" == "upload" || "${MODE}" == "all" ]]; then
+          if [[ -n "${EXTRACT_PATH}" && -z "${EXTRACT_OUT_FILE}" ]]; then
+            echo "extract-out-file is required when extract-path is set." >&2
+            exit 1
+          fi
+          if [[ -z "${EXTRACT_PATH}" && -n "${EXTRACT_OUT_FILE}" ]]; then
+            echo "extract-path is required when extract-out-file is set." >&2
+            exit 1
+          fi
         fi
 
     - name: Prepare artifact paths
@@ -116,20 +133,28 @@ runs:
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Extract React Intl messages
-      if: ${{ inputs.extract-path != '' }}
+      if: ${{ (inputs.mode == 'upload' || inputs.mode == 'all') && inputs.extract-path != '' }}
       shell: bash
       env:
-        CONFIG_PATH: ${{ inputs.config-path }}
         EXTRACT_PATH: ${{ inputs.extract-path }}
         EXTRACT_OUT_FILE: ${{ inputs.extract-out-file }}
+        EXTRACT_IGNORE: ${{ inputs.extract-ignore }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: |
         set -euo pipefail
+        args=(extract "${EXTRACT_PATH}" --out-file "${EXTRACT_OUT_FILE}")
+        while IFS= read -r pattern; do
+          if [[ -n "${pattern}" ]]; then
+            args+=(--ignore "${pattern}")
+          fi
+        done <<<"${EXTRACT_IGNORE}"
+
         pushd "${WORKING_DIRECTORY}" >/dev/null
-        hyperlocalise extract "${EXTRACT_PATH}" --out-file "${EXTRACT_OUT_FILE}"
+        hyperlocalise "${args[@]}"
         popd >/dev/null
 
     - name: Upload sources
+      if: ${{ inputs.mode == 'upload' || inputs.mode == 'all' }}
       id: sync-push
       shell: bash
       env:
@@ -152,6 +177,7 @@ runs:
         popd >/dev/null
 
     - name: Download translations
+      if: ${{ inputs.mode == 'download' || inputs.mode == 'all' }}
       id: sync-pull
       shell: bash
       env:
@@ -174,6 +200,7 @@ runs:
         popd >/dev/null
 
     - name: Validate pulled changes
+      if: ${{ inputs.mode == 'download' || inputs.mode == 'all' }}
       id: validate-diff
       shell: bash
       env:
@@ -202,6 +229,7 @@ runs:
         exit 0
 
     - name: Analyze validation report
+      if: ${{ inputs.mode == 'download' || inputs.mode == 'all' }}
       id: analyze-validation
       shell: bash
       env:
@@ -220,20 +248,27 @@ runs:
           "compact" \
           "20"
 
-    - name: Upload artifacts
-      if: ${{ inputs.upload-artifact == 'true' }}
+    - name: Upload push report
+      if: ${{ inputs.upload-artifact == 'true' && (inputs.mode == 'upload' || inputs.mode == 'all') }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
-        name: ${{ steps.prepare.outputs.artifact-name }}
+        name: ${{ steps.prepare.outputs.artifact-name }}-push
+        if-no-files-found: error
+        path: ${{ steps.prepare.outputs.push-report-path }}
+
+    - name: Upload pull and validation reports
+      if: ${{ inputs.upload-artifact == 'true' && (inputs.mode == 'download' || inputs.mode == 'all') }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}-pull
         if-no-files-found: error
         path: |
-          ${{ steps.prepare.outputs.push-report-path }}
           ${{ steps.prepare.outputs.pull-report-path }}
           ${{ steps.prepare.outputs.validation-report-path }}
           ${{ steps.prepare.outputs.validation-summary-path }}
 
     - name: Fail on CLI error
-      if: ${{ steps.validate-diff.outputs.cli-exit-code != '0' }}
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && steps.validate-diff.outputs.cli-exit-code != '0' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -241,7 +276,7 @@ runs:
         exit 1
 
     - name: Fail on unknown validation state
-      if: ${{ steps.analyze-validation.outputs.findings-detected == 'unknown' }}
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && steps.analyze-validation.outputs.findings-detected == 'unknown' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -249,7 +284,7 @@ runs:
         exit 1
 
     - name: Fail on findings
-      if: ${{ inputs.fail-on-findings == 'true' && steps.analyze-validation.outputs.findings-detected == 'true' }}
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && inputs.fail-on-findings == 'true' && steps.analyze-validation.outputs.findings-detected == 'true' }}
       shell: bash
       env:
         ERROR_COUNT: ${{ steps.analyze-validation.outputs.error-count }}

@@ -150,13 +150,12 @@ llm:
       group: tests
       profile: ollama
 
-# Hyperlocalise web API config for `sync push` and `sync pull`.
-# Used by `.github/workflows/hyperlocalise-localize.yml` to sync this repository.
-hyperlocalise:
-  project_id_env: HYPERLOCALISE_PROJECT_ID
-  api_base_url: https://hyperlocalise.com/api
-  api_key_env: HYPERLOCALISE_API_KEY
-  timeout_seconds: 1200
+# Optional Hyperlocalise web API config for `sync push` and `sync pull`.
+# hyperlocalise:
+#   project_id: project_123
+#   api_base_url: https://hyperlocalise.com/api
+#   api_key_env: HYPERLOCALISE_API_KEY
+#   timeout_seconds: 1200
 
 # Optional remote caching client config for the run pipeline.
 # cache:
