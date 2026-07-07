@@ -118,8 +118,66 @@ export const issueSheetSetValueBodySchema = z.object({
   value: z.unknown(),
 });
 
+export const issueSheetSystemFieldSchema = z.enum([
+  "title",
+  "description",
+  "status",
+  "issue_type",
+  "target_locale",
+  "source_path",
+  "segment_id",
+  "external_ref",
+  "link_url",
+  "assignee",
+]);
+
+export const issueSheetImportColumnMappingSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("system"),
+    field: issueSheetSystemFieldSchema,
+  }),
+  z.object({
+    kind: z.literal("column"),
+    columnId: z.string().uuid(),
+  }),
+  z.object({
+    kind: z.literal("create"),
+    key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores"),
+    label: z.string().trim().min(1).max(120),
+    type: issueSheetColumnTypeSchema.exclude(["enrichment", "user"]),
+  }),
+  z.object({
+    kind: z.literal("skip"),
+  }),
+]);
+
+export const issueSheetImportBodySchema = z.object({
+  content: z.string().min(1).max(2_097_152),
+  dryRun: z.boolean(),
+  mapping: z
+    .array(
+      z.object({
+        csvHeader: z.string().trim().min(1).max(256),
+        target: issueSheetImportColumnMappingSchema,
+      }),
+    )
+    .min(1)
+    .max(200),
+  options: z
+    .object({
+      skipInvalidRows: z.boolean().optional(),
+    })
+    .optional(),
+});
+
 export type IssueSheetQuery = z.infer<typeof issueSheetQuerySchema>;
 export type IssueSheetCreateIssueBody = z.infer<typeof issueSheetCreateIssueBodySchema>;
 export type IssueSheetUpdateIssueBody = z.infer<typeof issueSheetUpdateIssueBodySchema>;
 export type IssueSheetCreateColumnBody = z.infer<typeof issueSheetCreateColumnBodySchema>;
 export type IssueSheetSetValueBody = z.infer<typeof issueSheetSetValueBodySchema>;
+export type IssueSheetImportBody = z.infer<typeof issueSheetImportBodySchema>;

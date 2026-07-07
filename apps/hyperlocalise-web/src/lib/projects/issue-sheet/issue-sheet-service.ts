@@ -8,7 +8,13 @@ import {
   type IssueSheetSetValueBody,
   type IssueSheetUpdateIssueBody,
 } from "@/api/routes/project/issue-sheet.schema";
+import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema } from "@/lib/database";
+
+import {
+  runIssueSheetCsvImport,
+  type IssueSheetImportResult,
+} from "./issue-sheet-csv-import-runner";
 
 export type IssueSheetColumn = {
   id: string;
@@ -424,6 +430,15 @@ export class IssueSheetService {
     }
 
     return this.getIssueById(input);
+  }
+
+  async importFromCsv(input: {
+    organizationId: string;
+    projectId: string;
+    actorUserId: string;
+    body: IssueSheetImportBody;
+  }): Promise<IssueSheetImportResult> {
+    return runIssueSheetCsvImport(this, input);
   }
 
   async setValue(input: {

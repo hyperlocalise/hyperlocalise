@@ -13,6 +13,7 @@ import {
   issueSheetColumnParamsSchema,
   issueSheetCreateColumnBodySchema,
   issueSheetCreateIssueBodySchema,
+  issueSheetImportBodySchema,
   issueSheetIssueParamsSchema,
   issueSheetParamsSchema,
   issueSheetQuerySchema,
@@ -62,6 +63,11 @@ const validateSetValueBody = createZodValidator(
   "json",
   issueSheetSetValueBodySchema,
   "invalid_issue_sheet_value_payload",
+);
+const validateImportBody = createZodValidator(
+  "json",
+  issueSheetImportBodySchema,
+  "invalid_issue_sheet_import_payload",
 );
 
 async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, projectId: string) {
@@ -113,6 +119,53 @@ export function createIssueSheetRoutes() {
         }
         if (error instanceof Error && error.message.includes("duplicate")) {
           return conflictResponse(c, "issue_sheet_issue_exists", "Issue already exists");
+        }
+        throw error;
+      }
+    })
+    .post("/import", validateIssueSheetParams, validateImportBody, async (c) => {
+      if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      try {
+        const result = await service.importFromCsv({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          actorUserId: c.var.auth.user.localUserId,
+          body: c.req.valid("json"),
+        });
+        return c.json({ import: result }, result.dryRun ? 200 : 201);
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === "issue_sheet_import_missing_title_mapping") {
+            return badRequestResponse(
+              c,
+              "missing_required_mapping",
+              "Map at least one column to Title",
+            );
+          }
+          if (error.message === "issue_sheet_import_empty_csv") {
+            return badRequestResponse(c, "invalid_csv", "CSV file is empty");
+          }
+          if (error.message === "issue_sheet_import_file_too_large") {
+            return badRequestResponse(c, "invalid_csv", "CSV file is too large");
+          }
+          if (error.message === "issue_sheet_import_too_many_rows") {
+            return badRequestResponse(c, "invalid_csv", "CSV has too many rows");
+          }
+          if (error.message === "issue_sheet_import_too_many_new_columns") {
+            return badRequestResponse(
+              c,
+              "invalid_issue_sheet_import_payload",
+              "Too many new columns requested",
+            );
+          }
         }
         throw error;
       }
