@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
+import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 import { toast } from "sonner";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
@@ -27,6 +29,7 @@ function stringsHref(input: {
   targetLocale: string;
   sourcePath?: string;
   storedFileId?: string;
+  queueFilter?: CatQueueFilter;
 }) {
   const params = new URLSearchParams({
     targetLocale: input.targetLocale,
@@ -38,6 +41,10 @@ function stringsHref(input: {
 
   if (input.storedFileId) {
     params.set("storedFileId", input.storedFileId);
+  }
+
+  if (input.queueFilter && input.queueFilter !== "all") {
+    params.set(jobCatQueueFilterParam, input.queueFilter);
   }
 
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.encodedJobId)}/strings?${params.toString()}`;
@@ -93,6 +100,7 @@ export function JobSourceFilesPanel({
   errorMessage,
   emptyMessage = "No source files linked to this job.",
   highlightLocale = null,
+  queueFilter,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -103,6 +111,7 @@ export function JobSourceFilesPanel({
   errorMessage?: string;
   emptyMessage?: string;
   highlightLocale?: string | null;
+  queueFilter?: CatQueueFilter;
 }) {
   const router = useRouter();
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
@@ -134,13 +143,14 @@ export function JobSourceFilesPanel({
           projectId,
           encodedJobId,
           targetLocale: targetLocale as string,
+          queueFilter,
           ...(supportsProviderCatFile(file)
             ? { sourcePath }
             : { storedFileId: file.storedFileId as string }),
         }),
       );
     },
-    [encodedJobId, highlightLocale, organizationSlug, projectId, router, sortedFiles],
+    [encodedJobId, highlightLocale, organizationSlug, projectId, queueFilter, router, sortedFiles],
   );
 
   const handleSelectFile = useCallback((sourcePath: string) => {
@@ -162,6 +172,7 @@ export function JobSourceFilesPanel({
           projectId,
           encodedJobId,
           targetLocale: selectedTargetLocale,
+          queueFilter,
           ...(supportsProviderCatFile(selectedFile)
             ? { sourcePath: activeSourcePath }
             : { storedFileId: selectedFile.storedFileId as string }),

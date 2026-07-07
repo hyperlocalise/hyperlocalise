@@ -181,7 +181,7 @@ describe("JobCatPageContent guard ordering", () => {
 
     await waitFor(() => {
       expect(routerReplaceMock).toHaveBeenCalledWith(
-        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json",
+        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json&queueFilter=untranslated",
       );
     });
     expect(
@@ -290,6 +290,31 @@ describe("JobCatPageContent CAT shell", () => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
         "data-initial-queue-filter",
         "untranslated",
+      );
+    });
+  });
+
+  it("opens with needs_review queue filter when provided", async () => {
+    loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
+    loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="crowdin/home.json"
+          targetLocale="vi"
+          initialQueueFilter="needs_review"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
+        "data-initial-queue-filter",
+        "needs_review",
       );
     });
   });

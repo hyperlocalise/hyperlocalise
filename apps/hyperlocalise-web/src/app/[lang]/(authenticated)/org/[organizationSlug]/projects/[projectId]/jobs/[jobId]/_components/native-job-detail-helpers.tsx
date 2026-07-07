@@ -8,6 +8,7 @@ import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
 import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
 import { nativeJobToProjectFileRecord } from "./tms/job-source-file-mappers";
+import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing";
 
 function getInputPayloadString(job: JobDetailRecord, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -77,6 +78,7 @@ export function NativeJobSourceFilesSection({
   const file = useMemo(() => buildNativeJobFileRecord(job), [job]);
   const targetLocales = getInputPayloadStringArray(job, "targetLocales");
   const highlightLocale = targetLocales[0] ?? null;
+  const queueFilter = resolveDefaultJobCatQueueFilter(job);
 
   if (!file) {
     return null;
@@ -89,6 +91,7 @@ export function NativeJobSourceFilesSection({
       encodedJobId={job.id}
       files={[file]}
       highlightLocale={highlightLocale}
+      queueFilter={queueFilter}
       emptyMessage="No source file linked to this job."
     />
   );

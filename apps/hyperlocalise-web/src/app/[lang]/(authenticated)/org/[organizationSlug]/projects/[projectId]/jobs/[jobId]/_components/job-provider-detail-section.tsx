@@ -5,6 +5,10 @@ import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
 import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
+import {
+  resolveDefaultJobCatQueueFilter,
+  type JobCatQueueFilterContext,
+} from "@/lib/projects/job-cat-routing";
 import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
@@ -42,7 +46,7 @@ export function JobProviderDetailSection({
   showAgentActions = true,
   showProviderMetadata = true,
 }: {
-  job: ProviderBackedJobFields;
+  job: ProviderBackedJobFields & JobCatQueueFilterContext;
   jobId: string;
   organizationSlug: string;
   projectId: string | null;
@@ -131,6 +135,7 @@ export function JobProviderDetailSection({
           externalJobId: providerJob.externalJobId,
           externalTaskId: providerJob.externalTaskId,
         });
+        const queueFilter = resolveDefaultJobCatQueueFilter(job);
 
         if (encodedJobId) {
           return (
@@ -139,6 +144,7 @@ export function JobProviderDetailSection({
               projectId={projId}
               encodedJobId={encodedJobId}
               highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+              queueFilter={queueFilter}
             />
           );
         }
@@ -151,6 +157,7 @@ export function JobProviderDetailSection({
             providerKind={providerJob.externalProviderKind}
             sourceFiles={providerJob.providerSourceFiles ?? []}
             highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+            queueFilter={queueFilter}
           />
         );
       }}
