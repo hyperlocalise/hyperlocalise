@@ -38,7 +38,11 @@ import {
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
-import { CatFileTreePicker, CatRepositorySelect } from "../../_components/cat-header-pickers";
+import {
+  CatFileTreePicker,
+  CatLocaleSelect,
+  CatRepositorySelect,
+} from "../../_components/cat-header-pickers";
 
 type ProjectFileCatGithubRepository = {
   fullName: string;
@@ -348,8 +352,35 @@ export function ProjectFileCatPageContent({
     setRepositoryOverride(nextRepositoryFullName);
   };
 
+  const handleLocaleChange = (nextLocale: string) => {
+    if (!sourcePath || nextLocale === targetLocale) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      sourcePath,
+      locale: nextLocale,
+    });
+
+    if (resolvedExternalResourceId) {
+      params.set("externalResourceId", resolvedExternalResourceId);
+    }
+
+    if (resolvedResourceType && resolvedResourceType !== "file") {
+      params.set("resourceType", resolvedResourceType);
+    }
+
+    if (branch) {
+      params.set("branch", branch);
+    }
+
+    router.push(
+      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
+    );
+  };
+
   return (
-    <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+    <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
         <Button
           variant="outline"
@@ -377,6 +408,14 @@ export function ProjectFileCatPageContent({
             repositoryFullNames={enabledRepositoryFullNames}
             selectedRepositoryFullName={selectedRepositoryFullName}
             onRepositoryChange={handleRepositoryChange}
+          />
+        ) : null}
+
+        {workspaceTargetLocales.length > 0 ? (
+          <CatLocaleSelect
+            targetLocales={workspaceTargetLocales}
+            selectedTargetLocale={targetLocale}
+            onTargetLocaleChange={handleLocaleChange}
           />
         ) : null}
 

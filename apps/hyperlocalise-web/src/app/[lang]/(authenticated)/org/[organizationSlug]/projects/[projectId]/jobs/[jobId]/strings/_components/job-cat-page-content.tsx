@@ -13,7 +13,11 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 
-import { CatFileTreePicker, CatRepositorySelect } from "../../../../_components/cat-header-pickers";
+import {
+  CatFileTreePicker,
+  CatLocaleSelect,
+  CatRepositorySelect,
+} from "../../../../_components/cat-header-pickers";
 import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
 import {
   catFileRepositoryPreferenceKey,
@@ -25,6 +29,7 @@ import { resolveDefaultJobCatFileReference } from "./job-cat-default-file";
 import {
   loadJobCatJobSourceFiles,
   loadJobCatProviderJobFiles,
+  loadJobCatSelectableTargetLocales,
   loadJobCatTargetFile,
 } from "./load-job-cat-files";
 import {
@@ -70,6 +75,14 @@ function projectJobCatDefaultFileQueryKey(
     jobId,
     targetLocale,
   ] as const;
+}
+
+function projectJobCatSelectableLocalesQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  jobId: string,
+) {
+  return ["project-job-cat-selectable-locales", organizationSlug, projectId, jobId] as const;
 }
 
 function projectJobCatProviderFilesQueryKey(
@@ -185,6 +198,12 @@ export function JobCatPageContent({
     queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
   });
 
+  const jobLocalesQuery = useQuery({
+    queryKey: projectJobCatSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
+    enabled: hasFileReference,
+    queryFn: () => loadJobCatSelectableTargetLocales({ organizationSlug, projectId, jobId }),
+  });
+
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
     enabled: hasFileReference,
@@ -246,6 +265,31 @@ export function JobCatPageContent({
   }, [enabledRepositoryFullNames, repositoryPreferenceKey]);
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
+  const jobTargetLocales = jobLocalesQuery.data ?? [];
+  const activeTargetLocale = selectJobCatTargetLocale({
+    requestedTargetLocale: targetLocale,
+    providerTargetLocales:
+      jobTargetLocales.length > 0 ? jobTargetLocales : targetLocale ? [targetLocale] : [],
+  });
+
+  const handleLocaleChange = (nextLocale: string) => {
+    if (!nextLocale || nextLocale === activeTargetLocale) {
+      return;
+    }
+
+    router.push(
+      stringsPageHref({
+        organizationSlug,
+        projectId,
+        jobId,
+        sourcePath: sourcePath ?? undefined,
+        storedFileId: storedFileId ?? undefined,
+        targetLocale: nextLocale,
+        segment: initialSegmentKey,
+        queueFilter: initialQueueFilter,
+      }),
+    );
+  };
 
   useEffect(() => {
     if (
@@ -452,7 +496,7 @@ export function JobCatPageContent({
     ) : null;
 
   if (isNativeFile) {
-    if (!targetLocale) {
+    if (!activeTargetLocale) {
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
@@ -465,7 +509,7 @@ export function JobCatPageContent({
     }
 
     return (
-      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+      <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
           <Button
             variant="outline"
@@ -480,6 +524,14 @@ export function JobCatPageContent({
             {selectedFile.sourcePath}
           </TypographyP>
 
+          {jobTargetLocales.length > 0 ? (
+            <CatLocaleSelect
+              targetLocales={jobTargetLocales}
+              selectedTargetLocale={activeTargetLocale}
+              onTargetLocaleChange={handleLocaleChange}
+            />
+          ) : null}
+
           {enabledRepositoryFullNames.length > 0 ? (
             <CatRepositorySelect
               repositoryFullNames={enabledRepositoryFullNames}
@@ -493,13 +545,13 @@ export function JobCatPageContent({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
           <ProjectFileCatWorkspace
-            key={selectedFile.sourcePath}
+            key={`${selectedFile.sourcePath}:${activeTargetLocale}`}
             organizationSlug={organizationSlug}
             projectId={projectId}
             sourceLocale={sourceLocale}
             sourcePath={selectedFile.sourcePath}
-            targetLocale={targetLocale}
-            highlightLocale={targetLocale}
+            targetLocale={activeTargetLocale}
+            highlightLocale={activeTargetLocale}
             repositoryFullName={selectedRepositoryFullName}
             canLookupFreshContext={canLookupFreshCatRepositoryContext(
               enabledRepositoryFullNames,
@@ -527,10 +579,7 @@ export function JobCatPageContent({
     );
   }
 
-  const selectedTargetLocale = selectJobCatTargetLocale({
-    requestedTargetLocale: targetLocale,
-    providerTargetLocales: selectedFile.provider.targetLocales,
-  });
+  const selectedTargetLocale = activeTargetLocale;
 
   if (!selectedTargetLocale) {
     return (
@@ -556,7 +605,7 @@ export function JobCatPageContent({
 
     const nextTargetLocale = selectJobCatTargetLocale({
       requestedTargetLocale: targetLocale,
-      providerTargetLocales: nextFile.provider.targetLocales,
+      providerTargetLocales: jobTargetLocales,
     });
 
     if (!nextTargetLocale) {
@@ -593,6 +642,14 @@ export function JobCatPageContent({
           onSelectFile={handleFileChange}
         />
 
+        {jobTargetLocales.length > 0 ? (
+          <CatLocaleSelect
+            targetLocales={jobTargetLocales}
+            selectedTargetLocale={selectedTargetLocale}
+            onTargetLocaleChange={handleLocaleChange}
+          />
+        ) : null}
+
         {enabledRepositoryFullNames.length > 0 ? (
           <CatRepositorySelect
             repositoryFullNames={enabledRepositoryFullNames}
@@ -610,7 +667,7 @@ export function JobCatPageContent({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={selectedFile.sourcePath}
+          key={`${selectedFile.sourcePath}:${selectedTargetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}

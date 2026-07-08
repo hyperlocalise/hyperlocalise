@@ -12,6 +12,7 @@ const {
   loadJobCatTargetFileMock,
   loadJobCatProviderJobFilesMock,
   loadJobCatJobSourceFilesMock,
+  loadJobCatSelectableTargetLocalesMock,
   routerReplaceMock,
   repositoriesGetMock,
   ProjectFileCatWorkspaceMock,
@@ -21,6 +22,7 @@ const {
   loadJobCatTargetFileMock: vi.fn(),
   loadJobCatProviderJobFilesMock: vi.fn(),
   loadJobCatJobSourceFilesMock: vi.fn(),
+  loadJobCatSelectableTargetLocalesMock: vi.fn(),
   routerReplaceMock: vi.fn(),
   repositoriesGetMock: vi.fn(),
   ProjectFileCatWorkspaceMock: vi.fn(
@@ -67,6 +69,8 @@ vi.mock("./load-job-cat-files", () => ({
   loadJobCatTargetFile: (...args: unknown[]) => loadJobCatTargetFileMock(...args),
   loadJobCatProviderJobFiles: (...args: unknown[]) => loadJobCatProviderJobFilesMock(...args),
   loadJobCatJobSourceFiles: (...args: unknown[]) => loadJobCatJobSourceFilesMock(...args),
+  loadJobCatSelectableTargetLocales: (...args: unknown[]) =>
+    loadJobCatSelectableTargetLocalesMock(...args),
 }));
 
 vi.mock("@/lib/api-client-instance", () => ({
@@ -256,6 +260,7 @@ describe("JobCatPageContent CAT shell", () => {
       { fullName: "acme/web", enabled: true, archived: false },
       { fullName: "acme/docs", enabled: true, archived: false },
     ]);
+    loadJobCatSelectableTargetLocalesMock.mockResolvedValue(["vi", "de-DE"]);
     ProjectFileCatWorkspaceMock.mockClear();
     vi.stubGlobal("localStorage", createLocalStorageMock());
   });
@@ -282,6 +287,7 @@ describe("JobCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText("Source file")).toBeInTheDocument();
+      expect(screen.getByLabelText("Target locale")).toBeInTheDocument();
       expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
         "data-source-path",
