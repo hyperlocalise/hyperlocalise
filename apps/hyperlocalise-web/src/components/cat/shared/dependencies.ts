@@ -10,6 +10,7 @@ import type {
   CatWorkspaceShell,
 } from "./types";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 export interface CatAiRecommendationResult {
   aiSuggestion: string;
@@ -115,6 +116,7 @@ export interface CatWorkspaceViewProps {
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
   showVisualContext?: boolean;
+  revealedAgentContextSegmentIds?: ReadonlySet<string>;
   dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;
@@ -132,6 +134,7 @@ export interface CatWorkspaceViewProps {
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
+  isIntelligenceCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
@@ -145,6 +148,12 @@ export interface CatWorkspaceViewProps {
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   onIntelligencePanelVisible?: (segmentId: string) => void;
+  viewMode?: CatWorkspaceViewMode;
+  onViewModeChange?: (mode: CatWorkspaceViewMode) => void;
+  intelligenceSegmentId?: string | null;
+  onIntelligenceSegmentChange?: (segmentId: string | null) => void;
+  previewSegmentId?: string | null;
+  loadingSegmentIds?: ReadonlySet<string>;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

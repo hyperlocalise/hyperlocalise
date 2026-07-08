@@ -37,6 +37,12 @@ import type {
 } from "@/components/cat/shared/types";
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
+import {
+  catPageLimitForViewMode,
+  readCatWorkspaceViewMode,
+  writeCatWorkspaceViewMode,
+  type CatWorkspaceViewMode,
+} from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
 import { fetchCatSegmentValidation } from "./project-file-cat-validation";
@@ -85,6 +91,7 @@ export function ProjectFileCatWorkspace({
   className?: string;
 }) {
   const intl = useIntl();
+  const [viewMode, setViewMode] = useState<CatWorkspaceViewMode>(() => readCatWorkspaceViewMode());
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -129,6 +136,7 @@ export function ProjectFileCatWorkspace({
     targetLocale,
     enabled: Boolean(targetLocale),
     initialQueueFilter,
+    pageLimit: catPageLimitForViewMode(viewMode),
   });
 
   const availableQueueFilters = useMemo(
@@ -570,6 +578,11 @@ export function ProjectFileCatWorkspace({
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
         canLookupFreshContext={canLookupFreshContext}
+        viewMode={viewMode}
+        onViewModeChange={(mode) => {
+          setViewMode(mode);
+          writeCatWorkspaceViewMode(mode);
+        }}
       />
     </div>
   );

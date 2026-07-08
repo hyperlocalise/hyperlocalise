@@ -26,6 +26,8 @@ import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { useCatQueueSelectionMode } from "./use-cat-queue-selection-mode";
 import { catQueuePanelMessages, catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
+import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
+import { CatWorkspaceViewSwitcher } from "@/components/cat/workspace/cat-workspace-view-switcher";
 
 export type CatQueuePagination = {
   offset: number;
@@ -70,6 +72,8 @@ export function CatQueuePanel({
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
+  viewMode,
+  onViewModeChange,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
@@ -93,6 +97,8 @@ export function CatQueuePanel({
   pagination?: CatQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
+  viewMode?: CatWorkspaceViewMode;
+  onViewModeChange?: (mode: CatWorkspaceViewMode) => void;
 }) {
   const intl = useIntl();
   const [selectionMode, setSelectionMode] = useCatQueueSelectionMode();
@@ -111,10 +117,13 @@ export function CatQueuePanel({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-border">
       <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
-        <div>
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
+          {viewMode && onViewModeChange ? (
+            <CatWorkspaceViewSwitcher value={viewMode} onChange={onViewModeChange} />
+          ) : null}
         </div>
 
         {onSearchChange ? (

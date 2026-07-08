@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
@@ -23,6 +24,7 @@ import type {
 import { catWorkspaceContainerMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment, CatWorkspaceState } from "@/components/cat/shared/types";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { CatQueryBridge } from "./bridge/cat-query-bridge";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
@@ -66,6 +68,8 @@ export interface CatWorkspaceContainerProps {
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
   canLookupFreshContext?: boolean;
+  viewMode?: CatWorkspaceViewMode;
+  onViewModeChange?: (mode: CatWorkspaceViewMode) => void;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -93,7 +97,44 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
   canLookupFreshContext,
+  viewMode,
+  onViewModeChange,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
+  const [previewSegmentId, setPreviewSegmentId] = useState<string | null>(null);
+  const [previewLoadingSegmentId, setPreviewLoadingSegmentId] = useState<string | null>(null);
+  const [previewTargetLoading, setPreviewTargetLoading] = useState(false);
+  const [previewCommentsLoading, setPreviewCommentsLoading] = useState(false);
+
+  const handlePreviewTargetLoadingChange = useCallback(
+    (segmentId: string | null, state: { isTargetLoading: boolean; isCommentsLoading: boolean }) => {
+      setPreviewLoadingSegmentId(segmentId);
+      setPreviewTargetLoading(state.isTargetLoading);
+      setPreviewCommentsLoading(state.isCommentsLoading);
+    },
+    [],
+  );
+
+  const loadingSegmentIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (store.isSegmentTargetLoading && store.selectedSegmentId) {
+      ids.add(store.selectedSegmentId);
+    }
+    if (previewTargetLoading && previewLoadingSegmentId) {
+      ids.add(previewLoadingSegmentId);
+    }
+    return ids;
+  }, [
+    previewLoadingSegmentId,
+    previewTargetLoading,
+    store.isSegmentTargetLoading,
+    store.selectedSegmentId,
+  ]);
+  const intelligenceSegmentId = previewSegmentId ?? store.selectedSegmentId;
+  const isIntelligenceCommentsLoading =
+    intelligenceSegmentId === store.selectedSegmentId
+      ? store.isCommentsLoading
+      : previewCommentsLoading;
+
   const controller = useCatWorkspaceRuntime({
     store,
     dependencies,
@@ -114,7 +155,13 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         snapshot={queueSnapshot ?? null}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
       />
-      {lazySegment ? <CatWorkspaceLazySegmentSync {...lazySegment} /> : null}
+      {lazySegment ? (
+        <CatWorkspaceLazySegmentSync
+          {...lazySegment}
+          previewSegmentId={previewSegmentId}
+          onPreviewTargetLoadingChange={handlePreviewTargetLoadingChange}
+        />
+      ) : null}
 
       <CatPanelErrorBoundary
         scope="workspace"
@@ -148,6 +195,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
           canLookupContext={controller.canLookupContext}
           showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
+          revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
           showVisualContext={controller.canLoadVisualContext}
           canUseAiRecommendation={controller.canUseAiRecommendation}
           className={className}
@@ -157,6 +205,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           isCommentsLoading={store.isCommentsLoading}
+          isIntelligenceCommentsLoading={isIntelligenceCommentsLoading}
           isSegmentTargetLoading={store.isSegmentTargetLoading}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
@@ -177,6 +226,11 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
           onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          intelligenceSegmentId={intelligenceSegmentId}
+          onIntelligenceSegmentChange={setPreviewSegmentId}
+          loadingSegmentIds={loadingSegmentIds}
         />
       </CatPanelErrorBoundary>
 
