@@ -333,7 +333,9 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 		case 'x':
 			v, consumed, ok := readPHPHexEscape(s.text, i)
 			if !ok {
-				return phpStringToken{}, fmt.Errorf("php locale array: invalid hex escape at line %d", lineNumberAt(s.text, i-2))
+				b.WriteByte('\\')
+				b.WriteByte('x')
+				continue
 			}
 			b.WriteByte(v)
 			i += consumed
