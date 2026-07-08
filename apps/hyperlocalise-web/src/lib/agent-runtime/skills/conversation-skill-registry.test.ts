@@ -18,7 +18,13 @@ describe("conversation skill registry", () => {
   it("loads the capability skills from frontmatter", () => {
     const skills = listConversationSkills();
     expect(skills.map((skill) => skill.id).sort()).toEqual(
-      expect.arrayContaining(["conversation", "repo-tools", "tms-tools", "translation-tools"]),
+      expect.arrayContaining([
+        "conversation",
+        "find-context",
+        "repo-tools",
+        "tms-tools",
+        "translation-tools",
+      ]),
     );
 
     const conversationSkill = skills.find((skill) => skill.id === "conversation");
@@ -38,6 +44,18 @@ describe("conversation skill registry", () => {
     expect(translationSkill).toMatchObject({
       always: true,
       tools: ["createTranslationJob", "translate_string"],
+    });
+
+    const findContextSkill = skills.find((skill) => skill.id === "find-context");
+    expect(findContextSkill).toMatchObject({
+      requiresSandbox: true,
+      tools: [],
+    });
+
+    const repoToolsSkill = skills.find((skill) => skill.id === "repo-tools");
+    expect(repoToolsSkill).toMatchObject({
+      requiresSandbox: true,
+      tools: ["grep", "fuzzySearch", "read", "glob", "detectRepoConfig", "todoWrite"],
     });
   });
 
@@ -82,13 +100,37 @@ describe("conversation skill registry", () => {
     ).toBe(true);
   });
 
-  it("activates repo-tools when a sandbox is available", () => {
-    const repoSkill = listConversationSkills().find((skill) => skill.id === "repo-tools");
-    expect(repoSkill).toBeDefined();
+  it("activates find-context when a sandbox is available", () => {
+    const findContextSkill = listConversationSkills().find((skill) => skill.id === "find-context");
+    expect(findContextSkill).toBeDefined();
 
     expect(
       isConversationSkillActivated(
-        repoSkill!,
+        findContextSkill!,
+        toConversationSkillActivationContext({
+          hasFileAttachments: false,
+          hasTmsIntegration: false,
+          toolContext: {
+            conversationId: "conv_1",
+            organizationId: "org_1",
+            localUserId: "user_1",
+            membershipRole: "member",
+            projectId: null,
+            db: {} as never,
+            sandboxId: "sbx_1",
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("activates repo-tools when a sandbox is available", () => {
+    const repoToolsSkill = listConversationSkills().find((skill) => skill.id === "repo-tools");
+    expect(repoToolsSkill).toBeDefined();
+
+    expect(
+      isConversationSkillActivated(
+        repoToolsSkill!,
         toConversationSkillActivationContext({
           hasFileAttachments: false,
           hasTmsIntegration: false,

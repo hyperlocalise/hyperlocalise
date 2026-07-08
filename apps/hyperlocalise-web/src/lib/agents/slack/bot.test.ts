@@ -968,6 +968,14 @@ describe("handleNewConversation", () => {
       messages: expect.arrayContaining([
         expect.objectContaining({
           role: "user",
+          content: expect.stringContaining("org/new-repo"),
+        }),
+      ]),
+    });
+    expect(agentGenerateMock).toHaveBeenCalledWith({
+      messages: expect.not.arrayContaining([
+        expect.objectContaining({
+          role: "user",
           content: expect.stringContaining("org/old-repo"),
         }),
       ]),

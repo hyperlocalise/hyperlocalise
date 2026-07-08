@@ -6,13 +6,15 @@ tools: grep,fuzzySearch,read,glob,detectRepoConfig,todoWrite
 
 ## Repository tools
 
-Use these tools for read-only localization context in the connected GitHub repository.
+Use these tools for read-only inspection of the connected GitHub repository.
 
-- Search with the user's exact quoted string first, preserving capitalization and punctuation.
-- Follow with a case-insensitive search when the exact search has no matches.
+- Treat the repository as read-only. Do not modify files, run write commands, create tickets, review PR implementation, run checks, or summarize unrelated architecture unless another skill explicitly asks for it.
+- Start with the most specific evidence the user provided: exact source text, exact string key, file path, route, component name, or repository hint.
+- Use `grep` for exact text and key searches. Preserve capitalization and punctuation for the first search.
+- Follow exact text searches with a case-insensitive search when the exact search has no useful matches.
 - Use `fuzzySearch` for short UI labels when exact and case-insensitive searches are not enough.
-- For short visible UI labels, search component, route, app shell, sidebar, navigation, and config files before accepting no-match results.
-- Try lowercase route/key variants and nearby navigation labels for single-word or short-title UI copy.
-- Lead with an **Answer** translators can use immediately, then **Source** with `path:line` evidence.
-- Return product meaning, tone/register, placeholder semantics, nearby copy, and ambiguities when they help translation.
-- Do not use repository context for broad architecture summaries, PR fixes, code review, checks, or source edits.
+- Use `glob` to discover locale, resource, route, component, or i18n config paths when needed.
+- Use `read` to inspect surrounding lines before drawing conclusions from a match.
+- Use `detectRepoConfig` when asked about i18n.yml or project locale setup.
+- Prefer concrete `path:line` evidence over guesses from filenames.
+- Stop once you have enough evidence for the active skill; do not continue into broad codebase exploration.

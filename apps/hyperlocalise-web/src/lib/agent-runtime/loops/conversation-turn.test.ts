@@ -286,6 +286,48 @@ describe("conversation turn preparation", () => {
     );
   });
 
+  it("keeps the latest lookup target as the active agent-facing message", async () => {
+    const githubContext = {
+      resolved: true as const,
+      installationId: 42,
+      repositoryFullName: "acme/web",
+    };
+    loadInteractionModelMessagesMock.mockResolvedValue([
+      { role: "user", content: 'What is the context of "Knowledge"?' },
+      { role: "assistant", content: "Knowledge is a sidebar item." },
+      { role: "user", content: 'What is the context of "Dashboard"?' },
+    ]);
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+      continuesRepositoryThread: true,
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "resolved",
+      source: "single_installed_repository",
+      context: githubContext,
+    });
+    createRepositorySandboxMock.mockResolvedValue("sandbox_123");
+
+    const result = await prepareConversationAgentTurn({
+      surface: "web",
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "admin",
+      projectId: null,
+      messageText: 'What is the context of "Dashboard"?',
+      hasTranslationAttachments: false,
+      db: {} as never,
+    });
+
+    expect(result.chatMessages.at(-1)).toEqual({
+      role: "user",
+      content: 'What is the context of "Dashboard"?',
+    });
+    expect(result.chatMessages.at(-1)?.content).not.toContain("Knowledge");
+  });
+
   it("skips creating a sandbox when only a committed sandbox may be reused", async () => {
     const storedContext = {
       resolved: true as const,

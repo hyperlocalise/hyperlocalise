@@ -341,12 +341,7 @@ export async function prepareConversationAgentTurn(
 
   const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(input.organizationId);
 
-  const preparedMessages = replaceLastUserMessage(
-    chatMessages,
-    activeRepositoryContext
-      ? getRecentUserConversationText(chatMessages, input.messageText)
-      : input.messageText,
-  );
+  const preparedMessages = replaceLastUserMessage(chatMessages, input.messageText);
 
   const agent = createConversationToolLoopAgent({
     surface: input.surface,
