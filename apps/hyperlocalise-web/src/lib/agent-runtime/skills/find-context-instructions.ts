@@ -15,17 +15,17 @@ function formatInstructionField(label: string, value: string | null | undefined)
 export function buildFindContextSkillInstructions(input: BuildFindContextSkillInstructionsInput) {
   const repoToolsSkill = loadAgentSkill({ agentId: "hyperlocalise", skillId: "repo-tools" });
   const findContextSkill = loadAgentSkill({ agentId: "hyperlocalise", skillId: "find-context" });
-  const request = [
-    "Find context request:",
+  const requestFields = [
     formatInstructionField("Source file path in the TMS project", input.sourcePath),
     formatInstructionField("String key", input.stringKey),
     formatInstructionField("Source text", input.sourceText),
     formatInstructionField("TMS/context note", input.contextNote),
-  ]
-    .filter((line): line is string => line !== null)
-    .join("\n");
+  ].filter((line): line is string => line !== null);
+
+  const request =
+    requestFields.length > 0 ? ["Find context request:", ...requestFields].join("\n") : null;
 
   return [repoToolsSkill, findContextSkill, request]
-    .filter((section) => section.trim().length > 0)
+    .filter((section): section is string => section !== null && section.trim().length > 0)
     .join("\n\n");
 }
