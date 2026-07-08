@@ -88,7 +88,7 @@ export function CreateTranslationJobDialog({
         }),
         queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
       ]);
-      toast.success("Translation job created");
+      toast.success("Translation agent is running");
       onCreated?.(jobId);
       onOpenChange(false);
     },
@@ -109,9 +109,9 @@ export function CreateTranslationJobDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create translation job</DialogTitle>
+          <DialogTitle>Translate with agent</DialogTitle>
           <DialogDescription>
-            Queue AI translation for{" "}
+            Queue an AI translation agent for{" "}
             <span className="font-mono text-foreground">{file?.sourcePath ?? "this file"}</span>.
           </DialogDescription>
         </DialogHeader>
@@ -154,7 +154,7 @@ export function CreateTranslationJobDialog({
             onClick={() => createJob.mutate()}
           >
             {createJob.isPending ? <Spinner className="size-4" /> : null}
-            Translate
+            Translate with agent
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Download01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
 
@@ -13,7 +13,9 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
 } from "@/lib/projects/project-file-cat-routing";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
+import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { DownloadTranslationsDialog } from "./download-translations-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 
@@ -25,6 +27,7 @@ export function ProjectFileSelectionActions({
   file,
   highlightLocale,
   projectTargetLocales,
+  sourceLocale = "en",
   nativeSourcePaths = EMPTY_STRING_ARRAY,
   branch = null,
   layout = "default",
@@ -34,15 +37,22 @@ export function ProjectFileSelectionActions({
   file: ProjectFileRecord;
   highlightLocale: string | null;
   projectTargetLocales?: readonly string[] | null;
+  sourceLocale?: string;
   nativeSourcePaths?: readonly string[];
   branch?: string | null;
   layout?: "default" | "compact";
 }) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
   const canOpenCat = canOpenProjectFileCat(file);
   const isNativeFile = !file.provider;
   const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
+  const canTranslateWithAgent =
+    isNativeFile &&
+    Boolean(file.storedFileId) &&
+    Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath)) &&
+    targetLocales.length > 0;
   const catHref = buildProjectFileCatHref(
     organizationSlug,
     projectId,
@@ -54,6 +64,15 @@ export function ProjectFileSelectionActions({
 
   const nativeDialogs = isNativeFile ? (
     <>
+      <CreateTranslationJobDialog
+        open={translateDialogOpen}
+        onOpenChange={setTranslateDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        file={file}
+        sourceLocale={sourceLocale}
+        targetLocales={[...targetLocales]}
+      />
       <ImportTranslationsDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
@@ -88,6 +107,21 @@ export function ProjectFileSelectionActions({
       </Button>
       {isNativeFile ? (
         <>
+          <Button
+            type="button"
+            size="sm"
+            className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
+            disabled={!canTranslateWithAgent}
+            title={
+              canTranslateWithAgent
+                ? undefined
+                : "Upload a supported file and add target locales in project settings to translate with agent."
+            }
+            onClick={() => setTranslateDialogOpen(true)}
+          >
+            <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+            Translate with agent
+          </Button>
           <Button
             type="button"
             size="sm"

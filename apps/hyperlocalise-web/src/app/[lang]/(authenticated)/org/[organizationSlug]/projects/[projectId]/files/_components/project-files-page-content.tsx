@@ -205,6 +205,7 @@ export function ProjectFilesPageContent({
   const isProviderProject = projectCapabilities.isProviderProject;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const projectTargetLocales = projectQuery.data?.targetLocales;
+  const projectSourceLocale = projectQuery.data?.sourceLocale ?? "en";
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -305,6 +306,7 @@ export function ProjectFilesPageContent({
       highlightLocale={highlightLocale}
       selectedBranch={selectedBranch}
       projectTargetLocales={projectTargetLocales}
+      projectSourceLocale={projectSourceLocale}
       isProviderProject={isProviderProject}
       selectedFiles={selectedFiles}
       isUploading={uploadFiles.isPending}
@@ -340,6 +342,7 @@ export function ProjectFilesPageContent({
                   file={selectedFile}
                   highlightLocale={highlightLocale}
                   projectTargetLocales={projectTargetLocales}
+                  sourceLocale={projectSourceLocale}
                   nativeSourcePaths={nativeSourcePaths}
                   branch={selectedBranch}
                   layout="compact"
@@ -365,6 +368,7 @@ export function ProjectFilesPageContentView({
   highlightLocale,
   selectedBranch: _selectedBranch = null,
   projectTargetLocales,
+  projectSourceLocale = "en",
   isProviderProject: isProviderProjectProp,
   selectedFiles,
   isUploading,
@@ -388,6 +392,7 @@ export function ProjectFilesPageContentView({
   highlightLocale: string | null;
   selectedBranch?: string | null;
   projectTargetLocales?: readonly string[] | null;
+  projectSourceLocale?: string;
   isProviderProject?: boolean;
   selectedFiles: File[];
   isUploading: boolean;
@@ -512,6 +517,7 @@ export function ProjectFilesPageContentView({
                 file={selectedFile}
                 highlightLocale={highlightLocale}
                 projectTargetLocales={projectTargetLocales}
+                sourceLocale={projectSourceLocale}
                 nativeSourcePaths={nativeSourcePaths}
                 branch={_selectedBranch}
               />
