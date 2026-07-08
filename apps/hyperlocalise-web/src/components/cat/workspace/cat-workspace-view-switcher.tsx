@@ -2,7 +2,7 @@
 
 import { LayoutGridIcon, LayoutThreeColumnIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,8 @@ export function CatWorkspaceViewSwitcher({
   onChange: (mode: CatWorkspaceViewMode) => void;
   className?: string;
 }) {
+  const intl = useIntl();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -34,7 +36,7 @@ export function CatWorkspaceViewSwitcher({
             variant="outline"
             size="sm"
             className={cn("h-8 gap-1.5 px-2.5 font-normal", className)}
-            aria-label={catWorkspaceViewModeMessages.viewModeAria.defaultMessage}
+            aria-label={intl.formatMessage(catWorkspaceViewModeMessages.viewModeAria)}
           />
         }
       >

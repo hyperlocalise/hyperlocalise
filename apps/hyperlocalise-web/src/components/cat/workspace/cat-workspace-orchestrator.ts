@@ -1,4 +1,4 @@
-import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
+import { computed, makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
 
 import type {
   ProjectFileCatComment,
@@ -132,6 +132,23 @@ function intelligenceFromHydratedSegment(
   };
 }
 
+const EMPTY_LOADING_SEGMENT_IDS: ReadonlySet<string> = new Set<string>();
+
+function loadingSegmentIdsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const id of left) {
+    if (!right.has(id)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export class CatWorkspaceOrchestrator {
   readonly queue = new CatQueueStore();
   readonly segments = new CatSegmentStore();
@@ -166,6 +183,7 @@ export class CatWorkspaceOrchestrator {
       {
         validationSequence: false,
         reviewSequence: false,
+        loadingSegmentIds: computed({ equals: loadingSegmentIdsEqual }),
       },
       { autoBind: true },
     );
@@ -513,11 +531,18 @@ export class CatWorkspaceOrchestrator {
   }
 
   get loadingSegmentIds(): ReadonlySet<string> {
+    const hasSelectedLoading = this.isSegmentTargetLoading && this.selectedSegmentId;
+    const hasPreviewLoading = this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId;
+
+    if (!hasSelectedLoading && !hasPreviewLoading) {
+      return EMPTY_LOADING_SEGMENT_IDS;
+    }
+
     const ids = new Set<string>();
-    if (this.isSegmentTargetLoading && this.selectedSegmentId) {
+    if (hasSelectedLoading) {
       ids.add(this.selectedSegmentId);
     }
-    if (this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId) {
+    if (hasPreviewLoading && this.ui.previewLoadingSegmentId) {
       ids.add(this.ui.previewLoadingSegmentId);
     }
     return ids;
