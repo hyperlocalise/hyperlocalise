@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 
 import { resolveCatFileIdentity } from "@/components/cat/project-file/project-file-cat-mapper";
 import { useCatSegmentComments } from "@/components/cat/project-file/use-cat-segment-comments";
-import { useCatSegmentTarget } from "@/components/cat/project-file/use-cat-segment-target";
+import {
+  useCatSegmentTarget,
+  useCatSegmentTargets,
+} from "@/components/cat/project-file/use-cat-segment-target";
 
 import { useCatWorkspace } from "./cat-workspace-context";
 
@@ -120,6 +123,60 @@ function useCatSegmentLazySync(input: {
   };
 }
 
+function useCatLoadedQueueTargetsSync(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+  catFile: ProjectFileCatQueueFile | null | undefined;
+  enabled: boolean;
+  segmentIds: string[];
+}) {
+  const store = useCatWorkspace();
+  const segmentIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          input.segmentIds
+            .map((segmentId) => store.findSegmentIdByKeyOrId(segmentId) ?? segmentId)
+            .filter((segmentId) => segmentId.trim().length > 0),
+        ),
+      ),
+    [input.segmentIds, store],
+  );
+
+  const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
+    resolveCatFileIdentity({
+      externalResourceId: input.externalResourceId,
+      resourceType: input.resourceType,
+      catFile: input.catFile,
+    });
+
+  const targetQueries = useCatSegmentTargets({
+    organizationSlug: input.organizationSlug,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    externalResourceId: resolvedExternalResourceId,
+    resourceType: resolvedResourceType,
+    targetLocale: input.targetLocale,
+    externalStringIds: segmentIds,
+    enabled: input.enabled && Boolean(input.catFile) && segmentIds.length > 0,
+  });
+
+  useEffect(() => {
+    targetQueries.forEach((query, index) => {
+      const segmentId = segmentIds[index];
+      if (!segmentId || query.data === undefined) {
+        return;
+      }
+
+      store.applySegmentTarget(segmentId, query.data);
+    });
+  }, [segmentIds, store, targetQueries]);
+}
+
 export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySegmentSync({
   organizationSlug,
   projectId,
@@ -129,6 +186,7 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType,
   catFile,
   enabled,
+  queueSegmentIds = [],
 }: {
   organizationSlug: string;
   projectId: string;
@@ -138,6 +196,7 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType?: "file" | "key";
   catFile: ProjectFileCatQueueFile | null | undefined;
   enabled: boolean;
+  queueSegmentIds?: string[];
 }) {
   const store = useCatWorkspace();
   const selectedSegmentId = store.selectedSegmentId;
@@ -145,6 +204,19 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
     store.ui.hoveredSegmentId && store.ui.hoveredSegmentId !== selectedSegmentId
       ? store.ui.hoveredSegmentId
       : null;
+  const isSideBySideView = store.ui.isSideBySideView;
+
+  useCatLoadedQueueTargetsSync({
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    externalResourceId,
+    resourceType,
+    catFile,
+    enabled: enabled && isSideBySideView,
+    segmentIds: queueSegmentIds,
+  });
 
   const _selectedSync = useCatSegmentLazySync({
     organizationSlug,
