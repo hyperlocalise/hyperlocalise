@@ -80,8 +80,13 @@ async function downloadTranslationFile(
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
   anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(objectUrl);
+  try {
+    document.body.appendChild(anchor);
+    anchor.click();
+  } finally {
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+  }
 }
 
 export function DownloadTranslationsDialog({

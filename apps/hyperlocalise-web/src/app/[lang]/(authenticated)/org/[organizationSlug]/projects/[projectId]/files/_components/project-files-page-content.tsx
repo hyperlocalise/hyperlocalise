@@ -304,6 +304,7 @@ export function ProjectFilesPageContent({
       selectedSourcePath={selectedSourcePath}
       highlightLocale={highlightLocale}
       selectedBranch={selectedBranch}
+      projectTargetLocales={projectTargetLocales}
       isProviderProject={isProviderProject}
       selectedFiles={selectedFiles}
       isUploading={uploadFiles.isPending}
@@ -363,6 +364,7 @@ export function ProjectFilesPageContentView({
   selectedSourcePath,
   highlightLocale,
   selectedBranch: _selectedBranch = null,
+  projectTargetLocales,
   isProviderProject: isProviderProjectProp,
   selectedFiles,
   isUploading,
@@ -385,6 +387,7 @@ export function ProjectFilesPageContentView({
   selectedSourcePath: string | null;
   highlightLocale: string | null;
   selectedBranch?: string | null;
+  projectTargetLocales?: readonly string[] | null;
   isProviderProject?: boolean;
   selectedFiles: File[];
   isUploading: boolean;
@@ -508,6 +511,7 @@ export function ProjectFilesPageContentView({
                 projectId={projectId}
                 file={selectedFile}
                 highlightLocale={highlightLocale}
+                projectTargetLocales={projectTargetLocales}
                 nativeSourcePaths={nativeSourcePaths}
                 branch={_selectedBranch}
               />

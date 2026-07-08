@@ -88,7 +88,7 @@ vi.mock("../../_components/project-page-shell", () => ({
   }),
 }));
 
-import { ProjectFilesPageContent } from "./project-files-page-content";
+import { ProjectFilesPageContent, ProjectFilesPageContentView } from "./project-files-page-content";
 
 describe("ProjectFilesPageContent CAT entry UX", () => {
   beforeEach(() => {
@@ -134,6 +134,37 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
 
     expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("passes project target locales to default-layout download actions", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProjectFilesPageContentView
+        organizationSlug="acme"
+        projectId="proj_1"
+        files={[enUsFile]}
+        isFilesLoading={false}
+        isFilesFetching={false}
+        selectedSourcePath="en-US.json"
+        highlightLocale={null}
+        projectTargetLocales={["vi", "fr-FR"]}
+        selectedFiles={[]}
+        isUploading={false}
+        onSelectSourcePath={() => undefined}
+        onAddSelectedFiles={() => undefined}
+        onRemoveSelectedFile={() => undefined}
+        onUploadSelectedFiles={() => undefined}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(screen.getByText("Target locale")).toBeInTheDocument();
+    expect(screen.getByText("vi")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Add target locales in project settings before downloading translations."),
+    ).not.toBeInTheDocument();
   });
 
   it("shows when a requested native locale will fall back to a project locale", () => {
