@@ -28,6 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
+import { issueTypes } from "./issue-sheet-constants";
+
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
@@ -83,15 +85,6 @@ const views = [
   { value: "my_work", label: "My work" },
   { value: "qa_triage", label: "QA triage" },
   { value: "source_context", label: "Source & context" },
-] as const;
-
-const issueTypes = [
-  { value: "general_question", label: "General question" },
-  { value: "translation_mistake", label: "Translation mistake" },
-  { value: "context_request", label: "Context request" },
-  { value: "source_mistake", label: "Source mistake" },
-  { value: "glossary_violation", label: "Glossary violation" },
-  { value: "qa_failure", label: "QA failure" },
 ] as const;
 
 const statuses = [

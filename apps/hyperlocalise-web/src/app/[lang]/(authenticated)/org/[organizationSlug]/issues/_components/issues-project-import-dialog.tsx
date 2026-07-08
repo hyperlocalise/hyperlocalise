@@ -75,7 +75,7 @@ export function IssuesProjectImportDialog({
 
   const issueSheetQuery = useQuery({
     queryKey: ["issue-sheet", organizationSlug, selectedProjectId, "import-columns"],
-    enabled: importOpen && Boolean(selectedProjectId),
+    enabled: Boolean(selectedProjectId),
     queryFn: async () => {
       const response = await fetch(issueSheetPath(organizationSlug, selectedProjectId));
       return readJsonOrThrow<IssueSheetResponse>(response);

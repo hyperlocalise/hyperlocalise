@@ -24,14 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { readApiResponseError } from "@/lib/api-error";
 
-const issueTypes = [
-  { value: "general_question", label: "General question" },
-  { value: "translation_mistake", label: "Translation mistake" },
-  { value: "context_request", label: "Context request" },
-  { value: "source_mistake", label: "Source mistake" },
-  { value: "glossary_violation", label: "Glossary violation" },
-  { value: "qa_failure", label: "QA failure" },
-] as const;
+import { issueTypes } from "./issue-sheet-constants";
 
 const priorities = [
   { value: "P0", label: "P0" },
@@ -75,6 +68,7 @@ export function IssueSheetCreateIssueDialog({
 
   useEffect(() => {
     if (!open) {
+      setSelectedProjectId("");
       return;
     }
     if (projectId) {
