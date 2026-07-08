@@ -10,6 +10,7 @@ type Label struct {
 	ID        int    `json:"id"`
 	ProjectID int    `json:"projectId"`
 	Title     string `json:"title"`
+	IsSystem  bool   `json:"isSystem"`
 }
 
 // LabelResponse defines the structure of a response when
