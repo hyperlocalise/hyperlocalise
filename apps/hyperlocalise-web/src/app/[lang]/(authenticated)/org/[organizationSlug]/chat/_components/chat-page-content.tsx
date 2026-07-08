@@ -2,48 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  BubbleChatTranslateIcon,
-  Cancel01Icon,
-  SentIcon,
-  CheckmarkCircle02Icon,
-  FileAttachmentIcon,
-  MailReceive01Icon,
-  SparklesIcon,
-} from "@hugeicons/core-free-icons";
+import { Cancel01Icon, FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
+import { TypographyH2 } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import type { GithubRepository } from "../../_components/github-repository";
 import { RepositorySelector } from "../../_components/repository-selector";
-
-const suggestedRequests = [
-  {
-    icon: BubbleChatTranslateIcon,
-    text: "Translate these release notes into ja-JP and vi-VN using the selected project's tone and glossary.",
-  },
-  {
-    icon: FileAttachmentIcon,
-    text: "Translate the attached resource file while preserving keys, placeholders, and file structure.",
-  },
-  {
-    icon: CheckmarkCircle02Icon,
-    text: "Review these strings for tone, terminology, placeholders, and length risks before release.",
-  },
-  {
-    icon: MailReceive01Icon,
-    text: "Suggest glossary updates from this copy, including product terms and forbidden translations.",
-  },
-] as const;
 
 const translationSourceFileAccept = [
   ".json",
@@ -273,31 +245,6 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
             </div>
           </div>
         </form>
-
-        <TypographyMuted className="mt-5 flex items-center justify-center gap-2 text-xs">
-          <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.7} className="size-3.5" />
-          Agent can turn inbox requests into translation jobs, glossary updates, or reviewer tasks.
-        </TypographyMuted>
-
-        <div className="mt-10 bg-muted/5">
-          {suggestedRequests.map((request, index) => (
-            <div key={request.text}>
-              <button
-                type="button"
-                onClick={() => setText(request.text)}
-                className="flex w-full items-start gap-3 px-4 py-3 text-left text-muted-foreground transition-colors outline-none hover:bg-muted/80 hover:text-foreground focus-visible:relative focus-visible:z-10 focus-visible:bg-muted/80 focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
-              >
-                <HugeiconsIcon
-                  icon={request.icon}
-                  strokeWidth={1.7}
-                  className="mt-0.5 size-4 shrink-0"
-                />
-                <span className="min-w-0 text-sm leading-5">{request.text}</span>
-              </button>
-              {index < suggestedRequests.length - 1 ? <Separator className="bg-border/20" /> : null}
-            </div>
-          ))}
-        </div>
       </section>
     </main>
   );
