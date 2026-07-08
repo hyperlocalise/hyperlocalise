@@ -419,7 +419,12 @@ func parseJSTSLocaleEntries(src string, objectStart, objectEnd int) ([]jstsLocal
 		return parseJSTSFormatJSEntries(src, formatJSProps)
 	}
 
-	var entries []jstsLocaleEntry
+	// BOLT OPTIMIZATION: Use heuristic capacity hint for entries based on content size.
+	capacity := (objectEnd - objectStart) / 64
+	if capacity < 4 {
+		capacity = 4
+	}
+	entries := make([]jstsLocaleEntry, 0, capacity)
 	if err := flattenJSTSLocaleValue(src, "", objectStart, objectEnd, &entries); err != nil {
 		return nil, nil, err
 	}
@@ -577,7 +582,12 @@ func parseJSTSObjectProperties(src string, objectStart, objectEnd int) ([]jstsOb
 		return nil, fmt.Errorf("js/ts locale module: expected object literal at line %d", lineNumberAt(src, objectStart))
 	}
 
-	var props []jstsObjectProperty
+	// BOLT OPTIMIZATION: Use heuristic capacity hint for properties based on content size.
+	capacity := (objectEnd - objectStart) / 64
+	if capacity < 4 {
+		capacity = 4
+	}
+	props := make([]jstsObjectProperty, 0, capacity)
 	for i := objectStart + 1; i < objectEnd; {
 		i = skipJSTSWhitespaceAndComments(src, i)
 		if i >= objectEnd {
@@ -623,7 +633,12 @@ func parseJSTSArrayItems(src string, arrayStart, arrayEnd int) ([]struct{ start,
 		return nil, fmt.Errorf("js/ts locale module: expected array literal at line %d", lineNumberAt(src, arrayStart))
 	}
 
-	var items []struct{ start, end int }
+	// BOLT OPTIMIZATION: Use heuristic capacity hint for items based on content size.
+	capacity := (arrayEnd - arrayStart) / 32
+	if capacity < 4 {
+		capacity = 4
+	}
+	items := make([]struct{ start, end int }, 0, capacity)
 	expectValue := true
 	for i := arrayStart + 1; i < arrayEnd; {
 		i = skipJSTSWhitespaceAndComments(src, i)
@@ -718,15 +733,58 @@ func parseJSTSStringLiteral(src string, start int) (jstsStringLiteral, error) {
 	}
 
 	quote := src[start]
+	i := start + 1
+
+	stopChars := "\\" + string(quote)
+	if quote == '`' {
+		stopChars += "$"
+	} else {
+		stopChars += "\n\r"
+	}
+
+	// BOLT OPTIMIZATION: Fast-path for simple strings without escapes or interpolation.
+	// This avoids strings.Builder allocations for the common case.
+	idx := strings.IndexAny(src[i:], stopChars)
+	if idx >= 0 && src[i+idx] == quote {
+		end := i + idx + 1
+		raw := src[start:end]
+		return jstsStringLiteral{
+			decoded: src[i : i+idx],
+			raw:     raw,
+			start:   start,
+			end:     end,
+			quote:   quote,
+		}, nil
+	}
+
 	var decoded strings.Builder
-	for i := start + 1; i < len(src); i++ {
+	// BOLT OPTIMIZATION: Use a conservative hint for strings with escapes.
+	if remaining := len(src) - i; remaining > 0 {
+		if remaining > 1024 {
+			decoded.Grow(1024)
+		} else {
+			decoded.Grow(remaining)
+		}
+	}
+	for i < len(src) {
+		idx := strings.IndexAny(src[i:], stopChars)
+		if idx < 0 {
+			break
+		}
+		if idx > 0 {
+			decoded.WriteString(src[i : i+idx])
+			i += idx
+		}
+
 		ch := src[i]
 		if ch == quote {
+			end := i + 1
+			raw := src[start:end]
 			return jstsStringLiteral{
 				decoded: decoded.String(),
-				raw:     src[start : i+1],
+				raw:     raw,
 				start:   start,
-				end:     i + 1,
+				end:     end,
 				quote:   quote,
 			}, nil
 		}
@@ -738,8 +796,10 @@ func parseJSTSStringLiteral(src string, start int) (jstsStringLiteral, error) {
 		}
 		if ch != '\\' {
 			decoded.WriteByte(ch)
+			i++
 			continue
 		}
+
 		if i+1 >= len(src) {
 			return jstsStringLiteral{}, fmt.Errorf("dangling escape in string literal at line %d", lineNumberAt(src, start))
 		}
@@ -748,7 +808,7 @@ func parseJSTSStringLiteral(src string, start int) (jstsStringLiteral, error) {
 		if err != nil {
 			return jstsStringLiteral{}, fmt.Errorf("%w at line %d", err, lineNumberAt(src, start))
 		}
-		i = next
+		i = next + 1
 	}
 
 	return jstsStringLiteral{}, fmt.Errorf("unterminated string literal at line %d", lineNumberAt(src, start))
@@ -868,7 +928,31 @@ func encodeJSTSStringLiteral(value string, quote byte) string {
 		quote = '"'
 	}
 
+	// BOLT OPTIMIZATION: Fast-path for simple ASCII strings without escaping.
+	// This avoids strings.Builder and utf8.DecodeRuneInString for the common case.
+	needsEscaping := false
+	for i := 0; i < len(value); i++ {
+		ch := value[i]
+		if ch < 0x20 || ch >= 0x7F || ch == '\\' || ch == quote {
+			needsEscaping = true
+			break
+		}
+		if ch == '$' && quote == '`' && i+1 < len(value) && value[i+1] == '{' {
+			needsEscaping = true
+			break
+		}
+	}
+	if !needsEscaping {
+		var b strings.Builder
+		b.Grow(len(value) + 2)
+		b.WriteByte(quote)
+		b.WriteString(value)
+		b.WriteByte(quote)
+		return b.String()
+	}
+
 	var b strings.Builder
+	b.Grow(len(value) + 2)
 	b.WriteByte(quote)
 	for i := 0; i < len(value); {
 		r, size := utf8.DecodeRuneInString(value[i:])
