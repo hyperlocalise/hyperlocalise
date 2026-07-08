@@ -103,9 +103,10 @@ export function KnowledgeMemoryEditor({
     <section className="space-y-5 rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-sm font-medium text-foreground">Workspace memory</h2>
+          <h2 className="text-sm font-medium text-foreground">Organization memory</h2>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            A short shared note agents read during translation and review.
+            One markdown document for localization rules, glossary notes, brand guidance, and things
+            to avoid.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -136,7 +137,7 @@ export function KnowledgeMemoryEditor({
               aria-invalid={currentEditorState.isOverLimit}
               onChange={(event) => setContent(event.target.value)}
               className="min-h-64 resize-y border-border bg-background font-mono text-sm leading-6"
-              placeholder="Example: Use a concise product tone. Keep feature names in English unless a locale-specific glossary says otherwise."
+              placeholder="Example: ## Tone&#10;- Keep product copy practical and direct.&#10;- Keep Hyperlocalise untranslated."
             />
             {currentEditorState.isOverLimit ? (
               <FieldError>

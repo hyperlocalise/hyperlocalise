@@ -96,7 +96,7 @@ describe("knowledgeMemoryRoutes", () => {
     expect(rows).toEqual([{ content: "Prefer short button labels." }]);
   });
 
-  it("rejects workspace memory over 2048 characters", async () => {
+  it("rejects workspace memory over the configured limit", async () => {
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
 

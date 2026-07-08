@@ -21,7 +21,7 @@ export default async function KnowledgePage({
           Knowledge
         </TypographyH1>
         <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Store shared notes and context that Hyperlocalise can use across your workspace.
+          Store organization-wide localization guidance as one flexible markdown memory.
         </TypographyP>
       </div>
 

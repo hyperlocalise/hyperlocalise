@@ -4,7 +4,7 @@ import { check, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { organizations, users } from "./organizations";
 
 /**
- * Stores one short workspace-level memory note that translation agents can use as durable context.
+ * Stores one organization-level markdown memory note for localization guidance.
  */
 export const knowledgeMemories = pgTable(
   "knowledge_memories",
@@ -23,6 +23,6 @@ export const knowledgeMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    check("knowledge_memories_content_length_check", sql`char_length(${table.content}) <= 2048`),
+    check("knowledge_memories_content_length_check", sql`char_length(${table.content}) <= 8000`),
   ],
 );
