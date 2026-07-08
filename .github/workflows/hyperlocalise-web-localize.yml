@@ -100,7 +100,8 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: false
+          # Persist the app token for local git commands in ./sync (add/diff only; no push/fetch).
+          persist-credentials: true
 
       - name: Extract, download, and validate web translations
         uses: ./sync
