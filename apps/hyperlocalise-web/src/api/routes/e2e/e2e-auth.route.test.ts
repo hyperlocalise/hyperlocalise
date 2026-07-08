@@ -18,7 +18,8 @@ vi.mock("@/lib/e2e/config", async () => {
   return {
     ...actual,
     isFixtureAuthEnabled: () => fixtureAuthState.enabled,
-    verifyE2eSetupToken: () => fixtureAuthState.tokenValid,
+    verifyE2eSetupToken: (token: string | null | undefined) =>
+      fixtureAuthState.tokenValid && token === "test-token",
   };
 });
 
@@ -167,6 +168,7 @@ describe("e2e auth route", () => {
       {},
       {
         headers: {
+          [E2E_SETUP_TOKEN_HEADER]: "test-token",
           cookie: `wos-session=${sessionToken}`,
         },
       },
@@ -198,6 +200,7 @@ describe("e2e auth route", () => {
       {},
       {
         headers: {
+          [E2E_SETUP_TOKEN_HEADER]: "test-token",
           cookie: "wos-session=test_unknown",
         },
       },
@@ -205,5 +208,21 @@ describe("e2e auth route", () => {
 
     expect(response.status).toBe(204);
     expect(response.body).toBeNull();
+  });
+
+  it("returns 404 when deleting without a valid setup token", async () => {
+    const { createE2eAuthRoutes } = await import("./e2e-auth.route");
+    const client = testClient(createE2eAuthRoutes());
+
+    const response = await client.auth.session.$delete(
+      {},
+      {
+        headers: {
+          cookie: "wos-session=test_unknown",
+        },
+      },
+    );
+
+    expect(response.status).toBe(404);
   });
 });

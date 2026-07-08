@@ -87,7 +87,7 @@ export function createE2eAuthRoutes() {
       );
     })
     .delete("/auth/session", async (c) => {
-      if (!isFixtureAuthEnabled()) {
+      if (!isAuthorizedFixtureAuthRequest(c)) {
         return rejectFixtureAuthRequest(c);
       }
 

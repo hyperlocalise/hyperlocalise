@@ -71,7 +71,10 @@ export function useE2eBrowser() {
       const cleanupUrl = new URL("/api/e2e/auth/session", E2E_BASE_URL).toString();
       for (const token of context.sessionTokens) {
         const response = await context.page.request.delete(cleanupUrl, {
-          headers: { Cookie: `wos-session=${token}` },
+          headers: {
+            Cookie: `wos-session=${token}`,
+            [E2E_SETUP_TOKEN_HEADER]: requireE2eSetupToken(),
+          },
         });
         if (response.status() !== 204) {
           throw new Error(`E2E fixture cleanup failed with status ${response.status()}`);

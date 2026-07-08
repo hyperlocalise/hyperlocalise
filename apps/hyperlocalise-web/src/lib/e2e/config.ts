@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+// Stable key turns variable-length strings into equal-length digests for timingSafeEqual.
 const HMAC_KEY = Buffer.alloc(32);
 
 export const E2E_SETUP_TOKEN_HEADER = "x-e2e-setup-token";
