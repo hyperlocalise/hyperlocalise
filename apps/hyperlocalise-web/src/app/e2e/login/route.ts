@@ -1,7 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { isFixtureAuthEnabled } from "@/lib/e2e/config";
+import {
+  isFixtureAuthCookieSecure,
+  isFixtureAuthEnabled,
+  verifyE2eSetupToken,
+} from "@/lib/e2e/config";
 import { createFixtureAuthSession, createFixtureOnboardingSession } from "@/lib/e2e/fixture-auth";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
@@ -40,6 +44,11 @@ export async function GET(request: Request) {
   }
 
   const requestUrl = new URL(request.url);
+  const setupToken = requestUrl.searchParams.get("setup_token");
+  if (!verifyE2eSetupToken(setupToken)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   const roleParam = requestUrl.searchParams.get("role") ?? "admin";
   const role = allowedRoles.has(roleParam as OrganizationMembershipRole)
     ? (roleParam as OrganizationMembershipRole)
@@ -47,6 +56,7 @@ export async function GET(request: Request) {
 
   const mode = requestUrl.searchParams.get("mode");
   const redirectParam = sanitizeRedirectPath(requestUrl.searchParams.get("redirect"));
+  const secure = isFixtureAuthCookieSecure(request);
 
   if (mode === "onboarding") {
     const session = await createFixtureOnboardingSession();
@@ -57,7 +67,7 @@ export async function GET(request: Request) {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
-      secure: false,
+      secure,
     });
 
     return NextResponse.redirect(new URL(redirectTo, getRequestOrigin(request)));
@@ -71,7 +81,7 @@ export async function GET(request: Request) {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: false,
+    secure,
   });
 
   return NextResponse.redirect(new URL(redirectTo, getRequestOrigin(request)));

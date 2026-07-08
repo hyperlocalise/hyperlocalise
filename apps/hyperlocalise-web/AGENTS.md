@@ -49,7 +49,7 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 Fixture-auth infrastructure and baseline Playwright specs live under [`src/e2e/`](src/e2e/) and [`src/lib/e2e/`](src/lib/e2e/). They are **not** wired into `vp test` — run unit tests with `vp test` as usual.
 
-- **Fixture auth**: set `E2E_AUTH_MODE=fixture` in `.env` (see [`.env.e2e.example`](.env.e2e.example)). Browser login: [`/e2e/login`](src/app/e2e/login/route.ts). Programmatic login: `POST /api/e2e/auth/session`. Blocked when `VERCEL_ENV=production`.
+- **Fixture auth**: set `E2E_AUTH_MODE=fixture` and a 32+ character `E2E_AUTH_SECRET` in `.env` (see [`.env.e2e.example`](.env.e2e.example)). Programmatic login: `POST /api/e2e/auth/session` with `X-E2E-Setup-Token`. Browser helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) use that API route. Optional browser redirect: [`/e2e/login`](src/app/e2e/login/route.ts)?`setup_token=...`. Disabled when `NODE_ENV=production` or `VERCEL_ENV=production`.
 - **Baseline specs**: [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/) use Playwright from Node. Flows include fixture auth login, dashboard overview, project creation, and onboarding workspace creation. To run them manually, start Postgres, migrate, build, and serve the app with fixture auth, then invoke Vitest against those files directly if needed.
 - **Commands**: run `vp run e2e:install` once to install Chromium, then run `vp run test:e2e` while the fixture-auth app is available. Set `E2E_BASE_URL` when the app is not running at `http://localhost:3000`.
 - Vitest Browser Mode is not used for route-level e2e (it cannot `page.goto` external origins).
