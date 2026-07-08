@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -36,6 +36,11 @@ import type {
   CatSegmentIntelligence,
 } from "@/components/cat/shared/types";
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuard,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
 import {
   catPageLimitForViewMode,
@@ -71,6 +76,7 @@ export function ProjectFileCatWorkspace({
   initialQueueFilter = "all",
   layout = "default",
   className,
+  pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -87,8 +93,11 @@ export function ProjectFileCatWorkspace({
   initialQueueFilter?: CatQueueFilter;
   layout?: "default" | "fullscreen";
   className?: string;
+  pageNavigationGuardRef?: CatPageNavigationGuardRef;
 }) {
   const intl = useIntl();
+  const internalPageNavigationGuardRef = useRef<CatPageNavigationGuard | null>(null);
+  const resolvedPageNavigationGuardRef = pageNavigationGuardRef ?? internalPageNavigationGuardRef;
   const [pageLimit, setPageLimit] = useState(() =>
     catPageLimitForViewMode(readCatWorkspaceViewMode()),
   );
@@ -511,9 +520,13 @@ export function ProjectFileCatWorkspace({
           <Select
             value={targetLocale}
             onValueChange={(value) => {
-              if (value) {
-                setTargetLocaleState(value);
+              if (!value || value === targetLocale) {
+                return;
               }
+
+              attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => {
+                setTargetLocaleState(value);
+              });
             }}
           >
             <SelectTrigger className="h-9 w-full font-mono text-xs">
@@ -534,6 +547,7 @@ export function ProjectFileCatWorkspace({
         key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
         initialState={workspaceForRender}
         queueSnapshot={workspaceState}
+        pageNavigationGuardRef={resolvedPageNavigationGuardRef}
         lazySegment={{
           organizationSlug,
           projectId,

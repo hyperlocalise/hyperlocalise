@@ -502,13 +502,14 @@ export class CatWorkspaceOrchestrator {
   }
 
   getQueuePanelSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean): CatSegment[] {
-    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).map((meta) => ({
-      ...meta,
-      sourceLocale: this.fileContext.sourceLocale,
-      targetLocale: this.fileContext.targetLocale,
-      targetText: "",
-      status: this.drafts.get(meta.id)?.status ?? "pending",
-    }));
+    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).flatMap((meta) => {
+      const view = this.getSegmentView(meta.id);
+      if (!view) {
+        return [];
+      }
+
+      return [view];
+    });
   }
 
   get selectedSegmentView(): CatSegment | undefined {
