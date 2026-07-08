@@ -2823,7 +2823,9 @@ export class CrowdinTmsProvider extends TmsProvider {
     branchMap: Map<number, string>,
     directoryPathById: Map<number, string>,
   ): string {
-    const branchName = file.branchId ? (branchMap.get(file.branchId) ?? "") : "";
+    const branchName = file.branchId
+      ? (branchMap.get(file.branchId) ?? `branch-${file.branchId}`)
+      : "";
     const directoryPath = file.directoryId ? (directoryPathById.get(file.directoryId) ?? "") : "";
     return branchName
       ? `${branchName}/${directoryPath}${file.name}`

@@ -15,6 +15,7 @@ import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resour
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
+import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
 
 export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
@@ -95,7 +96,7 @@ function apiPath(organizationSlug: string, projectId: string) {
 }
 
 export function sortFilesByPath(files: ProjectFileRecord[]) {
-  return [...files].toSorted((a, b) =>
+  return dedupeProjectFilesBySourcePath(files).toSorted((a, b) =>
     a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );
 }

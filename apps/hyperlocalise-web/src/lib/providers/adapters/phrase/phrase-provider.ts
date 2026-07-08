@@ -349,7 +349,7 @@ export class PhraseTmsProvider extends TmsProvider {
       });
 
       for (const upload of uploads) {
-        const sourcePath = buildPhraseUploadSourcePath(sourceLocale, upload.filename);
+        const sourcePath = buildPhraseUploadSourcePath(sourceLocale, upload.filename, branch);
         const uploadTags = this.mergeTags(upload.tags, upload.tag);
         const localeReadiness = this.buildUploadLocaleReadiness({
           keys,
@@ -2024,14 +2024,23 @@ export function buildPhraseKeySourcePath(keyName: string, branch: string | null)
 }
 
 /** Canonical Hyperlocalise source path for a Phrase upload (file) resource. */
-export function buildPhraseUploadSourcePath(sourceLocale: string | null, filename: string) {
+export function buildPhraseUploadSourcePath(
+  sourceLocale: string | null,
+  filename: string,
+  branch: string | null = null,
+) {
   const trimmedFilename = filename.trim();
   const trimmedLocale = sourceLocale?.trim();
-  if (!trimmedLocale) {
-    return `uploads/${trimmedFilename}`;
+  const trimmedBranch = branch?.trim();
+  const basePath = trimmedLocale
+    ? `locales/${trimmedLocale}/${trimmedFilename}`
+    : `uploads/${trimmedFilename}`;
+
+  if (!trimmedBranch) {
+    return basePath;
   }
 
-  return `locales/${trimmedLocale}/${trimmedFilename}`;
+  return `${trimmedBranch}/${basePath}`;
 }
 
 /** Normalizes Phrase TMS match scores to 0–100 integer percentages. */

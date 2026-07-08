@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import {
   buildPhraseKeyExternalResourceId,
   buildPhraseKeySourcePath,
+  buildPhraseUploadSourcePath,
   mapPhraseTranslationReadiness,
   parsePhraseExternalResourceId,
   phraseTmsProvider,
@@ -240,6 +241,14 @@ describe("phraseTmsProvider.fetchFileKeys", () => {
       }),
     });
 
+    const branchFile = result.find(
+      (item) =>
+        item.resourceType === "file" && item.externalResourceId === "feature::upload-feature",
+    );
+    expect(branchFile).toMatchObject({
+      sourcePath: "feature/locales/en-US/home.json",
+    });
+
     const defaultFile = result.find(
       (item) => item.resourceType === "file" && item.externalResourceId === "upload-1",
     );
@@ -339,6 +348,13 @@ describe("phrase locale readiness", () => {
     expect(buildPhraseKeySourcePath("home.hero.title", null)).toBe("keys/home.hero.title");
     expect(buildPhraseKeySourcePath("home.hero.title", "feature")).toBe(
       "feature/keys/home.hero.title",
+    );
+    expect(buildPhraseUploadSourcePath("en-US", "home.json", null)).toBe("locales/en-US/home.json");
+    expect(buildPhraseUploadSourcePath("en-US", "home.json", "feature")).toBe(
+      "feature/locales/en-US/home.json",
+    );
+    expect(buildPhraseUploadSourcePath(null, "home.json", "feature")).toBe(
+      "feature/uploads/home.json",
     );
   });
 });

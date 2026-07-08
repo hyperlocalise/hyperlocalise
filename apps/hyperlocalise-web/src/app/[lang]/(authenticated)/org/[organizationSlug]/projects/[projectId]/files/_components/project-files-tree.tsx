@@ -7,7 +7,7 @@ import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { formatBytes } from "./project-files-shared";
+import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 
 export const TREE_HEIGHT_PX = 480;
 
@@ -70,8 +70,12 @@ export function ProjectFilesTree({
   ariaLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
-  const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
+  const displayFiles = useMemo(() => dedupeProjectFilesBySourcePath(files), [files]);
+  const paths = useMemo(() => displayFiles.map((file) => file.sourcePath), [displayFiles]);
+  const fileByPath = useMemo(
+    () => new Map(displayFiles.map((file) => [file.sourcePath, file])),
+    [displayFiles],
+  );
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
   const latestStateRef = useRef({ fileByPath, onSelectFile, onActivateFile });

@@ -1974,7 +1974,7 @@ export async function listTmsProviderLiveFilesForProject(
     rethrowProviderFetcherError(error);
   }
 
-  return files.slice(0, options?.limit ?? 500).map((file) =>
+  const mapped = files.map((file) =>
     mapLiveFile({
       providerKind: context.providerKind,
       externalProjectId,
@@ -1982,7 +1982,10 @@ export async function listTmsProviderLiveFilesForProject(
       project: projectMetadata,
     }),
   );
+
+  return dedupeLiveFilesBySourcePath(mapped).slice(0, options?.limit ?? 500);
 }
+import { dedupeLiveFilesBySourcePath } from "@/lib/providers/jobs/tms-provider-live-file-dedupe";
 
 async function buildTmsProviderLiveFileDetail(
   context: ActiveTmsProviderContext,
