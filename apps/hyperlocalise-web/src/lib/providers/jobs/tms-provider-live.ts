@@ -1983,9 +1983,8 @@ export async function listTmsProviderLiveFilesForProject(
     }),
   );
 
-  return dedupeLiveFilesBySourcePath(mapped).slice(0, options?.limit ?? 500);
+  return mapped.slice(0, options?.limit ?? 500);
 }
-import { dedupeLiveFilesBySourcePath } from "@/lib/providers/jobs/tms-provider-live-file-dedupe";
 
 async function buildTmsProviderLiveFileDetail(
   context: ActiveTmsProviderContext,

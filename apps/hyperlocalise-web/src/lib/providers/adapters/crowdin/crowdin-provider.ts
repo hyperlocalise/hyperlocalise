@@ -2818,13 +2818,22 @@ export class CrowdinTmsProvider extends TmsProvider {
     return parts.length > 0 ? `${parts.join("/")}/` : "";
   }
 
+  private resolveCrowdinBranchPathSegment(branchId: number, branchMap: Map<number, string>) {
+    const branchName = branchMap.get(branchId);
+    if (branchName) {
+      return branchName;
+    }
+
+    return `__hl-branch-id-${branchId}__`;
+  }
+
   private sourcePathOf(
     file: { branchId: number | null; directoryId: number | null; name: string },
     branchMap: Map<number, string>,
     directoryPathById: Map<number, string>,
   ): string {
     const branchName = file.branchId
-      ? (branchMap.get(file.branchId) ?? `branch-${file.branchId}`)
+      ? this.resolveCrowdinBranchPathSegment(file.branchId, branchMap)
       : "";
     const directoryPath = file.directoryId ? (directoryPathById.get(file.directoryId) ?? "") : "";
     return branchName

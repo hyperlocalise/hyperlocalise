@@ -234,7 +234,7 @@ describe("phraseTmsProvider.fetchFileKeys", () => {
       (item) => item.resourceType === "key" && item.externalResourceId === "feature::key-feature",
     );
     expect(branchKey).toMatchObject({
-      sourcePath: "feature/keys/feature.title",
+      sourcePath: "branches/feature/keys/feature.title",
       providerPayload: expect.objectContaining({
         branch: "feature",
         tags: ["app"],
@@ -246,7 +246,7 @@ describe("phraseTmsProvider.fetchFileKeys", () => {
         item.resourceType === "file" && item.externalResourceId === "feature::upload-feature",
     );
     expect(branchFile).toMatchObject({
-      sourcePath: "feature/locales/en-US/home.json",
+      sourcePath: "branches/feature/locales/en-US/home.json",
     });
 
     const defaultFile = result.find(
@@ -347,14 +347,20 @@ describe("phrase locale readiness", () => {
     });
     expect(buildPhraseKeySourcePath("home.hero.title", null)).toBe("keys/home.hero.title");
     expect(buildPhraseKeySourcePath("home.hero.title", "feature")).toBe(
-      "feature/keys/home.hero.title",
+      "branches/feature/keys/home.hero.title",
     );
     expect(buildPhraseUploadSourcePath("en-US", "home.json", null)).toBe("locales/en-US/home.json");
     expect(buildPhraseUploadSourcePath("en-US", "home.json", "feature")).toBe(
-      "feature/locales/en-US/home.json",
+      "branches/feature/locales/en-US/home.json",
     );
     expect(buildPhraseUploadSourcePath(null, "home.json", "feature")).toBe(
-      "feature/uploads/home.json",
+      "branches/feature/uploads/home.json",
+    );
+    expect(buildPhraseUploadSourcePath("en-US", "home.json", "team/feature")).toBe(
+      "branches/team%2Ffeature/locales/en-US/home.json",
+    );
+    expect(buildPhraseUploadSourcePath("en-US", "feature/locales/en/home.json", null)).toBe(
+      "locales/en-US/feature/locales/en/home.json",
     );
   });
 });
