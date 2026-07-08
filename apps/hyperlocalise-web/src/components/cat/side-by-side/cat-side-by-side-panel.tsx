@@ -157,150 +157,157 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   const totalSegments = hasMoreQueue ? null : (pagination?.totalCount ?? segments.length);
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col overflow-hidden bg-background", className)}>
-      <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          {onSearchChange ? (
-            <div className="relative min-w-0 flex-1">
-              <HugeiconsIcon
-                icon={SearchIcon}
-                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={intl.formatMessage(catQueuePanelMessages.searchPlaceholder)}
-                aria-label={intl.formatMessage(catQueuePanelMessages.searchAria)}
-                className="h-9 pl-9"
-              />
-              {isSearching ? (
-                <Spinner className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
+    <div
+      className={cn(
+        "grid h-full min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,22rem)] overflow-hidden bg-background",
+        className,
+      )}
+    >
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            {onSearchChange ? (
+              <div className="relative min-w-0 flex-1">
+                <HugeiconsIcon
+                  icon={SearchIcon}
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  value={search}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder={intl.formatMessage(catQueuePanelMessages.searchPlaceholder)}
+                  aria-label={intl.formatMessage(catQueuePanelMessages.searchAria)}
+                  className="h-9 pl-9"
+                />
+                {isSearching ? (
+                  <Spinner className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            <div className="flex shrink-0 items-center gap-2">
+              {onQueueFilterChange ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5 px-2.5"
+                        aria-label={intl.formatMessage(catQueuePanelMessages.filterQueueAria)}
+                      />
+                    }
+                  >
+                    <HugeiconsIcon icon={FilterIcon} className="size-4" />
+                    <span className="hidden text-xs sm:inline">
+                      <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
+                    </span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-44">
+                    <DropdownMenuRadioGroup
+                      value={queueFilter}
+                      onValueChange={(value) => {
+                        if (
+                          value === "all" ||
+                          value === "untranslated" ||
+                          value === "needs_review" ||
+                          value === "reviewed" ||
+                          value === "has_issues" ||
+                          value === "skipped"
+                        ) {
+                          onQueueFilterChange(value);
+                        }
+                      }}
+                    >
+                      {availableQueueFilters.map((filter) => (
+                        <DropdownMenuRadioItem key={filter} value={filter}>
+                          <FormattedMessage {...queueFilterMessageByValue[filter]} />
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : null}
+
+              <CatWorkspaceViewSwitcherConnected />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <p className="border-r border-border pr-4">
+              <FormattedMessage {...catSideBySidePanelMessages.sourceColumn} />
+            </p>
+            <p className="pl-4">
+              <FormattedMessage {...catSideBySidePanelMessages.translationColumn} />
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          {isQueueLoading && segments.length === 0 ? (
+            <CatQueueSkeletonList className="px-4 py-3" />
+          ) : segments.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
+              <FormattedMessage {...emptyMessage} />
             </div>
           ) : (
-            <div className="flex-1" />
+            <CatSideBySideVirtualList
+              segments={segments}
+              focusedSegmentId={focusedSegmentId}
+              hoveredSegmentId={hoveredSegmentId}
+              dirtySegmentIds={dirtySegmentIds}
+              canEdit={canEditTranslations}
+              loadingSegmentIds={loadingSegmentIds}
+              onFocusSegment={onFocusSegment}
+              onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
+              onLeaveSegment={() => store.ui.clearHoveredSegment()}
+              onTargetChange={onTargetChange}
+              hasMore={hasMoreQueue}
+              isLoadingMore={isFetchingPage}
+              onNearEnd={onLoadMoreQueue}
+            />
           )}
 
-          <div className="flex shrink-0 items-center gap-2">
-            {onQueueFilterChange ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 px-2.5"
-                      aria-label={intl.formatMessage(catQueuePanelMessages.filterQueueAria)}
-                    />
-                  }
-                >
-                  <HugeiconsIcon icon={FilterIcon} className="size-4" />
-                  <span className="hidden text-xs sm:inline">
-                    <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
-                  </span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-44">
-                  <DropdownMenuRadioGroup
-                    value={queueFilter}
-                    onValueChange={(value) => {
-                      if (
-                        value === "all" ||
-                        value === "untranslated" ||
-                        value === "needs_review" ||
-                        value === "reviewed" ||
-                        value === "has_issues" ||
-                        value === "skipped"
-                      ) {
-                        onQueueFilterChange(value);
-                      }
-                    }}
-                  >
-                    {availableQueueFilters.map((filter) => (
-                      <DropdownMenuRadioItem key={filter} value={filter}>
-                        <FormattedMessage {...queueFilterMessageByValue[filter]} />
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-
-            <CatWorkspaceViewSwitcherConnected />
+          <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            <p>
+              <FormattedMessage
+                {...catQueuePanelMessages.paginationSummary}
+                values={{
+                  count: loadedCount,
+                  more: hasMoreQueue ? "+" : "",
+                }}
+              />
+            </p>
+            <p className="font-mono tabular-nums">
+              <FormattedMessage
+                {...catSideBySidePanelMessages.segmentPosition}
+                values={{
+                  position: segmentPosition,
+                  total: totalSegments ?? `${loadedCount}+`,
+                }}
+              />
+            </p>
+            {hasMoreQueue && onLoadMoreQueue ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onLoadMoreQueue}
+                disabled={isFetchingPage}
+              >
+                {isFetchingPage ? <Spinner className="size-3.5" /> : null}
+                <FormattedMessage {...catQueuePanelMessages.loadMore} />
+              </Button>
+            ) : (
+              <span />
+            )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <p className="border-r border-border pr-4">
-            <FormattedMessage {...catSideBySidePanelMessages.sourceColumn} />
-          </p>
-          <p className="pl-4">
-            <FormattedMessage {...catSideBySidePanelMessages.translationColumn} />
-          </p>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        {isQueueLoading && segments.length === 0 ? (
-          <CatQueueSkeletonList className="px-4 py-3" />
-        ) : segments.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
-            <FormattedMessage {...emptyMessage} />
-          </div>
-        ) : (
-          <CatSideBySideVirtualList
-            segments={segments}
-            focusedSegmentId={focusedSegmentId}
-            hoveredSegmentId={hoveredSegmentId}
-            dirtySegmentIds={dirtySegmentIds}
-            canEdit={canEditTranslations}
-            loadingSegmentIds={loadingSegmentIds}
-            onFocusSegment={onFocusSegment}
-            onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
-            onLeaveSegment={() => store.ui.clearHoveredSegment()}
-            onTargetChange={onTargetChange}
-            hasMore={hasMoreQueue}
-            isLoadingMore={isFetchingPage}
-            onNearEnd={onLoadMoreQueue}
-          />
-        )}
-
-        <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          <p>
-            <FormattedMessage
-              {...catQueuePanelMessages.paginationSummary}
-              values={{
-                count: loadedCount,
-                more: hasMoreQueue ? "+" : "",
-              }}
-            />
-          </p>
-          <p className="font-mono tabular-nums">
-            <FormattedMessage
-              {...catSideBySidePanelMessages.segmentPosition}
-              values={{
-                position: segmentPosition,
-                total: totalSegments ?? `${loadedCount}+`,
-              }}
-            />
-          </p>
-          {hasMoreQueue && onLoadMoreQueue ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={onLoadMoreQueue}
-              disabled={isFetchingPage}
-            >
-              {isFetchingPage ? <Spinner className="size-3.5" /> : null}
-              <FormattedMessage {...catQueuePanelMessages.loadMore} />
-            </Button>
-          ) : (
-            <span />
-          )}
-        </div>
-      </div>
-
-      <div className="h-[min(40vh,22rem)] shrink-0">
+      <div className="h-full min-h-0 min-w-0">
         <CatSideBySideIntelligencePanel
           segment={intelligenceSegment}
           intelligence={intelligence}
@@ -339,6 +346,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               ? (commentId) => onResolveComment(intelligenceSegmentId, commentId)
               : undefined
           }
+          placement="right"
           className="h-full"
         />
       </div>

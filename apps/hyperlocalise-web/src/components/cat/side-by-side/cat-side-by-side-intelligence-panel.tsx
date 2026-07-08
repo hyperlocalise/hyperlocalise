@@ -38,6 +38,7 @@ export function CatSideBySideIntelligencePanel({
   onUseGlossaryTerm,
   onAddComment,
   onResolveComment,
+  placement = "bottom",
   className,
 }: {
   segment: CatSegment | null;
@@ -61,13 +62,15 @@ export function CatSideBySideIntelligencePanel({
   onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
+  placement?: "bottom" | "right";
   className?: string;
 }) {
   if (!segment || !intelligence) {
     return (
       <div
         className={cn(
-          "flex h-full min-h-32 items-center justify-center border-t border-border bg-muted/30 px-4",
+          "flex h-full min-h-32 items-center justify-center border-border bg-muted/30 px-4",
+          placement === "right" ? "border-l" : "border-t",
           className,
         )}
       >
@@ -78,9 +81,44 @@ export function CatSideBySideIntelligencePanel({
     );
   }
 
+  const intelligencePanel = (
+    <CatIntelligencePanel
+      intelligence={intelligence}
+      targetText={segment.targetText}
+      isLookingUpContext={isLookingUpContext}
+      isConcordanceLoading={isConcordanceLoading}
+      isVisualContextLoading={isVisualContextLoading}
+      showAgentContext={showAgentContext}
+      showVisualContext={showVisualContext}
+      canEditTranslations={canEditTranslations}
+      canLookupFreshContext={canLookupFreshContext}
+      onRefreshContext={onRefreshContext}
+      onUseTmMatch={onUseTmMatch}
+      onUseGlossaryTerm={onUseGlossaryTerm}
+    />
+  );
+  const commentsPanel = (
+    <CatEditorCommentsSection
+      segment={segment}
+      isLoading={isCommentsLoading}
+      isPostingComment={isPostingComment}
+      isResolvingComment={isResolvingComment}
+      resolvingCommentId={resolvingCommentId}
+      commentPostError={commentPostError}
+      canAddComment={canAddComment}
+      supportsIssueComments={supportsIssueComments}
+      onAddComment={onAddComment}
+      onResolveComment={onResolveComment}
+    />
+  );
+
   return (
     <div
-      className={cn("flex h-full min-h-0 flex-col border-t border-border bg-background", className)}
+      className={cn(
+        "flex h-full min-h-0 flex-col border-border bg-background",
+        placement === "right" ? "border-l" : "border-t",
+        className,
+      )}
     >
       <div className="shrink-0 border-b border-border px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
@@ -91,41 +129,22 @@ export function CatSideBySideIntelligencePanel({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-        <ScrollArea className="min-h-0">
-          <div className="p-4">
-            <CatIntelligencePanel
-              intelligence={intelligence}
-              targetText={segment.targetText}
-              isLookingUpContext={isLookingUpContext}
-              isConcordanceLoading={isConcordanceLoading}
-              isVisualContextLoading={isVisualContextLoading}
-              showAgentContext={showAgentContext}
-              showVisualContext={showVisualContext}
-              canEditTranslations={canEditTranslations}
-              canLookupFreshContext={canLookupFreshContext}
-              onRefreshContext={onRefreshContext}
-              onUseTmMatch={onUseTmMatch}
-              onUseGlossaryTerm={onUseGlossaryTerm}
-            />
-          </div>
-        </ScrollArea>
-
-        <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
-          <CatEditorCommentsSection
-            segment={segment}
-            isLoading={isCommentsLoading}
-            isPostingComment={isPostingComment}
-            isResolvingComment={isResolvingComment}
-            resolvingCommentId={resolvingCommentId}
-            commentPostError={commentPostError}
-            canAddComment={canAddComment}
-            supportsIssueComments={supportsIssueComments}
-            onAddComment={onAddComment}
-            onResolveComment={onResolveComment}
-          />
+      {placement === "right" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">{intelligencePanel}</div>
+          <div className="max-h-[45%] min-h-0 overflow-y-auto">{commentsPanel}</div>
         </div>
-      </div>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+          <ScrollArea className="min-h-0">
+            <div className="p-4">{intelligencePanel}</div>
+          </ScrollArea>
+
+          <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
+            {commentsPanel}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
