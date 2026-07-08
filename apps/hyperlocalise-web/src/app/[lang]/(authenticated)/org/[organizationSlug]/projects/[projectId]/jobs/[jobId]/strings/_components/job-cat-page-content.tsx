@@ -605,7 +605,8 @@ export function JobCatPageContent({
 
     const nextTargetLocale = selectJobCatTargetLocale({
       requestedTargetLocale: targetLocale,
-      providerTargetLocales: jobTargetLocales,
+      providerTargetLocales:
+        jobTargetLocales.length > 0 ? jobTargetLocales : targetLocale ? [targetLocale] : [],
     });
 
     if (!nextTargetLocale) {
