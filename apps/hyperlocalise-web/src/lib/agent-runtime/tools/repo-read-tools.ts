@@ -219,6 +219,15 @@ export function createGitHistoryTool(ctx: RepoToolContext) {
 
 async function executeGitHistory(ctx: RepoToolContext, input: GitHistoryInput) {
   const maxResults = clampMaxResults(input.maxResults);
+  const rangeResult = normalizeGitRevisionRange(input.range);
+  if (isErr(rangeResult)) {
+    return {
+      success: false as const,
+      error: rangeResult.error,
+    };
+  }
+
+  const normalizedInput = { ...input, range: rangeResult.value };
   const normalizedPathsResult = normalizeGitHistoryPaths(input.paths);
   if (isErr(normalizedPathsResult)) {
     return {
@@ -228,15 +237,20 @@ async function executeGitHistory(ctx: RepoToolContext, input: GitHistoryInput) {
   }
 
   try {
-    switch (input.mode) {
+    switch (normalizedInput.mode) {
       case "changedFiles":
-        return await changedFilesHistory(ctx, input, normalizedPathsResult.value, maxResults);
+        return await changedFilesHistory(
+          ctx,
+          normalizedInput,
+          normalizedPathsResult.value,
+          maxResults,
+        );
       case "fileDiff":
-        return await fileDiffHistory(ctx, input, normalizedPathsResult.value, maxResults);
+        return await fileDiffHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
       case "entryLog":
-        return await entryLogHistory(ctx, input, normalizedPathsResult.value, maxResults);
+        return await entryLogHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
       case "blame":
-        return await blameHistory(ctx, input, normalizedPathsResult.value, maxResults);
+        return await blameHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
     }
   } catch (error) {
     return {
@@ -264,6 +278,16 @@ function normalizeGitHistoryPaths(
     normalized.push(value);
   }
   return ok(Array.from(new Set(normalized)));
+}
+
+function normalizeGitRevisionRange(range: string | undefined): Result<string | undefined, string> {
+  if (!range) return ok(undefined);
+  const normalized = range.trim();
+  if (!normalized) return ok(undefined);
+  if (normalized.startsWith("-")) {
+    return err(`Range "${range}" must be a revision range, not a git option.`);
+  }
+  return ok(normalized);
 }
 
 async function changedFilesHistory(
@@ -397,6 +421,10 @@ async function blameHistory(
   paths: string[] | undefined,
   maxResults: number,
 ) {
+  if (paths && paths.length > 1) {
+    return { success: false as const, error: "blame accepts exactly one path." };
+  }
+
   const path = paths?.[0];
   if (!path) {
     return { success: false as const, error: "blame requires a path." };
@@ -427,14 +455,15 @@ async function blameHistory(
     return { success: false as const, error: redact(result.stderr || "Failed to read git blame.") };
   }
 
-  const entries = parseBlamePorcelain(result.stdout).slice(0, maxResults);
+  const allEntries = parseBlamePorcelain(result.stdout);
+  const entries = allEntries.slice(0, maxResults);
   return {
     success: true as const,
     mode: "blame" as const,
     path,
     query,
     entries,
-    truncated: entries.length < parseBlamePorcelain(result.stdout).length,
+    truncated: entries.length < allEntries.length,
   };
 }
 

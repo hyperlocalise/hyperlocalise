@@ -898,6 +898,20 @@ describe("createGitHistoryTool", () => {
     expect((result as { diff: string }).diff.length).toBeLessThan(200_000);
   });
 
+  it("rejects option-like git revision ranges", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "--no-index" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Range "--no-index" must be a revision range, not a git option.',
+    });
+  });
+
   it("uses pickaxe entry log for a source string or key", async () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
@@ -921,6 +935,34 @@ describe("createGitHistoryTool", () => {
 
     expect(result).toMatchObject({ success: true, mode: "entryLog", query: "Save" });
     expect((result as { log: string }).log).toContain("Add Save");
+  });
+
+  it("rejects option-like revision ranges before git log", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "entryLog", paths: ["lang/en.json"], query: "Save", range: "--all" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Range "--all" must be a revision range, not a git option.',
+    });
+  });
+
+  it("rejects blame requests with multiple paths", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "blame", paths: ["lang/en.json", "lang/fr.json"], query: "Save" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "blame accepts exactly one path.",
+    });
   });
 
   it("returns blame metadata for a current query line", async () => {
