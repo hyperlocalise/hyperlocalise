@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "@hugeicons/core-free-icons";
 
@@ -98,6 +99,7 @@ export function IssuesPageView({
   isError,
   isFetchingMore,
   hasMore,
+  actions,
   onViewChange,
   onSearchChange,
   onLoadMore,
@@ -117,6 +119,7 @@ export function IssuesPageView({
   isError: boolean;
   isFetchingMore: boolean;
   hasMore: boolean;
+  actions?: ReactNode;
   onViewChange: (view: IssueView) => void;
   onSearchChange: (search: string) => void;
   onLoadMore: () => void;
@@ -128,6 +131,7 @@ export function IssuesPageView({
         label="Workspace"
         title="Issues"
         description="Open issues across all projects in this workspace."
+        actions={actions}
       />
 
       <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[220px_1fr]">

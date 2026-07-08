@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
+import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
 
 const issuesQueryKey = (organizationSlug: string, view: string, search: string) =>
@@ -27,6 +28,7 @@ type OrganizationIssuesResponse = {
 };
 
 export function IssuesPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const queryClient = useQueryClient();
   const [view, setView] = useState<"all_open" | "my_work" | "qa_triage" | "source_context">(
     "all_open",
   );
@@ -70,6 +72,12 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
   const total = issuesQuery.data?.pages[0]?.total ?? 0;
   const hasMore = issues.length < total;
 
+  const refreshIssues = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["organization-issues", organizationSlug],
+    });
+  };
+
   return (
     <IssuesPageView
       organizationSlug={organizationSlug}
@@ -81,6 +89,9 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       isError={issuesQuery.isError}
       isFetchingMore={issuesQuery.isFetchingNextPage}
       hasMore={hasMore}
+      actions={
+        <IssuesActions organizationSlug={organizationSlug} onIssuesChanged={refreshIssues} />
+      }
       onViewChange={setView}
       onSearchChange={setSearch}
       onLoadMore={() => {
