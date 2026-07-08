@@ -5,6 +5,7 @@ export const repositoryWorkspaceToolNames = [
   "read",
   "glob",
   "detectRepoConfig",
+  "gitHistory",
   "todoWrite",
 ] as const;
 

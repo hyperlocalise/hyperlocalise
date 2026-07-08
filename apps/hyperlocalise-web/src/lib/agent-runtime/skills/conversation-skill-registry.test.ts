@@ -55,7 +55,7 @@ describe("conversation skill registry", () => {
     const repoToolsSkill = skills.find((skill) => skill.id === "repo-tools");
     expect(repoToolsSkill).toMatchObject({
       requiresSandbox: true,
-      tools: ["grep", "fuzzySearch", "read", "glob", "detectRepoConfig", "todoWrite"],
+      tools: ["grep", "fuzzySearch", "read", "glob", "detectRepoConfig", "gitHistory", "todoWrite"],
     });
   });
 

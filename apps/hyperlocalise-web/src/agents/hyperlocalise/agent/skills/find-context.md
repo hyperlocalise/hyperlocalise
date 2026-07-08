@@ -20,6 +20,11 @@ In multi-turn conversations, treat the latest user message as the active lookup 
 ## Search procedure
 
 - Follow the `repo-tools` search procedure first.
+- If the request asks for context for source strings changed recently or in bulk, use `gitHistory` first:
+  - call `gitHistory` with `mode: "changedFiles"` and the requested `since`/`until` window; when no paths are provided it discovers source files from `i18n.yml`, `i18n.jsonc`, `crowdin.yml`, `crowdin.yaml`, `.phrase.yml`, `phrase.yml`, or `phrase.yaml`
+  - use `mode: "fileDiff"` for changed source files to inspect the relevant source-entry changes
+  - use `mode: "entryLog"` or `mode: "blame"` only when a specific changed key/source string needs more provenance
+  - summarize only translation-relevant changed strings; do not include a raw git log or broad implementation review
 - If `sourceText` is present, search with the exact text first.
 - If `stringKey` is present, search with the exact key first. This is enough to proceed when source text is missing or too generic.
 - If exact key search has no useful matches, search nearby key variants, namespace fragments, locale/resource files, and code references that consume the key.

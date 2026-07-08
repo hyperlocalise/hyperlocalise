@@ -9,6 +9,7 @@ import { createFuzzySearchTool, createGrepTool, createReadTool, parseGrepLine } 
 import {
   buildHlArgs,
   createDetectRepoConfigTool,
+  createGitHistoryTool,
   createRepoGitStateTool,
   createRunHyperlocaliseCliTool,
   redact,
@@ -752,6 +753,292 @@ describe("createRepoGitStateTool", () => {
       isDirty: true,
     });
     expect((result as { changedFiles: string[] }).changedFiles).toContain("dirty.txt");
+  });
+});
+
+describe("createGitHistoryTool", () => {
+  it("discovers Hyperlocalise source files before Crowdin fallback", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.yml": "locales:\n  source: en-US\n",
+      "/home/user/project/crowdin.yml": "files:\n  - source: /ignored.json\n",
+    });
+    const yqCalls: string[][] = [];
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("yq", async (args) => {
+        yqCalls.push(args);
+        return {
+          stdout: JSON.stringify({
+            locales: { source: "en-US" },
+            buckets: { web: { files: [{ from: "lang/{{source}}.json", to: "lang/fr.json" }] } },
+          }),
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "ls-files") {
+          return { stdout: "lang/en-US.json\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "log") {
+          return {
+            stdout: "abc\t2026-07-01T00:00:00Z\tMina\tUpdate strings\nlang/en-US.json\n",
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "changedFiles", since: "1 week ago", maxResults: 10 },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      mode: "changedFiles",
+      files: ["lang/en-US.json"],
+      discovery: { configKind: "hyperlocalise", configPath: "i18n.yml" },
+    });
+    expect(yqCalls[0]).toEqual(["-o", "json", ".", "i18n.yml"]);
+    expect(gitCalls).toContainEqual(["ls-files", "--", "lang/en-US.json"]);
+    expect(gitCalls.find((args) => args[0] === "log")).toEqual(
+      expect.arrayContaining(["--since=1 week ago", "--", "lang/en-US.json"]),
+    );
+  });
+
+  it("falls back to Crowdin files[].source", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/crowdin.yml": "files:\n  - source: /src/messages.json\n",
+    });
+    ctx.bash.registerCommand(
+      defineCommand("yq", async () => ({
+        stdout: JSON.stringify({ files: [{ source: "/src/messages.json" }] }),
+        stderr: "",
+        exitCode: 0,
+      })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "ls-files") {
+          return { stdout: "src/messages.json\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "log") {
+          return { stdout: "src/messages.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!({ mode: "changedFiles" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      files: ["src/messages.json"],
+      discovery: { configKind: "crowdin", configPath: "crowdin.yml" },
+    });
+  });
+
+  it("reports truncation when changedFiles reaches the commit limit before the file limit", async () => {
+    const ctx = createTestContext();
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "log") {
+          return {
+            stdout: [
+              "1111111111111111111111111111111111111111\t2026-07-01T00:00:00Z\tMina\tOne",
+              "src/messages.json",
+              "2222222222222222222222222222222222222222\t2026-07-02T00:00:00Z\tMina\tTwo",
+              "src/messages.json",
+              "3333333333333333333333333333333333333333\t2026-07-03T00:00:00Z\tMina\tThree",
+              "src/other.json",
+            ].join("\n"),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "changedFiles", paths: ["src/messages.json", "src/other.json"], maxResults: 2 },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      mode: "changedFiles",
+      files: ["src/messages.json"],
+      truncated: true,
+    });
+    expect(gitCalls[0]).toContain("--max-count=3");
+  });
+
+  it("reports unresolved Phrase placeholders as skipped diagnostics", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/.phrase.yml": "phrase:\n  push:\n    sources: []\n",
+    });
+    ctx.bash.registerCommand(
+      defineCommand("yq", async () => ({
+        stdout: JSON.stringify({
+          phrase: { push: { sources: [{ file: "./locales/<locale_name>.json" }] } },
+        }),
+        stderr: "",
+        exitCode: 0,
+      })),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!({ mode: "changedFiles" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      files: [],
+      discovery: {
+        configKind: "phrase",
+        configPath: ".phrase.yml",
+        skippedPatterns: [
+          {
+            pattern: "./locales/<locale_name>.json",
+            reason: "Pattern contains unresolved Phrase placeholder.",
+          },
+        ],
+      },
+    });
+  });
+
+  it("returns bounded file diffs", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        expect(args).toEqual(["diff", "main..HEAD", "--", "lang/en.json"]);
+        return { stdout: "A".repeat(200_000), stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "main..HEAD" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, mode: "fileDiff", truncated: true });
+    expect((result as { diff: string }).diff.length).toBeLessThan(200_000);
+  });
+
+  it("rejects option-like git revision ranges", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "--no-index" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Range "--no-index" must be a revision range, not a git option.',
+    });
+  });
+
+  it("uses pickaxe entry log for a source string or key", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        expect(args).toEqual(
+          expect.arrayContaining(["--patch", "--unified=3", "-SSave", "--", "lang/en.json"]),
+        );
+        return {
+          stdout: 'abc\t2026-07-01T00:00:00Z\tMina\tAdd Save\n+  "save": "Save"\n',
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "entryLog", paths: ["lang/en.json"], query: "Save" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, mode: "entryLog", query: "Save" });
+    expect((result as { log: string }).log).toContain("Add Save");
+  });
+
+  it("rejects option-like revision ranges before git log", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "entryLog", paths: ["lang/en.json"], query: "Save", range: "--all" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Range "--all" must be a revision range, not a git option.',
+    });
+  });
+
+  it("rejects blame requests with multiple paths", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "blame", paths: ["lang/en.json", "lang/fr.json"], query: "Save" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "blame accepts exactly one path.",
+    });
+  });
+
+  it("returns blame metadata for a current query line", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/lang/en.json": '{\n  "save": "Save"\n}\n',
+    });
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        expect(args).toEqual(["blame", "--line-porcelain", "-L2,2", "--", "lang/en.json"]);
+        return {
+          stdout:
+            'abc1234 2 2 1\nauthor Mina\nauthor-time 1782864000\nsummary Add Save\n\t  "save": "Save"\n',
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "blame", paths: ["lang/en.json"], query: "Save" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      mode: "blame",
+      entries: [
+        {
+          commit: "abc1234",
+          author: "Mina",
+          authorTime: "1782864000",
+          summary: "Add Save",
+          line: '  "save": "Save"',
+        },
+      ],
+    });
   });
 });
 

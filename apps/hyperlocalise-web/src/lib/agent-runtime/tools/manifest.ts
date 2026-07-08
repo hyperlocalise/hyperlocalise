@@ -66,6 +66,12 @@ export const toolManifests = [
     requiredWorkspaceCapability: "repo_read",
   },
   {
+    name: "gitHistory",
+    domain: "repo",
+    sideEffect: "none",
+    requiredWorkspaceCapability: "repo_read",
+  },
+  {
     name: "repoGitState",
     domain: "repo",
     sideEffect: "none",
