@@ -601,3 +601,58 @@ describe("resolveSegmentIntelligenceForDisplay", () => {
     );
   });
 });
+
+describe("CatWorkspaceOrchestrator ui state", () => {
+  it("resolves intelligence segment from hover and clears hover on selection", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "first",
+            sourceText: "First",
+            targetText: "First target",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "Second target",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.ui.setHoveredSegment("seg-02");
+
+    expect(store.intelligenceSegmentId).toBe("seg-02");
+    expect(store.intelligenceSegmentView?.key).toBe("second");
+
+    store.setSelectedSegmentId("seg-02");
+
+    expect(store.selectedSegmentId).toBe("seg-02");
+    expect(store.ui.hoveredSegmentId).toBeNull();
+    expect(store.intelligenceSegmentId).toBe("seg-02");
+  });
+
+  it("tracks loading segment ids from selected and preview targets", () => {
+    const store = createCatWorkspace(createCatWorkspaceState({ selectedSegmentId: "seg-01" }));
+
+    store.setSegmentTargetLoading(true);
+    store.ui.setPreviewLoadingState("seg-02", {
+      isTargetLoading: true,
+      isCommentsLoading: false,
+    });
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
+  });
+});

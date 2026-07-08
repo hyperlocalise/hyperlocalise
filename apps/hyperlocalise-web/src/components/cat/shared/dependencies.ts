@@ -115,6 +115,7 @@ export interface CatWorkspaceViewProps {
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
   showVisualContext?: boolean;
+  revealedAgentContextSegmentIds?: ReadonlySet<string>;
   dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;

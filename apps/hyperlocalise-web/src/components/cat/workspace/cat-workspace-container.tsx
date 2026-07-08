@@ -30,6 +30,7 @@ import { CatWorkspaceLazySegmentSync } from "./cat-workspace-lazy-segment-sync";
 import { CatWorkspaceView } from "./cat-workspace";
 import { CatWorkspaceProvider, useCatWorkspace } from "./cat-workspace-context";
 import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
+import { CatWorkspaceViewModeSync } from "./cat-workspace-view-mode-sync";
 import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
 export interface CatWorkspaceContainerProps {
@@ -66,6 +67,7 @@ export interface CatWorkspaceContainerProps {
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
   canLookupFreshContext?: boolean;
+  onPageLimitChange?: (pageLimit: number) => void;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -93,6 +95,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent,
   canLookupFreshContext,
+  onPageLimitChange,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
   const controller = useCatWorkspaceRuntime({
     store,
@@ -110,6 +113,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
 
   return (
     <>
+      {onPageLimitChange ? (
+        <CatWorkspaceViewModeSync onPageLimitChange={onPageLimitChange} />
+      ) : null}
       <CatQueryBridge
         snapshot={queueSnapshot ?? null}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
@@ -124,6 +130,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           controller.queueFilter,
           queueSearch,
           queuePagination?.offset,
+          store.ui.viewMode,
         ]}
       >
         <CatWorkspaceView
@@ -148,6 +155,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
           canLookupContext={controller.canLookupContext}
           showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
+          revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
           showVisualContext={controller.canLoadVisualContext}
           canUseAiRecommendation={controller.canUseAiRecommendation}
           className={className}

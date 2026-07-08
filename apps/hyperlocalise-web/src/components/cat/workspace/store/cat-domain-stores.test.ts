@@ -4,6 +4,7 @@ import { CatIntelligenceStore } from "./cat-intelligence-store";
 import { CatQueueStore } from "./cat-queue-store";
 import { CatSegmentDraft } from "./cat-segment-draft";
 import { CatSegmentStore } from "./cat-segment-store";
+import { CatWorkspaceUiStore } from "./cat-workspace-ui-store";
 
 const queueSegments = [
   { id: "seg-01", index: 1, key: "first", sourceText: "First" },
@@ -225,5 +226,34 @@ describe("CatIntelligenceStore", () => {
 
     expect(intelligence.revealedAgentContextSegmentIds.has("seg-01")).toBe(true);
     expect(intelligence.contextLoadingSegmentIds.has("seg-01")).toBe(false);
+  });
+});
+
+describe("CatWorkspaceUiStore", () => {
+  it("tracks view mode and page limit", () => {
+    const ui = new CatWorkspaceUiStore();
+
+    ui.setViewMode("side-by-side");
+
+    expect(ui.viewMode).toBe("side-by-side");
+    expect(ui.pageLimit).toBe(20);
+    expect(ui.isSideBySideView).toBe(true);
+  });
+
+  it("tracks hovered segment and preview loading state", () => {
+    const ui = new CatWorkspaceUiStore();
+
+    ui.setHoveredSegment("seg-02");
+    ui.setPreviewLoadingState("seg-02", {
+      isTargetLoading: true,
+      isCommentsLoading: false,
+    });
+
+    expect(ui.hoveredSegmentId).toBe("seg-02");
+
+    ui.clearHoveredSegment();
+
+    expect(ui.hoveredSegmentId).toBeNull();
+    expect(ui.previewTargetLoading).toBe(true);
   });
 });

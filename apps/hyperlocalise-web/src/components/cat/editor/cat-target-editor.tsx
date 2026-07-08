@@ -282,12 +282,14 @@ export function CatTargetEditor({
   value,
   maxLength,
   disabled = false,
+  compact = false,
   onChange,
 }: {
   sourceText: string;
   value: string;
   maxLength?: number;
   disabled?: boolean;
+  compact?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
@@ -317,7 +319,9 @@ export function CatTargetEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
+          compact
+            ? "min-h-10 px-3 py-2 text-sm leading-relaxed text-foreground focus:outline-none"
+            : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
         "aria-label": intl.formatMessage(catTargetEditorMessages.targetTranslationAria),
@@ -363,10 +367,12 @@ export function CatTargetEditor({
   }
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", compact && "space-y-1")}>
       <div
         className={cn(
-          "rounded-2xl border border-border bg-background shadow-sm transition-colors",
+          compact
+            ? "rounded-lg border border-border bg-background transition-colors"
+            : "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
@@ -381,43 +387,50 @@ export function CatTargetEditor({
         {editor ? (
           <EditorContent editor={editor} />
         ) : (
-          <div className="min-h-36 px-4 py-4 text-lg text-muted-foreground" />
+          <div
+            className={cn(
+              "text-muted-foreground",
+              compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-36 px-4 py-4 text-lg",
+            )}
+          />
         )}
       </div>
 
-      <div className="flex justify-end px-1">
-        <p
-          className={cn(
-            "text-xs tabular-nums",
-            isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
-          )}
-          aria-live="polite"
-          aria-label={
-            maxLength !== undefined
-              ? intl.formatMessage(catTargetEditorMessages.characterCountAria, {
-                  count: characterCount,
-                  maxLength,
-                })
-              : intl.formatMessage(catTargetEditorMessages.characterCountOnlyAria, {
-                  count: characterCount,
-                })
-          }
-        >
-          {maxLength !== undefined ? (
-            <FormattedMessage
-              {...catTargetEditorMessages.characterCount}
-              values={{ count: characterCount, maxLength }}
-            />
-          ) : (
-            <FormattedMessage
-              {...catTargetEditorMessages.characterCountOnly}
-              values={{ count: characterCount }}
-            />
-          )}
-        </p>
-      </div>
+      {!compact ? (
+        <div className="flex justify-end px-1">
+          <p
+            className={cn(
+              "text-xs tabular-nums",
+              isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
+            )}
+            aria-live="polite"
+            aria-label={
+              maxLength !== undefined
+                ? intl.formatMessage(catTargetEditorMessages.characterCountAria, {
+                    count: characterCount,
+                    maxLength,
+                  })
+                : intl.formatMessage(catTargetEditorMessages.characterCountOnlyAria, {
+                    count: characterCount,
+                  })
+            }
+          >
+            {maxLength !== undefined ? (
+              <FormattedMessage
+                {...catTargetEditorMessages.characterCount}
+                values={{ count: characterCount, maxLength }}
+              />
+            ) : (
+              <FormattedMessage
+                {...catTargetEditorMessages.characterCountOnly}
+                values={{ count: characterCount }}
+              />
+            )}
+          </p>
+        </div>
+      ) : null}
 
-      {sourceTokens.length > 0 ? (
+      {!compact && sourceTokens.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...catTargetEditorMessages.requiredTokens} />

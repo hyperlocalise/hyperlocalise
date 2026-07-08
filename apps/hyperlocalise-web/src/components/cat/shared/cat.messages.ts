@@ -782,3 +782,49 @@ export const catPanelErrorBoundaryMessages = defineMessages({
     description: "Button label to retry rendering a crashed CAT panel",
   },
 });
+
+export const catWorkspaceViewModeMessages = defineMessages({
+  viewModeAria: {
+    defaultMessage: "CAT view mode",
+    id: "djDzIFmWT8",
+    description: "Accessible label for the CAT workspace view mode switcher",
+  },
+  comfortableView: {
+    defaultMessage: "Comfortable",
+    id: "z+yNDK6TMM",
+    description: "CAT workspace view mode with queue, editor, and intelligence panels",
+  },
+  sideBySideView: {
+    defaultMessage: "Side by side",
+    id: "EkIRMNMq59",
+    description: "CAT workspace view mode with source and translation columns",
+  },
+});
+
+export const catSideBySidePanelMessages = defineMessages({
+  sourceColumn: {
+    defaultMessage: "Source string",
+    id: "Q5+U++Wf7Z",
+    description: "Column heading for source strings in side-by-side CAT view",
+  },
+  translationColumn: {
+    defaultMessage: "Translation",
+    id: "uuXWiAkNhO",
+    description: "Column heading for translations in side-by-side CAT view",
+  },
+  intelligencePanelTitle: {
+    defaultMessage: "Translation intelligence",
+    id: "8Tp9Y/Dgx2",
+    description: "Heading for the bottom intelligence panel in side-by-side CAT view",
+  },
+  emptyIntelligence: {
+    defaultMessage: "Focus or hover a string to see translation intelligence.",
+    id: "8x7A3iYxrD",
+    description: "Empty state when no segment is focused in side-by-side CAT view",
+  },
+  segmentPosition: {
+    defaultMessage: "{position} / {total}",
+    id: "gLK1qAKU2c",
+    description: "Current segment position in side-by-side CAT view footer",
+  },
+});
