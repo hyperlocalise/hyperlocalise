@@ -331,12 +331,7 @@ async function processSlackMessage(
       });
     }
 
-    const chatMessages = replaceLastUserMessage(
-      loadedMessages,
-      resolvedRepositoryContext
-        ? getRecentUserConversationText(loadedMessages, persistedUserText)
-        : persistedUserText,
-    );
+    const chatMessages = replaceLastUserMessage(loadedMessages, persistedUserText);
 
     if (imageAttachments.length > 0) {
       await removeEyesReaction(thread, message);

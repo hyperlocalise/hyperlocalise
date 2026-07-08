@@ -17,6 +17,7 @@ import {
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
+import { buildFindContextSkillInstructions } from "@/lib/agent-runtime/skills/find-context-instructions";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { serializeErrorForLog } from "@/lib/log";
@@ -435,18 +436,13 @@ export class ProjectStringContextService extends ProjectServiceBase {
 
     const instructions = [
       buildRepositoryGitHubContextInstructions(githubContext),
-      `Source file path in the TMS project: ${input.sourcePath}`,
-      `String key: ${input.key}`,
-      `Source text: ${input.text}`,
-      input.context ? `Crowdin/context note: ${input.context}` : null,
-      [
-        "Find where this string appears in the connected repository and return localization-relevant context for translators.",
-        "Use the required final summary sections: What it is, Where/how it shows, and Translation guidance (with bullets).",
-        "In Translation guidance, note sibling strings that should stay terminologically consistent when repository evidence supports it.",
-      ].join(" "),
-    ]
-      .filter((line): line is string => line !== null)
-      .join("\n\n");
+      buildFindContextSkillInstructions({
+        sourcePath: input.sourcePath,
+        stringKey: input.key,
+        sourceText: input.text,
+        contextNote: input.context,
+      }),
+    ].join("\n\n");
 
     try {
       await reserveAgentRuntimeUsage({

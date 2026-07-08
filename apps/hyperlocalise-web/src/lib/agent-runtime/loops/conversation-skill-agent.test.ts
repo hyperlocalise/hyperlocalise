@@ -127,5 +127,12 @@ describe("conversation skill agent", () => {
         activeTools: expect.arrayContaining(["grep", "createTranslationJob", "translate_string"]),
       }),
     );
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      instructions: string;
+    };
+    expect(settings.instructions).toContain("Repository tools");
+    expect(settings.instructions).toContain("Find context in repository");
+    expect(settings.instructions).toContain("source text or a string key");
   });
 });
