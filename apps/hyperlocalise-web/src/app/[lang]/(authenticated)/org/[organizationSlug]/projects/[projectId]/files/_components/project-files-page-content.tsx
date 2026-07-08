@@ -265,6 +265,10 @@ export function ProjectFilesPageContent({
     () => resolvedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [resolvedFiles, selectedSourcePath],
   );
+  const nativeSourcePaths = useMemo(
+    () => resolvedFiles.filter((entry) => !entry.provider).map((entry) => entry.sourcePath),
+    [resolvedFiles],
+  );
   const catOpenHint = selectedFileForTree
     ? (() => {
         const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
@@ -335,6 +339,7 @@ export function ProjectFilesPageContent({
                   file={selectedFile}
                   highlightLocale={highlightLocale}
                   projectTargetLocales={projectTargetLocales}
+                  nativeSourcePaths={nativeSourcePaths}
                   branch={selectedBranch}
                   layout="compact"
                 />
@@ -397,6 +402,10 @@ export function ProjectFilesPageContentView({
   const selectedFile = useMemo(
     () => displayFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [displayFiles, selectedSourcePath],
+  );
+  const nativeSourcePaths = useMemo(
+    () => displayFiles.filter((entry) => !entry.provider).map((entry) => entry.sourcePath),
+    [displayFiles],
   );
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = isProviderProjectProp ?? projectCapabilities.isProviderProject;
@@ -499,6 +508,7 @@ export function ProjectFilesPageContentView({
                 projectId={projectId}
                 file={selectedFile}
                 highlightLocale={highlightLocale}
+                nativeSourcePaths={nativeSourcePaths}
                 branch={_selectedBranch}
               />
             ) : null}

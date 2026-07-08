@@ -14,18 +14,8 @@ import {
   canOpenProjectFileCat,
 } from "@/lib/projects/project-file-cat-routing";
 
+import { DownloadTranslationsDialog } from "./download-translations-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
-
-function downloadTranslation(
-  organizationSlug: string,
-  projectId: string,
-  sourcePath: string,
-  locale: string,
-) {
-  const params = new URLSearchParams({ sourcePath, locale });
-  const href = `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files/translations/download?${params.toString()}`;
-  window.open(href, "_blank", "noopener,noreferrer");
-}
 
 export function ProjectFileSelectionActions({
   organizationSlug,
@@ -33,6 +23,7 @@ export function ProjectFileSelectionActions({
   file,
   highlightLocale,
   projectTargetLocales,
+  nativeSourcePaths = [],
   branch = null,
   layout = "default",
 }: {
@@ -41,10 +32,12 @@ export function ProjectFileSelectionActions({
   file: ProjectFileRecord;
   highlightLocale: string | null;
   projectTargetLocales?: readonly string[] | null;
+  nativeSourcePaths?: readonly string[];
   branch?: string | null;
   layout?: "default" | "compact";
 }) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const canOpenCat = canOpenProjectFileCat(file);
   const isNativeFile = !file.provider;
   const targetLocales = projectTargetLocales ?? [];
@@ -56,6 +49,28 @@ export function ProjectFileSelectionActions({
     branch,
     projectTargetLocales,
   );
+
+  const nativeDialogs = isNativeFile ? (
+    <>
+      <ImportTranslationsDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourcePath={file.sourcePath}
+        targetLocales={[...targetLocales]}
+      />
+      <DownloadTranslationsDialog
+        open={downloadDialogOpen}
+        onOpenChange={setDownloadDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourcePaths={[...nativeSourcePaths]}
+        initialSourcePath={file.sourcePath}
+        targetLocales={[...targetLocales]}
+      />
+    </>
+  ) : null;
 
   const actionButtons = (
     <>
@@ -81,21 +96,16 @@ export function ProjectFileSelectionActions({
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
             Import translations
           </Button>
-          {targetLocales.map((locale) => (
-            <Button
-              key={locale}
-              type="button"
-              size="sm"
-              variant="outline"
-              className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-              onClick={() =>
-                downloadTranslation(organizationSlug, projectId, file.sourcePath, locale)
-              }
-            >
-              <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-              Download {locale}
-            </Button>
-          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
+            onClick={() => setDownloadDialogOpen(true)}
+          >
+            <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+            Download
+          </Button>
         </>
       ) : null}
     </>
@@ -104,16 +114,7 @@ export function ProjectFileSelectionActions({
   if (layout === "compact") {
     return (
       <>
-        {isNativeFile ? (
-          <ImportTranslationsDialog
-            open={importDialogOpen}
-            onOpenChange={setImportDialogOpen}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={file.sourcePath}
-            targetLocales={[...targetLocales]}
-          />
-        ) : null}
+        {nativeDialogs}
         <div className="flex flex-wrap items-center justify-end gap-2">{actionButtons}</div>
       </>
     );
@@ -121,16 +122,7 @@ export function ProjectFileSelectionActions({
 
   return (
     <>
-      {isNativeFile ? (
-        <ImportTranslationsDialog
-          open={importDialogOpen}
-          onOpenChange={setImportDialogOpen}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          sourcePath={file.sourcePath}
-          targetLocales={[...targetLocales]}
-        />
-      ) : null}
+      {nativeDialogs}
       <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <TypographyP className="truncate font-mono text-sm text-foreground">

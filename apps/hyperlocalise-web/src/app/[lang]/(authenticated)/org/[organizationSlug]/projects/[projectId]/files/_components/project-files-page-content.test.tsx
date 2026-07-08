@@ -133,8 +133,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download vi" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download fr-FR" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
   it("shows when a requested native locale will fall back to a project locale", () => {

@@ -29,6 +29,7 @@ function storyFilesTree({
   projectId,
   highlightLocale,
   projectTargetLocales = null,
+  nativeSourcePaths = null,
   showBranchFilter = false,
   selectedBranch = null,
   onSelectBranch,
@@ -40,6 +41,7 @@ function storyFilesTree({
   projectId: string;
   highlightLocale: string | null;
   projectTargetLocales?: readonly string[] | null;
+  nativeSourcePaths?: readonly string[] | null;
   showBranchFilter?: boolean;
   selectedBranch?: string | null;
   onSelectBranch?: (branch: string | null) => void;
@@ -68,6 +70,10 @@ function storyFilesTree({
               file={selectedFileRecord}
               highlightLocale={highlightLocale}
               projectTargetLocales={projectTargetLocales}
+              nativeSourcePaths={
+                nativeSourcePaths ??
+                files.filter((entry) => !entry.provider).map((entry) => entry.sourcePath)
+              }
               layout="compact"
             />
           ) : null}
@@ -129,8 +135,7 @@ export const RepositoryFiles: Story = {
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
     await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Download fr-FR" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Download de-DE" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Download" })).toBeInTheDocument();
     await waitFor(() => {
       void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
     });
