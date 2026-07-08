@@ -79,6 +79,10 @@ vi.mock("./project-files-tree-panel", () => ({
   },
 }));
 
+vi.mock("./create-translation-job-dialog", () => ({
+  CreateTranslationJobDialog: () => null,
+}));
+
 vi.mock("./project-files-branch-filter", () => ({
   ProjectFilesBranchFilter: () => null,
 }));
@@ -135,9 +139,10 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows import and download actions for native project files", () => {
+  it("shows translate with agent and import/download actions for native project files", () => {
     render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
+    expect(screen.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });

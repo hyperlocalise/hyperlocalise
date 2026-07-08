@@ -339,7 +339,7 @@ export function ProjectFileDetailPanelView({
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-              Translate
+              Translate with agent
             </Button>
             <Button
               type="button"

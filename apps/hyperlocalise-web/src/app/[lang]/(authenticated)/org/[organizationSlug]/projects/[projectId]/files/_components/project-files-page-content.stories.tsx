@@ -134,6 +134,7 @@ export const RepositoryFiles: Story = {
     await expect(canvas.getByText("3 files")).toBeInTheDocument();
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
     await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Download" })).toBeInTheDocument();
     await waitFor(() => {
