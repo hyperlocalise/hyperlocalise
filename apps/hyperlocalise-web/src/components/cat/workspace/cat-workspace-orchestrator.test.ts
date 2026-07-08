@@ -427,6 +427,51 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     ]);
   });
 
+  it("returns composed target text for side-by-side queue rows", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "hero.title",
+            sourceText: "Hello",
+            targetText: "Saved translation",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "reviewed",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "footer.title",
+            sourceText: "Footer",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.setTargetText("seg-02", "Unsaved draft");
+
+    expect(store.getQueuePanelSegments("all", false)).toEqual([
+      expect.objectContaining({
+        id: "seg-01",
+        targetText: "Saved translation",
+        status: "reviewed",
+      }),
+      expect.objectContaining({
+        id: "seg-02",
+        targetText: "Unsaved draft",
+        status: "pending",
+      }),
+    ]);
+  });
+
   it("stores file locale context separately from queue segment metadata", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({

@@ -1,6 +1,7 @@
 "use client";
 
 import { observer } from "mobx-react-lite";
+import { useEffect } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
@@ -30,6 +31,7 @@ import { CatWorkspaceLazySegmentSync } from "./cat-workspace-lazy-segment-sync";
 import { CatWorkspaceView } from "./cat-workspace";
 import { CatWorkspaceProvider, useCatWorkspace } from "./cat-workspace-context";
 import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
+import type { CatPageNavigationGuardRef } from "./cat-page-navigation-guard";
 import { CatWorkspaceViewModeSync } from "./cat-workspace-view-mode-sync";
 import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
@@ -68,6 +70,7 @@ export interface CatWorkspaceContainerProps {
   tmAutoFillMinMatchPercent?: number;
   canLookupFreshContext?: boolean;
   onPageLimitChange?: (pageLimit: number) => void;
+  pageNavigationGuardRef?: CatPageNavigationGuardRef;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -254,10 +257,25 @@ export function CatWorkspaceContainer({
   );
 }
 
-const CatWorkspaceContainerInner = observer(function CatWorkspaceContainerInner(
-  props: CatWorkspaceContainerProps,
-) {
+const CatWorkspaceContainerInner = observer(function CatWorkspaceContainerInner({
+  pageNavigationGuardRef,
+  ...props
+}: CatWorkspaceContainerProps) {
   const store = useCatWorkspace();
+
+  useEffect(() => {
+    if (!pageNavigationGuardRef) {
+      return;
+    }
+
+    pageNavigationGuardRef.current = (proceed) => store.attemptPageNavigation(proceed);
+
+    return () => {
+      if (pageNavigationGuardRef.current) {
+        pageNavigationGuardRef.current = null;
+      }
+    };
+  }, [pageNavigationGuardRef, store]);
 
   return <CatWorkspaceContainerObserver store={store} {...props} />;
 });
