@@ -40,8 +40,6 @@ import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-s
 import {
   catPageLimitForViewMode,
   readCatWorkspaceViewMode,
-  writeCatWorkspaceViewMode,
-  type CatWorkspaceViewMode,
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
@@ -91,7 +89,9 @@ export function ProjectFileCatWorkspace({
   className?: string;
 }) {
   const intl = useIntl();
-  const [viewMode, setViewMode] = useState<CatWorkspaceViewMode>(() => readCatWorkspaceViewMode());
+  const [pageLimit, setPageLimit] = useState(() =>
+    catPageLimitForViewMode(readCatWorkspaceViewMode()),
+  );
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -136,7 +136,7 @@ export function ProjectFileCatWorkspace({
     targetLocale,
     enabled: Boolean(targetLocale),
     initialQueueFilter,
-    pageLimit: catPageLimitForViewMode(viewMode),
+    pageLimit,
   });
 
   const availableQueueFilters = useMemo(
@@ -578,11 +578,7 @@ export function ProjectFileCatWorkspace({
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
         canLookupFreshContext={canLookupFreshContext}
-        viewMode={viewMode}
-        onViewModeChange={(mode) => {
-          setViewMode(mode);
-          writeCatWorkspaceViewMode(mode);
-        }}
+        onPageLimitChange={setPageLimit}
       />
     </div>
   );

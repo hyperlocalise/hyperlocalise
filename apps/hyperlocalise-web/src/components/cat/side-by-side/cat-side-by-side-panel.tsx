@@ -2,7 +2,8 @@
 
 import { FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo, useState } from "react";
+import { observer } from "mobx-react-lite";
+import { useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,8 @@ import type {
   CatSegmentIntelligence,
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
-import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
-import { CatWorkspaceViewSwitcher } from "@/components/cat/workspace/cat-workspace-view-switcher";
+import { useCatWorkspace } from "@/components/cat/workspace/cat-workspace-context";
+import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
 
 import { CatSideBySideIntelligencePanel } from "./cat-side-by-side-intelligence-panel";
 import { CatSideBySideVirtualList } from "./cat-side-by-side-virtual-list";
@@ -50,13 +51,11 @@ const queueFilterMessageByValue: Record<
   skipped: catQueuePanelMessages.filterSkipped,
 };
 
-export function CatSideBySidePanel({
+export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   segments,
   focusedSegmentId,
   intelligenceSegment,
   intelligence,
-  viewMode,
-  onViewModeChange,
   dirtySegmentIds,
   loadingSegmentIds,
   canEditTranslations,
@@ -85,7 +84,6 @@ export function CatSideBySidePanel({
   hasMoreQueue = false,
   onLoadMoreQueue,
   onFocusSegment,
-  onIntelligenceSegmentChange,
   onTargetChange,
   onRefreshContext,
   onUseTmMatch,
@@ -98,8 +96,6 @@ export function CatSideBySidePanel({
   focusedSegmentId: string;
   intelligenceSegment: CatSegment | null;
   intelligence: CatSegmentIntelligence | null;
-  viewMode: CatWorkspaceViewMode;
-  onViewModeChange: (mode: CatWorkspaceViewMode) => void;
   dirtySegmentIds?: ReadonlySet<string>;
   loadingSegmentIds?: ReadonlySet<string>;
   canEditTranslations: boolean;
@@ -128,7 +124,6 @@ export function CatSideBySidePanel({
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   onFocusSegment: (segmentId: string) => void;
-  onIntelligenceSegmentChange: (segmentId: string | null) => void;
   onTargetChange: (segmentId: string, value: string) => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
@@ -138,7 +133,9 @@ export function CatSideBySidePanel({
   className?: string;
 }) {
   const intl = useIntl();
-  const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
+  const store = useCatWorkspace();
+  const hoveredSegmentId = store.ui.hoveredSegmentId;
+  const intelligenceSegmentId = store.intelligenceSegmentId;
 
   const loadedCount = segments.length;
   const hasActiveFilter = queueFilter !== "all";
@@ -158,8 +155,6 @@ export function CatSideBySidePanel({
       ? (segments[focusedIndex]?.index ?? focusedIndex + 1)
       : (pagination?.offset ?? 0) + 1;
   const totalSegments = hasMoreQueue ? null : (pagination?.totalCount ?? segments.length);
-
-  const intelligenceSegmentId = hoveredSegmentId ?? focusedSegmentId;
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden bg-background", className)}>
@@ -230,7 +225,7 @@ export function CatSideBySidePanel({
               </DropdownMenu>
             ) : null}
 
-            <CatWorkspaceViewSwitcher value={viewMode} onChange={onViewModeChange} />
+            <CatWorkspaceViewSwitcherConnected />
           </div>
         </div>
 
@@ -260,14 +255,8 @@ export function CatSideBySidePanel({
             canEdit={canEditTranslations}
             loadingSegmentIds={loadingSegmentIds}
             onFocusSegment={onFocusSegment}
-            onHoverSegment={(segmentId) => {
-              setHoveredSegmentId(segmentId);
-              onIntelligenceSegmentChange(segmentId);
-            }}
-            onLeaveSegment={() => {
-              setHoveredSegmentId(null);
-              onIntelligenceSegmentChange(null);
-            }}
+            onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
+            onLeaveSegment={() => store.ui.clearHoveredSegment()}
             onTargetChange={onTargetChange}
             hasMore={hasMoreQueue}
             isLoadingMore={isFetchingPage}
@@ -355,4 +344,4 @@ export function CatSideBySidePanel({
       </div>
     </div>
   );
-}
+});

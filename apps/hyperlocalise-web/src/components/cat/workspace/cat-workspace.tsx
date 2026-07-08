@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ import type { CatWorkspaceViewProps } from "@/components/cat/shared/dependencies
 import { catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
+import { useCatWorkspace } from "./cat-workspace-context";
 import { resolveSegmentIntelligenceForDisplay } from "./store/cat-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -39,7 +41,7 @@ function useIsCompactWorkspace() {
   return isCompact;
 }
 
-export function CatWorkspaceView({
+export const CatWorkspaceView = observer(function CatWorkspaceView({
   shell,
   queueSegments,
   selectedSegment,
@@ -69,7 +71,6 @@ export function CatWorkspaceView({
   isQueueFetchingPage = false,
   isQueueLoading = false,
   isCommentsLoading = false,
-  isIntelligenceCommentsLoading,
   isSegmentTargetLoading = false,
   queuePagination = null,
   hasMoreQueue = false,
@@ -86,12 +87,13 @@ export function CatWorkspaceView({
   isBulkActionPending = false,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
-  viewMode = "comfortable",
-  onViewModeChange,
-  intelligenceSegmentId: intelligenceSegmentIdProp = null,
-  onIntelligenceSegmentChange,
-  loadingSegmentIds,
 }: CatWorkspaceViewProps) {
+  const store = useCatWorkspace();
+  const viewMode = store.ui.viewMode;
+  const intelligenceSegmentId = store.intelligenceSegmentId;
+  const intelligenceSegment = store.intelligenceSegmentView ?? null;
+  const loadingSegmentIds = store.loadingSegmentIds;
+  const isIntelligenceCommentsLoading = store.isIntelligenceCommentsLoading;
   const navigationSegments = queueSegments;
   const selectedSegmentIndex = selectedSegment
     ? navigationSegments.findIndex(
@@ -101,9 +103,6 @@ export function CatWorkspaceView({
     : -1;
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
-  const [localIntelligenceSegmentId, setLocalIntelligenceSegmentId] = useState<string | null>(null);
-  const intelligenceSegmentId =
-    intelligenceSegmentIdProp ?? localIntelligenceSegmentId ?? selectedSegment?.id ?? null;
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const isIntelligencePanelVisible = Boolean(
@@ -128,15 +127,6 @@ export function CatWorkspaceView({
     onIntelligencePanelVisible,
     selectedSegmentIdForIntelligence,
   ]);
-
-  function handleIntelligenceSegmentChange(segmentId: string | null) {
-    if (onIntelligenceSegmentChange) {
-      onIntelligenceSegmentChange(segmentId);
-      return;
-    }
-
-    setLocalIntelligenceSegmentId(segmentId);
-  }
 
   if (!selectedSegment && isQueueLoading) {
     return (
@@ -241,9 +231,6 @@ export function CatWorkspaceView({
   const canAddComment = shell.fileContext.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(editorSegment.id) ?? false;
   const segmentShareUrl = buildSegmentShareUrl?.(editorSegment) ?? null;
-  const intelligenceSegment =
-    queueSegments.find((segment) => segment.id === intelligenceSegmentId) ??
-    (selectedSegment?.id === intelligenceSegmentId ? selectedSegment : null);
   const intelligenceSegmentIntelligence = intelligenceSegment
     ? resolveSegmentIntelligenceForDisplay(
         {
@@ -258,7 +245,7 @@ export function CatWorkspaceView({
     canAddComment;
 
   function renderSideBySidePanel() {
-    if (!selectedSegment || !onViewModeChange) {
+    if (!selectedSegment) {
       return null;
     }
 
@@ -272,14 +259,12 @@ export function CatWorkspaceView({
           focusedSegmentId={editorSegment.id}
           intelligenceSegment={intelligenceSegment}
           intelligence={intelligenceSegmentIntelligence}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
           dirtySegmentIds={dirtySegmentIds}
           loadingSegmentIds={loadingSegmentIds}
           canEditTranslations={canApprove}
           canAddComment={canAddComment}
           supportsIssueComments={supportsIssueComments}
-          isCommentsLoading={isIntelligenceCommentsLoading ?? isCommentsLoading}
+          isCommentsLoading={isIntelligenceCommentsLoading}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
@@ -288,7 +273,7 @@ export function CatWorkspaceView({
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={
-            revealedAgentContextSegmentIds?.has(intelligenceSegmentId ?? "") ?? showAgentContext
+            revealedAgentContextSegmentIds?.has(intelligenceSegmentId) ?? showAgentContext
           }
           showVisualContext={showVisualContext}
           canLookupFreshContext={canLookupContext}
@@ -304,7 +289,6 @@ export function CatWorkspaceView({
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
           onFocusSegment={dependencies.navigation.onSelectSegment}
-          onIntelligenceSegmentChange={handleIntelligenceSegmentChange}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onRefreshContext={() =>
             intelligenceSegment
@@ -437,8 +421,6 @@ export function CatWorkspaceView({
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
         />
       </CatPanelErrorBoundary>
     );
@@ -546,4 +528,4 @@ export function CatWorkspaceView({
       )}
     </div>
   );
-}
+});

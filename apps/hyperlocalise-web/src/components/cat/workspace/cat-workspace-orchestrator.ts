@@ -32,6 +32,7 @@ import { CatIntelligenceStore } from "./store/cat-intelligence-store";
 import { CatQueueStore } from "./store/cat-queue-store";
 import { CatSegmentDraft } from "./store/cat-segment-draft";
 import { CatSegmentStore } from "./store/cat-segment-store";
+import { CatWorkspaceUiStore } from "./store/cat-workspace-ui-store";
 import { composeSegmentView, toQueueSegment } from "./store/cat-segment-view";
 import {
   collectSegmentsWithAgentContext,
@@ -135,6 +136,7 @@ export class CatWorkspaceOrchestrator {
   readonly queue = new CatQueueStore();
   readonly segments = new CatSegmentStore();
   readonly intelligenceState = new CatIntelligenceStore();
+  readonly ui = new CatWorkspaceUiStore();
 
   jobTitle?: string;
   breadcrumbs?: string[];
@@ -496,6 +498,44 @@ export class CatWorkspaceOrchestrator {
     return this.getSegmentView(segmentId);
   }
 
+  get intelligenceSegmentId() {
+    return this.ui.hoveredSegmentId ?? this.selectedSegmentId;
+  }
+
+  get intelligenceSegmentView(): CatSegment | undefined {
+    const segmentId =
+      this.findSegmentIdByKeyOrId(this.intelligenceSegmentId) ?? this.intelligenceSegmentId;
+    if (!segmentId) {
+      return undefined;
+    }
+
+    return this.getSegmentView(segmentId);
+  }
+
+  get loadingSegmentIds(): ReadonlySet<string> {
+    const ids = new Set<string>();
+    if (this.isSegmentTargetLoading && this.selectedSegmentId) {
+      ids.add(this.selectedSegmentId);
+    }
+    if (this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId) {
+      ids.add(this.ui.previewLoadingSegmentId);
+    }
+    return ids;
+  }
+
+  get isIntelligenceCommentsLoading() {
+    const segmentId = this.intelligenceSegmentId;
+    if (!segmentId) {
+      return false;
+    }
+
+    if (segmentId === this.selectedSegmentId) {
+      return this.isCommentsLoading;
+    }
+
+    return this.ui.previewCommentsLoading;
+  }
+
   get selectedDraft(): CatSegmentDraft | undefined {
     const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
     return this.drafts.get(segmentId);
@@ -755,6 +795,7 @@ export class CatWorkspaceOrchestrator {
   setSelectedSegmentId(segmentId: string) {
     this.queue.select(segmentId);
     this.segments.clearCommentError();
+    this.ui.clearHoveredSegment();
   }
 
   setTargetText(segmentId: string, value: string) {

@@ -97,7 +97,7 @@ function useCatSegmentLazySync(input: {
     const isLoading =
       segmentTargetQuery.isFetching &&
       segmentTargetQuery.data === undefined &&
-      !store.drafts.get(segmentId)?.targetText.trim();
+      !(segmentId && store.drafts.get(segmentId)?.targetText.trim());
 
     store.setSegmentTargetLoading(isLoading);
   }, [
@@ -129,8 +129,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType,
   catFile,
   enabled,
-  previewSegmentId = null,
-  onPreviewTargetLoadingChange,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -140,14 +138,13 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType?: "file" | "key";
   catFile: ProjectFileCatQueueFile | null | undefined;
   enabled: boolean;
-  previewSegmentId?: string | null;
-  onPreviewTargetLoadingChange?: (
-    segmentId: string | null,
-    state: { isTargetLoading: boolean; isCommentsLoading: boolean },
-  ) => void;
 }) {
   const store = useCatWorkspace();
   const selectedSegmentId = store.selectedSegmentId;
+  const previewSegmentId =
+    store.ui.hoveredSegmentId && store.ui.hoveredSegmentId !== selectedSegmentId
+      ? store.ui.hoveredSegmentId
+      : null;
 
   const _selectedSync = useCatSegmentLazySync({
     organizationSlug,
@@ -172,15 +169,15 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
     externalResourceId,
     resourceType,
     catFile,
-    enabled: enabled && Boolean(previewSegmentId && previewSegmentId !== selectedSegmentId),
-    segmentId: previewSegmentId && previewSegmentId !== selectedSegmentId ? previewSegmentId : null,
+    enabled: enabled && Boolean(previewSegmentId),
+    segmentId: previewSegmentId,
     syncComments: true,
     syncTargetLoading: false,
     syncCommentsLoading: false,
   });
 
   useEffect(() => {
-    onPreviewTargetLoadingChange?.(previewSync.segmentId, {
+    store.ui.setPreviewLoadingState(previewSync.segmentId, {
       isTargetLoading: previewSync.isTargetLoading,
       isCommentsLoading:
         Boolean(previewSync.segmentId) &&
@@ -188,11 +185,11 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
         previewSync.comments === undefined,
     });
   }, [
-    onPreviewTargetLoadingChange,
     previewSync.comments,
     previewSync.isCommentsFetching,
     previewSync.isTargetLoading,
     previewSync.segmentId,
+    store,
   ]);
 
   return null;

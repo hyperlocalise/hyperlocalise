@@ -26,8 +26,7 @@ import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { useCatQueueSelectionMode } from "./use-cat-queue-selection-mode";
 import { catQueuePanelMessages, catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
-import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
-import { CatWorkspaceViewSwitcher } from "@/components/cat/workspace/cat-workspace-view-switcher";
+import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
 
 export type CatQueuePagination = {
   offset: number;
@@ -72,8 +71,6 @@ export function CatQueuePanel({
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
-  viewMode,
-  onViewModeChange,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
@@ -97,8 +94,6 @@ export function CatQueuePanel({
   pagination?: CatQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
-  viewMode?: CatWorkspaceViewMode;
-  onViewModeChange?: (mode: CatWorkspaceViewMode) => void;
 }) {
   const intl = useIntl();
   const [selectionMode, setSelectionMode] = useCatQueueSelectionMode();
@@ -121,9 +116,7 @@ export function CatQueuePanel({
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
-          {viewMode && onViewModeChange ? (
-            <CatWorkspaceViewSwitcher value={viewMode} onChange={onViewModeChange} />
-          ) : null}
+          <CatWorkspaceViewSwitcherConnected />
         </div>
 
         {onSearchChange ? (
