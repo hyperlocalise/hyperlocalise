@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -42,6 +42,12 @@ export function CreateTranslationJobDialog({
 }: CreateTranslationJobDialogProps) {
   const queryClient = useQueryClient();
   const [selectedLocales, setSelectedLocales] = useState<string[]>(targetLocales);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedLocales(targetLocales);
+    }
+  }, [open, targetLocales]);
 
   const createJob = useMutation({
     mutationFn: async () => {
@@ -150,7 +156,12 @@ export function CreateTranslationJobDialog({
           </Button>
           <Button
             type="button"
-            disabled={createJob.isPending || targetLocales.length === 0 || !file?.storedFileId}
+            disabled={
+              createJob.isPending ||
+              targetLocales.length === 0 ||
+              selectedLocales.length === 0 ||
+              !file?.storedFileId
+            }
             onClick={() => createJob.mutate()}
           >
             {createJob.isPending ? <Spinner className="size-4" /> : null}
