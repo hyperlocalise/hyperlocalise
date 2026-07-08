@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
+import { IssuesActions } from "./issues-actions";
 import {
   issuesOrganizationSlug,
   issuesSummaryFixture,
@@ -90,6 +91,18 @@ export const LoadMore: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Loading..." })).toBeDisabled();
+  },
+};
+
+export const WithActions: Story = {
+  args: {
+    actions: (
+      <IssuesActions organizationSlug={issuesOrganizationSlug} onIssuesChanged={async () => {}} />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: "Import CSV" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
   },
 };
 

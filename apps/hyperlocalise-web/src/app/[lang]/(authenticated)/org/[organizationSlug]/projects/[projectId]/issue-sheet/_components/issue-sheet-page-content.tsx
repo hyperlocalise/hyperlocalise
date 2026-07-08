@@ -30,6 +30,7 @@ import { readApiResponseError } from "@/lib/api-error";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { useProjectPageQuery } from "../../_components/project-page-shell";
+import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
 
 type IssueSheetColumn = {
@@ -105,12 +106,6 @@ const columnTypes = [
   { value: "long_text", label: "Long text" },
   { value: "select", label: "Select" },
   { value: "user", label: "User ID" },
-] as const;
-
-const priorities = [
-  { value: "P0", label: "P0" },
-  { value: "P1", label: "P1" },
-  { value: "P2", label: "P2" },
 ] as const;
 
 function issueSheetPath(organizationSlug: string, projectId: string) {
@@ -449,7 +444,7 @@ export function IssueSheetPageContent({
         </div>
       </div>
 
-      <CreateIssueDialog
+      <IssueSheetCreateIssueDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         organizationSlug={organizationSlug}
@@ -564,108 +559,6 @@ function CustomCell({
       placeholder="—"
       className="w-44"
     />
-  );
-}
-
-function CreateIssueDialog({
-  open,
-  onOpenChange,
-  organizationSlug,
-  projectId,
-  onCreated,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  organizationSlug: string;
-  projectId: string;
-  onCreated: () => Promise<void>;
-}) {
-  const createIssue = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const response = await fetch(issueSheetPath(organizationSlug, projectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: formString(formData, "title"),
-          description: formString(formData, "description"),
-          issueType: formString(formData, "issueType", "general_question"),
-          targetLocale: formString(formData, "targetLocale") || undefined,
-          sourcePath: formString(formData, "sourcePath") || undefined,
-          linkKind: formString(formData, "linkUrl") ? "url" : "manual",
-          linkLabel: formString(formData, "linkLabel") || undefined,
-          linkUrl: formString(formData, "linkUrl") || undefined,
-          priority: formString(formData, "priority", "P2"),
-        }),
-      });
-      return readJsonOrThrow<{ issue: IssueSheetIssue }>(response);
-    },
-    onSuccess: async () => {
-      toast.success("Issue added");
-      onOpenChange(false);
-      await onCreated();
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Issue create failed"),
-  });
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    createIssue.mutate(new FormData(event.currentTarget));
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>Add issue</DialogTitle>
-            <DialogDescription>
-              Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful.
-            </DialogDescription>
-          </DialogHeader>
-          <Input name="title" placeholder="Short issue title" required />
-          <Textarea name="description" placeholder="What needs context, review, or a fix?" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Select name="issueType" defaultValue="general_question" items={issueTypes}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Issue type" />
-              </SelectTrigger>
-              <SelectContent>
-                {issueTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value} label={type.label}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select name="priority" defaultValue="P2" items={priorities}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                {priorities.map((priority) => (
-                  <SelectItem key={priority.value} value={priority.value} label={priority.label}>
-                    {priority.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input name="targetLocale" placeholder="Locale, e.g. de-DE" />
-            <Input name="sourcePath" placeholder="Source path" />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input name="linkLabel" placeholder="Link label" />
-            <Input name="linkUrl" placeholder="https://..." />
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={createIssue.isPending}>
-              Add issue
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
