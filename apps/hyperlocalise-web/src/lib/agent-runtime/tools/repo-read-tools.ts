@@ -319,7 +319,7 @@ async function changedFilesHistory(
 
   const args = buildGitLogArgs(input, {
     nameOnly: true,
-    maxCount: maxResults,
+    maxCount: maxResults + 1,
     paths,
   });
   const result = await ctx.bash.exec("git", { args });
@@ -332,7 +332,13 @@ async function changedFilesHistory(
   }
 
   const pathSet = new Set(paths);
-  const changedFiles = uniqueLines(result.stdout)
+  const parsedCommits = parseGitNameOnlyCommits(result.stdout);
+  const commitLimited = parsedCommits.length > maxResults;
+  const changedFileLines =
+    parsedCommits.length > 0
+      ? parsedCommits.slice(0, maxResults).flatMap((commit) => commit.files)
+      : uniqueLines(result.stdout);
+  const changedFiles = uniqueLines(changedFileLines.join("\n"))
     .map((line) => normalizeSourcePath(line))
     .filter((line): line is string => Boolean(line))
     .filter((line) => pathSet.has(line));
@@ -343,7 +349,7 @@ async function changedFilesHistory(
     mode: "changedFiles" as const,
     files,
     discovery,
-    truncated: files.length < changedFiles.length,
+    truncated: commitLimited || files.length < changedFiles.length,
   };
 }
 
@@ -705,6 +711,24 @@ function uniqueLines(output: string): string[] {
         .filter(Boolean),
     ),
   );
+}
+
+function parseGitNameOnlyCommits(output: string): Array<{ files: string[] }> {
+  const commits: Array<{ files: string[] }> = [];
+  let current: { files: string[] } | null = null;
+
+  for (const rawLine of output.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (/^[0-9a-f]{40}\t/i.test(line)) {
+      current = { files: [] };
+      commits.push(current);
+      continue;
+    }
+    current?.files.push(line);
+  }
+
+  return commits;
 }
 
 function readString(value: unknown): string | null {

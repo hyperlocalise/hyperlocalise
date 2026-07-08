@@ -846,6 +846,45 @@ describe("createGitHistoryTool", () => {
     });
   });
 
+  it("reports truncation when changedFiles reaches the commit limit before the file limit", async () => {
+    const ctx = createTestContext();
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "log") {
+          return {
+            stdout: [
+              "1111111111111111111111111111111111111111\t2026-07-01T00:00:00Z\tMina\tOne",
+              "src/messages.json",
+              "2222222222222222222222222222222222222222\t2026-07-02T00:00:00Z\tMina\tTwo",
+              "src/messages.json",
+              "3333333333333333333333333333333333333333\t2026-07-03T00:00:00Z\tMina\tThree",
+              "src/other.json",
+            ].join("\n"),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "changedFiles", paths: ["src/messages.json", "src/other.json"], maxResults: 2 },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      mode: "changedFiles",
+      files: ["src/messages.json"],
+      truncated: true,
+    });
+    expect(gitCalls[0]).toContain("--max-count=3");
+  });
+
   it("reports unresolved Phrase placeholders as skipped diagnostics", async () => {
     const ctx = createTestContext({
       "/home/user/project/.phrase.yml": "phrase:\n  push:\n    sources: []\n",
