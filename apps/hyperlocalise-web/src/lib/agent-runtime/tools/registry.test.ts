@@ -34,6 +34,7 @@ describe("agent-runtime tool registry", () => {
     expect(tools.read).toBeDefined();
     expect(tools.glob).toBeDefined();
     expect(tools.detectRepoConfig).toBeDefined();
+    expect(tools.gitHistory).toBeDefined();
     expect(tools.bash).toBeDefined();
     expect(tools.todoWrite).toBeDefined();
     expect(tools.applyHyperlocaliseFixes).toBeUndefined();

@@ -24,4 +24,13 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain("Source file path in the TMS project: locales/en.json");
     expect(instructions).toContain("Source text: Save");
   });
+
+  it("instructs bulk recent-change lookups to use git history and config discovery", () => {
+    const instructions = buildFindContextSkillInstructions({});
+
+    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain('mode: "changedFiles"');
+    expect(instructions).toContain("crowdin.yml");
+    expect(instructions).toContain(".phrase.yml");
+  });
 });

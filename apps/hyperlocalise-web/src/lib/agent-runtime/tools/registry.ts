@@ -6,6 +6,7 @@ import { ensureAgentSession, type ToolContext } from "@/lib/agent-contracts/tool
 
 import {
   createDetectRepoConfigTool,
+  createGitHistoryTool,
   createRepoGitStateTool,
   createRunHyperlocaliseCliTool,
 } from "./repo-read-tools";
@@ -44,6 +45,9 @@ function createWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): Tool
   }
   if (policy.isToolAllowed("detectRepoConfig")) {
     tools.detectRepoConfig = createDetectRepoConfigTool(repoBash);
+  }
+  if (policy.isToolAllowed("gitHistory")) {
+    tools.gitHistory = createGitHistoryTool(repoBash);
   }
   if (policy.isToolAllowed("bash")) {
     tools.bash = createBashTool(repoBash);
