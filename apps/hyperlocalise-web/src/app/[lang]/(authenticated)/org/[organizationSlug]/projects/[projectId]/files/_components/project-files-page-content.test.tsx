@@ -6,11 +6,17 @@ import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "./project-files.fixture";
+import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 
 const enUsFile = createProjectFileRecord({
   sourcePath: "en-US.json",
   storedFileId: "file_en_us",
   filename: "en-US.json",
+});
+const pricingFile = createProjectFileRecord({
+  sourcePath: "marketing/pricing.json",
+  storedFileId: "file_pricing",
+  filename: "pricing.json",
 });
 
 const { routerPushMock, searchParamsMock } = vi.hoisted(() => ({
@@ -88,7 +94,7 @@ vi.mock("../../_components/project-page-shell", () => ({
   }),
 }));
 
-import { ProjectFilesPageContent } from "./project-files-page-content";
+import { ProjectFilesPageContent, ProjectFilesPageContentView } from "./project-files-page-content";
 
 describe("ProjectFilesPageContent CAT entry UX", () => {
   beforeEach(() => {
@@ -127,6 +133,72 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     expect(
       screen.getByText(/Double-click a file or use View strings to open the CAT workspace for vi/i),
     ).toBeInTheDocument();
+  });
+
+  it("shows import and download actions for native project files", () => {
+    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("passes project target locales to default-layout download actions", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProjectFilesPageContentView
+        organizationSlug="acme"
+        projectId="proj_1"
+        files={[enUsFile]}
+        isFilesLoading={false}
+        isFilesFetching={false}
+        selectedSourcePath="en-US.json"
+        highlightLocale={null}
+        projectTargetLocales={["vi", "fr-FR"]}
+        selectedFiles={[]}
+        isUploading={false}
+        onSelectSourcePath={() => undefined}
+        onAddSelectedFiles={() => undefined}
+        onRemoveSelectedFile={() => undefined}
+        onUploadSelectedFiles={() => undefined}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(screen.getByText("Target locale")).toBeInTheDocument();
+    expect(screen.getByText("vi")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Add target locales in project settings before downloading translations."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("preserves open download dialog selections across parent re-renders", async () => {
+    const user = userEvent.setup();
+    const targetLocales = ["vi", "fr-FR"] as const;
+    const nativeSourcePaths = [enUsFile.sourcePath, pricingFile.sourcePath] as const;
+    const renderActions = (layout: "default" | "compact") => (
+      <ProjectFileSelectionActions
+        organizationSlug="acme"
+        projectId="proj_1"
+        file={enUsFile}
+        highlightLocale={null}
+        projectTargetLocales={targetLocales}
+        nativeSourcePaths={nativeSourcePaths}
+        layout={layout}
+      />
+    );
+
+    const { rerender } = render(renderActions("default"));
+
+    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByLabelText(pricingFile.sourcePath));
+    await user.click(screen.getByLabelText("fr-FR"));
+
+    rerender(renderActions("compact"));
+
+    expect(screen.getByLabelText(pricingFile.sourcePath)).toBeChecked();
+    expect(screen.getByLabelText("fr-FR")).toBeChecked();
   });
 
   it("shows when a requested native locale will fall back to a project locale", () => {
