@@ -100,6 +100,19 @@ const statuses = [
   { value: "wont_fix", label: "Won't fix" },
 ] as const;
 
+const columnTypes = [
+  { value: "text", label: "Text" },
+  { value: "long_text", label: "Long text" },
+  { value: "select", label: "Select" },
+  { value: "user", label: "User ID" },
+] as const;
+
+const priorities = [
+  { value: "P0", label: "P0" },
+  { value: "P1", label: "P1" },
+  { value: "P2", label: "P2" },
+] as const;
+
 function issueSheetPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
 }
@@ -272,6 +285,7 @@ export function IssueSheetPageContent({
         <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[220px_1fr]">
           <Select
             value={view}
+            items={views}
             onValueChange={(value) => setView((value ?? "all_open") as typeof view)}
           >
             <SelectTrigger className="w-full">
@@ -354,6 +368,7 @@ export function IssueSheetPageContent({
                     <td className="px-4 py-3">
                       <Select
                         value={issue.status}
+                        items={statuses}
                         onValueChange={(value) =>
                           updateIssue.mutate({ issueId: issue.id, body: { status: value } })
                         }
@@ -379,6 +394,7 @@ export function IssueSheetPageContent({
                     <td className="px-4 py-3">
                       <Select
                         value={issue.issueType}
+                        items={issueTypes}
                         onValueChange={(value) =>
                           updateIssue.mutate({ issueId: issue.id, body: { issueType: value } })
                         }
@@ -503,9 +519,11 @@ function CustomCell({
 
   if (column.type === "select") {
     const options = column.config.options ?? [];
+    const selectItems = options.map((option) => ({ value: option.id, label: option.label }));
     return (
       <Select
         value={draft || undefined}
+        items={selectItems}
         onValueChange={(next) => {
           const value = next ?? "";
           setDraft(value);
@@ -607,7 +625,7 @@ function CreateIssueDialog({
           <Input name="title" placeholder="Short issue title" required />
           <Textarea name="description" placeholder="What needs context, review, or a fix?" />
           <div className="grid gap-3 sm:grid-cols-2">
-            <Select name="issueType" defaultValue="general_question">
+            <Select name="issueType" defaultValue="general_question" items={issueTypes}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Issue type" />
               </SelectTrigger>
@@ -619,20 +637,16 @@ function CreateIssueDialog({
                 ))}
               </SelectContent>
             </Select>
-            <Select name="priority" defaultValue="P2">
+            <Select name="priority" defaultValue="P2" items={priorities}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="P0" label="P0">
-                  P0
-                </SelectItem>
-                <SelectItem value="P1" label="P1">
-                  P1
-                </SelectItem>
-                <SelectItem value="P2" label="P2">
-                  P2
-                </SelectItem>
+                {priorities.map((priority) => (
+                  <SelectItem key={priority.value} value={priority.value} label={priority.label}>
+                    {priority.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -715,23 +729,16 @@ function CreateColumnDialog({
           </DialogHeader>
           <Input name="label" placeholder="Column label, e.g. Sprint" required />
           <Input name="key" placeholder="column_key" required />
-          <Select name="type" defaultValue="text">
+          <Select name="type" defaultValue="text" items={columnTypes}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Column type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="text" label="Text">
-                Text
-              </SelectItem>
-              <SelectItem value="long_text" label="Long text">
-                Long text
-              </SelectItem>
-              <SelectItem value="select" label="Select">
-                Select
-              </SelectItem>
-              <SelectItem value="user" label="User ID">
-                User ID
-              </SelectItem>
+              {columnTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value} label={type.label}>
+                  {type.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Input name="options" placeholder="For select: Backlog, Sprint 24, Blocked" />

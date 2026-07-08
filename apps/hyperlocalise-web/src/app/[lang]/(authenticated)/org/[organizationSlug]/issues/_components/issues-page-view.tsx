@@ -133,6 +133,7 @@ export function IssuesPageView({
       <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[220px_1fr]">
         <Select
           value={view}
+          items={views}
           onValueChange={(value) => onViewChange((value ?? "all_open") as IssueView)}
         >
           <SelectTrigger className="w-full">
