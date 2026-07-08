@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
@@ -48,6 +48,7 @@ export function ProjectFileSelectionActions({
   const canOpenCat = canOpenProjectFileCat(file);
   const isNativeFile = !file.provider;
   const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
+  const stableTargetLocales = useMemo(() => [...targetLocales], [targetLocales]);
   const canTranslateWithAgent =
     isNativeFile &&
     Boolean(file.storedFileId) &&
@@ -71,7 +72,7 @@ export function ProjectFileSelectionActions({
         projectId={projectId}
         file={file}
         sourceLocale={sourceLocale}
-        targetLocales={[...targetLocales]}
+        targetLocales={stableTargetLocales}
       />
       <ImportTranslationsDialog
         open={importDialogOpen}
