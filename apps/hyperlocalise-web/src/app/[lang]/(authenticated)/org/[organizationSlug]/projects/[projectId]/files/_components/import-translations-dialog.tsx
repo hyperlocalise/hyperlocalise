@@ -26,7 +26,7 @@ type ImportTranslationsDialogProps = {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
-  targetLocales: string[];
+  targetLocales: readonly string[];
 };
 
 function importApiPath(organizationSlug: string, projectId: string) {

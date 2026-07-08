@@ -17,13 +17,15 @@ import {
 import { DownloadTranslationsDialog } from "./download-translations-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 
+const EMPTY_STRING_ARRAY: readonly string[] = [];
+
 export function ProjectFileSelectionActions({
   organizationSlug,
   projectId,
   file,
   highlightLocale,
   projectTargetLocales,
-  nativeSourcePaths = [],
+  nativeSourcePaths = EMPTY_STRING_ARRAY,
   branch = null,
   layout = "default",
 }: {
@@ -40,7 +42,7 @@ export function ProjectFileSelectionActions({
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const canOpenCat = canOpenProjectFileCat(file);
   const isNativeFile = !file.provider;
-  const targetLocales = projectTargetLocales ?? [];
+  const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
   const catHref = buildProjectFileCatHref(
     organizationSlug,
     projectId,
@@ -58,16 +60,16 @@ export function ProjectFileSelectionActions({
         organizationSlug={organizationSlug}
         projectId={projectId}
         sourcePath={file.sourcePath}
-        targetLocales={[...targetLocales]}
+        targetLocales={targetLocales}
       />
       <DownloadTranslationsDialog
         open={downloadDialogOpen}
         onOpenChange={setDownloadDialogOpen}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        sourcePaths={[...nativeSourcePaths]}
+        sourcePaths={nativeSourcePaths}
         initialSourcePath={file.sourcePath}
-        targetLocales={[...targetLocales]}
+        targetLocales={targetLocales}
       />
     </>
   ) : null;

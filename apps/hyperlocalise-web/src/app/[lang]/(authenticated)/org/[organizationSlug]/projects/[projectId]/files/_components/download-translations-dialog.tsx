@@ -21,9 +21,9 @@ type DownloadTranslationsDialogProps = {
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projectId: string;
-  sourcePaths: string[];
+  sourcePaths: readonly string[];
   initialSourcePath: string;
-  targetLocales: string[];
+  targetLocales: readonly string[];
 };
 
 function buildDownloadHref(
