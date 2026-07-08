@@ -1,7 +1,36 @@
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll } from "vite-plus/test";
 
+import { E2E_SETUP_TOKEN_HEADER } from "../../lib/e2e/config";
+
 import { E2E_BASE_URL } from "../constants";
+
+function requireE2eSetupToken() {
+  const token = process.env.E2E_AUTH_SECRET?.trim();
+  if (!token) {
+    throw new Error("E2E_AUTH_SECRET must be set for fixture auth browser tests");
+  }
+
+  return token;
+}
+
+async function createFixtureSession(page: Page, body: Record<string, string>) {
+  const response = await page.request.post(
+    new URL("/api/e2e/auth/session", E2E_BASE_URL).toString(),
+    {
+      headers: {
+        [E2E_SETUP_TOKEN_HEADER]: requireE2eSetupToken(),
+      },
+      data: body,
+    },
+  );
+
+  if (!response.ok()) {
+    throw new Error(`E2E fixture login failed with status ${response.status()}`);
+  }
+
+  await trackFixtureSession(page);
+}
 
 type E2eBrowserContext = {
   browser: Browser;
@@ -42,7 +71,10 @@ export function useE2eBrowser() {
       const cleanupUrl = new URL("/api/e2e/auth/session", E2E_BASE_URL).toString();
       for (const token of context.sessionTokens) {
         const response = await context.page.request.delete(cleanupUrl, {
-          headers: { Cookie: `wos-session=${token}` },
+          headers: {
+            Cookie: `wos-session=${token}`,
+            [E2E_SETUP_TOKEN_HEADER]: requireE2eSetupToken(),
+          },
         });
         if (response.status() !== 204) {
           throw new Error(`E2E fixture cleanup failed with status ${response.status()}`);
@@ -63,15 +95,9 @@ export function getE2ePage() {
 }
 
 export async function loginForOnboarding(page: Page) {
-  const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
-  loginUrl.searchParams.set("mode", "onboarding");
-  await page.goto(loginUrl.toString(), { waitUntil: "domcontentloaded" });
-  await trackFixtureSession(page);
+  await createFixtureSession(page, { mode: "onboarding" });
 }
 
 export async function loginAsAdmin(page: Page) {
-  const loginUrl = new URL("/e2e/login", E2E_BASE_URL);
-  loginUrl.searchParams.set("role", "admin");
-  await page.goto(loginUrl.toString(), { waitUntil: "domcontentloaded" });
-  await trackFixtureSession(page);
+  await createFixtureSession(page, { role: "admin" });
 }

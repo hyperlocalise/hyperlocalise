@@ -32,7 +32,10 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/auth/sign-in")).toBe(false);
     expect(isUnsupportedLocalePath("/install")).toBe(false);
     expect(isUnsupportedLocalePath("/api/auth/callback")).toBe(false);
-    expect(isUnsupportedLocalePath("/e2e/login")).toBe(false);
+  });
+
+  it("rejects removed fixture browser routes", () => {
+    expect(isUnsupportedLocalePath("/e2e/login")).toBe(true);
   });
 
   it("allows localized marketing paths without a locale prefix", () => {

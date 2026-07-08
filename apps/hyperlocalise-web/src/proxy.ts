@@ -22,10 +22,6 @@ function shouldBypassWorkosProxy(request: NextRequest) {
     return true;
   }
 
-  if (request.nextUrl.pathname.startsWith("/e2e/")) {
-    return true;
-  }
-
   return hasFixtureSessionCookie(request.headers.get("cookie") ?? undefined);
 }
 
@@ -40,7 +36,7 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/e2e"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api"];
 
 function splitLocalePath(pathname: string): {
   locale: string | null;

@@ -4,17 +4,29 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { testClient } from "hono/testing";
 
+import { E2E_SETUP_TOKEN_HEADER } from "@/lib/e2e/config";
 import { db, schema } from "@/lib/database";
 
 const fixtureAuthState = vi.hoisted(() => ({
   enabled: true,
+  tokenValid: true,
 }));
 
-vi.mock("@/lib/e2e/config", () => ({
-  isFixtureAuthEnabled: () => fixtureAuthState.enabled,
-  FIXTURE_SESSION_PREFIX: "test_",
-  isFixtureSessionToken: (token: string | undefined | null) => Boolean(token?.startsWith("test_")),
-}));
+vi.mock("@/lib/e2e/config", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/e2e/config")>("@/lib/e2e/config");
+
+  return {
+    ...actual,
+    isFixtureAuthEnabled: () => fixtureAuthState.enabled,
+    verifyE2eSetupToken: (token: string | null | undefined) =>
+      fixtureAuthState.tokenValid && token === "test-token",
+  };
+});
+
+function parseSessionCookie(setCookieHeader: string | null) {
+  const match = setCookieHeader?.match(/wos-session=([^;]+)/);
+  return match?.[1] ?? null;
+}
 
 describe("e2e auth route", () => {
   beforeAll(async () => {
@@ -23,6 +35,7 @@ describe("e2e auth route", () => {
 
   beforeEach(() => {
     fixtureAuthState.enabled = true;
+    fixtureAuthState.tokenValid = true;
   });
 
   afterEach(async () => {
@@ -37,6 +50,24 @@ describe("e2e auth route", () => {
 
     const response = await client.auth.session.$post({
       json: {},
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "test-token",
+      },
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 404 when the setup token is invalid", async () => {
+    fixtureAuthState.tokenValid = false;
+    const { createE2eAuthRoutes } = await import("./e2e-auth.route");
+    const client = testClient(createE2eAuthRoutes());
+
+    const response = await client.auth.session.$post({
+      json: { role: "admin" },
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "invalid-token",
+      },
     });
 
     expect(response.status).toBe(404);
@@ -48,6 +79,9 @@ describe("e2e auth route", () => {
 
     const response = await client.auth.session.$post({
       json: { role: "admin" },
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "test-token",
+      },
     });
 
     expect(response.status).toBe(201);
@@ -56,14 +90,14 @@ describe("e2e auth route", () => {
       session: {
         email: string;
         organizationSlug: string;
-        sessionToken: string;
         workosOrganizationId: string;
         workosUserId: string;
+        sessionToken?: string;
       };
     };
     expect(body.session.organizationSlug).toMatch(/^example-org-/);
-    expect(body.session.sessionToken).toMatch(/^test_/);
-    expect(response.headers.get("set-cookie")).toContain("wos-session=");
+    expect(body.session.sessionToken).toBeUndefined();
+    expect(parseSessionCookie(response.headers.get("set-cookie"))).toMatch(/^test_/);
   });
 
   it("returns 400 for an invalid request body", async () => {
@@ -72,6 +106,9 @@ describe("e2e auth route", () => {
 
     const response = await client.auth.session.$post({
       json: { role: "godmode" },
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "test-token",
+      },
     });
 
     expect(response.status).toBe(400);
@@ -86,6 +123,9 @@ describe("e2e auth route", () => {
 
     const response = await client.auth.session.$post({
       json: { mode: "onboarding" },
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "test-token",
+      },
     });
 
     expect(response.status).toBe(201);
@@ -93,13 +133,13 @@ describe("e2e auth route", () => {
     const body = (await response.json()) as {
       session: {
         email: string;
-        sessionToken: string;
         workosUserId: string;
+        sessionToken?: string;
       };
     };
-    expect(body.session.sessionToken).toMatch(/^test_/);
+    expect(body.session.sessionToken).toBeUndefined();
     expect(body.session.workosUserId).toMatch(/^user_/);
-    expect(response.headers.get("set-cookie")).toContain("wos-session=");
+    expect(parseSessionCookie(response.headers.get("set-cookie"))).toMatch(/^test_/);
   });
 
   it("deletes the current fixture session and its database records", async () => {
@@ -109,9 +149,14 @@ describe("e2e auth route", () => {
 
     const createResponse = await client.auth.session.$post({
       json: { role: "admin" },
+      header: {
+        [E2E_SETUP_TOKEN_HEADER]: "test-token",
+      },
     });
     const body = await createResponse.json();
+    const sessionToken = parseSessionCookie(createResponse.headers.get("set-cookie"));
     if (
+      !sessionToken ||
       !("session" in body) ||
       !("workosOrganizationId" in body.session) ||
       typeof body.session.workosOrganizationId !== "string"
@@ -123,7 +168,8 @@ describe("e2e auth route", () => {
       {},
       {
         headers: {
-          cookie: `wos-session=${body.session.sessionToken}`,
+          [E2E_SETUP_TOKEN_HEADER]: "test-token",
+          cookie: `wos-session=${sessionToken}`,
         },
       },
     );
@@ -131,7 +177,7 @@ describe("e2e auth route", () => {
     expect(deleteResponse.status).toBe(204);
     expect(deleteResponse.body).toBeNull();
     expect(deleteResponse.headers.get("set-cookie")).toContain("wos-session=;");
-    expect(getFixtureSessionRecord(body.session.sessionToken)).toBeNull();
+    expect(getFixtureSessionRecord(sessionToken)).toBeNull();
 
     const [organization] = await db
       .select({ id: schema.organizations.id })
@@ -154,6 +200,7 @@ describe("e2e auth route", () => {
       {},
       {
         headers: {
+          [E2E_SETUP_TOKEN_HEADER]: "test-token",
           cookie: "wos-session=test_unknown",
         },
       },
@@ -161,5 +208,21 @@ describe("e2e auth route", () => {
 
     expect(response.status).toBe(204);
     expect(response.body).toBeNull();
+  });
+
+  it("returns 404 when deleting without a valid setup token", async () => {
+    const { createE2eAuthRoutes } = await import("./e2e-auth.route");
+    const client = testClient(createE2eAuthRoutes());
+
+    const response = await client.auth.session.$delete(
+      {},
+      {
+        headers: {
+          cookie: "wos-session=test_unknown",
+        },
+      },
+    );
+
+    expect(response.status).toBe(404);
   });
 });
