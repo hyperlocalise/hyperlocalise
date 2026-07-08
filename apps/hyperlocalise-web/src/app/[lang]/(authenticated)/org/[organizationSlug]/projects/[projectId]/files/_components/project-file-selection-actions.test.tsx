@@ -86,7 +86,8 @@ describe("ProjectFileSelectionActions translation dialog", () => {
 
   it("preserves selected target locales across parent re-renders before creating the job", async () => {
     const user = userEvent.setup();
-    const view = render(renderActions(), { wrapper: CatTestProviders });
+    const targetLocales = ["vi", "fr-FR"] as const;
+    const view = render(renderActions({ targetLocales }), { wrapper: CatTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
     await user.click(screen.getByLabelText("fr-FR"));
@@ -94,7 +95,7 @@ describe("ProjectFileSelectionActions translation dialog", () => {
     expect(screen.getByLabelText("vi")).toBeChecked();
     expect(screen.getByLabelText("fr-FR")).not.toBeChecked();
 
-    view.rerender(renderActions({ layout: "compact" }));
+    view.rerender(renderActions({ layout: "compact", targetLocales }));
 
     expect(screen.getByLabelText("vi")).toBeChecked();
     expect(screen.getByLabelText("fr-FR")).not.toBeChecked();
