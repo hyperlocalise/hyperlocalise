@@ -27,7 +27,10 @@ import (
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
-var hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+var (
+	hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+	errPullReconstructionSkipped        = errors.New("pull reconstruction skipped")
+)
 
 type hyperlocaliseSyncRuntime struct {
 	cfg        *config.I18NConfig
@@ -218,6 +221,10 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				return report, fmt.Errorf("download translation for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
 			exported, err := rt.reconstructPullFile(plan, locale, targetPath, content)
+			if errors.Is(err, errPullReconstructionSkipped) {
+				report.Skipped++
+				continue
+			}
 			if err != nil {
 				report.Complete = false
 				return report, fmt.Errorf("reconstruct translation for source %q locale %q: %w", plan.SourcePath, locale, err)
@@ -253,29 +260,45 @@ func (rt *hyperlocaliseSyncRuntime) resolveTargetPath(targetPath string) (string
 	return candidate, nil
 }
 
+func pullAcceptsRawPrefilledExport(targetPath string) bool {
+	switch strings.ToLower(filepath.Ext(targetPath)) {
+	case ".json", ".jsonc":
+		return true
+	default:
+		return false
+	}
+}
+
 func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
 	var prefilled map[string]string
 	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
 		return nil, fmt.Errorf("parse translation export JSON: %w", err)
 	}
-	if len(prefilled) == 0 {
+
+	resolvedTargetPath, err := runsvc.ResolveExportPath(rt.configRoot, targetPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve target path %q: %w", targetPath, err)
+	}
+
+	if len(prefilled) == 0 && pullAcceptsRawPrefilledExport(resolvedTargetPath) {
 		return prefilledJSON, nil
 	}
 
 	sourcePath, err := runsvc.ResolveExportPath(rt.configRoot, plan.SourcePath)
 	if err != nil {
-		return prefilledJSON, nil
+		if pullAcceptsRawPrefilledExport(resolvedTargetPath) {
+			return prefilledJSON, nil
+		}
+		return nil, errPullReconstructionSkipped
 	}
 	if _, err := os.Stat(sourcePath); err != nil {
 		if os.IsNotExist(err) {
-			return prefilledJSON, nil
+			if pullAcceptsRawPrefilledExport(resolvedTargetPath) {
+				return prefilledJSON, nil
+			}
+			return nil, errPullReconstructionSkipped
 		}
 		return nil, fmt.Errorf("stat source file %q: %w", plan.SourcePath, err)
-	}
-
-	resolvedTargetPath, err := runsvc.ResolveExportPath(rt.configRoot, targetPath)
-	if err != nil {
-		return nil, fmt.Errorf("resolve target path %q: %w", targetPath, err)
 	}
 
 	return runsvc.ExportPrefilledTarget(runsvc.ExportInput{

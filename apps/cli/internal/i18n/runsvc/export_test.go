@@ -46,3 +46,34 @@ func TestExportPrefilledTargetReconstructsMarkdown(t *testing.T) {
 		t.Fatalf("content = %q, want translated markdown", string(content))
 	}
 }
+
+func TestExportPrefilledTargetReconstructsEmptyPrefilledMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "_posts", "en", "hello.md")
+	targetPath := filepath.Join(dir, "_posts", "de-DE", "hello.md")
+	sourceMarkdown := "# Hello\n\nWorld.\n"
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(sourceMarkdown), 0o644); err != nil {
+		t.Fatalf("write source markdown: %v", err)
+	}
+
+	content, err := ExportPrefilledTarget(ExportInput{
+		TargetPath:   targetPath,
+		SourcePath:   sourcePath,
+		SourceLocale: "en-US",
+		TargetLocale: "de-DE",
+		Prefilled:    map[string]string{},
+		ProjectRoot:  dir,
+	})
+	if err != nil {
+		t.Fatalf("ExportPrefilledTarget: %v", err)
+	}
+	if strings.Contains(string(content), `"md.`) {
+		t.Fatalf("expected markdown output, got JSON-like content: %q", string(content))
+	}
+	if string(content) != sourceMarkdown {
+		t.Fatalf("content = %q, want source markdown template %q", string(content), sourceMarkdown)
+	}
+}

@@ -267,6 +267,153 @@ func TestHyperlocalisePullFallsBackToExportWithoutLocalSource(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir project dir: %v", err)
+	}
+
+	sourcePath := "_posts/en/hello.md"
+	targetPattern := "_posts/{{target}}/hello.md"
+	targetPath := "_posts/de-DE/hello.md"
+	sourceMarkdown := "# Hello\n\nWorld.\n"
+	writePullSourceFile(t, sourcePath, sourceMarkdown)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			_, _ = w.Write([]byte("{}\n"))
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"de-DE"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"markdown": {
+					Files: []config.BucketFileMapping{{
+						From: sourcePath,
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull empty native export: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if strings.Contains(string(content), `"md.`) || string(content) == "{}\n" {
+		t.Fatalf("target content = %q, want reconstructed markdown from source", string(content))
+	}
+	if string(content) != sourceMarkdown {
+		t.Fatalf("target content = %q, want source markdown template %q", string(content), sourceMarkdown)
+	}
+}
+
+func TestHyperlocalisePullSkipsNativeExportWithoutLocalSource(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir project dir: %v", err)
+	}
+
+	sourcePath := "_posts/en/hello.md"
+	targetPattern := "_posts/{{target}}/hello.md"
+	targetPath := "_posts/de-DE/hello.md"
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	existingContent := []byte("# Existing\n")
+	if err := os.WriteFile(targetPath, existingContent, 0o644); err != nil {
+		t.Fatalf("write existing target: %v", err)
+	}
+
+	exportBody := []byte("{\n  \"md.0.heading\": \"Bonjour\"\n}\n")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			_, _ = w.Write(exportBody)
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"de-DE"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"markdown": {
+					Files: []config.BucketFileMapping{{
+						From: sourcePath,
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull without local source: %v", err)
+	}
+	if report.Downloaded != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %#v, want skipped native export without source", report)
+	}
+
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != string(existingContent) {
+		t.Fatalf("target content = %q, want existing file preserved", string(content))
+	}
+}
+
 func TestHyperlocalisePullSkipsMissingTranslationExport(t *testing.T) {
 	dir := t.TempDir()
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")

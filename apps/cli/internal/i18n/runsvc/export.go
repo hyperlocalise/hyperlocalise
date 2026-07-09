@@ -28,10 +28,6 @@ func ExportPrefilledTarget(in ExportInput) ([]byte, error) {
 	if sourcePath == "" {
 		return nil, fmt.Errorf("export source path is required")
 	}
-	if len(in.Prefilled) == 0 {
-		return nil, fmt.Errorf("export prefilled entries are required")
-	}
-
 	s := New()
 	if root := strings.TrimSpace(in.ProjectRoot); root != "" {
 		canonicalRoot, err := pathguard.CanonicalForContainment(root)
