@@ -215,7 +215,7 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
   });
 
-  it("recovers the sandbox session and retries wait when the command stream closes", async () => {
+  it("reconnects to the detached command before stop/resume when the stream closes", async () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const wait = vi
       .fn()
@@ -241,6 +241,53 @@ describe("sandbox command runner", () => {
         runCommand: sandboxMocks.runCommand,
       })
       .mockResolvedValueOnce({
+        getCommand,
+      });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(stop).not.toHaveBeenCalled();
+    expect(sandboxMocks.get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resume: expect.anything() }),
+    );
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(getCommand).toHaveBeenCalledWith("cmd_1");
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers the sandbox session when reconnect wait fails after stream close", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const wait = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      )
+      .mockRejectedValueOnce(new Error("command not found"))
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        output: sandboxMocks.output,
+      });
+    const getCommand = vi.fn().mockResolvedValue({ wait });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        getCommand,
+      })
+      .mockResolvedValueOnce({
         stop,
       })
       .mockResolvedValueOnce({})
@@ -258,7 +305,7 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
     expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
     expect(getCommand).toHaveBeenCalledWith("cmd_1");
-    expect(wait).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledTimes(3);
   });
 
   it("retries read without stop/resume when the read connection drops", async () => {

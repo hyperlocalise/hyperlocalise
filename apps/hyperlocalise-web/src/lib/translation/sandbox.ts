@@ -282,6 +282,21 @@ export class SandboxLifecycle {
         });
 
         if (isSandboxStreamClosedError(error)) {
+          // Reconnect to the existing detached command first. Stop+resume rolls
+          // persistent sandboxes back to the last snapshot and can discard output
+          // files from a just-finished run.
+          try {
+            const sandbox = await Sandbox.get({ name: sandboxId });
+            const command = await sandbox.getCommand(started.cmdId);
+            return await command.wait();
+          } catch (reconnectError) {
+            console.warn("[sandbox] reconnect wait failed; recovering session", {
+              sandboxId,
+              cmdId: started.cmdId,
+              error: reconnectError instanceof Error ? reconnectError.message : "unknown",
+            });
+          }
+
           try {
             await this.recoverSession(sandboxId);
           } catch (recoverError) {

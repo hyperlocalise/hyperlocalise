@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -28,7 +28,10 @@ import {
   ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
-import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import {
+  ProjectFileSelectionActions,
+  type ProjectFileSelectionActionsHandle,
+} from "./project-file-selection-actions";
 import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
 import {
@@ -42,6 +45,8 @@ import { formatBytes } from "./project-files-shared";
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
 const MAX_UPLOAD_FILES = 10;
+
+type PendingFileDialogAction = "translate" | "import" | "download";
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
@@ -295,6 +300,49 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
+  const selectionActionsRef = useRef<ProjectFileSelectionActionsHandle>(null);
+  const [pendingFileDialogAction, setPendingFileDialogAction] =
+    useState<PendingFileDialogAction | null>(null);
+  const pendingFileDialogSourcePathRef = useRef<string | null>(null);
+
+  const openSelectionDialog = useCallback((action: PendingFileDialogAction) => {
+    const openDialog = {
+      translate: () => selectionActionsRef.current?.openTranslate(),
+      import: () => selectionActionsRef.current?.openImport(),
+      download: () => selectionActionsRef.current?.openDownload(),
+    }[action];
+    queueMicrotask(openDialog);
+  }, []);
+
+  const openFileDialog = useCallback(
+    (file: ProjectFileRecord, action: PendingFileDialogAction) => {
+      if (selectedSourcePath === file.sourcePath) {
+        openSelectionDialog(action);
+        return;
+      }
+
+      pendingFileDialogSourcePathRef.current = file.sourcePath;
+      setPendingFileDialogAction(action);
+      setSelectedSourcePath(file.sourcePath);
+    },
+    [openSelectionDialog, selectedSourcePath, setSelectedSourcePath],
+  );
+
+  useEffect(() => {
+    const pendingSourcePath = pendingFileDialogSourcePathRef.current;
+    if (!pendingFileDialogAction || !pendingSourcePath) {
+      return;
+    }
+
+    if (selectedSourcePath !== pendingSourcePath) {
+      return;
+    }
+
+    openSelectionDialog(pendingFileDialogAction);
+    pendingFileDialogSourcePathRef.current = null;
+    setPendingFileDialogAction(null);
+  }, [openSelectionDialog, pendingFileDialogAction, selectedSourcePath]);
+
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
       organizationSlug,
@@ -305,10 +353,14 @@ export function ProjectFilesPageContent({
       nativeSourcePaths,
       branch: selectedBranch,
       onViewStrings: (file) => openFileInCat(file.sourcePath),
+      onTranslateFile: (file) => openFileDialog(file, "translate"),
+      onImportFile: (file) => openFileDialog(file, "import"),
+      onDownloadFile: (file) => openFileDialog(file, "download"),
     }),
     [
       highlightLocale,
       nativeSourcePaths,
+      openFileDialog,
       openFileInCat,
       organizationSlug,
       projectId,
@@ -362,6 +414,7 @@ export function ProjectFilesPageContent({
               ) : null}
               {selectedFile ? (
                 <ProjectFileSelectionActions
+                  ref={selectionActionsRef}
                   organizationSlug={organizationSlug}
                   projectId={projectId}
                   file={selectedFile}

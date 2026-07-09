@@ -8,7 +8,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ContextMenuOpenContext } from "@pierre/trees";
 import { Button } from "@/components/ui/button";
 
-import type { useProjectFileActions } from "./use-project-file-actions";
+import type { ProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export type ProjectFileTreeActionsConfig = {
   organizationSlug: string;
@@ -19,18 +19,21 @@ export type ProjectFileTreeActionsConfig = {
   nativeSourcePaths?: readonly string[];
   branch?: string | null;
   onViewStrings: (file: ProjectFileRecord) => void;
+  onTranslateFile?: (file: ProjectFileRecord) => void;
+  onImportFile?: (file: ProjectFileRecord) => void;
+  onDownloadFile?: (file: ProjectFileRecord) => void;
 };
 
 export function ProjectFileTreeContextMenu({
   file,
   context,
   fileActions,
-  actions,
+  capabilities,
 }: {
   file: ProjectFileRecord;
   context: ContextMenuOpenContext;
   fileActions: ProjectFileTreeActionsConfig;
-  actions: ReturnType<typeof useProjectFileActions>;
+  capabilities: ProjectFileActionCapabilities;
 }) {
   const closeMenu = () => {
     context.close({ restoreFocus: false });
@@ -46,10 +49,10 @@ export function ProjectFileTreeContextMenu({
           type="button"
           size="sm"
           className="w-full justify-start"
-          disabled={!actions.canOpenCat || !actions.catHref}
+          disabled={!capabilities.canOpenCat || !capabilities.catHref}
           onClick={() => {
             closeMenu();
-            if (actions.canOpenCat) {
+            if (capabilities.canOpenCat) {
               fileActions.onViewStrings(file);
             }
           }}
@@ -57,16 +60,16 @@ export function ProjectFileTreeContextMenu({
           <ListIcon />
           View strings
         </Button>
-        {actions.isNativeFile ? (
+        {capabilities.isNativeFile ? (
           <>
             <Button
               type="button"
               size="sm"
               className="w-full justify-start"
-              disabled={!actions.canTranslateWithAgent}
-              title={actions.translateDisabledTitle}
+              disabled={!capabilities.canTranslateWithAgent}
+              title={capabilities.translateDisabledTitle}
               onClick={() => {
-                actions.setTranslateDialogOpen(true);
+                fileActions.onTranslateFile?.(file);
                 closeMenu();
               }}
             >
@@ -79,7 +82,7 @@ export function ProjectFileTreeContextMenu({
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
-                actions.setImportDialogOpen(true);
+                fileActions.onImportFile?.(file);
                 closeMenu();
               }}
             >
@@ -92,7 +95,7 @@ export function ProjectFileTreeContextMenu({
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
-                actions.setDownloadDialogOpen(true);
+                fileActions.onDownloadFile?.(file);
                 closeMenu();
               }}
             >

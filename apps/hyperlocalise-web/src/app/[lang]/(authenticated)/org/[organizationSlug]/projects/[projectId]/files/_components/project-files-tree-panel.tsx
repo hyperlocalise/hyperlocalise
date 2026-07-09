@@ -51,6 +51,11 @@ export function findCachedProjectFiles(
     return exact;
   }
 
+  // Never reuse another branch's cached file list while the branch query loads.
+  if (branch?.trim()) {
+    return undefined;
+  }
+
   const prefix = ["project-files", organizationSlug, projectId] as const;
   const entries = queryClient.getQueriesData<ProjectFileRecord[]>({ queryKey: prefix });
   let best: ProjectFileRecord[] | undefined;
