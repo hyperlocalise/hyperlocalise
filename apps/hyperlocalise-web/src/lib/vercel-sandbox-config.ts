@@ -4,7 +4,7 @@ import { Sandbox } from "@vercel/sandbox";
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.8.20";
+export const sandboxHyperlocaliseReleaseVersion = "1.8.21";
 
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
