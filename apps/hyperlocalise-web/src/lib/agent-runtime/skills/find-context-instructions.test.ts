@@ -32,6 +32,6 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain('listing "recent translations"');
     expect(instructions).toContain("answer as a changelog of source changes");
     expect(instructions).toContain("gitHistory");
-    expect(instructions).toContain("mode: \"changedFiles\"");
+    expect(instructions).toContain('mode: "changedFiles"');
   });
 });
