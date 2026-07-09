@@ -15,20 +15,12 @@ on:
     - cron: "0 2 * * *"
     # Download translated catalogs later so Hyperlocalise has time to finish jobs.
     - cron: "0 10 * * *"
-  push:
-    branches:
-      - main
-    paths:
-      - apps/hyperlocalise-web/src/**
-      - apps/hyperlocalise-web/i18n.yml
-      - .github/workflows/hyperlocalise-web-localize.yml
-      - .github/actions/hyperlocalise-web-sync/action.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'push' }}-${{ github.ref }}
+  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'manual' }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -49,7 +41,6 @@ jobs:
     name: Upload Web Sources
     if: >-
       ${{
-        github.event_name == 'push' ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'upload') ||
         (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
       }}
