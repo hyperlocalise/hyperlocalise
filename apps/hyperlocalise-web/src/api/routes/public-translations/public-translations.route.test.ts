@@ -78,7 +78,7 @@ describe("publicTranslationRoutes", () => {
     expect(JSON.parse(content)).toEqual({ greeting: "Bonjour" });
   });
 
-  it("rejects downloads when the source file exceeds the key limit", async () => {
+  it("downloads large source files across paginated key fetches", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db
       .update(schema.organizationApiKeys)
@@ -112,10 +112,12 @@ describe("publicTranslationRoutes", () => {
       { headers: { "x-api-key": apiKey } },
     );
 
-    expect(response.status).toBe(422);
-    const body = (await response.json()) as { error: string; message?: string };
-    expect(body.error).toBe("source_file_too_large");
-    expect(body.message).toContain("5000");
+    expect(response.status).toBe(200);
+    const content = await response.text();
+    const parsed = JSON.parse(content) as Record<string, string>;
+    expect(Object.keys(parsed)).toHaveLength(5_001);
+    expect(parsed.entry_0).toBe("Hello 0");
+    expect(parsed.entry_5000).toBe("Hello 5000");
   });
 
   it("returns 404 when the source path is not registered in the project", async () => {
