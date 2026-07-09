@@ -5,7 +5,9 @@ import {
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
+  inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
+  isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
@@ -102,6 +104,73 @@ function formatDetectionLabel(input: {
   return null;
 }
 
+function cliFailureKindFromMessage(message: string): string | null {
+  const match = /kind=([a-z0-9_]+)/i.exec(message);
+  return match?.[1] ?? null;
+}
+
+function resolveSupportedFormat(detection?: {
+  fileFormat?: string | null;
+  sourceExtension?: string | null;
+  sandboxInputExtension?: string | null;
+}): SupportedTranslationFileFormat | null {
+  const fileFormat = detection?.fileFormat?.trim();
+  if (
+    fileFormat &&
+    isSupportedFileTranslationFileFormat(fileFormat as SupportedTranslationFileFormat)
+  ) {
+    return fileFormat as SupportedTranslationFileFormat;
+  }
+
+  const extension = detection?.sandboxInputExtension?.trim() || detection?.sourceExtension?.trim();
+  if (!extension) {
+    return null;
+  }
+  return inferSupportedFileTranslationFileFormat(
+    `file${extension.startsWith(".") ? extension : `.${extension}`}`,
+  );
+}
+
+function userFacingTranslationFailureReason(
+  message: string,
+  detection?: {
+    fileFormat?: string | null;
+    sourceExtension?: string | null;
+    sandboxInputExtension?: string | null;
+  },
+): string {
+  const kind = cliFailureKindFromMessage(message);
+  const supportedFormat = resolveSupportedFormat(detection);
+  const detected = detection ? formatDetectionLabel(detection) : null;
+  const label = detected || supportedFormat;
+
+  if (kind === "markdown_ast_parity_mismatch" || kind === "markdown_parity_retry_exhausted") {
+    return "markdown translation finished but the output structure no longer matched the source. Try again, or simplify complex markdown in the source file.";
+  }
+  if (kind === "placeholder_parity_mismatch") {
+    return "the translation changed placeholders or markup that must stay identical to the source.";
+  }
+  if (kind === "missing_openai_api_key") {
+    return "something went wrong while setting up the translation environment on our end.";
+  }
+  if (kind === "parser_failed" || kind === "missing_file_extension") {
+    if (label && !supportedFormat) {
+      return `the detected file format (${label}) is not supported for file translation.`;
+    }
+    return label
+      ? `the ${label} file couldn't be parsed for translation.`
+      : "the file couldn't be parsed for translation.";
+  }
+
+  if (supportedFormat && label) {
+    return `translating the ${label} file failed. This is usually temporary — try again.`;
+  }
+  if (label) {
+    return `the detected file format (${label}) may not be supported, or the content didn't match what the translator expected.`;
+  }
+  return "the file format may not be supported, or the content didn't match what the translator expected.";
+}
+
 function userFacingFailureReason(
   error: unknown,
   detection?: {
@@ -128,11 +197,7 @@ function userFacingFailureReason(
   }
 
   if (message.includes("translation failed")) {
-    const detected = detection ? formatDetectionLabel(detection) : null;
-    if (detected) {
-      return `the detected file format (${detected}) may not be supported, or the content didn't match what the translator expected.`;
-    }
-    return "the file format may not be supported, or the content didn't match what the translator expected.";
+    return userFacingTranslationFailureReason(message, detection);
   }
 
   if (message.includes("failed to read translated file")) {
