@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
@@ -304,6 +306,370 @@ func TestHyperlocalisePushReportsPartialUploadFailure(t *testing.T) {
 	}
 	if report.Complete || report.PlannedFiles != 2 || report.UploadedFiles != 1 || report.FailedItems != 1 {
 		t.Fatalf("report = %#v, want one upload and one failed item", report)
+	}
+}
+
+func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
+	cases := []struct {
+		name          string
+		sourceLocale  string
+		targetLocale  string
+		sourcePath    string
+		targetPath    string
+		fromPattern   string
+		toPattern     string
+		sourceContent string
+		translate     func(key, value string) string
+		assertNative  func(t *testing.T, content string)
+	}{
+		{
+			name:          "markdown",
+			sourceLocale:  "en-US",
+			targetLocale:  "de-DE",
+			sourcePath:    "_posts/en/hello.md",
+			targetPath:    "_posts/de-DE/hello.md",
+			fromPattern:   "_posts/en/**/*.md",
+			toPattern:     "_posts/{{target}}/**/*.md",
+			sourceContent: "# Hello\n\nWorld.\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "World", "Welt")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be markdown, got JSON-like content: %q", content)
+				}
+				if !strings.Contains(content, "Welt") || !strings.HasPrefix(content, "# Hello") {
+					t.Fatalf("target content = %q, want translated markdown", content)
+				}
+			},
+		},
+		{
+			name:          "json",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/en.json",
+			targetPath:    "locales/fr.json",
+			fromPattern:   "locales/{{source}}.json",
+			toPattern:     "locales/{{target}}.json",
+			sourceContent: `{"hello":"Hello","bye":"Bye"}`,
+			translate: func(key, value string) string {
+				switch key {
+				case "hello":
+					return "Bonjour"
+				case "bye":
+					return "Au revoir"
+				default:
+					return value
+				}
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, `"hello": "Bonjour"`) || !strings.Contains(content, `"bye": "Au revoir"`) {
+					t.Fatalf("target content = %q, want reconstructed JSON locale file", content)
+				}
+			},
+		},
+		{
+			name:          "arb",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "lib/l10n/app_en.arb",
+			targetPath:    "lib/l10n/app_fr.arb",
+			fromPattern:   "lib/l10n/app_{{source}}.arb",
+			toPattern:     "lib/l10n/app_{{target}}.arb",
+			sourceContent: `{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`,
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, `"hello": "Bonjour"`) {
+					t.Fatalf("target content = %q, want translated ARB entry", content)
+				}
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be ARB, got segment JSON: %q", content)
+				}
+			},
+		},
+		{
+			name:          "po",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.po",
+			targetPath:    "locales/messages.fr.po",
+			fromPattern:   "locales/messages.po",
+			toPattern:     "locales/messages.{{target}}.po",
+			sourceContent: "msgid \"hello\"\nmsgstr \"Hello\"\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, `msgstr "Bonjour"`) {
+					t.Fatalf("target content = %q, want translated PO msgstr", content)
+				}
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be PO, got segment JSON: %q", content)
+				}
+			},
+		},
+		{
+			name:          "html",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "public/page.html",
+			targetPath:    "public/page.fr.html",
+			fromPattern:   "public/page.html",
+			toPattern:     "public/page.{{target}}.html",
+			sourceContent: "<!DOCTYPE html><html><body><p>Hello</p></body></html>",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, ">Bonjour<") {
+					t.Fatalf("target content = %q, want translated HTML body", content)
+				}
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be HTML, got segment JSON: %q", content)
+				}
+			},
+		},
+		{
+			name:          "fluent",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/en.ftl",
+			targetPath:    "locales/fr.ftl",
+			fromPattern:   "locales/{{source}}.ftl",
+			toPattern:     "locales/{{target}}.ftl",
+			sourceContent: "hello = Hello\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, "hello = Bonjour") {
+					t.Fatalf("target content = %q, want translated Fluent message", content)
+				}
+			},
+		},
+		{
+			name:          "properties",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages_en.properties",
+			targetPath:    "locales/messages_fr.properties",
+			fromPattern:   "locales/messages_{{source}}.properties",
+			toPattern:     "locales/messages_{{target}}.properties",
+			sourceContent: "hello=Hello\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, "hello=Bonjour") {
+					t.Fatalf("target content = %q, want translated Java properties entry", content)
+				}
+			},
+		},
+		{
+			name:          "strings",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "ios/en.lproj/Localizable.strings",
+			targetPath:    "ios/fr.lproj/Localizable.strings",
+			fromPattern:   "ios/{{source}}.lproj/Localizable.strings",
+			toPattern:     "ios/{{target}}.lproj/Localizable.strings",
+			sourceContent: "\"hello\" = \"Hello\";\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, `"hello" = "Bonjour"`) {
+					t.Fatalf("target content = %q, want translated Apple strings entry", content)
+				}
+			},
+		},
+		{
+			name:          "mdx",
+			sourceLocale:  "en",
+			targetLocale:  "fr-FR",
+			sourcePath:    "docs/en/guide.mdx",
+			targetPath:    "docs/fr-FR/guide.mdx",
+			fromPattern:   "docs/en/**/*.mdx",
+			toPattern:     "docs/{{target}}/**/*.mdx",
+			sourceContent: "# Guide\n\nWelcome.\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Welcome", "Bienvenue")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be MDX, got JSON-like content: %q", content)
+				}
+				if !strings.Contains(content, "Bienvenue") || !strings.HasPrefix(content, "# Guide") {
+					t.Fatalf("target content = %q, want translated MDX", content)
+				}
+			},
+		},
+		{
+			name:          "xliff",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.xlf",
+			targetPath:    "locales/messages.fr.xlf",
+			fromPattern:   "locales/messages.xlf",
+			toPattern:     "locales/messages.{{target}}.xlf",
+			sourceContent: `<?xml version="1.0" encoding="UTF-8"?><xliff version="1.2"><file source-language="en" target-language="en"><body><trans-unit id="hello"><source>Hello</source><target>Hello</target></trans-unit></body></file></xliff>`,
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, "<target>Bonjour</target>") {
+					t.Fatalf("target content = %q, want translated XLIFF target", content)
+				}
+				if strings.Contains(content, `"md.`) {
+					t.Fatalf("target should be XLIFF, got segment JSON: %q", content)
+				}
+			},
+		},
+		{
+			name:          "csv",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.csv",
+			targetPath:    "locales/messages.fr.csv",
+			fromPattern:   "locales/messages.csv",
+			toPattern:     "locales/messages.{{target}}.csv",
+			sourceContent: "key,value\nhello,Hello\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, "hello,Bonjour") {
+					t.Fatalf("target content = %q, want translated CSV row", content)
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runHyperlocalisePullReconstructCase(t, tc)
+		})
+	}
+}
+
+type hyperlocalisePullReconstructCase struct {
+	name          string
+	sourceLocale  string
+	targetLocale  string
+	sourcePath    string
+	targetPath    string
+	fromPattern   string
+	toPattern     string
+	sourceContent string
+	translate     func(key, value string) string
+	assertNative  func(t *testing.T, content string)
+}
+
+func runHyperlocalisePullReconstructCase(t *testing.T, tc hyperlocalisePullReconstructCase) {
+	t.Helper()
+
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir project dir: %v", err)
+	}
+
+	writePullSourceFile(t, filepath.FromSlash(tc.sourcePath), tc.sourceContent)
+
+	strategy := translationfileparser.NewDefaultStrategy()
+	entries, err := strategy.Parse(tc.sourcePath, []byte(tc.sourceContent))
+	if err != nil {
+		t.Fatalf("parse %s source: %v", tc.name, err)
+	}
+	prefilled := make(map[string]string, len(entries))
+	for key, value := range entries {
+		prefilled[key] = tc.translate(key, value)
+	}
+	prefilledJSON, err := json.Marshal(prefilled)
+	if err != nil {
+		t.Fatalf("marshal prefilled entries: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("sourcePath"); got != filepath.ToSlash(tc.sourcePath) {
+			t.Fatalf("sourcePath = %q, want %q", got, tc.sourcePath)
+		}
+		if got := r.URL.Query().Get("locale"); got != tc.targetLocale {
+			t.Fatalf("locale = %q, want %q", got, tc.targetLocale)
+		}
+		_, _ = w.Write(prefilledJSON)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  tc.sourceLocale,
+				Targets: []string{tc.targetLocale},
+			},
+			Buckets: map[string]config.BucketConfig{
+				tc.name: {
+					Files: []config.BucketFileMapping{{
+						From: tc.fromPattern,
+						To:   tc.toPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull %s export: %v", tc.name, err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	targetContent, err := os.ReadFile(filepath.FromSlash(tc.targetPath))
+	if err != nil {
+		t.Fatalf("read %s target: %v", tc.name, err)
+	}
+	tc.assertNative(t, string(targetContent))
+}
+
+func writePullSourceFile(t *testing.T, path string, content string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
 	}
 }
 
