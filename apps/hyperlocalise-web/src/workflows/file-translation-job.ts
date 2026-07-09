@@ -73,7 +73,30 @@ function errorMessageForLog(error: unknown): string {
   return truncateForLog(String(error));
 }
 
-function userFacingFailureReason(error: unknown): string {
+function formatDetectionLabel(input: {
+  fileFormat?: string | null;
+  sourceExtension?: string | null;
+  sandboxInputExtension?: string | null;
+}): string | null {
+  const fileFormat = input.fileFormat?.trim();
+  if (fileFormat) {
+    return fileFormat;
+  }
+  const extension = input.sandboxInputExtension?.trim() || input.sourceExtension?.trim();
+  if (extension) {
+    return extension.startsWith(".") ? extension.slice(1) : extension;
+  }
+  return null;
+}
+
+function userFacingFailureReason(
+  error: unknown,
+  detection?: {
+    fileFormat?: string | null;
+    sourceExtension?: string | null;
+    sandboxInputExtension?: string | null;
+  },
+): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
   if (message.startsWith("glossary validation failed")) {
@@ -92,6 +115,10 @@ function userFacingFailureReason(error: unknown): string {
   }
 
   if (message.includes("translation failed")) {
+    const detected = detection ? formatDetectionLabel(detection) : null;
+    if (detected) {
+      return `the detected file format (${detected}) may not be supported, or the content didn't match what the translator expected.`;
+    }
     return "the file format may not be supported, or the content didn't match what the translator expected.";
   }
 
@@ -458,7 +485,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         sandboxInputFilename: inputFilename,
         hasRepositorySourcePath: Boolean(repositorySourcePath),
         error: errorMessageForLog(error),
-        userFacingError: userFacingFailureReason(error),
+        userFacingError: userFacingFailureReason(error, {
+          fileFormat: parsedInput.fileFormat,
+          sourceExtension: fileExtension(sourceFile.filename),
+          sandboxInputExtension: fileExtension(inputFilename),
+        }),
       });
     }
 
@@ -677,7 +708,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             targetLocale,
             outputPath: outputFilename,
             error: errorMessageForLog(error),
-            userFacingError: userFacingFailureReason(error),
+            userFacingError: userFacingFailureReason(error, {
+              fileFormat: parsedInput.fileFormat,
+              sourceExtension: fileExtension(sourceFile.filename),
+              sandboxInputExtension: fileExtension(inputFilename),
+            }),
           });
         }
       } else if (sourceEntries && !repositorySourcePath) {
@@ -705,7 +740,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     return outputFiles;
   } catch (error) {
-    const reason = userFacingFailureReason(error);
+    const reason = userFacingFailureReason(error, {
+      fileFormat: parsedInput.fileFormat,
+      sourceExtension: fileExtension(sourceFile.filename),
+      sandboxInputExtension: fileExtension(inputFilename),
+    });
     console.error("[file-translation-workflow] file translation failed", {
       jobId: claim.job.id,
       projectId: claim.job.projectId,
