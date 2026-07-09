@@ -134,9 +134,16 @@ runs:
         echo "github-diff-path=${artifact_dir}/github-pr.diff" >>"${GITHUB_OUTPUT}"
 
     - name: Install Hyperlocalise
-      uses: ./install
-      with:
-        version: ${{ inputs.hyperlocalise-version }}
+      shell: bash
+      env:
+        VERSION: ${{ inputs.hyperlocalise-version }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
+        mkdir -p "${install_dir}"
+        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Fetch GitHub pull request diff
       if: ${{ inputs.github-diff == 'true' }}
