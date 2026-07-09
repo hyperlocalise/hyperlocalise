@@ -283,6 +283,16 @@ export type PrepareConversationAgentTurnResult = {
   repositorySandboxId: string | null;
 };
 
+function resolveConversationActor(input: PrepareConversationAgentTurnInput): ToolContext["actor"] {
+  return (
+    input.actor ?? {
+      sourceUserId: input.localUserId,
+      userId: input.localUserId,
+      role: input.membershipRole,
+    }
+  );
+}
+
 export async function prepareConversationAgentTurn(
   input: PrepareConversationAgentTurnInput,
 ): Promise<PrepareConversationAgentTurnResult> {
@@ -366,7 +376,7 @@ export async function prepareConversationAgentTurn(
             githubContext: activeRepositoryContext,
             workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
             repositorySource: input.repositorySource ?? "chat_ui",
-            actor: input.actor,
+            actor: resolveConversationActor(input),
           }
         : {}),
     },
