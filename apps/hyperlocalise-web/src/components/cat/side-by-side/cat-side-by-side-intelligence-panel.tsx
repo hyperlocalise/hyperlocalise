@@ -120,6 +120,12 @@ export function CatSideBySideIntelligencePanel({
         className,
       )}
     >
+      <div className="shrink-0 border-b border-border px-4 py-2">
+        <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
+          {segment.key}
+        </p>
+      </div>
+
       {placement === "right" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">{intelligencePanel}</div>
