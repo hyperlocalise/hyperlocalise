@@ -244,6 +244,14 @@ function ProjectFilesTreeView({
     model.scrollToPath(selectedSourcePath, { offset: "nearest" });
   }, [fileByPath, model, selectedSourcePath]);
 
+  useEffect(() => {
+    const host = containerRef.current?.querySelector("file-tree-container");
+    const searchInput = host?.shadowRoot?.querySelector("[data-file-tree-search-input]");
+    if (searchInput instanceof HTMLInputElement) {
+      searchInput.setAttribute("aria-label", "Search files");
+    }
+  }, [model, paths.length]);
+
   if (paths.length === 0) {
     return null;
   }

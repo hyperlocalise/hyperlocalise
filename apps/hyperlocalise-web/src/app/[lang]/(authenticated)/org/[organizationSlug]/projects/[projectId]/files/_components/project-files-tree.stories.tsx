@@ -58,6 +58,7 @@ export const SearchFiles: Story = {
     if (!(searchInput instanceof HTMLInputElement)) {
       throw new Error("Expected built-in file tree search input");
     }
+    await expect(searchInput.getAttribute("aria-label")).toBe("Search files");
 
     await userEvent.type(searchInput, "pricing");
 
