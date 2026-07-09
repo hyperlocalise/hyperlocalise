@@ -225,19 +225,7 @@ runs:
         if [[ ! -s "${diff_file}" ]]; then
           # sync pull can leave a clean tree (no staged changes). Treat that as
           # a successful empty validation instead of failing --diff-stdin.
-          cat >"${VALIDATION_REPORT_PATH}" <<'EOF'
-{
-  "checks": [],
-  "findings": [],
-  "summary": {
-    "total": 0,
-    "byCheck": {},
-    "bySeverity": {},
-    "byBucket": {},
-    "byLocale": {}
-  }
-}
-EOF
+          printf '%s\n' '{"checks":[],"findings":[],"summary":{"total":0,"byCheck":{},"bySeverity":{},"byBucket":{},"byLocale":{}}}' >"${VALIDATION_REPORT_PATH}"
           cli_exit=0
         else
           hyperlocalise "${args[@]}" <"${diff_file}"
