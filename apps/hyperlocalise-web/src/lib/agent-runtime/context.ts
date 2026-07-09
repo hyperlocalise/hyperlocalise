@@ -10,6 +10,7 @@ export type HyperlocaliseAgentRuntimeContext = {
   toolContext: ToolContext;
   hasFileAttachments: boolean;
   hasTmsIntegration: boolean;
+  hasVisualMockSkill?: boolean;
   additionalInstructions?: string;
 };
 
@@ -45,6 +46,7 @@ export function resolveAgentRuntimeContext(
     toolContext: context.toolContext,
     hasFileAttachments: context.hasFileAttachments ?? false,
     hasTmsIntegration: context.hasTmsIntegration ?? false,
+    hasVisualMockSkill: context.hasVisualMockSkill ?? false,
     additionalInstructions: context.additionalInstructions,
   });
 }

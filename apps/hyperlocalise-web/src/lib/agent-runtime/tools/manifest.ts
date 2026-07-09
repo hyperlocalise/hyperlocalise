@@ -60,6 +60,24 @@ export const toolManifests = [
     requiredWorkspaceCapability: "repo_read",
   },
   {
+    name: "write",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
+    name: "applyPatch",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
+    name: "captureScreenshot",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
     name: "detectRepoConfig",
     domain: "repo",
     sideEffect: "none",

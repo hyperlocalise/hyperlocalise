@@ -32,6 +32,7 @@ import {
   getRepositoryContextKey,
   type ConversationRepositorySession,
 } from "./conversation-repository-session";
+import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 
 const logger = createLogger("conversation-turn");
 
@@ -282,6 +283,16 @@ export type PrepareConversationAgentTurnResult = {
   repositorySandboxId: string | null;
 };
 
+function resolveConversationActor(input: PrepareConversationAgentTurnInput): ToolContext["actor"] {
+  return (
+    input.actor ?? {
+      sourceUserId: input.localUserId,
+      userId: input.localUserId,
+      role: input.membershipRole,
+    }
+  );
+}
+
 export async function prepareConversationAgentTurn(
   input: PrepareConversationAgentTurnInput,
 ): Promise<PrepareConversationAgentTurnResult> {
@@ -339,7 +350,14 @@ export async function prepareConversationAgentTurn(
     }
   }
 
-  const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(input.organizationId);
+  const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
+    resolveOrganizationHasTmsIntegration(input.organizationId),
+    resolveWorkspaceVisualMockFlag({
+      organizationId: input.organizationId,
+      localUserId: input.localUserId,
+      dbClient: input.db,
+    }),
+  ]);
 
   const preparedMessages = replaceLastUserMessage(chatMessages, input.messageText);
 
@@ -356,14 +374,15 @@ export async function prepareConversationAgentTurn(
         ? {
             sandboxId,
             githubContext: activeRepositoryContext,
-            workMode: "read_only" as const,
+            workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
             repositorySource: input.repositorySource ?? "chat_ui",
-            actor: input.actor,
+            actor: resolveConversationActor(input),
           }
         : {}),
     },
     hasFileAttachments: input.hasTranslationAttachments,
     hasTmsIntegration,
+    hasVisualMockSkill,
     additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),
