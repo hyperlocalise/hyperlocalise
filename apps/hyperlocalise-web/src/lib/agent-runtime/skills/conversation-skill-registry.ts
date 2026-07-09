@@ -18,6 +18,7 @@ import {
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
 const REPO_TOOL_NAMES = new Set<string>(repositoryWorkspaceToolNames);
+const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
 
 export type ConversationSkillMetadata = {
@@ -222,6 +223,14 @@ export function buildConversationSkillTools(
 
     if (toolName === "createTranslationJob" && builtTools.createTranslationJob) {
       tools[toolName] = builtTools.createTranslationJob;
+      continue;
+    }
+
+    if (WEB_TOOL_NAMES.has(toolName)) {
+      const webTool = builtTools[toolName];
+      if (webTool) {
+        tools[toolName] = webTool;
+      }
       continue;
     }
 
