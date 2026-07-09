@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
-import { MAX_RESPONSE_BYTES, pinnedPublicFetch } from "./pinned-fetch";
+import { MAX_RESPONSE_BYTES, withPinnedPublicFetch } from "./pinned-fetch";
 export { MAX_RESPONSE_BYTES } from "./pinned-fetch";
 import { redact, truncate } from "./redact";
 
@@ -183,36 +183,40 @@ async function fetchUrl(
   const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1_000);
 
   try {
-    const response = await pinnedPublicFetch(url, {
-      method: "GET",
-      redirect: "error",
-      signal: controller.signal,
-      headers: requestHeaders(format, userAgent),
-    });
+    return await withPinnedPublicFetch(
+      url,
+      {
+        method: "GET",
+        redirect: "error",
+        signal: controller.signal,
+        headers: requestHeaders(format, userAgent),
+      },
+      async (response) => {
+        if (!response.ok) {
+          if (isCloudflareChallenge(response)) {
+            throw new CloudflareChallengeError();
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-    if (!response.ok) {
-      if (isCloudflareChallenge(response)) {
-        throw new CloudflareChallengeError();
-      }
-      throw new Error(`HTTP ${response.status}`);
-    }
+        const contentType = response.headers.get("content-type") ?? "";
+        const mime = mimeFrom(contentType);
 
-    const contentType = response.headers.get("content-type") ?? "";
-    const mime = mimeFrom(contentType);
+        if (isImageAttachment(mime)) {
+          throw new Error(`Unsupported fetched image content type: ${mime}`);
+        }
 
-    if (isImageAttachment(mime)) {
-      throw new Error(`Unsupported fetched image content type: ${mime}`);
-    }
+        if (!isTextualMime(mime)) {
+          throw new Error(`Unsupported fetched file content type: ${mime}`);
+        }
 
-    if (!isTextualMime(mime)) {
-      throw new Error(`Unsupported fetched file content type: ${mime}`);
-    }
-
-    return {
-      status: response.status,
-      body: await readBoundedResponseBody(response),
-      contentType,
-    };
+        return {
+          status: response.status,
+          body: await readBoundedResponseBody(response),
+          contentType,
+        };
+      },
+    );
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error("Request timed out");
@@ -294,26 +298,30 @@ USAGE:
         const headTimeout = setTimeout(() => controller.abort(), timeout * 1_000);
 
         try {
-          const response = await pinnedPublicFetch(url, {
-            method: "HEAD",
-            redirect: "error",
-            signal: controller.signal,
-          });
-
-          if (response.status >= 300 && response.status < 400) {
-            return {
-              success: false as const,
-              error: redact("HTTP redirects are not allowed"),
-            };
-          }
-
-          return {
-            success: true as const,
-            status: response.status,
+          return await withPinnedPublicFetch(
             url,
-            body: "",
-            truncated: false,
-          };
+            {
+              method: "HEAD",
+              redirect: "error",
+              signal: controller.signal,
+            },
+            async (response) => {
+              if (response.status >= 300 && response.status < 400) {
+                return {
+                  success: false as const,
+                  error: redact("HTTP redirects are not allowed"),
+                };
+              }
+
+              return {
+                success: true as const,
+                status: response.status,
+                url,
+                body: "",
+                truncated: false,
+              };
+            },
+          );
         } catch (error) {
           return {
             success: false as const,

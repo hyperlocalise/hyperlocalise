@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr } from "@/lib/primitives/result/results";
 
-import { pinnedPublicFetch } from "./pinned-fetch";
+import { withPinnedPublicFetch } from "./pinned-fetch";
 
 const dnsMock = vi.hoisted(() => ({
   lookup: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock("undici", () => ({
   fetch: undiciMock.fetch,
 }));
 
-describe("pinnedPublicFetch", () => {
+describe("withPinnedPublicFetch", () => {
   beforeEach(() => {
     dnsMock.lookup.mockReset();
     undiciMock.fetch.mockReset();
@@ -35,9 +35,15 @@ describe("pinnedPublicFetch", () => {
     dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     undiciMock.fetch.mockResolvedValue(new Response("ok", { status: 200 }));
 
-    const response = await pinnedPublicFetch("https://api.example.com/docs");
+    const result = await withPinnedPublicFetch(
+      "https://api.example.com/docs",
+      undefined,
+      async (response) => {
+        return { status: response.status, body: await response.text() };
+      },
+    );
 
-    expect(response.status).toBe(200);
+    expect(result).toEqual({ status: 200, body: "ok" });
     expect(undiciMock.fetch).toHaveBeenCalledWith(
       "https://93.184.216.34/docs",
       expect.objectContaining({
@@ -50,24 +56,47 @@ describe("pinnedPublicFetch", () => {
     expect(undiciMock.close).toHaveBeenCalled();
   });
 
+  it("closes the dispatcher only after the response handler finishes", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    undiciMock.fetch.mockResolvedValue(
+      new Response("<html><body><h1>Docs</h1></body></html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    const closeOrder: string[] = [];
+    undiciMock.close.mockImplementation(async () => {
+      closeOrder.push("close");
+    });
+
+    await withPinnedPublicFetch("https://api.example.com/docs", undefined, async (response) => {
+      const body = await response.text();
+      closeOrder.push("handler");
+      return body;
+    });
+
+    expect(closeOrder).toEqual(["handler", "close"]);
+  });
+
   it("rejects hostnames that resolve to restricted addresses", async () => {
     dnsMock.lookup.mockResolvedValue([
       { address: "93.184.216.34", family: 4 },
       { address: "169.254.169.254", family: 4 },
     ]);
 
-    await expect(pinnedPublicFetch("https://rebind.example.com/internal")).rejects.toThrow(
-      "URL host resolves to a private or restricted address.",
-    );
+    await expect(
+      withPinnedPublicFetch("https://rebind.example.com/internal", undefined, async () => "ok"),
+    ).rejects.toThrow("URL host resolves to a private or restricted address.");
     expect(undiciMock.fetch).not.toHaveBeenCalled();
   });
 
   it("returns DNS validation errors from resolvePinnedHttpConnectTarget", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
 
-    await expect(pinnedPublicFetch("https://metadata.example.com/latest")).rejects.toThrow(
-      "URL host resolves to a private or restricted address.",
-    );
+    await expect(
+      withPinnedPublicFetch("https://metadata.example.com/latest", undefined, async () => "ok"),
+    ).rejects.toThrow("URL host resolves to a private or restricted address.");
   });
 });
 

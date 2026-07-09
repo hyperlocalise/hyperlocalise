@@ -13,7 +13,13 @@ import { MAX_RESPONSE_BYTES } from "./pinned-fetch";
 
 vi.mock("./pinned-fetch", () => ({
   MAX_RESPONSE_BYTES: 5 * 1024 * 1024,
-  pinnedPublicFetch: vi.fn((url: string, init?: RequestInit) => globalThis.fetch(url, init)),
+  withPinnedPublicFetch: vi.fn(
+    async (
+      url: string,
+      init: RequestInit | undefined,
+      handler: (response: Response) => Promise<unknown>,
+    ) => handler(await globalThis.fetch(url, init)),
+  ),
 }));
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
@@ -125,8 +131,8 @@ describe("createFetchTool", () => {
   });
 
   it("rejects DNS-vetted hosts that resolve to restricted addresses", async () => {
-    const { pinnedPublicFetch } = await import("./pinned-fetch");
-    vi.mocked(pinnedPublicFetch).mockRejectedValueOnce(
+    const { withPinnedPublicFetch } = await import("./pinned-fetch");
+    vi.mocked(withPinnedPublicFetch).mockRejectedValueOnce(
       new Error("URL host resolves to a private or restricted address."),
     );
 

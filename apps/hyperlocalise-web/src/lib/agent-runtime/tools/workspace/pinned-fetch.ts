@@ -6,7 +6,11 @@ import { resolvePinnedHttpConnectTarget } from "@/lib/security/ssrf-guard-dns";
 
 export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
-export async function pinnedPublicFetch(url: string, init?: RequestInit): Promise<Response> {
+export async function withPinnedPublicFetch<T>(
+  url: string,
+  init: RequestInit | undefined,
+  handler: (response: Response) => Promise<T>,
+): Promise<T> {
   const pinnedResult = await resolvePinnedHttpConnectTarget(url);
   if (isErr(pinnedResult)) {
     throw new Error(formatSsrfGuardError(pinnedResult.error));
@@ -34,7 +38,8 @@ export async function pinnedPublicFetch(url: string, init?: RequestInit): Promis
       dispatcher,
     } as UndiciRequestInit;
 
-    return (await undiciFetch(pinned.requestUrl, requestInit)) as unknown as Response;
+    const response = (await undiciFetch(pinned.requestUrl, requestInit)) as unknown as Response;
+    return await handler(response);
   } finally {
     await dispatcher.close();
   }
