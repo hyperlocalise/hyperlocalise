@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,15 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
-  canonicalizeLocale,
-  COMMON_LOCALES,
-  getLocaleLabel,
-  isValidLocaleInput,
-} from "@/lib/i18n/locales";
-
-function sortLocales(locales: string[]) {
-  return [...locales].toSorted((a, b) => getLocaleLabel(a).localeCompare(getLocaleLabel(b)));
-}
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
+import { canonicalizeLocale, COMMON_LOCALES, isValidLocaleInput } from "@/lib/i18n/locales";
 
 function sortLocaleCodes(locales: string[]) {
   return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -41,14 +37,17 @@ export function ProjectSourceLocalePicker({
   error?: string;
 }) {
   const fieldId = useId();
+  const intl = useIntl();
 
   const options = useMemo(() => {
     const merged = new Set<string>(COMMON_LOCALES);
     if (value) {
       merged.add(value);
     }
-    return sortLocales([...merged]);
-  }, [value]);
+    return [...merged].toSorted((a, b) =>
+      formatLocaleDisplayName(intl, a).localeCompare(formatLocaleDisplayName(intl, b)),
+    );
+  }, [intl, value]);
 
   return (
     <Field className="gap-1">
@@ -71,8 +70,8 @@ export function ProjectSourceLocalePicker({
           className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
         >
           {options.map((locale) => (
-            <SelectItem key={locale} value={locale}>
-              <span className="truncate">{getLocaleLabel(locale)}</span>
+            <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
+              <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
               <span className="text-muted-foreground">({locale})</span>
             </SelectItem>
           ))}
@@ -98,6 +97,7 @@ export function ProjectTargetLocalesPicker({
 }) {
   const fieldId = useId();
   const customId = useId();
+  const intl = useIntl();
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customLocale, setCustomLocale] = useState("");
   const [customError, setCustomError] = useState<string | undefined>();
@@ -182,6 +182,7 @@ export function ProjectTargetLocalesPicker({
               disabled={disabled}
               onClick={() => toggleLocale(locale)}
               className="h-7 px-2.5 text-xs"
+              title={formatLocaleOptionLabel(intl, locale)}
             >
               {locale}
             </Button>
@@ -198,6 +199,7 @@ export function ProjectTargetLocalesPicker({
               disabled={disabled}
               onClick={() => toggleLocale(locale)}
               className="h-7 px-2.5 text-xs"
+              title={formatLocaleOptionLabel(intl, locale)}
             >
               {locale}
             </Button>
