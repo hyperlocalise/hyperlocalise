@@ -54,6 +54,7 @@ WHEN TO USE:
 - Crowdin or TMS status for projects, files, or strings → \`translation\`
 - Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
 - Listing recent / newly changed source localization content via repository git history → \`repository\`
+- Recent changed keys plus translator context for each discovered key → \`repository\` (\`gitHistory\` then per-key context)
 - Any work that matches an agent description above
 
 WHEN NOT TO USE:
@@ -61,6 +62,7 @@ WHEN NOT TO USE:
 - Requests that need an agent that is unavailable (explain what is missing instead)
 - General repository architecture summaries, PR fixes, code review, or checks unless an agent explicitly supports them
 - Treating "recent translations" as a TMS/Crowdin progress question when a GitHub repository is connected — explore repository source history instead
+- Stopping after a recent-change changelog when the user also asked for context on those keys — continue with per-key find-context
 
 BEHAVIOR:
 - Agents run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps

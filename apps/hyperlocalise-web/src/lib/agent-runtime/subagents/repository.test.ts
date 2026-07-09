@@ -20,4 +20,14 @@ describe("repository subagent prompt", () => {
     expect(REPOSITORY_SYSTEM_PROMPT).toContain("changelog");
     expect(REPOSITORY_SYSTEM_PROMPT).toContain("Do not ask for Crowdin");
   });
+
+  it("chains gitHistory discoveries into per-key context when context is requested", () => {
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("Recent changes with full context");
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain(
+      "find translator context for each discovered key/source string",
+    );
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain(
+      "Do not stop after a changelog when context was requested",
+    );
+  });
 });

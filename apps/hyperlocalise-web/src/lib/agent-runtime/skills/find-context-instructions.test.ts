@@ -25,13 +25,13 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain("Source text: Save");
   });
 
-  it("keeps find-context focused on specific strings and defers bulk recent changes to repo-tools", () => {
+  it("supports recent-change discovery then per-key find-context", () => {
     const instructions = buildFindContextSkillInstructions({});
 
-    expect(instructions).toContain("Not this skill");
-    expect(instructions).toContain('listing "recent translations"');
-    expect(instructions).toContain("answer as a changelog of source changes");
-    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain("Recent changes with full context");
+    expect(instructions).toContain("discover with `gitHistory`");
+    expect(instructions).toContain("For **each** extracted key or source string");
+    expect(instructions).toContain("one find-context section block per discovered entry");
     expect(instructions).toContain('mode: "changedFiles"');
   });
 });
