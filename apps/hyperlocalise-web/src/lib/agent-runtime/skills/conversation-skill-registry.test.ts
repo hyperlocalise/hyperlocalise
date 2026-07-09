@@ -24,6 +24,7 @@ describe("conversation skill registry", () => {
         "repo-tools",
         "tms-tools",
         "translation-tools",
+        "visual-mock",
       ]),
     );
 
@@ -56,6 +57,12 @@ describe("conversation skill registry", () => {
     expect(repoToolsSkill).toMatchObject({
       requiresSandbox: true,
       tools: ["grep", "fuzzySearch", "read", "glob", "detectRepoConfig", "gitHistory", "todoWrite"],
+    });
+
+    const visualMockSkill = skills.find((skill) => skill.id === "visual-mock");
+    expect(visualMockSkill).toMatchObject({
+      requiresSandbox: true,
+      tools: ["grep", "fuzzySearch", "read", "glob", "todoWrite", "write", "applyPatch", "fetch"],
     });
   });
 
@@ -131,6 +138,30 @@ describe("conversation skill registry", () => {
     expect(
       isConversationSkillActivated(
         repoToolsSkill!,
+        toConversationSkillActivationContext({
+          hasFileAttachments: false,
+          hasTmsIntegration: false,
+          toolContext: {
+            conversationId: "conv_1",
+            organizationId: "org_1",
+            localUserId: "user_1",
+            membershipRole: "member",
+            projectId: null,
+            db: {} as never,
+            sandboxId: "sbx_1",
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("activates visual-mock when a sandbox is available", () => {
+    const visualMockSkill = listConversationSkills().find((skill) => skill.id === "visual-mock");
+    expect(visualMockSkill).toBeDefined();
+
+    expect(
+      isConversationSkillActivated(
+        visualMockSkill!,
         toConversationSkillActivationContext({
           hasFileAttachments: false,
           hasTmsIntegration: false,

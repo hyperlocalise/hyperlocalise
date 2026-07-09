@@ -7,6 +7,8 @@ export { createGrepTool } from "./grep";
 export { createFuzzySearchTool } from "./fuzzy-search";
 export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
+export { createWriteTool } from "./write";
+export { createApplyPatchTool } from "./apply-patch";
 export {
   convertHTMLToMarkdown,
   createFetchTool,
@@ -21,6 +23,8 @@ export const workspacePrimitiveToolNames = [
   "fuzzySearch",
   "glob",
   "bash",
+  "write",
+  "applyPatch",
   "fetch",
 ] as const;
 
