@@ -8,8 +8,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ContextMenuOpenContext } from "@pierre/trees";
 import { Button } from "@/components/ui/button";
 
-import { ProjectFileActionDialogs } from "./project-file-action-dialogs";
-import { useProjectFileActions } from "./use-project-file-actions";
+import type { useProjectFileActions } from "./use-project-file-actions";
 
 export type ProjectFileTreeActionsConfig = {
   organizationSlug: string;
@@ -26,29 +25,19 @@ export function ProjectFileTreeContextMenu({
   file,
   context,
   fileActions,
+  actions,
 }: {
   file: ProjectFileRecord;
   context: ContextMenuOpenContext;
   fileActions: ProjectFileTreeActionsConfig;
+  actions: ReturnType<typeof useProjectFileActions>;
 }) {
-  const actions = useProjectFileActions({
-    organizationSlug: fileActions.organizationSlug,
-    projectId: fileActions.projectId,
-    file,
-    highlightLocale: fileActions.highlightLocale,
-    projectTargetLocales: fileActions.projectTargetLocales,
-    sourceLocale: fileActions.sourceLocale,
-    nativeSourcePaths: fileActions.nativeSourcePaths,
-    branch: fileActions.branch,
-  });
-
   const closeMenu = () => {
     context.close({ restoreFocus: false });
   };
 
   return (
     <>
-      <ProjectFileActionDialogs file={file} actions={actions} />
       <div
         className="flex min-w-52 flex-col gap-1 rounded-md border bg-background p-2 shadow"
         data-file-tree-context-menu-root="true"
@@ -77,8 +66,8 @@ export function ProjectFileTreeContextMenu({
               disabled={!actions.canTranslateWithAgent}
               title={actions.translateDisabledTitle}
               onClick={() => {
-                closeMenu();
                 actions.setTranslateDialogOpen(true);
+                closeMenu();
               }}
             >
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
@@ -90,8 +79,8 @@ export function ProjectFileTreeContextMenu({
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
-                closeMenu();
                 actions.setImportDialogOpen(true);
+                closeMenu();
               }}
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
@@ -103,8 +92,8 @@ export function ProjectFileTreeContextMenu({
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
-                closeMenu();
                 actions.setDownloadDialogOpen(true);
+                closeMenu();
               }}
             >
               <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
