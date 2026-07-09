@@ -259,13 +259,20 @@ func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePl
 		return nil, fmt.Errorf("parse translation export JSON: %w", err)
 	}
 	if len(prefilled) == 0 {
-		return nil, fmt.Errorf("translation export did not contain any entries")
+		return prefilledJSON, nil
 	}
 
 	sourcePath, err := runsvc.ResolveExportPath(rt.configRoot, plan.SourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("resolve source path %q: %w", plan.SourcePath, err)
+		return prefilledJSON, nil
 	}
+	if _, err := os.Stat(sourcePath); err != nil {
+		if os.IsNotExist(err) {
+			return prefilledJSON, nil
+		}
+		return nil, fmt.Errorf("stat source file %q: %w", plan.SourcePath, err)
+	}
+
 	resolvedTargetPath, err := runsvc.ResolveExportPath(rt.configRoot, targetPath)
 	if err != nil {
 		return nil, fmt.Errorf("resolve target path %q: %w", targetPath, err)

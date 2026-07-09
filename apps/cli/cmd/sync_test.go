@@ -146,6 +146,127 @@ func TestHyperlocalisePullDownloadsTranslationExports(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePullWritesEmptyExport(t *testing.T) {
+	dir := t.TempDir()
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	sourcePath := filepath.Join(dir, "locales", "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			_, _ = w.Write([]byte("{}\n"))
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull empty export: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != "{}\n" {
+		t.Fatalf("target content = %q, want empty export written as-is", string(content))
+	}
+}
+
+func TestHyperlocalisePullFallsBackToExportWithoutLocalSource(t *testing.T) {
+	dir := t.TempDir()
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+
+	exportBody := []byte("{\n  \"hello\": \"Bonjour\"\n}\n")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			_, _ = w.Write(exportBody)
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull without local source: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != string(exportBody) {
+		t.Fatalf("target content = %q, want downloaded export fallback", string(content))
+	}
+}
+
 func TestHyperlocalisePullSkipsMissingTranslationExport(t *testing.T) {
 	dir := t.TempDir()
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
