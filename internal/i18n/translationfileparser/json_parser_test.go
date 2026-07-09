@@ -1,6 +1,9 @@
 package translationfileparser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestJSONParserParsesFormatJSDefaultMessageOnly(t *testing.T) {
 	content := []byte(`{
@@ -168,6 +171,26 @@ func TestMarshalJSONRewritesNestedObjectArrays(t *testing.T) {
 	}
 	if parsed["home.steps[1].description"] != "Segundo" {
 		t.Fatalf("unexpected rewritten home.steps[1].description: %q", parsed["home.steps[1].description"])
+	}
+}
+
+func TestMarshalJSONPreservesHTMLSensitiveCharacters(t *testing.T) {
+	template := []byte(`{
+  "rich.example": {
+    "defaultMessage": "Use <tag>main</tag> or Review & approval"
+  }
+}`)
+
+	got, err := MarshalJSON(template, map[string]string{
+		"rich.example": "Use <tag>main</tag> or Review & approval",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	text := string(got)
+	if strings.Contains(text, `\u003`) || strings.Contains(text, `\u0026`) {
+		t.Fatalf("expected literal <, >, and &, got escaped output:\n%s", text)
 	}
 }
 
