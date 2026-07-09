@@ -1,4 +1,4 @@
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox, StreamError } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
@@ -21,6 +21,32 @@ export type { SandboxTranslationContext };
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+/**
+ * True when the sandbox command stream died mid-flight.
+ * The SDK's withResume only recovers HTTP 410/422 stopped states — not StreamError —
+ * so callers must stop+resume (or recreate) before retrying commands.
+ */
+export function isSandboxStreamClosedError(error: unknown): boolean {
+  if (error instanceof StreamError) {
+    return error.code === "sandbox_stream_closed" || error.code === "stream_ended_early";
+  }
+
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const err = error as { name?: unknown; code?: unknown; message?: unknown };
+  const code = typeof err.code === "string" ? err.code : null;
+  if (code === "sandbox_stream_closed" || code === "stream_ended_early") {
+    return true;
+  }
+
+  return (
+    typeof err.message === "string" &&
+    err.message.includes("Sandbox stream was closed and is not accepting commands")
+  );
 }
 
 export class SandboxErrorMapper {
@@ -96,6 +122,10 @@ export class SandboxErrorMapper {
       return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
     }
 
+    if (isSandboxStreamClosedError(error)) {
+      return "the translation environment disconnected mid-run. This is usually temporary — try again.";
+    }
+
     return "the translation failed before it could finish. This is usually temporary.";
   }
 }
@@ -111,40 +141,89 @@ export class SandboxLifecycle {
     await sandbox.stop();
   }
 
+  /**
+   * Force a new session after the command stream dies.
+   * Persistent sandboxes restore filesystem from the last snapshot on resume.
+   */
+  async recoverSession(sandboxId: string): Promise<void> {
+    try {
+      const sandbox = await Sandbox.get({ name: sandboxId, resume: false });
+      await sandbox.stop();
+    } catch (error) {
+      // Already stopped / gone — still try resume below.
+      if (!isSandboxStreamClosedError(error)) {
+        console.warn("[sandbox] stop before resume failed", {
+          sandboxId,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+      }
+    }
+
+    await Sandbox.get({ name: sandboxId, resume: true });
+  }
+
+  private async withStreamRecovery<T>(sandboxId: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isSandboxStreamClosedError(error)) {
+        throw error;
+      }
+
+      console.warn("[sandbox] command stream closed; recovering session", { sandboxId });
+      try {
+        await this.recoverSession(sandboxId);
+      } catch (recoverError) {
+        console.warn("[sandbox] session recovery failed", {
+          sandboxId,
+          error: recoverError instanceof Error ? recoverError.message : "unknown",
+        });
+        throw error;
+      }
+      return fn();
+    }
+  }
+
   async runCommand(
     sandboxId: string,
     command: string,
     args: string[],
     options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
   ): Promise<{ exitCode: number; output: string }> {
-    const sandbox = await Sandbox.get({ name: sandboxId });
-    const result = await sandbox.runCommand({ cmd: command, args, env: options?.env });
-    return {
-      exitCode: result.exitCode,
-      output: await result.output(options?.output ?? "both"),
-    };
+    return this.withStreamRecovery(sandboxId, async () => {
+      const sandbox = await Sandbox.get({ name: sandboxId });
+      const result = await sandbox.runCommand({ cmd: command, args, env: options?.env });
+      return {
+        exitCode: result.exitCode,
+        output: await result.output(options?.output ?? "both"),
+      };
+    });
   }
 
   async writeFiles(
     sandboxId: string,
     files: Array<{ path: string; content: string | Buffer }>,
   ): Promise<void> {
-    const sandbox = await Sandbox.get({ name: sandboxId });
-    await sandbox.writeFiles(
-      files.map((file) => ({
-        path: file.path,
-        content: file.content,
-      })),
-    );
+    return this.withStreamRecovery(sandboxId, async () => {
+      const sandbox = await Sandbox.get({ name: sandboxId });
+      await sandbox.writeFiles(
+        files.map((file) => ({
+          path: file.path,
+          content: file.content,
+        })),
+      );
+    });
   }
 
   async readFile(sandboxId: string, outputFile: string): Promise<Buffer> {
-    const sandbox = await Sandbox.get({ name: sandboxId });
-    const content = await sandbox.readFileToBuffer({ path: outputFile });
-    if (!content) {
-      throw new Error(`failed to read translated file: ${outputFile}`);
-    }
-    return Buffer.from(content);
+    return this.withStreamRecovery(sandboxId, async () => {
+      const sandbox = await Sandbox.get({ name: sandboxId });
+      const content = await sandbox.readFileToBuffer({ path: outputFile });
+      if (!content) {
+        throw new Error(`failed to read translated file: ${outputFile}`);
+      }
+      return Buffer.from(content);
+    });
   }
 }
 
@@ -519,6 +598,10 @@ export async function createTranslationSandbox() {
 
 export async function stopTranslationSandbox(sandboxId: string) {
   return defaultLifecycle.stop(sandboxId);
+}
+
+export async function recoverTranslationSandboxSession(sandboxId: string) {
+  return defaultLifecycle.recoverSession(sandboxId);
 }
 
 export async function runSandboxCommand(

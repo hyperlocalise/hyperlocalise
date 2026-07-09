@@ -95,6 +95,8 @@ fileTranslationJobWorkflow
         |
         +-- hl run (all target locales, nested --prefilled-entries)
         |
+        +-- on sandbox stream closed: recreate sandbox + rewrite source, then retry
+        |
         +-- per locale: validate glossary
         |
         +-- retry hl run for glossary-failed locales only

@@ -183,6 +183,14 @@ function userFacingTranslationFailureReason(
   return "the file format may not be supported, or the content didn't match what the translator expected.";
 }
 
+function isSandboxStreamClosedMessage(message: string): boolean {
+  return (
+    message.includes("Sandbox stream was closed and is not accepting commands") ||
+    message.includes("sandbox_stream_closed") ||
+    message.includes("stream_ended_early")
+  );
+}
+
 function userFacingFailureReason(
   error: unknown,
   detection?: {
@@ -195,6 +203,10 @@ function userFacingFailureReason(
 
   if (message.startsWith("glossary validation failed")) {
     return message;
+  }
+
+  if (isSandboxStreamClosedMessage(message)) {
+    return "the translation environment disconnected mid-run. This is usually temporary — try again.";
   }
 
   if (
@@ -237,6 +249,29 @@ async function writeSourceFileStep(sandboxId: string, filename: string, content:
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
+async function recreateSandboxWithSourceStep(input: {
+  previousSandboxId: string | null;
+  filename: string;
+  content: Buffer;
+}) {
+  "use step";
+  const { createTranslationSandbox, prepareSandbox, stopTranslationSandbox, writeFileToSandbox } =
+    await import("@/lib/translation/sandbox");
+
+  if (input.previousSandboxId) {
+    try {
+      await stopTranslationSandbox(input.previousSandboxId);
+    } catch {
+      // Best-effort cleanup of the dead sandbox.
+    }
+  }
+
+  const { sandboxId } = await createTranslationSandbox();
+  await prepareSandbox(sandboxId);
+  await writeFileToSandbox(sandboxId, input.filename, input.content);
+  return { sandboxId };
+}
+
 async function runTranslationStep(
   sandboxId: string,
   inputFile: string,
@@ -252,6 +287,8 @@ async function runTranslationStep(
   const {
     buildMultiLocaleTempConfig,
     getSandboxTranslationEnv,
+    isSandboxStreamClosedError,
+    recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
     writeFileToSandbox,
@@ -288,17 +325,33 @@ async function runTranslationStep(
   }
 
   const localeArg = localeFlags ? ` ${localeFlags}` : "";
-  return runSandboxCommand(
-    sandboxId,
-    "bash",
-    [
-      "-lc",
-      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg} --force --progress off${prefilledFlags}`,
-    ],
-    {
-      env: getSandboxTranslationEnv(),
-    },
-  );
+  try {
+    return await runSandboxCommand(
+      sandboxId,
+      "bash",
+      [
+        "-lc",
+        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg} --force --progress off${prefilledFlags}`,
+      ],
+      {
+        env: getSandboxTranslationEnv(),
+      },
+    );
+  } catch (error) {
+    // Surface a stable marker so the workflow can recreate the sandbox when
+    // session recovery inside runSandboxCommand is not enough.
+    if (isSandboxStreamClosedError(error)) {
+      try {
+        await recoverTranslationSandboxSession(sandboxId);
+      } catch {
+        // Ignore — workflow will recreate.
+      }
+      throw new Error(
+        `sandbox_stream_closed: Sandbox stream was closed and is not accepting commands.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function extractEntriesStep(
@@ -540,7 +593,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw error;
   }
 
-  const { sandboxId } = await createSandboxStep();
+  let { sandboxId } = await createSandboxStep();
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
   const context = await assembleFileTranslationContextStep({
@@ -694,20 +747,48 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             }
           : context;
 
-      const translation = await runTranslationStep(
-        sandboxId,
-        inputFilename,
-        outputPattern,
-        parsedInput.sourceLocale,
-        locales,
-        retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
-        runContext,
-        Object.fromEntries(
-          locales
-            .filter((locale) => prefilledByLocale[locale])
-            .map((locale) => [locale, prefilledByLocale[locale]]),
-        ),
-      );
+      const runOnce = async () =>
+        runTranslationStep(
+          sandboxId,
+          inputFilename,
+          outputPattern,
+          parsedInput.sourceLocale,
+          locales,
+          retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
+          runContext,
+          Object.fromEntries(
+            locales
+              .filter((locale) => prefilledByLocale[locale])
+              .map((locale) => [locale, prefilledByLocale[locale]]),
+          ),
+        );
+
+      let translation: Awaited<ReturnType<typeof runTranslationStep>>;
+      try {
+        translation = await runOnce();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (!isSandboxStreamClosedMessage(message)) {
+          throw error;
+        }
+
+        // Stream closed mid-run: the old session cannot accept more commands.
+        // Recreate a fresh sandbox with the source file so locale retries can proceed.
+        console.warn("[file-translation-workflow] sandbox stream closed; recreating sandbox", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          previousSandboxId: sandboxId,
+          targetLocales: locales,
+          attempt,
+        });
+        const recreated = await recreateSandboxWithSourceStep({
+          previousSandboxId: sandboxId,
+          filename: inputFilename,
+          content: sourceContent,
+        });
+        sandboxId = recreated.sandboxId;
+        translation = await runOnce();
+      }
 
       if (translation.exitCode !== 0) {
         const cliFailureKind = classifyCliFailureKind(translation.output);

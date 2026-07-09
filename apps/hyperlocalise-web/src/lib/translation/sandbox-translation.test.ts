@@ -22,6 +22,16 @@ vi.mock("@vercel/sandbox", () => ({
     create: sandboxMocks.create,
     get: sandboxMocks.get,
   },
+  StreamError: class StreamError extends Error {
+    code: string;
+    sessionId: string;
+    constructor(code: string, message: string, sessionId: string) {
+      super(message);
+      this.name = "StreamError";
+      this.code = code;
+      this.sessionId = sessionId;
+    }
+  },
 }));
 
 import {
@@ -31,11 +41,13 @@ import {
   buildTempConfig,
   createTranslationSandbox,
   getOutputFilenamePattern,
+  isSandboxStreamClosedError,
   runSandboxCommand,
   sandboxFileBucketName,
   sandboxI18nConfigPath,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox";
+import { StreamError } from "@vercel/sandbox";
 
 describe("sandbox command runner", () => {
   beforeEach(() => {
@@ -108,6 +120,62 @@ describe("sandbox command runner", () => {
     });
 
     expect(sandboxMocks.output).toHaveBeenCalledWith("stdout");
+  });
+
+  it("detects sandbox stream closed errors", () => {
+    expect(
+      isSandboxStreamClosedError(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxStreamClosedError(
+        new Error("Sandbox stream was closed and is not accepting commands."),
+      ),
+    ).toBe(true);
+    expect(isSandboxStreamClosedError(new Error("translation failed"))).toBe(false);
+  });
+
+  it("recovers the sandbox session and retries when the command stream closes", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand
+      .mockRejectedValueOnce(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      )
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        output: sandboxMocks.output,
+      });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        stop,
+      })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: false });
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -272,5 +340,19 @@ describe("sandbox translation failure reasons", () => {
         },
       ),
     ).toBe("the markdown file couldn't be parsed for translation.");
+  });
+
+  it("maps sandbox stream closed errors to a temporary disconnect message", () => {
+    expect(
+      userFacingFailureReason(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(
+      "the translation environment disconnected mid-run. This is usually temporary — try again.",
+    );
   });
 });
