@@ -95,7 +95,7 @@ fileTranslationJobWorkflow
         |
         +-- hl run (all target locales, nested --prefilled-entries)
         |
-        +-- on sandbox disconnect (stream closed / undici terminated): recreate sandbox + rewrite source, then retry
+        +-- on sandbox disconnect: retry same sandbox without --force (lockfile resume), else recreate
         |
         +-- per locale: validate glossary
         |

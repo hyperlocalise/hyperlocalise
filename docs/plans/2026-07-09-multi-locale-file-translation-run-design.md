@@ -50,8 +50,9 @@ Glossary terms for all locales stay in the system prompt (already tagged by loca
 
 ## Errors
 
-- Non-zero batch `hl run`: salvage any locale outputs already on disk, retry missing locales individually, persist successes, then fail only for locales still missing.
-- Glossary retry runs **per failed locale** with that locale's feedback only (no cross-locale contamination).
+- Non-zero batch `hl run`: salvage any locale outputs already on disk, retry missing locales individually **without `--force`** so the lockfile can skip completed work, persist successes, then fail only for locales still missing.
+- Glossary retry runs **per failed locale** with that locale's feedback only (no cross-locale contamination) and keeps `--force` so corrected output is rewritten.
+- Sandbox disconnect: retry the same sandbox without `--force` first; recreate only if the session is still unusable.
 - Single-locale jobs use the same multi-locale path with one target.
 
 ## Testing
