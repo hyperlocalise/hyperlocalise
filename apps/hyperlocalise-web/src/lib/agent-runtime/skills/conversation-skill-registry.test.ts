@@ -314,16 +314,64 @@ describe("conversation skill registry", () => {
           conversationId: "conv_1",
           organizationId: "org_1",
           localUserId: "user_1",
-          membershipRole: "member",
+          membershipRole: "admin",
           projectId: null,
           db: {} as never,
           sandboxId: "sbx_1",
           workMode: "write",
+          repositorySource: "chat_ui",
+          actor: { sourceUserId: "user_1", role: "admin" },
         },
       },
     );
 
     expect(toolNames).toEqual(["grep", "write", "applyPatch", "captureScreenshot"]);
+  });
+
+  it("hides repository write tools when the write gate rejects the actor", () => {
+    const toolNames = filterAvailableConversationToolNames(
+      ["grep", "write", "applyPatch", "captureScreenshot"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+          workMode: "write",
+          repositorySource: "slack",
+          actor: { sourceUserId: "U1", role: "member" },
+        },
+      },
+    );
+
+    expect(toolNames).toEqual(["grep"]);
+  });
+
+  it("hides repository write tools for chat members without job write access", () => {
+    const toolNames = filterAvailableConversationToolNames(
+      ["grep", "write", "applyPatch", "captureScreenshot"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+          workMode: "write",
+          repositorySource: "chat_ui",
+          actor: { sourceUserId: "user_1", role: "member" },
+        },
+      },
+    );
+
+    expect(toolNames).toEqual(["grep"]);
   });
 
   it("parses comma-separated frontmatter values", () => {

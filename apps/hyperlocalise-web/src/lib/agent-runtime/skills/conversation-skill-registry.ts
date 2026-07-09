@@ -7,6 +7,7 @@ import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/transl
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
 import { buildTools, buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
 import {
@@ -190,8 +191,11 @@ export function filterAvailableConversationToolNames(
   runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
 ): string[] {
   return toolNames.filter((toolName) => {
-    if (REPO_WRITE_TOOL_NAMES.has(toolName) && runtime.toolContext.workMode !== "write") {
-      return false;
+    if (REPO_WRITE_TOOL_NAMES.has(toolName)) {
+      const gate = assertRepositoryWriteAllowed(runtime.toolContext, "apply_fixes");
+      if (!gate.allowed) {
+        return false;
+      }
     }
 
     if (
