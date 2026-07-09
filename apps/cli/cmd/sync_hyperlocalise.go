@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -216,7 +217,12 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				report.Complete = false
 				return report, fmt.Errorf("download translation for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
-			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+			exported, err := rt.reconstructPullFile(plan, locale, targetPath, content)
+			if err != nil {
+				report.Complete = false
+				return report, fmt.Errorf("reconstruct translation for source %q locale %q: %w", plan.SourcePath, locale, err)
+			}
+			if err := writeFileAtomic(resolvedTargetPath, exported); err != nil {
 				report.Complete = false
 				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
 			}
@@ -245,6 +251,34 @@ func (rt *hyperlocaliseSyncRuntime) resolveTargetPath(targetPath string) (string
 		return "", err
 	}
 	return candidate, nil
+}
+
+func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
+	var prefilled map[string]string
+	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
+		return nil, fmt.Errorf("parse translation export JSON: %w", err)
+	}
+	if len(prefilled) == 0 {
+		return nil, fmt.Errorf("translation export did not contain any entries")
+	}
+
+	sourcePath, err := runsvc.ResolveExportPath(rt.configRoot, plan.SourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve source path %q: %w", plan.SourcePath, err)
+	}
+	resolvedTargetPath, err := runsvc.ResolveExportPath(rt.configRoot, targetPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve target path %q: %w", targetPath, err)
+	}
+
+	return runsvc.ExportPrefilledTarget(runsvc.ExportInput{
+		TargetPath:   resolvedTargetPath,
+		SourcePath:   sourcePath,
+		SourceLocale: plan.SourceLocale,
+		TargetLocale: locale,
+		Prefilled:    prefilled,
+		ProjectRoot:  rt.configRoot,
+	})
 }
 
 func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {

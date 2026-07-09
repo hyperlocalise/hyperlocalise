@@ -78,8 +78,15 @@ func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 
 func TestHyperlocalisePullDownloadsTranslationExports(t *testing.T) {
 	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "locales", "en.json")
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
 	targetPath := filepath.Join(dir, "locales", "fr.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
 	requestedExport := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
@@ -135,7 +142,7 @@ func TestHyperlocalisePullDownloadsTranslationExports(t *testing.T) {
 		t.Fatalf("read target: %v", err)
 	}
 	if string(content) != "{\n  \"hello\": \"Bonjour\"\n}\n" {
-		t.Fatalf("target content = %q", string(content))
+		t.Fatalf("target content = %q, want reconstructed JSON locale file", string(content))
 	}
 }
 
@@ -214,6 +221,10 @@ func TestHyperlocalisePullResolvesRelativeTargetAgainstConfigRoot(t *testing.T) 
 	if err := os.MkdirAll(filepath.Join(projectDir, "locales"), 0o755); err != nil {
 		t.Fatalf("mkdir locales: %v", err)
 	}
+	sourcePath := filepath.Join(projectDir, "locales", "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
 	if err := os.Chdir(otherCWD); err != nil {
 		t.Fatalf("chdir away from project: %v", err)
 	}
@@ -264,8 +275,8 @@ func TestHyperlocalisePullResolvesRelativeTargetAgainstConfigRoot(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read resolved target: %v", err)
 	}
-	if string(content) != `{"hello":"Bonjour"}` {
-		t.Fatalf("target content = %q", string(content))
+	if string(content) != "{\n  \"hello\": \"Bonjour\"\n}\n" {
+		t.Fatalf("target content = %q, want reconstructed JSON locale file", string(content))
 	}
 }
 

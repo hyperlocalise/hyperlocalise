@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
@@ -304,6 +306,87 @@ func TestHyperlocalisePushReportsPartialUploadFailure(t *testing.T) {
 	}
 	if report.Complete || report.PlannedFiles != 2 || report.UploadedFiles != 1 || report.FailedItems != 1 {
 		t.Fatalf("report = %#v, want one upload and one failed item", report)
+	}
+}
+
+func TestHyperlocalisePullReconstructsMarkdownExport(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	sourceMarkdown := "# Hello\n\nWorld.\n"
+	writePushSourceFile(t, "_posts/en/hello.md", sourceMarkdown)
+
+	entries, err := (translationfileparser.MarkdownParser{}).Parse([]byte(sourceMarkdown))
+	if err != nil {
+		t.Fatalf("parse markdown source: %v", err)
+	}
+	prefilled := map[string]string{}
+	for key, value := range entries {
+		prefilled[key] = strings.ReplaceAll(value, "World", "Welt")
+	}
+	prefilledJSON, err := json.Marshal(prefilled)
+	if err != nil {
+		t.Fatalf("marshal prefilled entries: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("sourcePath"); got != "_posts/en/hello.md" {
+			t.Fatalf("sourcePath = %q, want _posts/en/hello.md", got)
+		}
+		if got := r.URL.Query().Get("locale"); got != "de-DE" {
+			t.Fatalf("locale = %q, want de-DE", got)
+		}
+		_, _ = w.Write(prefilledJSON)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en-US",
+				Targets: []string{"de-DE"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"blog": {
+					Files: []config.BucketFileMapping{{
+						From: "_posts/en/**/*.md",
+						To:   "_posts/{{target}}/**/*.md",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull markdown export: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	targetContent, err := os.ReadFile("_posts/de-DE/hello.md")
+	if err != nil {
+		t.Fatalf("read markdown target: %v", err)
+	}
+	if strings.Contains(string(targetContent), `"md.`) {
+		t.Fatalf("target should be markdown, got JSON-like content: %q", string(targetContent))
+	}
+	if !strings.Contains(string(targetContent), "Welt") {
+		t.Fatalf("target content = %q, want translated markdown body", string(targetContent))
+	}
+	if !strings.HasPrefix(string(targetContent), "# Hello") {
+		t.Fatalf("target content = %q, want markdown heading preserved", string(targetContent))
 	}
 }
 
