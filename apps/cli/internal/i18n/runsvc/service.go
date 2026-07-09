@@ -49,8 +49,12 @@ type Input struct {
 	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
 	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
 	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
-	ReportJSONDetail    string
-	PrefilledEntries    map[string]string
+	ReportJSONDetail string
+	// PrefilledEntries is the legacy flat map keyed by entry id. Requires PrefilledTargetPath.
+	PrefilledEntries map[string]string
+	// PrefilledByLocale is locale -> entry id -> value. Mutually exclusive with PrefilledEntries.
+	// Target paths are resolved from planned tasks; PrefilledTargetPath must be empty.
+	PrefilledByLocale   map[string]map[string]string
 	PrefilledTargetPath string
 }
 
