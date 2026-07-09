@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -13,6 +14,7 @@ import (
 
 func newEntriesCmd() *cobra.Command {
 	var locale string
+	var sourcePath string
 
 	cmd := &cobra.Command{
 		Use:          "entries <translation-file>",
@@ -28,16 +30,12 @@ func newEntriesCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("read entries input %q: %w", path, err)
 			}
-			strategy := translationfileparser.NewDefaultStrategy()
-			var entries map[string]string
-			if strings.TrimSpace(locale) != "" {
-				entries, err = strategy.ParseWithLocale(path, content, locale)
-			} else {
-				entries, err = strategy.Parse(path, content)
-			}
+
+			entries, err := readEntriesCommandOutput(path, content, strings.TrimSpace(sourcePath), strings.TrimSpace(locale))
 			if err != nil {
 				return err
 			}
+
 			var buf bytes.Buffer
 			enc := json.NewEncoder(&buf)
 			enc.SetIndent("", "  ")
@@ -55,5 +53,30 @@ func newEntriesCmd() *cobra.Command {
 		"",
 		"target locale for multi-locale files such as .xcstrings",
 	)
+	cmd.Flags().StringVar(
+		&sourcePath,
+		"source",
+		"",
+		"source file used to align content-hashed keys for markdown/MDX targets",
+	)
 	return cmd
+}
+
+func readEntriesCommandOutput(path string, content []byte, sourcePath, locale string) (map[string]string, error) {
+	if sourcePath != "" {
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".md" || ext == ".mdx" {
+			sourceContent, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
+			}
+			return translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, ext == ".mdx"), nil
+		}
+	}
+
+	strategy := translationfileparser.NewDefaultStrategy()
+	if locale != "" {
+		return strategy.ParseWithLocale(path, content, locale)
+	}
+	return strategy.Parse(path, content)
 }

@@ -301,13 +301,19 @@ async function runTranslationStep(
   );
 }
 
-async function extractEntriesStep(sandboxId: string, path: string) {
+async function extractEntriesStep(
+  sandboxId: string,
+  path: string,
+  options?: { sourcePath?: string },
+) {
   "use step";
   const { getSandboxTranslationEnv, runSandboxCommand } = await import("@/lib/translation/sandbox");
+  const sourcePath = options?.sourcePath?.trim();
+  const sourceFlag = sourcePath ? ` --source '${shellSingleQuote(sourcePath)}'` : "";
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
-    ["-lc", `hl entries '${shellSingleQuote(path)}'`],
+    ["-lc", `hl entries '${shellSingleQuote(path)}'${sourceFlag}`],
     { env: getSandboxTranslationEnv(), output: "stdout" },
   );
   if (result.exitCode !== 0) {
@@ -948,7 +954,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
       if (sourceEntries && repositorySourcePath) {
         try {
-          const targetEntries = await extractEntriesStep(sandboxId, outputFilename);
+          const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
+            sourcePath: inputFilename,
+          });
           await persistFileTranslationMemoryEntriesStep({
             projectId: claim.job.projectId,
             jobId: claim.job.id,
