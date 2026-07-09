@@ -2,6 +2,11 @@ import { Sandbox } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
+import {
+  inferSupportedFileTranslationFileFormat,
+  isSupportedFileTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import { translationPromptPolicy } from "@/lib/translation/generation";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 
@@ -43,11 +48,40 @@ export class SandboxErrorMapper {
       return "the source file couldn't be downloaded from Crowdin. This is usually temporary.";
     }
 
-    if (message.includes("translation failed")) {
-      const detected =
-        detection?.fileFormat?.trim() ||
-        detection?.sourceExtension?.trim()?.replace(/^\./, "") ||
-        null;
+    if (message.includes("translation failed") || message.includes("failed to extract entries")) {
+      const fileFormat = detection?.fileFormat?.trim() || null;
+      const extension = detection?.sourceExtension?.trim() || null;
+      const inferredFromExtension = extension
+        ? inferSupportedFileTranslationFileFormat(
+            `file${extension.startsWith(".") ? extension : `.${extension}`}`,
+          )
+        : null;
+      const supportedFormat =
+        (fileFormat &&
+        isSupportedFileTranslationFileFormat(fileFormat as SupportedTranslationFileFormat)
+          ? (fileFormat as SupportedTranslationFileFormat)
+          : null) || inferredFromExtension;
+      const detected = fileFormat || supportedFormat || extension?.replace(/^\./, "") || null;
+      const kindMatch = /kind=([a-z0-9_]+)/i.exec(message);
+      const kind = kindMatch?.[1] ?? null;
+
+      if (kind === "markdown_ast_parity_mismatch" || kind === "markdown_parity_retry_exhausted") {
+        return "markdown translation finished but the output structure no longer matched the source. Try again, or simplify complex markdown in the source file.";
+      }
+      if (kind === "placeholder_parity_mismatch") {
+        return "the translation changed placeholders or markup that must stay identical to the source.";
+      }
+      if (kind === "parser_failed" || kind === "missing_file_extension") {
+        if (detected && !supportedFormat) {
+          return `the detected file format (${detected}) is not supported for file translation.`;
+        }
+        return detected
+          ? `the ${detected} file couldn't be parsed for translation.`
+          : "the file couldn't be parsed for translation.";
+      }
+      if (supportedFormat && detected) {
+        return `translating the ${detected} file failed. This is usually temporary — try again.`;
+      }
       if (detected) {
         return `the detected file format (${detected}) may not be supported, or the content didn't match what the translator expected.`;
       }

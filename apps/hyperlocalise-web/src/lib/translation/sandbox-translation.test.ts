@@ -180,21 +180,48 @@ describe("sandbox translation failure reasons", () => {
     expect(userFacingFailureReason(new Error(message))).toBe(message);
   });
 
-  it("includes the detected file format in translation failure messages", () => {
+  it("does not claim supported formats are unsupported", () => {
     expect(
-      userFacingFailureReason(new Error("translation failed for fr-FR: boom"), {
+      userFacingFailureReason(new Error("translation failed for fr-FR: exitCode=1 kind=unknown"), {
         fileFormat: "markdown",
       }),
+    ).toBe("translating the markdown file failed. This is usually temporary — try again.");
+
+    expect(
+      userFacingFailureReason(
+        new Error("translation failed for fr-FR: exitCode=1 kind=markdown_ast_parity_mismatch"),
+        {
+          fileFormat: "markdown",
+        },
+      ),
     ).toBe(
-      "the detected file format (markdown) may not be supported, or the content didn't match what the translator expected.",
+      "markdown translation finished but the output structure no longer matched the source. Try again, or simplify complex markdown in the source file.",
     );
 
     expect(
       userFacingFailureReason(new Error("translation failed for fr-FR: boom"), {
         sourceExtension: ".md",
       }),
-    ).toBe(
-      "the detected file format (md) may not be supported, or the content didn't match what the translator expected.",
-    );
+    ).toBe("translating the markdown file failed. This is usually temporary — try again.");
+  });
+
+  it("maps extract-entry parser failures to parse errors", () => {
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=parser_failed"),
+        {
+          fileFormat: "markdown",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
+
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=missing_file_extension"),
+        {
+          sourceExtension: ".md",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
   });
 });
