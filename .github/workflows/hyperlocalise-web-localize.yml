@@ -22,7 +22,7 @@ on:
       - apps/hyperlocalise-web/src/**
       - apps/hyperlocalise-web/i18n.yml
       - .github/workflows/hyperlocalise-web-localize.yml
-      - sync/action.yml
+      - .github/actions/hyperlocalise-web-sync/action.yml
 
 permissions:
   contents: read
@@ -60,13 +60,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.19
+
       - name: Extract and upload web sources
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: upload
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
           config-path: ${{ env.WEB_I18N_CONFIG }}
-          hyperlocalise-version: 1.8.19
           extract-path: ${{ env.WEB_EXTRACT_PATH }}
           extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
           extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
@@ -104,16 +108,20 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           # Avoid duplicate Authorization headers with create-pull-request on checkout v6+.
-          # ./sync only needs local git add/diff; the PR action supplies its own token.
+          # Sync only needs local git add/diff; the PR action supplies its own token.
           persist-credentials: false
 
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.19
+
       - name: Extract, download, and validate web translations
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: download
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
           config-path: ${{ env.WEB_I18N_CONFIG }}
-          hyperlocalise-version: 1.8.19
           extract-path: ${{ env.WEB_EXTRACT_PATH }}
           extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
           extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
