@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import type {
@@ -111,6 +111,44 @@ export class ProjectTranslationService extends ProjectServiceBase {
     super(database, "projects.translations");
   }
 
+  private async shouldPruneKeysForSourceFileVersion(input: {
+    sourceFileVersionId?: string | null;
+    repositorySourceFileId: string;
+  }) {
+    if (!input.sourceFileVersionId) {
+      return true;
+    }
+
+    const [currentVersion] = await this.database
+      .select({
+        createdAt: schema.repositorySourceFileVersions.createdAt,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId))
+      .limit(1);
+
+    if (!currentVersion) {
+      return false;
+    }
+
+    const [newerActiveVersion] = await this.database
+      .select({ id: schema.repositorySourceFileVersions.id })
+      .from(schema.repositorySourceFileVersions)
+      .where(
+        and(
+          eq(
+            schema.repositorySourceFileVersions.repositorySourceFileId,
+            input.repositorySourceFileId,
+          ),
+          gt(schema.repositorySourceFileVersions.createdAt, currentVersion.createdAt),
+          inArray(schema.repositorySourceFileVersions.ingestState, ["ingesting", "ingested"]),
+        ),
+      )
+      .limit(1);
+
+    return !newerActiveVersion;
+  }
+
   async getRepositorySourceFileByPath(input: {
     organizationId: string;
     projectId: string;
@@ -162,10 +200,19 @@ export class ProjectTranslationService extends ProjectServiceBase {
     if (entries.length === 0) {
       // Empty successful sync means the source file has no keys; prune all for this file.
       // Truncation cannot produce an empty set, so prune is always safe here.
-      const deletedRows = await this.database
-        .delete(schema.projectTranslationKeys)
-        .where(fileScope)
-        .returning({ id: schema.projectTranslationKeys.id });
+      let deleted = 0;
+      if (
+        await this.shouldPruneKeysForSourceFileVersion({
+          sourceFileVersionId: input.sourceFileVersionId,
+          repositorySourceFileId: input.repositorySourceFileId,
+        })
+      ) {
+        const deletedRows = await this.database
+          .delete(schema.projectTranslationKeys)
+          .where(fileScope)
+          .returning({ id: schema.projectTranslationKeys.id });
+        deleted = deletedRows.length;
+      }
 
       this.log.info(
         {
@@ -174,13 +221,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
           repositorySourceFileId: input.repositorySourceFileId,
           imported: 0,
           updated: 0,
-          deleted: deletedRows.length,
+          deleted,
           truncated: false,
         },
         "pruned all project translation keys for empty source file",
       );
 
-      return { imported: 0, updated: 0, deleted: deletedRows.length, truncated: false };
+      return { imported: 0, updated: 0, deleted, truncated: false };
     }
 
     const existing = await this.database
@@ -240,7 +287,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
       });
 
     let deleted = 0;
-    if (!truncated) {
+    if (
+      !truncated &&
+      (await this.shouldPruneKeysForSourceFileVersion({
+        sourceFileVersionId: input.sourceFileVersionId,
+        repositorySourceFileId: input.repositorySourceFileId,
+      }))
+    ) {
       const deletedRows = await this.database
         .delete(schema.projectTranslationKeys)
         .where(

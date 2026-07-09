@@ -37,6 +37,9 @@ function userFacingIngestFailureReason(error: unknown): string {
   if (message.includes("failed to extract entries")) {
     return "the file format could not be parsed into translation keys";
   }
+  if (message.includes("no valid translation keys")) {
+    return "the file contains no valid translation keys";
+  }
   return message;
 }
 
@@ -78,7 +81,11 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
     const entries = await parseHlEntriesStep(extractedEntries);
 
-    // Always sync keys (including empty files) so removed keys are pruned.
+    if (entries.length === 0 && Object.keys(extractedEntries).length > 0) {
+      throw new Error("the file contains no valid translation keys");
+    }
+
+    // Sync keys (including truly empty files) so removed keys are pruned.
     const keySync = await upsertSourceFileTranslationKeysStep({
       organizationId: event.organizationId,
       projectId: event.projectId,
