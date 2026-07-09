@@ -175,4 +175,26 @@ describe("selectKnowledgeMemoryContext", () => {
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
   });
+
+  it("allows the retrieval algorithm to be replaced without changing selection assembly", () => {
+    const selected = selectKnowledgeMemoryContext(
+      {
+        content: longRepresentativeMemory(),
+        targetLocale: "en-AU",
+        sourceText: "Customize your color settings",
+      },
+      {
+        retrieveSegments: ({ segments }) => {
+          const brandVoiceSegment = segments.find(
+            (segment) => segment.headingPath.join(" > ") === "Memory.md > Brand voice",
+          );
+          return brandVoiceSegment ? [{ segment: brandVoiceSegment, score: 100 }] : [];
+        },
+      },
+    );
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toEqual(["Memory.md > Brand voice"]);
+    expect(selected.compactText).toContain("engineering-native");
+  });
 });
