@@ -63,7 +63,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.8.19
+          version: 1.8.20
 
       - name: Extract and upload web sources
         uses: ./.github/actions/hyperlocalise-web-sync
@@ -114,7 +114,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.8.19
+          version: 1.8.20
 
       - name: Extract, download, and validate web translations
         uses: ./.github/actions/hyperlocalise-web-sync

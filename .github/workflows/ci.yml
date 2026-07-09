@@ -73,7 +73,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.8.19
+          version: 1.8.20
 
       - name: Run Hyperlocalise upload sync action
         id: hyperlocalise-sync-upload
