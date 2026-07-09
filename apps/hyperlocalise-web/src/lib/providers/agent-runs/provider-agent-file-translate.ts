@@ -172,6 +172,7 @@ async function runFileTranslationInSandbox(input: {
     getSandboxTranslationEnv,
     readTranslatedFile,
     runSandboxCommand,
+    sandboxI18nConfigPath,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
@@ -179,7 +180,6 @@ async function runFileTranslationInSandbox(input: {
   const inputFilename = sanitizeSandboxFilename(input.sourceFilename);
   const outputFilename = getSandboxOutputFilename(input.sourceFilename, input.targetLocale);
 
-  const configPath = "/tmp/hyperlocalise-file.yml";
   const config = buildTempConfig(
     inputFilename,
     outputFilename,
@@ -188,9 +188,9 @@ async function runFileTranslationInSandbox(input: {
     null,
     input.context,
   );
-  await writeTempConfig(input.sandboxId, config, configPath);
+  await writeTempConfig(input.sandboxId, config, sandboxI18nConfigPath);
 
-  const prefilledPath = `/tmp/hyperlocalise-prefilled-${input.targetLocale}.json`;
+  const prefilledPath = `prefilled-${input.targetLocale}.json`;
   let prefilledFlags = "";
   if (Object.keys(input.prefilledEntries).length > 0) {
     await writeFileToSandbox(
@@ -206,7 +206,7 @@ async function runFileTranslationInSandbox(input: {
     "bash",
     [
       "-lc",
-      `hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
+      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     { env: getSandboxTranslationEnv() },
   );
