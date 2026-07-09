@@ -50,8 +50,8 @@ Glossary terms for all locales stay in the system prompt (already tagged by loca
 
 ## Errors
 
-- Non-zero `hl run` fails the whole job.
-- Glossary retry covers only locales that failed attempt 1.
+- Non-zero batch `hl run`: salvage any locale outputs already on disk, retry missing locales individually, persist successes, then fail only for locales still missing.
+- Glossary retry runs **per failed locale** with that locale's feedback only (no cross-locale contamination).
 - Single-locale jobs use the same multi-locale path with one target.
 
 ## Testing
