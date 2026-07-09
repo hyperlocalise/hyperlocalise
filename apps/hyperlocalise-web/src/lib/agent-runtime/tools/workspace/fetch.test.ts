@@ -5,7 +5,16 @@ import {
   createFetchTool,
   extractTextFromHTML,
   isAllowedWebUrl,
+  isHtmlContent,
+  looksLikeHtml,
+  readBoundedResponseBody,
 } from "./fetch";
+import { MAX_RESPONSE_BYTES } from "./pinned-fetch";
+
+vi.mock("./pinned-fetch", () => ({
+  MAX_RESPONSE_BYTES: 5 * 1024 * 1024,
+  pinnedPublicFetch: vi.fn((url: string, init?: RequestInit) => globalThis.fetch(url, init)),
+}));
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
 
@@ -34,9 +43,23 @@ describe("isAllowedWebUrl", () => {
   it("does not treat loopback hosts as allowed", () => {
     expect(isAllowedWebUrl("http://127.0.0.1/internal")).toBe(false);
   });
+});
 
-  it("is vulnerable to DNS-based SSRF (shallow check only)", () => {
-    expect(isAllowedWebUrl("http://local.example.com/internal")).toBe(true);
+describe("looksLikeHtml", () => {
+  it("detects doctype and html roots", () => {
+    expect(looksLikeHtml("<!doctype html><html><body>Hi</body></html>")).toBe(true);
+    expect(looksLikeHtml("<html><body>Hi</body></html>")).toBe(true);
+    expect(looksLikeHtml('{"ok":true}')).toBe(false);
+  });
+});
+
+describe("isHtmlContent", () => {
+  it("treats missing content-type HTML as HTML", () => {
+    expect(isHtmlContent("<html><body><h1>Title</h1></body></html>", "")).toBe(true);
+  });
+
+  it("treats text/plain HTML bodies as HTML", () => {
+    expect(isHtmlContent("<html><body><h1>Title</h1></body></html>", "text/plain")).toBe(true);
   });
 });
 
@@ -56,6 +79,22 @@ describe("convertHTMLToMarkdown", () => {
   });
 });
 
+describe("readBoundedResponseBody", () => {
+  it("stops reading once the byte cap is exceeded", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_RESPONSE_BYTES));
+        controller.enqueue(new Uint8Array(1));
+        controller.close();
+      },
+    });
+
+    await expect(readBoundedResponseBody(new Response(stream))).rejects.toThrow(
+      `exceeds ${MAX_RESPONSE_BYTES} byte limit`,
+    );
+  });
+});
+
 describe("createFetchTool", () => {
   const originalFetch = globalThis.fetch;
 
@@ -65,6 +104,7 @@ describe("createFetchTool", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
   });
 
   it("rejects HTTP redirects instead of following them", async () => {
@@ -84,6 +124,24 @@ describe("createFetchTool", () => {
     expect(result).toMatchObject({ success: true, status: 200, body: "ok body" });
   });
 
+  it("rejects DNS-vetted hosts that resolve to restricted addresses", async () => {
+    const { pinnedPublicFetch } = await import("./pinned-fetch");
+    vi.mocked(pinnedPublicFetch).mockRejectedValueOnce(
+      new Error("URL host resolves to a private or restricted address."),
+    );
+
+    const tool = createFetchTool();
+    const result = await tool.execute!(
+      { url: "https://rebind.example.com/internal" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "URL host resolves to a private or restricted address.",
+    });
+  });
+
   it("returns markdown by default for HTML pages", async () => {
     globalThis.fetch = vi.fn(
       async () =>
@@ -100,6 +158,24 @@ describe("createFetchTool", () => {
       success: true,
       format: "markdown",
       contentType: "text/html; charset=utf-8",
+      body: expect.stringContaining("# Docs"),
+    });
+  });
+
+  it("converts HTML without a content-type header to markdown by default", async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response("<html><body><h1>Docs</h1><p>Content</p></body></html>", {
+          status: 200,
+        }),
+    ) as typeof fetch;
+
+    const tool = createFetchTool();
+    const result = await tool.execute!({ url: "https://example.com/docs" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      format: "markdown",
       body: expect.stringContaining("# Docs"),
     });
   });

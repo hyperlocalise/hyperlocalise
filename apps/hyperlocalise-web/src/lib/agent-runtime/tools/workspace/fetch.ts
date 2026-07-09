@@ -5,9 +5,10 @@ import { z } from "zod";
 
 import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
+import { MAX_RESPONSE_BYTES, pinnedPublicFetch } from "./pinned-fetch";
+export { MAX_RESPONSE_BYTES } from "./pinned-fetch";
 import { redact, truncate } from "./redact";
 
-export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 export const DEFAULT_TIMEOUT_SECONDS = 30;
 export const MAX_TIMEOUT_SECONDS = 120;
 export const MAX_BODY_LENGTH = 100_000;
@@ -86,8 +87,30 @@ function isCloudflareChallenge(response: Response): boolean {
   return response.status === 403 && response.headers.get("cf-mitigated") === "challenge";
 }
 
+export function looksLikeHtml(content: string): boolean {
+  const trimmed = content.trimStart().toLowerCase();
+  return (
+    trimmed.startsWith("<!doctype html") ||
+    trimmed.startsWith("<html") ||
+    (trimmed.startsWith("<") && /<\/[a-z][\w:-]*>/i.test(content))
+  );
+}
+
+export function isHtmlContent(content: string, contentType: string): boolean {
+  const mime = mimeFrom(contentType);
+  if (mime === "text/html" || mime === "application/xhtml+xml") {
+    return true;
+  }
+
+  if ((!mime || mime === "text/plain") && looksLikeHtml(content)) {
+    return true;
+  }
+
+  return false;
+}
+
 function convertContent(content: string, contentType: string, format: Format): string {
-  if (!contentType.includes("text/html")) {
+  if (!isHtmlContent(content, contentType)) {
     return content;
   }
 
@@ -102,11 +125,44 @@ function convertContent(content: string, contentType: string, format: Format): s
   return content;
 }
 
-async function readBoundedResponseBody(response: Response): Promise<ArrayBuffer> {
-  const body = await response.arrayBuffer();
-  if (body.byteLength > MAX_RESPONSE_BYTES) {
-    throw new Error(`Response too large (exceeds ${MAX_RESPONSE_BYTES} byte limit)`);
+export async function readBoundedResponseBody(response: Response): Promise<Uint8Array> {
+  if (!response.body) {
+    return new Uint8Array();
   }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      if (!value) {
+        continue;
+      }
+
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) {
+        throw new Error(`Response too large (exceeds ${MAX_RESPONSE_BYTES} byte limit)`);
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
   return body;
 }
 
@@ -122,12 +178,12 @@ async function fetchUrl(
   format: Format,
   timeoutSeconds: number,
   userAgent: string,
-): Promise<{ status: number; body: ArrayBuffer; contentType: string }> {
+): Promise<{ status: number; body: Uint8Array; contentType: string }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1_000);
 
   try {
-    const response = await fetch(url, {
+    const response = await pinnedPublicFetch(url, {
       method: "GET",
       redirect: "error",
       signal: controller.signal,
@@ -213,7 +269,7 @@ export function createFetchTool() {
   return tool({
     description: `Fetch content from a public HTTP(S) URL and return it as text, markdown, or HTML. Markdown is the default for HTML pages.
 
-Use a more targeted tool when one is available. This tool is read-only.
+Use a more targeted tool when one is available. This tool is read-only. Hostnames are DNS-vetted and connections are pinned to resolved public addresses before the request is sent.
 
 WHEN TO USE:
 - Reading public documentation, articles, or reference pages
@@ -238,7 +294,7 @@ USAGE:
         const headTimeout = setTimeout(() => controller.abort(), timeout * 1_000);
 
         try {
-          const response = await fetch(url, {
+          const response = await pinnedPublicFetch(url, {
             method: "HEAD",
             redirect: "error",
             signal: controller.signal,
