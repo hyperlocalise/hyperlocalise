@@ -23,6 +23,6 @@ export const knowledgeMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    check("knowledge_memories_content_length_check", sql`char_length(${table.content}) <= 8000`),
+    check("knowledge_memories_content_length_check", sql`char_length(${table.content}) <= 50000`),
   ],
 );

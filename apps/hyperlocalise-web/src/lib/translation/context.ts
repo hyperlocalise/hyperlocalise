@@ -6,6 +6,7 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
 import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
+import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 import {
   TranslationContext,
   toContextGlossaryMatch,
@@ -73,7 +74,17 @@ export class TranslationContextBuilder {
     const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
     const knowledgeMemoryPromise = getKnowledgeMemoryForOrganization(project.organizationId).then(
-      (memory) => memory.content.trim(),
+      (memory) =>
+        selectKnowledgeMemoryContext({
+          content: memory.content,
+          sourceLocale: jobInput.sourceLocale,
+          targetLocales: jobInput.targetLocales,
+          sourceText: jobInput.sourceText,
+          context: jobInput.context,
+          metadata: jobInput.metadata,
+          projectName: project.name,
+          projectTranslationContext: project.translationContext,
+        }).compactText.trim(),
     );
 
     if (options?.skipConcordance) {
