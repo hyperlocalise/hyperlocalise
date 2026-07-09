@@ -120,19 +120,16 @@ export function CatSideBySideIntelligencePanel({
         className,
       )}
     >
-      <div className="shrink-0 border-b border-border px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <FormattedMessage {...catSideBySidePanelMessages.intelligencePanelTitle} />
-          </h2>
-          <span className="truncate font-mono text-xs text-foreground">{segment.key}</span>
-        </div>
+      <div className="shrink-0 border-b border-border px-4 py-2">
+        <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
+          {segment.key}
+        </p>
       </div>
 
       {placement === "right" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">{intelligencePanel}</div>
-          <div className="max-h-[45%] min-h-0 overflow-y-auto">{commentsPanel}</div>
+          <div className="max-h-[45%] min-h-0 overflow-y-auto px-4 pb-4">{commentsPanel}</div>
         </div>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -140,7 +137,7 @@ export function CatSideBySideIntelligencePanel({
             <div className="p-4">{intelligencePanel}</div>
           </ScrollArea>
 
-          <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
+          <div className="min-h-0 border-t border-border px-4 pb-4 lg:border-t-0 lg:border-l">
             {commentsPanel}
           </div>
         </div>
