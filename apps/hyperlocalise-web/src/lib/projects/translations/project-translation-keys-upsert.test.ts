@@ -1,39 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { deleteMock, deleteReturningMock, insertMock, limitMock, selectMock, whereMock } =
-  vi.hoisted(() => {
-    const onConflictDoUpdateMock = vi.fn(async () => undefined);
-    const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
-    const insertMock = vi.fn(() => ({ values: valuesMock }));
-    const deleteReturningMock = vi.fn(async (): Promise<unknown[]> => []);
-    const deleteWhereMock = vi.fn(() => ({ returning: deleteReturningMock }));
-    const deleteMock = vi.fn(() => ({ where: deleteWhereMock }));
-    const limitMock = vi.fn(async (): Promise<unknown[]> => []);
-    const whereMock = vi.fn(() => {
-      const rowsPromise = Promise.resolve([] as unknown[]);
-      return Object.assign(rowsPromise, {
-        limit: limitMock,
-      });
+const {
+  deleteMock,
+  deleteReturningMock,
+  insertMock,
+  limitMock,
+  orderByMock,
+  selectMock,
+  whereMock,
+} = vi.hoisted(() => {
+  const onConflictDoUpdateMock = vi.fn(async () => undefined);
+  const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
+  const insertMock = vi.fn(() => ({ values: valuesMock }));
+  const deleteReturningMock = vi.fn(async (): Promise<unknown[]> => []);
+  const deleteWhereMock = vi.fn(() => ({ returning: deleteReturningMock }));
+  const deleteMock = vi.fn(() => ({ where: deleteWhereMock }));
+  const limitMock = vi.fn(async (): Promise<unknown[]> => []);
+  const orderByMock = vi.fn(() => ({ limit: limitMock }));
+  const whereMock = vi.fn(() => {
+    const rowsPromise = Promise.resolve([] as unknown[]);
+    return Object.assign(rowsPromise, {
+      limit: limitMock,
+      orderBy: orderByMock,
     });
-    const fromMock = vi.fn(() => ({ where: whereMock }));
-    const selectMock = vi.fn(() => ({ from: fromMock }));
-
-    return {
-      deleteMock,
-      deleteReturningMock,
-      insertMock,
-      limitMock,
-      selectMock,
-      whereMock,
-    };
   });
+  const fromMock = vi.fn(() => ({ where: whereMock }));
+  const selectMock = vi.fn(() => ({ from: fromMock }));
+
+  return {
+    deleteMock,
+    deleteReturningMock,
+    insertMock,
+    limitMock,
+    orderByMock,
+    selectMock,
+    whereMock,
+  };
+});
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: unknown[]) => ["and", conditions]),
   asc: vi.fn((field: unknown) => ["asc", field]),
   count: vi.fn(() => ({ count: "count" })),
+  desc: vi.fn((field: unknown) => ["desc", field]),
   eq: vi.fn((field: string, value: unknown) => ["eq", field, value]),
-  gt: vi.fn((field: string, value: unknown) => ["gt", field, value]),
   ilike: vi.fn((field: string, value: unknown) => ["ilike", field, value]),
   inArray: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
   notInArray: vi.fn((field: string, values: unknown[]) => ["notInArray", field, values]),
@@ -88,6 +98,7 @@ describe("upsertProjectTranslationKeysFromEntries truncation guard", () => {
       const rowsPromise = Promise.resolve([] as unknown[]);
       return Object.assign(rowsPromise, {
         limit: limitMock,
+        orderBy: orderByMock,
       });
     });
     limitMock.mockResolvedValue([]);
@@ -121,7 +132,7 @@ describe("upsertProjectTranslationKeysFromEntries truncation guard", () => {
   it("prunes missing keys when the entry list is within the import cap", async () => {
     whereMock.mockImplementationOnce(() => {
       const rowsPromise = Promise.resolve([{ key: "greeting" }]);
-      return Object.assign(rowsPromise, { limit: limitMock });
+      return Object.assign(rowsPromise, { limit: limitMock, orderBy: orderByMock });
     });
     deleteReturningMock.mockResolvedValueOnce([{ id: "deleted_1" }]);
 
@@ -165,11 +176,9 @@ describe("upsertProjectTranslationKeysFromEntries truncation guard", () => {
   it("skips prune when a newer source file version is already ingesting or ingested", async () => {
     whereMock.mockImplementationOnce(() => {
       const rowsPromise = Promise.resolve([{ key: "greeting" }]);
-      return Object.assign(rowsPromise, { limit: limitMock });
+      return Object.assign(rowsPromise, { limit: limitMock, orderBy: orderByMock });
     });
-    limitMock
-      .mockResolvedValueOnce([{ createdAt: new Date("2026-01-01T00:00:00.000Z") }])
-      .mockResolvedValueOnce([{ id: "version_newer" }]);
+    limitMock.mockResolvedValueOnce([{ id: "version_newer" }]);
 
     const result = await upsertProjectTranslationKeysFromEntries({
       organizationId: "org_1",
@@ -186,6 +195,30 @@ describe("upsertProjectTranslationKeysFromEntries truncation guard", () => {
       truncated: false,
     });
     expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it("skips prune when another active version ties on createdAt but wins the id tie-breaker", async () => {
+    whereMock.mockImplementationOnce(() => {
+      const rowsPromise = Promise.resolve([{ key: "greeting" }]);
+      return Object.assign(rowsPromise, { limit: limitMock, orderBy: orderByMock });
+    });
+    limitMock.mockResolvedValueOnce([{ id: "version_b" }]);
+
+    const result = await upsertProjectTranslationKeysFromEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      repositorySourceFileId: "file_1",
+      sourceFileVersionId: "version_a",
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    expect(result).toEqual({
+      imported: 0,
+      updated: 1,
+      deleted: 0,
+      truncated: false,
+    });
     expect(deleteMock).not.toHaveBeenCalled();
   });
 });

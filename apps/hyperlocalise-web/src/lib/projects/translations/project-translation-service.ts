@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import type {
@@ -119,19 +119,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return true;
     }
 
-    const [currentVersion] = await this.database
-      .select({
-        createdAt: schema.repositorySourceFileVersions.createdAt,
-      })
-      .from(schema.repositorySourceFileVersions)
-      .where(eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId))
-      .limit(1);
-
-    if (!currentVersion) {
-      return false;
-    }
-
-    const [newerActiveVersion] = await this.database
+    const [latestActiveVersion] = await this.database
       .select({ id: schema.repositorySourceFileVersions.id })
       .from(schema.repositorySourceFileVersions)
       .where(
@@ -140,13 +128,16 @@ export class ProjectTranslationService extends ProjectServiceBase {
             schema.repositorySourceFileVersions.repositorySourceFileId,
             input.repositorySourceFileId,
           ),
-          gt(schema.repositorySourceFileVersions.createdAt, currentVersion.createdAt),
           inArray(schema.repositorySourceFileVersions.ingestState, ["ingesting", "ingested"]),
         ),
       )
+      .orderBy(
+        desc(schema.repositorySourceFileVersions.createdAt),
+        desc(schema.repositorySourceFileVersions.id),
+      )
       .limit(1);
 
-    return !newerActiveVersion;
+    return latestActiveVersion?.id === input.sourceFileVersionId;
   }
 
   async getRepositorySourceFileByPath(input: {
