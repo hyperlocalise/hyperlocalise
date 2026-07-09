@@ -78,15 +78,14 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
     const entries = await parseHlEntriesStep(extractedEntries);
 
-    if (entries.length > 0) {
-      await upsertSourceFileTranslationKeysStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        repositorySourceFileId,
-        sourceFileVersionId: event.sourceFileVersionId,
-        entries,
-      });
-    }
+    // Always sync keys (including empty files) so removed keys are pruned.
+    const keySync = await upsertSourceFileTranslationKeysStep({
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      repositorySourceFileId,
+      sourceFileVersionId: event.sourceFileVersionId,
+      entries,
+    });
 
     await markSourceFileIngestStateStep({
       sourceFileVersionId: event.sourceFileVersionId,
@@ -107,7 +106,9 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
 
     return {
       status: "ingested" as const,
-      importedKeyCount: entries.length,
+      importedKeyCount: keySync.imported + keySync.updated,
+      deletedKeyCount: keySync.deleted,
+      truncated: keySync.truncated,
     };
   } catch (error) {
     const reason = userFacingIngestFailureReason(error);

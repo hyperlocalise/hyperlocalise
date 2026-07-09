@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import type {
@@ -10,6 +10,13 @@ import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 const maxKeysPerImport = 5_000;
+
+export type UpsertProjectTranslationKeysResult = {
+  imported: number;
+  updated: number;
+  deleted: number;
+  truncated: boolean;
+};
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -133,8 +140,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     repositorySourceFileId: string;
     sourceFileVersionId?: string | null;
     entries: ProjectSourceStringEntry[];
-  }) {
-    const entries = input.entries
+  }): Promise<UpsertProjectTranslationKeysResult> {
+    const prepared = input.entries
       .map((entry) => ({
         key: entry.key.trim(),
         sourceText: entry.text,
@@ -142,11 +149,38 @@ export class ProjectTranslationService extends ProjectServiceBase {
         type: entry.type?.trim() || null,
         normalizedSourceText: normalizeTranslationMemorySourceText(entry.text),
       }))
-      .filter((entry) => entry.key.length > 0 && entry.sourceText.trim().length > 0)
-      .slice(0, maxKeysPerImport);
+      .filter((entry) => entry.key.length > 0 && entry.sourceText.trim().length > 0);
+
+    const truncated = prepared.length > maxKeysPerImport;
+    const entries = truncated ? prepared.slice(0, maxKeysPerImport) : prepared;
+    const fileScope = translationKeysFileConditions({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: input.repositorySourceFileId,
+    });
 
     if (entries.length === 0) {
-      return { imported: 0, updated: 0 };
+      // Empty successful sync means the source file has no keys; prune all for this file.
+      // Truncation cannot produce an empty set, so prune is always safe here.
+      const deletedRows = await this.database
+        .delete(schema.projectTranslationKeys)
+        .where(fileScope)
+        .returning({ id: schema.projectTranslationKeys.id });
+
+      this.log.info(
+        {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          repositorySourceFileId: input.repositorySourceFileId,
+          imported: 0,
+          updated: 0,
+          deleted: deletedRows.length,
+          truncated: false,
+        },
+        "pruned all project translation keys for empty source file",
+      );
+
+      return { imported: 0, updated: 0, deleted: deletedRows.length, truncated: false };
     }
 
     const existing = await this.database
@@ -205,6 +239,23 @@ export class ProjectTranslationService extends ProjectServiceBase {
         },
       });
 
+    let deleted = 0;
+    if (!truncated) {
+      const deletedRows = await this.database
+        .delete(schema.projectTranslationKeys)
+        .where(
+          and(
+            fileScope,
+            notInArray(
+              schema.projectTranslationKeys.key,
+              entries.map((entry) => entry.key),
+            ),
+          ),
+        )
+        .returning({ id: schema.projectTranslationKeys.id });
+      deleted = deletedRows.length;
+    }
+
     this.log.info(
       {
         organizationId: input.organizationId,
@@ -212,12 +263,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
         repositorySourceFileId: input.repositorySourceFileId,
         imported,
         updated,
+        deleted,
+        truncated,
         total: entries.length,
       },
       "upserted project translation keys",
     );
 
-    return { imported, updated };
+    return { imported, updated, deleted, truncated };
   }
 
   async countKeysForFile(input: {
