@@ -98,6 +98,7 @@ const stopWords = new Set([
   "are",
   "as",
   "be",
+  "copy",
   "for",
   "from",
   "in",
@@ -107,13 +108,22 @@ const stopWords = new Set([
   "not",
   "of",
   "or",
+  "please",
+  "text",
   "the",
   "to",
+  "translate",
+  "translated",
+  "translating",
+  "translation",
   "using",
   "with",
   "your",
 ]);
 const tokenVariantMap: Record<string, string[]> = {
+  basket: ["cart"],
+  cart: ["basket"],
+  checkout: ["purchase"],
   color: ["colour"],
   colors: ["colours"],
   colorful: ["colourful"],
@@ -127,10 +137,15 @@ const tokenVariantMap: Record<string, string[]> = {
   localizes: ["localises"],
   localizing: ["localising"],
   localization: ["localisation"],
+  flow: ["funnel"],
+  funnel: ["flow"],
+  label: ["labels"],
+  labels: ["label"],
   organize: ["organise"],
   organized: ["organised"],
   organizes: ["organises"],
   organizing: ["organising"],
+  purchase: ["checkout"],
 };
 
 for (const [token, variants] of Object.entries(tokenVariantMap)) {
@@ -447,8 +462,11 @@ function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
   for (const locale of uniqueValues([inputLocaleFromParts(queryParts)])) {
     const normalizedLocale = locale.toLowerCase();
     const headingText = segment.headingPath.join(" ").toLowerCase();
+    const searchText = segment.searchText.toLowerCase();
     if (headingText.includes(normalizedLocale)) {
       score += 12;
+    } else if (searchText.includes(normalizedLocale)) {
+      score += 6;
     }
   }
 
