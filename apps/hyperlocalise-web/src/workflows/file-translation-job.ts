@@ -677,6 +677,17 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const runFailures: Array<{ locale: string; kind: string; exitCode: number }> = [];
 
     const runHlForLocales = async (locales: string[], attempt: 1 | 2, retryFeedback?: string) => {
+      const localeSet = new Set(locales);
+      const runContext =
+        context.glossaryTerms != null
+          ? {
+              ...context,
+              glossaryTerms: context.glossaryTerms.filter((term) =>
+                localeSet.has(term.targetLocale),
+              ),
+            }
+          : context;
+
       const translation = await runTranslationStep(
         sandboxId,
         inputFilename,
@@ -684,7 +695,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         parsedInput.sourceLocale,
         locales,
         retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
-        context,
+        runContext,
         Object.fromEntries(
           locales
             .filter((locale) => prefilledByLocale[locale])
