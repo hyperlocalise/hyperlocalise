@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -19,8 +19,9 @@ const pricingFile = createProjectFileRecord({
   filename: "pricing.json",
 });
 
-const { routerPushMock, searchParamsMock } = vi.hoisted(() => ({
+const { routerPushMock, routerReplaceMock, searchParamsMock } = vi.hoisted(() => ({
   routerPushMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
   searchParamsMock: vi.fn(() => "sourcePath=en-US.json&locale=vi"),
 }));
 
@@ -28,7 +29,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/projects/proj_1/files",
   useRouter: () => ({
     push: routerPushMock,
-    replace: vi.fn(),
+    replace: routerReplaceMock,
   }),
   useSearchParams: () => new URLSearchParams(searchParamsMock()),
 }));
@@ -57,14 +58,18 @@ vi.mock("./project-files-tree-panel", () => ({
     onLoadedFilesChange,
     catOpenHint,
     headerActions,
+    fileActions,
   }: {
     onActivateFile?: (sourcePath: string) => void;
     onLoadedFilesChange?: (files: (typeof enUsFile)[]) => void;
     catOpenHint?: string | null;
     headerActions?: ReactNode;
+    fileActions?: {
+      onDownloadFile?: (file: typeof pricingFile) => void;
+    };
   }) => {
     useEffect(() => {
-      onLoadedFilesChange?.([enUsFile]);
+      onLoadedFilesChange?.([enUsFile, pricingFile]);
     }, [onLoadedFilesChange]);
 
     return (
@@ -73,6 +78,9 @@ vi.mock("./project-files-tree-panel", () => ({
         {catOpenHint ? <p>{catOpenHint}</p> : null}
         <button type="button" onDoubleClick={() => onActivateFile?.("en-US.json")}>
           en-US.json
+        </button>
+        <button type="button" onClick={() => fileActions?.onDownloadFile?.(pricingFile)}>
+          Download pricing from context menu
         </button>
       </div>
     );
@@ -104,6 +112,11 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   beforeEach(() => {
     searchParamsMock.mockReturnValue("sourcePath=en-US.json&locale=vi");
     routerPushMock.mockClear();
+    routerReplaceMock.mockReset();
+    routerReplaceMock.mockImplementation((url: string) => {
+      const query = url.includes("?") ? url.split("?")[1] : "";
+      searchParamsMock.mockReturnValue(query);
+    });
   });
 
   it("opens CAT when a project file is double-clicked", async () => {
@@ -145,6 +158,25 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     expect(screen.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("opens the header download dialog for the context-menu file after URL selection updates", async () => {
+    const user = userEvent.setup();
+    const view = render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    await user.click(screen.getByRole("button", { name: "Download pricing from context menu" }));
+
+    expect(routerReplaceMock).toHaveBeenCalledWith(
+      "/org/acme/projects/proj_1/files?sourcePath=marketing%2Fpricing.json&locale=vi",
+      { scroll: false },
+    );
+
+    view.rerender(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Download translations" })).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText(pricingFile.sourcePath)).toBeChecked();
   });
 
   it("passes project target locales to default-layout download actions", async () => {

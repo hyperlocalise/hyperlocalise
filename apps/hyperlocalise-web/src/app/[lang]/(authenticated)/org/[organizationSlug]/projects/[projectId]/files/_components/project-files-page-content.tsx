@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -46,6 +45,8 @@ import { formatBytes } from "./project-files-shared";
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
 const MAX_UPLOAD_FILES = 10;
+
+type PendingFileDialogAction = "translate" | "import" | "download";
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
@@ -300,11 +301,47 @@ export function ProjectFilesPageContent({
     : null;
 
   const selectionActionsRef = useRef<ProjectFileSelectionActionsHandle>(null);
+  const [pendingFileDialogAction, setPendingFileDialogAction] =
+    useState<PendingFileDialogAction | null>(null);
+  const pendingFileDialogSourcePathRef = useRef<string | null>(null);
 
-  const openFileDialog = useCallback((file: ProjectFileRecord, openDialog: () => void) => {
-    flushSync(() => setSelectedSourcePath(file.sourcePath));
+  const openSelectionDialog = useCallback((action: PendingFileDialogAction) => {
+    const openDialog = {
+      translate: () => selectionActionsRef.current?.openTranslate(),
+      import: () => selectionActionsRef.current?.openImport(),
+      download: () => selectionActionsRef.current?.openDownload(),
+    }[action];
     queueMicrotask(openDialog);
   }, []);
+
+  const openFileDialog = useCallback(
+    (file: ProjectFileRecord, action: PendingFileDialogAction) => {
+      if (selectedSourcePath === file.sourcePath) {
+        openSelectionDialog(action);
+        return;
+      }
+
+      pendingFileDialogSourcePathRef.current = file.sourcePath;
+      setPendingFileDialogAction(action);
+      setSelectedSourcePath(file.sourcePath);
+    },
+    [openSelectionDialog, selectedSourcePath, setSelectedSourcePath],
+  );
+
+  useEffect(() => {
+    const pendingSourcePath = pendingFileDialogSourcePathRef.current;
+    if (!pendingFileDialogAction || !pendingSourcePath) {
+      return;
+    }
+
+    if (selectedSourcePath !== pendingSourcePath) {
+      return;
+    }
+
+    openSelectionDialog(pendingFileDialogAction);
+    pendingFileDialogSourcePathRef.current = null;
+    setPendingFileDialogAction(null);
+  }, [openSelectionDialog, pendingFileDialogAction, selectedSourcePath]);
 
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
@@ -316,11 +353,9 @@ export function ProjectFilesPageContent({
       nativeSourcePaths,
       branch: selectedBranch,
       onViewStrings: (file) => openFileInCat(file.sourcePath),
-      onTranslateFile: (file) =>
-        openFileDialog(file, () => selectionActionsRef.current?.openTranslate()),
-      onImportFile: (file) => openFileDialog(file, () => selectionActionsRef.current?.openImport()),
-      onDownloadFile: (file) =>
-        openFileDialog(file, () => selectionActionsRef.current?.openDownload()),
+      onTranslateFile: (file) => openFileDialog(file, "translate"),
+      onImportFile: (file) => openFileDialog(file, "import"),
+      onDownloadFile: (file) => openFileDialog(file, "download"),
     }),
     [
       highlightLocale,
