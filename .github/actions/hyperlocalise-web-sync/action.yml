@@ -1,9 +1,5 @@
-name: Hyperlocalise Sync
-description: Extract React Intl catalogs, upload sources, or download translations with git diff validation.
-
-branding:
-  icon: sync
-  color: gray-dark
+name: Hyperlocalise Web Sync
+description: Extract React Intl catalogs, upload sources, or download translations for apps/hyperlocalise-web.
 
 inputs:
   mode:
@@ -14,19 +10,22 @@ inputs:
     default: i18n.yml
   working-directory:
     description: Working directory for sync commands.
-    default: .
-  hyperlocalise-version:
-    description: Hyperlocalise release version to install.
-    default: latest
+    default: apps/hyperlocalise-web
   extract-path:
     description: Optional path to scan for React Intl extraction before upload or download. Leave empty to skip extraction.
-    default: ""
+    default: src
   extract-out-file:
     description: Output file for extracted FormatJS catalog. Required when extract-path is set.
-    default: ""
+    default: lang/en-US.json
   extract-ignore:
     description: Optional newline-separated glob patterns passed to extract --ignore.
-    default: ""
+    default: |
+      **/*.test.ts
+      **/*.test.tsx
+      **/*.stories.tsx
+      **/*.fixture.ts
+      **/*.e2e.ts
+      **/__tests__/**
   dry-run:
     description: Preview sync push and pull without uploading, downloading, or writing files.
     default: "false"
@@ -109,26 +108,14 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        artifact_dir="${RUNNER_TEMP}/hyperlocalise-sync/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
+        artifact_dir="${RUNNER_TEMP}/hyperlocalise-web-sync/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
         mkdir -p "${artifact_dir}"
         echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
-        echo "artifact-name=hyperlocalise-sync-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-web-sync-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
         echo "push-report-path=${artifact_dir}/push-report.json" >>"${GITHUB_OUTPUT}"
         echo "pull-report-path=${artifact_dir}/pull-report.json" >>"${GITHUB_OUTPUT}"
         echo "validation-report-path=${artifact_dir}/validation-report.json" >>"${GITHUB_OUTPUT}"
         echo "validation-summary-path=${artifact_dir}/validation-summary.txt" >>"${GITHUB_OUTPUT}"
-
-    - name: Install Hyperlocalise
-      shell: bash
-      env:
-        VERSION: ${{ inputs.hyperlocalise-version }}
-        GITHUB_TOKEN: ${{ github.token }}
-      run: |
-        set -euo pipefail
-        install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
-        mkdir -p "${install_dir}"
-        bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
-        echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Extract React Intl messages
       if: ${{ inputs.extract-path != '' }}
@@ -248,7 +235,7 @@ runs:
         CLI_EXIT_CODE: ${{ steps.validate-diff.outputs.cli-exit-code }}
       run: |
         set -euo pipefail
-        node "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
+        node "${GITHUB_ACTION_PATH}/../../../tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
           "check" \
           "${CONFIG_PATH}" \
           "${VALIDATION_REPORT_PATH}" \
