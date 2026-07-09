@@ -2,7 +2,7 @@
 id: visual-mock
 requiresSandbox: true
 requiresVisualMockSkill: true
-tools: grep,fuzzySearch,read,glob,todoWrite,write,applyPatch,fetch
+tools: grep,fuzzySearch,read,glob,todoWrite,write,applyPatch,captureScreenshot,fetch
 ---
 
 ## Visual mock
@@ -19,6 +19,7 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
 - When coding write primitives such as `write` or `apply_patch` are available, use them only for temporary preview scaffolding or narrowly scoped mock fixtures unless the user also asks for a production code change.
 - Do not commit changes, push branches, open pull requests, or publish repository changes. Visual mocks may mutate only the sandbox workspace.
 - When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file, and any assumptions.
+- Use `captureScreenshot` for Storybook stories. Provide the Storybook story id and viewport; do not ask for package-manager-specific commands.
 - When durable file attachment primitives are available, attach the screenshot as an agent artifact with metadata identifying it as `visual-mock`.
 - If write, render, screenshot, or attachment primitives are unavailable, do not claim a screenshot was created. Return a concise mock plan with the target component, data state, viewport, and exact next primitive needed.
 

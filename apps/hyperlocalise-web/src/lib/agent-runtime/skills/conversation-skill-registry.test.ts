@@ -63,7 +63,17 @@ describe("conversation skill registry", () => {
     expect(visualMockSkill).toMatchObject({
       requiresSandbox: true,
       requiresVisualMockSkill: true,
-      tools: ["grep", "fuzzySearch", "read", "glob", "todoWrite", "write", "applyPatch", "fetch"],
+      tools: [
+        "grep",
+        "fuzzySearch",
+        "read",
+        "glob",
+        "todoWrite",
+        "write",
+        "applyPatch",
+        "captureScreenshot",
+        "fetch",
+      ],
     });
   });
 
@@ -275,39 +285,45 @@ describe("conversation skill registry", () => {
   });
 
   it("gates repository write tools from read-only conversation runtimes", () => {
-    const toolNames = filterAvailableConversationToolNames(["grep", "write", "applyPatch"], {
-      hasFileAttachments: false,
-      toolContext: {
-        conversationId: "conv_1",
-        organizationId: "org_1",
-        localUserId: "user_1",
-        membershipRole: "member",
-        projectId: null,
-        db: {} as never,
-        sandboxId: "sbx_1",
-        workMode: "read_only",
+    const toolNames = filterAvailableConversationToolNames(
+      ["grep", "write", "applyPatch", "captureScreenshot"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+          workMode: "read_only",
+        },
       },
-    });
+    );
 
     expect(toolNames).toEqual(["grep"]);
   });
 
   it("allows repository write tools for write-enabled conversation runtimes", () => {
-    const toolNames = filterAvailableConversationToolNames(["grep", "write", "applyPatch"], {
-      hasFileAttachments: false,
-      toolContext: {
-        conversationId: "conv_1",
-        organizationId: "org_1",
-        localUserId: "user_1",
-        membershipRole: "member",
-        projectId: null,
-        db: {} as never,
-        sandboxId: "sbx_1",
-        workMode: "write",
+    const toolNames = filterAvailableConversationToolNames(
+      ["grep", "write", "applyPatch", "captureScreenshot"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+          workMode: "write",
+        },
       },
-    });
+    );
 
-    expect(toolNames).toEqual(["grep", "write", "applyPatch"]);
+    expect(toolNames).toEqual(["grep", "write", "applyPatch", "captureScreenshot"]);
   });
 
   it("parses comma-separated frontmatter values", () => {

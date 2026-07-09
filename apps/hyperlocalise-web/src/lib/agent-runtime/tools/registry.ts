@@ -16,6 +16,7 @@ import { wrapToolSetWithLogging } from "./tool-logging";
 import {
   createBashTool,
   createApplyPatchTool,
+  createCaptureScreenshotTool,
   createFetchTool,
   createFuzzySearchTool,
   createGlobTool,
@@ -59,6 +60,9 @@ function createWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): Tool
   }
   if (policy.isToolAllowed("applyPatch")) {
     tools.applyPatch = createApplyPatchTool(ctx, repoBash);
+  }
+  if (policy.isToolAllowed("captureScreenshot")) {
+    tools.captureScreenshot = createCaptureScreenshotTool(ctx, repoBash);
   }
   if (policy.isToolAllowed("fetch")) {
     tools.fetch = createFetchTool();

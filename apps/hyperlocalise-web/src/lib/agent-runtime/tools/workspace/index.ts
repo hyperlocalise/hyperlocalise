@@ -9,6 +9,7 @@ export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
 export { createWriteTool } from "./write";
 export { createApplyPatchTool } from "./apply-patch";
+export { createCaptureScreenshotTool } from "./capture-screenshot";
 export {
   convertHTMLToMarkdown,
   createFetchTool,
@@ -25,6 +26,7 @@ export const workspacePrimitiveToolNames = [
   "bash",
   "write",
   "applyPatch",
+  "captureScreenshot",
   "fetch",
 ] as const;
 

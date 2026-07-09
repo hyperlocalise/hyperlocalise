@@ -17,10 +17,10 @@ import {
 
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
-const REPO_TOOL_NAMES = new Set<string>(repositoryWorkspaceToolNames);
+const REPO_TOOL_NAMES = new Set<string>([...repositoryWorkspaceToolNames, "captureScreenshot"]);
 const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
-const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch"]);
+const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
 
 export type ConversationSkillMetadata = {
   id: string;
