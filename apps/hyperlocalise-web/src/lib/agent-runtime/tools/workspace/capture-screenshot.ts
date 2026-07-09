@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createStoredFile } from "@/lib/file-storage/records";
 
 import { normalizeWorkspacePath } from "./path";
@@ -266,6 +267,14 @@ The tool detects the repository package manager and Storybook script, uses a Hyp
 It does not commit, push, open pull requests, or publish repository changes.`,
     inputSchema: captureScreenshotInputSchema,
     execute: async ({ target, viewport = DEFAULT_VIEWPORT, waitForMs = DEFAULT_WAIT_FOR_MS }) => {
+      const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
+      if (!gate.allowed) {
+        return {
+          success: false as const,
+          errorCode: "write_not_allowed" as const,
+          error: gate.reason,
+        };
+      }
       if (!repo.bash.writeWorkspaceFile) {
         return {
           success: false as const,

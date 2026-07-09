@@ -231,4 +231,35 @@ describe("createCaptureScreenshotTool", () => {
       errorCode: "browser_binary_unavailable",
     });
   });
+
+  it("denies capture when the repository write gate rejects the actor", async () => {
+    vi.mocked(createStoredFile).mockClear();
+    const { exec, repo, writeWorkspaceFile } = createRepoContext({
+      packageJson: {
+        scripts: { storybook: "storybook dev" },
+      },
+    });
+    const captureScreenshot = createCaptureScreenshotTool(
+      createToolContext({
+        repositorySource: "slack",
+        actor: { sourceUserId: "U1", role: "member" },
+      }),
+      repo,
+    );
+
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "components-button--primary" } },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: "write_not_allowed",
+      error:
+        "Slack-triggered write actions require admin privileges. Regular members run in read-only mode.",
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+    expect(createStoredFile).not.toHaveBeenCalled();
+  });
 });
