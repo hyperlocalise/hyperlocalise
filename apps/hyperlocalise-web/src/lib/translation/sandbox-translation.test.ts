@@ -204,4 +204,24 @@ describe("sandbox translation failure reasons", () => {
       }),
     ).toBe("translating the markdown file failed. This is usually temporary — try again.");
   });
+
+  it("maps extract-entry parser failures to parse errors", () => {
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=parser_failed"),
+        {
+          fileFormat: "markdown",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
+
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=missing_file_extension"),
+        {
+          sourceExtension: ".md",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
+  });
 });

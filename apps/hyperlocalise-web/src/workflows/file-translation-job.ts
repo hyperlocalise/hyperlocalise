@@ -196,7 +196,7 @@ function userFacingFailureReason(
     return "the attachment couldn't be retrieved. It may have been too large or the link expired.";
   }
 
-  if (message.includes("translation failed")) {
+  if (message.includes("translation failed") || message.includes("failed to extract entries")) {
     return userFacingTranslationFailureReason(message, detection);
   }
 

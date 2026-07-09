@@ -48,7 +48,7 @@ export class SandboxErrorMapper {
       return "the source file couldn't be downloaded from Crowdin. This is usually temporary.";
     }
 
-    if (message.includes("translation failed")) {
+    if (message.includes("translation failed") || message.includes("failed to extract entries")) {
       const fileFormat = detection?.fileFormat?.trim() || null;
       const extension = detection?.sourceExtension?.trim() || null;
       const inferredFromExtension = extension
@@ -70,6 +70,14 @@ export class SandboxErrorMapper {
       }
       if (kind === "placeholder_parity_mismatch") {
         return "the translation changed placeholders or markup that must stay identical to the source.";
+      }
+      if (kind === "parser_failed" || kind === "missing_file_extension") {
+        if (detected && !supportedFormat) {
+          return `the detected file format (${detected}) is not supported for file translation.`;
+        }
+        return detected
+          ? `the ${detected} file couldn't be parsed for translation.`
+          : "the file couldn't be parsed for translation.";
       }
       if (supportedFormat && detected) {
         return `translating the ${detected} file failed. This is usually temporary — try again.`;
