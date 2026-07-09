@@ -1,0 +1,3611 @@
+{
+  "++FVhiWhMw": {
+    "defaultMessage": "No description"
+  },
+  "+1iajv5nbm": {
+    "defaultMessage": "Filipino (Philippines)"
+  },
+  "+3ic9geD5G": {
+    "defaultMessage": "Archived"
+  },
+  "+8hEYpTb4c": {
+    "defaultMessage": "A growth lead shares a launch brief in Slack with positioning, audience segments, and legal disclaimers. Hyperlocalise structures the campaign for localisation, applies brand glossary and tone rules, generates adapted drafts for each locale, routes them through marketing and legal review, syncs approved copy to the CMS and ad platforms, and flags any locale where messaging has drifted from the approved source."
+  },
+  "+Bv/z7GqIV": {
+    "defaultMessage": "Run GitHub Actions for localization drift, compare outputs, and keep release checks visible in pull requests before broken sync reaches production."
+  },
+  "+EhuajKQYW": {
+    "defaultMessage": "Stay"
+  },
+  "+ShkkHu7T/": {
+    "defaultMessage": "Detect terminology drift and glossary violations"
+  },
+  "+Ve/t+/sO9": {
+    "defaultMessage": "Ask your organization admin to confirm your WorkOS membership, choose another organization, or sign out and retry with another account."
+  },
+  "+WcpU6CzaH": {
+    "defaultMessage": "Shows localization automation status in GitHub Checks."
+  },
+  "+j1BDY9hKx": {
+    "defaultMessage": "Run multi-stakeholder approval flows"
+  },
+  "+jUwPCSypy": {
+    "defaultMessage": "{count} of {maxLength} characters used"
+  },
+  "+ngHznLyUe": {
+    "defaultMessage": "Hungarian (Hungary)"
+  },
+  "+pyXMBZm58": {
+    "defaultMessage": "Some segments on this page have unsaved edits. Change page without saving?"
+  },
+  "+t9Xh+JbAF": {
+    "defaultMessage": "{passed}/{total} tests passed"
+  },
+  "+vyGacg35N": {
+    "defaultMessage": "AI translation + review"
+  },
+  "+xOXD4ARmA": {
+    "defaultMessage": "Connect GitHub for pull request reviews, localization fixes, and repository context."
+  },
+  "+yMkmaDvaM": {
+    "defaultMessage": "Invitation pending"
+  },
+  "/0FWG2SoFG": {
+    "defaultMessage": "{displayName} saved. Connect your Crowdin token to continue."
+  },
+  "/0c8E1m0u/": {
+    "defaultMessage": "Monitor terminology consistency, locale coverage, and translation quality across product, marketing, and support content — with gates that block bad syncs before they go live."
+  },
+  "/14v/WK67D": {
+    "defaultMessage": "Back to site"
+  },
+  "/5pMziffIK": {
+    "defaultMessage": "GitHub App connection failed. Try connecting again."
+  },
+  "/63lbQkEU8": {
+    "defaultMessage": "No single view of locale health across product strings, marketing copy, and support articles."
+  },
+  "/6fsn0aQ6k": {
+    "defaultMessage": "See who approved what, when, and with what context — across agents and human reviewers."
+  },
+  "/7gytilAet": {
+    "defaultMessage": "View GitHub Action"
+  },
+  "/9tSalqpWn": {
+    "defaultMessage": "Blocking"
+  },
+  "/C52lRfZjE": {
+    "defaultMessage": "Join waitlist"
+  },
+  "/GID42o6lx": {
+    "defaultMessage": "From pull request to release gate"
+  },
+  "/J5AwJIXis": {
+    "defaultMessage": "Adapt copy for regional nuance"
+  },
+  "/Kp0jW/NO6": {
+    "defaultMessage": "Error"
+  },
+  "/MBsvL6JVH": {
+    "defaultMessage": "Find context"
+  },
+  "/O89M/pt0V": {
+    "defaultMessage": "Landing pages and ads drift across locales after the initial launch push."
+  },
+  "/PaSQNTzO0": {
+    "defaultMessage": "Content analysis"
+  },
+  "/TZx8A/JWk": {
+    "defaultMessage": "Enable at least one workflow and choose when automation should run."
+  },
+  "/UI9Zob6RC": {
+    "defaultMessage": "Cancelled"
+  },
+  "/bH75mQmVa": {
+    "defaultMessage": "Wednesday"
+  },
+  "/cgIKQ7r8o": {
+    "defaultMessage": "Enable all"
+  },
+  "/d8vf0Z+2x": {
+    "defaultMessage": "Repositories"
+  },
+  "/nzPUPTay3": {
+    "defaultMessage": "Environment Variables"
+  },
+  "/q4p5ii/gC": {
+    "defaultMessage": "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow."
+  },
+  "/qvZ8TPpqw": {
+    "defaultMessage": "Use"
+  },
+  "/zPj/3x/+q": {
+    "defaultMessage": "Slack agent enabled"
+  },
+  "0+GXVlndL6": {
+    "defaultMessage": "Approve"
+  },
+  "06dt5VSN/y": {
+    "defaultMessage": "Product image placeholder"
+  },
+  "087Hwu4wFp": {
+    "defaultMessage": "Built for support content at scale"
+  },
+  "093XtFZn8Y": {
+    "defaultMessage": "Monitor throughput and locale health"
+  },
+  "0DwOCagj+y": {
+    "defaultMessage": "Locale adaptation"
+  },
+  "0KX3L72Boe": {
+    "defaultMessage": "Dutch (Netherlands)"
+  },
+  "0MjCwM2JVC": {
+    "defaultMessage": "Portuguese (Brazil)"
+  },
+  "0RE4Gn7dt1": {
+    "defaultMessage": "Catch bad translations before production"
+  },
+  "0SJJYtUYDM": {
+    "defaultMessage": "TMS Agnostic"
+  },
+  "0TnAd5e2Yn": {
+    "defaultMessage": "Use different models for different content types while keeping review and sync logic consistent."
+  },
+  "0UfyNCkRQ5": {
+    "defaultMessage": "Unified intake across product, marketing, and support"
+  },
+  "0VEE05t/fr": {
+    "defaultMessage": "Run release checks and regression gates so unresolved locales and quality issues surface before merge."
+  },
+  "0XCfYzdREi": {
+    "defaultMessage": "Friday"
+  },
+  "0YoaNbe8v4": {
+    "defaultMessage": "Link copied"
+  },
+  "0Yq9F0iaq9": {
+    "defaultMessage": "Toggle value visibility"
+  },
+  "0bosLZsKFI": {
+    "defaultMessage": "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads."
+  },
+  "0iCvVxZ/5M": {
+    "defaultMessage": "Add to Issue Sheet"
+  },
+  "0jS/dbW8Df": {
+    "defaultMessage": "Detect added, changed, and removed strings"
+  },
+  "0kKi/MES3A": {
+    "defaultMessage": "Review routing"
+  },
+  "0kMg1hHgVB": {
+    "defaultMessage": "Bring translation intelligence into your localisation workflow"
+  },
+  "0kqhhOMa9k": {
+    "defaultMessage": "Open AI"
+  },
+  "0xs+BR2vTX": {
+    "defaultMessage": "Could not save automation settings."
+  },
+  "0zYUPddzdy": {
+    "defaultMessage": "Reasoning:"
+  },
+  "1/O6U8eZiP": {
+    "defaultMessage": "Terminal"
+  },
+  "18VKZNqtbO": {
+    "defaultMessage": "Needs review"
+  },
+  "19Yj5RY029": {
+    "defaultMessage": "Capture the context and corrections your team already creates, then make them available when the next launch starts."
+  },
+  "1ESwnn506c": {
+    "defaultMessage": "Thursday"
+  },
+  "1H0hH78poY": {
+    "defaultMessage": "Insufficient permissions"
+  },
+  "1PcszZ/Z93": {
+    "defaultMessage": "Target ({locale})"
+  },
+  "1RW3XeR+vN": {
+    "defaultMessage": "Agents prepare the work, but reviewers still decide what is good enough to ship."
+  },
+  "1StG7IXt4v": {
+    "defaultMessage": "Feed locale results into the next cycle"
+  },
+  "1V22/7VZBT": {
+    "defaultMessage": "Daily"
+  },
+  "1VNZg9UkcM": {
+    "defaultMessage": "Anthropic"
+  },
+  "1enwJ9gKTA": {
+    "defaultMessage": "Operate across Crowdin, Lokalise, Phrase, Smartling, and other TMS tools from one workflow layer."
+  },
+  "1lkpRyh3Xt": {
+    "defaultMessage": "Signals captured from approved work"
+  },
+  "1ruEGx9GQx": {
+    "defaultMessage": "Product context lives across GitHub, Slack, Notion, Figma, and your TMS — never in one place when translation starts."
+  },
+  "1v2hbAXp/Y": {
+    "defaultMessage": "Select all visible"
+  },
+  "1xnSvhvUmv": {
+    "defaultMessage": "Generate locale drafts with your LLM"
+  },
+  "1yht4L4f8q": {
+    "defaultMessage": "Turn product changes, pull requests, and launch briefs into reviewed, release-ready translations. Keep localisation inside your release workflow without replacing your TMS."
+  },
+  "1zZjl3C2DC": {
+    "defaultMessage": "Teams ship translations and hope for the best. Drift, missing locales, and terminology breaks accumulate quietly across releases."
+  },
+  "1zjzxzctS5": {
+    "defaultMessage": "Output Schema"
+  },
+  "20dqsvqz/x": {
+    "defaultMessage": "Locale health"
+  },
+  "27qrEmB3yO": {
+    "defaultMessage": "Try again"
+  },
+  "2BaYUyVX1c": {
+    "defaultMessage": "Show API key"
+  },
+  "2BoI5eES6X": {
+    "defaultMessage": "Validating…"
+  },
+  "2CcWvThdpB": {
+    "defaultMessage": "Vendor and reviewer assignments happen manually across spreadsheets and Slack."
+  },
+  "2Ce/RC/wfJ": {
+    "defaultMessage": "Italic"
+  },
+  "2Gq43ufxii": {
+    "defaultMessage": "Norwegian Bokmål (Norway)"
+  },
+  "2IX5Zk4LCM": {
+    "defaultMessage": "Show secret"
+  },
+  "2KWST6Vvto": {
+    "defaultMessage": "Pull product context from where work happens"
+  },
+  "2O/RojUz55": {
+    "defaultMessage": "Leave segment with unsaved changes?"
+  },
+  "2Oxmu0zqx8": {
+    "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use."
+  },
+  "2QU4QHjp8c": {
+    "defaultMessage": "I"
+  },
+  "2Qxq98kpQX": {
+    "defaultMessage": "Next-gen CAT Tool"
+  },
+  "2Wk4xEwU1H": {
+    "defaultMessage": "Coming soon"
+  },
+  "2jyWXfstrf": {
+    "defaultMessage": "Copy email address"
+  },
+  "2kC3Lfuf2F": {
+    "defaultMessage": "Illustration placeholder"
+  },
+  "2kT6l4vS6b": {
+    "defaultMessage": "On push"
+  },
+  "2kWEZewISl": {
+    "defaultMessage": "API key is required."
+  },
+  "2koXtiF9kP": {
+    "defaultMessage": "GitHub Localisation Workflow | Hyperlocalise"
+  },
+  "2oU/YE7MsU": {
+    "defaultMessage": "General question"
+  },
+  "2qzhln+URv": {
+    "defaultMessage": "Open in T3 Chat"
+  },
+  "2xjZ7ChPj8": {
+    "defaultMessage": "Running"
+  },
+  "2yOh43qm8U": {
+    "defaultMessage": "OAuth callback URL"
+  },
+  "2zhZzc+gaw": {
+    "defaultMessage": "Required OAuth scopes"
+  },
+  "304a0qYa4S": {
+    "defaultMessage": "Pending registration"
+  },
+  "30EiG+BWcI": {
+    "defaultMessage": "No repository context was found for this string."
+  },
+  "33ZcrkXcDM": {
+    "defaultMessage": "Opens a pull request with updated translation files when sync succeeds."
+  },
+  "37yFkjafwR": {
+    "defaultMessage": "Your edits to this segment have not been saved. Leave without saving?"
+  },
+  "38GSO8BtcX": {
+    "defaultMessage": "Key capabilities"
+  },
+  "3AEM15DaMz": {
+    "defaultMessage": "Use glob patterns such as <mainExample>main</mainExample> or <releaseExample>release/*</releaseExample>. Up to 32 patterns."
+  },
+  "3IdHhp9gvF": {
+    "defaultMessage": "Why this is different"
+  },
+  "3M+guxg4Ll": {
+    "defaultMessage": "Unable to load GitHub installation status right now."
+  },
+  "3Td/QL9gLC": {
+    "defaultMessage": "Screenshots attached in your TMS for this string."
+  },
+  "3VQO3rGiUE": {
+    "defaultMessage": "Copy terminal output"
+  },
+  "3bgw2z94hj": {
+    "defaultMessage": "Comments"
+  },
+  "3gBCC4Vt7Q": {
+    "defaultMessage": "Advisory"
+  },
+  "3lnMAqI5qB": {
+    "defaultMessage": "Advanced settings"
+  },
+  "3ml8Juvu7i": {
+    "defaultMessage": "GitHub disconnected"
+  },
+  "3r10YA/kX+": {
+    "defaultMessage": "Config version: <version>{configVersion}</version>"
+  },
+  "3uA+kFvugb": {
+    "defaultMessage": "Marketing Localisation Platform | Hyperlocalise"
+  },
+  "3vrwpYmV2v": {
+    "defaultMessage": "Enter translation..."
+  },
+  "3yprYTWh+e": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "3zJmjtu7XF": {
+    "defaultMessage": "Personal access token (per member)"
+  },
+  "4+EsXnJjis": {
+    "defaultMessage": "Push approved translations to your help center"
+  },
+  "42c6ojjeBO": {
+    "defaultMessage": "Future illustration: ecosystem map showing repositories, LLM providers, TMS tools, and release control."
+  },
+  "477uPaXfz1": {
+    "defaultMessage": "Block on failure"
+  },
+  "4AlCRwOS/3": {
+    "defaultMessage": "Create your workspace"
+  },
+  "4DV7znCLLI": {
+    "defaultMessage": "{displayName} saved. Connect your Lokalise account to continue."
+  },
+  "4HHbrucYnH": {
+    "defaultMessage": "Localisation quality monitoring"
+  },
+  "4HsCO20k/1": {
+    "defaultMessage": "Connect enterprise localization programs."
+  },
+  "4Jm91tEu1i": {
+    "defaultMessage": "Keeping our TMS while adding agent workflows is the difference."
+  },
+  "4NIhoyP8P+": {
+    "defaultMessage": "Draft translations with your preferred LLM"
+  },
+  "4NfxqMMl1K": {
+    "defaultMessage": "Detect changed strings"
+  },
+  "4OXJC6cFOE": {
+    "defaultMessage": "From content sync to ongoing quality monitoring"
+  },
+  "4Ot6qB+D/E": {
+    "defaultMessage": "Connected. {repoSummary}"
+  },
+  "4Qb5sAFHM8": {
+    "defaultMessage": "Pull translations to GitHub"
+  },
+  "4R0gB8zCuT": {
+    "defaultMessage": "Next"
+  },
+  "4TEJTOaEgp": {
+    "defaultMessage": "Context-aware quality checks"
+  },
+  "4UGct3gq/3": {
+    "defaultMessage": "Understand translation quality at scale"
+  },
+  "4aYY8lTBYg": {
+    "defaultMessage": "Translation work starts too late in the release cycle, so locales block launches or ship with gaps."
+  },
+  "4lhHg5n2pX": {
+    "defaultMessage": "Agent context"
+  },
+  "4mrug10+v6": {
+    "defaultMessage": "Load more"
+  },
+  "4tP9x2ODN4": {
+    "defaultMessage": "Connect your Anthropic account"
+  },
+  "4tk5H2G6vH": {
+    "defaultMessage": "Reuse the nuance"
+  },
+  "4vXdOuz0pQ": {
+    "defaultMessage": "Copied!"
+  },
+  "5/QxgxarO+": {
+    "defaultMessage": "Asset delivery"
+  },
+  "5/hlw6iDag": {
+    "defaultMessage": "Clear target"
+  },
+  "5/zaB6Pbpf": {
+    "defaultMessage": "Engineering and localisation rely on manual spot checks before release instead of structured gates."
+  },
+  "54u1V4Gpl5": {
+    "defaultMessage": "TMS-agnostic"
+  },
+  "54uRAqIrYn": {
+    "defaultMessage": "Context-aware from GitHub and product briefs"
+  },
+  "59Yvx3B9My": {
+    "defaultMessage": "Flag when translations diverge from approved terminology or when source strings change without locale updates."
+  },
+  "5A/N2rMBQL": {
+    "defaultMessage": "Enable {providerName} tokens"
+  },
+  "5AkeE7XWLR": {
+    "defaultMessage": "Branch"
+  },
+  "5CjwrQGWSz": {
+    "defaultMessage": "System"
+  },
+  "5H+UdOBSV9": {
+    "defaultMessage": "Context match"
+  },
+  "5KdZWVlAAs": {
+    "defaultMessage": "Last delivery: {timestamp}"
+  },
+  "5QymJ2ZjS2": {
+    "defaultMessage": "Cache"
+  },
+  "5YR1meSOsj": {
+    "defaultMessage": "Show reviewers what changed in the source"
+  },
+  "5atqmuSxdx": {
+    "defaultMessage": "Tools"
+  },
+  "5bWs0pTrNJ": {
+    "defaultMessage": "Unable to load Slack settings right now."
+  },
+  "5cCuwKVimM": {
+    "defaultMessage": "Arabic (Saudi Arabia)"
+  },
+  "5dpVYaBmRK": {
+    "defaultMessage": "Total cost"
+  },
+  "5nl3kRCtNh": {
+    "defaultMessage": "GitHub rejected the installation ID. Confirm the app is installed on the expected account."
+  },
+  "5yXqdk0MWc": {
+    "defaultMessage": "From new article to monitored locale coverage"
+  },
+  "63np7ewMDD": {
+    "defaultMessage": "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools."
+  },
+  "69e39hSj7I": {
+    "defaultMessage": "Monitor locale health, review backlog, and quality trends without exporting from three systems."
+  },
+  "6CddYQ5t2q": {
+    "defaultMessage": "Scroll to bottom"
+  },
+  "6DqYm4cuZL": {
+    "defaultMessage": "Webhook"
+  },
+  "6ETzpV6b95": {
+    "defaultMessage": "Learning"
+  },
+  "6LvxG9Y4EB": {
+    "defaultMessage": "Support publishes an updated billing FAQ after a pricing change. Hyperlocalise detects the article update, analyzes changed sections and linked product terms, generates translation drafts for each locale, runs terminology checks against the product glossary, routes drafts to support reviewers, syncs approved translations to Zendesk and Contentful, and alerts the team if any locale still shows the pre-change version after forty-eight hours."
+  },
+  "6PFnjoc6zP": {
+    "defaultMessage": "Editor panel failed to load"
+  },
+  "6g9RHsjL+m": {
+    "defaultMessage": "Reduce review churn"
+  },
+  "6ilKS2sOmJ": {
+    "defaultMessage": "Failed to fetch Contentful connections"
+  },
+  "6ubkC6hfDe": {
+    "defaultMessage": "Blockquote"
+  },
+  "6xU6c/eKvO": {
+    "defaultMessage": "{hour}:00 UTC"
+  },
+  "6xwxjrmrdy": {
+    "defaultMessage": "Source strings are pushed into this project."
+  },
+  "7+I/+6Aeqq": {
+    "defaultMessage": "Next segment"
+  },
+  "7+phzkP936": {
+    "defaultMessage": "Token …{suffix}"
+  },
+  "712aIFkBYq": {
+    "defaultMessage": "Request early access to Hyperlocalise."
+  },
+  "746kT0UVrs": {
+    "defaultMessage": "Re-run repository context lookup for this string"
+  },
+  "75tLVTlfqV": {
+    "defaultMessage": "Skipped"
+  },
+  "77onpKogma": {
+    "defaultMessage": "Copied!"
+  },
+  "7BA/WdUPFq": {
+    "defaultMessage": "GitHub App integration is not configured for this environment."
+  },
+  "7L1IE082cR": {
+    "defaultMessage": "Approve with confidence"
+  },
+  "7MaLlZw62e": {
+    "defaultMessage": "Your account is signed in, but we could not reach WorkOS to confirm your organization membership."
+  },
+  "7OEl2Ch1Rv": {
+    "defaultMessage": "Updates, product thinking, and lessons from building agent-native localisation workflows."
+  },
+  "7QQUiWq0U1": {
+    "defaultMessage": "Content Management API token"
+  },
+  "7SvzEySkCN": {
+    "defaultMessage": "Thinking..."
+  },
+  "7TGGy8pVdX": {
+    "defaultMessage": "Eval history"
+  },
+  "7Vqlo08+3q": {
+    "defaultMessage": "Collect localisation requests from GitHub, Slack, CMS platforms, and your TMS into one queue."
+  },
+  "7XDIDUvT19": {
+    "defaultMessage": "Use cases"
+  },
+  "7bhDbepHzq": {
+    "defaultMessage": "Lokalise"
+  },
+  "7itDAFKmls": {
+    "defaultMessage": "Workspace creation requires WorkOS organization management to be configured."
+  },
+  "7lj/bHhabs": {
+    "defaultMessage": "Concordance search"
+  },
+  "7nMUUnudcv": {
+    "defaultMessage": "Smartling"
+  },
+  "7qpCwZIaq2": {
+    "defaultMessage": "Target translation"
+  },
+  "8+43PQyB4j": {
+    "defaultMessage": "Context-aware across all content sources"
+  },
+  "81SMUge/HF": {
+    "defaultMessage": "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request."
+  },
+  "88gAEWUFj7": {
+    "defaultMessage": "Bullet list"
+  },
+  "88mR250rV4": {
+    "defaultMessage": "You can add up to {max} branch patterns."
+  },
+  "8BeERYABTz": {
+    "defaultMessage": "Glossary compliance"
+  },
+  "8FzJDvElQ4": {
+    "defaultMessage": "Free"
+  },
+  "8Gb40LZzb8": {
+    "defaultMessage": "That branch pattern is already listed."
+  },
+  "8HFDJwATIe": {
+    "defaultMessage": "No microphone found."
+  },
+  "8Le6L54Cs/": {
+    "defaultMessage": "Localisation Operations Platform | Hyperlocalise"
+  },
+  "8MEkOXiww5": {
+    "defaultMessage": "Automation"
+  },
+  "8OAyrxftUP": {
+    "defaultMessage": "Join early access"
+  },
+  "8OHSn5eQCa": {
+    "defaultMessage": "Forbidden glossary term"
+  },
+  "8QnsMQk5Mf": {
+    "defaultMessage": "Hindi (India)"
+  },
+  "8RC2xeVGMi": {
+    "defaultMessage": "Enter a branch pattern."
+  },
+  "8Tp9Y/Dgx2": {
+    "defaultMessage": "Translation intelligence"
+  },
+  "8TtvvjSylP": {
+    "defaultMessage": "Search key or text…"
+  },
+  "8VhTVN2EZZ": {
+    "defaultMessage": "GitHub changes"
+  },
+  "8bSWL8zHiO": {
+    "defaultMessage": "Review & approval"
+  },
+  "8bpns6mW0p": {
+    "defaultMessage": "Authentication method"
+  },
+  "8d4Iw9Q9DE": {
+    "defaultMessage": "Every {weekday} at {time} · {timezone}"
+  },
+  "8eFLCTVPnq": {
+    "defaultMessage": "{count} characters used"
+  },
+  "8ibz5Pm78D": {
+    "defaultMessage": "Previous"
+  },
+  "8m5dZp1wss": {
+    "defaultMessage": "An operations platform that connects your stack — not another silo"
+  },
+  "8n5eYbhjGv": {
+    "defaultMessage": "Chinese (Taiwan)"
+  },
+  "8nYNjmNA8P": {
+    "defaultMessage": "Disabled"
+  },
+  "8qtlRUPEdv": {
+    "defaultMessage": "English"
+  },
+  "8rr2LhuMpW": {
+    "defaultMessage": "Queued"
+  },
+  "8thlQ//Slc": {
+    "defaultMessage": "Human-in-the-loop when review is required"
+  },
+  "8vYRLImWYG": {
+    "defaultMessage": "Registration:"
+  },
+  "8w4ZXUPESp": {
+    "defaultMessage": "Quote"
+  },
+  "8x7A3iYxrD": {
+    "defaultMessage": "Focus or hover a string to see translation intelligence."
+  },
+  "8xFCdSWcA4": {
+    "defaultMessage": "Voice Selector"
+  },
+  "8yJ9TkhoZy": {
+    "defaultMessage": "Generate a translation suggestion for this string."
+  },
+  "9/pQQpDU+H": {
+    "defaultMessage": "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms."
+  },
+  "91cpLc7aba": {
+    "defaultMessage": "Stay TMS agnostic across platforms"
+  },
+  "92YYrAXEnO": {
+    "defaultMessage": "Check"
+  },
+  "97U6IP2zpL": {
+    "defaultMessage": "Regression eval"
+  },
+  "98mLYv90ox": {
+    "defaultMessage": "Hide API key"
+  },
+  "9ByCGUY81m": {
+    "defaultMessage": "<label>Workspace URL </label><path>/org/{slug}</path>"
+  },
+  "9HHMm55Kbr": {
+    "defaultMessage": "Quality analysis"
+  },
+  "9I//qXyS2N": {
+    "defaultMessage": "Copy"
+  },
+  "9Ixpy5poXF": {
+    "defaultMessage": "Failed to reset automation settings"
+  },
+  "9KBgHSjmwg": {
+    "defaultMessage": "Latest decision"
+  },
+  "9KmYVi7cCO": {
+    "defaultMessage": "Push source to Hyperlocalise"
+  },
+  "9KuYbR6KRc": {
+    "defaultMessage": "Copied!"
+  },
+  "9OS3Rz0crI": {
+    "defaultMessage": "Route the review"
+  },
+  "9Pt2hFyO/v": {
+    "defaultMessage": "Skipped"
+  },
+  "9RkSMcYnN2": {
+    "defaultMessage": "File context"
+  },
+  "9WGORyVfVo": {
+    "defaultMessage": "German (Germany)"
+  },
+  "9YNv5fx63k": {
+    "defaultMessage": "Korean (South Korea)"
+  },
+  "9aWpVkf/JD": {
+    "defaultMessage": "Workspace name must be at least 2 characters."
+  },
+  "9bSARO1BLR": {
+    "defaultMessage": "Add a comment..."
+  },
+  "9glYgHRgqB": {
+    "defaultMessage": "Integrations"
+  },
+  "9gxIcCZ7b1": {
+    "defaultMessage": "{count} skipped"
+  },
+  "9hphmwIx1l": {
+    "defaultMessage": "https://cloud.memsource.com/web"
+  },
+  "9mvp5zoex8": {
+    "defaultMessage": "Report on throughput, coverage, and quality"
+  },
+  "9phIm1BV0j": {
+    "defaultMessage": "GitHub"
+  },
+  "9pmdbGAxZ4": {
+    "defaultMessage": "Failed to generate GitHub install URL"
+  },
+  "9w0U+WoX/B": {
+    "defaultMessage": "Route to marketing and legal reviewers"
+  },
+  "9wiaS9Svb/": {
+    "defaultMessage": "Regression checks run manually — or not at all — before major releases."
+  },
+  "9yja2gkowg": {
+    "defaultMessage": "English (United States)"
+  },
+  "A+IsVf0TGL": {
+    "defaultMessage": "Contentful Help Center"
+  },
+  "A/xeqYD4/q": {
+    "defaultMessage": "Run localisation gates in GitHub Actions"
+  },
+  "A1fjnptbCX": {
+    "defaultMessage": "Slack requests"
+  },
+  "A28XuP7g0c": {
+    "defaultMessage": "Contact"
+  },
+  "A2Qe3R87fV": {
+    "defaultMessage": "H3"
+  },
+  "A6Qd63GgNv": {
+    "defaultMessage": "LLM-agnostic"
+  },
+  "A6g1n+wasr": {
+    "defaultMessage": "Slack"
+  },
+  "A7Ekkw3Q5T": {
+    "defaultMessage": "Translation intelligence for marketing — not a generic TMS"
+  },
+  "A9BYSi93bG": {
+    "defaultMessage": "Response"
+  },
+  "AA0EuR+/cx": {
+    "defaultMessage": "TMS"
+  },
+  "AAnhNKa9eI": {
+    "defaultMessage": "Missing placeholders"
+  },
+  "ACud1VtN9i": {
+    "defaultMessage": "Display name"
+  },
+  "AKtzAy5jSx": {
+    "defaultMessage": "Route"
+  },
+  "ALRaijWLiy": {
+    "defaultMessage": "Resetting..."
+  },
+  "ARpiURdPaK": {
+    "defaultMessage": "The shift"
+  },
+  "ASS0MwMBvQ": {
+    "defaultMessage": "Release gate"
+  },
+  "AWZymO5ooC": {
+    "defaultMessage": "Stop Chasing Localisation Work Across Tools | Hyperlocalise"
+  },
+  "Ab8vwYJKWj": {
+    "defaultMessage": "Reviewers"
+  },
+  "AcfkWiaJBh": {
+    "defaultMessage": "Copied!"
+  },
+  "AvXpNmaez+": {
+    "defaultMessage": "Translation Management System"
+  },
+  "B8cDvM1Ftb": {
+    "defaultMessage": "Alert when locales fall behind source"
+  },
+  "BCjjJI52jI": {
+    "defaultMessage": "Close the loop"
+  },
+  "BGfQ06k8Pb": {
+    "defaultMessage": "Failed to look up repository context."
+  },
+  "BJ6vl2NzEe": {
+    "defaultMessage": "Open in chat"
+  },
+  "BNfqWKjFzB": {
+    "defaultMessage": "Blog"
+  },
+  "BUP/2Zum32": {
+    "defaultMessage": "Human-in-the-loop escalation"
+  },
+  "BUUxfUaq94": {
+    "defaultMessage": "Spanish (Spain)"
+  },
+  "BVsezPmDFQ": {
+    "defaultMessage": "Enter provider API token"
+  },
+  "BX0DlJwbY+": {
+    "defaultMessage": "Disconnect {providerName}?"
+  },
+  "Bbj2MTjXFz": {
+    "defaultMessage": "Bad translations rarely start with bad language. They start with missing context."
+  },
+  "BeBJ6Gf6JS": {
+    "defaultMessage": "Alert on post-publish drift"
+  },
+  "BjoXu+/Pje": {
+    "defaultMessage": "Localization check"
+  },
+  "BnZ3uPwDP7": {
+    "defaultMessage": "Look up where this string appears in the connected repository"
+  },
+  "BresGxSzFx": {
+    "defaultMessage": "ICU structure"
+  },
+  "Brot+npjjF": {
+    "defaultMessage": "Microsoft Teams"
+  },
+  "BrsVyR4Efb": {
+    "defaultMessage": "Hour (UTC)"
+  },
+  "BsIdlB/bdk": {
+    "defaultMessage": "Default model"
+  },
+  "BsQAY8Fc69": {
+    "defaultMessage": "Hyperlocalise gives localisation operations a single control plane across sources, models, reviewers, and sync targets."
+  },
+  "C+9nUAd/Jd": {
+    "defaultMessage": "{displayName} saved. Connect your Crowdin account to continue."
+  },
+  "C7FCjLc6gc": {
+    "defaultMessage": "{displayName} saved. Connect your Phrase account to continue."
+  },
+  "C83IJDnkWP": {
+    "defaultMessage": "Built for support and localisation operations"
+  },
+  "C8r3kP1Ub3": {
+    "defaultMessage": "Pull briefs, glossaries, and UI constraints"
+  },
+  "CACMLylIOq": {
+    "defaultMessage": "Apply glossary, tone, and UI constraints before review"
+  },
+  "CHs2ugz7iN": {
+    "defaultMessage": "Unsaved changes"
+  },
+  "CIM2S3+MYa": {
+    "defaultMessage": "Capture goals, audience, and messaging"
+  },
+  "CIdkhlQIV6": {
+    "defaultMessage": "Switch to managed"
+  },
+  "CKYDTAvT+Q": {
+    "defaultMessage": "Track locale health, review coverage, and eval history in one place so localization PMs and engineering teams can see what is safe to ship."
+  },
+  "CQCxmYWm3f": {
+    "defaultMessage": "Update connection"
+  },
+  "CRRbrB6ehg": {
+    "defaultMessage": "Eval gates"
+  },
+  "CUMVPg+yCv": {
+    "defaultMessage": "How it works"
+  },
+  "CgFxrlWCfb": {
+    "defaultMessage": "Track approvals and audit trails"
+  },
+  "CgTkZ3AhIW": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "ChA2eL6U9Z": {
+    "defaultMessage": "Localisation updates the product glossary after a rebrand. Hyperlocalise scans product strings, marketing landing pages, and help center articles for terminology that no longer matches, runs regression evals against approved baselines, routes flagged strings to reviewers, blocks TMS sync for locales that fail the threshold, and continues monitoring published content for drift over the following two weeks."
+  },
+  "Cidmm9AU9i": {
+    "defaultMessage": "Attach glossaries, briefs, and history"
+  },
+  "CmE4SxYlZe": {
+    "defaultMessage": "Human review"
+  },
+  "Co6OZgcHjk": {
+    "defaultMessage": "No repositories match this search."
+  },
+  "CqDUHu+YvU": {
+    "defaultMessage": "Copy link to this segment"
+  },
+  "Cv5dtJ6iTe": {
+    "defaultMessage": "Saturday"
+  },
+  "CzW/0u2+bW": {
+    "defaultMessage": "OAuth works when your Enterprise OAuth app is configured. Personal access tokens let each member paste a token from Crowdin without OAuth setup."
+  },
+  "D3VzMQGhqa": {
+    "defaultMessage": "Assign AI agents to translate, review, and sync content while keeping human review first-class."
+  },
+  "D6hzyJl9hV": {
+    "defaultMessage": "Active"
+  },
+  "D9igbLAS2O": {
+    "defaultMessage": "Admins can connect"
+  },
+  "DChuKVBoeL": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "DDsxRVuOKN": {
+    "defaultMessage": "Sign-in could not be completed"
+  },
+  "DEaqfo0mck": {
+    "defaultMessage": "Color theme"
+  },
+  "DJGr6J4yAS": {
+    "defaultMessage": "French (France)"
+  },
+  "DMTmTTrlW4": {
+    "defaultMessage": "A product manager merges a pull request with a redesigned onboarding flow. Hyperlocalise detects changed strings, gathers context from the PR and product brief, creates translation drafts for each target locale, checks glossary and tone rules, routes them to reviewers in the TMS, syncs approved translations back, and flags unresolved locales before the release train leaves the station."
+  },
+  "DOGd1ZI3w4": {
+    "defaultMessage": "Localization PM"
+  },
+  "DUUeZdS8h4": {
+    "defaultMessage": "Route to support and localisation reviewers"
+  },
+  "DeMAC4mdid": {
+    "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond to mentions, DMs, and subscribed threads."
+  },
+  "DeRSeFizML": {
+    "defaultMessage": "Unable to load Contentful metadata"
+  },
+  "DfN9kCeShy": {
+    "defaultMessage": "Designed for release confidence"
+  },
+  "Dnd66cVwTk": {
+    "defaultMessage": "Run regression evals before sync and release"
+  },
+  "Dno2kO+MzN": {
+    "defaultMessage": "FR, DE, JA waiting on scope"
+  },
+  "DqaqeEsPck": {
+    "defaultMessage": "Catch translation drift before your customers do"
+  },
+  "DxQL85kivW": {
+    "defaultMessage": "Turn launch briefs, campaign assets, and regional messaging into reviewed, culturally adapted copy — with approval flows and glossary control built in."
+  },
+  "DxmswO0BaI": {
+    "defaultMessage": "Save connection"
+  },
+  "E5p3SqvCuO": {
+    "defaultMessage": "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
+  },
+  "E6HRzAiOt0": {
+    "defaultMessage": "Model provider"
+  },
+  "E8+2wxkeue": {
+    "defaultMessage": "Pull request diff with Hyperlocalise review comments highlighting translation errors before merge."
+  },
+  "E8rEmEqTpX": {
+    "defaultMessage": "Resolving…"
+  },
+  "EAcDwSK8G7": {
+    "defaultMessage": "{provider} logo"
+  },
+  "EAhhIbx0mG": {
+    "defaultMessage": "Assign agents to translation, review, and sync tasks while keeping human reviewers in the loop through the TMS your team already uses."
+  },
+  "EC/XnP73At": {
+    "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in."
+  },
+  "ECh2wuwOCJ": {
+    "defaultMessage": "Markdown content"
+  },
+  "ECw5CTvkCi": {
+    "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge."
+  },
+  "EGy0DHdyiF": {
+    "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale."
+  },
+  "EQ94/v/KcI": {
+    "defaultMessage": "No comments yet. Add a note for reviewers or translators."
+  },
+  "EQuzSP+RiS": {
+    "defaultMessage": "Unable to save Contentful connection"
+  },
+  "ETurL1gTEW": {
+    "defaultMessage": "Campaign context sits in Notion, Figma, Slack, and agency decks — not in the translation workflow."
+  },
+  "EUZbcVhX5v": {
+    "defaultMessage": "Queue"
+  },
+  "EZ0iYWNVvs": {
+    "defaultMessage": "Reset settings"
+  },
+  "EbDvs5zM4A": {
+    "defaultMessage": "TMS sync"
+  },
+  "Eecec2KI1k": {
+    "defaultMessage": "Cancel"
+  },
+  "EefMGzxdS7": {
+    "defaultMessage": "Sync approved copy to Contentful, Webflow, ad platforms, and your TMS without duplicate handoffs."
+  },
+  "Ehcy1DdQ49": {
+    "defaultMessage": "Works across GitHub, TMS, and release tooling"
+  },
+  "EkIRMNMq59": {
+    "defaultMessage": "Side by side"
+  },
+  "EsHwflBzPz": {
+    "defaultMessage": "Track review coverage and approval status"
+  },
+  "Euo1Muino3": {
+    "defaultMessage": "Orchestrate localisation across TMS platforms, LLM providers, vendors, and reviewers. One workflow layer for localisation managers without replacing your stack."
+  },
+  "EwntDoEOdH": {
+    "defaultMessage": "Release gate"
+  },
+  "EyTy76luBD": {
+    "defaultMessage": "Email agent intake address"
+  },
+  "F+43ZMkvwH": {
+    "defaultMessage": "master"
+  },
+  "F/3zp/X191": {
+    "defaultMessage": "Connect Slack"
+  },
+  "F1KUlqpyf6": {
+    "defaultMessage": "Error"
+  },
+  "F5DQ5DD59e": {
+    "defaultMessage": "Attach article diffs and product context so reviewers approve updates with full visibility."
+  },
+  "F60WBL3vGu": {
+    "defaultMessage": "Hyperlocalise project"
+  },
+  "F63lYTb8dq": {
+    "defaultMessage": "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Project and job data is read live from Crowdin when you open it."
+  },
+  "F6X8Sh27Q0": {
+    "defaultMessage": "Approved"
+  },
+  "FKwIhQa4ff": {
+    "defaultMessage": "Quality issues surface after launch, not before"
+  },
+  "FRwUYE4HKC": {
+    "defaultMessage": "Finnish (Finland)"
+  },
+  "FSI9rZSdBy": {
+    "defaultMessage": "Branch patterns may only use letters, numbers, ., _, -, /, *, and ?."
+  },
+  "FcsO6dYpho": {
+    "defaultMessage": "Copied!"
+  },
+  "Fhrua/1XPG": {
+    "defaultMessage": "Review translations without guessing what the string means"
+  },
+  "FlwYDfCvTq": {
+    "defaultMessage": "{count} passed"
+  },
+  "Fu+Wp27gS1": {
+    "defaultMessage": "Hyperlocalise connects product change signals to the review and sync workflow your team already runs."
+  },
+  "G+Z7c9Efva": {
+    "defaultMessage": "Built for localisation operations at release speed"
+  },
+  "G1is+5n2E6": {
+    "defaultMessage": "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter."
+  },
+  "G3IbmWT2r1": {
+    "defaultMessage": "Click to translate"
+  },
+  "G8MBSDjILS": {
+    "defaultMessage": "This clears saved workflows, triggers, and status check settings for this repository. GitHub metadata sync is not affected."
+  },
+  "GDx1gijvA4": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "GM92+KcSLv": {
+    "defaultMessage": "Email agent settings unavailable"
+  },
+  "GRJxQXl5PH": {
+    "defaultMessage": "Registered in Contentful"
+  },
+  "GTYfpC36J6": {
+    "defaultMessage": "Workflow continuity"
+  },
+  "GTfJg3wtyQ": {
+    "defaultMessage": "Product localisation"
+  },
+  "GUdcEFFwSE": {
+    "defaultMessage": "Drift checks"
+  },
+  "GZgOkkX0hj": {
+    "defaultMessage": "Japanese (Japan)"
+  },
+  "GhvFdhdrp/": {
+    "defaultMessage": "Attach product context"
+  },
+  "Gq3EWF71If": {
+    "defaultMessage": "Keep support articles translated and fresh across locales. Connect CMS updates to review workflows and freshness monitoring without support content lag."
+  },
+  "GuBuwlp/SU": {
+    "defaultMessage": "Stop repeating the same localisation feedback"
+  },
+  "H+lh3KkeVK": {
+    "defaultMessage": "Switching LLM providers or TMS platforms disrupts established workflows."
+  },
+  "H/M3brO8Jk": {
+    "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can launch global product content faster without replacing your existing tools."
+  },
+  "H/rcXdOxHm": {
+    "defaultMessage": "New article"
+  },
+  "H08tJMqbiW": {
+    "defaultMessage": "Adapt for regional nuance, not word-for-word translation"
+  },
+  "H0k47esZhc": {
+    "defaultMessage": "Message syntax could not be parsed."
+  },
+  "H2MT8I4Gbc": {
+    "defaultMessage": "Translation draft"
+  },
+  "H3PhSgBYwu": {
+    "defaultMessage": "No context is attached to this string in the source file."
+  },
+  "H7+t0VoSpu": {
+    "defaultMessage": "Copy link"
+  },
+  "H7MZFgXFSw": {
+    "defaultMessage": "Copied!"
+  },
+  "HDJPwmFPXK": {
+    "defaultMessage": "Product strings change faster than localisation can follow"
+  },
+  "HHg8t7sqUf": {
+    "defaultMessage": "Something went wrong while finishing sign-in."
+  },
+  "HKYPjt1anz": {
+    "defaultMessage": "Route to reviewers in your TMS workflow"
+  },
+  "HLG4pq/SOg": {
+    "defaultMessage": "Could not copy link"
+  },
+  "HMCvwDzSUl": {
+    "defaultMessage": "Track decisions across stakeholders"
+  },
+  "HPcVVY4tmz": {
+    "defaultMessage": "Privacy policy"
+  },
+  "HWwdf4dk7T": {
+    "defaultMessage": "Most review cycles stall because the translator cannot see the screen, the glossary, the intent, or the product nuance. Hyperlocalise puts that context beside the string."
+  },
+  "HZtAltEBuQ": {
+    "defaultMessage": "Context attached in the file"
+  },
+  "Hmzt+zT6qT": {
+    "defaultMessage": "Persian (Iran)"
+  },
+  "HrB9mIwARt": {
+    "defaultMessage": "Edit"
+  },
+  "HsI1Rbh6Cp": {
+    "defaultMessage": "Connect to browse Phrase projects and jobs with user OAuth."
+  },
+  "Hvs8KUnDJm": {
+    "defaultMessage": "Claude briefs"
+  },
+  "Hx0PS0s7+N": {
+    "defaultMessage": "Context-aware from briefs and brand guides"
+  },
+  "I/DICv+jfP": {
+    "defaultMessage": "The localization platform to launch globally in days"
+  },
+  "I7LI9gWPKv": {
+    "defaultMessage": "Enable email agent to generate inbox address"
+  },
+  "I9aLSBsZbT": {
+    "defaultMessage": "Choose an organization from your account or contact support if this continues."
+  },
+  "IChVk1VMPL": {
+    "defaultMessage": "Built for brand-safe global campaigns"
+  },
+  "IHNG6SIjSG": {
+    "defaultMessage": "Bad translations reach production because there is no automated regression layer."
+  },
+  "IRhB9WkxFD": {
+    "defaultMessage": "Danish (Denmark)"
+  },
+  "ISCo8PAGGI": {
+    "defaultMessage": "No screenshots are attached to this string in the provider."
+  },
+  "IW+967m+1e": {
+    "defaultMessage": "Thought for a few seconds"
+  },
+  "IarSQrZ6vP": {
+    "defaultMessage": "Copy value"
+  },
+  "Icd4dfBmnK": {
+    "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production."
+  },
+  "If/xnDCxst": {
+    "defaultMessage": "Configure"
+  },
+  "Ij4qN1o4kr": {
+    "defaultMessage": "Hyperlocalise Native"
+  },
+  "IncbWjPIeF": {
+    "defaultMessage": "Engineering manager"
+  },
+  "Io7rn4BKyF": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "Iv9Zw2Kz/I": {
+    "defaultMessage": "Add comment"
+  },
+  "Iy7BBXsi+j": {
+    "defaultMessage": "Enter your Space ID and Content Management API token to load content types from Contentful."
+  },
+  "IypYQDIY3f": {
+    "defaultMessage": "Contentful webhook registered"
+  },
+  "J/94oLjLEp": {
+    "defaultMessage": "The API base URL is saved for this workspace. Each member connects with their own Crowdin personal access token—no OAuth app required."
+  },
+  "J5QEeAEILc": {
+    "defaultMessage": "Workflows"
+  },
+  "J6dfku2qcD": {
+    "defaultMessage": "ICU structure"
+  },
+  "J9fubdt+ER": {
+    "defaultMessage": "Review PR illustration"
+  },
+  "J9zjZFCoFh": {
+    "defaultMessage": "How it works"
+  },
+  "JAYxu1bQVJ": {
+    "defaultMessage": "Localisation operations"
+  },
+  "JERGbk68rN": {
+    "defaultMessage": "Copy source"
+  },
+  "JEdlCIcj1G": {
+    "defaultMessage": "Disconnecting…"
+  },
+  "JMPR7Ba6ot": {
+    "defaultMessage": "Heading 3"
+  },
+  "JN22tkIkeu": {
+    "defaultMessage": "Terminology breaks when different teams translate the same product terms independently."
+  },
+  "JPh5F8lV0A": {
+    "defaultMessage": "GitHub"
+  },
+  "JUWqOD5PWj": {
+    "defaultMessage": "Enable this repository to configure translation automation."
+  },
+  "JYqgneUcQO": {
+    "defaultMessage": "Assign AI agents to translate, review, and sync content while keeping human review first-class."
+  },
+  "JcGQchl/ia": {
+    "defaultMessage": "Slack workspace"
+  },
+  "JikjOnc0U+": {
+    "defaultMessage": "Save failed"
+  },
+  "JwDpy6S6NK": {
+    "defaultMessage": "Move between the product pillars without leaving the feature-page flow."
+  },
+  "K4A2HqIbMM": {
+    "defaultMessage": "Support content goes stale the moment it ships in English"
+  },
+  "K89oxCMVZA": {
+    "defaultMessage": "1. List"
+  },
+  "K8CwWcU1A8": {
+    "defaultMessage": "Translation files drift from source strings between releases."
+  },
+  "KRRKR3H/tH": {
+    "defaultMessage": "Close"
+  },
+  "KSyo1/QjAo": {
+    "defaultMessage": "Try signing in again or contact support if this continues."
+  },
+  "KTaKMa7YoM": {
+    "defaultMessage": "Global campaigns break when context stays in the brief"
+  },
+  "Ka+dKs8Zz9": {
+    "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline."
+  },
+  "Kdwno+5sGa": {
+    "defaultMessage": "CAT workspace failed to load"
+  },
+  "Kdyh8ZKnlc": {
+    "defaultMessage": "Untranslated"
+  },
+  "KmYHpxsapg": {
+    "defaultMessage": "Map diffs to locales and glossary impact"
+  },
+  "Kp+e7u3nEc": {
+    "defaultMessage": "Performance learning"
+  },
+  "Ks+Feeoung": {
+    "defaultMessage": "{count} characters"
+  },
+  "KsWSfbuaLd": {
+    "defaultMessage": "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth."
+  },
+  "Ktkp7Xxut2": {
+    "defaultMessage": "Self-evolving Knowledge"
+  },
+  "L1RgoMJkc1": {
+    "defaultMessage": "Intake illustration"
+  },
+  "L1htF1IA3l": {
+    "defaultMessage": "Context attached"
+  },
+  "L3ycwnosUv": {
+    "defaultMessage": "• List"
+  },
+  "L7iavACo3u": {
+    "defaultMessage": "Next scheduled run: <time>{nextRunAt}</time>"
+  },
+  "LAx6QaaPwX": {
+    "defaultMessage": "Select"
+  },
+  "LCvdY0etjh": {
+    "defaultMessage": "Leave blank for Crowdin.com. For Crowdin Enterprise, use your organization API URL including /api/v2, for example https://yourorg.api.crowdin.com/api/v2. A trailing slash is optional."
+  },
+  "LEiYIE9PIq": {
+    "defaultMessage": "Built for marketing and localisation operations"
+  },
+  "LFieXgTe0M": {
+    "defaultMessage": "Works across product, marketing, support, and engineering"
+  },
+  "LMW/LqnbFb": {
+    "defaultMessage": "Source mistake"
+  },
+  "LOKE6DdX5z": {
+    "defaultMessage": "Just now"
+  },
+  "LgyzYOcSb/": {
+    "defaultMessage": "Slack"
+  },
+  "Ljk3e3F6pc": {
+    "defaultMessage": "Automate localisation checks in CI/CD. Detect string changes in pull requests, draft translations, and gate releases before bad translations reach production."
+  },
+  "Lps9d8jAkf": {
+    "defaultMessage": "Enable {count}"
+  },
+  "LwpJvfb74D": {
+    "defaultMessage": "Surface added, modified, and removed keys with context from the pull request description and linked issues."
+  },
+  "M1dHMgqYPX": {
+    "defaultMessage": "Action"
+  },
+  "M3bbV5wmi2": {
+    "defaultMessage": "Manage access on GitHub"
+  },
+  "M4h3UcxULX": {
+    "defaultMessage": "Parameters"
+  },
+  "MB3Jte6am8": {
+    "defaultMessage": "{count}/{maxLength} characters"
+  },
+  "MFbCLmGBYA": {
+    "defaultMessage": "Operations report"
+  },
+  "MIZ3hvncyc": {
+    "defaultMessage": "Flag unresolved locales before ship"
+  },
+  "MN2GW5Szxo": {
+    "defaultMessage": "Get recommendation"
+  },
+  "MNV3NDchKr": {
+    "defaultMessage": "Add photos or files"
+  },
+  "MR4r0hcWXP": {
+    "defaultMessage": "Automation settings reset"
+  },
+  "MZotM1J5qc": {
+    "defaultMessage": "{enabledCount} of {totalCount} repositories enabled."
+  },
+  "Mi/WO+7gIT": {
+    "defaultMessage": "Detect published or updated support content"
+  },
+  "MikRGST8w6": {
+    "defaultMessage": "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again. If you already accepted, use Try again to refresh your membership."
+  },
+  "MjW+xFl6ux": {
+    "defaultMessage": "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance."
+  },
+  "MusBGgLgZ1": {
+    "defaultMessage": "Pull request"
+  },
+  "MwOEdmQegm": {
+    "defaultMessage": "Localization begins in the tools teams already use"
+  },
+  "N2xYep+Crq": {
+    "defaultMessage": "CLI docs"
+  },
+  "N564Eak7tL": {
+    "defaultMessage": "Installed on {workspace}"
+  },
+  "NBLnrSCLwC": {
+    "defaultMessage": "Save provider"
+  },
+  "NERy9XM6Cd": {
+    "defaultMessage": "Zoom in"
+  },
+  "NIwDVdLvI2": {
+    "defaultMessage": "Unable to create a unique workspace URL right now. Please retry."
+  },
+  "NJJU5P3v/j": {
+    "defaultMessage": "Linear"
+  },
+  "NMG/zBLWDQ": {
+    "defaultMessage": "Leave blank to keep existing client secret"
+  },
+  "NPcxGbshkv": {
+    "defaultMessage": "Enable check run"
+  },
+  "NagMPC+eb9": {
+    "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
+  },
+  "NjO8LhO0p7": {
+    "defaultMessage": "Saving…"
+  },
+  "NqAGQvs7qB": {
+    "defaultMessage": "English (Australia)"
+  },
+  "NrJMjFZ+Df": {
+    "defaultMessage": "Romanian (Romania)"
+  },
+  "NuOuhehPIz": {
+    "defaultMessage": "Leave blank for Phrase Cloud. For a custom Phrase TMS host, enter the full web API base URL, for example https://cloud.memsource.com/web."
+  },
+  "Nuj0umLVvu": {
+    "defaultMessage": "Workspace name"
+  },
+  "NxMkWJ+eS3": {
+    "defaultMessage": "Choose a Hyperlocalise project for pull translations."
+  },
+  "O1hmkcilYp": {
+    "defaultMessage": "Insights on hyperlocalisation, translation intelligence, and building localisation workflows for global teams."
+  },
+  "O368wEYD1O": {
+    "defaultMessage": "B"
+  },
+  "O49fIaNAUN": {
+    "defaultMessage": "Product Localisation Platform | Hyperlocalise"
+  },
+  "O4jSCL7UKE": {
+    "defaultMessage": "Hyperlocalise is not another help center tool. It adds an AI-native workflow layer that keeps support content aligned with product changes, glossary rules, and review standards."
+  },
+  "O7tg9OZcEc": {
+    "defaultMessage": "Detect string changes, gather PR context, draft translations, and gate releases — so engineering teams catch localisation issues before merge, not after launch."
+  },
+  "OC0jExzrXg": {
+    "defaultMessage": "Assign articles to the right reviewers based on topic, locale, or expertise."
+  },
+  "ODRuwyxRYT": {
+    "defaultMessage": "Open screenshot preview"
+  },
+  "ODcZRmwDmR": {
+    "defaultMessage": "Cancel"
+  },
+  "OHKDUsYT8n": {
+    "defaultMessage": "Keep the decision"
+  },
+  "OMX/+8Bbcv": {
+    "defaultMessage": "Indonesian (Indonesia)"
+  },
+  "OPKv+HXoep": {
+    "defaultMessage": "Product context"
+  },
+  "OQRAAutFV6": {
+    "defaultMessage": "Awaiting Approval"
+  },
+  "OS+T5iqT3s": {
+    "defaultMessage": "Set HYPERLOCALISE_PUBLIC_APP_URL"
+  },
+  "OTJurdDbQ3": {
+    "defaultMessage": "Push approved work to your platform"
+  },
+  "OY8OoRp1g9": {
+    "defaultMessage": "Updating…"
+  },
+  "OaCyhQHy0p": {
+    "defaultMessage": "Configure checks that prevent merge when critical locales are missing or regression thresholds are exceeded."
+  },
+  "Oiey9nLAFp": {
+    "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration."
+  },
+  "OnnGrPT4U5": {
+    "defaultMessage": "Code"
+  },
+  "OoB/oKq2Hs": {
+    "defaultMessage": "Open in Cursor"
+  },
+  "Ov7k7O9mR3": {
+    "defaultMessage": "Stop Repeating the Same Localisation Feedback | Hyperlocalise"
+  },
+  "P0cpKEoGJ1": {
+    "defaultMessage": "Hyperlocalise is not a TMS replacement. It is the workflow layer localisation operations teams use to orchestrate agents, humans, models, and platforms without a rip-and-replace migration."
+  },
+  "P4BtYAEPF2": {
+    "defaultMessage": "The organization for this install request could not be found."
+  },
+  "P7DyqhOghg": {
+    "defaultMessage": "No console output"
+  },
+  "PD89ps+Bh6": {
+    "defaultMessage": "Localisation Quality Monitoring | Hyperlocalise"
+  },
+  "PJ5XoQURG9": {
+    "defaultMessage": "Submit"
+  },
+  "PJoDNnwjRj": {
+    "defaultMessage": "Disconnect"
+  },
+  "PLM8yKkR8+": {
+    "defaultMessage": "Generate locale drafts automatically when strings change, using glossary and TM context."
+  },
+  "PLauAF+cPB": {
+    "defaultMessage": "View only"
+  },
+  "PNO4OxgFDU": {
+    "defaultMessage": "Join waitlist"
+  },
+  "PNU13RfDla": {
+    "defaultMessage": "Phrase"
+  },
+  "PRbdh+Ryiw": {
+    "defaultMessage": "No repositories are available to this GitHub App installation."
+  },
+  "PSqr8lzpHo": {
+    "defaultMessage": "Turkish (Türkiye)"
+  },
+  "PXc6nRCKjm": {
+    "defaultMessage": "Prefer market-specific idioms for onboarding CTAs, but keep product terms literal."
+  },
+  "Pele5LgqUl": {
+    "defaultMessage": "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches."
+  },
+  "PkIg+QXJ+0": {
+    "defaultMessage": "Human-in-the-loop review"
+  },
+  "PkiwQDKioj": {
+    "defaultMessage": "Built for localization teams. Available soon."
+  },
+  "Pso/sy4WEl": {
+    "defaultMessage": "Next"
+  },
+  "PvWb6LSHFM": {
+    "defaultMessage": "Available"
+  },
+  "PzDClqsKFJ": {
+    "defaultMessage": "Support localisation that stays connected to the product"
+  },
+  "Q+M9EQ+Bf2": {
+    "defaultMessage": "Orchestrate agents, vendors, and internal reviewers"
+  },
+  "Q26vSR4mR9": {
+    "defaultMessage": "Inline code"
+  },
+  "Q2zZo/5fFx": {
+    "defaultMessage": "Repository automation"
+  },
+  "Q3t28/Dvr6": {
+    "defaultMessage": "Detect new and updated articles from the CMS and support platforms your team already maintains."
+  },
+  "Q5+U++Wf7Z": {
+    "defaultMessage": "Source string"
+  },
+  "QDxYX6HLaI": {
+    "defaultMessage": "No files match the accepted types."
+  },
+  "QJw7pPDuxB": {
+    "defaultMessage": "Translate Task"
+  },
+  "QTY8pCBi2f": {
+    "defaultMessage": "Make every review improve the next one."
+  },
+  "QU4o2bgcIL": {
+    "defaultMessage": "Track strings across TMS and sources"
+  },
+  "QUTsQT4B2v": {
+    "defaultMessage": "Keep review assignments, approvals, and comments in the TMS your localisation team already uses."
+  },
+  "QUgt69cPVZ": {
+    "defaultMessage": "Failed to generate AI translation recommendation."
+  },
+  "Qe6R9CCAC7": {
+    "defaultMessage": "Bold"
+  },
+  "Qeuc8XDDyB": {
+    "defaultMessage": "Bring your LLMs. Keep your TMS."
+  },
+  "QfmZdcP/TR": {
+    "defaultMessage": "Each workspace member connects their own {providerName} account. Projects, jobs, glossaries, and translation memories load live from {providerName} when you open those pages."
+  },
+  "QhgL5ysg0T": {
+    "defaultMessage": "Hyperlocalise logo"
+  },
+  "Qkra2VNwUo": {
+    "defaultMessage": "Hyperlocalise GO"
+  },
+  "QmXtxyLvCd": {
+    "defaultMessage": "Connect your OpenAI account"
+  },
+  "Qov7AjZh9+": {
+    "defaultMessage": "A pricing page refactor opens a pull request on Tuesday"
+  },
+  "Qy1pnimpzM": {
+    "defaultMessage": "Block merge when locales are unresolved"
+  },
+  "R+eufhiwar": {
+    "defaultMessage": "This match is only {matchPercent}% similar. Applying it may introduce errors. Continue?"
+  },
+  "R+hZLscXuo": {
+    "defaultMessage": "Connect your Gemini account"
+  },
+  "R40rhBTb/1": {
+    "defaultMessage": "Documentation"
+  },
+  "RBvXfLqDOK": {
+    "defaultMessage": "Disable"
+  },
+  "RKI1ij45Ie": {
+    "defaultMessage": "No messages yet"
+  },
+  "RSN+J7hbqE": {
+    "defaultMessage": "Unsaved"
+  },
+  "RWVk6HWH77": {
+    "defaultMessage": "Assign translation, review, and QA work based on locale, content type, or expertise."
+  },
+  "RZBs1fe1V3": {
+    "defaultMessage": "Hyperlocalise | Localisation Platform for the Agentic Era"
+  },
+  "RZPckpbVtF": {
+    "defaultMessage": "Ask an organization admin to update your role, or choose another organization."
+  },
+  "Ra7PJXU8aK": {
+    "defaultMessage": "Access denied"
+  },
+  "ReZgZHvqUS": {
+    "defaultMessage": "Fuzzy match"
+  },
+  "RegO9xbm0P": {
+    "defaultMessage": "One operations layer across your entire localisation stack"
+  },
+  "Rg44t9f2lQ": {
+    "defaultMessage": "Result"
+  },
+  "RsZZrwZXV+": {
+    "defaultMessage": "Copied!"
+  },
+  "RuN49xBd1k": {
+    "defaultMessage": "Target includes {tokens} that is not in the source string."
+  },
+  "S/Jvw/IvO5": {
+    "defaultMessage": "Chain of Thought"
+  },
+  "SAjiqcjzOx": {
+    "defaultMessage": "Reconnect Slack"
+  },
+  "SBi1hajIEG": {
+    "defaultMessage": "GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off \"Request user authorization (OAuth) during installation\" and set the Setup URL to this app's /auth/github/callback."
+  },
+  "SGrQFByJdA": {
+    "defaultMessage": "Blog | Hyperlocalise"
+  },
+  "SI44gUPbhn": {
+    "defaultMessage": "Dark"
+  },
+  "SIFIPtlpE9": {
+    "defaultMessage": "Collect work from GitHub, Slack, CMS, and TMS"
+  },
+  "SQRLgyMjtO": {
+    "defaultMessage": "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."
+  },
+  "SRrmrnZCsA": {
+    "defaultMessage": "Collaboration"
+  },
+  "Sb98ftC3/T": {
+    "defaultMessage": "Generate locale drafts with your LLM"
+  },
+  "ScESvsRyBk": {
+    "defaultMessage": "Hyperlocalise sits between LLM providers and TMS tools, giving teams one workflow even as models, vendors, and review systems change underneath it."
+  },
+  "SgpR5Qp/zA": {
+    "defaultMessage": "GitHub release localisation"
+  },
+  "SlPmp40QPZ": {
+    "defaultMessage": "Every hour · {timezone}"
+  },
+  "SmCgybn22Q": {
+    "defaultMessage": "Launch request"
+  },
+  "SmMQDr7bGf": {
+    "defaultMessage": "Corrections, terminology choices, and product context stop disappearing into old comments."
+  },
+  "Sz9XRZR4Jy": {
+    "defaultMessage": "Open review tasks in your TMS"
+  },
+  "T+6C7vk33X": {
+    "defaultMessage": "Toggle plan"
+  },
+  "T/0obMlUKt": {
+    "defaultMessage": "Performance learnings from one market rarely feed back into the next campaign cycle."
+  },
+  "T/GS9h3ryY": {
+    "defaultMessage": "Localisation operations span too many disconnected systems"
+  },
+  "T7ocGbiped": {
+    "defaultMessage": "Last delivery: No deliveries yet"
+  },
+  "TEXn81XSVY": {
+    "defaultMessage": "Every day at {time} · {timezone}"
+  },
+  "TOuqvBUuy6": {
+    "defaultMessage": "OAuth app (recommended)"
+  },
+  "TR2IFwpfx/": {
+    "defaultMessage": "Hourly"
+  },
+  "TYuiCQUYlI": {
+    "defaultMessage": "Choose a supported model for the selected provider."
+  },
+  "TdSqSMSpF8": {
+    "defaultMessage": "All files exceed the maximum size."
+  },
+  "Tertld8DQl": {
+    "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring."
+  },
+  "TmvQ63+NJ8": {
+    "defaultMessage": "Acme localisation"
+  },
+  "TnzQT7gNHf": {
+    "defaultMessage": "Copy code"
+  },
+  "Tp/KX38QSn": {
+    "defaultMessage": "Pause preview"
+  },
+  "TpDzQbsbm9": {
+    "defaultMessage": "From the blog"
+  },
+  "TpaF4AqL/5": {
+    "defaultMessage": "Reset automation settings?"
+  },
+  "TvKxxMeDL1": {
+    "defaultMessage": "Enforce terminology, character limits, and product voice before drafts reach human reviewers."
+  },
+  "U+tI5HA1qo": {
+    "defaultMessage": "Has issues"
+  },
+  "U1qJ2BS3gD": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "U4QNy/URdK": {
+    "defaultMessage": "Review coverage"
+  },
+  "U7qjKZzoBx": {
+    "defaultMessage": "Save settings"
+  },
+  "UAby6HY7Nw": {
+    "defaultMessage": "No format or QA checks for this segment yet."
+  },
+  "UByH5+e0Xk": {
+    "defaultMessage": "Marketing localisation"
+  },
+  "ULAiYLTSMp": {
+    "defaultMessage": "Archived repositories cannot use translation automation."
+  },
+  "UP0P0zCDA/": {
+    "defaultMessage": "Archived repositories cannot use translation automation."
+  },
+  "URUWnka6yb": {
+    "defaultMessage": "Product lead"
+  },
+  "UU5/+HYaD2": {
+    "defaultMessage": "Task description"
+  },
+  "Ubm7I3eMos": {
+    "defaultMessage": "Enable email agent"
+  },
+  "Ujq7dK2/MZ": {
+    "defaultMessage": "Build your AI-native localisation workflow"
+  },
+  "UnPQUzFk+U": {
+    "defaultMessage": "A billing FAQ update needs to reach twelve locales"
+  },
+  "Up6UMTbrGA": {
+    "defaultMessage": "Scheduled"
+  },
+  "UvTEiYJq6k": {
+    "defaultMessage": "Context-aware from pull requests and issues"
+  },
+  "Uwe1uvQEJi": {
+    "defaultMessage": "PR visibility"
+  },
+  "V+8wDWpBnh": {
+    "defaultMessage": "All strings"
+  },
+  "V07ogo2dQf": {
+    "defaultMessage": "Create reviewer tasks"
+  },
+  "V1BIkH6W+O": {
+    "defaultMessage": "{displayName} connected"
+  },
+  "V5IhYqq1Fk": {
+    "defaultMessage": "Manage"
+  },
+  "V8Rg1mvKHG": {
+    "defaultMessage": "Contentful connection saved"
+  },
+  "VBPz2AKNYS": {
+    "defaultMessage": "Security, subprocessor, privacy, and certification status information for Hyperlocalise."
+  },
+  "VEHKmr6W1d": {
+    "defaultMessage": "Release"
+  },
+  "VGayu+ZFkL": {
+    "defaultMessage": "Previous segment ({shortcut})"
+  },
+  "VMRU4d00jy": {
+    "defaultMessage": "Reviewers cannot see what changed in the source article when approving updates."
+  },
+  "VOOik2hgSb": {
+    "defaultMessage": "Sync with your TMS instead of replacing it"
+  },
+  "VR+xvnXyUj": {
+    "defaultMessage": "Leave without saving"
+  },
+  "VRK24of0oE": {
+    "defaultMessage": "Open in ChatGPT"
+  },
+  "VSVVptSaLR": {
+    "defaultMessage": "Hide secret"
+  },
+  "VTQVrhBIAm": {
+    "defaultMessage": "Open in v0"
+  },
+  "VWQFJ0pM9H": {
+    "defaultMessage": "Market rules, voice preferences, and repeated mistakes stay visible across workflows."
+  },
+  "Vb+OMqzvaE": {
+    "defaultMessage": "Push source, pull translations, and publish localization checks for this repository."
+  },
+  "VdjibQd9gV": {
+    "defaultMessage": "Open full-page editor"
+  },
+  "VpKHsNzJ6d": {
+    "defaultMessage": "Enable {repositoryFullName}"
+  },
+  "VwOY5uI6LH": {
+    "defaultMessage": "GitHub"
+  },
+  "Vx1sNgGF7n": {
+    "defaultMessage": "Detect changed strings and gather PR context"
+  },
+  "W/3juG8Ln3": {
+    "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish."
+  },
+  "W0oxVPUPOY": {
+    "defaultMessage": "Terminology check"
+  },
+  "W3/qvnQA3o": {
+    "defaultMessage": "Contentful webhook synced"
+  },
+  "W3mkNKamaw": {
+    "defaultMessage": "Not connected"
+  },
+  "W5kKZQXtt1": {
+    "defaultMessage": "Intelligence panel failed to load"
+  },
+  "WA49vhY6w5": {
+    "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations."
+  },
+  "WCzohOaFyx": {
+    "defaultMessage": "Tuesday"
+  },
+  "WDpl42Ocu7": {
+    "defaultMessage": "Support content that stays current in every language"
+  },
+  "WPbNdWbmRX": {
+    "defaultMessage": "Vietnamese (Vietnam)"
+  },
+  "WZko2fwHOK": {
+    "defaultMessage": "GitHub status check"
+  },
+  "Wi6a5o/Mm+": {
+    "defaultMessage": "Human-in-the-loop orchestration"
+  },
+  "Wk16E7zAqa": {
+    "defaultMessage": "Search segments by key or source text"
+  },
+  "WlD8xoujO6": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "WnNeQt1daO": {
+    "defaultMessage": "Unable to load email agent settings right now."
+  },
+  "WpB4HHsI4I": {
+    "defaultMessage": "Responded"
+  },
+  "WrdM0sMy06": {
+    "defaultMessage": "No segments in queue."
+  },
+  "WuN0lCA6yk": {
+    "defaultMessage": "Trigger"
+  },
+  "X2BIkwFIux": {
+    "defaultMessage": "Glossary"
+  },
+  "X9FvsfXTfJ": {
+    "defaultMessage": "AI"
+  },
+  "XEC4R2CUep": {
+    "defaultMessage": "Copy export command"
+  },
+  "XIKJG5Q5Cf": {
+    "defaultMessage": "Save {providerName} settings"
+  },
+  "XIuz8aoOG9": {
+    "defaultMessage": "See which locales are complete, partial, or missing for product, marketing, and support content."
+  },
+  "XMHsfUaoDt": {
+    "defaultMessage": "Timezone"
+  },
+  "XOmSGrN8Hi": {
+    "defaultMessage": "Compare new translations against approved baselines and block sync when quality thresholds fail."
+  },
+  "XQOIgvLSGN": {
+    "defaultMessage": "English (India)"
+  },
+  "XVMHJ/03Qv": {
+    "defaultMessage": "Campaign localisation that protects brand voice in every market"
+  },
+  "XahS11XRb2": {
+    "defaultMessage": "Track which articles are missing translations or lag behind the English source after product changes."
+  },
+  "Xc6qahwRY8": {
+    "defaultMessage": "Your account is signed in, but this workspace invitation has not been confirmed yet."
+  },
+  "XdMf1WMmy8": {
+    "defaultMessage": "Request Body"
+  },
+  "XifoTZH6H7": {
+    "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably."
+  },
+  "XlVRjq3zhp": {
+    "defaultMessage": "Self-evolving Knowledge"
+  },
+  "XlfDKFWw7A": {
+    "defaultMessage": "Carry shared context, evals, and regression checks through every sync so quality does not quietly drift."
+  },
+  "XqZ3cu2irp": {
+    "defaultMessage": "Push approved translations back"
+  },
+  "XvDMBQHSkA": {
+    "defaultMessage": "Teams lose time explaining the same product terms, tone rules, and market preferences on every launch. Hyperlocalise turns those decisions into reusable context."
+  },
+  "Y+UFarvRd2": {
+    "defaultMessage": "Copy email address"
+  },
+  "Y19LAzxjpx": {
+    "defaultMessage": "Weekly"
+  },
+  "Y3BPUJdmMR": {
+    "defaultMessage": "Could not save automation settings"
+  },
+  "Y6hwaWFO1N": {
+    "defaultMessage": "Sign out"
+  },
+  "Y7XT7zpg39": {
+    "defaultMessage": "Configure {providerLabel}"
+  },
+  "Y7dngr0T1f": {
+    "defaultMessage": "Quality problems are discovered by customers, support tickets, or app store reviews."
+  },
+  "Y9q11GovtH": {
+    "defaultMessage": "Marketing teams move fast. Localisation becomes a bottleneck when brand nuance and regional intent never reach the translator."
+  },
+  "YNB1czGowu": {
+    "defaultMessage": "Context request"
+  },
+  "YOCao9EtJ4": {
+    "defaultMessage": "Save credentials to connect {providerName}. The secret is encrypted at rest and used to sync projects, files, and jobs into the workspace."
+  },
+  "YPUY3Uik30": {
+    "defaultMessage": "Retry"
+  },
+  "YaKRAqJTYd": {
+    "defaultMessage": "Stop reviewing strings in the dark."
+  },
+  "YdeVnuUNms": {
+    "defaultMessage": "Save as draft"
+  },
+  "YfETsADG9Z": {
+    "defaultMessage": "GitHub repository list refreshed"
+  },
+  "Ygi+pnLdm5": {
+    "defaultMessage": "Select {key}"
+  },
+  "Yi/8efQvnI": {
+    "defaultMessage": "Your account is signed in, but this workspace does not have an active organization context you can use."
+  },
+  "YkALJEyJhF": {
+    "defaultMessage": "Change analysis"
+  },
+  "YlLKVRUEmO": {
+    "defaultMessage": "Context Auto-discovery"
+  },
+  "YnIu9s0qeQ": {
+    "defaultMessage": "Use a Content Management API personal access token from Contentful Settings → Content management tokens. Do not use Content Delivery or Preview API keys — those are read-only and cannot write draft translations or register webhooks."
+  },
+  "YqXlDnMjJC": {
+    "defaultMessage": "Generate drafts with your preferred LLM"
+  },
+  "YrDOYyksrv": {
+    "defaultMessage": "CMS connector for agentic article translation and draft writeback."
+  },
+  "YvOtHkprF2": {
+    "defaultMessage": "{providerName} is connected via OAuth"
+  },
+  "YzvAxP4rX/": {
+    "defaultMessage": "Move translation work across agents, reviewers and systems"
+  },
+  "Z3S7OrVNyY": {
+    "defaultMessage": "Email agent enabled"
+  },
+  "Z8vLB9dxFv": {
+    "defaultMessage": "Source"
+  },
+  "ZF5d+f8aEU": {
+    "defaultMessage": "Start a conversation to see messages here"
+  },
+  "ZK/+GGmA14": {
+    "defaultMessage": "Close"
+  },
+  "ZKx9iVe8ia": {
+    "defaultMessage": "AI translation misses product terminology, UI labels, and support-specific phrasing."
+  },
+  "ZNrsvoazsU": {
+    "defaultMessage": "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually."
+  },
+  "ZeIIMmL97I": {
+    "defaultMessage": "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat."
+  },
+  "Zgi1lh5USb": {
+    "defaultMessage": "{providerName} OAuth App client secret"
+  },
+  "ZktP8OmKzB": {
+    "defaultMessage": "Dependencies"
+  },
+  "ZmMPE/eod1": {
+    "defaultMessage": "Connected"
+  },
+  "Zq6yckXsZ1": {
+    "defaultMessage": "Search repositories"
+  },
+  "ZrWstAw/d4": {
+    "defaultMessage": "Sources feed into a single intake layer that prepares changed strings, context, and sync-ready jobs."
+  },
+  "ZtpmqfuRlV": {
+    "defaultMessage": "Extract structure, links, and product terms"
+  },
+  "ZurV/2CmHO": {
+    "defaultMessage": "Ongoing monitor"
+  },
+  "ZvFzVdCf0G": {
+    "defaultMessage": "Model context usage"
+  },
+  "ZxL7hC2wPP": {
+    "defaultMessage": "French (Canada)"
+  },
+  "Zy8ZOSNNhB": {
+    "defaultMessage": "UTC"
+  },
+  "Zz7JN17WYM": {
+    "defaultMessage": "Validate glossary and UI label consistency"
+  },
+  "ZzPp69g3M2": {
+    "defaultMessage": "Know which strings were human-reviewed, machine-translated only, or pending approval per locale."
+  },
+  "a+NsH6m9p4": {
+    "defaultMessage": "Monitor"
+  },
+  "a5J/Q0J1lX": {
+    "defaultMessage": "Malay (Malaysia)"
+  },
+  "a5oqJ3IRtk": {
+    "defaultMessage": "Turn product changes, pull requests, and launch briefs into reviewed, release-ready translations with AI-assisted workflows and human approval built in."
+  },
+  "a5vM8UIS1Y": {
+    "defaultMessage": "Reviewer"
+  },
+  "a5wP5u9Iqr": {
+    "defaultMessage": "Reasoning"
+  },
+  "a917ExUu0o": {
+    "defaultMessage": "Send documents, spreadsheets, JSON, text files, or images with a target language. Source language is optional, and style notes apply to file translations."
+  },
+  "aC2kJzcgOa": {
+    "defaultMessage": "Freshness monitoring"
+  },
+  "aGXP2V6FOj": {
+    "defaultMessage": "https://api.smartling.com/auth-api/v2"
+  },
+  "aGnEykoMgS": {
+    "defaultMessage": "Sync approved translations back to your CMS"
+  },
+  "aWf83qmrdq": {
+    "defaultMessage": "Built for localisation operations and release confidence"
+  },
+  "adEnn5Hnc9": {
+    "defaultMessage": "GitHub rejected the app credentials in this environment. Set GITHUB_APP_ID to the App ID from GitHub App settings and GITHUB_APP_PRIVATE_KEY to the matching PEM (use literal \\n line breaks or base64-encode the whole file)."
+  },
+  "afM0hfkHOH": {
+    "defaultMessage": "Latest posts"
+  },
+  "ahBTXzQA9r": {
+    "defaultMessage": "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack."
+  },
+  "ajjoHt03BE": {
+    "defaultMessage": "Save {providerName}"
+  },
+  "akKSazt0o+": {
+    "defaultMessage": "Content types"
+  },
+  "anZVyDdEfq": {
+    "defaultMessage": "Leave blank for the standard Smartling API. For a custom host, include the auth API path, for example https://api.smartling.com/auth-api/v2."
+  },
+  "avZRK+TyEd": {
+    "defaultMessage": "Approval chains span marketing, legal, and localisation with no shared view of what changed."
+  },
+  "ayMjHyvmox": {
+    "defaultMessage": "Built-in TMS for projects, jobs, files, and translation memories. No external provider required."
+  },
+  "b+pVg94kFI": {
+    "defaultMessage": "Email"
+  },
+  "b1aqjjuIqX": {
+    "defaultMessage": "Crowdin"
+  },
+  "b1jBVJ44Vr": {
+    "defaultMessage": "Failed to generate Slack install URL"
+  },
+  "b7yQjQkzcS": {
+    "defaultMessage": "Translations"
+  },
+  "bAOOxyyl8P": {
+    "defaultMessage": "Request a demo"
+  },
+  "bCzZNsSN41": {
+    "defaultMessage": "Hyperlocalise registers a Contentful webhook for entry publish events when you save or validate this connection. Automations with a Contentful trigger use it to start translation runs."
+  },
+  "bDyj3Jswbl": {
+    "defaultMessage": "Surface quality issues in pull requests"
+  },
+  "bHpDk7ICgp": {
+    "defaultMessage": "Retry"
+  },
+  "bMFWHebC1v": {
+    "defaultMessage": "Block sync when thresholds fail"
+  },
+  "bW5VkndWCk": {
+    "defaultMessage": "Email agent disabled"
+  },
+  "bYpd314kqN": {
+    "defaultMessage": "Localisation memory layer"
+  },
+  "baKeJi7lvv": {
+    "defaultMessage": "Context lookup"
+  },
+  "bajKG/XM1h": {
+    "defaultMessage": "Extra placeholders"
+  },
+  "bc6k5kD1Ao": {
+    "defaultMessage": "Translation draft"
+  },
+  "bg/VgRAQ0S": {
+    "defaultMessage": "Completed"
+  },
+  "bgORmzhoWV": {
+    "defaultMessage": "Future suggestions can start from what the team already approved instead of asking again."
+  },
+  "bkfXJLTZg0": {
+    "defaultMessage": "Change theme"
+  },
+  "bqM/HZdSBC": {
+    "defaultMessage": "Save provider"
+  },
+  "bsfKEASu14": {
+    "defaultMessage": "Preserve product terminology and UI labels"
+  },
+  "bubst9Dzg+": {
+    "defaultMessage": "Refresh repo list"
+  },
+  "bzdmXkD3a+": {
+    "defaultMessage": "Context and terminology for this string."
+  },
+  "c7ggsCcxGl": {
+    "defaultMessage": "AI translation draft"
+  },
+  "c8ULJQ9Qs8": {
+    "defaultMessage": "{matchPercent}% match"
+  },
+  "cIUvYdnnCL": {
+    "defaultMessage": "Raise issue"
+  },
+  "cKb/sPVSsm": {
+    "defaultMessage": "No stack frames"
+  },
+  "cMuLE7Fon0": {
+    "defaultMessage": "Needs review"
+  },
+  "cOeHLAqsSE": {
+    "defaultMessage": "Contentful webhook ID: {webhookId}"
+  },
+  "cQRRAc3dv1": {
+    "defaultMessage": "Build your AI-native localisation workflow"
+  },
+  "cQwXYuUd6c": {
+    "defaultMessage": "Translation intent"
+  },
+  "cdYuP66GRZ": {
+    "defaultMessage": "Spanish (Mexico)"
+  },
+  "cgWE890bnd": {
+    "defaultMessage": "Providers"
+  },
+  "cgwAYz/R89": {
+    "defaultMessage": "Update {providerName}"
+  },
+  "cjBFGkHog4": {
+    "defaultMessage": "Fail the automation run when the localization check reports errors."
+  },
+  "cjv0VAI0+q": {
+    "defaultMessage": "What would you like to know?"
+  },
+  "clCEjJTPxC": {
+    "defaultMessage": "A new onboarding flow ships in Friday's release"
+  },
+  "d2lnyxMtP0": {
+    "defaultMessage": "A developer opens a pull request that renames fourteen UI strings and adds six new ones. Hyperlocalise comments on the PR with affected locales, generates translation drafts using glossary context from the linked launch brief, opens review tasks in Lokalise, runs the GitHub Action to verify all target locales are covered, and blocks merge until German and Japanese reviewers approve the updated pricing terminology."
+  },
+  "d6ELhmM7BL": {
+    "defaultMessage": "AI helps explain the tradeoffs, but the human reviewer keeps control of the final call."
+  },
+  "dCGRsZA2+G": {
+    "defaultMessage": "Swedish (Sweden)"
+  },
+  "dCPFe2ny4S": {
+    "defaultMessage": "Unable to update email agent right now"
+  },
+  "dFDzTr1DKC": {
+    "defaultMessage": "A localisation manager plans the quarter across four content streams"
+  },
+  "dIgSyZztAu": {
+    "defaultMessage": "Model Selector"
+  },
+  "dJURPyuGPM": {
+    "defaultMessage": "Contentful webhook needs attention"
+  },
+  "dKFcqbEe+1": {
+    "defaultMessage": "We need one workflow across AI drafts, TMS review, and release checks."
+  },
+  "dKJQatRMzx": {
+    "defaultMessage": "Monitor locale freshness and coverage gaps"
+  },
+  "dLflEs1D1h": {
+    "defaultMessage": "Reviewer"
+  },
+  "dQdpv0JZAf": {
+    "defaultMessage": "Hyperlocalise agent"
+  },
+  "dRBR6Rd4hs": {
+    "defaultMessage": "Built for engineering and localisation operations"
+  },
+  "dUDJJ0Gfka": {
+    "defaultMessage": "Hyperlocalise carries brand context through adaptation, review, and delivery so every locale ships with intent intact."
+  },
+  "dW35I3VMSZ": {
+    "defaultMessage": "Branch patterns"
+  },
+  "dWHU+zjwUO": {
+    "defaultMessage": "Content Management System"
+  },
+  "dY8L59VF27": {
+    "defaultMessage": "TMS provider"
+  },
+  "dYBH3h8+RK": {
+    "defaultMessage": "Failed to load automation settings"
+  },
+  "dZcHfTdmF2": {
+    "defaultMessage": "Numbered list"
+  },
+  "ddPY0So4Vu": {
+    "defaultMessage": "Ukrainian (Ukraine)"
+  },
+  "deD7TAf/DJ": {
+    "defaultMessage": "Issue"
+  },
+  "djDzIFmWT8": {
+    "defaultMessage": "CAT view mode"
+  },
+  "dmWGvUNewd": {
+    "defaultMessage": "Choose push or scheduled triggers when workflows are enabled."
+  },
+  "dwT1QNEKaY": {
+    "defaultMessage": "Built for localisation managers"
+  },
+  "dwWkp3OQeL": {
+    "defaultMessage": "Push approved strings to Crowdin, Lokalise, Phrase, Smartling, or another platform without a migration project."
+  },
+  "dx3e9pudVb": {
+    "defaultMessage": "A localisation manager receives intake from a product release, a marketing campaign, twelve updated help articles, and a vendor translation batch. Hyperlocalise structures each stream with the right context and glossary rules, assigns product strings to an LLM agent with human review, routes marketing copy through legal approval, sends vendor work to the TMS with quality gates, and surfaces a single dashboard showing locale coverage, review backlog, and blocked releases across all four streams."
+  },
+  "dy2mVzOtSq": {
+    "defaultMessage": "Target is missing {tokens} from the source string."
+  },
+  "e6YBGi9Md6": {
+    "defaultMessage": "Default model is required."
+  },
+  "e7P2+EV7Eq": {
+    "defaultMessage": "Route to LLM agents or human reviewers"
+  },
+  "e7p8bFrcw5": {
+    "defaultMessage": "Something went wrong in this part of the tool. You can retry or keep working in the other panels."
+  },
+  "eBW5K6494F": {
+    "defaultMessage": "Stop"
+  },
+  "eBf0ZKFMos": {
+    "defaultMessage": "Approvals and status live in the TMS while context lives elsewhere."
+  },
+  "eE1yzdT/dq": {
+    "defaultMessage": "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step."
+  },
+  "eNvHcnzBfE": {
+    "defaultMessage": "Track drift across live campaigns"
+  },
+  "eTD+rMG/sE": {
+    "defaultMessage": "Works across CMS, creative, and campaign workflows"
+  },
+  "ecBrADENW6": {
+    "defaultMessage": "Status: {status}"
+  },
+  "ee60kiAN7Z": {
+    "defaultMessage": "Glossary guidance"
+  },
+  "el3lsLK/XT": {
+    "defaultMessage": "Hyperlocalise is not a replacement for your TMS or i18n library. It adds an AI-native layer that connects GitHub change signals, translation drafting, and release gates."
+  },
+  "etNARyGJup": {
+    "defaultMessage": "Markets"
+  },
+  "ezhaX1jR0b": {
+    "defaultMessage": "Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes."
+  },
+  "ezrybv9acT": {
+    "defaultMessage": "Workspace unavailable"
+  },
+  "f/05CSI/5H": {
+    "defaultMessage": "Generate locale drafts with your LLM"
+  },
+  "f/b31Mw+9f": {
+    "defaultMessage": "{count} loaded{more}"
+  },
+  "f0pASu5TFR": {
+    "defaultMessage": "Search repositories"
+  },
+  "fDDlPiv7w9": {
+    "defaultMessage": "A glossary update needs to propagate across three content types"
+  },
+  "fDknk0nTC0": {
+    "defaultMessage": "Queue actions"
+  },
+  "fXIJvHCrL6": {
+    "defaultMessage": "Previous segment"
+  },
+  "fdVXMcsjuq": {
+    "defaultMessage": "Give reviewers the source, target, product context, glossary guidance, AI notes, comments, and quality checks in one translation workspace."
+  },
+  "fj5dhgmhYc": {
+    "defaultMessage": "Unable to validate the credential."
+  },
+  "flbKXaq8uE": {
+    "defaultMessage": "Sync approved strings to your TMS"
+  },
+  "fp+BAxQben": {
+    "defaultMessage": "Use"
+  },
+  "fvXYWA/jR+": {
+    "defaultMessage": "Task description preview"
+  },
+  "fzv0wvOYfZ": {
+    "defaultMessage": "Choose organization"
+  },
+  "g2W3opbod8": {
+    "defaultMessage": "Choose a Hyperlocalise project for push source."
+  },
+  "g5YfEeVlsF": {
+    "defaultMessage": "Remove {branch}"
+  },
+  "g9BGh+CmB5": {
+    "defaultMessage": "Heading 2"
+  },
+  "gAtWW1Oa92": {
+    "defaultMessage": "Bring translation intelligence into your localisation workflow"
+  },
+  "gCa7pVmRNg": {
+    "defaultMessage": "Monitor when published marketing copy falls out of sync with source messaging or glossary rules."
+  },
+  "gEtNXv9OoK": {
+    "defaultMessage": "Forbidden term used in translation"
+  },
+  "gEzAovu3oc": {
+    "defaultMessage": "Failed to search glossary and TM."
+  },
+  "gHgMNG7oQS": {
+    "defaultMessage": "Route work to reviewers inside your existing workflow"
+  },
+  "gI9FpYYW4p": {
+    "defaultMessage": "Next-gen CAT Tool"
+  },
+  "gJ8XFIM+3j": {
+    "defaultMessage": "View all posts"
+  },
+  "gLK1qAKU2c": {
+    "defaultMessage": "{position} / {total}"
+  },
+  "gLbNOdfp57": {
+    "defaultMessage": "Works across product, marketing, support, and engineering"
+  },
+  "gOG3lApYkM": {
+    "defaultMessage": "Resolve"
+  },
+  "gQ9rDnH0hp": {
+    "defaultMessage": "Thought for {duration} seconds"
+  },
+  "gQQcuhRlkz": {
+    "defaultMessage": "We could not determine which organization to open."
+  },
+  "gYPVPf6Rwy": {
+    "defaultMessage": "Connect to Zendesk, Intercom, Contentful, and more"
+  },
+  "gg+xut28LR": {
+    "defaultMessage": "Refreshing…"
+  },
+  "ggrU8wuuic": {
+    "defaultMessage": "API base URL"
+  },
+  "glSxg8oQcE": {
+    "defaultMessage": "That GitHub installation is already linked to another Hyperlocalise organization."
+  },
+  "goHDd0IC3Q": {
+    "defaultMessage": "Workspace ID: {teamId}"
+  },
+  "gq9Z4S47VX": {
+    "defaultMessage": "Enabled"
+  },
+  "gr/+9uTU/3": {
+    "defaultMessage": "This workspace is archived and can no longer be opened."
+  },
+  "gso6nAA1gq": {
+    "defaultMessage": "Slack agent disabled"
+  },
+  "gus2NGbaV8": {
+    "defaultMessage": "Review coverage is unclear: which locales were human-approved vs. machine-translated only."
+  },
+  "gvMFvBmTU/": {
+    "defaultMessage": "The baseline terms that govern use of Hyperlocalise websites, docs, and services."
+  },
+  "gyGnNuR5md": {
+    "defaultMessage": "Required"
+  },
+  "h0dd/MaO2f": {
+    "defaultMessage": "Gather string changes, PR descriptions, Slack threads, and launch briefs so translators see why copy changed — not just the diff."
+  },
+  "h1E2anIfFR": {
+    "defaultMessage": "Monitor live content for terminology breaks, missing updates, and locale gaps after release."
+  },
+  "hAsKdmnl43": {
+    "defaultMessage": "Sources"
+  },
+  "hCvBHiYeFU": {
+    "defaultMessage": "No description"
+  },
+  "hEICju0qcP": {
+    "defaultMessage": "Request early access to Hyperlocalise."
+  },
+  "hHvGLkVSzz": {
+    "defaultMessage": "From pull request to release-ready locales"
+  },
+  "hKQGjL6KUM": {
+    "defaultMessage": "Succeeded"
+  },
+  "hMoO98tftt": {
+    "defaultMessage": "Coordinate localization reviews from Microsoft Teams workspaces."
+  },
+  "hRNM7K3gMN": {
+    "defaultMessage": "Used {count} sources"
+  },
+  "hSh2lnNLxs": {
+    "defaultMessage": "Configure how Hyperlocalise syncs source strings and translations for <repositoryName>{repositoryFullName}</repositoryName>."
+  },
+  "hWOWX4SSYH": {
+    "defaultMessage": "Your workspace holds projects, team access, and settings. Choose a name to get started."
+  },
+  "hXSssVY0i9": {
+    "defaultMessage": "Pending"
+  },
+  "hamQyEil8d": {
+    "defaultMessage": "Agents Automation"
+  },
+  "hdt51o9xzu": {
+    "defaultMessage": "Copy OAuth callback URL"
+  },
+  "he2yTle2zW": {
+    "defaultMessage": "Denied"
+  },
+  "heSbClUFGX": {
+    "defaultMessage": "Select a project"
+  },
+  "hgHlEGxrrX": {
+    "defaultMessage": "Upload files"
+  },
+  "hh2Hg0bL2g": {
+    "defaultMessage": "Purpose-built for localization in the AI era.<lineBreak></lineBreak>Designed for human-in-the-loop."
+  },
+  "hhrYYWvHkj": {
+    "defaultMessage": "100% match"
+  },
+  "hj7GTNbnw4": {
+    "defaultMessage": "Secret: {secret}"
+  },
+  "huDfeEPmkj": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "hvxzMXw+ek": {
+    "defaultMessage": "Leave blank for the standard Lokalise API. For a custom host, include the /api2 path, for example https://api.lokalise.com/api2."
+  },
+  "i6pikAmZg6": {
+    "defaultMessage": "CMS sync"
+  },
+  "i6rHhL31CZ": {
+    "defaultMessage": "Failed to resolve issue. Try again."
+  },
+  "i9ZZoI20Cm": {
+    "defaultMessage": "Display name"
+  },
+  "iIDH8DJhzI": {
+    "defaultMessage": "Base URL (optional)"
+  },
+  "iNt/60shfS": {
+    "defaultMessage": "Make missed localisation work harder to miss."
+  },
+  "iQ4wHchbQM": {
+    "defaultMessage": "Translated articles fall behind after every product release without anyone noticing."
+  },
+  "iQ5PDZkIPi": {
+    "defaultMessage": "Generate locale-aware drafts that respect cultural context while keeping campaign intent aligned."
+  },
+  "iUgXrXTD7Q": {
+    "defaultMessage": "Hebrew (Israel)"
+  },
+  "iV4M/BRREW": {
+    "defaultMessage": "Attachment"
+  },
+  "iZaQ7K2itB": {
+    "defaultMessage": "Enter URL..."
+  },
+  "igB297V19V": {
+    "defaultMessage": "Review routing"
+  },
+  "ihYGlJZXjP": {
+    "defaultMessage": "GitHub Action"
+  },
+  "ilPzVb1cY6": {
+    "defaultMessage": "Image"
+  },
+  "io50TjMItx": {
+    "defaultMessage": "Release check"
+  },
+  "ioubvwX5dG": {
+    "defaultMessage": "H2"
+  },
+  "ip7nkjj/z8": {
+    "defaultMessage": "Hyperlocalise connects campaign context, brand rules, and review decisions into one workflow. Your TMS stays the system of record; Hyperlocalise makes sure the right context reaches every locale."
+  },
+  "irDjU9PSS4": {
+    "defaultMessage": "Approved glossary terms are used correctly and forbidden terms are absent."
+  },
+  "iswoFpqCGE": {
+    "defaultMessage": "GitHub PR"
+  },
+  "itUSZfLzOK": {
+    "defaultMessage": "AI recommendation"
+  },
+  "ivdHFzfBNo": {
+    "defaultMessage": "Forbidden term \"{term}\" appears in the target translation."
+  },
+  "j+ggKPYEzH": {
+    "defaultMessage": "Posting…"
+  },
+  "j15+hzs1N1": {
+    "defaultMessage": "CMS"
+  },
+  "j8hWmEtYkf": {
+    "defaultMessage": "Join early access"
+  },
+  "jBITE1qEv6": {
+    "defaultMessage": "Managed"
+  },
+  "jD0JyNe4EF": {
+    "defaultMessage": "From campaign brief to market-ready assets"
+  },
+  "jEsou0wF0/": {
+    "defaultMessage": "Queue"
+  },
+  "jEwAQCIVg4": {
+    "defaultMessage": "Copy stack trace"
+  },
+  "jGuaDovXli": {
+    "defaultMessage": "Approved"
+  },
+  "jLjTPaf/u5": {
+    "defaultMessage": "Connect"
+  },
+  "jORzWMtK+S": {
+    "defaultMessage": "Screenshot context for this string"
+  },
+  "jSRe68HWab": {
+    "defaultMessage": "Repository context lookup is not available"
+  },
+  "jSY7h//Jq9": {
+    "defaultMessage": "Compare against approved baselines"
+  },
+  "jal4p9crNk": {
+    "defaultMessage": "Open in Scira"
+  },
+  "jbR5Ki+T75": {
+    "defaultMessage": "Context assembly"
+  },
+  "jhMzSbK5qz": {
+    "defaultMessage": "Try again in a moment. If the problem continues, contact support or choose another organization."
+  },
+  "jhwzOupLZL": {
+    "defaultMessage": "Related posts"
+  },
+  "joOR4TGsxW": {
+    "defaultMessage": "No posts yet. Check back soon."
+  },
+  "jyL5Pnsg0T": {
+    "defaultMessage": "Download conversation"
+  },
+  "jycg40Y0pj": {
+    "defaultMessage": "Localisation for the Agentic Era."
+  },
+  "k+z441n7pT": {
+    "defaultMessage": "CI check"
+  },
+  "k0oDzsZOu6": {
+    "defaultMessage": "Settings unavailable"
+  },
+  "k8bxVI/FQf": {
+    "defaultMessage": "Slack connected"
+  },
+  "kAcHKxbG09": {
+    "defaultMessage": "Reporting on throughput, quality, and locale coverage requires stitching data from multiple tools."
+  },
+  "kAcQvgg6Yl": {
+    "defaultMessage": "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed."
+  },
+  "kB+yrXhyLX": {
+    "defaultMessage": "Help Center Localisation | Hyperlocalise"
+  },
+  "kBjfpWlIHs": {
+    "defaultMessage": "Running"
+  },
+  "kDfywMCo7J": {
+    "defaultMessage": "LLM provider disconnected"
+  },
+  "kG2XpVKA8Z": {
+    "defaultMessage": "Scope, context, route"
+  },
+  "kGM2czQvBa": {
+    "defaultMessage": "Approved"
+  },
+  "kGdRPLt/A7": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "kHLqanH9yi": {
+    "defaultMessage": "Next segment ({shortcut})"
+  },
+  "kIG+JJHbzJ": {
+    "defaultMessage": "Reset zoom"
+  },
+  "kUmtRmvwMN": {
+    "defaultMessage": "Review PRs and translation regressions before merge"
+  },
+  "kWeceyqgt+": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "kXbSfNBQLK": {
+    "defaultMessage": "Parameters"
+  },
+  "kZCWXTCLbW": {
+    "defaultMessage": "Agents"
+  },
+  "kn/uJAgJBn": {
+    "defaultMessage": "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving."
+  },
+  "knFaGwAEFJ": {
+    "defaultMessage": "Localisation checks that run with every pull request"
+  },
+  "knOsYUbezF": {
+    "defaultMessage": "Output"
+  },
+  "kod/dgRhlc": {
+    "defaultMessage": "Inbound email copied"
+  },
+  "kuwnF7iUJu": {
+    "defaultMessage": "Play preview"
+  },
+  "kvuiTkSvGX": {
+    "defaultMessage": "Unable to load automation settings."
+  },
+  "kw9ywOaVL3": {
+    "defaultMessage": "Environment ID"
+  },
+  "l0d6YXPPZ9": {
+    "defaultMessage": "Google Gemini"
+  },
+  "l5r0xPEJDX": {
+    "defaultMessage": "Add at least one branch pattern for push triggers."
+  },
+  "l9kJjTi7RV": {
+    "defaultMessage": "Context-aware from CMS and product docs"
+  },
+  "lDEpmcca/9": {
+    "defaultMessage": "Workspace archived"
+  },
+  "lMGKaGDLx4": {
+    "defaultMessage": "A product launch campaign goes live in six markets"
+  },
+  "lN7mrKGBHB": {
+    "defaultMessage": "Glossary term mismatch"
+  },
+  "lO+u6H8vSf": {
+    "defaultMessage": "Automation settings saved"
+  },
+  "lT0LhQ0lGx": {
+    "defaultMessage": "Loading content types…"
+  },
+  "lWsEWOz8r0": {
+    "defaultMessage": "Inbound address ready. Send files or images with a target language to translate by email."
+  },
+  "lZ0BG27TE7": {
+    "defaultMessage": "Future screenshot: dashboard for locale status, quality trends, and release confidence."
+  },
+  "lecYTYG81Q": {
+    "defaultMessage": "Catch the change"
+  },
+  "ljCRNx6fjZ": {
+    "defaultMessage": "Disconnect"
+  },
+  "ljEJGwxPd/": {
+    "defaultMessage": "Disconnect"
+  },
+  "lmsnisjyr6": {
+    "defaultMessage": "Publish a check run so teams can see localization results on commits and pull requests."
+  },
+  "lriqGB0bnm": {
+    "defaultMessage": "Evaluations"
+  },
+  "lsXD2TTIpU": {
+    "defaultMessage": "LLM agnostic"
+  },
+  "m/UWxMsKQI": {
+    "defaultMessage": "Agents Automation"
+  },
+  "m34LPH+M7Z": {
+    "defaultMessage": "Comment on pull requests with localisation status"
+  },
+  "mBKFh3zYqD": {
+    "defaultMessage": "Resources"
+  },
+  "mDYRJWtk3P": {
+    "defaultMessage": "Connect {providerName} with an OAuth App. Each member links their own account before using {providerName} data in Hyperlocalise."
+  },
+  "mE9BVZ+4OT": {
+    "defaultMessage": "Push and scheduled triggers are mutually exclusive."
+  },
+  "mKEoYdlq74": {
+    "defaultMessage": "Developers merge string changes daily. Localisation quality depends on someone remembering to check before ship."
+  },
+  "mLGYrHY7eO": {
+    "defaultMessage": "Provider switching"
+  },
+  "mMp/zOre+X": {
+    "defaultMessage": "Private"
+  },
+  "mMsPU5+otj": {
+    "defaultMessage": "Failed to load projects"
+  },
+  "mSR1oODTzi": {
+    "defaultMessage": "Zoom out"
+  },
+  "mi29vosn6Y": {
+    "defaultMessage": "Select a supported provider."
+  },
+  "mltE2S4MiK": {
+    "defaultMessage": "Instructions"
+  },
+  "moonxzY9iq": {
+    "defaultMessage": "Work arrives from product, marketing, support, and engineering through different channels with no shared intake."
+  },
+  "mqqP30mDIQ": {
+    "defaultMessage": "Help center localisation"
+  },
+  "msm7HmNNfJ": {
+    "defaultMessage": "Contentful"
+  },
+  "muwnlAh1Hy": {
+    "defaultMessage": "Enter a valid IANA timezone such as UTC or America/New_York."
+  },
+  "mz8uQYwH0G": {
+    "defaultMessage": "Agent assignment"
+  },
+  "n+jmfgFlG0": {
+    "defaultMessage": "Translations are read from this project before opening the pull request."
+  },
+  "n2pk6Y4oGA": {
+    "defaultMessage": "If the last review taught the team something, the next workflow should know it."
+  },
+  "n5bYPU3uSK": {
+    "defaultMessage": "Product updates outpace help center translations. Support teams absorb the cost when localized articles lag behind."
+  },
+  "nA1Lv0wxJn": {
+    "defaultMessage": "Monitor locale coverage across all content types"
+  },
+  "nDPeOs1MH9": {
+    "defaultMessage": "{displayName} settings saved"
+  },
+  "nEBGfsZw1I": {
+    "defaultMessage": "Running"
+  },
+  "nEmus6iEdf": {
+    "defaultMessage": "Previous branch"
+  },
+  "nG1gispZFL": {
+    "defaultMessage": "Source term \"{sourceTerm}\" should be translated as \"{targetTerm}\" per the glossary."
+  },
+  "nJUCs4vSKi": {
+    "defaultMessage": "Saving..."
+  },
+  "nJvRveEDal": {
+    "defaultMessage": "Access token expires {expiresAt}"
+  },
+  "nQYD0Q7LLi": {
+    "defaultMessage": "Quality monitoring across your stack — not a point-in-time QA tool"
+  },
+  "nZIGjKiA+J": {
+    "defaultMessage": "Early design partner"
+  },
+  "naWIsHiFkQ": {
+    "defaultMessage": "Copied OAuth callback URL"
+  },
+  "nkGjzQ/mgp": {
+    "defaultMessage": "GitHub Action for localisation checks"
+  },
+  "nkxYJYYDTw": {
+    "defaultMessage": "AI recommendation"
+  },
+  "nmdumlGzfh": {
+    "defaultMessage": "No attachments"
+  },
+  "nmfgIZNX5m": {
+    "defaultMessage": "{providerLabel} provider saved"
+  },
+  "nojhrDNSfO": {
+    "defaultMessage": "Apply low-quality TM match?"
+  },
+  "ntvyMHkHZg": {
+    "defaultMessage": "Disconnecting…"
+  },
+  "nwEXrsmZmr": {
+    "defaultMessage": "Enable this repository before configuring automation."
+  },
+  "nwJGCHKaPx": {
+    "defaultMessage": "The GitHub install link expired or was already used. Click Connect again from this page."
+  },
+  "o+CbdMbr62": {
+    "defaultMessage": "Portuguese (Portugal)"
+  },
+  "o+jUj26F3Y": {
+    "defaultMessage": "Works across CMS, TMS, and product workflows"
+  },
+  "o0BB3/QSVT": {
+    "defaultMessage": "Building in the open — localisation, AI agents, and lessons from the road."
+  },
+  "o0UaTUXfqZ": {
+    "defaultMessage": "Thai (Thailand)"
+  },
+  "o2H4QOFat9": {
+    "defaultMessage": "Run glossary, drift, and coverage checks"
+  },
+  "oCFslUs6eA": {
+    "defaultMessage": "Show bulk selection checkboxes"
+  },
+  "oQckCPSvLu": {
+    "defaultMessage": "Sunday"
+  },
+  "oY/dfpDvR7": {
+    "defaultMessage": "No segments match this filter."
+  },
+  "obaPDIKyjU": {
+    "defaultMessage": "Context found by agent"
+  },
+  "oeD72ehQB/": {
+    "defaultMessage": "Leave page with unsaved changes?"
+  },
+  "oghE756t99": {
+    "defaultMessage": "Regenerate"
+  },
+  "okBFUfhlwg": {
+    "defaultMessage": "TMS agnostic"
+  },
+  "okYWXGLSBl": {
+    "defaultMessage": "Translation memory"
+  },
+  "omrTD1tbM0": {
+    "defaultMessage": "Inconsistent UI copy and terminology drift across locales after every sprint."
+  },
+  "opXLqo3spW": {
+    "defaultMessage": "Built for quality at scale"
+  },
+  "orN5K1E2Yc": {
+    "defaultMessage": "Blocking checks can fail pull requests when combined with <link>branch protection rules</link>."
+  },
+  "os6dmli1wK": {
+    "defaultMessage": "Ingest campaign briefs and creative context"
+  },
+  "oyu4JeYlD+": {
+    "defaultMessage": "Know the intent"
+  },
+  "p0T+Rt+a+4": {
+    "defaultMessage": "Set the Crowdin API base URL once for this workspace. After you save, members connect by pasting their own personal access token—nothing else to configure."
+  },
+  "p5GCpw9x8C": {
+    "defaultMessage": "Next branch"
+  },
+  "p83H7uOHst": {
+    "defaultMessage": "Translation mistake"
+  },
+  "pCwlsos9AL": {
+    "defaultMessage": "Choose a day of the week for weekly schedules."
+  },
+  "pM8pgX4u47": {
+    "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again."
+  },
+  "pMRZvoJLzS": {
+    "defaultMessage": "Failed to save translation."
+  },
+  "pUXxtRKG5S": {
+    "defaultMessage": "Product localisation that keeps up with every release"
+  },
+  "pV6OSYt6fC": {
+    "defaultMessage": "Passed"
+  },
+  "pdHOl1weOs": {
+    "defaultMessage": "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again."
+  },
+  "pe+Qja+3CC": {
+    "defaultMessage": "Regression Evals"
+  },
+  "pfwX+wkDSM": {
+    "defaultMessage": "Connecting…"
+  },
+  "pg1KEuGKDm": {
+    "defaultMessage": "Take screenshot"
+  },
+  "pg5YloAAAQ": {
+    "defaultMessage": "Run drift detection, coverage checks, and regression evals on every pull request."
+  },
+  "pj6HuYI/BY": {
+    "defaultMessage": "GitHub connected"
+  },
+  "pmgrWye2G2": {
+    "defaultMessage": "Untranslated"
+  },
+  "ppXDMSLgyj": {
+    "defaultMessage": "Queue panel failed to load"
+  },
+  "py4sv3RBJU": {
+    "defaultMessage": "Enforce brand voice and terminology"
+  },
+  "q89JS2cAvL": {
+    "defaultMessage": "Stop chasing localisation work across tools"
+  },
+  "q8JPEoD1z3": {
+    "defaultMessage": "Show localisation health directly in GitHub so engineering and localisation share one view."
+  },
+  "q9M+h9o1YI": {
+    "defaultMessage": "How Hyperlocalise handles account, usage, and provider-related data."
+  },
+  "qABPUMMqNa": {
+    "defaultMessage": "Bangla (Bangladesh)"
+  },
+  "qBw0XsEKyN": {
+    "defaultMessage": "Stay flexible across providers and platforms"
+  },
+  "qHwoyBJJm0": {
+    "defaultMessage": "Issue"
+  },
+  "qMoIwNM0g+": {
+    "defaultMessage": "Copied!"
+  },
+  "qSH0vWKsTL": {
+    "defaultMessage": "Filter queue"
+  },
+  "qaa1Bmj1zG": {
+    "defaultMessage": "Choose another organization or sign out and retry with another account."
+  },
+  "qd8sDGeNiM": {
+    "defaultMessage": "Failed to load in-context preview from the provider."
+  },
+  "qdFC9Qh/uN": {
+    "defaultMessage": "Could not verify membership"
+  },
+  "qdI+hkhT3P": {
+    "defaultMessage": "Human-in-the-loop by design"
+  },
+  "qjIfzjBgLQ": {
+    "defaultMessage": "Context signal"
+  },
+  "qqo0mtljp2": {
+    "defaultMessage": "From intake to orchestrated delivery"
+  },
+  "qsBhdpvLET": {
+    "defaultMessage": "Stay flexible across model providers and existing TMS platforms without redesigning your operating model."
+  },
+  "qtTx0ZhgLU": {
+    "defaultMessage": "Polish (Poland)"
+  },
+  "qxBrl7Yxqo": {
+    "defaultMessage": "Monday"
+  },
+  "qyAeUOVpZe": {
+    "defaultMessage": "Czech (Czechia)"
+  },
+  "r6Ldwc5qHk": {
+    "defaultMessage": "Russian (Russia)"
+  },
+  "r7/0syRDA9": {
+    "defaultMessage": "required"
+  },
+  "r8LOTLUhh1": {
+    "defaultMessage": "Product"
+  },
+  "rCTm4zs5rL": {
+    "defaultMessage": "Join the waitlist"
+  },
+  "rHDcSl4Kt4": {
+    "defaultMessage": "Use"
+  },
+  "rIotJfHv/2": {
+    "defaultMessage": "Build your AI-native localisation workflow"
+  },
+  "rO3KPnsZEO": {
+    "defaultMessage": "Provider disconnected"
+  },
+  "rPAVRcXZc+": {
+    "defaultMessage": "Localisation is still a manual step outside the release pipeline"
+  },
+  "rQXpyeuWHx": {
+    "defaultMessage": "{count} failed"
+  },
+  "rYXZcW+sgJ": {
+    "defaultMessage": "Enable Slack agent"
+  },
+  "rZ8kVxd7JR": {
+    "defaultMessage": "Hyperlocalise is not here to replace your TMS. It adds a workflow layer that connects engineering change signals, LLM-assisted drafting, human review, and release confidence."
+  },
+  "rfurrkqR11": {
+    "defaultMessage": "Issue"
+  },
+  "rhfG3eu2aR": {
+    "defaultMessage": "Check mode"
+  },
+  "rjJJmHDMJh": {
+    "defaultMessage": "Finding context…"
+  },
+  "rponYzKMZ3": {
+    "defaultMessage": "Create issues from translation blockers and keep launch tasks in sync."
+  },
+  "rqH4qSNbvK": {
+    "defaultMessage": "Connected as {accountLogin}. {repoSummary}"
+  },
+  "rqW//zBYSL": {
+    "defaultMessage": "String changes hide in large pull requests without clear localisation impact."
+  },
+  "rqi80b8ssT": {
+    "defaultMessage": "Sync approved copy to CMS and ad platforms"
+  },
+  "rsw/2rDhHZ": {
+    "defaultMessage": "TMS sync"
+  },
+  "rywDd6XWpM": {
+    "defaultMessage": "Workspace level"
+  },
+  "s2Vo5Fg6Dj": {
+    "defaultMessage": "Apply glossaries, tone guides, and do-not-translate rules before drafts reach reviewers."
+  },
+  "s3o6M+OdZX": {
+    "defaultMessage": "Remove"
+  },
+  "s8SWNwR/wk": {
+    "defaultMessage": "Release blocking"
+  },
+  "sAOynMMuiJ": {
+    "defaultMessage": "Try again"
+  },
+  "sHrPdefvvp": {
+    "defaultMessage": "Search microphones..."
+  },
+  "sN5oEwUBMd": {
+    "defaultMessage": "Example workflow"
+  },
+  "sPeeyibl9Y": {
+    "defaultMessage": "Approve selected"
+  },
+  "sZFiP5Oe8M": {
+    "defaultMessage": "When launch work is scattered, translations become a last-minute scramble."
+  },
+  "sjmGDLHpLL": {
+    "defaultMessage": "Brand context"
+  },
+  "sp82GiYbAh": {
+    "defaultMessage": "Off"
+  },
+  "ssMiRZyu1M": {
+    "defaultMessage": "Block releases when quality gates fail"
+  },
+  "svD7SMchJb": {
+    "defaultMessage": "{providerName} is ready for member tokens"
+  },
+  "t/OSX7F5nd": {
+    "defaultMessage": "Issue type"
+  },
+  "t1gNC2Fo+D": {
+    "defaultMessage": "Your account does not have permission to open this page."
+  },
+  "t6Jk21Xb6m": {
+    "defaultMessage": "Copy OAuth callback URL"
+  },
+  "t9IIjKdbNq": {
+    "defaultMessage": "Engineering and localisation coordinate over Slack instead of inside CI/CD."
+  },
+  "t9YYiKFrxA": {
+    "defaultMessage": "Product docs"
+  },
+  "tHJT8VDfIn": {
+    "defaultMessage": "Managed by Hyperlocalise"
+  },
+  "tJeeSJ6Rq1": {
+    "defaultMessage": "Visual Context"
+  },
+  "tQNKmwbVHc": {
+    "defaultMessage": "Reconnect with a different OAuth app"
+  },
+  "tR/DKqfN1a": {
+    "defaultMessage": "See the risk"
+  },
+  "tSnciLV1cq": {
+    "defaultMessage": "Disconnect the current TMS to switch providers."
+  },
+  "tTTsndxkMz": {
+    "defaultMessage": "Previous"
+  },
+  "tVauVn/Okc": {
+    "defaultMessage": "English (United Kingdom)"
+  },
+  "tZ+plgRfNJ": {
+    "defaultMessage": "You do not have permission to update provider credentials."
+  },
+  "tfRDFTE7ho": {
+    "defaultMessage": "Detect string changes from PR diffs"
+  },
+  "tfWxPTCye4": {
+    "defaultMessage": "Agent-native workflows"
+  },
+  "tj9LSxTmXM": {
+    "defaultMessage": "Console"
+  },
+  "tlMl5v6nnm": {
+    "defaultMessage": "Enter {providerLabel} API key"
+  },
+  "tsN6wGlUZC": {
+    "defaultMessage": "Target ICU structure must match {tokens} from the source string."
+  },
+  "tuvZlDHxtM": {
+    "defaultMessage": "Greek (Greece)"
+  },
+  "tzQpDWLRXa": {
+    "defaultMessage": "The GitHub and regression layer is what makes this usable for engineering."
+  },
+  "u5hy7XQ9he": {
+    "defaultMessage": "No content types found in this space."
+  },
+  "uArB+a1gRA": {
+    "defaultMessage": "Input"
+  },
+  "uBs3qiwQrd": {
+    "defaultMessage": "OAuth client ID"
+  },
+  "uF3cBjB2oQ": {
+    "defaultMessage": "Saving…"
+  },
+  "uGl99aLDiP": {
+    "defaultMessage": "Opening Slack…"
+  },
+  "uJVmh73fjZ": {
+    "defaultMessage": "Localisation intelligence inside your CI/CD pipeline"
+  },
+  "uMS3Md9f77": {
+    "defaultMessage": "Save one shared provider key for this workspace. Saving validates the key, encrypts it at rest, and replaces the current provider."
+  },
+  "uPLvPG1gYg": {
+    "defaultMessage": "Copied!"
+  },
+  "uR9VI1Hsnk": {
+    "defaultMessage": "Translation Intelligence"
+  },
+  "uUnWGsYCBS": {
+    "defaultMessage": "Choose which automation jobs run for this repository."
+  },
+  "uZnk0UoDEu": {
+    "defaultMessage": "{count} selected"
+  },
+  "ubk8Jr6n+B": {
+    "defaultMessage": "Format & QA checks"
+  },
+  "udWuegdP+q": {
+    "defaultMessage": "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again."
+  },
+  "ufjLSLmtEV": {
+    "defaultMessage": "GitLab"
+  },
+  "ujHf+4KmE7": {
+    "defaultMessage": "Built for product release velocity"
+  },
+  "uk+4BpyVBj": {
+    "defaultMessage": "Too many files. Some were not added."
+  },
+  "umeLBPBh+u": {
+    "defaultMessage": "Content sync"
+  },
+  "umhjXIiCiC": {
+    "defaultMessage": "View projects"
+  },
+  "up9lzQ6bIP": {
+    "defaultMessage": "Explore the rest"
+  },
+  "usZU30knmw": {
+    "defaultMessage": "Cadence"
+  },
+  "usgyWI2m6M": {
+    "defaultMessage": "Preview"
+  },
+  "uuW7ODYoaD": {
+    "defaultMessage": "Escalate flagged items to reviewers"
+  },
+  "uuXWiAkNhO": {
+    "defaultMessage": "Translation"
+  },
+  "uwkiRYaBX+": {
+    "defaultMessage": "Apply voice, glossary, and legal guardrails"
+  },
+  "v/bExbFK7z": {
+    "defaultMessage": "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact."
+  },
+  "v9ol+HRqV1": {
+    "defaultMessage": "Leave blank to keep existing client ID"
+  },
+  "vBosVX2ISv": {
+    "defaultMessage": "Alert on drift after publish"
+  },
+  "vFJiS8I8Kx": {
+    "defaultMessage": "Built for localisation operations at scale"
+  },
+  "vJGZC1FhAF": {
+    "defaultMessage": "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket."
+  },
+  "vK7GusCjy3": {
+    "defaultMessage": "main"
+  },
+  "vLTwfBOTEg": {
+    "defaultMessage": "OAuth callback URL"
+  },
+  "vRHN9vcIJA": {
+    "defaultMessage": "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools."
+  },
+  "vTmDsNkKes": {
+    "defaultMessage": "Support tickets spike in non-English locales when guidance is outdated or missing."
+  },
+  "vUMdCurROo": {
+    "defaultMessage": "Failed"
+  },
+  "vWISliHekQ": {
+    "defaultMessage": "{providerName} OAuth App client ID"
+  },
+  "vYGoNsNHVz": {
+    "defaultMessage": "Pull requests, launch requests, and campaign assets become structured localization work with source context attached from the start."
+  },
+  "vZsNkmllED": {
+    "defaultMessage": "Approved source of truth"
+  },
+  "vaakVwIPyn": {
+    "defaultMessage": "Build your AI-native localisation workflow"
+  },
+  "vd4gOsmpWc": {
+    "defaultMessage": "Enable the email agent to receive a unique workspace address for translation requests."
+  },
+  "vfXyrNNj+X": {
+    "defaultMessage": "Copy name"
+  },
+  "vq7ib8WdUv": {
+    "defaultMessage": "Campaign brief"
+  },
+  "w1elWLFsW9": {
+    "defaultMessage": "Release readiness"
+  },
+  "w7xHsz2cR9": {
+    "defaultMessage": "Apply glossaries and in-product string references so help content matches what users see in the app."
+  },
+  "w9jgu/gyZT": {
+    "defaultMessage": "Contentful Help Center"
+  },
+  "wAW00AgfLK": {
+    "defaultMessage": "Failed to post comment. Try again."
+  },
+  "wBNC3JBHju": {
+    "defaultMessage": "Day of week"
+  },
+  "wBvF6+avbg": {
+    "defaultMessage": "Route copy through marketing, legal, and localisation reviewers with clear status and audit trails."
+  },
+  "wIG4YNHURU": {
+    "defaultMessage": "Cancel"
+  },
+  "wRrp5VzBUC": {
+    "defaultMessage": "Create workspace"
+  },
+  "wSu0+cW+hv": {
+    "defaultMessage": "Cancel"
+  },
+  "wTei3/v4E4": {
+    "defaultMessage": "Works across engineering, product, and localisation workflows"
+  },
+  "wUKFu5cEaD": {
+    "defaultMessage": "default"
+  },
+  "wYUzxhVyTO": {
+    "defaultMessage": "e.g. Crowdin Production"
+  },
+  "wYt64Sa1lY": {
+    "defaultMessage": "Orchestrate agents, reviewers, vendors, LLMs, and TMS platforms in a single workflow — without replacing the tools your team already depends on."
+  },
+  "wZj9YtEHDA": {
+    "defaultMessage": "Light"
+  },
+  "wc8eM+CF/N": {
+    "defaultMessage": "OAuth client secret"
+  },
+  "wcn78AsmsL": {
+    "defaultMessage": "Glossary notes, format warnings, and comments surface before approval, not after release."
+  },
+  "wgVc9diqXQ": {
+    "defaultMessage": "Human-in-the-loop approvals"
+  },
+  "whr/nciIbp": {
+    "defaultMessage": "Clear selection"
+  },
+  "wm8WIk0lDQ": {
+    "defaultMessage": "Monitor translation quality, terminology drift, and locale coverage at scale. Run quality gates and catch regressions before they reach customers."
+  },
+  "wmlNXZkocx": {
+    "defaultMessage": "Target message syntax"
+  },
+  "wnYoaQhT6i": {
+    "defaultMessage": "Source ({locale})"
+  },
+  "wtxoYMaNGy": {
+    "defaultMessage": "Space ID"
+  },
+  "wvaLTvlaJ6": {
+    "defaultMessage": "Chinese (China)"
+  },
+  "x/9TtAEs9e": {
+    "defaultMessage": "Chinese (Hong Kong SAR China)"
+  },
+  "x86tb6Gc1r": {
+    "defaultMessage": "Open in Claude"
+  },
+  "xCstEdPlMf": {
+    "defaultMessage": "Every approved translation, reviewer correction, glossary choice, and market-specific decision becomes context that agents and humans can reuse on the next job."
+  },
+  "xE+OMoB2Ro": {
+    "defaultMessage": "The CAT workspace keeps the source, target, AI recommendation, product meaning, glossary rules, comments, warnings, and approval state in one place so reviewers can make a decision."
+  },
+  "xX2Nm+qioI": {
+    "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry."
+  },
+  "xaqBXxdnZN": {
+    "defaultMessage": "Cover image for {title}"
+  },
+  "xbAzhdR+Tu": {
+    "defaultMessage": "{percent}%"
+  },
+  "xkkgs3AOHS": {
+    "defaultMessage": "Import source strings from GitHub into your TMS project."
+  },
+  "xovEZE5T2r": {
+    "defaultMessage": "Add"
+  },
+  "xp1ilN6OAp": {
+    "defaultMessage": "New articles and updates live in Zendesk, Intercom, Contentful, or Notion — disconnected from localisation queues."
+  },
+  "xsAaVb0T8m": {
+    "defaultMessage": "Waiting for review"
+  },
+  "y+0ftMWpAa": {
+    "defaultMessage": "URL: {url}"
+  },
+  "y/0rjxqRwk": {
+    "defaultMessage": "Apply anyway"
+  },
+  "y7TyDgtZHB": {
+    "defaultMessage": "https://api.lokalise.com/api2"
+  },
+  "y9Ij/vPLAO": {
+    "defaultMessage": "Copy hash"
+  },
+  "y9JvEqkv+d": {
+    "defaultMessage": "An AI-native layer across your product stack — not another TMS"
+  },
+  "yFQoAbNukK": {
+    "defaultMessage": "Review workflow"
+  },
+  "yFteFluQ4P": {
+    "defaultMessage": "Intake"
+  },
+  "yHXzQ/SrSE": {
+    "defaultMessage": "API token / secret"
+  },
+  "yIwRFz93s7": {
+    "defaultMessage": "Italian (Italy)"
+  },
+  "yRRevnNvnn": {
+    "defaultMessage": "Source message syntax"
+  },
+  "yXOtXZjqsN": {
+    "defaultMessage": "Runs <command>hl check</command> against repository translation files."
+  },
+  "yh5N07rqk9": {
+    "defaultMessage": "Built for developer-led release workflows"
+  },
+  "yj2BSHV6l8": {
+    "defaultMessage": "Use OpenAI, Claude, Gemini, or another provider without locking your stack to one model vendor."
+  },
+  "ykrA6Q/ZFk": {
+    "defaultMessage": "Publish localized articles without manual copy-paste between your TMS and help center."
+  },
+  "yn7Eufu4t+": {
+    "defaultMessage": "Comment"
+  },
+  "ypyJIGOXrt": {
+    "defaultMessage": "No segments match your search."
+  },
+  "ywfU0eBAqj": {
+    "defaultMessage": "Signal"
+  },
+  "z+yNDK6TMM": {
+    "defaultMessage": "Comfortable"
+  },
+  "z/ihJvUUcu": {
+    "defaultMessage": "Localisation managers coordinate across TMS tools, model providers, vendors, and engineering — with no unified view of what is in flight."
+  },
+  "z48kpV5sye": {
+    "defaultMessage": "Not registered"
+  },
+  "z4vfspWg4+": {
+    "defaultMessage": "OAuth callback URL copied"
+  },
+  "z6J/H68BKd": {
+    "defaultMessage": "Source control"
+  },
+  "z6mrxTSFHp": {
+    "defaultMessage": "Add a description…"
+  },
+  "zCn3UqvqWI": {
+    "defaultMessage": "Skip selected"
+  },
+  "zIyXVsMpay": {
+    "defaultMessage": "Generic AI translation flattens brand voice, cultural references, and regional nuance."
+  },
+  "zL0C07+8z3": {
+    "defaultMessage": "Overview"
+  },
+  "zM/fYyJiHY": {
+    "defaultMessage": "Enabled repositories updated"
+  },
+  "zVPPsHIMWR": {
+    "defaultMessage": "Trust Center"
+  },
+  "zVPm5FkS3L": {
+    "defaultMessage": "Switch LLM providers without workflow redesign"
+  },
+  "zVk2EFJa3O": {
+    "defaultMessage": "Required tokens"
+  },
+  "zizlseLf1J": {
+    "defaultMessage": "Terms of service"
+  },
+  "zjfCQW7GjW": {
+    "defaultMessage": "Replace token"
+  },
+  "znjMm102W+": {
+    "defaultMessage": "API key"
+  },
+  "zv0V1pch8C": {
+    "defaultMessage": "Reviewers see what the copy is trying to do before they choose the wording."
+  },
+  "zw7noUEa20": {
+    "defaultMessage": "Deliver to CMS and campaign tools"
+  },
+  "zwRYJHfFfL": {
+    "defaultMessage": "Review Translations With the Context Next to the String | Hyperlocalise"
+  },
+  "zztNzAuBoJ": {
+    "defaultMessage": "Enabled"
+  }
+}
