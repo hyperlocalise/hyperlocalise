@@ -20,6 +20,10 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
 import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/cat-recommendation-mapper";
 import { cn } from "@/lib/primitives/cn";
 
@@ -529,13 +533,22 @@ export function ProjectFileCatWorkspace({
               });
             }}
           >
-            <SelectTrigger className="h-9 w-full font-mono text-xs">
+            <SelectTrigger className="h-9 w-full text-xs">
               <SelectValue placeholder="Select locale" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent
+              align="start"
+              alignItemWithTrigger={false}
+              className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
+            >
               {(targetLocales ?? []).map((locale) => (
-                <SelectItem key={locale} value={locale}>
-                  {locale}
+                <SelectItem
+                  key={locale}
+                  value={locale}
+                  label={formatLocaleOptionLabel(intl, locale)}
+                >
+                  <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
+                  <span className="font-mono text-muted-foreground">({locale})</span>
                 </SelectItem>
               ))}
             </SelectContent>
