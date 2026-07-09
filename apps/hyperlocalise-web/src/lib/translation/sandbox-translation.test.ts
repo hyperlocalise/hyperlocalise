@@ -230,6 +230,7 @@ describe("sandbox command runner", () => {
         exitCode: 0,
         output: sandboxMocks.output,
       });
+    const getCommand = vi.fn().mockResolvedValue({ wait });
     sandboxMocks.output.mockResolvedValueOnce("recovered");
     sandboxMocks.runCommand.mockResolvedValueOnce({
       cmdId: "cmd_1",
@@ -242,7 +243,10 @@ describe("sandbox command runner", () => {
       .mockResolvedValueOnce({
         stop,
       })
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({
+        getCommand,
+      });
 
     await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
       exitCode: 0,
@@ -253,6 +257,7 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: false });
     expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
     expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(getCommand).toHaveBeenCalledWith("cmd_1");
     expect(wait).toHaveBeenCalledTimes(2);
   });
 

@@ -291,6 +291,10 @@ export class SandboxLifecycle {
             });
             throw error;
           }
+
+          const sandbox = await Sandbox.get({ name: sandboxId });
+          const command = await sandbox.getCommand(started.cmdId);
+          return command.wait();
         }
 
         return started.wait();
