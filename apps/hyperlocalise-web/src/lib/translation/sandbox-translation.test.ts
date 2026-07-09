@@ -27,8 +27,10 @@ vi.mock("@vercel/sandbox", () => ({
 import {
   buildCrowdinFileSandboxConfig,
   buildCrowdinTranslationPath,
+  buildMultiLocaleTempConfig,
   buildTempConfig,
   createTranslationSandbox,
+  getOutputFilenamePattern,
   runSandboxCommand,
   sandboxFileBucketName,
   sandboxI18nConfigPath,
@@ -160,6 +162,38 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("  file:");
     expect(config).not.toContain("Project translation context:");
     expect(config).not.toContain("Glossary terms:");
+  });
+
+  it("builds multi-locale configs with {{target}} output patterns", () => {
+    expect(getOutputFilenamePattern("messages.json")).toBe("messages-{{target}}.json");
+
+    const config = buildMultiLocaleTempConfig(
+      "messages.json",
+      "messages-{{target}}.json",
+      "en-US",
+      ["fr-FR", "de-DE"],
+      null,
+      {
+        glossaryTerms: [
+          {
+            sourceTerm: "workspace",
+            targetTerm: "espace de travail",
+            targetLocale: "fr-FR",
+          },
+          {
+            sourceTerm: "workspace",
+            targetTerm: "Arbeitsbereich",
+            targetLocale: "de-DE",
+          },
+        ],
+      },
+    );
+
+    expect(config).toContain('- "fr-FR"');
+    expect(config).toContain('- "de-DE"');
+    expect(config).toContain('to: "messages-{{target}}.json"');
+    expect(config).toContain("workspace -> espace de travail (fr-FR)");
+    expect(config).toContain("workspace -> Arbeitsbereich (de-DE)");
   });
 });
 

@@ -91,20 +91,15 @@ fileTranslationJobWorkflow
         |
         +-- extract source entries for TM reuse
         |
-        +-- for each target locale
-        |       |
-        |       +-- reuseFileTranslationMemoryEntriesStep
-        |       |
-        |       +-- hl run
-        |       |
-        |       +-- validate glossary terms
-        |       |       `-- retry once with validation feedback
-        |       |
-        |       +-- log translated file diagnostics
-        |       |
-        |       +-- store output file
-        |       |
-        |       `-- persist target TM entries best-effort
+        +-- assemble locale-keyed prefill (TM + project translations)
+        |
+        +-- hl run (all target locales, nested --prefilled-entries)
+        |
+        +-- per locale: validate glossary
+        |
+        +-- retry hl run for glossary-failed locales only
+        |
+        +-- per locale: log diagnostics, store output, persist TM
         |
         +-- completeFileTranslationJobStep
         |

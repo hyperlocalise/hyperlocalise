@@ -157,21 +157,40 @@ export class HyperlocaliseCliConfigBuilder {
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
   ): string {
+    return this.buildMultiLocale(
+      inputFile,
+      outputFile,
+      sourceLocale,
+      [targetLocale],
+      instructions,
+      context,
+    );
+  }
+
+  buildMultiLocale(
+    inputFile: string,
+    outputPattern: string,
+    sourceLocale: string | null,
+    targetLocales: string[],
+    instructions: string | null = null,
+    context: SandboxTranslationContext | null = null,
+  ): string {
     const yamlString = (value: string) => JSON.stringify(value);
     const systemPrompt = translationPromptPolicy.buildSandboxConfigPrompt(context, instructions);
     const userPrompt = ["Translate from {{source}} to {{target}}.", "", "{{input}}"].join("\n");
+    const targets = targetLocales.map((locale) => `    - ${yamlString(locale)}`);
 
     return [
       "locales:",
       `  source: ${yamlString(sourceLocale ?? "auto")}`,
       "  targets:",
-      `    - ${yamlString(targetLocale)}`,
+      ...targets,
       "",
       "buckets:",
       `  ${sandboxFileBucketName}:`,
       "    files:",
       `      - from: ${yamlString(inputFile)}`,
-      `        to: ${yamlString(outputFile)}`,
+      `        to: ${yamlString(outputPattern)}`,
       "",
       "llm:",
       "  profiles:",
@@ -369,6 +388,24 @@ export class HyperlocaliseCliRunner {
     );
   }
 
+  buildMultiLocaleConfig(
+    inputFile: string,
+    outputPattern: string,
+    sourceLocale: string | null,
+    targetLocales: string[],
+    instructions: string | null = null,
+    context: SandboxTranslationContext | null = null,
+  ): string {
+    return this.configBuilder.buildMultiLocale(
+      inputFile,
+      outputPattern,
+      sourceLocale,
+      targetLocales,
+      instructions,
+      context,
+    );
+  }
+
   async writeTempConfig(
     sandboxId: string,
     configContent: string,
@@ -451,6 +488,17 @@ export function getOutputFilename(inputFilename: string, targetLocale: string): 
   return `${name}-${targetLocale}${ext}`;
 }
 
+/** Output path pattern for multi-locale `hl run` configs (`{{target}}` resolved by the CLI). */
+export function getOutputFilenamePattern(inputFilename: string): string {
+  const lastDot = inputFilename.lastIndexOf(".");
+  if (lastDot === -1) {
+    return `${inputFilename}-{{target}}`;
+  }
+  const name = inputFilename.slice(0, lastDot);
+  const ext = inputFilename.slice(lastDot);
+  return `${name}-{{target}}${ext}`;
+}
+
 export function sanitizeFilename(email: string): string {
   return email.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
@@ -512,6 +560,24 @@ export function buildTempConfig(
     outputFile,
     sourceLocale,
     targetLocale,
+    instructions,
+    context,
+  );
+}
+
+export function buildMultiLocaleTempConfig(
+  inputFile: string,
+  outputPattern: string,
+  sourceLocale: string | null,
+  targetLocales: string[],
+  instructions: string | null = null,
+  context: SandboxTranslationContext | null = null,
+) {
+  return defaultRunner.buildMultiLocaleConfig(
+    inputFile,
+    outputPattern,
+    sourceLocale,
+    targetLocales,
     instructions,
     context,
   );
