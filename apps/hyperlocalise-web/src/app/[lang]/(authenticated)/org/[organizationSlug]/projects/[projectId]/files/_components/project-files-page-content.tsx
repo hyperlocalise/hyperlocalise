@@ -29,6 +29,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
 import {
   ProjectFilesTreePanel,
@@ -294,6 +295,29 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
+  const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
+    () => ({
+      organizationSlug,
+      projectId,
+      highlightLocale,
+      projectTargetLocales,
+      sourceLocale: projectSourceLocale,
+      nativeSourcePaths,
+      branch: selectedBranch,
+      onViewStrings: (file) => openFileInCat(file.sourcePath),
+    }),
+    [
+      highlightLocale,
+      nativeSourcePaths,
+      openFileInCat,
+      organizationSlug,
+      projectId,
+      projectSourceLocale,
+      projectTargetLocales,
+      selectedBranch,
+    ],
+  );
+
   return (
     <ProjectFilesPageContentView
       organizationSlug={organizationSlug}
@@ -324,6 +348,7 @@ export function ProjectFilesPageContent({
           onLoadedFilesChange={setLoadedFiles}
           onActivateFile={openFileInCat}
           catOpenHint={catOpenHint}
+          fileActions={treeFileActions}
           branch={selectedBranch}
           headerActions={
             <>
