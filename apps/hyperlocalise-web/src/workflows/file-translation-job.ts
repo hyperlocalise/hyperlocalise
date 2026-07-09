@@ -183,11 +183,16 @@ function userFacingTranslationFailureReason(
   return "the file format may not be supported, or the content didn't match what the translator expected.";
 }
 
-function isSandboxStreamClosedMessage(message: string): boolean {
+function isSandboxDisconnectMessage(message: string): boolean {
   return (
     message.includes("Sandbox stream was closed and is not accepting commands") ||
     message.includes("sandbox_stream_closed") ||
-    message.includes("stream_ended_early")
+    message.includes("stream_ended_early") ||
+    message.includes("sandbox_disconnect") ||
+    message === "terminated" ||
+    message.includes("fetch failed") ||
+    message.includes("ECONNRESET") ||
+    message.includes("UND_ERR_")
   );
 }
 
@@ -205,7 +210,7 @@ function userFacingFailureReason(
     return message;
   }
 
-  if (isSandboxStreamClosedMessage(message)) {
+  if (isSandboxDisconnectMessage(message)) {
     return "the translation environment disconnected mid-run. This is usually temporary — try again.";
   }
 
@@ -287,7 +292,7 @@ async function runTranslationStep(
   const {
     buildMultiLocaleTempConfig,
     getSandboxTranslationEnv,
-    isSandboxStreamClosedError,
+    isSandboxDisconnectError,
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
@@ -340,14 +345,14 @@ async function runTranslationStep(
   } catch (error) {
     // Surface a stable marker so the workflow can recreate the sandbox when
     // session recovery inside runSandboxCommand is not enough.
-    if (isSandboxStreamClosedError(error)) {
+    if (isSandboxDisconnectError(error)) {
       try {
         await recoverTranslationSandboxSession(sandboxId);
       } catch {
         // Ignore — workflow will recreate.
       }
       throw new Error(
-        `sandbox_stream_closed: Sandbox stream was closed and is not accepting commands.`,
+        `sandbox_disconnect: Sandbox stream was closed and is not accepting commands.`,
       );
     }
     throw error;
@@ -768,18 +773,19 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         translation = await runOnce();
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
-        if (!isSandboxStreamClosedMessage(message)) {
+        if (!isSandboxDisconnectMessage(message)) {
           throw error;
         }
 
-        // Stream closed mid-run: the old session cannot accept more commands.
-        // Recreate a fresh sandbox with the source file so locale retries can proceed.
-        console.warn("[file-translation-workflow] sandbox stream closed; recreating sandbox", {
+        // Disconnect mid-run: recreate a fresh sandbox with the source file
+        // so locale retries can proceed on a healthy session.
+        console.warn("[file-translation-workflow] sandbox disconnect; recreating sandbox", {
           jobId: claim.job.id,
           projectId: claim.job.projectId,
           previousSandboxId: sandboxId,
           targetLocales: locales,
           attempt,
+          error: message,
         });
         const recreated = await recreateSandboxWithSourceStep({
           previousSandboxId: sandboxId,

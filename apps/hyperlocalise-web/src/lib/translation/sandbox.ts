@@ -23,8 +23,25 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "";
+}
+
+function errorCauseMessage(error: unknown): string {
+  if (!error || typeof error !== "object" || !("cause" in error)) {
+    return "";
+  }
+  return errorMessage((error as { cause?: unknown }).cause);
+}
+
 /**
- * True when the sandbox command stream died mid-flight.
+ * True when the sandbox command stream itself died (session no longer accepts commands).
  * The SDK's withResume only recovers HTTP 410/422 stopped states — not StreamError —
  * so callers must stop+resume (or recreate) before retrying commands.
  */
@@ -43,10 +60,46 @@ export function isSandboxStreamClosedError(error: unknown): boolean {
     return true;
   }
 
+  const message = errorMessage(error);
   return (
-    typeof err.message === "string" &&
-    err.message.includes("Sandbox stream was closed and is not accepting commands")
+    message.includes("Sandbox stream was closed and is not accepting commands") ||
+    message.includes("sandbox_stream_closed") ||
+    message.includes("stream_ended_early")
   );
+}
+
+/**
+ * Transient transport failures while talking to a still-running sandbox.
+ * Commonly undici `TypeError: terminated` when the NDJSON/wait connection drops.
+ */
+export function isSandboxTransientNetworkError(error: unknown): boolean {
+  if (isSandboxStreamClosedError(error)) {
+    return false;
+  }
+
+  const message = errorMessage(error);
+  const cause = errorCauseMessage(error);
+  const combined = `${message}\n${cause}`;
+
+  if (error instanceof TypeError && message === "terminated") {
+    return true;
+  }
+
+  return (
+    message === "terminated" ||
+    combined.includes("fetch failed") ||
+    combined.includes("ECONNRESET") ||
+    combined.includes("ECONNREFUSED") ||
+    combined.includes("ETIMEDOUT") ||
+    combined.includes("socket hang up") ||
+    combined.includes("other side closed") ||
+    combined.includes("UND_ERR_")
+  );
+}
+
+/** Any disconnect that should trigger sandbox recovery or workflow recreate. */
+export function isSandboxDisconnectError(error: unknown): boolean {
+  return isSandboxStreamClosedError(error) || isSandboxTransientNetworkError(error);
 }
 
 export class SandboxErrorMapper {
@@ -122,7 +175,7 @@ export class SandboxErrorMapper {
       return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
     }
 
-    if (isSandboxStreamClosedError(error)) {
+    if (isSandboxDisconnectError(error)) {
       return "the translation environment disconnected mid-run. This is usually temporary — try again.";
     }
 
@@ -151,7 +204,7 @@ export class SandboxLifecycle {
       await sandbox.stop();
     } catch (error) {
       // Already stopped / gone — still try resume below.
-      if (!isSandboxStreamClosedError(error)) {
+      if (!isSandboxDisconnectError(error)) {
         console.warn("[sandbox] stop before resume failed", {
           sandboxId,
           error: error instanceof Error ? error.message : "unknown",
@@ -162,15 +215,20 @@ export class SandboxLifecycle {
     await Sandbox.get({ name: sandboxId, resume: true });
   }
 
-  private async withStreamRecovery<T>(sandboxId: string, fn: () => Promise<T>): Promise<T> {
+  private async withDisconnectRecovery<T>(sandboxId: string, fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (error) {
-      if (!isSandboxStreamClosedError(error)) {
+      if (!isSandboxDisconnectError(error)) {
         throw error;
       }
 
-      console.warn("[sandbox] command stream closed; recovering session", { sandboxId });
+      console.warn("[sandbox] disconnect during sandbox IO; recovering session", {
+        sandboxId,
+        streamClosed: isSandboxStreamClosedError(error),
+        transientNetwork: isSandboxTransientNetworkError(error),
+        error: error instanceof Error ? error.message : "unknown",
+      });
       try {
         await this.recoverSession(sandboxId);
       } catch (recoverError) {
@@ -190,12 +248,37 @@ export class SandboxLifecycle {
     args: string[],
     options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
   ): Promise<{ exitCode: number; output: string }> {
-    return this.withStreamRecovery(sandboxId, async () => {
+    return this.withDisconnectRecovery(sandboxId, async () => {
       const sandbox = await Sandbox.get({ name: sandboxId });
-      const result = await sandbox.runCommand({ cmd: command, args, env: options?.env });
+      // Detached start + wait avoids the long-lived NDJSON wait:true stream that
+      // undici often aborts with TypeError: terminated on long hl runs.
+      const started = await sandbox.runCommand({
+        cmd: command,
+        args,
+        env: options?.env,
+        detached: true,
+      });
+
+      let finished;
+      try {
+        finished = await started.wait();
+      } catch (error) {
+        if (!isSandboxTransientNetworkError(error)) {
+          throw error;
+        }
+        // Wait connection dropped, but the command may still be running.
+        // Poll getCommand again without tearing down the sandbox.
+        console.warn("[sandbox] wait connection dropped; retrying command wait", {
+          sandboxId,
+          cmdId: started.cmdId,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+        finished = await started.wait();
+      }
+
       return {
-        exitCode: result.exitCode,
-        output: await result.output(options?.output ?? "both"),
+        exitCode: finished.exitCode,
+        output: await finished.output(options?.output ?? "both"),
       };
     });
   }
@@ -204,7 +287,7 @@ export class SandboxLifecycle {
     sandboxId: string,
     files: Array<{ path: string; content: string | Buffer }>,
   ): Promise<void> {
-    return this.withStreamRecovery(sandboxId, async () => {
+    return this.withDisconnectRecovery(sandboxId, async () => {
       const sandbox = await Sandbox.get({ name: sandboxId });
       await sandbox.writeFiles(
         files.map((file) => ({
@@ -216,7 +299,7 @@ export class SandboxLifecycle {
   }
 
   async readFile(sandboxId: string, outputFile: string): Promise<Buffer> {
-    return this.withStreamRecovery(sandboxId, async () => {
+    return this.withDisconnectRecovery(sandboxId, async () => {
       const sandbox = await Sandbox.get({ name: sandboxId });
       const content = await sandbox.readFileToBuffer({ path: outputFile });
       if (!content) {
