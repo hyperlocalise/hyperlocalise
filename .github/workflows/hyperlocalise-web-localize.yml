@@ -66,6 +66,7 @@ jobs:
           mode: upload
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
           config-path: ${{ env.WEB_I18N_CONFIG }}
+          hyperlocalise-version: 1.8.19
           extract-path: ${{ env.WEB_EXTRACT_PATH }}
           extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
           extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
@@ -112,6 +113,7 @@ jobs:
           mode: download
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
           config-path: ${{ env.WEB_I18N_CONFIG }}
+          hyperlocalise-version: 1.8.19
           extract-path: ${{ env.WEB_EXTRACT_PATH }}
           extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
           extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
