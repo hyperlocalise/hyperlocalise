@@ -44,6 +44,7 @@ import {
   isSandboxDisconnectError,
   isSandboxStreamClosedError,
   isSandboxTransientNetworkError,
+  readTranslatedFile,
   runSandboxCommand,
   sandboxFileBucketName,
   sandboxI18nConfigPath,
@@ -214,7 +215,7 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
   });
 
-  it("recovers the sandbox session and retries when the command stream closes", async () => {
+  it("recovers the sandbox session and retries wait when the command stream closes", async () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const wait = vi
       .fn()
@@ -230,15 +231,10 @@ describe("sandbox command runner", () => {
         output: sandboxMocks.output,
       });
     sandboxMocks.output.mockResolvedValueOnce("recovered");
-    sandboxMocks.runCommand
-      .mockResolvedValueOnce({
-        cmdId: "cmd_1",
-        wait,
-      })
-      .mockResolvedValueOnce({
-        cmdId: "cmd_2",
-        wait,
-      });
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
     sandboxMocks.get
       .mockResolvedValueOnce({
         runCommand: sandboxMocks.runCommand,
@@ -246,10 +242,7 @@ describe("sandbox command runner", () => {
       .mockResolvedValueOnce({
         stop,
       })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        runCommand: sandboxMocks.runCommand,
-      });
+      .mockResolvedValueOnce({});
 
     await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
       exitCode: 0,
@@ -259,7 +252,29 @@ describe("sandbox command runner", () => {
     expect(stop).toHaveBeenCalledTimes(1);
     expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: false });
     expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
-    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(2);
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries read without stop/resume when the read connection drops", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const readFileToBuffer = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("terminated"))
+      .mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+    sandboxMocks.get
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({ readFileToBuffer });
+
+    await expect(readTranslatedFile("sandbox_123", "source-de-DE.md")).resolves.toEqual(
+      Buffer.from([1, 2, 3]),
+    );
+
+    expect(readFileToBuffer).toHaveBeenCalledTimes(2);
+    expect(stop).not.toHaveBeenCalled();
+    expect(sandboxMocks.get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resume: expect.anything() }),
+    );
   });
 });
 

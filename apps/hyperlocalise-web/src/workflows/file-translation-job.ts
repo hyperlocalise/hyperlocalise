@@ -903,11 +903,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     }
 
     // Retry missing locales individually so one bad locale cannot block the rest.
-    // Omit --force so the lockfile can skip work already completed in the batch.
+    // Use --force: a failed batch may have checkpointed a locale before flushing output.
     if (localesNeedingWork.length > 0) {
       const stillMissing: string[] = [];
       for (const targetLocale of localesNeedingWork) {
-        const localeResult = await runHlForLocales([targetLocale], 1, { force: false });
+        const localeResult = await runHlForLocales([targetLocale], 1, { force: true });
         if (!localeResult.ok) {
           stillMissing.push(targetLocale);
           // Replace batch-level failure with the per-locale one when available.
