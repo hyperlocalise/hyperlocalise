@@ -542,7 +542,11 @@ export function ProjectFileCatWorkspace({
               className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
             >
               {(targetLocales ?? []).map((locale) => (
-                <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
+                <SelectItem
+                  key={locale}
+                  value={locale}
+                  label={formatLocaleOptionLabel(intl, locale)}
+                >
                   <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
                   <span className="font-mono text-muted-foreground">({locale})</span>
                 </SelectItem>

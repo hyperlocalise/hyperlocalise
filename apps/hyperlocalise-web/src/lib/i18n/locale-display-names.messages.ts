@@ -21,7 +21,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   en_GB: {
     defaultMessage: "English (United Kingdom)",
-    id: "tVauVnOkcX",
+    id: "tVauVn/Okc",
     description: "Display name for BCP-47 locale en-GB",
   },
   en_AU: {
@@ -71,7 +71,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   pt_PT: {
     defaultMessage: "Portuguese (Portugal)",
-    id: "oCbdMbr62i",
+    id: "o+CbdMbr62",
     description: "Display name for BCP-47 locale pt-PT",
   },
   nl_NL: {
@@ -81,7 +81,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   sv_SE: {
     defaultMessage: "Swedish (Sweden)",
-    id: "dCGRsZA2Gq",
+    id: "dCGRsZA2+G",
     description: "Display name for BCP-47 locale sv-SE",
   },
   da_DK: {
@@ -111,12 +111,12 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   hu_HU: {
     defaultMessage: "Hungarian (Hungary)",
-    id: "ngHznLyUeM",
+    id: "+ngHznLyUe",
     description: "Display name for BCP-47 locale hu-HU",
   },
   ro_RO: {
     defaultMessage: "Romanian (Romania)",
-    id: "NrJMjFZDfb",
+    id: "NrJMjFZ+Df",
     description: "Display name for BCP-47 locale ro-RO",
   },
   tr_TR: {
@@ -151,7 +151,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   fa_IR: {
     defaultMessage: "Persian (Iran)",
-    id: "HmztzT6qT0",
+    id: "Hmzt+zT6qT",
     description: "Display name for BCP-47 locale fa-IR",
   },
   hi_IN: {
@@ -166,12 +166,12 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   id_ID: {
     defaultMessage: "Indonesian (Indonesia)",
-    id: "OMX8Bbcvwm",
+    id: "OMX/+8Bbcv",
     description: "Display name for BCP-47 locale id-ID",
   },
   ms_MY: {
     defaultMessage: "Malay (Malaysia)",
-    id: "a5JQ0J1lXL",
+    id: "a5J/Q0J1lX",
     description: "Display name for BCP-47 locale ms-MY",
   },
   vi_VN: {
@@ -186,7 +186,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   fil_PH: {
     defaultMessage: "Filipino (Philippines)",
-    id: "1iajv5nbml",
+    id: "+1iajv5nbm",
     description: "Display name for BCP-47 locale fil-PH",
   },
   ja_JP: {
@@ -211,7 +211,7 @@ export const commonLocaleDisplayNameMessages = defineMessages({
   },
   zh_HK: {
     defaultMessage: "Chinese (Hong Kong SAR China)",
-    id: "x9TtAEs9eF",
+    id: "x/9TtAEs9e",
     description: "Display name for BCP-47 locale zh-HK",
   },
 });
