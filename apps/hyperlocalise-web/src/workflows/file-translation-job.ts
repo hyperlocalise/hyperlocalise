@@ -183,6 +183,19 @@ function userFacingTranslationFailureReason(
   return "the file format may not be supported, or the content didn't match what the translator expected.";
 }
 
+function isSandboxDisconnectMessage(message: string): boolean {
+  return (
+    message.includes("Sandbox stream was closed and is not accepting commands") ||
+    message.includes("sandbox_stream_closed") ||
+    message.includes("stream_ended_early") ||
+    message.includes("sandbox_disconnect") ||
+    message === "terminated" ||
+    message.includes("fetch failed") ||
+    message.includes("ECONNRESET") ||
+    message.includes("UND_ERR_")
+  );
+}
+
 function userFacingFailureReason(
   error: unknown,
   detection?: {
@@ -195,6 +208,10 @@ function userFacingFailureReason(
 
   if (message.startsWith("glossary validation failed")) {
     return message;
+  }
+
+  if (isSandboxDisconnectMessage(message)) {
+    return "the translation environment disconnected mid-run. This is usually temporary — try again.";
   }
 
   if (
@@ -237,6 +254,29 @@ async function writeSourceFileStep(sandboxId: string, filename: string, content:
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
+async function recreateSandboxWithSourceStep(input: {
+  previousSandboxId: string | null;
+  filename: string;
+  content: Buffer;
+}) {
+  "use step";
+  const { createTranslationSandbox, prepareSandbox, stopTranslationSandbox, writeFileToSandbox } =
+    await import("@/lib/translation/sandbox");
+
+  if (input.previousSandboxId) {
+    try {
+      await stopTranslationSandbox(input.previousSandboxId);
+    } catch {
+      // Best-effort cleanup of the dead sandbox.
+    }
+  }
+
+  const { sandboxId } = await createTranslationSandbox();
+  await prepareSandbox(sandboxId);
+  await writeFileToSandbox(sandboxId, input.filename, input.content);
+  return { sandboxId };
+}
+
 async function runTranslationStep(
   sandboxId: string,
   inputFile: string,
@@ -246,12 +286,15 @@ async function runTranslationStep(
   instructions: string | null,
   context: SandboxTranslationContext,
   prefilledByLocale: Record<string, Record<string, string>>,
+  options?: { force?: boolean },
 ) {
   "use step";
 
   const {
     buildMultiLocaleTempConfig,
     getSandboxTranslationEnv,
+    isSandboxDisconnectError,
+    recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
     writeFileToSandbox,
@@ -288,17 +331,36 @@ async function runTranslationStep(
   }
 
   const localeArg = localeFlags ? ` ${localeFlags}` : "";
-  return runSandboxCommand(
-    sandboxId,
-    "bash",
-    [
-      "-lc",
-      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg} --force --progress off${prefilledFlags}`,
-    ],
-    {
-      env: getSandboxTranslationEnv(),
-    },
-  );
+  // First runs use --force for a clean slate. Same-sandbox retries omit it so
+  // `.hyperlocalise.lock.json` can skip completed tasks / resume checkpoints.
+  const forceFlag = options?.force === false ? "" : " --force";
+  try {
+    return await runSandboxCommand(
+      sandboxId,
+      "bash",
+      [
+        "-lc",
+        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag} --progress off${prefilledFlags}`,
+      ],
+      {
+        env: getSandboxTranslationEnv(),
+      },
+    );
+  } catch (error) {
+    // Surface a stable marker so the workflow can recreate the sandbox when
+    // session recovery inside runSandboxCommand is not enough.
+    if (isSandboxDisconnectError(error)) {
+      try {
+        await recoverTranslationSandboxSession(sandboxId);
+      } catch {
+        // Ignore — workflow will recreate.
+      }
+      throw new Error(
+        `sandbox_disconnect: Sandbox stream was closed and is not accepting commands.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function extractEntriesStep(
@@ -540,7 +602,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw error;
   }
 
-  const { sandboxId } = await createSandboxStep();
+  let { sandboxId } = await createSandboxStep();
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
   const context = await assembleFileTranslationContextStep({
@@ -682,7 +744,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const translatedByLocale = new Map<string, Buffer>();
     const runFailures: Array<{ locale: string; kind: string; exitCode: number }> = [];
 
-    const runHlForLocales = async (locales: string[], attempt: 1 | 2, retryFeedback?: string) => {
+    const runHlForLocales = async (
+      locales: string[],
+      attempt: 1 | 2,
+      options?: { retryFeedback?: string; force?: boolean },
+    ) => {
+      const force = options?.force ?? true;
+      const retryFeedback = options?.retryFeedback;
       const localeSet = new Set(locales);
       const runContext =
         context.glossaryTerms != null
@@ -694,20 +762,68 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             }
           : context;
 
-      const translation = await runTranslationStep(
-        sandboxId,
-        inputFilename,
-        outputPattern,
-        parsedInput.sourceLocale,
-        locales,
-        retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
-        runContext,
-        Object.fromEntries(
-          locales
-            .filter((locale) => prefilledByLocale[locale])
-            .map((locale) => [locale, prefilledByLocale[locale]]),
-        ),
-      );
+      const runOnce = async (runForce: boolean) =>
+        runTranslationStep(
+          sandboxId,
+          inputFilename,
+          outputPattern,
+          parsedInput.sourceLocale,
+          locales,
+          retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
+          runContext,
+          Object.fromEntries(
+            locales
+              .filter((locale) => prefilledByLocale[locale])
+              .map((locale) => [locale, prefilledByLocale[locale]]),
+          ),
+          { force: runForce },
+        );
+
+      let translation: Awaited<ReturnType<typeof runTranslationStep>>;
+      try {
+        translation = await runOnce(force);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (!isSandboxDisconnectMessage(message)) {
+          throw error;
+        }
+
+        // Prefer same-sandbox resume without --force so the lockfile can skip
+        // completed tasks. Only recreate when that still cannot accept commands.
+        console.warn("[file-translation-workflow] sandbox disconnect; retrying without force", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          sandboxId,
+          targetLocales: locales,
+          attempt,
+          error: message,
+        });
+        try {
+          translation = await runOnce(false);
+        } catch (retryError) {
+          const retryMessage = retryError instanceof Error ? retryError.message : "";
+          if (!isSandboxDisconnectMessage(retryMessage)) {
+            throw retryError;
+          }
+
+          console.warn("[file-translation-workflow] sandbox disconnect; recreating sandbox", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            previousSandboxId: sandboxId,
+            targetLocales: locales,
+            attempt,
+            error: retryMessage,
+          });
+          const recreated = await recreateSandboxWithSourceStep({
+            previousSandboxId: sandboxId,
+            filename: inputFilename,
+            content: sourceContent,
+          });
+          sandboxId = recreated.sandboxId;
+          // Fresh sandbox has no lockfile — force is irrelevant; keep caller's intent.
+          translation = await runOnce(force);
+        }
+      }
 
       if (translation.exitCode !== 0) {
         const cliFailureKind = classifyCliFailureKind(translation.output);
@@ -718,6 +834,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           fileFormat: parsedInput.fileFormat,
           targetLocales: locales,
           attempt,
+          force,
           sandboxInputExtension: fileExtension(inputFilename),
           exitCode: translation.exitCode,
           cliOutputLength: translation.output.length,
@@ -735,6 +852,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         fileFormat: parsedInput.fileFormat,
         targetLocales: locales,
         attempt,
+        force,
         exitCode: translation.exitCode,
       });
       return { ok: true as const };
@@ -758,7 +876,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     // Happy path: one batched run for all locales. On non-zero exit, salvage
     // any locale outputs the CLI already flushed, then retry only missing ones.
-    const batchResult = await runHlForLocales(parsedInput.targetLocales, 1);
+    const batchResult = await runHlForLocales(parsedInput.targetLocales, 1, { force: true });
     let localesNeedingWork = [...parsedInput.targetLocales];
 
     if (batchResult.ok) {
@@ -785,10 +903,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     }
 
     // Retry missing locales individually so one bad locale cannot block the rest.
+    // Use --force: a failed batch may have checkpointed a locale before flushing output.
     if (localesNeedingWork.length > 0) {
       const stillMissing: string[] = [];
       for (const targetLocale of localesNeedingWork) {
-        const localeResult = await runHlForLocales([targetLocale], 1);
+        const localeResult = await runHlForLocales([targetLocale], 1, { force: true });
         if (!localeResult.ok) {
           stillMissing.push(targetLocale);
           // Replace batch-level failure with the per-locale one when available.
@@ -875,7 +994,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           ),
         ].join("\n");
 
-        const retryResult = await runHlForLocales([targetLocale], 2, feedback);
+        const retryResult = await runHlForLocales([targetLocale], 2, {
+          retryFeedback: feedback,
+          force: true,
+        });
         if (!retryResult.ok) {
           translatedByLocale.delete(targetLocale);
           stillFailing.push({ targetLocale, failures });

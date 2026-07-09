@@ -22,6 +22,16 @@ vi.mock("@vercel/sandbox", () => ({
     create: sandboxMocks.create,
     get: sandboxMocks.get,
   },
+  StreamError: class StreamError extends Error {
+    code: string;
+    sessionId: string;
+    constructor(code: string, message: string, sessionId: string) {
+      super(message);
+      this.name = "StreamError";
+      this.code = code;
+      this.sessionId = sessionId;
+    }
+  },
 }));
 
 import {
@@ -31,15 +41,21 @@ import {
   buildTempConfig,
   createTranslationSandbox,
   getOutputFilenamePattern,
+  isSandboxDisconnectError,
+  isSandboxStreamClosedError,
+  isSandboxTransientNetworkError,
+  readTranslatedFile,
   runSandboxCommand,
   sandboxFileBucketName,
   sandboxI18nConfigPath,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox";
+import { StreamError } from "@vercel/sandbox";
 
 describe("sandbox command runner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // createConfiguredVercelSandbox calls sandbox.runCommand directly (blocking).
     sandboxMocks.runCommand.mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
@@ -71,10 +87,14 @@ describe("sandbox command runner", () => {
   });
 
   it("captures combined output by default", async () => {
-    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
-    sandboxMocks.runCommand.mockResolvedValueOnce({
+    const wait = vi.fn().mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
     });
     sandboxMocks.get.mockResolvedValueOnce({
       runCommand: sandboxMocks.runCommand,
@@ -89,10 +109,14 @@ describe("sandbox command runner", () => {
   });
 
   it("can capture stdout only for machine-readable command output", async () => {
-    sandboxMocks.output.mockResolvedValueOnce('{"hello":"world"}');
-    sandboxMocks.runCommand.mockResolvedValueOnce({
+    const wait = vi.fn().mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce('{"hello":"world"}');
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
     });
     sandboxMocks.get.mockResolvedValueOnce({
       runCommand: sandboxMocks.runCommand,
@@ -108,6 +132,154 @@ describe("sandbox command runner", () => {
     });
 
     expect(sandboxMocks.output).toHaveBeenCalledWith("stdout");
+  });
+
+  it("detects sandbox stream closed errors", () => {
+    expect(
+      isSandboxStreamClosedError(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxStreamClosedError(
+        new Error("Sandbox stream was closed and is not accepting commands."),
+      ),
+    ).toBe(true);
+    expect(isSandboxStreamClosedError(new Error("translation failed"))).toBe(false);
+  });
+
+  it("detects undici terminated network disconnects", () => {
+    const terminated = new TypeError("terminated");
+    (terminated as Error & { cause?: Error }).cause = Object.assign(new Error("read ECONNRESET"), {
+      code: "ECONNRESET",
+    });
+
+    expect(isSandboxTransientNetworkError(terminated)).toBe(true);
+    expect(isSandboxDisconnectError(terminated)).toBe(true);
+    expect(isSandboxStreamClosedError(terminated)).toBe(false);
+  });
+
+  it("runs commands detached and waits for completion", async () => {
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "stdout and stderr",
+    });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "echo",
+      args: ["hello"],
+      env: undefined,
+      detached: true,
+    });
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(sandboxMocks.output).toHaveBeenCalledWith("both");
+  });
+
+  it("retries wait when the wait connection drops with TypeError terminated", async () => {
+    const wait = vi.fn().mockRejectedValueOnce(new TypeError("terminated")).mockResolvedValueOnce({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(wait).toHaveBeenCalledTimes(2);
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers the sandbox session and retries wait when the command stream closes", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const wait = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      )
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        output: sandboxMocks.output,
+      });
+    const getCommand = vi.fn().mockResolvedValue({ wait });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        stop,
+      })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({
+        getCommand,
+      });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: false });
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(getCommand).toHaveBeenCalledWith("cmd_1");
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries read without stop/resume when the read connection drops", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const readFileToBuffer = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("terminated"))
+      .mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+    sandboxMocks.get
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({ readFileToBuffer });
+
+    await expect(readTranslatedFile("sandbox_123", "source-de-DE.md")).resolves.toEqual(
+      Buffer.from([1, 2, 3]),
+    );
+
+    expect(readFileToBuffer).toHaveBeenCalledTimes(2);
+    expect(stop).not.toHaveBeenCalled();
+    expect(sandboxMocks.get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resume: expect.anything() }),
+    );
   });
 });
 
@@ -272,5 +444,23 @@ describe("sandbox translation failure reasons", () => {
         },
       ),
     ).toBe("the markdown file couldn't be parsed for translation.");
+  });
+
+  it("maps sandbox stream closed errors to a temporary disconnect message", () => {
+    expect(
+      userFacingFailureReason(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(
+      "the translation environment disconnected mid-run. This is usually temporary — try again.",
+    );
+
+    expect(userFacingFailureReason(new TypeError("terminated"))).toBe(
+      "the translation environment disconnected mid-run. This is usually temporary — try again.",
+    );
   });
 });
