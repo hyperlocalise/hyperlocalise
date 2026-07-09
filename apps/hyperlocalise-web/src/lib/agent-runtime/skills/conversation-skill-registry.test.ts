@@ -62,6 +62,7 @@ describe("conversation skill registry", () => {
     const visualMockSkill = skills.find((skill) => skill.id === "visual-mock");
     expect(visualMockSkill).toMatchObject({
       requiresSandbox: true,
+      requiresVisualMockSkill: true,
       tools: ["grep", "fuzzySearch", "read", "glob", "todoWrite", "write", "applyPatch", "fetch"],
     });
   });
@@ -155,7 +156,7 @@ describe("conversation skill registry", () => {
     ).toBe(true);
   });
 
-  it("activates visual-mock when a sandbox is available", () => {
+  it("activates visual-mock when a sandbox is available and the flag is enabled", () => {
     const visualMockSkill = listConversationSkills().find((skill) => skill.id === "visual-mock");
     expect(visualMockSkill).toBeDefined();
 
@@ -165,6 +166,7 @@ describe("conversation skill registry", () => {
         toConversationSkillActivationContext({
           hasFileAttachments: false,
           hasTmsIntegration: false,
+          hasVisualMockSkill: true,
           toolContext: {
             conversationId: "conv_1",
             organizationId: "org_1",
@@ -173,10 +175,37 @@ describe("conversation skill registry", () => {
             projectId: null,
             db: {} as never,
             sandboxId: "sbx_1",
+            workMode: "read_only",
           },
         }),
       ),
     ).toBe(true);
+  });
+
+  it("does not activate visual-mock when the flag is disabled", () => {
+    const visualMockSkill = listConversationSkills().find((skill) => skill.id === "visual-mock");
+    expect(visualMockSkill).toBeDefined();
+
+    expect(
+      isConversationSkillActivated(
+        visualMockSkill!,
+        toConversationSkillActivationContext({
+          hasFileAttachments: false,
+          hasTmsIntegration: false,
+          hasVisualMockSkill: false,
+          toolContext: {
+            conversationId: "conv_1",
+            organizationId: "org_1",
+            localUserId: "user_1",
+            membershipRole: "member",
+            projectId: null,
+            db: {} as never,
+            sandboxId: "sbx_1",
+            workMode: "read_only",
+          },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("always activates translation-tools", () => {
@@ -245,6 +274,42 @@ describe("conversation skill registry", () => {
     expect(toolNames).toEqual(["translate_string", "list_projects"]);
   });
 
+  it("gates repository write tools from read-only conversation runtimes", () => {
+    const toolNames = filterAvailableConversationToolNames(["grep", "write", "applyPatch"], {
+      hasFileAttachments: false,
+      toolContext: {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+        sandboxId: "sbx_1",
+        workMode: "read_only",
+      },
+    });
+
+    expect(toolNames).toEqual(["grep"]);
+  });
+
+  it("allows repository write tools for write-enabled conversation runtimes", () => {
+    const toolNames = filterAvailableConversationToolNames(["grep", "write", "applyPatch"], {
+      hasFileAttachments: false,
+      toolContext: {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+        sandboxId: "sbx_1",
+        workMode: "write",
+      },
+    });
+
+    expect(toolNames).toEqual(["grep", "write", "applyPatch"]);
+  });
+
   it("parses comma-separated frontmatter values", () => {
     expect(
       parseConversationSkillMetadata({
@@ -253,6 +318,7 @@ describe("conversation skill registry", () => {
           tools: "list_projects, check_crowdin_progress",
           sharedSkills: "crowdin",
           requiresTmsIntegration: "true",
+          requiresVisualMockSkill: "true",
         },
         body: "",
       }),
@@ -260,6 +326,7 @@ describe("conversation skill registry", () => {
       tools: ["list_projects", "check_crowdin_progress"],
       sharedSkills: ["crowdin"],
       requiresTmsIntegration: true,
+      requiresVisualMockSkill: true,
     });
   });
 });

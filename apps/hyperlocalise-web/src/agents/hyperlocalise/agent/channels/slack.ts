@@ -24,6 +24,7 @@ import {
 } from "@/lib/agent-runtime/runs/agent-run-events";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
+import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
 import {
   addInteractionMessage,
@@ -398,7 +399,13 @@ async function processSlackMessage(
       }
     }
 
-    const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(organizationId);
+    const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
+      resolveOrganizationHasTmsIntegration(organizationId),
+      resolveWorkspaceVisualMockFlag({
+        organizationId,
+        localUserId: membership.localUserId,
+      }),
+    ]);
 
     const agent = createConversationToolLoopAgent({
       surface: "slack",
@@ -413,7 +420,7 @@ async function processSlackMessage(
           ? {
               sandboxId,
               githubContext: resolvedRepositoryContext,
-              workMode: "read_only" as const,
+              workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
               repositorySource: "slack" as const,
               actor: {
                 sourceUserId: message.author.userId,
@@ -425,6 +432,7 @@ async function processSlackMessage(
       },
       hasFileAttachments: hasTranslationAttachments,
       hasTmsIntegration,
+      hasVisualMockSkill,
       additionalInstructions: [buildFileTranslationInstructions(), repositoryContextInstructions]
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),

@@ -32,6 +32,7 @@ import {
   getRepositoryContextKey,
   type ConversationRepositorySession,
 } from "./conversation-repository-session";
+import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 
 const logger = createLogger("conversation-turn");
 
@@ -339,7 +340,14 @@ export async function prepareConversationAgentTurn(
     }
   }
 
-  const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(input.organizationId);
+  const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
+    resolveOrganizationHasTmsIntegration(input.organizationId),
+    resolveWorkspaceVisualMockFlag({
+      organizationId: input.organizationId,
+      localUserId: input.localUserId,
+      dbClient: input.db,
+    }),
+  ]);
 
   const preparedMessages = replaceLastUserMessage(chatMessages, input.messageText);
 
@@ -356,7 +364,7 @@ export async function prepareConversationAgentTurn(
         ? {
             sandboxId,
             githubContext: activeRepositoryContext,
-            workMode: "read_only" as const,
+            workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
             repositorySource: input.repositorySource ?? "chat_ui",
             actor: input.actor,
           }
@@ -364,6 +372,7 @@ export async function prepareConversationAgentTurn(
     },
     hasFileAttachments: input.hasTranslationAttachments,
     hasTmsIntegration,
+    hasVisualMockSkill,
     additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),
