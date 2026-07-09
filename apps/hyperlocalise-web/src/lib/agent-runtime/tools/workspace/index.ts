@@ -7,7 +7,12 @@ export { createGrepTool } from "./grep";
 export { createFuzzySearchTool } from "./fuzzy-search";
 export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
-export { createFetchTool, isAllowedWebUrl } from "./fetch";
+export {
+  convertHTMLToMarkdown,
+  createFetchTool,
+  extractTextFromHTML,
+  isAllowedWebUrl,
+} from "./fetch";
 export { createTodoWriteTool } from "./todo";
 
 export const workspacePrimitiveToolNames = [

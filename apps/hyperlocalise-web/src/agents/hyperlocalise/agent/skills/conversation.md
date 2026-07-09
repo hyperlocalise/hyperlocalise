@@ -14,6 +14,7 @@ Use the capability skills and tools available for this turn. Match the user's re
 - **repo-tools** — read-only search and inspection tools for the connected GitHub repository
 - **find-context** — find localization context for source text or keys using repo-tools
 - **translation-tools** — translate files, images, or inline strings and create translation jobs
+- **web-tools** — fetch public web pages and documentation as markdown
 
 When multiple capability skills are active, gather repository context before creating translation jobs when both apply.
 
