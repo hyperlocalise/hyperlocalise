@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -47,7 +48,8 @@ func (v *poValue) Reset() {
 }
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
-	out := map[string]string{}
+	// BOLT OPTIMIZATION: Use a map capacity hint based on content size to reduce re-allocations.
+	out := make(map[string]string, len(content)/64)
 
 	var currentMsgID poValue
 	var currentMsgStr poValue
@@ -223,8 +225,8 @@ func parsePOQuoted(raw string) (string, error) {
 // MarshalPOFile preserves .po structure while replacing msgstr/msgstr[0] values by msgid key.
 func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 	// BOLT OPTIMIZATION: Avoid strings.Split(string(template), "\n") to reduce allocations for large files.
-	// We use a builder to reconstruct the file line by line.
-	var out strings.Builder
+	// We use a bytes.Buffer to reconstruct the file line by line and avoid redundant string copies.
+	var out bytes.Buffer
 	out.Grow(len(template))
 
 	s := string(template)
@@ -303,10 +305,10 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 		lineNumber++
 	}
 
-	return []byte(out.String()), nil
+	return out.Bytes(), nil
 }
 
-func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
+func writePOQuotedSuffix(w *bytes.Buffer, raw, field, value string) {
 	w.WriteString(preserveIndent(raw))
 	w.WriteString(field)
 	w.WriteByte(' ')

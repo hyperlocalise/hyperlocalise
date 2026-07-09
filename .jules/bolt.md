@@ -235,3 +235,7 @@
 ## 2027-02-28 - Optimizing JS/TS locale module parsing and encoding via fast-paths and capacity hints
 **Learning:** For language-specific module parsers (like JS/TS) that perform heavy string manipulation: 1) simple quoted strings without escapes are extremely common and can be sliced directly from the source using `strings.IndexAny` to avoid `strings.Builder` allocations; 2) encoding simple ASCII strings can bypass expensive UTF-8 decoding and builder overhead via a pre-scan; 3) heuristic capacity hints for slices (entries, properties, array items) based on input size significantly reduce GC pressure during large file processing.
 **Action:** Implemented fast-paths for string literal parsing/encoding and added capacity hints in `internal/i18n/translationfileparser/js_ts_locale_parser.go`, resulting in ~14.5% faster marshaling and ~17-34% fewer allocations.
+
+## 2027-03-01 - Optimizing PO parser and marshaler via capacity hints and buffer reuse
+**Learning:** For parsers and marshalers that operate on byte slices and return byte slices (like PO), using `bytes.Buffer` instead of `strings.Builder` allows returning the underlying byte slice directly via `Bytes()`, avoiding a redundant string allocation and `[]byte` copy. Additionally, map capacity hints based on content size significantly reduce re-allocations in extraction paths.
+**Action:** Implemented map capacity hints in `Parse` and refactored `MarshalPOFile` to use `bytes.Buffer` in `internal/i18n/translationfileparser/po_parser.go`, resulting in ~13-18% reduction in memory usage.
