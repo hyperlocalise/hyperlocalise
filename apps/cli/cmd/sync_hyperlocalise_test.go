@@ -169,6 +169,70 @@ func TestHyperlocalisePushDryRunPlansGlobSourcePaths(t *testing.T) {
 	}
 }
 
+func TestPlanHyperlocaliseFilesExpandsBlogMarkdownGlob(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writePushSourceFile(t, "_posts/en/what-is-translation-intelligence.md", "# What is translation intelligence")
+	writePushSourceFile(t, "_posts/en/how-to-add-ai-translation.md", "# How to add AI translation")
+	writePushSourceFile(t, "_posts/zh-CN/what-is-translation-intelligence.md", "# 什么是翻译智能")
+
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{
+			Source:  "en-US",
+			Targets: []string{"zh-CN", "de-DE"},
+		},
+		Buckets: map[string]config.BucketConfig{
+			"blog": {
+				Files: []config.BucketFileMapping{{
+					From: "_posts/en/**/*.md",
+					To:   "_posts/{{target}}/**/*.md",
+				}},
+			},
+		},
+	}
+
+	plans, err := planHyperlocaliseFiles(cfg, nil)
+	if err != nil {
+		t.Fatalf("planHyperlocaliseFiles: %v", err)
+	}
+	if len(plans) != 2 {
+		t.Fatalf("len(plans) = %d, want 2 expanded English markdown sources", len(plans))
+	}
+
+	bySource := make(map[string]hyperlocaliseFilePlan, len(plans))
+	for _, plan := range plans {
+		if strings.Contains(plan.SourcePath, "*") {
+			t.Fatalf("source path still contains glob tokens: %q", plan.SourcePath)
+		}
+		if plan.SourceHash == "" {
+			t.Fatalf("source hash empty for %q", plan.SourcePath)
+		}
+		if plan.FileFormat != "markdown" {
+			t.Fatalf("fileFormat = %q, want markdown for %q", plan.FileFormat, plan.SourcePath)
+		}
+		bySource[filepath.ToSlash(plan.SourcePath)] = plan
+	}
+
+	first, ok := bySource["_posts/en/how-to-add-ai-translation.md"]
+	if !ok {
+		t.Fatalf("missing plan for _posts/en/how-to-add-ai-translation.md, got %#v", bySource)
+	}
+	if got := filepath.ToSlash(first.TargetPaths["zh-CN"]); got != "_posts/zh-CN/how-to-add-ai-translation.md" {
+		t.Fatalf("zh-CN target = %q, want _posts/zh-CN/how-to-add-ai-translation.md", got)
+	}
+	if got := filepath.ToSlash(first.TargetPaths["de-DE"]); got != "_posts/de-DE/how-to-add-ai-translation.md" {
+		t.Fatalf("de-DE target = %q, want _posts/de-DE/how-to-add-ai-translation.md", got)
+	}
+
+	second, ok := bySource["_posts/en/what-is-translation-intelligence.md"]
+	if !ok {
+		t.Fatalf("missing plan for _posts/en/what-is-translation-intelligence.md, got %#v", bySource)
+	}
+	if got := filepath.ToSlash(second.TargetPaths["zh-CN"]); got != "_posts/zh-CN/what-is-translation-intelligence.md" {
+		t.Fatalf("zh-CN target = %q, want _posts/zh-CN/what-is-translation-intelligence.md", got)
+	}
+}
+
 func TestHyperlocalisePushDryRunPlansWithoutUploading(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

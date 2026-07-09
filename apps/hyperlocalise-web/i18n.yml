@@ -4,6 +4,8 @@ locales:
   targets:
     - zh-CN
     - vi-VN
+    - de-DE
+    - fr-FR
 
 buckets:
   web:
