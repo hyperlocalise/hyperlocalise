@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
@@ -9,15 +8,9 @@ import { ListIcon } from "lucide-react";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
-import {
-  buildProjectFileCatHref,
-  canOpenProjectFileCat,
-} from "@/lib/projects/project-file-cat-routing";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
-import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
-import { DownloadTranslationsDialog } from "./download-translations-dialog";
-import { ImportTranslationsDialog } from "./import-translations-dialog";
+import { ProjectFileActionDialogs } from "./project-file-action-dialogs";
+import { useProjectFileActions } from "./use-project-file-actions";
 
 const EMPTY_STRING_ARRAY: readonly string[] = [];
 
@@ -42,57 +35,16 @@ export function ProjectFileSelectionActions({
   branch?: string | null;
   layout?: "default" | "compact";
 }) {
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
-  const canOpenCat = canOpenProjectFileCat(file);
-  const isNativeFile = !file.provider;
-  const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
-  const stableTargetLocales = useMemo(() => [...targetLocales], [targetLocales]);
-  const canTranslateWithAgent =
-    isNativeFile &&
-    Boolean(file.storedFileId) &&
-    Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath)) &&
-    targetLocales.length > 0;
-  const catHref = buildProjectFileCatHref(
+  const actions = useProjectFileActions({
     organizationSlug,
     projectId,
     file,
     highlightLocale,
-    branch,
     projectTargetLocales,
-  );
-
-  const nativeDialogs = isNativeFile ? (
-    <>
-      <CreateTranslationJobDialog
-        open={translateDialogOpen}
-        onOpenChange={setTranslateDialogOpen}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        file={file}
-        sourceLocale={sourceLocale}
-        targetLocales={stableTargetLocales}
-      />
-      <ImportTranslationsDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        sourcePath={file.sourcePath}
-        targetLocales={targetLocales}
-      />
-      <DownloadTranslationsDialog
-        open={downloadDialogOpen}
-        onOpenChange={setDownloadDialogOpen}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        sourcePaths={nativeSourcePaths}
-        initialSourcePath={file.sourcePath}
-        targetLocales={targetLocales}
-      />
-    </>
-  ) : null;
+    sourceLocale,
+    nativeSourcePaths,
+    branch,
+  });
 
   const actionButtons = (
     <>
@@ -100,25 +52,21 @@ export function ProjectFileSelectionActions({
         type="button"
         size="sm"
         className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-        disabled={!canOpenCat || !catHref}
-        render={canOpenCat && catHref ? <Link href={catHref} /> : undefined}
+        disabled={!actions.canOpenCat || !actions.catHref}
+        render={actions.canOpenCat && actions.catHref ? <Link href={actions.catHref} /> : undefined}
       >
         <ListIcon />
         View strings
       </Button>
-      {isNativeFile ? (
+      {actions.isNativeFile ? (
         <>
           <Button
             type="button"
             size="sm"
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-            disabled={!canTranslateWithAgent}
-            title={
-              canTranslateWithAgent
-                ? undefined
-                : "Upload a supported file and add target locales in project settings to translate with agent."
-            }
-            onClick={() => setTranslateDialogOpen(true)}
+            disabled={!actions.canTranslateWithAgent}
+            title={actions.translateDisabledTitle}
+            onClick={() => actions.setTranslateDialogOpen(true)}
           >
             <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
             Translate with agent
@@ -128,7 +76,7 @@ export function ProjectFileSelectionActions({
             size="sm"
             variant="outline"
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-            onClick={() => setImportDialogOpen(true)}
+            onClick={() => actions.setImportDialogOpen(true)}
           >
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
             Import translations
@@ -138,7 +86,7 @@ export function ProjectFileSelectionActions({
             size="sm"
             variant="outline"
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-            onClick={() => setDownloadDialogOpen(true)}
+            onClick={() => actions.setDownloadDialogOpen(true)}
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
             Download
@@ -151,7 +99,7 @@ export function ProjectFileSelectionActions({
   if (layout === "compact") {
     return (
       <>
-        {nativeDialogs}
+        <ProjectFileActionDialogs file={file} actions={actions} />
         <div className="flex flex-wrap items-center justify-end gap-2">{actionButtons}</div>
       </>
     );
@@ -159,14 +107,14 @@ export function ProjectFileSelectionActions({
 
   return (
     <>
-      {nativeDialogs}
+      <ProjectFileActionDialogs file={file} actions={actions} />
       <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <TypographyP className="truncate font-mono text-sm text-foreground">
             {file.sourcePath}
           </TypographyP>
           <TypographyP className="text-xs text-muted-foreground">
-            {canOpenCat
+            {actions.canOpenCat
               ? "Open this file in the CAT workspace to review and edit translations."
               : "The CAT workspace is not available for this file yet."}
           </TypographyP>
