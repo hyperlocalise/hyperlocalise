@@ -1,10 +1,25 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
 )
+
+// MarshalJSONIndent encodes v as indented JSON with a trailing newline.
+// HTML-sensitive characters (<, >, &) are not escaped so locale files with
+// ICU rich-text tags remain readable in version control.
+func MarshalJSONIndent(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
 // MarshalJSON rewrites a JSON translation file using the provided flattened values.
 func MarshalJSON(template []byte, values map[string]string) ([]byte, error) {
@@ -32,11 +47,11 @@ func MarshalJSON(template []byte, values map[string]string) ([]byte, error) {
 		rewriteJSONObject(payload, "", values)
 	}
 
-	body, err := json.MarshalIndent(payload, "", "  ")
+	body, err := MarshalJSONIndent(payload)
 	if err != nil {
 		return nil, fmt.Errorf("json encode: %w", err)
 	}
-	return append(body, '\n'), nil
+	return body, nil
 }
 
 func rewriteJSONObject(payload map[string]any, prefix string, values map[string]string) {
