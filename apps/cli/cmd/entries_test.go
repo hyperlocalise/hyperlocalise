@@ -152,6 +152,31 @@ func TestEntriesCommandAlignsMarkdownTargetToSourceKeys(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandRejectsMismatchedMarkdownSourceExtension(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "guide.md")
+	targetPath := filepath.Join(dir, "guide-fr.mdx")
+	if err := os.WriteFile(sourcePath, []byte("# Guide\n\nExisting intro.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(targetPath, []byte("# Guide\n\nIntro existant.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", targetPath, "--source", sourcePath})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected mismatched markdown/MDX source extension to fail")
+	}
+	if !strings.Contains(err.Error(), `source extension ".md" does not match target extension ".mdx"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEntriesCommandWithoutSourceRehashesMarkdownTarget(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "guide.md")

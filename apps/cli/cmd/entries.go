@@ -66,6 +66,10 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale st
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
+			sourceExt := strings.ToLower(filepath.Ext(sourcePath))
+			if sourceExt != ext {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", sourceExt, ext)
+			}
 			sourceContent, err := os.ReadFile(sourcePath)
 			if err != nil {
 				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
