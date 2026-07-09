@@ -1,5 +1,5 @@
 name: Hyperlocalise Web Sync
-description: Extract React Intl catalogs, upload sources, or download translations for apps/hyperlocalise-web.
+description: Extract React Intl catalogs, upload sources, or download and pack translations for apps/hyperlocalise-web.
 
 inputs:
   mode:
@@ -182,6 +182,23 @@ runs:
 
         pushd "${WORKING_DIRECTORY}" >/dev/null
         hyperlocalise "${args[@]}" | tee "${PULL_REPORT_PATH}"
+        popd >/dev/null
+
+    - name: Pack React Intl catalogs
+      if: ${{ (inputs.mode == 'download' || inputs.mode == 'all') && inputs.dry-run != 'true' }}
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        args=(pack)
+        if [[ -n "${CONFIG_PATH}" ]]; then
+          args+=(--config "${CONFIG_PATH}")
+        fi
+
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        hyperlocalise "${args[@]}"
         popd >/dev/null
 
     - name: Validate pulled changes

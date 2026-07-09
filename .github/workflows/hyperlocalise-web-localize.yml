@@ -151,7 +151,7 @@ jobs:
             Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
 
             - Source catalog: `apps/hyperlocalise-web/lang/en-US.json` (refreshed via `hyperlocalise extract` before pull)
-            - Target catalogs: `apps/hyperlocalise-web/lang/*.json`
+            - Target catalogs: `apps/hyperlocalise-web/lang/*.json` (packed with `hyperlocalise pack` after pull)
             - Validation: `hyperlocalise check --diff-stdin` on the pulled diff (warnings ignored)
 
             Review ICU placeholders, message ids, and locale coverage before merging.
