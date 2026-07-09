@@ -223,6 +223,7 @@ export async function insertRepositoryPublicFileJob(params: {
         storedFileId,
         sourceHash: params.sourceHash,
         uploadSurface: "public_api",
+        versionSequence: 1,
         createdAt: params.versionCreatedAt,
       })
       .returning();

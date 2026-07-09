@@ -154,10 +154,15 @@ export const repositorySourceFileVersions = pgTable(
     ingestError: text("ingest_error"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }),
     ingestWorkflowRunId: text("ingest_workflow_run_id"),
+    versionSequence: integer("version_sequence").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("repository_source_file_versions_stored_file_key").on(table.storedFileId),
+    uniqueIndex("repository_source_file_versions_file_sequence_key").on(
+      table.repositorySourceFileId,
+      table.versionSequence,
+    ),
     index("idx_repository_source_file_versions_file_created").on(
       table.repositorySourceFileId,
       table.createdAt,

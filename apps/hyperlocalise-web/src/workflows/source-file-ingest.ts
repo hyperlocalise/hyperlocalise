@@ -37,6 +37,9 @@ function userFacingIngestFailureReason(error: unknown): string {
   if (message.includes("failed to extract entries")) {
     return "the file format could not be parsed into translation keys";
   }
+  if (message.includes("no valid translation keys")) {
+    return "the file contains no valid translation keys";
+  }
   return message;
 }
 
@@ -78,15 +81,18 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
     const entries = await parseHlEntriesStep(extractedEntries);
 
-    if (entries.length > 0) {
-      await upsertSourceFileTranslationKeysStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        repositorySourceFileId,
-        sourceFileVersionId: event.sourceFileVersionId,
-        entries,
-      });
+    if (entries.length === 0 && Object.keys(extractedEntries).length > 0) {
+      throw new Error("the file contains no valid translation keys");
     }
+
+    // Sync keys (including truly empty files) so removed keys are pruned.
+    const keySync = await upsertSourceFileTranslationKeysStep({
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      repositorySourceFileId,
+      sourceFileVersionId: event.sourceFileVersionId,
+      entries,
+    });
 
     await markSourceFileIngestStateStep({
       sourceFileVersionId: event.sourceFileVersionId,
@@ -107,7 +113,9 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
 
     return {
       status: "ingested" as const,
-      importedKeyCount: entries.length,
+      importedKeyCount: keySync.imported + keySync.updated,
+      deletedKeyCount: keySync.deleted,
+      truncated: keySync.truncated,
     };
   } catch (error) {
     const reason = userFacingIngestFailureReason(error);
