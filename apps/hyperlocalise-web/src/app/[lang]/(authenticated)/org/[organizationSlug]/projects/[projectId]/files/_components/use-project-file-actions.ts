@@ -86,20 +86,15 @@ export function useProjectFileActions({
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
 
-  const {
-    canOpenCat,
-    canTranslateWithAgent,
-    catHref,
-    isNativeFile,
-    translateDisabledTitle,
-  } = buildProjectFileActionCapabilities({
-    organizationSlug,
-    projectId,
-    file,
-    highlightLocale,
-    projectTargetLocales,
-    branch,
-  });
+  const { canOpenCat, canTranslateWithAgent, catHref, isNativeFile, translateDisabledTitle } =
+    buildProjectFileActionCapabilities({
+      organizationSlug,
+      projectId,
+      file,
+      highlightLocale,
+      projectTargetLocales,
+      branch,
+    });
   const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
   const stableTargetLocales = useMemo(() => [...targetLocales], [targetLocales]);
 

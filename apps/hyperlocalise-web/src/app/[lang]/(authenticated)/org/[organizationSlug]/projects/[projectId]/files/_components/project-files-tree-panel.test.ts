@@ -49,10 +49,7 @@ describe("project files browser capacity", () => {
       createProjectFileRecord({ sourcePath: "feature/checkout.json" }),
     ];
 
-    queryClient.setQueryData(
-      projectFilesQueryKey("acme", "proj_1", undefined, "main"),
-      mainFiles,
-    );
+    queryClient.setQueryData(projectFilesQueryKey("acme", "proj_1", undefined, "main"), mainFiles);
     queryClient.setQueryData(
       projectFilesQueryKey("acme", "proj_1", undefined, "feature"),
       featureFiles,

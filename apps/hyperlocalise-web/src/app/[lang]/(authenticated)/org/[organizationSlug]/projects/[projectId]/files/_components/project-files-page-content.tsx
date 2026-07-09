@@ -301,13 +301,10 @@ export function ProjectFilesPageContent({
 
   const selectionActionsRef = useRef<ProjectFileSelectionActionsHandle>(null);
 
-  const openFileDialog = useCallback(
-    (file: ProjectFileRecord, openDialog: () => void) => {
-      flushSync(() => setSelectedSourcePath(file.sourcePath));
-      queueMicrotask(openDialog);
-    },
-    [],
-  );
+  const openFileDialog = useCallback((file: ProjectFileRecord, openDialog: () => void) => {
+    flushSync(() => setSelectedSourcePath(file.sourcePath));
+    queueMicrotask(openDialog);
+  }, []);
 
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
