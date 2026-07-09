@@ -449,14 +449,16 @@ export class HyperlocaliseCliRunner {
   async extractEntries(
     sandboxId: string,
     path: string,
-    options?: { locale?: string },
+    options?: { locale?: string; sourcePath?: string },
   ): Promise<Record<string, string> | null> {
     const locale = options?.locale?.trim();
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
+    const sourcePath = options?.sourcePath?.trim();
+    const sourceFlag = sourcePath ? ` --source ${shellQuote(sourcePath)}` : "";
     const result = await this.lifecycle.runCommand(
       sandboxId,
       "bash",
-      ["-lc", `hl entries ${shellQuote(path)}${localeFlag}`],
+      ["-lc", `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}`],
       { env: getSandboxTranslationEnv(), output: "stdout" },
     );
     if (result.exitCode !== 0) {
@@ -643,7 +645,7 @@ export async function writeCrowdinFileSandboxConfig(input: {
 export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
-  options?: { locale?: string },
+  options?: { locale?: string; sourcePath?: string },
 ) {
   return defaultRunner.extractEntries(sandboxId, path, options);
 }
