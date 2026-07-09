@@ -109,8 +109,8 @@ function DashboardPanel({
   renderLink?: DashboardLinkRenderer;
 }) {
   return (
-    <Card className="rounded-lg border border-border bg-muted py-0 text-foreground ring-0">
-      <CardHeader className="px-5 pt-5">
+    <Card className="rounded-lg border border-border bg-card py-0 text-foreground ring-0">
+      <CardHeader className="border-b border-border px-5 pt-5 pb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-lg text-foreground">{title}</CardTitle>
@@ -123,10 +123,10 @@ function DashboardPanel({
           />
         </div>
       </CardHeader>
-      <CardContent className="px-5 pb-5">
+      <CardContent className="px-0 pb-0">
         {isLoading ? (
           <div
-            className="grid gap-2"
+            className="flex flex-col divide-y divide-border"
             aria-busy="true"
             aria-label={`Loading ${title.toLowerCase()}`}
           >
@@ -135,35 +135,39 @@ function DashboardPanel({
             ))}
           </div>
         ) : isError ? (
-          <div className="flex items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
-            <HugeiconsIcon
-              icon={AlertCircleIcon}
-              strokeWidth={1.8}
-              className="mt-0.5 size-5 text-flame-100"
-            />
-            <TypographyP className="text-sm text-muted-foreground">
-              {errorMessage ?? `${title} could not be loaded.`}
-            </TypographyP>
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="flex flex-1 items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                strokeWidth={1.8}
+                className="mt-0.5 size-5 text-flame-100"
+              />
+              <TypographyP className="text-sm text-muted-foreground">
+                {errorMessage ?? `${title} could not be loaded.`}
+              </TypographyP>
+            </div>
           </div>
         ) : (
           <>
             {isEmpty && emptyMessage ? (
-              <TypographyP className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+              <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
                 {emptyMessage}
               </TypographyP>
             ) : (
-              <div className="grid gap-2">{children}</div>
+              <div className="flex flex-col divide-y divide-border">{children}</div>
             )}
             {warningMessage ? (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-3">
-                <HugeiconsIcon
-                  icon={AlertCircleIcon}
-                  strokeWidth={1.8}
-                  className="mt-0.5 size-4 text-warning"
-                />
-                <TypographyP className="text-sm text-warning-foreground">
-                  {warningMessage}
-                </TypographyP>
+              <div className="border-t border-border px-5 py-3">
+                <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-3">
+                  <HugeiconsIcon
+                    icon={AlertCircleIcon}
+                    strokeWidth={1.8}
+                    className="mt-0.5 size-4 text-warning"
+                  />
+                  <TypographyP className="text-sm text-warning-foreground">
+                    {warningMessage}
+                  </TypographyP>
+                </div>
               </div>
             ) : null}
           </>
@@ -172,7 +176,7 @@ function DashboardPanel({
         {renderLink({
           href: footerHref,
           className:
-            "mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground",
+            "flex items-center gap-2 border-t border-border px-5 py-4 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
           children: (
             <>
               <span>{footerLabel}</span>
@@ -279,7 +283,7 @@ function DashboardHeroSkeleton() {
 
 function DashboardPanelCardSkeleton() {
   return (
-    <div className="rounded-lg border border-border px-3 py-3">
+    <div className="px-5 py-4">
       <div className="flex flex-wrap items-center gap-2">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-5 w-16 rounded-full" />
@@ -433,70 +437,76 @@ function DashboardAutomationsSection({
         })}
       </div>
 
-      <Card className="rounded-lg border border-border bg-muted py-0 ring-0">
-        <CardContent className="px-5 py-5">
+      <Card className="overflow-hidden rounded-lg border border-border bg-card py-0 ring-0">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="grid gap-3" aria-busy="true" aria-label="Loading automation runs">
-              <Skeleton className="h-4 w-48 rounded-full bg-muted" />
+            <div
+              className="flex flex-col divide-y divide-border"
+              aria-busy="true"
+              aria-label="Loading automation runs"
+            >
+              <div className="px-5 py-4">
+                <Skeleton className="h-4 w-48" />
+              </div>
               {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 rounded-lg bg-muted" />
+                <DashboardPanelCardSkeleton key={index} />
               ))}
             </div>
           ) : isError ? (
-            <div className="flex items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
-              <HugeiconsIcon
-                icon={AlertCircleIcon}
-                strokeWidth={1.8}
-                className="mt-0.5 size-5 text-flame-100"
-              />
-              <TypographyP className="text-sm text-muted-foreground">
-                Automation runs could not be loaded.
-              </TypographyP>
+            <div className="flex items-start gap-3 px-5 py-4">
+              <div className="flex flex-1 items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
+                <HugeiconsIcon
+                  icon={AlertCircleIcon}
+                  strokeWidth={1.8}
+                  className="mt-0.5 size-5 text-flame-100"
+                />
+                <TypographyP className="text-sm text-muted-foreground">
+                  Automation runs could not be loaded.
+                </TypographyP>
+              </div>
             </div>
           ) : (
-            <>
-              <TypographyP className="text-sm text-muted-foreground">
+            <div className="flex flex-col divide-y divide-border">
+              <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
                 {stats.total} automations · {stats.active} active · {stats.paused} paused
               </TypographyP>
-              <div className="mt-4 grid gap-2">
-                {runs.length === 0 ? (
-                  <TypographyP className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-                    No automation runs yet.
-                  </TypographyP>
-                ) : (
-                  runs.map((run) => (
-                    <div key={run.id}>
-                      {renderLink({
-                        href: run.href,
-                        className:
-                          "block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted",
-                        children: (
-                          <>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
-                                {run.automationName}
-                              </TypographyP>
-                              <Badge
-                                variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
-                                className="rounded-full capitalize"
-                              >
-                                {run.status}
-                              </Badge>
-                            </div>
-                            <TypographyP className="mt-1 text-xs text-muted-foreground">
-                              {run.triggerSource}
-                              {run.completedAt
-                                ? ` · completed ${formatRelativeTimestamp(run.completedAt)}`
-                                : " · in progress"}
+              {runs.length === 0 ? (
+                <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
+                  No automation runs yet.
+                </TypographyP>
+              ) : (
+                runs.map((run) => (
+                  <div key={run.id}>
+                    {renderLink({
+                      href: run.href,
+                      className:
+                        "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                      children: (
+                        <>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
+                              {run.automationName}
                             </TypographyP>
-                          </>
-                        ),
-                      })}
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+                            <Badge
+                              variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
+                              className="rounded-full capitalize"
+                            >
+                              {run.status}
+                            </Badge>
+                          </div>
+                          <TypographyP className="mt-1 text-xs text-muted-foreground">
+                            {run.triggerSource}
+                            {run.completedAt
+                              ? ` · completed ${formatRelativeTimestamp(run.completedAt)}`
+                              : " · in progress"}
+                          </TypographyP>
+                        </>
+                      ),
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -541,7 +551,7 @@ function DashboardJobsPanel({
     >
       {jobs.map((job) => {
         const content = (
-          <div className="rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted">
+          <>
             <div className="flex flex-wrap items-center gap-2">
               <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
                 {job.name}
@@ -557,18 +567,23 @@ function DashboardJobsPanel({
               {job.projectName ?? "Workspace"} · {job.kindLabel} · updated{" "}
               {formatRelativeTimestamp(job.updatedAt)}
             </TypographyP>
-          </div>
+          </>
         );
 
         if (!job.href) {
-          return <div key={job.id}>{content}</div>;
+          return (
+            <div key={job.id} className="px-5 py-4">
+              {content}
+            </div>
+          );
         }
 
         return (
           <div key={job.id}>
             {renderLink({
               href: job.href,
-              className: "block",
+              className:
+                "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               children: content,
             })}
           </div>
@@ -617,7 +632,7 @@ function DashboardProjectsPanel({
           {renderLink({
             href: project.href,
             className:
-              "block rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted",
+              "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             onClick: () => {
               recordRecentProjectVisit(organizationSlug, project.id);
             },
