@@ -323,13 +323,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 		assertNative  func(t *testing.T, content string)
 	}{
 		{
-			name:         "markdown",
-			sourceLocale: "en-US",
-			targetLocale: "de-DE",
-			sourcePath:   "_posts/en/hello.md",
-			targetPath:   "_posts/de-DE/hello.md",
-			fromPattern:  "_posts/en/**/*.md",
-			toPattern:    "_posts/{{target}}/**/*.md",
+			name:          "markdown",
+			sourceLocale:  "en-US",
+			targetLocale:  "de-DE",
+			sourcePath:    "_posts/en/hello.md",
+			targetPath:    "_posts/de-DE/hello.md",
+			fromPattern:   "_posts/en/**/*.md",
+			toPattern:     "_posts/{{target}}/**/*.md",
 			sourceContent: "# Hello\n\nWorld.\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "World", "Welt")
@@ -345,13 +345,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "json",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/en.json",
-			targetPath:   "locales/fr.json",
-			fromPattern:  "locales/{{source}}.json",
-			toPattern:    "locales/{{target}}.json",
+			name:          "json",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/en.json",
+			targetPath:    "locales/fr.json",
+			fromPattern:   "locales/{{source}}.json",
+			toPattern:     "locales/{{target}}.json",
 			sourceContent: `{"hello":"Hello","bye":"Bye"}`,
 			translate: func(key, value string) string {
 				switch key {
@@ -371,13 +371,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "arb",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "lib/l10n/app_en.arb",
-			targetPath:   "lib/l10n/app_fr.arb",
-			fromPattern:  "lib/l10n/app_{{source}}.arb",
-			toPattern:    "lib/l10n/app_{{target}}.arb",
+			name:          "arb",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "lib/l10n/app_en.arb",
+			targetPath:    "lib/l10n/app_fr.arb",
+			fromPattern:   "lib/l10n/app_{{source}}.arb",
+			toPattern:     "lib/l10n/app_{{target}}.arb",
 			sourceContent: `{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`,
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -393,13 +393,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "po",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/messages.po",
-			targetPath:   "locales/messages.fr.po",
-			fromPattern:  "locales/messages.po",
-			toPattern:    "locales/messages.{{target}}.po",
+			name:          "po",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.po",
+			targetPath:    "locales/messages.fr.po",
+			fromPattern:   "locales/messages.po",
+			toPattern:     "locales/messages.{{target}}.po",
 			sourceContent: "msgid \"hello\"\nmsgstr \"Hello\"\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -415,13 +415,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "html",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "public/page.html",
-			targetPath:   "public/page.fr.html",
-			fromPattern:  "public/page.html",
-			toPattern:    "public/page.{{target}}.html",
+			name:          "html",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "public/page.html",
+			targetPath:    "public/page.fr.html",
+			fromPattern:   "public/page.html",
+			toPattern:     "public/page.{{target}}.html",
 			sourceContent: "<!DOCTYPE html><html><body><p>Hello</p></body></html>",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -437,13 +437,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "fluent",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/en.ftl",
-			targetPath:   "locales/fr.ftl",
-			fromPattern:  "locales/{{source}}.ftl",
-			toPattern:    "locales/{{target}}.ftl",
+			name:          "fluent",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/en.ftl",
+			targetPath:    "locales/fr.ftl",
+			fromPattern:   "locales/{{source}}.ftl",
+			toPattern:     "locales/{{target}}.ftl",
 			sourceContent: "hello = Hello\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -456,13 +456,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "properties",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/messages_en.properties",
-			targetPath:   "locales/messages_fr.properties",
-			fromPattern:  "locales/messages_{{source}}.properties",
-			toPattern:    "locales/messages_{{target}}.properties",
+			name:          "properties",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages_en.properties",
+			targetPath:    "locales/messages_fr.properties",
+			fromPattern:   "locales/messages_{{source}}.properties",
+			toPattern:     "locales/messages_{{target}}.properties",
 			sourceContent: "hello=Hello\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -475,13 +475,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "strings",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "ios/en.lproj/Localizable.strings",
-			targetPath:   "ios/fr.lproj/Localizable.strings",
-			fromPattern:  "ios/{{source}}.lproj/Localizable.strings",
-			toPattern:    "ios/{{target}}.lproj/Localizable.strings",
+			name:          "strings",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "ios/en.lproj/Localizable.strings",
+			targetPath:    "ios/fr.lproj/Localizable.strings",
+			fromPattern:   "ios/{{source}}.lproj/Localizable.strings",
+			toPattern:     "ios/{{target}}.lproj/Localizable.strings",
 			sourceContent: "\"hello\" = \"Hello\";\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -494,13 +494,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "mdx",
-			sourceLocale: "en",
-			targetLocale: "fr-FR",
-			sourcePath:   "docs/en/guide.mdx",
-			targetPath:   "docs/fr-FR/guide.mdx",
-			fromPattern:  "docs/en/**/*.mdx",
-			toPattern:    "docs/{{target}}/**/*.mdx",
+			name:          "mdx",
+			sourceLocale:  "en",
+			targetLocale:  "fr-FR",
+			sourcePath:    "docs/en/guide.mdx",
+			targetPath:    "docs/fr-FR/guide.mdx",
+			fromPattern:   "docs/en/**/*.mdx",
+			toPattern:     "docs/{{target}}/**/*.mdx",
 			sourceContent: "# Guide\n\nWelcome.\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Welcome", "Bienvenue")
@@ -516,13 +516,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "xliff",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/messages.xlf",
-			targetPath:   "locales/messages.fr.xlf",
-			fromPattern:  "locales/messages.xlf",
-			toPattern:    "locales/messages.{{target}}.xlf",
+			name:          "xliff",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.xlf",
+			targetPath:    "locales/messages.fr.xlf",
+			fromPattern:   "locales/messages.xlf",
+			toPattern:     "locales/messages.{{target}}.xlf",
 			sourceContent: `<?xml version="1.0" encoding="UTF-8"?><xliff version="1.2"><file source-language="en" target-language="en"><body><trans-unit id="hello"><source>Hello</source><target>Hello</target></trans-unit></body></file></xliff>`,
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
@@ -538,13 +538,13 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
-			name:         "csv",
-			sourceLocale: "en",
-			targetLocale: "fr",
-			sourcePath:   "locales/messages.csv",
-			targetPath:   "locales/messages.fr.csv",
-			fromPattern:  "locales/messages.csv",
-			toPattern:    "locales/messages.{{target}}.csv",
+			name:          "csv",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "locales/messages.csv",
+			targetPath:    "locales/messages.fr.csv",
+			fromPattern:   "locales/messages.csv",
+			toPattern:     "locales/messages.{{target}}.csv",
 			sourceContent: "key,value\nhello,Hello\n",
 			translate: func(_, value string) string {
 				return strings.ReplaceAll(value, "Hello", "Bonjour")
