@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
+import {
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
 
 import { ProjectFilesTree } from "../files/_components/project-files-tree";
 
@@ -171,6 +176,8 @@ export function CatLocaleSelect({
   selectedTargetLocale: string;
   onTargetLocaleChange: (targetLocale: string) => void;
 }) {
+  const intl = useIntl();
+
   const handleValueChange = (targetLocale: string | null) => {
     if (targetLocale) {
       onTargetLocaleChange(targetLocale);
@@ -180,18 +187,23 @@ export function CatLocaleSelect({
   return (
     <Select value={selectedTargetLocale} onValueChange={handleValueChange}>
       <SelectTrigger
-        className="h-8 min-w-0 flex-1 basis-28 font-mono text-xs sm:max-w-40"
+        className="h-8 min-w-0 flex-1 basis-28 text-xs sm:max-w-48"
         aria-label="Target locale"
         disabled={targetLocales.length <= 1}
       >
         <LocaleIcon className="size-4 text-muted-foreground" />
         <SelectValue placeholder="Locale" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent
+        align="start"
+        alignItemWithTrigger={false}
+        className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
+      >
         {targetLocales.map((locale) => (
-          <SelectItem key={locale} value={locale}>
+          <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
             <LocaleIcon className="size-4 text-muted-foreground" />
-            {locale}
+            <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
+            <span className="font-mono text-muted-foreground">({locale})</span>
           </SelectItem>
         ))}
       </SelectContent>

@@ -29,4 +29,9 @@ describe("locale-display-names.messages", () => {
     expect(formatLocaleDisplayName(intl, "sw-KE")).toContain("Swahili");
     expect(formatLocaleOptionLabel(intl, "sw-KE")).toMatch(/\(sw-KE\)$/);
   });
+
+  it("formats language-only tags like provider locale ids", () => {
+    expect(formatLocaleDisplayName(intl, "vi")).toBe("Vietnamese");
+    expect(formatLocaleOptionLabel(intl, "vi")).toBe("Vietnamese (vi)");
+  });
 });
