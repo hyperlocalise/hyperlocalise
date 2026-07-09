@@ -179,4 +179,22 @@ describe("sandbox translation failure reasons", () => {
 
     expect(userFacingFailureReason(new Error(message))).toBe(message);
   });
+
+  it("includes the detected file format in translation failure messages", () => {
+    expect(
+      userFacingFailureReason(new Error("translation failed for fr-FR: boom"), {
+        fileFormat: "markdown",
+      }),
+    ).toBe(
+      "the detected file format (markdown) may not be supported, or the content didn't match what the translator expected.",
+    );
+
+    expect(
+      userFacingFailureReason(new Error("translation failed for fr-FR: boom"), {
+        sourceExtension: ".md",
+      }),
+    ).toBe(
+      "the detected file format (md) may not be supported, or the content didn't match what the translator expected.",
+    );
+  });
 });

@@ -15,7 +15,13 @@ function shellQuote(value: string): string {
 }
 
 export class SandboxErrorMapper {
-  userFacingFailureReason(error: unknown): string {
+  userFacingFailureReason(
+    error: unknown,
+    detection?: {
+      fileFormat?: string | null;
+      sourceExtension?: string | null;
+    },
+  ): string {
     const message = error instanceof Error ? error.message : "Unknown translation failure";
 
     if (message.startsWith("glossary validation failed")) {
@@ -38,6 +44,13 @@ export class SandboxErrorMapper {
     }
 
     if (message.includes("translation failed")) {
+      const detected =
+        detection?.fileFormat?.trim() ||
+        detection?.sourceExtension?.trim()?.replace(/^\./, "") ||
+        null;
+      if (detected) {
+        return `the detected file format (${detected}) may not be supported, or the content didn't match what the translator expected.`;
+      }
       return "the file format may not be supported, or the content didn't match what the translator expected.";
     }
 
@@ -544,6 +557,12 @@ export async function downloadCrowdinTranslationsInSandbox(
   return defaultRunner.crowdin.downloadTranslations(input);
 }
 
-export function userFacingFailureReason(error: unknown) {
-  return defaultRunner.errors.userFacingFailureReason(error);
+export function userFacingFailureReason(
+  error: unknown,
+  detection?: {
+    fileFormat?: string | null;
+    sourceExtension?: string | null;
+  },
+) {
+  return defaultRunner.errors.userFacingFailureReason(error, detection);
 }
