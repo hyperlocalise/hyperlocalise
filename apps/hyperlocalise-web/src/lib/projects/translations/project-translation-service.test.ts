@@ -251,20 +251,32 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     });
   });
 
-  it("reports truncation when the source file exceeds the prefill key cap", async () => {
-    const overLimitKeys = Array.from({ length: 5_001 }, (_, index) => ({
+  it("loads all keys across paginated fetches when the source file exceeds one page", async () => {
+    const pageOneKeys = Array.from({ length: 5_000 }, (_, index) => ({
       id: `key_${index}`,
       key: `entry_${index}`,
       sourceText: `Source ${index}`,
     }));
+    const pageTwoKeys = [{ id: "key_5000", key: "entry_5000", sourceText: "Source 5000" }];
 
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
-    offsetMock.mockResolvedValueOnce(overLimitKeys);
+    offsetMock.mockResolvedValueOnce(pageOneKeys).mockResolvedValueOnce(pageTwoKeys);
 
     whereMock.mockImplementationOnce(() => ({
       limit: repoLimitMock,
       orderBy: orderByMock,
     }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
+    );
     whereMock.mockImplementationOnce(() => ({
       limit: repoLimitMock,
       orderBy: orderByMock,
@@ -282,12 +294,16 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
+      includeAllSourceKeys: true,
     });
 
-    expect(result.truncated).toBe(true);
-    expect(result.loadedKeyCount).toBe(5_000);
+    expect(result.truncated).toBe(false);
+    expect(result.loadedKeyCount).toBe(5_001);
     expect(result.maxKeyCount).toBe(5_000);
     expect(result.translatedKeyCount).toBe(0);
-    expect(Object.keys(result.prefilled)).toHaveLength(0);
+    expect(Object.keys(result.prefilled)).toHaveLength(5_001);
+    expect(result.prefilled.entry_0).toBe("Source 0");
+    expect(result.prefilled.entry_5000).toBe("Source 5000");
+    expect(offsetMock).toHaveBeenCalledTimes(2);
   });
 });
