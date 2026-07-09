@@ -11,6 +11,14 @@ import (
 // POFileParser parses GNU gettext .po translation files.
 type POFileParser struct{}
 
+const (
+	poFieldNone = iota
+	poFieldMsgID
+	poFieldMsgStr
+	poFieldMsgStr0
+	poFieldMsgStrN
+)
+
 type poValue struct {
 	first    string
 	builder  *strings.Builder
@@ -49,11 +57,15 @@ func (v *poValue) Reset() {
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 	// BOLT OPTIMIZATION: Use a map capacity hint based on content size to reduce re-allocations.
-	out := make(map[string]string, len(content)/64)
+	capacity := len(content) / 32
+	if capacity < 4 {
+		capacity = 4
+	}
+	out := make(map[string]string, capacity)
 
 	var currentMsgID poValue
 	var currentMsgStr poValue
-	activeField := ""
+	activeField := poFieldNone
 	seenMsgID := false
 	seenMsgStr := false
 
@@ -71,7 +83,7 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 	reset := func() {
 		currentMsgID.Reset()
 		currentMsgStr.Reset()
-		activeField = ""
+		activeField = poFieldNone
 		seenMsgID = false
 		seenMsgStr = false
 	}
@@ -109,7 +121,7 @@ func consumePOLine(
 	lineNumber int,
 	line string,
 	currentMsgID, currentMsgStr *poValue,
-	activeField *string,
+	activeField *int,
 	seenMsgID, seenMsgStr *bool,
 	flush, reset func(),
 ) error {
@@ -119,7 +131,7 @@ func consumePOLine(
 		return nil
 	}
 	if strings.HasPrefix(line, "#") {
-		*activeField = ""
+		*activeField = poFieldNone
 		return nil
 	}
 
@@ -131,21 +143,21 @@ func consumePOLine(
 	case strings.HasPrefix(line, "msgstr["):
 		return handlePOIndexedMsgStr(lineNumber, line, currentMsgStr, activeField, seenMsgStr)
 	case strings.HasPrefix(line, "msgid_plural "):
-		*activeField = ""
+		*activeField = poFieldNone
 		return nil
 	case strings.HasPrefix(line, "msgctxt "):
 		// Context is currently ignored by the map[string]string strategy output.
-		*activeField = ""
+		*activeField = poFieldNone
 		return nil
 	case strings.HasPrefix(line, "\""):
 		return handlePOContinuation(lineNumber, line, currentMsgID, currentMsgStr, *activeField)
 	default:
-		*activeField = ""
+		*activeField = poFieldNone
 		return nil
 	}
 }
 
-func handlePOMsgID(lineNumber int, line string, currentMsgID *poValue, activeField *string, seenMsgID *bool, flush, reset func()) error {
+func handlePOMsgID(lineNumber int, line string, currentMsgID *poValue, activeField *int, seenMsgID *bool, flush, reset func()) error {
 	flush()
 	reset()
 	v, err := parsePOQuoted(strings.TrimPrefix(line, "msgid "))
@@ -153,25 +165,25 @@ func handlePOMsgID(lineNumber int, line string, currentMsgID *poValue, activeFie
 		return fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 	}
 	currentMsgID.WriteString(v)
-	*activeField = "msgid"
+	*activeField = poFieldMsgID
 	*seenMsgID = true
 	return nil
 }
 
-func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
+func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *poValue, activeField *int, seenMsgStr *bool) error {
 	v, err := parsePOQuoted(raw)
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgstr: %w", lineNumber, err)
 	}
 	currentMsgStr.WriteString(v)
-	*activeField = "msgstr"
+	*activeField = poFieldMsgStr
 	*seenMsgStr = true
 	return nil
 }
 
-func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
+func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, activeField *int, seenMsgStr *bool) error {
 	if !strings.HasPrefix(line, "msgstr[0]") {
-		*activeField = ""
+		*activeField = poFieldNone
 		return nil
 	}
 	idx := strings.Index(line, "]")
@@ -184,20 +196,20 @@ func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, 
 		return fmt.Errorf("line %d: parse msgstr[0]: %w", lineNumber, err)
 	}
 	currentMsgStr.WriteString(v)
-	*activeField = "msgstr"
+	*activeField = poFieldMsgStr
 	*seenMsgStr = true
 	return nil
 }
 
-func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgStr *poValue, activeField string) error {
+func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgStr *poValue, activeField int) error {
 	v, err := parsePOQuoted(line)
 	if err != nil {
 		return fmt.Errorf("line %d: parse continued string: %w", lineNumber, err)
 	}
 	switch activeField {
-	case "msgid":
+	case poFieldMsgID:
 		currentMsgID.WriteString(v)
-	case "msgstr":
+	case poFieldMsgStr:
 		currentMsgStr.WriteString(v)
 	}
 	return nil
@@ -231,7 +243,7 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 
 	s := string(template)
 	currentKey := ""
-	activeField := ""
+	activeField := poFieldNone
 	lineNumber := 1
 	for {
 		var raw string
@@ -247,7 +259,7 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 
 		switch {
 		case trimmed == "":
-			activeField = ""
+			activeField = poFieldNone
 		case strings.HasPrefix(trimmed, "#"):
 			// skip
 		case strings.HasPrefix(trimmed, "msgid "):
@@ -256,30 +268,30 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 				return nil, fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 			}
 			currentKey = v
-			activeField = "msgid"
+			activeField = poFieldMsgID
 		case strings.HasPrefix(trimmed, "msgstr "):
-			activeField = "msgstr"
+			activeField = poFieldMsgStr
 			if replacement, ok := values[currentKey]; ok {
 				writePOQuotedSuffix(&out, raw, "msgstr", replacement)
 				processed = true
 			}
 		case strings.HasPrefix(trimmed, "msgstr[0]"):
-			activeField = "msgstr0"
+			activeField = poFieldMsgStr0
 			if replacement, ok := values[currentKey]; ok {
 				writePOQuotedSuffix(&out, raw, "msgstr[0]", replacement)
 				processed = true
 			}
 		case strings.HasPrefix(trimmed, "msgstr["):
-			activeField = "msgstrN"
+			activeField = poFieldMsgStrN
 		case strings.HasPrefix(trimmed, "\""):
 			switch activeField {
-			case "msgid":
+			case poFieldMsgID:
 				v, err := parsePOQuoted(trimmed)
 				if err != nil {
 					return nil, fmt.Errorf("line %d: parse continued msgid: %w", lineNumber, err)
 				}
 				currentKey += v
-			case "msgstr", "msgstr0":
+			case poFieldMsgStr, poFieldMsgStr0:
 				if _, ok := values[currentKey]; ok {
 					out.WriteString(preserveIndent(raw))
 					out.WriteString(`""`)
@@ -287,7 +299,7 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 				}
 			}
 		default:
-			activeField = ""
+			activeField = poFieldNone
 		}
 
 		if !processed {
