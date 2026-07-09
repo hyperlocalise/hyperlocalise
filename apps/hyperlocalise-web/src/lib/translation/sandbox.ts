@@ -12,6 +12,10 @@ import type { SandboxTranslationContext } from "@/lib/translation/domain";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
+/** Colocated with sandbox source/output files so CLI pathguard root matches.
+ *  Reserved name so a user source named i18n.yml is not overwritten. */
+export const sandboxI18nConfigPath = ".hl-sandbox-i18n.yml";
+export const sandboxFileBucketName = "file";
 
 export type { SandboxTranslationContext };
 
@@ -164,7 +168,7 @@ export class HyperlocaliseCliConfigBuilder {
       `    - ${yamlString(targetLocale)}`,
       "",
       "buckets:",
-      "  email:",
+      `  ${sandboxFileBucketName}:`,
       "    files:",
       `      - from: ${yamlString(inputFile)}`,
       `        to: ${yamlString(outputFile)}`,
@@ -381,7 +385,6 @@ export class HyperlocaliseCliRunner {
     targetLocale: string,
     instructions: string | null,
   ): Promise<{ exitCode: number; output: string }> {
-    const configPath = "/tmp/hyperlocalise-email.yml";
     const config = this.configBuilder.build(
       inputFile,
       outputFile,
@@ -389,14 +392,14 @@ export class HyperlocaliseCliRunner {
       targetLocale,
       instructions,
     );
-    await this.writeTempConfig(sandboxId, config, configPath);
+    await this.writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
     return this.lifecycle.runCommand(
       sandboxId,
       "bash",
       [
         "-lc",
-        `hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+        `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
       ],
       { env: getSandboxTranslationEnv() },
     );

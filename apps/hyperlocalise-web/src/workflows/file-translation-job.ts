@@ -241,11 +241,11 @@ async function runTranslationStep(
     buildTempConfig,
     getSandboxTranslationEnv,
     runSandboxCommand,
+    sandboxI18nConfigPath,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
 
-  const configPath = "/tmp/hyperlocalise-file.yml";
   const config = buildTempConfig(
     inputFile,
     outputFile,
@@ -254,9 +254,9 @@ async function runTranslationStep(
     instructions,
     context,
   );
-  await writeTempConfig(sandboxId, config, configPath);
+  await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
-  const prefilledPath = `/tmp/hyperlocalise-prefilled-${targetLocale}.json`;
+  const prefilledPath = `/tmp/prefilled-${targetLocale}.json`;
   let prefilledFlags = "";
   if (Object.keys(prefilledEntries).length > 0) {
     await writeFileToSandbox(
@@ -272,7 +272,7 @@ async function runTranslationStep(
     "bash",
     [
       "-lc",
-      `hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off${prefilledFlags}`,
+      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     {
       env: getSandboxTranslationEnv(),

@@ -30,6 +30,8 @@ import {
   buildTempConfig,
   createTranslationSandbox,
   runSandboxCommand,
+  sandboxFileBucketName,
+  sandboxI18nConfigPath,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox";
 
@@ -108,6 +110,17 @@ describe("sandbox command runner", () => {
 });
 
 describe("sandbox translation temporary config", () => {
+  it("colocates reserved i18n config with sandbox files under a file bucket", () => {
+    expect(sandboxI18nConfigPath).toBe(".hl-sandbox-i18n.yml");
+    expect(sandboxFileBucketName).toBe("file");
+
+    const config = buildTempConfig("source.md", "source-de-DE.md", "en-US", "de-DE", null);
+    expect(config).toContain("  file:");
+    expect(config).not.toContain("  email:");
+    expect(config).toContain('from: "source.md"');
+    expect(config).toContain('to: "source-de-DE.md"');
+  });
+
   it("augments file translation system prompt with project context, job context, and glossary", () => {
     const config = buildTempConfig(
       "source.json",
@@ -131,6 +144,7 @@ describe("sandbox translation temporary config", () => {
     );
 
     expect(config).toContain("system_prompt:");
+    expect(config).toContain("  file:");
     expect(config).toContain("Project: Marketing Site");
     expect(config).toContain("Project translation context: Use concise product-marketing copy.");
     expect(config).toContain("Job context: Homepage launch banner.");
@@ -143,6 +157,7 @@ describe("sandbox translation temporary config", () => {
     const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
 
     expect(config).toContain("system_prompt:");
+    expect(config).toContain("  file:");
     expect(config).not.toContain("Project translation context:");
     expect(config).not.toContain("Glossary terms:");
   });

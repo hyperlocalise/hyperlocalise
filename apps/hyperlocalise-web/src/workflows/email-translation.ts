@@ -132,16 +132,16 @@ async function runTranslationCommand(
 ): Promise<{ exitCode: number; output: string }> {
   "use step";
 
-  const configPath = "/tmp/hyperlocalise-email.yml";
+  const { sandboxI18nConfigPath } = await import("@/lib/translation/sandbox");
   const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
-  await writeTempConfig(sandboxId, config, configPath);
+  await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
   return runSandboxCommand(
     sandboxId,
     "bash",
     [
       "-lc",
-      `hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+      `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
     ],
     {
       env: getSandboxTranslationEnv(),
