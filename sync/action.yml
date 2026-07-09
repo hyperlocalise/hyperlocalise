@@ -220,8 +220,30 @@ runs:
 
         pushd "${WORKING_DIRECTORY}" >/dev/null
         git add -A .
-        git diff --staged | hyperlocalise "${args[@]}"
-        cli_exit=$?
+        diff_file="$(mktemp)"
+        git diff --staged >"${diff_file}"
+        if [[ ! -s "${diff_file}" ]]; then
+          # sync pull can leave a clean tree (no staged changes). Treat that as
+          # a successful empty validation instead of failing --diff-stdin.
+          cat >"${VALIDATION_REPORT_PATH}" <<'EOF'
+{
+  "checks": [],
+  "findings": [],
+  "summary": {
+    "total": 0,
+    "byCheck": {},
+    "bySeverity": {},
+    "byBucket": {},
+    "byLocale": {}
+  }
+}
+EOF
+          cli_exit=0
+        else
+          hyperlocalise "${args[@]}" <"${diff_file}"
+          cli_exit=$?
+        fi
+        rm -f "${diff_file}"
         popd >/dev/null
 
         echo "cli-exit-code=${cli_exit}" >>"${GITHUB_OUTPUT}"
