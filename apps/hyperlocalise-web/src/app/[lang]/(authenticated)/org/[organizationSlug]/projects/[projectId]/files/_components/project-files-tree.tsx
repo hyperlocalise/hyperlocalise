@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { FileTreeRowDecorationContext } from "@pierre/trees";
@@ -11,14 +11,12 @@ import "@pierre/trees/web-components";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Input } from "@/components/ui/input";
 
-import { ProjectFileActionDialogs } from "./project-file-action-dialogs";
 import {
   ProjectFileTreeContextMenu,
   type ProjectFileTreeActionsConfig,
 } from "./project-file-tree-context-menu";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
-import { createProjectFileRecord } from "./project-files.fixture";
-import { useProjectFileActions } from "./use-project-file-actions";
+import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export const TREE_HEIGHT_PX = 480;
 
@@ -84,7 +82,7 @@ export function ProjectFilesTree({
 }) {
   if (fileActions) {
     return (
-      <ProjectFilesTreeWithRowActions
+      <ProjectFilesTreeView
         files={files}
         selectedSourcePath={selectedSourcePath}
         onSelectFile={onSelectFile}
@@ -106,62 +104,12 @@ export function ProjectFilesTree({
   );
 }
 
-function ProjectFilesTreeWithRowActions({
-  files,
-  selectedSourcePath,
-  onSelectFile,
-  onActivateFile,
-  fileActions,
-  ariaLabel,
-}: {
-  files: ProjectFileRecord[];
-  selectedSourcePath: string | null;
-  onSelectFile: (sourcePath: string) => void;
-  onActivateFile?: (sourcePath: string) => void;
-  fileActions: ProjectFileTreeActionsConfig;
-  ariaLabel: string;
-}) {
-  const [contextMenuFile, setContextMenuFile] = useState<ProjectFileRecord | null>(null);
-  const displayFiles = useMemo(() => dedupeProjectFilesBySourcePath(files), [files]);
-  const actionFile = contextMenuFile ?? displayFiles[0] ?? createProjectFileRecord();
-  const contextMenuActions = useProjectFileActions({
-    organizationSlug: fileActions.organizationSlug,
-    projectId: fileActions.projectId,
-    file: actionFile,
-    highlightLocale: fileActions.highlightLocale,
-    projectTargetLocales: fileActions.projectTargetLocales,
-    sourceLocale: fileActions.sourceLocale,
-    nativeSourcePaths: fileActions.nativeSourcePaths,
-    branch: fileActions.branch,
-  });
-
-  return (
-    <>
-      {contextMenuFile ? (
-        <ProjectFileActionDialogs file={contextMenuFile} actions={contextMenuActions} />
-      ) : null}
-      <ProjectFilesTreeView
-        files={files}
-        selectedSourcePath={selectedSourcePath}
-        onSelectFile={onSelectFile}
-        onActivateFile={onActivateFile}
-        fileActions={fileActions}
-        contextMenuActions={contextMenuActions}
-        onContextMenuFileChange={setContextMenuFile}
-        ariaLabel={ariaLabel}
-      />
-    </>
-  );
-}
-
 function ProjectFilesTreeView({
   files,
   selectedSourcePath,
   onSelectFile,
   onActivateFile,
   fileActions,
-  contextMenuActions,
-  onContextMenuFileChange,
   ariaLabel = "Project files",
 }: {
   files: ProjectFileRecord[];
@@ -169,8 +117,6 @@ function ProjectFilesTreeView({
   onSelectFile: (sourcePath: string) => void;
   onActivateFile?: (sourcePath: string) => void;
   fileActions?: ProjectFileTreeActionsConfig;
-  contextMenuActions?: ReturnType<typeof useProjectFileActions>;
-  onContextMenuFileChange?: (file: ProjectFileRecord | null) => void;
   ariaLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -183,10 +129,8 @@ function ProjectFilesTreeView({
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
   const latestStateRef = useRef({
-    contextMenuActions,
     fileActions,
     fileByPath,
-    onContextMenuFileChange,
     onSelectFile,
     onActivateFile,
   });
@@ -205,21 +149,12 @@ function ProjectFilesTreeView({
 
   useEffect(() => {
     latestStateRef.current = {
-      contextMenuActions,
       fileActions,
       fileByPath,
-      onContextMenuFileChange,
       onActivateFile,
       onSelectFile,
     };
-  }, [
-    contextMenuActions,
-    fileActions,
-    fileByPath,
-    onContextMenuFileChange,
-    onActivateFile,
-    onSelectFile,
-  ]);
+  }, [fileActions, fileByPath, onActivateFile, onSelectFile]);
 
   useEffect(() => {
     if (!onActivateFile) {
@@ -265,16 +200,6 @@ function ProjectFilesTreeView({
             enabled: true,
             triggerMode: "button",
             buttonVisibility: "when-needed",
-            onOpen: (item) => {
-              if (item.kind !== "file") {
-                return;
-              }
-
-              const file = latestStateRef.current.fileByPath.get(item.path);
-              if (file) {
-                latestStateRef.current.onContextMenuFileChange?.(file);
-              }
-            },
           },
         }
       : undefined,
@@ -354,17 +279,25 @@ function ProjectFilesTreeView({
 
                 const file = latestStateRef.current.fileByPath.get(item.path);
                 const actions = latestStateRef.current.fileActions;
-                const contextMenuActions = latestStateRef.current.contextMenuActions;
-                if (!file || !actions || !contextMenuActions) {
+                if (!file || !actions) {
                   return null;
                 }
+
+                const capabilities = buildProjectFileActionCapabilities({
+                  organizationSlug: actions.organizationSlug,
+                  projectId: actions.projectId,
+                  file,
+                  highlightLocale: actions.highlightLocale,
+                  projectTargetLocales: actions.projectTargetLocales,
+                  branch: actions.branch,
+                });
 
                 return (
                   <ProjectFileTreeContextMenu
                     file={file}
                     context={context}
                     fileActions={actions}
-                    actions={contextMenuActions}
+                    capabilities={capabilities}
                   />
                 );
               }

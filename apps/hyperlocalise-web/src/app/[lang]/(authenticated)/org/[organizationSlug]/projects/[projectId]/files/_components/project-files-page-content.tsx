@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -28,7 +29,10 @@ import {
   ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
-import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import {
+  ProjectFileSelectionActions,
+  type ProjectFileSelectionActionsHandle,
+} from "./project-file-selection-actions";
 import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
 import {
@@ -295,6 +299,16 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
+  const selectionActionsRef = useRef<ProjectFileSelectionActionsHandle>(null);
+
+  const openFileDialog = useCallback(
+    (file: ProjectFileRecord, openDialog: () => void) => {
+      flushSync(() => setSelectedSourcePath(file.sourcePath));
+      queueMicrotask(openDialog);
+    },
+    [],
+  );
+
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
       organizationSlug,
@@ -305,10 +319,16 @@ export function ProjectFilesPageContent({
       nativeSourcePaths,
       branch: selectedBranch,
       onViewStrings: (file) => openFileInCat(file.sourcePath),
+      onTranslateFile: (file) =>
+        openFileDialog(file, () => selectionActionsRef.current?.openTranslate()),
+      onImportFile: (file) => openFileDialog(file, () => selectionActionsRef.current?.openImport()),
+      onDownloadFile: (file) =>
+        openFileDialog(file, () => selectionActionsRef.current?.openDownload()),
     }),
     [
       highlightLocale,
       nativeSourcePaths,
+      openFileDialog,
       openFileInCat,
       organizationSlug,
       projectId,
@@ -362,6 +382,7 @@ export function ProjectFilesPageContent({
               ) : null}
               {selectedFile ? (
                 <ProjectFileSelectionActions
+                  ref={selectionActionsRef}
                   organizationSlug={organizationSlug}
                   projectId={projectId}
                   file={selectedFile}

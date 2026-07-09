@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { forwardRef, useImperativeHandle } from "react";
 import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
@@ -14,27 +15,39 @@ import { useProjectFileActions } from "./use-project-file-actions";
 
 const EMPTY_STRING_ARRAY: readonly string[] = [];
 
-export function ProjectFileSelectionActions({
-  organizationSlug,
-  projectId,
-  file,
-  highlightLocale,
-  projectTargetLocales,
-  sourceLocale = "en",
-  nativeSourcePaths = EMPTY_STRING_ARRAY,
-  branch = null,
-  layout = "default",
-}: {
-  organizationSlug: string;
-  projectId: string;
-  file: ProjectFileRecord;
-  highlightLocale: string | null;
-  projectTargetLocales?: readonly string[] | null;
-  sourceLocale?: string;
-  nativeSourcePaths?: readonly string[];
-  branch?: string | null;
-  layout?: "default" | "compact";
-}) {
+export type ProjectFileSelectionActionsHandle = {
+  openTranslate: () => void;
+  openImport: () => void;
+  openDownload: () => void;
+};
+
+export const ProjectFileSelectionActions = forwardRef<
+  ProjectFileSelectionActionsHandle,
+  {
+    organizationSlug: string;
+    projectId: string;
+    file: ProjectFileRecord;
+    highlightLocale: string | null;
+    projectTargetLocales?: readonly string[] | null;
+    sourceLocale?: string;
+    nativeSourcePaths?: readonly string[];
+    branch?: string | null;
+    layout?: "default" | "compact";
+  }
+>(function ProjectFileSelectionActions(
+  {
+    organizationSlug,
+    projectId,
+    file,
+    highlightLocale,
+    projectTargetLocales,
+    sourceLocale = "en",
+    nativeSourcePaths = EMPTY_STRING_ARRAY,
+    branch = null,
+    layout = "default",
+  },
+  ref,
+) {
   const actions = useProjectFileActions({
     organizationSlug,
     projectId,
@@ -45,6 +58,16 @@ export function ProjectFileSelectionActions({
     nativeSourcePaths,
     branch,
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      openTranslate: () => actions.setTranslateDialogOpen(true),
+      openImport: () => actions.setImportDialogOpen(true),
+      openDownload: () => actions.setDownloadDialogOpen(true),
+    }),
+    [actions.setDownloadDialogOpen, actions.setImportDialogOpen, actions.setTranslateDialogOpen],
+  );
 
   const actionButtons = (
     <>
@@ -123,4 +146,4 @@ export function ProjectFileSelectionActions({
       </div>
     </>
   );
-}
+});
