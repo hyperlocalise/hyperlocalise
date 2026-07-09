@@ -110,8 +110,8 @@ describe("sandbox command runner", () => {
 });
 
 describe("sandbox translation temporary config", () => {
-  it("colocates i18n.yml with sandbox files under a file bucket", () => {
-    expect(sandboxI18nConfigPath).toBe("i18n.yml");
+  it("colocates reserved i18n config with sandbox files under a file bucket", () => {
+    expect(sandboxI18nConfigPath).toBe(".hl-sandbox-i18n.yml");
     expect(sandboxFileBucketName).toBe("file");
 
     const config = buildTempConfig("source.md", "source-de-DE.md", "en-US", "de-DE", null);

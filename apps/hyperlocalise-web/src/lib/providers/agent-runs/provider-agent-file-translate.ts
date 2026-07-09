@@ -190,7 +190,7 @@ async function runFileTranslationInSandbox(input: {
   );
   await writeTempConfig(input.sandboxId, config, sandboxI18nConfigPath);
 
-  const prefilledPath = `prefilled-${input.targetLocale}.json`;
+  const prefilledPath = `/tmp/prefilled-${input.targetLocale}.json`;
   let prefilledFlags = "";
   if (Object.keys(input.prefilledEntries).length > 0) {
     await writeFileToSandbox(

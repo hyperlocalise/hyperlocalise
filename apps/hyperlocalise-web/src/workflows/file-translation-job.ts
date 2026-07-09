@@ -256,7 +256,7 @@ async function runTranslationStep(
   );
   await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
-  const prefilledPath = `prefilled-${targetLocale}.json`;
+  const prefilledPath = `/tmp/prefilled-${targetLocale}.json`;
   let prefilledFlags = "";
   if (Object.keys(prefilledEntries).length > 0) {
     await writeFileToSandbox(

@@ -12,8 +12,9 @@ import type { SandboxTranslationContext } from "@/lib/translation/domain";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
-/** Colocated with sandbox source/output files so CLI pathguard root matches. */
-export const sandboxI18nConfigPath = "i18n.yml";
+/** Colocated with sandbox source/output files so CLI pathguard root matches.
+ *  Reserved name so a user source named i18n.yml is not overwritten. */
+export const sandboxI18nConfigPath = ".hl-sandbox-i18n.yml";
 export const sandboxFileBucketName = "file";
 
 export type { SandboxTranslationContext };
