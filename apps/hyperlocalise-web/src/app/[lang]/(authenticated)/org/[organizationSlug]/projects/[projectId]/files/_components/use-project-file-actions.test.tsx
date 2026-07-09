@@ -3,10 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  createProjectFileRecord,
-  providerProjectFilesFixture,
-} from "./project-files.fixture";
+import { createProjectFileRecord, providerProjectFilesFixture } from "./project-files.fixture";
 import { useProjectFileActions } from "./use-project-file-actions";
 
 function renderProjectFileActions({
