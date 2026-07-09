@@ -131,10 +131,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           inArray(schema.repositorySourceFileVersions.ingestState, ["ingesting", "ingested"]),
         ),
       )
-      .orderBy(
-        desc(schema.repositorySourceFileVersions.createdAt),
-        desc(schema.repositorySourceFileVersions.id),
-      )
+      .orderBy(desc(schema.repositorySourceFileVersions.versionSequence))
       .limit(1);
 
     return latestActiveVersion?.id === input.sourceFileVersionId;

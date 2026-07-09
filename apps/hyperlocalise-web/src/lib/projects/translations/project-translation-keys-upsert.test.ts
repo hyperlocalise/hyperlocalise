@@ -81,6 +81,7 @@ vi.mock("@/lib/database", () => ({
       repositorySourceFileId: "repositorySourceFileId",
       createdAt: "createdAt",
       ingestState: "ingestState",
+      versionSequence: "versionSequence",
     },
   },
 }));
@@ -198,7 +199,7 @@ describe("upsertProjectTranslationKeysFromEntries truncation guard", () => {
     expect(deleteMock).not.toHaveBeenCalled();
   });
 
-  it("skips prune when another active version ties on createdAt but wins the id tie-breaker", async () => {
+  it("skips prune when another active version ties on createdAt but wins the version sequence", async () => {
     whereMock.mockImplementationOnce(() => {
       const rowsPromise = Promise.resolve([{ key: "greeting" }]);
       return Object.assign(rowsPromise, { limit: limitMock, orderBy: orderByMock });

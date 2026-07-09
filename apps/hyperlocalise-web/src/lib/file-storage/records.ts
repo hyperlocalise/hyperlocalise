@@ -44,7 +44,7 @@ type RepositorySourceFileVersionInput = {
   uploadedByUserId?: string | null;
   uploadedByApiKeyId?: string | null;
   uploadSurface?: string | null;
-  db?: DbInsertClient;
+  db?: DbReadWriteClient;
 };
 
 type DbInsertClient = Pick<typeof db, "insert">;
@@ -244,7 +244,7 @@ export async function createRepositorySourceFileVersion(input: RepositorySourceF
 
 async function createRepositorySourceFileVersionWithDb(
   input: RepositorySourceFileVersionInput,
-  dbClient: DbInsertClient,
+  dbClient: DbReadWriteClient,
 ) {
   const projectId = input.storedFile.projectId;
   if (!projectId) {
@@ -270,6 +270,22 @@ async function createRepositorySourceFileVersionWithDb(
     throw new Error("Failed to create repository source file: no row returned.");
   }
 
+  await dbClient
+    .select({ id: schema.repositorySourceFiles.id })
+    .from(schema.repositorySourceFiles)
+    .where(eq(schema.repositorySourceFiles.id, sourceFile.id))
+    .limit(1)
+    .for("update");
+
+  const [latestVersion] = await dbClient
+    .select({ versionSequence: schema.repositorySourceFileVersions.versionSequence })
+    .from(schema.repositorySourceFileVersions)
+    .where(eq(schema.repositorySourceFileVersions.repositorySourceFileId, sourceFile.id))
+    .orderBy(desc(schema.repositorySourceFileVersions.versionSequence))
+    .limit(1);
+
+  const versionSequence = (latestVersion?.versionSequence ?? 0) + 1;
+
   const [version] = await dbClient
     .insert(schema.repositorySourceFileVersions)
     .values({
@@ -284,6 +300,7 @@ async function createRepositorySourceFileVersionWithDb(
       uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
       uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
       uploadSurface: input.uploadSurface ?? null,
+      versionSequence,
     })
     .onConflictDoUpdate({
       target: schema.repositorySourceFileVersions.storedFileId,
