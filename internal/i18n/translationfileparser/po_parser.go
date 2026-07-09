@@ -56,8 +56,11 @@ func (v *poValue) Reset() {
 }
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
-	// BOLT OPTIMIZATION: Use a map capacity hint based on content size to reduce re-allocations.
-	capacity := len(content) / 32
+	// BOLT OPTIMIZATION: Avoid strings.Split(string(content), "\n") to reduce allocations for large files.
+	s := string(content)
+
+	// BOLT OPTIMIZATION: Use a map capacity hint by counting msgid markers to avoid re-allocations.
+	capacity := strings.Count(s, "msgid ")
 	if capacity < 4 {
 		capacity = 4
 	}
@@ -88,8 +91,6 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 		seenMsgStr = false
 	}
 
-	// BOLT OPTIMIZATION: Avoid strings.Split(string(content), "\n") to reduce allocations for large files.
-	s := string(content)
 	lineNumber := 1
 	for {
 		var raw string
@@ -224,7 +225,8 @@ func parsePOQuoted(raw string) (string, error) {
 	// BOLT OPTIMIZATION: Fast-path for simple quoted strings to avoid strconv.Unquote allocations.
 	inner := raw[1 : len(raw)-1]
 	if !strings.ContainsAny(inner, "\\\"") {
-		return inner, nil
+		// Use strings.Clone to avoid holding the entire file in memory via slices.
+		return strings.Clone(inner), nil
 	}
 
 	unquoted, err := strconv.Unquote(raw)
