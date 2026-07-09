@@ -6,7 +6,6 @@ import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "./project-files.fixture";
-import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 
 const enUsFile = createProjectFileRecord({
   sourcePath: "en-US.json",
@@ -66,6 +65,8 @@ vi.mock("./project-files-tree-panel", () => ({
     headerActions?: ReactNode;
     fileActions?: {
       onDownloadFile?: (file: typeof pricingFile) => void;
+      onTranslateFile?: (file: typeof pricingFile) => void;
+      onImportFile?: (file: typeof pricingFile) => void;
     };
   }) => {
     useEffect(() => {
@@ -82,13 +83,40 @@ vi.mock("./project-files-tree-panel", () => ({
         <button type="button" onClick={() => fileActions?.onDownloadFile?.(pricingFile)}>
           Download pricing from context menu
         </button>
+        <button type="button" onClick={() => fileActions?.onTranslateFile?.(pricingFile)}>
+          Translate pricing from context menu
+        </button>
+        <button type="button" onClick={() => fileActions?.onImportFile?.(pricingFile)}>
+          Import pricing from context menu
+        </button>
       </div>
     );
   },
 }));
 
 vi.mock("./create-translation-job-dialog", () => ({
-  CreateTranslationJobDialog: () => null,
+  CreateTranslationJobDialog: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog" aria-label="Translate with agent" /> : null,
+}));
+
+vi.mock("./import-translations-dialog", () => ({
+  ImportTranslationsDialog: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog" aria-label="Import translations" /> : null,
+}));
+
+vi.mock("./download-translations-dialog", () => ({
+  DownloadTranslationsDialog: ({
+    open,
+    initialSourcePath,
+  }: {
+    open: boolean;
+    initialSourcePath?: string;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Download translations">
+        {initialSourcePath ? <span>{initialSourcePath}</span> : null}
+      </div>
+    ) : null,
 }));
 
 vi.mock("./project-files-branch-filter", () => ({
@@ -106,7 +134,7 @@ vi.mock("../../_components/project-page-shell", () => ({
   }),
 }));
 
-import { ProjectFilesPageContent, ProjectFilesPageContentView } from "./project-files-page-content";
+import { ProjectFilesPageContent } from "./project-files-page-content";
 
 describe("ProjectFilesPageContent CAT entry UX", () => {
   beforeEach(() => {
@@ -152,90 +180,42 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows translate with agent and import/download actions for native project files", () => {
+  it("does not show selection-dependent header action buttons", () => {
     render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
-    expect(screen.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Translate with agent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Import translations" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
   });
 
-  it("opens the header download dialog for the context-menu file after URL selection updates", async () => {
+  it("opens the download dialog for the context-menu file without selecting it first", async () => {
     const user = userEvent.setup();
-    const view = render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+
+    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await user.click(screen.getByRole("button", { name: "Download pricing from context menu" }));
-
-    expect(routerReplaceMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/files?sourcePath=marketing%2Fpricing.json&locale=vi",
-      { scroll: false },
-    );
-
-    view.rerender(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Download translations" })).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(pricingFile.sourcePath)).toBeChecked();
+    expect(screen.getByText(pricingFile.sourcePath)).toBeInTheDocument();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
-  it("passes project target locales to default-layout download actions", async () => {
+  it("opens translate and import dialogs from the context menu for the clicked file", async () => {
     const user = userEvent.setup();
 
-    render(
-      <ProjectFilesPageContentView
-        organizationSlug="acme"
-        projectId="proj_1"
-        files={[enUsFile]}
-        isFilesLoading={false}
-        isFilesFetching={false}
-        selectedSourcePath="en-US.json"
-        highlightLocale={null}
-        projectTargetLocales={["vi", "fr-FR"]}
-        selectedFiles={[]}
-        isUploading={false}
-        onSelectSourcePath={() => undefined}
-        onAddSelectedFiles={() => undefined}
-        onRemoveSelectedFile={() => undefined}
-        onUploadSelectedFiles={() => undefined}
-      />,
-    );
+    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("button", { name: "Translate pricing from context menu" }));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Translate with agent" })).toBeInTheDocument();
+    });
 
-    expect(screen.getByText("Target locale")).toBeInTheDocument();
-    expect(screen.getByText("vi")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Add target locales in project settings before downloading translations."),
-    ).not.toBeInTheDocument();
-  });
-
-  it("preserves open download dialog selections across parent re-renders", async () => {
-    const user = userEvent.setup();
-    const targetLocales = ["vi", "fr-FR"] as const;
-    const nativeSourcePaths = [enUsFile.sourcePath, pricingFile.sourcePath] as const;
-    const renderActions = (layout: "default" | "compact") => (
-      <ProjectFileSelectionActions
-        organizationSlug="acme"
-        projectId="proj_1"
-        file={enUsFile}
-        highlightLocale={null}
-        projectTargetLocales={targetLocales}
-        nativeSourcePaths={nativeSourcePaths}
-        layout={layout}
-      />
-    );
-
-    const { rerender } = render(renderActions("default"));
-
-    await user.click(screen.getByRole("button", { name: "Download" }));
-    await user.click(screen.getByLabelText(pricingFile.sourcePath));
-    await user.click(screen.getByLabelText("fr-FR"));
-
-    rerender(renderActions("compact"));
-
-    expect(screen.getByLabelText(pricingFile.sourcePath)).toBeChecked();
-    expect(screen.getByLabelText("fr-FR")).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Import pricing from context menu" }));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Import translations" })).toBeInTheDocument();
+    });
   });
 
   it("shows when a requested native locale will fall back to a project locale", () => {

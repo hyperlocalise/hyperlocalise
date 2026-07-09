@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
-import { SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import type { FileTreeRowDecorationContext } from "@pierre/trees";
-import { FileTree as PierreFileTree, useFileTree, useFileTreeSearch } from "@pierre/trees/react";
+import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { Input } from "@/components/ui/input";
 
 import {
   ProjectFileTreeContextMenu,
@@ -38,6 +35,9 @@ const projectFilesTreeStyle = {
   "--trees-fg-override": "var(--foreground)",
   "--trees-fg-muted-override": "var(--muted-foreground)",
   "--trees-focus-ring-color-override": "var(--ring)",
+  "--trees-input-bg-override": "var(--background)",
+  "--trees-search-bg-override": "var(--background)",
+  "--trees-search-fg-override": "var(--foreground)",
   "--trees-selected-bg-override": "var(--muted)",
   "--trees-selected-fg-override": "var(--foreground)",
   "--trees-selected-focused-border-color-override": "var(--ring)",
@@ -193,6 +193,7 @@ function ProjectFilesTreeView({
     initialVisibleRowCount: Math.max(paths.length, 8),
     paths,
     search: true,
+    searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
     composition: fileActions
       ? {
@@ -230,8 +231,6 @@ function ProjectFilesTreeView({
     },
   });
 
-  const search = useFileTreeSearch(model);
-
   useEffect(() => {
     model.resetPaths(paths);
   }, [model, paths]);
@@ -245,25 +244,20 @@ function ProjectFilesTreeView({
     model.scrollToPath(selectedSourcePath, { offset: "nearest" });
   }, [fileByPath, model, selectedSourcePath]);
 
+  useEffect(() => {
+    const host = containerRef.current?.querySelector("file-tree-container");
+    const searchInput = host?.shadowRoot?.querySelector("[data-file-tree-search-input]");
+    if (searchInput instanceof HTMLInputElement) {
+      searchInput.setAttribute("aria-label", "Search files");
+    }
+  }, [model, paths.length]);
+
   if (paths.length === 0) {
     return null;
   }
 
   return (
-    <div ref={containerRef} className="flex w-full min-w-0 flex-col gap-2">
-      <div className="relative shrink-0">
-        <HugeiconsIcon
-          icon={SearchIcon}
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          value={search.value}
-          onChange={(event) => search.setValue(event.target.value)}
-          placeholder="Search files..."
-          aria-label="Search files"
-          className="h-9 pl-9 font-mono text-xs"
-        />
-      </div>
+    <div ref={containerRef} className="flex w-full min-w-0 flex-col">
       <PierreFileTree
         aria-label={ariaLabel}
         className="w-full min-w-0 border-0 bg-transparent"
