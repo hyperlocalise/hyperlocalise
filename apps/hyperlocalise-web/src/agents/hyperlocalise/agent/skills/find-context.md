@@ -5,11 +5,13 @@ requiresSandbox: true
 
 ## Find context in repository
 
-This skill applies when the user or product asks for translation context for a source string, message, localization key, UI label, or uploaded-file segment. The request may provide either source text or a string key; use both when available.
+This skill applies when the user or product asks for translation context for a **specific** source string, message, localization key, UI label, or uploaded-file segment. The request may provide either source text or a string key; use both when available.
 
 Use the `repo-tools` skill to search and inspect the repository. This skill adds the localization-specific search priorities and final answer contract.
 
 In multi-turn conversations, treat the latest user message as the active lookup target. Previous source strings, keys, and labels are history only; do not include them in the answer unless the latest user message explicitly asks to compare, include both, revisit a previous string, or explain a relationship between strings.
+
+**Not this skill:** listing "recent translations", "what's new in source", or bulk source changes over a time window. Those are repository exploration with `gitHistory` under `repo-tools` — answer as a changelog of source changes, not with the sections below.
 
 ## Inputs
 
@@ -20,11 +22,7 @@ In multi-turn conversations, treat the latest user message as the active lookup 
 ## Search procedure
 
 - Follow the `repo-tools` search procedure first.
-- If the request asks for context for source strings changed recently or in bulk, use `gitHistory` first:
-  - call `gitHistory` with `mode: "changedFiles"` and the requested `since`/`until` window; when no paths are provided it discovers source files from `i18n.yml`, `i18n.jsonc`, `crowdin.yml`, `crowdin.yaml`, `.phrase.yml`, `phrase.yml`, or `phrase.yaml`
-  - use `mode: "fileDiff"` for changed source files to inspect the relevant source-entry changes
-  - use `mode: "entryLog"` or `mode: "blame"` only when a specific changed key/source string needs more provenance
-  - summarize only translation-relevant changed strings; do not include a raw git log or broad implementation review
+- When the user already identified recently changed strings and now asks for context on one of them, use `gitHistory` only as needed for provenance (`entryLog` / `blame` / `fileDiff`), then search and read surrounding usage as usual.
 - If `sourceText` is present, search with the exact text first.
 - If `stringKey` is present, search with the exact key first. This is enough to proceed when source text is missing or too generic.
 - If exact key search has no useful matches, search nearby key variants, namespace fragments, locale/resource files, and code references that consume the key.

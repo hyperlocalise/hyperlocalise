@@ -198,14 +198,14 @@ type GitHistoryInput = {
 export function createGitHistoryTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Inspect read-only git history for repository localization context. Use changedFiles for time-window discovery, fileDiff for bounded patches, entryLog for commits touching a key/source string, and blame only for current-line provenance.",
+      "Inspect read-only git history for repository localization source content. Use changedFiles for time-window discovery of changed source files, fileDiff for bounded patches of those files, entryLog for commits touching a key/source string, and blame only for current-line provenance. If changedFiles discovers no config paths, find likely source locale files in the repo and call again with explicit paths — do not stop at empty discovery.",
     inputSchema: z.object({
       mode: z.enum(GIT_HISTORY_MODES).describe("Git history lookup mode."),
       paths: z
         .array(z.string())
         .optional()
         .describe(
-          "Workspace-relative paths. If omitted for changedFiles, source files are discovered from localization config.",
+          "Workspace-relative source localization paths. If omitted for changedFiles, source files are discovered from localization config; when discovery is empty, pass explicit paths found via glob/grep.",
         ),
       since: z.string().optional().describe('Git --since value, for example "1 week ago".'),
       until: z.string().optional().describe("Git --until value."),
@@ -301,7 +301,7 @@ async function changedFilesHistory(
     return {
       success: false as const,
       error:
-        "No localization config found. Looked for i18n.yml, i18n.jsonc, crowdin.yml, crowdin.yaml, .phrase.yml, phrase.yml, and phrase.yaml.",
+        "No localization config found. Looked for i18n.yml, i18n.jsonc, crowdin.yml, crowdin.yaml, .phrase.yml, phrase.yml, and phrase.yaml. Discover likely source locale paths in the repository, then call gitHistory again with those paths.",
     };
   }
 
@@ -313,7 +313,10 @@ async function changedFilesHistory(
       files: [],
       discovery,
       truncated: false,
-      diagnostics: ["No source files were resolved from localization config."],
+      diagnostics: [
+        "No source files were resolved from localization config.",
+        "Continue repository exploration: discover likely source locale paths, then call gitHistory again with those paths.",
+      ],
     };
   }
 

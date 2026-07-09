@@ -915,6 +915,21 @@ describe("createGitHistoryTool", () => {
           },
         ],
       },
+      diagnostics: [
+        "No source files were resolved from localization config.",
+        "Continue repository exploration: discover likely source locale paths, then call gitHistory again with those paths.",
+      ],
+    });
+  });
+
+  it("tells the caller to keep exploring when no localization config exists", async () => {
+    const ctx = createTestContext();
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!({ mode: "changedFiles" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("Discover likely source locale paths"),
     });
   });
 

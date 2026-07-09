@@ -13,4 +13,11 @@ describe("repository subagent prompt", () => {
       'Do not use separate "Summary", "Answer", "Source", "Details", or "Searches Run" sections',
     );
   });
+
+  it("instructs recent source-change lookups to keep exploring git history", () => {
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("gitHistory");
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("Recent source-content changes");
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("changelog");
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("Do not ask for Crowdin");
+  });
 });

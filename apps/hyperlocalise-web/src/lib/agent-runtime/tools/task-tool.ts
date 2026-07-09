@@ -53,12 +53,14 @@ WHEN TO USE:
 - Translation requests with attached files → \`translation\`
 - Crowdin or TMS status for projects, files, or strings → \`translation\`
 - Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
+- Listing recent / newly changed source localization content via repository git history → \`repository\`
 - Any work that matches an agent description above
 
 WHEN NOT TO USE:
 - Simple questions you can answer without tools
 - Requests that need an agent that is unavailable (explain what is missing instead)
 - General repository architecture summaries, PR fixes, code review, or checks unless an agent explicitly supports them
+- Treating "recent translations" as a TMS/Crowdin progress question when a GitHub repository is connected — explore repository source history instead
 
 BEHAVIOR:
 - Agents run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps

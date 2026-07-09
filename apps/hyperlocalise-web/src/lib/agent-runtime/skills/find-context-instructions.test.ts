@@ -25,12 +25,13 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain("Source text: Save");
   });
 
-  it("instructs bulk recent-change lookups to use git history and config discovery", () => {
+  it("keeps find-context focused on specific strings and defers bulk recent changes to repo-tools", () => {
     const instructions = buildFindContextSkillInstructions({});
 
+    expect(instructions).toContain("Not this skill");
+    expect(instructions).toContain('listing "recent translations"');
+    expect(instructions).toContain("answer as a changelog of source changes");
     expect(instructions).toContain("gitHistory");
-    expect(instructions).toContain('mode: "changedFiles"');
-    expect(instructions).toContain("crowdin.yml");
-    expect(instructions).toContain(".phrase.yml");
+    expect(instructions).toContain("mode: \"changedFiles\"");
   });
 });
