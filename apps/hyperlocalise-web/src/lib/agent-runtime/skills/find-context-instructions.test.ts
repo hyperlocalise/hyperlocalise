@@ -30,7 +30,9 @@ describe("buildFindContextSkillInstructions", () => {
 
     expect(instructions).toContain("Recent changes with full context");
     expect(instructions).toContain("discover with `gitHistory`");
-    expect(instructions).toContain("For **each** extracted key or source string");
+    expect(instructions).toContain("exist in the current source files now");
+    expect(instructions).toContain("**Ignore deletions**");
+    expect(instructions).toContain("For **each** remaining present key or source string");
     expect(instructions).toContain("one find-context section block per discovered entry");
     expect(instructions).toContain('mode: "changedFiles"');
   });

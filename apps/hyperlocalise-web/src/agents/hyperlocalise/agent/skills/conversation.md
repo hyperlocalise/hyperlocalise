@@ -19,8 +19,8 @@ Use the capability skills and tools available for this turn. Match the user's re
 
 ### Routing rules
 
-- **"Recent translations" / "what's new" / "what changed last week" (list only)** → use **repo-tools** and `gitHistory`. Return a scannable changelog of changed source keys/strings. Do **not** treat this as a TMS progress question.
-- **"Recent translations" + context** ("last week… give me context", "new strings and what they mean", "context for everything that changed") → use **find-context**'s recent-change + context procedure: discover keys with `gitHistory`, then run find-context for each discovered key/source string.
+- **"Recent translations" / "what's new" / "what changed last week" (list only)** → use **repo-tools** and `gitHistory`. Return a scannable changelog of **currently present** added/updated source keys/strings (ignore deletions unless asked). Do **not** treat this as a TMS progress question.
+- **"Recent translations" + context** ("last week… give me context", "new strings and what they mean", "context for everything that changed") → use **find-context**'s recent-change + context procedure: discover present keys with `gitHistory`, then run find-context for each discovered key/source string that still exists.
 - **Specific string or key context** ("what does X mean", "where is this copy used") → **find-context**.
 - **Linked TMS completion/status** ("Crowdin progress", "how many strings left") → **tms-tools** only when a TMS is integrated. Do not pivot to TMS because repository source discovery was empty.
 

@@ -29,5 +29,7 @@ describe("repository subagent prompt", () => {
     expect(REPOSITORY_SYSTEM_PROMPT).toContain(
       "Do not stop after a changelog when context was requested",
     );
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("still exist now");
+    expect(REPOSITORY_SYSTEM_PROMPT).toContain("Ignore deleted keys");
   });
 });

@@ -33,10 +33,14 @@ Use when the user asks for recently added/changed source copy **and** wants cont
 Procedure:
 
 1. Follow the `repo-tools` **Recent source-content changes** procedure to call `gitHistory` (`changedFiles` → `fileDiff`, with path fallbacks when discovery is empty).
-2. From the diffs, extract the set of **newly added or meaningfully changed source keys/strings** (prefer additions and content changes; skip churn-only formatting unless nothing else changed).
-3. For **each** extracted key or source string, run the specific-string search procedure below (exact key/text → usage → surrounding UI). Reuse file reads across keys in the same feature when possible.
+2. From the diffs, extract only keys/source strings that **exist in the current source files now**:
+   - Include **added** keys and keys whose source text was **updated** and still present at HEAD.
+   - **Ignore deletions** — do not include keys or source content removed in the window, even if they appear as `-` lines in the diff.
+   - Skip churn-only formatting unless nothing else changed.
+   - If unsure whether a key still exists, `read` or `grep` the current source file and drop anything no longer present.
+3. For **each** remaining present key or source string, run the specific-string search procedure below (exact key/text → usage → surrounding UI). Reuse file reads across keys in the same feature when possible.
 4. Answer with one find-context section block per discovered entry. Lead with a one-line inventory of the keys covered, then the per-key sections.
-5. If many entries are found, still cover them all when practical; group closely related sibling keys under one feature heading but keep a distinct What it is / Where/how it shows / Translation guidance block per key. If the step budget is tight, prioritize newly **added** keys over minor edits and note any remaining keys that still need context.
+5. If many entries are found, still cover them all when practical; group closely related sibling keys under one feature heading but keep a distinct What it is / Where/how it shows / Translation guidance block per key. If the step budget is tight, prioritize newly **added** keys over minor edits and note any remaining present keys that still need context.
 
 Do **not** stop after the changelog inventory when the user asked for context. Do **not** ask for Crowdin/TMS linkage because config discovery was empty — keep exploring the repo.
 
