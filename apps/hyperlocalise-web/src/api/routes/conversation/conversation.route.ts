@@ -14,7 +14,7 @@ import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
   getRepositoryContextKey,
@@ -287,7 +287,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
 
         for (const file of files) {
-          if (!inferSupportedFileTranslationFileFormat(file.name)) {
+          if (!inferSupportedSourceUploadFormat(file.name)) {
             return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
               filename: file.name,
             });

@@ -136,7 +136,10 @@ import {
   loadCatSegmentConcordance,
   loadCatSegmentVisualContext,
 } from "@/lib/translation/cat";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedFileTranslationFileFormat,
+  inferSupportedSourceUploadFormat,
+} from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
@@ -1563,7 +1566,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (!inferSupportedSourceUploadFormat(parsed.data.sourcePath)) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
 

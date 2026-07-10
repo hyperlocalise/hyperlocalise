@@ -17,7 +17,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type CreateTranslationJobDialogProps = {
   open: boolean;
@@ -55,7 +55,7 @@ export function CreateTranslationJobDialog({
         throw new Error("Upload a source file before creating a translation job.");
       }
 
-      const fileFormat = inferSupportedFileTranslationFileFormat(file.sourcePath);
+      const fileFormat = inferSupportedTranslationFileFormat(file.sourcePath);
       if (!fileFormat) {
         throw new Error("This file format is not supported for translation jobs.");
       }
