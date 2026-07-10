@@ -125,16 +125,16 @@ describe("image URL translation approved locks", () => {
     expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
     expect(createStoredFile).not.toHaveBeenCalled();
 
-    await expect(getTranslation({ translationKeyId: key.id, targetLocale: "fr-FR" })).resolves.toMatchObject(
-      {
-        text: "https://cdn.example.com/assets/hero-approved-fr.png",
-        status: "approved",
-        metadata: {
-          contentKind: "image_url",
-          storedFileId: "file_existing",
-        },
+    await expect(
+      getTranslation({ translationKeyId: key.id, targetLocale: "fr-FR" }),
+    ).resolves.toMatchObject({
+      text: "https://cdn.example.com/assets/hero-approved-fr.png",
+      status: "approved",
+      metadata: {
+        contentKind: "image_url",
+        storedFileId: "file_existing",
       },
-    );
+    });
   });
 
   it("does not replace approved image URL translation bytes unless forced", async () => {
@@ -158,15 +158,15 @@ describe("image URL translation approved locks", () => {
     expect(result.error).toEqual({ code: "approved_locked" });
     expect(createStoredFile).not.toHaveBeenCalled();
 
-    await expect(getTranslation({ translationKeyId: key.id, targetLocale: "fr-FR" })).resolves.toMatchObject(
-      {
-        text: "https://cdn.example.com/assets/hero-approved-fr.png",
-        status: "approved",
-        metadata: {
-          contentKind: "image_url",
-          storedFileId: "file_existing",
-        },
+    await expect(
+      getTranslation({ translationKeyId: key.id, targetLocale: "fr-FR" }),
+    ).resolves.toMatchObject({
+      text: "https://cdn.example.com/assets/hero-approved-fr.png",
+      status: "approved",
+      metadata: {
+        contentKind: "image_url",
+        storedFileId: "file_existing",
       },
-    );
+    });
   });
 });
