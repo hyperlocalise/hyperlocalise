@@ -1,8 +1,8 @@
 ---
-title: "AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation"
+title: "AI 翻译还不够：为什么全球团队需要具备上下文感知的本地化"
 date: 2026-06-18T00:00:00.000Z
-excerpt: AI has made translation faster, but fluent output is not the same as good localisation. Global teams need context-aware workflows that preserve product meaning, brand intent, and customer experience.
-category: Product
+excerpt: AI 让翻译更快了，但流畅的输出并不等同于出色的本地化。全球团队需要具备上下文感知的工作流程，以保留产品含义、品牌意图和客户体验。
+category: 产品
 tags:
   - context-aware localisation
   - AI translation
@@ -18,112 +18,112 @@ tags:
   - machine translation
 ---
 
-AI has made translation faster. But for global teams, faster translation does not always mean better localisation.
+AI 让翻译更快了。但对于全球团队来说，更快的翻译并不总是意味着更好的本地化。
 
-The real problem is not that AI struggles to translate words. The real problem is that AI often lacks the context to understand what those words are supposed to do.
+真正的问题并不是 AI 难以翻译单词。真正的问题是，AI 往往缺乏理解这些词本应起到什么作用的上下文。
 
-A button label, onboarding message, product description, help article, or marketing headline rarely exists in isolation. It belongs to a product experience. It has a user, a screen, a business goal, a brand voice, and often a set of market-specific expectations behind it. When that context is missing, even a fluent AI translation can still be wrong.
+一个按钮标签、入门引导消息、产品描述、帮助文章或营销标题很少是孤立存在的。它属于某种产品体验。它背后有用户、有屏幕、有业务目标、有品牌语气，而且往往还有一套特定市场的预期。当这些上下文缺失时，即使是流畅的 AI 翻译也可能出错。
 
-This is why global teams need to move beyond basic AI translation and toward context-aware localisation.
+这就是为什么全球团队需要超越基础的 AI 翻译，转向具备上下文感知的本地化。
 
-## Translation quality is no longer just a language problem
+## 翻译质量不再仅仅是语言问题
 
-For many companies, localisation is still treated as a language conversion task. Source text goes in. Translated text comes out. The workflow is measured by speed, cost, and volume.
+对于许多公司来说，本地化仍然���视为一项语言转换任务。源文本输入。译文输出。工作流程的衡量标准是速度、成本和产量。
 
-That model is becoming outdated.
+那个模型正变得过时。
 
-Modern localisation is not only about whether a sentence is grammatically correct in another language. It is about whether the message works in the right market, inside the right product experience, for the right audience. A translation can be technically accurate and still feel confusing, inconsistent, off-brand, or unsuitable for the interface.
+现代本地化不仅仅是句子在另一种语言中是否语法正确的问题。它关乎信息是否能在正确的市场、正确的产品体验中、针对正确的受众发挥作用。一个翻译在技术上可能是准确的，但仍然会让人觉得令人困惑、不一致、与品牌调性不符，或者不适合界面。
 
-Take a simple product string like "Create project." On the surface, it looks easy to translate. But what kind of project is being created? Is this part of a developer tool, a marketing workspace, a customer portal, or an internal operations platform? Is the user creating something personal, collaborative, technical, or client-facing? Should the translation feel formal, friendly, concise, or instructional?
+像“Create project.”这样的简单产品字符串，表面上看起来很容易翻译。但这里创建的是什么类型的项目？这是开发者工具的一部分、营销工作区、客户门户，还是内部运营平台？用户是在创建个人的、协作的、技术性的，还是面向客户的内容？译文应该显得正式、友好、简洁，还是具有指导性？
 
-Without context, AI has to guess. Sometimes it guesses well. But in professional localisation, guessing does not scale.
+没有上下文，AI 只能靠猜测。有时它猜得不错。但在专业本地化中，猜测无法规模化。
 
-## The bottleneck is missing context
+## 瓶颈是缺少上下文
 
-Global teams do not usually struggle because translation itself is impossible. They struggle because the information needed to make good translation decisions is scattered across too many places.
+全球团队通常并不是因为翻译本身不可能而遇到困难。它们遇到困难，是因为做出良好翻译决策所需的信息分散在太多地方。
 
-Product context may live in the codebase or design files. Glossary rules may sit in a spreadsheet. Brand voice may be documented in a marketing guide. Screenshots may be attached to a ticket, if they exist at all. Reviewer feedback may be buried in Slack, email threads, or previous localisation comments.
+产品上下文可能存在于代码库或设计文件中。术语表规则可能位于电子表格中。品牌语气可能记录在营销指南里。截图如果存在，可能附在工单中。评审反馈可能埋在 Slack、电子邮件线程或之前的本地化评论里。
 
-By the time a translator or reviewer opens a traditional CAT tool, they often see only the source text, the target text, and maybe a translation memory match. The most important context is missing from the actual place where the decision is made.
+当译员或审校人员打开传统 CAT 工具时，他们通常只能看到源文本、目标文本，或许还有一条翻译记忆匹配。最重要的上下文却缺失在真正做出决策的地方。
 
-That is where avoidable quality issues begin.
+可避免的质量问题就是从那里开始的。
 
-A translator may choose the wrong meaning for a short UI string. AI may ignore a preferred product term. A reviewer may correct the same mistake repeatedly because the feedback never becomes reusable knowledge. A marketing line may be translated literally when it needs to be adapted for the local market. A phrase may sound fine in a spreadsheet but fail once it appears inside a real interface.
+译者可能会为一个简短的界面字符串选错含义。AI 可能会忽略首选的产品术语。审校人员可能会反复纠正同一个错误，因为反馈从未真正变成可复用的知识。营销文案可能在需要针对本地市场进行调整时，却被逐字直译。某个短语在表格里看起来没问题，但一旦出现在真实界面中就可能不合适。
 
-The result is a localisation workflow that looks automated but still depends heavily on manual clarification, rework, and review.
+结果是一个看起来像自动化的本地化工作流，但它仍然很大程度上依赖人工澄清、返工和审校。
 
-## AI translation needs product intelligence
+## AI 翻译需要产品智能
 
-Large language models are powerful, but they do not automatically understand your product, your customers, or your internal decisions.
+大型语言模型很强大，但它们不会自动理解你的产品、你的客户，或你的内部决策。
 
-They can generate fluent translations. They can rewrite copy. They can adapt tone. But unless they are connected to the right context, they are still operating with incomplete information.
+它们可以生成流畅的翻译。它们可以改写文案。它们可以调整语气。但如果没有连接到正确的上下文，它们仍然是在不完整的信息下运行。
 
-For a global product team, the important question is not simply, "Can AI translate this?" The better question is, "Does AI understand enough about this product, market, and workflow to suggest the right translation?"
+对于全球化产品团队来说，重要的问题不仅仅是“AI能翻译这个吗？”更好的问题是：“AI是否足够了解这个产品、市场和工作流程，从而提出正确的翻译建议？”
 
-That requires product intelligence — the same foundation behind [translation intelligence](/blog/what-is-translation-intelligence).
+这需要产品智能——也就是 [translation intelligence](/blog/what-is-translation-intelligence)背后的同一基础。
 
-AI localisation should understand where a string appears, what feature it belongs to, who the user is, what glossary rules apply, what tone the brand uses, what previous reviewers have approved, and what constraints exist in the interface. It should be able to use screenshots, product metadata, source files, design context, and past feedback to guide better translation decisions.
+AI 本地化应了解字符串出现的位置、所属功能、用户是谁、适用哪些术语表规则、品牌使用什么语气、之前的审校者批准了什么，以及界面中存在什么限制。它应能够使用截图、产品元数据、源文件、设计上下文和过往反馈来指导更好的翻译决策。
 
-This is the difference between AI translation and context-aware localisation.
+这是 AI 翻译与上下文感知本地化之间的区别。
 
-AI translation generates language. Context-aware localisation helps teams preserve meaning.
+AI 翻译生成语言。上下文感知本地化帮助团队保留含义。
 
-## What context-aware localisation looks like in practice
+## 实际中的上下文感知本地化是什么样的
 
-Context-aware localisation brings the surrounding knowledge of a translation directly into the workflow.
+上下文感知本地化将翻译相关的周边知识直接带入工作流程。
 
-When translating product UI, this means seeing the screen, the feature, the user action, and the interface constraints. A translator should know whether a string is a button, a tooltip, an error message, a navigation label, or an onboarding step. Each of these requires different judgement.
+在翻译产品界面时，这意味着要看到屏幕、功能、用户操作以及界面约束。译者应当知道某个字符串是按钮、工具提示、错误消息、导航标签，还是新手引导步骤。每一种都需要不同的判断。
 
-When translating marketing content, context-aware localisation means understanding the campaign goal, audience, tone of voice, and market expectations. A phrase that works in English may need to be rewritten, not translated literally, to create the same emotional effect in another language.
+在翻译营销内容时，语境化本地化意味着要理解活动目标、受众、语气风格以及市场期望。有些在英语中奏效的表达，可能需要重新改写，而不是直译，才能在另一种语言中产生相同的情感效果。
 
-When reviewing translations, context-aware localisation means reviewers are not just approving text in isolation. They can see relevant glossary rules, previous decisions, AI suggestions, screenshots, and potential risks in one place.
+在审校翻译时，具备上下文感知的本地化意味着审校者并不是只在孤立地批准文本。他们可以在同一处查看相关的术语表规则、先前的决定、AI 建议、截图以及潜在风险。
 
-When managing localisation at scale, it means feedback does not disappear after one project. Corrections, terminology decisions, tone preferences, and market-specific patterns become reusable knowledge that improves future work.
+当大规模管理本地化时，这意味着反馈不会在一个项目结束后就消失。更正、术语决策、语气偏好以及特定市场的模式都会成为可复用的知识，从而改进未来的工作。
 
-This is where AI becomes more valuable. Not as a generic translation engine, but as an assistant that can gather context, apply rules, surface risks, and support better human decisions.
+这就是 AI 变得更有价值的地方。它不是作为一个通用翻译引擎，而是作为一个助手，能够收集上下文、应用规则、识别风险，并支持更好的人工决策。
 
-## Traditional CAT tools were not built for this level of context
+## 传统的 CAT 工具并不是为这种程度的上下文而设计的
 
-Traditional CAT tools were designed to improve translation productivity. They are useful for segment management, translation memory, terminology, and review workflows. But most were built around a document-first or segment-first view of translation.
+传统 CAT 工具旨在提高翻译生产力。它们在分段管理、翻译记忆、术语和审校工作流方面很有用。但其中大多数都是围绕以文档为先或以分段为先的翻译视角构建的。
 
-Modern localisation is different.
+现代本地化已经不同了。
 
-Product teams ship continuously. Marketing teams launch campaigns across multiple regions. Support content changes frequently. Source strings come from repositories, CMS platforms, design tools, and ticketing systems. Translation decisions depend on product context, brand rules, customer expectations, screenshots, and prior reviewer feedback.
+产品团队持续交付。市场团队在多个地区开展活动。支持内容经常变更。源字符串来自代码仓库、CMS 平台、设计工具和工单系统。翻译决策取决于产品上下文、品牌规范、客户期望、截图以及以往审校反馈。
 
-A translation interface that only shows source and target text is no longer enough.
+一个只显示源文本和目标文本的翻译界面已经不够了。
 
-Global teams need a [next-generation CAT tool](/product/next-gen-cat-tool) that brings context into the translation experience itself. Not as an afterthought. Not as a separate document. Not as a Slack thread someone has to search through. But as part of the workflow where translation and review actually happen.
+全球团队需要一款[next-generation CAT tool](/product/next-gen-cat-tool)，将上下文直接带入翻译体验本身。不是事后补充。不是单独的文档。也不是某个人必须去搜索的 Slack 线程。而是作为翻译和审校真正发生的工作流的一部分。
 
-That is the direction we are building toward at Hyperlocalise.
+这就是我们在 Hyperlocalise 正在努力实现的方向。
 
-## Human review becomes more important, not less
+## 人工审核变得更加重要，而不是不那么重要
 
-Context-aware AI does not remove the need for human review. It makes human review more focused and more valuable.
+有上下文感知的 AI 并不会消除人工审核的必要性。它只是让人工审核更有针对性，也更有价值。
 
-Human reviewers understand nuance, emotion, market expectations, and cultural risk. They know when a phrase should be adapted instead of translated. They can judge whether a message feels natural, persuasive, respectful, or trustworthy in a specific market.
+人工审校人员理解细微差别、情感、市场预期和文化风险。他们知道何时应对某个短语进行本地化改写，而不是逐字翻译。他们能够判断一条信息在特定市场中是否显得自然、有说服力、得体或值得信赖。
 
-But human experts should not have to waste time fixing mistakes that come from missing context. They should not need to repeatedly explain the same glossary rule, chase screenshots, or ask where a string appears in the product.
+但人工专家不应把时间浪费在修复因缺少上下文而产生的错误上。他们不应该反复解释同一条术语表规则、追着要截图，或者询问某个字符串在产品中出现在哪里。
 
-AI should do the heavy lifting around preparation. It should collect relevant context, suggest terminology, identify inconsistencies, respect brand voice, and highlight areas that need human judgement.
+AI 应该在准备工作中承担主要负担。它应该收集相关上下文，提出术语建议，识别不一致之处，尊重品牌语调，并突出显示需要人工判断的部分。
 
-The best localisation workflow is not AI-only. It is AI-assisted and human-approved.
+最佳本地化工作流不是仅靠 AI 完成的。它是由 AI 辅助并经人工审核通过的。
 
-## Better localisation starts before translation
+## 更好的本地化始于翻译之前
 
-The future of localisation will not be defined by who can translate the most words the fastest. Speed matters, but only when quality, consistency, and market fit are preserved.
+本地化的未来不会由谁能最快翻译最多的词来定义。速度很重要，但前提是要保持质量、一致性和市场契合度。
 
-Better localisation starts before translation. It starts with giving every translator, reviewer, and AI assistant the context they need to make the right decision from the beginning.
+更好的本地化始于翻译之前。它始于从一开始就为每位译者、审校人员和 AI 助手提供做出正确决策所需的上下文。
 
-That means connecting product knowledge, glossary rules, brand voice, screenshots, UI constraints, previous feedback, and human review into one workflow. It means treating localisation as a product and growth function, not just an operational task at the end of the release cycle.
+这意味着将产品知识、术语表规则、品牌语调、截图、UI 约束、先前反馈和人工审核整合到一个工作流中。它意味着将本地化视为一种产品和增长职能，而不只是发布周期末尾的一项运营任务。
 
-AI translation is useful. But it is only one piece of the localisation system global teams actually need.
+AI 翻译很有用。但它只是全球团队真正需要的本地化系统中的一部分。
 
-AI can translate words.
+AI 可以翻译单词。
 
-Context-aware localisation helps teams translate product meaning, brand intent, and customer experience.
+上下文化本地化有助于团队翻译产品含义、品牌意图和客户体验。
 
-At Hyperlocalise, we are building a [next-generation CAT tool](/product/next-gen-cat-tool) designed around this idea: AI assistance, product context, reusable knowledge, and human review working together in one localisation workflow.
+在 Hyperlocalise，我们正在构建一个围绕这一理念设计的 [下一代 CAT 工具](/product/next-gen-cat-tool)：AI 辅助、产品上下文、可复用知识和人工审校在同一个本地化工作流程中协同工作。
 
-[See our next-gen CAT tool](/product/next-gen-cat-tool) and discover how context-aware AI localisation can help your team translate with more accuracy, consistency, and confidence.
+[查看我们的下一代 CAT 工具](/product/next-gen-cat-tool)，了解具备上下文感知的 AI 本地化如何帮助您的团队更准确、更一致、更自信地进行翻译。
 
-For how this fits into a wider global growth strategy, read [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+要了解这如何融入更广泛的全球增长战略，请阅读 [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation)。

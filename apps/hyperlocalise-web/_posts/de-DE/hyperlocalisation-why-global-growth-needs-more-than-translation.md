@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalisation: Why Global Growth Needs More Than Translation"
+title: "Hyperlokalisierung: Warum globales Wachstum mehr als nur Übersetzung braucht"
 date: 2026-06-20T00:00:00.000Z
-excerpt: Global growth has outpaced traditional localisation. Hyperlocalisation adapts communication so it feels natural, relevant, and trusted in every market — with context, not just translation.
-category: Product
+excerpt: Globales Wachstum hat die traditionelle Lokalisierung überholt. Hyperlokalisierung passt die Kommunikation so an, dass sie in jedem Markt natürlich, relevant und vertrauenswürdig wirkt — mit Kontext, nicht nur mit Übersetzung.
+category: Produkt
 tags:
   - hyperlocalisation
   - hyperlocalization
@@ -21,142 +21,142 @@ tags:
   - self-evolving localisation
 ---
 
-For years, localisation has been treated as the final step before a product, campaign, or piece of content reaches a new market. The source content is created, translated, reviewed, and published. In many organisations, this process has been enough to support international expansion.
+Seit Jahren wird Lokalisierung als der letzte Schritt behandelt, bevor ein Produkt, eine Kampagne oder ein Inhalt einen neuen Markt erreicht. Der Quellinhalt wird erstellt, übersetzt, geprüft und veröffentlicht. In vielen Organisationen hat dieser Prozess ausgereicht, um die internationale Expansion zu unterstützen.
 
-But global growth has changed.
+Aber das globale Wachstum hat sich verändert.
 
-Companies now ship products continuously. Marketing teams launch campaigns across multiple regions at the same time. Support teams update help content every week. Product copy lives across repositories, CMS platforms, design tools, ticketing systems, landing pages, and customer-facing applications. The volume of multilingual content has increased, but the real challenge is not simply producing more translations faster.
+Unternehmen bringen Produkte heute kontinuierlich auf den Markt. Marketingteams starten Kampagnen gleichzeitig in mehreren Regionen. Support-Teams aktualisieren jede Woche Hilfseinhalte. Produkttexte sind über Repositories, CMS-Plattformen, Design-Tools, Ticketing-Systeme, Landingpages und kundenorientierte Anwendungen verteilt. Das Volumen mehrsprachiger Inhalte ist gestiegen, aber die eigentliche Herausforderung besteht nicht einfach darin, mehr Übersetzungen schneller zu erstellen.
 
-The real challenge is context.
+Die eigentliche Herausforderung ist der Kontext.
 
-A sentence can be translated correctly and still fail in the market. A product string can be linguistically accurate but confusing inside the interface. A campaign message can preserve the original meaning while losing the emotion, cultural relevance, or commercial intent that made it work in the first place.
+Ein Satz kann korrekt übersetzt sein und dennoch auf dem Markt scheitern. Ein Produktstring kann sprachlich korrekt, aber innerhalb der Benutzeroberfläche verwirrend sein. Eine Kampagnenbotschaft kann die ursprüngliche Bedeutung bewahren und dabei dennoch die Emotion, kulturelle Relevanz oder kommerzielle Absicht verlieren, die sie überhaupt erst wirksam gemacht haben.
 
-This is where hyperlocalisation becomes essential.
+Hier wird Hyperlokalisierung unverzichtbar.
 
-Hyperlocalisation is not just the act of translating content into another language. It is the practice of adapting communication so it feels natural, relevant, and trusted in each market. It considers language, culture, product experience, brand voice, customer expectations, regulatory nuance, and the specific context in which the content appears.
+Hyperlokalisierung ist nicht nur der Akt, Inhalte in eine andere Sprache zu übersetzen. Es ist die Praxis, Kommunikation so anzupassen, dass sie sich in jedem Markt natürlich, relevant und vertrauenswürdig anfühlt. Dabei werden Sprache, Kultur, Produkterlebnis, Markenstimme, Kundenerwartungen, regulatorische Nuancen und der spezifische Kontext berücksichtigt, in dem der Inhalt erscheint.
 
-In other words, translation asks, "What does this say in another language?"
+Mit anderen Worten fragt die Übersetzung: „Was sagt das in einer anderen Sprache?“
 
-Hyperlocalisation asks, "How should this message work for this audience, in this market, inside this experience?"
+Hyperlokalisierung fragt: „Wie sollte diese Nachricht für dieses Publikum, in diesem Markt, innerhalb dieses Erlebnisses funktionieren?“
 
-That distinction is becoming increasingly important for every company with global ambitions.
+Diese Unterscheidung wird für jedes Unternehmen mit globalen Ambitionen zunehmend wichtiger.
 
-## The limits of traditional localisation
+## Die Grenzen der traditionellen Lokalisierung
 
-Traditional localisation workflows were built for a more predictable operating model. Content moved through defined stages: creation, translation, review, approval, and release. Translation memories, glossaries, terminology databases, and review workflows helped teams improve consistency and manage quality at scale.
+Traditionelle Lokalisierungs-Workflows wurden für ein besser vorhersehbares Betriebsmodell entwickelt. Inhalte durchliefen definierte Phasen: Erstellung, Übersetzung, Prüfung, Freigabe und Veröffentlichung. Translation Memories, Glossare, Terminologiedatenbanken und Review-Workflows halfen Teams dabei, die Konsistenz zu verbessern und Qualität in großem Umfang zu steuern.
 
-These systems remain useful, but they were not designed for the way modern companies now build and communicate.
+Diese Systeme sind zwar weiterhin nützlich, wurden jedoch nicht für die Art und Weise entwickelt, wie moderne Unternehmen heute arbeiten und kommunizieren.
 
-Today, localisation is no longer a simple handoff between content teams and translators. It is an ongoing collaboration between product, engineering, marketing, support, legal, brand, regional teams, and external language experts. A single translation decision may depend on the product surface, design constraints, previous reviewer feedback, market-specific terminology, brand positioning, legal requirements, and customer behaviour.
+Heute ist Lokalisierung nicht mehr nur eine einfache Übergabe zwischen Content-Teams und Übersetzern. Sie ist eine fortlaufende Zusammenarbeit zwischen Produkt, Engineering, Marketing, Support, Recht, Marken-, Regional- und externen Sprachexperten. Eine einzelne Übersetzungsentscheidung kann von der Produktoberfläche, Designvorgaben, früherem Feedback von Prüfern, marktspezifischer Terminologie, Markenpositionierung, rechtlichen Anforderungen und dem Kundenverhalten abhängen.
 
-Yet much of this context still sits outside the translation workflow.
+Dennoch liegt ein Großteil dieses Kontexts weiterhin außerhalb des Übersetzungsworkflows.
 
-It may live in Slack conversations, Jira tickets, Figma files, GitHub repositories, product briefs, brand guidelines, screenshots, spreadsheets, or the memory of a reviewer who has worked on similar content before. As a result, localisation teams often spend as much time searching for context as they do managing the translation itself.
+Es kann in Slack-Konversationen, Jira-Tickets, Figma-Dateien, GitHub-Repositorys, Produktbriefings, Markenrichtlinien, Screenshots, Tabellenkalkulationen oder im Gedächtnis eines Reviewers liegen, der zuvor an ähnlichen Inhalten gearbeitet hat. Daher verbringen Lokalisierungsteams oft ebenso viel Zeit mit der Suche nach Kontext wie mit der eigentlichen Verwaltung der Übersetzung.
 
-This creates a structural problem.
+Dies erzeugt ein strukturelles Problem.
 
-When translators and reviewers work with incomplete context, quality becomes inconsistent. When localisation managers need to manually gather information from multiple tools, projects slow down. When decisions happen outside the workflow, valuable knowledge is lost. Over time, the organisation repeats the same questions, makes the same corrections, and rebuilds the same context from scratch.
+Wenn Übersetzer und Prüfer mit unvollständigem Kontext arbeiten, wird die Qualität inkonsistent. Wenn Lokalisierungsmanager Informationen manuell aus mehreren Tools zusammenstellen müssen, verlangsamen sich Projekte. Wenn Entscheidungen außerhalb des Workflows getroffen werden, geht wertvolles Wissen verloren. Mit der Zeit stellt die Organisation dieselben Fragen erneut, nimmt dieselben Korrekturen vor und erstellt denselben Kontext von Grund auf neu.
 
-The issue is not that localisation teams lack expertise.
+Das Problem ist nicht, dass Lokalisierungsteams nicht über das nötige Fachwissen verfügen.
 
-The issue is that the workflow does not give them the intelligence they need at the moment decisions are made.
+Das Problem ist, dass der Workflow ihnen in dem Moment, in dem Entscheidungen getroffen werden, nicht die nötigen Informationen liefert.
 
-## AI translation is only part of the answer
+## KI-Übersetzung ist nur ein Teil der Antwort
 
-AI has already changed localisation. It can generate translations quickly, reduce manual effort, support terminology checks, and help teams scale multilingual content with greater efficiency. For many companies, AI translation is now an important part of the localisation stack.
+KI hat die Lokalisierung bereits verändert. Sie kann schnell Übersetzungen erstellen, den manuellen Aufwand reduzieren, Terminologieprüfungen unterstützen und Teams dabei helfen, mehrsprachige Inhalte effizienter zu skalieren. Für viele Unternehmen ist KI-Übersetzung inzwischen ein wichtiger Bestandteil des Lokalisierungs-Stacks.
 
-But speed is not the same as quality.
+Aber Geschwindigkeit ist nicht dasselbe wie Qualität.
 
-A model can produce fluent output without understanding where the copy appears. It can follow a glossary without knowing when a term should be adapted for a specific audience. It can translate a product message without understanding the user journey, the design constraint, the brand strategy, or the reviewer's previous preference.
+Ein Modell kann flüssige Ausgaben erzeugen, ohne zu verstehen, wo der Text erscheint. Es kann einem Glossar folgen, ohne zu wissen, wann ein Begriff für eine bestimmte Zielgruppe angepasst werden sollte. Es kann eine Produktbotschaft übersetzen, ohne die User Journey, die Designvorgabe, die Markenstrategie oder die frühere Präferenz des Prüfers zu verstehen.
 
-This is why [AI translation alone is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation).
+Deshalb reicht [KI-Übersetzung allein nicht aus](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
-The next phase of localisation will not be defined by who can translate the fastest. It will be defined by who can make the best decisions with the right context.
+Die nächste Phase der Lokalisierung wird nicht davon bestimmt, wer am schnellsten übersetzen kann. Sie wird davon bestimmt, wer mit dem richtigen Kontext die besten Entscheidungen treffen kann.
 
-That requires a new layer of translation intelligence.
+Das erfordert eine neue Ebene der Übersetzungsintelligenz.
 
-[Translation intelligence](/blog/what-is-translation-intelligence) brings together the information required to make high-quality localisation decisions: product context, screenshots, source history, glossary rules, brand voice, UI constraints, customer expectations, market nuance, approval flows, and previous reviewer feedback.
+[Übersetzungsintelligenz](/blog/what-is-translation-intelligence) vereint die Informationen, die erforderlich sind, um hochwertige Lokalisierungsentscheidungen zu treffen: Produktkontext, Screenshots, Quellhistorie, Glossarregeln, Markenstimme, UI-Einschränkungen, Kundenerwartungen, Marktbesonderheiten, Freigabeprozesse und vorheriges Feedback von Prüfern.
 
-Instead of asking translators to chase context manually, the system should bring context into the workflow automatically.
+Anstatt von Übersetzern zu verlangen, Kontext manuell zusammenzusuchen, sollte das System den Kontext automatisch in den Workflow einbringen.
 
-Instead of treating every project as a new starting point, the system should learn from previous decisions.
+Anstatt jedes Projekt als neuen Ausgangspunkt zu behandeln, sollte das System aus früheren Entscheidungen lernen.
 
-Instead of using AI as a generic translation engine, teams should be able to use AI as a context-aware assistant that supports better judgement, faster review, and more consistent outcomes.
+Statt KI als generische Übersetzungsmaschine zu verwenden, sollten Teams KI als kontextbewussten Assistenten nutzen können, der bessere Urteile, schnellere Prüfungen und konsistentere Ergebnisse unterstützt.
 
-## Hyperlocalisation as an operating model
+## Hyperlokalisierung als Betriebsmodell
 
-Hyperlocalisation is often misunderstood as making every market completely different. That is not the goal.
+Hyperlokalisierung wird oft missverstanden als etwas, bei dem jeder Markt völlig anders gemacht wird. Das ist nicht das Ziel.
 
-The goal is to understand what should remain globally consistent and what should be adapted locally.
+Das Ziel ist es zu verstehen, was weltweit konsistent bleiben sollte und was lokal angepasst werden sollte.
 
-A strong global brand needs both discipline and flexibility. Product names, legal claims, core positioning, and brand principles often need consistency across markets. At the same time, tone, examples, calls to action, levels of formality, cultural references, payment language, and support expectations may need to vary depending on the region.
+Eine starke globale Marke braucht sowohl Disziplin als auch Flexibilität. Produktnamen, rechtliche Aussagen, die Kernpositionierung und Markenprinzipien müssen oft über Märkte hinweg konsistent bleiben. Gleichzeitig können Tonfall, Beispiele, Handlungsaufforderungen, Formalitätsgrade, kulturelle Bezüge, Zahlungssprache und Support-Erwartungen je nach Region variieren.
 
-The best localisation systems help teams manage this balance.
+Die besten Lokalisierungssysteme helfen Teams, dieses Gleichgewicht zu managen.
 
-They do not simply move words from one language to another. They help teams decide how a message should behave in context. They preserve the intent of the source content while adapting it to the expectations of the local customer.
+Sie verschieben Wörter nicht einfach von einer Sprache in eine andere. Sie helfen Teams zu entscheiden, wie sich eine Botschaft im Kontext verhalten sollte. Sie bewahren die Absicht des Quellinhalts und passen ihn gleichzeitig an die Erwartungen des lokalen Kunden an.
 
-This is why hyperlocalisation should be seen as an operating model, not just a translation technique.
+Deshalb sollte Hyperlokalisierung als Betriebsmodell und nicht nur als Übersetzungstechnik angesehen werden.
 
-It connects content, product, design, engineering, marketing, and regional knowledge into a shared workflow. It gives teams a clearer view of why a translation decision was made, who approved it, what context informed it, and how that decision should influence future work.
+Es verbindet Inhalte, Produkt, Design, Engineering, Marketing und regionales Wissen in einem gemeinsamen Workflow. Es gibt Teams einen klareren Überblick darüber, warum eine Übersetzungsentscheidung getroffen wurde, wer sie genehmigt hat, welcher Kontext sie beeinflusst hat und wie diese Entscheidung zukünftige Arbeit beeinflussen sollte.
 
-When done well, hyperlocalisation improves more than translation quality. It improves product experience, brand trust, conversion, customer support, and the speed at which companies can enter and grow in new markets.
+Wenn sie gut umgesetzt wird, verbessert Hyperlokalisierung mehr als nur die Übersetzungsqualität. Sie verbessert das Produkterlebnis, das Markenvertrauen, die Conversion, den Kundensupport und die Geschwindigkeit, mit der Unternehmen in neue Märkte eintreten und dort wachsen können.
 
-## The mission of Hyperlocalise
+## Die Mission von Hyperlocalise
 
-Hyperlocalise exists to help companies communicate with global customers as if they truly understand them.
+Hyperlocalise existiert, um Unternehmen dabei zu helfen, mit globalen Kunden so zu kommunizieren, als würden sie sie wirklich verstehen.
 
-Our mission is to make localisation more intelligent, more contextual, and more connected to the way modern teams work.
+Unsere Mission ist es, Lokalisierung intelligenter, kontextbezogener und stärker mit der Arbeitsweise moderner Teams zu verbinden.
 
-We believe the future of localisation is not a choice between human expertise and AI automation. The best outcomes will come from combining both. AI should reduce repetitive work, surface relevant context, suggest better options, and help teams operate faster. Human experts should remain focused on judgement, nuance, quality, and market relevance.
+Wir sind überzeugt, dass die Zukunft der Lokalisierung keine Entscheidung zwischen menschlicher Expertise und KI-Automatisierung ist. Die besten Ergebnisse werden daraus entstehen, beides zu kombinieren. KI sollte repetitive Arbeit reduzieren, relevanten Kontext hervorheben, bessere Optionen vorschlagen und Teams helfen, schneller zu arbeiten. Menschliche Expertinnen und Experten sollten sich weiterhin auf Urteilsvermögen, Nuancen, Qualität und Marktrelevanz konzentrieren.
 
-This is especially important for teams managing complex multilingual products.
+Dies ist besonders wichtig für Teams, die komplexe mehrsprachige Produkte verwalten.
 
-Localisation managers should not need to chase product context across disconnected tools. Translators should not need to work from isolated strings. Reviewers should not need to repeat the same feedback across every project. Product and marketing teams should not need to compromise between speed and quality when launching globally.
+Lokalisierungsmanager sollten nicht gezwungen sein, Produktkontext über voneinander getrennte Tools hinweg zusammenzusuchen. Übersetzer sollten nicht mit isolierten Strings arbeiten müssen. Prüfer sollten nicht in jedem Projekt dasselbe Feedback wiederholen müssen. Produkt- und Marketingteams sollten beim globalen Launch nicht zwischen Geschwindigkeit und Qualität Kompromisse eingehen müssen.
 
-Hyperlocalise is building for a future where localisation workflows are context-aware by default.
+Hyperlocalise entwickelt sich für eine Zukunft, in der Lokalisierungs-Workflows standardmäßig kontextbewusst sind.
 
-That means the translation experience should understand the product. It should understand the brand. It should understand the market. It should understand previous decisions. And it should improve as the team continues to work.
+Das bedeutet, dass das Übersetzungserlebnis das Produkt verstehen sollte. Es sollte die Marke verstehen. Es sollte den Markt verstehen. Es sollte frühere Entscheidungen verstehen. Und es sollte sich verbessern, während das Team weiterarbeitet.
 
-Our [next-generation CAT tool](/product/next-gen-cat-tool) brings product context, glossary rules, screenshots, and reviewer feedback into the translation experience itself — so hyperlocalisation decisions happen where the work actually gets done.
+Unser [CAT-Tool der nächsten Generation](/product/next-gen-cat-tool) bringt Produktkontext, Glossarregeln, Screenshots und Reviewer-Feedback direkt in das Translation-Erlebnis selbst — so dass Hyperlokalisierungsentscheidungen dort getroffen werden, wo die Arbeit tatsächlich erledigt wird.
 
-## Our vision: self-evolving localisation intelligence
+## Unsere Vision: selbstentwickelnde Lokalisierungsintelligenz
 
-The long-term vision of Hyperlocalise is to create a living intelligence layer for global communication.
+Die langfristige Vision von Hyperlocalise ist es, eine lebendige Intelligenzschicht für die globale Kommunikation zu schaffen.
 
-Every approved translation, reviewer edit, product update, glossary rule, screenshot, support insight, and brand decision contains valuable knowledge. Today, much of that knowledge disappears after a project is completed. It remains trapped in comments, tickets, spreadsheets, or individual memory.
+Jede genehmigte Übersetzung, jede Prüferbearbeitung, jedes Produktupdate, jede Glossarregel, jeder Screenshot, jede Support-Erkenntnis und jede Markenentscheidung enthält wertvolles Wissen. Heute geht ein großer Teil dieses Wissens verloren, nachdem ein Projekt abgeschlossen ist. Es bleibt in Kommentaren, Tickets, Tabellen oder im Gedächtnis einzelner Personen gefangen.
 
-We believe that knowledge should become reusable.
+Wir sind der Überzeugung, dass Wissen wiederverwendbar werden sollte.
 
-A localisation system should learn from how a company communicates. It should remember how terms are used across products. It should understand how reviewers make decisions. It should recognise patterns in market feedback. It should help teams apply the right rules and context without requiring the same manual setup every time.
+Ein Lokalisierungssystem sollte aus der Art und Weise lernen, wie ein Unternehmen kommuniziert. Es sollte sich merken, wie Begriffe produktübergreifend verwendet werden. Es sollte verstehen, wie Prüfer Entscheidungen treffen. Es sollte Muster im Marktfeedback erkennen. Es sollte Teams dabei helfen, die richtigen Regeln und den richtigen Kontext anzuwenden, ohne jedes Mal denselben manuellen Aufwand zu erfordern.
 
-This is what we mean by [self-evolving localisation intelligence](/product/self-evolving-knowledge).
+Das ist gemeint mit [selbstentwickelnder Lokalisierungsintelligenz](/product/self-evolving-knowledge).
 
-The system should become more useful with every project. It should reduce repeated questions, improve consistency, and help teams make better decisions over time. The more a company localises, the stronger its localisation intelligence should become.
+Das System sollte mit jedem Projekt nützlicher werden. Es sollte wiederholte Fragen reduzieren, die Konsistenz verbessern und Teams im Laufe der Zeit dabei helfen, bessere Entscheidungen zu treffen. Je mehr ein Unternehmen lokalisiert, desto stärker sollte seine Lokalisierungsintelligenz werden.
 
-[Agents and automation](/product/agents-automation) help teams gather context, route work, and apply learned decisions across repositories, CMS platforms, and design tools — so hyperlocalisation scales with the pace of modern product development.
+[Agenten und Automatisierung](/product/agents-automation) helfen Teams dabei, Kontext zu sammeln, Arbeit zuzuweisen und erlernte Entscheidungen über Repositories, CMS-Plattformen und Design-Tools hinweg anzuwenden — damit Hyperlokalisierung mit dem Tempo moderner Produktentwicklung mitwächst.
 
-## Why this matters
+## Warum das wichtig ist
 
-Customers can tell when a company has simply translated content.
+Kunden können erkennen, wenn ein Unternehmen Inhalte einfach nur übersetzt hat.
 
-They can also tell when a company has made the effort to understand them.
+Sie können auch erkennen, wenn sich ein Unternehmen die Mühe gemacht hat, sie zu verstehen.
 
-That difference matters. It affects whether a product feels intuitive. It affects whether a campaign feels relevant. It affects whether support content feels helpful. It affects whether customers trust the brand enough to adopt, buy, and stay.
+Dieser Unterschied zählt. Er beeinflusst, ob sich ein Produkt intuitiv anfühlt. Er beeinflusst, ob sich eine Kampagne relevant anfühlt. Er beeinflusst, ob sich Support-Inhalte hilfreich anfühlen. Er beeinflusst, ob Kund:innen der Marke genug vertrauen, um sie zu nutzen, zu kaufen und ihr treu zu bleiben.
 
-For global companies, localisation is no longer a back-office function. It is part of the customer experience.
+Für globale Unternehmen ist Lokalisierung keine reine Back-Office-Funktion mehr. Sie ist Teil des Kundenerlebnisses.
 
-The companies that win internationally will not be the ones that translate the most words at the lowest cost. They will be the ones that communicate with clarity, relevance, and respect in every market they serve.
+Die Unternehmen, die international erfolgreich sein werden, sind nicht diejenigen, die die meisten Wörter zu den niedrigsten Kosten übersetzen. Es werden diejenigen sein, die in jedem Markt, den sie bedienen, mit Klarheit, Relevanz und Respekt kommunizieren.
 
-That is the promise of hyperlocalisation.
+Das ist das Versprechen der Hyperlokalisierung.
 
-Not translation as an afterthought.
+Nicht als nachträglicher Gedanke.
 
-Not AI as a shortcut.
+Nicht KI als Abkürzung.
 
-Not localisation as a disconnected workflow.
+Nicht als lokalisierung als ein losgelöster Workflow.
 
-But a more intelligent way for global teams to create, adapt, review, and improve multilingual experiences with the context they need from the beginning.
+Aber eine intelligentere Art für globale Teams, mehrsprachige Erlebnisse mit dem nötigen Kontext von Anfang an zu erstellen, anzupassen, zu überprüfen und zu verbessern.
 
-That is the future Hyperlocalise is building.
+Das ist die Zukunft, die Hyperlocalise aufbaut.
 
-[Explore translation intelligence](/blog/what-is-translation-intelligence), see how [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation) works in practice, or [discover our next-gen CAT tool](/product/next-gen-cat-tool) to bring hyperlocalisation into your workflow.
+[Explore translation intelligence](/blog/what-is-translation-intelligence), sehen Sie, wie [kontextbewusste Lokalisierung](/blog/ai-translation-is-not-enough-context-aware-localisation) in der Praxis funktioniert, oder [entdecken Sie unser CAT-Tool der nächsten Generation](/product/next-gen-cat-tool), um Hyperlokalisierung in Ihren Workflow zu bringen.

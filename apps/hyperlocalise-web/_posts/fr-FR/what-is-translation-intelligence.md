@@ -1,8 +1,8 @@
 ---
-title: What Is Translation Intelligence?
+title: Qu’est-ce que l’intelligence de traduction ?
 date: 2026-06-19T00:00:00.000Z
-excerpt: Translation is not the bottleneck. Missing context is. Learn what translation intelligence is and why modern localisation teams need it.
-category: Product
+excerpt: La traduction n’est pas le goulot d’étranglement. C’est le manque de contexte. Découvrez ce qu’est l’intelligence de traduction et pourquoi les équipes de localisation modernes en ont besoin.
+category: Produit
 tags:
   - translation intelligence
   - localisation
@@ -18,182 +18,182 @@ tags:
   - machine translation
 ---
 
-Translation is not the bottleneck. Missing context is.
+La traduction n’est pas le goulot d’étranglement. C’est le manque de contexte.
 
-Localisation has long been treated as a translation problem.
+La localisation a longtemps été considérée comme un problème de traduction.
 
-The industry has optimised around this assumption for years. Translation management systems help teams move content through workflows. Machine translation produces faster first drafts. Translation memory reuses previous segments. Glossaries improve terminology consistency. Review steps give humans a chance to correct mistakes before content goes live.
+L’industrie s’est optimisée autour de cette hypothèse pendant des années. Les systèmes de gestion de traduction aident les équipes à faire passer le contenu dans des workflows. La traduction automatique produit des premiers jets plus rapides. La mémoire de traduction réutilise les segments précédents. Les glossaires améliorent la cohérence terminologique. Les étapes de révision donnent aux humains une chance de corriger les erreurs avant la mise en ligne du contenu.
 
-These systems have made localisation more efficient. They have helped companies translate more content, into more languages, with greater operational control.
+Ces systèmes ont rendu la localisation plus efficace. Ils ont aidé les entreprises à traduire davantage de contenu, dans davantage de langues, avec un meilleur contrôle opérationnel.
 
-But they have not solved the hardest part of localisation.
+Mais ils n’ont pas résolu la partie la plus difficile de la localisation.
 
-The hardest part is no longer producing a translation. AI can now generate fluent multilingual copy in seconds. The harder question is whether that translation is right for the product, the brand, the market, and the customer experience in which it appears.
+La partie la plus difficile n’est plus de produire une traduction. L’IA peut désormais générer en quelques secondes des textes multilingues fluides. La question plus difficile est de savoir si cette traduction convient au produit, à la marque, au marché et à l’expérience client dans laquelle elle apparaît.
 
-A translation can be grammatically correct and still fail.
+Une traduction peut être grammaticalement correcte et pourtant échouer.
 
-It can use the wrong product term. It can sound off-brand. It can miss the intent of a marketing message. It can be too long for a button. It can make sense in a translation editor but feel awkward inside the actual product. It can preserve the literal meaning of the source while losing the nuance that made the original work.
+Il peut utiliser le mauvais terme produit. Il peut ne pas correspondre à l’image de marque. Il peut manquer l’intention d’un message marketing. Il peut être trop long pour un bouton. Il peut avoir du sens dans un éditeur de traduction, mais sembler maladroit dans le produit lui-même. Il peut conserver le sens littéral du texte source tout en perdant la nuance qui faisait la force de l’original.
 
-This is why translation quality is increasingly limited not by translation output, but by the intelligence around it.
+C’est pourquoi la qualité de la traduction est de plus en plus limitée non pas par le résultat de la traduction, mais par l’intelligence qui l’entoure.
 
-That is the role of translation intelligence.
+C’est le rôle de l’intelligence de traduction.
 
-Translation intelligence is the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions. It helps humans and AI understand what content means, where it appears, how it should sound, and what constraints it must follow before translation begins.
+L’intelligence de traduction est l’infrastructure qui transforme des connaissances éparses sur le produit, la marque, l’interface utilisateur, le marché et les évaluateurs en meilleures décisions de localisation. Elle aide les humains et l’IA à comprendre ce que signifie le contenu, où il apparaît, quel ton il doit avoir et quelles contraintes il doit respecter avant que la traduction ne commence.
 
-In simple terms: translation intelligence gives translation the context it needs to be useful.
+En termes simples : l’intelligence de traduction donne à la traduction le contexte dont elle a besoin pour être utile.
 
-## Why translation alone is not enough
+## Pourquoi la traduction seule ne suffit pas
 
-Most translation workflows start with a piece of source text.
+La plupart des flux de travail de traduction commencent par un texte source.
 
-That text may be a product string, help centre article, email, campaign headline, onboarding message, or legal notice. In many systems, the translator or AI model sees the source text, the target language, and perhaps a glossary match.
+Ce texte peut être une chaîne produit, un article du centre d’aide, un e-mail, un titre de campagne, un message d’intégration ou un avis juridique. Dans de nombreux systèmes, le traducteur ou le modèle d’IA voit le texte source, la langue cible et peut-être une correspondance de glossaire.
 
-But language rarely carries enough information on its own.
+Mais la langue, à elle seule, véhicule rarement suffisamment d’informations.
 
-Consider a simple string:
+Considérez une chaîne simple :
 
-> Create project
+> Créer un projet
 
-This looks easy to translate. But the correct translation depends on several questions.
+Cela semble facile à traduire. Mais la traduction correcte dépend de plusieurs questions.
 
-Is it a button, a menu item, or a page title? Is "project" a formal product object, or a generic word? Is the user creating a blank project, importing one, or starting from a template? Does the target language require more explicit grammar? Does the button have a character limit? Has the same product object already been translated elsewhere? Should the tone feel technical, simple, or enterprise-grade?
+Est-ce un bouton, un élément de menu ou un titre de page ? « project » est-il un objet produit formel ou un mot générique ? L’utilisateur crée-t-il un projet vide, en importe-t-il un, ou part-il d’un modèle ? La langue cible exige-t-elle une grammaire plus explicite ? Le bouton a-t-il une limite de caractères ? Le même objet produit a-t-il déjà été traduit ailleurs ? Le ton doit-il être technique, simple ou de niveau entreprise ?
 
-Without this context, both humans and AI must guess.
+Sans ce contexte, les humains comme l’IA doivent deviner.
 
-The same problem appears in marketing localisation. A campaign headline may be short, clever, and emotionally effective in English, but a literal translation may not carry the same intent in another market. The translator needs to understand not just the words, but the positioning, audience, offer, tone, and desired reaction.
+Le même problème apparaît dans la localisation marketing. Un titre de campagne peut être court, astucieux et émotionnellement efficace en anglais, mais une traduction littérale peut ne pas transmettre la même intention sur un autre marché. Le traducteur doit comprendre non seulement les mots, mais aussi le positionnement, le public, l’offre, le ton et la réaction recherchée.
 
-It also appears in support content. A help article may contain product terminology that must remain consistent with the interface. If the article uses one term and the product uses another, the translation may confuse users even if every sentence is linguistically correct.
+Il apparaît également dans le contenu d’assistance. Un article d’aide peut contenir une terminologie produit qui doit rester cohérente avec l’interface. Si l’article utilise un terme et que le produit en utilise un autre, la traduction peut semer la confusion chez les utilisateurs, même si chaque phrase est linguistiquement correcte.
 
-These are not just language problems. They are context problems.
+Ce ne sont pas seulement des problèmes de langue. Ce sont des problèmes de contexte.
 
-## The bottleneck has moved from production to judgment
+## Le goulot d'étranglement est passé de la production au jugement
 
-AI has changed the economics of translation.
+L’IA a changé l’économie de la traduction.
 
-Generating a first draft is now fast. Producing more multilingual content is easier than ever. But this speed creates a new challenge: teams must decide what can be trusted, what needs review, and what requires deeper product or market understanding.
+La génération d’une première version est désormais rapide. Produire davantage de contenu multilingue est plus facile que jamais. Mais cette rapidité crée un nouveau défi : les équipes doivent décider de ce qui peut être considéré comme fiable, de ce qui nécessite une relecture et de ce qui exige une compréhension plus approfondie du produit ou du marché.
 
-In other words, the bottleneck has moved from production to judgment.
+En d’autres termes, le goulot d’étranglement est passé de la production au jugement.
 
-The key question is no longer only:
+La question clé n’est plus seulement :
 
-> How do we translate this?
+> Comment traduire ceci ?
 
-It is now:
+Il est maintenant :
 
-> Is this the right translation for this specific use case?
+> Est-ce la bonne traduction pour ce cas d’utilisation spécifique ?
 
-That question requires more than fluency. It requires context.
+Cette question exige plus que de la fluidité. Elle exige du contexte.
 
-A high-quality localisation decision needs to account for product meaning, user intent, brand voice, design constraints, terminology rules, market expectations, compliance requirements, and previous decisions. When this information is missing, localisation teams compensate manually.
+Une décision de localisation de haute qualité doit tenir compte du sens du produit, de l’intention de l’utilisateur, de la voix de la marque, des contraintes de conception, des règles terminologiques, des attentes du marché, des exigences de conformité et des décisions précédentes. Lorsque ces informations sont manquantes, les équipes de localisation compensent manuellement.
 
-Translators ask questions. Reviewers rewrite copy. Product managers explain features. Localisation managers collect screenshots. Regional teams debate tone. Engineers fix UI overflow issues. The same terminology decisions are made repeatedly across projects.
+Les traducteurs posent des questions. Les réviseurs réécrivent les textes. Les chefs de produit expliquent les fonctionnalités. Les responsables de la localisation collectent des captures d’écran. Les équipes régionales débattent du ton. Les ingénieurs corrigent les problèmes de dépassement de l’interface utilisateur. Les mêmes décisions terminologiques sont prises à plusieurs reprises dans tous les projets.
 
-None of this means the team is doing localisation badly. It means the system is not carrying enough intelligence.
+Cela ne veut pas dire que l’équipe fait de la localisation de manière médiocre. Cela veut dire que le système ne transporte pas assez d’intelligence.
 
-## Translation intelligence vs translation management
+## Intelligence de traduction vs gestion de la traduction
 
-Translation management and translation intelligence solve different problems.
+La gestion de la traduction et l’intelligence de traduction résolvent des problèmes différents.
 
-Translation management is about coordination. It helps teams organise content, assign work, manage languages, track progress, and approve translations.
+La gestion de la traduction consiste à coordonner. Elle aide les équipes à organiser le contenu, à attribuer le travail, à gérer les langues, à suivre les progrès et à approuver les traductions.
 
-Translation intelligence is about decision quality. It helps teams understand the content deeply enough to translate, review, and adapt it correctly.
+L’intelligence de traduction concerne la qualité des décisions. Elle aide les équipes à comprendre le contenu suffisamment en profondeur pour le traduire, le relire et l’adapter correctement.
 
-A translation management system can tell a localisation manager that a string is ready for review.
+Un système de gestion de la traduction peut indiquer à un responsable de localisation qu’une chaîne est prête pour révision.
 
-A translation intelligence layer can show that the string has no screenshot, conflicts with a glossary rule, uses a high-risk product term, exceeds a UI character limit, or differs from a previous approved translation.
+Une couche d’intelligence de traduction peut indiquer que la chaîne n’a pas de capture d’écran, entre en conflit avec une règle du glossaire, utilise un terme produit à haut risque, dépasse une limite de caractères de l’interface ou diffère d’une traduction précédemment approuvée.
 
-This distinction matters because localisation quality is not determined only by whether a workflow is completed. It is determined by the knowledge available at the moment a translation decision is made.
+Cette distinction est importante, car la qualité de la localisation ne se détermine pas uniquement par le fait qu’un flux de travail soit achevé. Elle se détermine par les connaissances disponibles au moment où une décision de traduction est prise.
 
-When context is missing, even experienced translators and advanced AI models produce inconsistent results. When context is available, the workflow becomes more reliable.
+Quand le contexte manque, même les traducteurs expérimentés et les modèles d’IA avancés produisent des résultats incohérents. Lorsque le contexte est disponible, le flux de travail devient plus fiable.
 
-## What translation intelligence includes
+## Ce que comprend l’intelligence de traduction
 
-Translation intelligence brings together the knowledge that localisation teams usually have to search for manually.
+La plateforme Translation intelligence rassemble les connaissances que les équipes de localisation doivent généralement rechercher manuellement.
 
-It includes **product context**: what a feature does, how users interact with it, and what specific product objects or actions a phrase refers to.
+Il inclut le **contexte produit** : ce que fait une fonctionnalité, la manière dont les utilisateurs interagissent avec elle, et les objets ou actions précis du produit auxquels une phrase fait référence.
 
-It includes **visual context**: screenshots, UI placement, component type, character limits, and design constraints.
+Il inclut un **contexte visuel** : captures d’écran, emplacement dans l’interface, type de composant, limites de caractères et contraintes de conception.
 
-It includes **brand context**: voice, tone, messaging principles, and the level of formality expected across different markets.
+Il inclut le **contexte de la marque** : la voix, le ton, les principes de communication et le niveau de formalité attendu sur différents marchés.
 
-It includes **terminology context**: approved terms, product names, forbidden words, glossary rules, and domain-specific language.
+Il inclut un **contexte terminologique** : termes approuvés, noms de produits, mots interdits, règles de glossaire et langage spécifique au domaine.
 
-It includes **market context**: cultural expectations, regional preferences, local conventions, and the difference between direct translation and adaptation.
+Il inclut le **contexte du marché** : les attentes culturelles, les préférences régionales, les conventions locales et la différence entre la traduction directe et l’adaptation.
 
-It includes **workflow context**: who needs to review the content, what risk level it carries, and whether human approval is required.
+Il comprend le **contexte du workflow** : qui doit examiner le contenu, quel niveau de risque il comporte et si une approbation humaine est requise.
 
-Most importantly, it includes **decision history**: what was changed, what was approved, what reviewers corrected, and why a particular choice was made.
+Plus important encore, il inclut **l’historique des décisions** : ce qui a été modifié, ce qui a été approuvé, ce que les relecteurs ont corrigé, et pourquoi un choix particulier a été fait.
 
-This is where traditional localisation systems often fall short. They may store the final translation, but they do not always preserve the reasoning behind it. As a result, teams remember what was translated, but not why.
+C’est là que les systèmes de localisation traditionnels montrent souvent leurs limites. Ils peuvent stocker la traduction finale, mais ne préservent pas toujours le raisonnement qui l’a sous-tendue. Par conséquent, les équipes se souviennent de ce qui a été traduit, mais pas pourquoi.
 
-Translation intelligence changes that. It turns localisation knowledge into a reusable asset.
+Les changements de l’intelligence de traduction transforment cela. Elle convertit les connaissances en localisation en un atout réutilisable.
 
-## From translation memory to decision memory
+## De la mémoire de traduction à la mémoire de décision
 
-Translation memory has been one of the most important ideas in localisation. It helps teams reuse previous translations, reduce repeated work, and maintain consistency.
+La mémoire de traduction a été l’une des idées les plus importantes en localisation. Elle aide les équipes à réutiliser des traductions précédentes, à réduire le travail répétitif et à maintenir la cohérence.
 
-But translation memory has a limitation: it remembers output.
+Mais la mémoire de traduction a une limite : elle se souvient du résultat.
 
-It does not always remember context.
+Il ne se souvient pas toujours du contexte.
 
-It may show that a sentence was translated a certain way, but not whether that choice was made because of brand tone, UI space, product terminology, legal preference, or reviewer feedback. It may not show whether the translation worked well in production. It may not explain whether the same decision should apply to a new feature or campaign.
+Il peut montrer qu’une phrase a été traduite d’une certaine manière, mais pas si ce choix a été fait en raison du ton de la marque, de l’espace de l’interface, de la terminologie produit, d’une préférence juridique ou des retours d’un relecteur. Il peut ne pas montrer si la traduction a bien fonctionné en production. Il peut ne pas expliquer si la même décision devrait s’appliquer à une nouvelle fonctionnalité ou à une campagne.
 
-Translation intelligence extends the idea of memory beyond translated segments.
+L'intelligence de traduction étend l'idée de la mémoire au-delà des segments traduits.
 
-It creates decision memory.
+Cela crée une mémoire des décisions.
 
-Decision memory captures the reasoning behind localisation choices. It helps teams understand not just what was translated, but why it was translated that way. This becomes especially important when AI is part of the workflow, because AI improves when it can learn from structured context and human feedback.
+La mémoire de décision capture le raisonnement derrière les choix de localisation. Elle aide les équipes à comprendre non seulement ce qui a été traduit, mais aussi pourquoi cela a été traduit de cette façon. Cela devient particulièrement important lorsque l’IA fait partie du flux de travail, car l’IA s’améliore lorsqu’elle peut apprendre à partir d’un contexte structuré et des retours humains.
 
-If a reviewer changes a term, the system should learn from that change. If a regional expert explains why a phrase does not work in-market, that knowledge should be available next time. If a product manager clarifies the meaning of a feature, that explanation should follow related strings in the future.
+Si un relecteur modifie un terme, le système doit apprendre de ce changement. Si un expert régional explique pourquoi une expression ne fonctionne pas sur le marché local, cette connaissance doit être disponible la prochaine fois. Si un chef de produit précise le sens d'une fonctionnalité, cette explication doit accompagner les chaînes associées à l'avenir.
 
-This is how localisation becomes self-improving.
+C’est ainsi que la localisation devient auto-améliorante.
 
-## What this looks like in practice
+## À quoi cela ressemble en pratique
 
-A context-aware localisation workflow looks very different from a traditional string-based workflow.
+Un flux de travail de localisation sensible au contexte est très différent d’un flux de travail traditionnel basé sur des chaînes.
 
-Before translation begins, the system gathers relevant context from the tools where work already happens. It can understand where the content came from, whether it belongs to a product interface, help article, marketing page, or campaign. It can attach screenshots, detect terminology, identify related strings, retrieve previous decisions, and surface risks before the translator or reviewer sees the task.
+Avant que la traduction ne commence, le système rassemble le contexte pertinent à partir des outils où le travail se déroule déjà. Il peut comprendre d’où vient le contenu, s’il appartient à une interface produit, à un article d’aide, à une page marketing ou à une campagne. Il peut joindre des captures d’écran, détecter la terminologie, identifier les chaînes associées, retrouver les décisions précédentes et faire remonter les risques avant que le traducteur ou le réviseur ne voie la tâche.
 
-During translation, AI suggestions are guided by product knowledge, glossary rules, brand voice, and UI constraints. Instead of producing a generic translation, the system can suggest a translation that fits the actual use case.
+Pendant la traduction, les suggestions de l’IA sont guidées par la connaissance du produit, les règles du glossaire, la tonalité de marque et les contraintes de l’interface utilisateur. Au lieu de produire une traduction générique, le système peut suggérer une traduction adaptée au cas d’usage réel.
 
-During review, humans are not asked to inspect everything from scratch. They can focus on the decisions that need judgment: ambiguous terms, high-impact copy, market adaptation, legal risk, tone, or content that conflicts with previous guidance.
+Pendant la révision, il n’est pas demandé aux humains d’examiner tout depuis le début. Ils peuvent se concentrer sur les décisions qui nécessitent un jugement : termes ambigus, contenu à fort impact, adaptation au marché, risque juridique, ton ou contenu en contradiction avec les directives précédentes.
 
-After review, the workflow does not simply store the final translation. It captures what changed and feeds that knowledge back into future work.
+Après examen, le flux de travail ne se contente pas de stocker la traduction finale. Il enregistre ce qui a changé et réinjecte ces informations dans les travaux futurs.
 
-This is the shift from translation as a one-off task to localisation as a learning system.
+Il s’agit du passage de la traduction en tant que tâche ponctuelle à la localisation en tant que système d’apprentissage.
 
-## Why Hyperlocalise is building around translation intelligence
+## Pourquoi Hyperlocalise se construit autour de l’intelligence de traduction
 
-At Hyperlocalise, we believe the next generation of localisation software will not be defined by translation speed alone.
+Chez Hyperlocalise, nous pensons que la prochaine génération de logiciels de localisation ne sera pas définie par la seule vitesse de traduction.
 
-Speed matters. But speed without context can create more work for reviewers, more inconsistencies across markets, and more uncertainty before publishing.
+La rapidité compte. Mais la rapidité sans contexte peut créer davantage de travail pour les réviseurs, davantage d’incohérences entre les marchés et davantage d’incertitude avant la publication.
 
-Hyperlocalise is building translation intelligence into the localisation workflow so teams can bring context into the process from the start. Our approach is to help AI and human reviewers work with the information they need: product context, screenshots, glossary rules, brand voice, UI constraints, workflow requirements, and previous localisation decisions.
+Hyperlocalise intègre l’intelligence de traduction dans le flux de travail de localisation afin que les équipes puissent intégrer le contexte dès le départ dans le processus. Notre approche consiste à aider l’IA et les relecteurs humains à travailler avec les informations dont ils ont besoin : contexte produit, captures d’écran, règles de glossaire, tonalité de marque, contraintes d’interface, exigences du flux de travail et décisions de localisation antérieures.
 
-This matters because most companies already have the knowledge required for better localisation. The problem is that the knowledge is scattered. It lives in product tools, design files, support platforms, content systems, review comments, Slack discussions, and the heads of individual team members.
+Cela compte parce que la plupart des entreprises disposent déjà des connaissances nécessaires pour améliorer la localisation. Le problème, c’est que ces connaissances sont dispersées. Elles se trouvent dans les outils produits, les fichiers de design, les plateformes de support, les systèmes de contenu, les commentaires de relecture, les discussions sur Slack et dans la tête de chaque membre de l’équipe.
 
-Hyperlocalise helps make that knowledge operational.
+Hyperlocalise aide à rendre ce savoir opérationnel.
 
-Instead of asking translators and reviewers to hunt for context, Hyperlocalise aims to bring the right context into the translation experience automatically. Instead of treating AI as a generic translator, Hyperlocalise uses context to guide AI toward better decisions. Instead of losing reviewer feedback after a task is complete, Hyperlocalise helps turn feedback into memory that improves future work.
+Au lieu de demander aux traducteurs et aux relecteurs de chercher le contexte, Hyperlocalise vise à intégrer automatiquement le bon contexte dans l’expérience de traduction. Au lieu de considérer l’IA comme un traducteur générique, Hyperlocalise utilise le contexte pour orienter l’IA vers de meilleures décisions. Au lieu de perdre les commentaires des relecteurs une fois une tâche terminée, Hyperlocalise aide à transformer ces commentaires en mémoire qui améliore le travail futur.
 
-The goal is not to remove human judgment. The goal is to make human judgment more focused, informed, and reusable.
+L’objectif n’est pas de supprimer le jugement humain. L’objectif est de rendre le jugement humain plus ciblé, plus éclairé et plus réutilisable.
 
-## The future of localisation is context-aware
+## L’avenir de la localisation est contextuel
 
-The companies that succeed globally will not simply be the companies that translate the most words. They will be the companies that communicate clearly, consistently, and naturally across every market.
+Les entreprises qui réussissent à l’échelle mondiale ne seront pas simplement celles qui traduisent le plus de mots. Ce seront celles qui communiquent clairement, de manière cohérente et naturelle sur chaque marché.
 
-That requires more than translation.
+Cela nécessite plus qu’une traduction.
 
-It requires systems that understand the relationship between language, product, brand, design, and customer experience.
+Cela nécessite des systèmes qui comprennent la relation entre la langue, le produit, la marque, le design et l’expérience client.
 
-This is why translation intelligence matters.
+C’est pourquoi l’intelligence de traduction compte.
 
-It gives localisation teams a better foundation for working with AI. It reduces repeated context gathering. It helps reviewers focus on high-value decisions. It improves consistency across product, marketing, and support content. It preserves the knowledge behind translation choices so teams do not solve the same problems again and again.
+Il offre aux équipes de localisation une base plus solide pour travailler avec l’IA. Il réduit la collecte répétée de contexte. Il aide les relecteurs à se concentrer sur les décisions à forte valeur ajoutée. Il améliore la cohérence entre les contenus produit, marketing et support. Il préserve les connaissances derrière les choix de traduction afin que les équipes ne résolvent pas encore et encore les mêmes problèmes.
 
-Translation is no longer the bottleneck.
+La traduction n’est plus le goulot d’étranglement.
 
-Missing context is.
+Le contexte manquant est.
 
-Translation intelligence is how modern localisation teams close that gap.
+L’intelligence de traduction est la manière dont les équipes de localisation modernes comblent cet écart.
 
-For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Pour le passage plus large de la traduction à une communication prête pour le marché, voir [Hyperlocalisation : pourquoi la croissance mondiale nécessite plus qu’une traduction](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).

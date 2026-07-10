@@ -1,8 +1,8 @@
 ---
-title: "AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation"
+title: "KI-Übersetzung reicht nicht aus: Warum globale Teams kontextbewusste Lokalisierung brauchen"
 date: 2026-06-18T00:00:00.000Z
-excerpt: AI has made translation faster, but fluent output is not the same as good localisation. Global teams need context-aware workflows that preserve product meaning, brand intent, and customer experience.
-category: Product
+excerpt: KI hat Übersetzungen schneller gemacht, aber flüssiger Output ist nicht dasselbe wie gute Lokalisierung. Globale Teams brauchen kontextbewusste Workflows, die die Produktbedeutung, die Markenabsicht und das Kundenerlebnis bewahren.
+category: Produkt
 tags:
   - context-aware localisation
   - AI translation
@@ -18,112 +18,112 @@ tags:
   - machine translation
 ---
 
-AI has made translation faster. But for global teams, faster translation does not always mean better localisation.
+KI hat die Übersetzung beschleunigt. Aber für globale Teams bedeutet schnellere Übersetzung nicht immer bessere Lokalisierung.
 
-The real problem is not that AI struggles to translate words. The real problem is that AI often lacks the context to understand what those words are supposed to do.
+Das eigentliche Problem ist nicht, dass KI Schwierigkeiten hat, Wörter zu übersetzen. Das eigentliche Problem ist, dass KI oft den Kontext fehlt, um zu verstehen, was diese Wörter bewirken sollen.
 
-A button label, onboarding message, product description, help article, or marketing headline rarely exists in isolation. It belongs to a product experience. It has a user, a screen, a business goal, a brand voice, and often a set of market-specific expectations behind it. When that context is missing, even a fluent AI translation can still be wrong.
+Eine Schaltflächenbeschriftung, eine Onboarding-Nachricht, eine Produktbeschreibung, ein Hilfeartikel oder eine Marketing-Überschrift existiert selten isoliert. Sie gehören zu einem Produkterlebnis. Dahinter stehen ein Nutzer, ein Bildschirm, ein Geschäftsziel, eine Markenstimme und oft eine Reihe marktspezifischer Erwartungen. Wenn dieser Kontext fehlt, kann selbst eine flüssige KI-Übersetzung dennoch falsch sein.
 
-This is why global teams need to move beyond basic AI translation and toward context-aware localisation.
+Deshalb müssen globale Teams über die grundlegende KI-Übersetzung hinausgehen und sich kontextbewusster Lokalisierung zuwenden.
 
-## Translation quality is no longer just a language problem
+## Die Übersetzungsqualität ist nicht mehr nur ein Sprachproblem
 
-For many companies, localisation is still treated as a language conversion task. Source text goes in. Translated text comes out. The workflow is measured by speed, cost, and volume.
+Für viele Unternehmen wird Lokalisierung immer noch als reine Sprachumwandlungsaufgabe betrachtet. Quelltext geht hinein. Übersetzter Text kommt heraus. Der Arbeitsablauf wird an Geschwindigkeit, Kosten und Umfang gemessen.
 
-That model is becoming outdated.
+Dieses Modell wird veraltet.
 
-Modern localisation is not only about whether a sentence is grammatically correct in another language. It is about whether the message works in the right market, inside the right product experience, for the right audience. A translation can be technically accurate and still feel confusing, inconsistent, off-brand, or unsuitable for the interface.
+Moderne Lokalisierung geht nicht nur darum, ob ein Satz in einer anderen Sprache grammatikalisch korrekt ist. Es geht darum, ob die Botschaft im richtigen Markt, innerhalb der richtigen Produkterfahrung und für die richtige Zielgruppe funktioniert. Eine Übersetzung kann technisch korrekt sein und sich dennoch verwirrend, inkonsistent, nicht markenkonform oder ungeeignet für die Benutzeroberfläche anfühlen.
 
-Take a simple product string like "Create project." On the surface, it looks easy to translate. But what kind of project is being created? Is this part of a developer tool, a marketing workspace, a customer portal, or an internal operations platform? Is the user creating something personal, collaborative, technical, or client-facing? Should the translation feel formal, friendly, concise, or instructional?
+Nehmen wir einen einfachen Produktstring wie „Projekt erstellen.“ Auf den ersten Blick scheint er leicht zu übersetzen. Aber welche Art von Projekt wird erstellt? Ist das Teil eines Entwicklertools, eines Marketing-Workspaces, eines Kundenportals oder einer internen Operations-Plattform? Erstellt der Nutzer etwas Persönliches, Kollaboratives, Technisches oder für Kunden Sichtbares? Sollte die Übersetzung formell, freundlich, knapp oder anleitend klingen?
 
-Without context, AI has to guess. Sometimes it guesses well. But in professional localisation, guessing does not scale.
+Ohne Kontext muss KI raten. Manchmal rät sie richtig. Aber in der professionellen Lokalisierung skaliert Raten nicht.
 
-## The bottleneck is missing context
+## Der Engpass ist fehlender Kontext
 
-Global teams do not usually struggle because translation itself is impossible. They struggle because the information needed to make good translation decisions is scattered across too many places.
+Globale Teams haben in der Regel nicht deshalb Schwierigkeiten, weil Übersetzung an sich unmöglich ist. Sie haben Schwierigkeiten, weil die Informationen, die nötig sind, um gute Übersetzungsentscheidungen zu treffen, über zu viele Orte verstreut sind.
 
-Product context may live in the codebase or design files. Glossary rules may sit in a spreadsheet. Brand voice may be documented in a marketing guide. Screenshots may be attached to a ticket, if they exist at all. Reviewer feedback may be buried in Slack, email threads, or previous localisation comments.
+Produktkontext kann im Codebestand oder in Designdateien liegen. Glossarregeln können in einer Tabelle stehen. Die Markenstimme kann in einem Marketingleitfaden dokumentiert sein. Screenshots können an ein Ticket angehängt sein, falls es überhaupt welche gibt. Feedback von Prüfern kann in Slack, E-Mail-Threads oder früheren Lokalisierungskommentaren verborgen sein.
 
-By the time a translator or reviewer opens a traditional CAT tool, they often see only the source text, the target text, and maybe a translation memory match. The most important context is missing from the actual place where the decision is made.
+Wenn ein Übersetzer oder Lektor ein herkömmliches CAT-Tool öffnet, sieht er oft nur den Ausgangstext, den Zieltext und vielleicht einen Treffer aus dem Translation Memory. Der wichtigste Kontext fehlt genau an der Stelle, an der die Entscheidung getroffen wird.
 
-That is where avoidable quality issues begin.
+Dort beginnen vermeidbare Qualitätsprobleme.
 
-A translator may choose the wrong meaning for a short UI string. AI may ignore a preferred product term. A reviewer may correct the same mistake repeatedly because the feedback never becomes reusable knowledge. A marketing line may be translated literally when it needs to be adapted for the local market. A phrase may sound fine in a spreadsheet but fail once it appears inside a real interface.
+Ein Übersetzer kann für einen kurzen UI-String die falsche Bedeutung wählen. Eine KI kann einen bevorzugten Produktbegriff ignorieren. Ein Prüfer kann denselben Fehler immer wieder korrigieren, weil das Feedback nie zu wiederverwendbarem Wissen wird. Eine Marketingzeile kann wörtlich übersetzt werden, obwohl sie für den lokalen Markt angepasst werden muss. Eine Formulierung kann in einer Tabelle gut klingen, aber scheitern, sobald sie in einer echten Benutzeroberfläche erscheint.
 
-The result is a localisation workflow that looks automated but still depends heavily on manual clarification, rework, and review.
+Das Ergebnis ist ein Lokalisierungs-Workflow, der automatisiert aussieht, aber dennoch stark von manueller Klärung, Nacharbeit und Prüfung abhängt.
 
-## AI translation needs product intelligence
+## KI-Übersetzung braucht Produktintelligenz
 
-Large language models are powerful, but they do not automatically understand your product, your customers, or your internal decisions.
+Große Sprachmodelle sind leistungsstark, aber sie verstehen nicht automatisch Ihr Produkt, Ihre Kunden oder Ihre internen Entscheidungen.
 
-They can generate fluent translations. They can rewrite copy. They can adapt tone. But unless they are connected to the right context, they are still operating with incomplete information.
+Sie können flüssige Übersetzungen erzeugen. Sie können Texte umschreiben. Sie können den Ton anpassen. Aber solange sie nicht mit dem richtigen Kontext verbunden sind, arbeiten sie immer noch mit unvollständigen Informationen.
 
-For a global product team, the important question is not simply, "Can AI translate this?" The better question is, "Does AI understand enough about this product, market, and workflow to suggest the right translation?"
+Für ein globales Produktteam lautet die wichtige Frage nicht einfach: „Kann KI das übersetzen?“ Die bessere Frage ist: „Versteht KI genug über dieses Produkt, diesen Markt und diesen Workflow, um die richtige Übersetzung vorzuschlagen?“
 
-That requires product intelligence — the same foundation behind [translation intelligence](/blog/what-is-translation-intelligence).
+Dafür ist Produktintelligenz erforderlich — dieselbe Grundlage hinter [Übersetzungsintelligenz](/blog/what-is-translation-intelligence).
 
-AI localisation should understand where a string appears, what feature it belongs to, who the user is, what glossary rules apply, what tone the brand uses, what previous reviewers have approved, and what constraints exist in the interface. It should be able to use screenshots, product metadata, source files, design context, and past feedback to guide better translation decisions.
+AI-Lokalisierung sollte verstehen, wo eine Zeichenfolge erscheint, zu welcher Funktion sie gehört, wer der Benutzer ist, welche Glossarregeln gelten, welchen Ton die Marke verwendet, welche früheren Prüfer genehmigt haben und welche Einschränkungen in der Benutzeroberfläche bestehen. Sie sollte Screenshots, Produktmetadaten, Quelldateien, Designkontext und früheres Feedback nutzen können, um bessere Übersetzungsentscheidungen zu treffen.
 
-This is the difference between AI translation and context-aware localisation.
+Das ist der Unterschied zwischen KI-Übersetzung und kontextbewusster Lokalisierung.
 
-AI translation generates language. Context-aware localisation helps teams preserve meaning.
+KI-Übersetzung erzeugt Sprache. Kontextbewusste Lokalisierung hilft Teams, die Bedeutung zu bewahren.
 
-## What context-aware localisation looks like in practice
+## Wie kontextbewusste Lokalisierung in der Praxis aussieht
 
-Context-aware localisation brings the surrounding knowledge of a translation directly into the workflow.
+Kontextbewusste Lokalisierung bringt das umgebende Wissen einer Übersetzung direkt in den Workflow.
 
-When translating product UI, this means seeing the screen, the feature, the user action, and the interface constraints. A translator should know whether a string is a button, a tooltip, an error message, a navigation label, or an onboarding step. Each of these requires different judgement.
+Beim Übersetzen von Produkt-UI bedeutet das, den Bildschirm, die Funktion, die Benutzeraktion und die Einschränkungen der Oberfläche zu sehen. Ein Übersetzer sollte wissen, ob es sich bei einer Zeichenfolge um eine Schaltfläche, einen Tooltip, eine Fehlermeldung, eine Navigationsbeschriftung oder einen Onboarding-Schritt handelt. Jede davon erfordert ein anderes Urteilsvermögen.
 
-When translating marketing content, context-aware localisation means understanding the campaign goal, audience, tone of voice, and market expectations. A phrase that works in English may need to be rewritten, not translated literally, to create the same emotional effect in another language.
+Bei der Übersetzung von Marketinginhalten bedeutet kontextbezogene Lokalisierung, das Kampagnenziel, die Zielgruppe, den Tonfall und die Markterwartungen zu verstehen. Eine Formulierung, die auf Englisch funktioniert, muss möglicherweise neu formuliert und nicht wörtlich übersetzt werden, um in einer anderen Sprache dieselbe emotionale Wirkung zu erzielen.
 
-When reviewing translations, context-aware localisation means reviewers are not just approving text in isolation. They can see relevant glossary rules, previous decisions, AI suggestions, screenshots, and potential risks in one place.
+Bei der Überprüfung von Übersetzungen bedeutet kontextbezogene Lokalisierung, dass Prüfer Text nicht nur isoliert freigeben. Sie können relevante Glossarregeln, frühere Entscheidungen, KI-Vorschläge, Screenshots und potenzielle Risiken an einem Ort sehen.
 
-When managing localisation at scale, it means feedback does not disappear after one project. Corrections, terminology decisions, tone preferences, and market-specific patterns become reusable knowledge that improves future work.
+Wenn man Lokalisierung in großem Umfang verwaltet, bedeutet das, dass Feedback nicht nach einem Projekt verschwindet. Korrekturen, terminologische Entscheidungen, Tonpräferenzen und marktspezifische Muster werden zu wiederverwendbarem Wissen, das die zukünftige Arbeit verbessert.
 
-This is where AI becomes more valuable. Not as a generic translation engine, but as an assistant that can gather context, apply rules, surface risks, and support better human decisions.
+Hier wird KI wertvoller. Nicht als generische Übersetzungsmaschine, sondern als Assistent, der Kontext erfassen, Regeln anwenden, Risiken aufzeigen und bessere menschliche Entscheidungen unterstützen kann.
 
-## Traditional CAT tools were not built for this level of context
+## Traditionelle CAT-Tools wurden nicht für dieses Maß an Kontext entwickelt
 
-Traditional CAT tools were designed to improve translation productivity. They are useful for segment management, translation memory, terminology, and review workflows. But most were built around a document-first or segment-first view of translation.
+Traditionelle CAT-Tools wurden entwickelt, um die Übersetzungsproduktivität zu verbessern. Sie sind nützlich für Segmentverwaltung, Translation Memory, Terminologie und Review-Workflows. Die meisten wurden jedoch auf der Grundlage einer dokument- oder segmentorientierten Sicht auf die Übersetzung entwickelt.
 
-Modern localisation is different.
+Moderne Lokalisierung ist anders.
 
-Product teams ship continuously. Marketing teams launch campaigns across multiple regions. Support content changes frequently. Source strings come from repositories, CMS platforms, design tools, and ticketing systems. Translation decisions depend on product context, brand rules, customer expectations, screenshots, and prior reviewer feedback.
+Produktteams liefern kontinuierlich aus. Marketingteams starten Kampagnen in mehreren Regionen. Support-Inhalte ändern sich häufig. Quellstrings stammen aus Repositories, CMS-Plattformen, Design-Tools und Ticketing-Systemen. Übersetzungsentscheidungen hängen vom Produktkontext, von Markenrichtlinien, Kundenerwartungen, Screenshots und früherem Feedback von Prüfern ab.
 
-A translation interface that only shows source and target text is no longer enough.
+Eine Übersetzungsoberfläche, die nur Quell- und Zieltext anzeigt, ist nicht mehr ausreichend.
 
-Global teams need a [next-generation CAT tool](/product/next-gen-cat-tool) that brings context into the translation experience itself. Not as an afterthought. Not as a separate document. Not as a Slack thread someone has to search through. But as part of the workflow where translation and review actually happen.
+Globale Teams brauchen ein [CAT-Tool der nächsten Generation](/product/next-gen-cat-tool), das Kontext direkt in das Übersetzungserlebnis integriert. Nicht als nachträglicher Gedanke. Nicht als separates Dokument. Nicht als Slack-Thread, den jemand durchsuchen muss. Sondern als Teil des Workflows, in dem Übersetzung und Review tatsächlich stattfinden.
 
-That is the direction we are building toward at Hyperlocalise.
+Das ist die Richtung, auf die wir bei Hyperlocalise hinarbeiten.
 
-## Human review becomes more important, not less
+## Menschliche Überprüfung wird wichtiger, nicht weniger
 
-Context-aware AI does not remove the need for human review. It makes human review more focused and more valuable.
+Kontextbewusste KI macht menschliche Prüfung nicht überflüssig. Sie macht menschliche Prüfung gezielter und wertvoller.
 
-Human reviewers understand nuance, emotion, market expectations, and cultural risk. They know when a phrase should be adapted instead of translated. They can judge whether a message feels natural, persuasive, respectful, or trustworthy in a specific market.
+Menschliche Prüfer verstehen Nuancen, Emotionen, Markterwartungen und kulturelle Risiken. Sie wissen, wann ein Ausdruck angepasst statt übersetzt werden sollte. Sie können beurteilen, ob eine Botschaft in einem bestimmten Markt natürlich, überzeugend, respektvoll oder vertrauenswürdig wirkt.
 
-But human experts should not have to waste time fixing mistakes that come from missing context. They should not need to repeatedly explain the same glossary rule, chase screenshots, or ask where a string appears in the product.
+Aber menschliche Expertinnen und Experten sollten keine Zeit damit verschwenden müssen, Fehler zu korrigieren, die durch fehlenden Kontext entstehen. Sie sollten nicht wiederholt dieselbe Glossarregel erklären, Screenshots nachjagen oder fragen müssen, wo ein String im Produkt erscheint.
 
-AI should do the heavy lifting around preparation. It should collect relevant context, suggest terminology, identify inconsistencies, respect brand voice, and highlight areas that need human judgement.
+KI sollte die Hauptarbeit bei der Vorbereitung übernehmen. Sie sollte relevante Kontexte sammeln, Terminologie vorschlagen, Inkonsistenzen identifizieren, die Markenstimme berücksichtigen und Bereiche hervorheben, die menschliches Urteilsvermögen erfordern.
 
-The best localisation workflow is not AI-only. It is AI-assisted and human-approved.
+Der beste Lokalisierungs-Workflow ist nicht nur auf KI angewiesen. Er wird von KI unterstützt und von Menschen freigegeben.
 
-## Better localisation starts before translation
+## Bessere Lokalisierung beginnt vor der Übersetzung
 
-The future of localisation will not be defined by who can translate the most words the fastest. Speed matters, but only when quality, consistency, and market fit are preserved.
+Die Zukunft der Lokalisierung wird nicht davon bestimmt sein, wer die meisten Wörter am schnellsten übersetzen kann. Geschwindigkeit ist wichtig, aber nur, wenn Qualität, Konsistenz und Marktpassung gewahrt bleiben.
 
-Better localisation starts before translation. It starts with giving every translator, reviewer, and AI assistant the context they need to make the right decision from the beginning.
+Bessere Lokalisierung beginnt vor der Übersetzung. Sie beginnt damit, jedem Übersetzer, Prüfer und KI-Assistenten den Kontext zu geben, den sie brauchen, um von Anfang an die richtige Entscheidung zu treffen.
 
-That means connecting product knowledge, glossary rules, brand voice, screenshots, UI constraints, previous feedback, and human review into one workflow. It means treating localisation as a product and growth function, not just an operational task at the end of the release cycle.
+Das bedeutet, Produktwissen, Glossarregeln, Markenstimme, Screenshots, UI-Einschränkungen, früheres Feedback und menschliche Prüfung in einen einzigen Workflow zu verbinden. Es bedeutet, Lokalisierung als Produkt- und Wachstumsfunktion zu behandeln, nicht nur als operative Aufgabe am Ende des Release-Zyklus.
 
-AI translation is useful. But it is only one piece of the localisation system global teams actually need.
+KI-Übersetzung ist nützlich. Aber sie ist nur ein Teil des Lokalisierungssystems, das globale Teams tatsächlich brauchen.
 
-AI can translate words.
+KI kann Wörter übersetzen.
 
-Context-aware localisation helps teams translate product meaning, brand intent, and customer experience.
+Kontextbezogene Lokalisierung hilft Teams, Produktbedeutung, Markenabsicht und Kundenerlebnis zu übersetzen.
 
-At Hyperlocalise, we are building a [next-generation CAT tool](/product/next-gen-cat-tool) designed around this idea: AI assistance, product context, reusable knowledge, and human review working together in one localisation workflow.
+Bei Hyperlocalise entwickeln wir ein [CAT-Tool der nächsten Generation](/product/next-gen-cat-tool), das um diese Idee herum aufgebaut ist: KI-Unterstützung, Produktkontext, wiederverwendbares Wissen und menschliche Überprüfung, die in einem einzigen Lokalisierungs-Workflow zusammenarbeiten.
 
-[See our next-gen CAT tool](/product/next-gen-cat-tool) and discover how context-aware AI localisation can help your team translate with more accuracy, consistency, and confidence.
+[Entdecken Sie unser Next-Gen-CAT-Tool](/product/next-gen-cat-tool) und erfahren Sie, wie kontextbewusste KI-Lokalisierung Ihrem Team helfen kann, mit mehr Genauigkeit, Konsistenz und Zuversicht zu übersetzen.
 
-For how this fits into a wider global growth strategy, read [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Um zu erfahren, wie dies in eine umfassendere globale Wachstumsstrategie passt, lesen Sie [Hyperlocalisation: Warum globales Wachstum mehr als nur Übersetzung braucht](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).

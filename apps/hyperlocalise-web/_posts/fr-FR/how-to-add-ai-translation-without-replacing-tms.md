@@ -1,8 +1,8 @@
 ---
-title: How to Add AI Translation Without Replacing Phrase, Lokalise, Crowdin, or Smartling
+title: Comment ajouter la traduction IA sans remplacer Phrase, Lokalise, Crowdin ou Smartling
 date: 2026-07-01T00:00:00.000Z
-excerpt: AI translation does not have to mean ripping out your TMS. Learn how to add an intelligence layer around Phrase, Lokalise, Crowdin, Smartling, and the workflows you already run.
-category: Product
+excerpt: La traduction IA ne signifie pas forcément remplacer votre TMS. Découvrez comment ajouter une couche d’intelligence autour de Phrase, Lokalise, Crowdin, Smartling et des workflows que vous utilisez déjà.
+category: Produit
 tags:
   - AI translation
   - TMS-agnostic
@@ -21,98 +21,98 @@ tags:
   - terminology management
 ---
 
-Many localisation teams are under pressure to move faster, reduce manual work, and support more languages without increasing headcount. AI translation is an obvious part of the answer, but for most teams, the question is not whether AI should be used. The harder question is how to introduce AI translation without disrupting the systems, workflows, and vendor relationships that already exist.
+De nombreuses équipes de localisation sont sous pression pour aller plus vite, réduire le travail manuel et prendre en charge davantage de langues sans augmenter les effectifs. La traduction par IA est évidemment une partie de la solution, mais pour la plupart des équipes, la question n’est pas de savoir si l’IA doit être utilisée. La question la plus difficile est de savoir comment introduire la traduction par IA sans perturber les systèmes, les flux de travail et les relations avec les fournisseurs qui existent déjà.
 
-For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
+Pour les entreprises qui utilisent déjà [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), ou un autre système de gestion de la traduction, remplacer le TMS n’est rarement la première bonne décision. Ces plateformes sont souvent profondément intégrées aux processus de publication des produits, aux workflows de contenu, aux opérations des prestataires, à la mémoire de traduction, à la gestion du glossaire, aux cycles de relecture et au reporting. Un projet de remplacement complet peut créer des mois de travail de migration avant que l’équipe ne constate une amélioration significative.
 
-A better approach is to add AI translation as an intelligence layer around the existing localisation workflow. Instead of replacing the TMS, companies can augment it with AI that gathers context, prepares translation tasks, improves translation quality, supports reviewers, and learns from past decisions across tools.
+Une meilleure approche consiste à ajouter la traduction par IA comme couche d’intelligence autour du flux de travail de localisation existant. Au lieu de remplacer le TMS, les entreprises peuvent le compléter avec une IA qui recueille le contexte, prépare les tâches de traduction, améliore la qualité des traductions, assiste les relecteurs et apprend des décisions passées à travers les outils.
 
-That is the idea behind a TMS-agnostic workflow.
+C'est l'idée derrière un flux de travail indépendant du TMS.
 
-## The problem is not the TMS
+## Le problème ne vient pas du TMS
 
-Phrase, Lokalise, Crowdin, and Smartling already offer strong localisation infrastructure. Phrase positions itself as an AI-powered localisation platform with capabilities across workflow automation, context, model selection, quality evaluation, and output transformation. Lokalise promotes AI orchestration, smart routing across multiple LLMs, and continuous localisation integrations for product teams. Crowdin offers AI translation, AI QA checks, AI debugging, and a broad integration ecosystem. Smartling provides AI translation capabilities and tools for managing translation workflows, brand consistency, approval processes, and localisation spend.
+Phrase, Lokalise, Crowdin et Smartling proposent déjà une solide infrastructure de localisation. Phrase se positionne comme une plateforme de localisation alimentée par l’IA, avec des capacités couvrant l’automatisation des flux de travail, le contexte, la sélection de modèles, l’évaluation de la qualité et la transformation des résultats. Lokalise met en avant l’orchestration de l’IA, le routage intelligent entre plusieurs LLM et des intégrations de localisation continue pour les équipes produit. Crowdin propose la traduction IA, des vérifications QA par IA, le débogage par IA et un vaste écosystème d’intégrations. Smartling fournit des capacités de traduction par IA ainsi que des outils pour gérer les flux de travail de traduction, la cohérence de la marque, les գործընթաց d’approbation et les dépenses de localisation.
 
-These systems are not the problem. In many companies, they are the operational backbone of localisation.
+Ces systèmes ne sont pas le problème. Dans de nombreuses entreprises, ils constituent l’épine dorsale opérationnelle de la localisation.
 
-The problem is that localisation work now happens across far more places than the TMS alone. Product context sits in design files, screenshots, pull requests, tickets, customer feedback, CMS entries, marketing briefs, analytics, and internal discussions. Brand rules may live in documents. Glossary decisions may be scattered across spreadsheets, Slack threads, and reviewer comments. Engineering teams may ship strings through GitHub. Marketing teams may update pages in a CMS. Customer support teams may maintain help centre content elsewhere.
+Le problème est que le travail de localisation se déroule désormais dans bien plus d’endroits que le seul TMS. Le contexte produit se trouve dans des fichiers de conception, des captures d’écran, des demandes de tirage, des tickets, des retours clients, des entrées CMS, des briefs marketing, des analyses et des discussions internes. Les règles de marque peuvent être consignées dans des documents. Les décisions de glossaire peuvent être dispersées dans des feuilles de calcul, des fils Slack et des commentaires de relecteurs. Les équipes d’ingénierie peuvent diffuser des chaînes via GitHub. Les équipes marketing peuvent mettre à jour des pages dans un CMS. Les équipes du support client peuvent maintenir ailleurs le contenu du centre d’aide.
 
-AI translation becomes much more useful when it can understand this broader context. Without it, AI is simply producing fluent output from limited input. That may be faster than traditional translation, but it does not always solve the real localisation problem: making the right translation decision for the right audience in the right context.
+La traduction par IA devient beaucoup plus utile lorsqu’elle peut comprendre ce contexte plus large. Sans cela, l’IA produit simplement un texte fluide à partir d’une entrée limitée. Cela peut être plus rapide que la traduction traditionnelle, mais cela ne résout pas toujours le véritable problème de localisation : prendre la bonne décision de traduction pour le bon public, dans le bon contexte.
 
-## Why replacing your TMS is usually the wrong starting point
+## Pourquoi remplacer votre TMS est généralement le mauvais point de départ
 
-Replacing an existing TMS sounds attractive when a team wants a more modern AI workflow, but the hidden cost is high. The team must migrate translation memory, glossaries, projects, integrations, vendor access, review workflows, permissions, billing rules, reporting, and internal operating habits. Even if the migration succeeds, the organisation may still face the same underlying issue: context remains fragmented outside the localisation platform.
+Remplacer un TMS existant peut sembler séduisant lorsqu’une équipe souhaite un flux de travail IA plus moderne, mais le coût caché est élevé. L’équipe doit migrer la mémoire de traduction, les glossaires, les projets, les intégrations, les accès des prestataires, les workflows de relecture, les autorisations, les règles de facturation, les rapports et les habitudes opérationnelles internes. Même si la migration réussit, l’organisation peut encore être confrontée au même problème sous-jacent : le contexte reste fragmenté en dehors de la plateforme de localisation.
 
-For many companies, the smarter question is not "Which TMS should we move to?" but "How do we make our existing localisation workflow more intelligent?"
+Pour de nombreuses entreprises, la question la plus pertinente n’est pas « Quel TMS devons-nous adopter ? », mais « Comment rendre notre flux de travail de localisation existant plus intelligent ? »
 
-That shift matters. A TMS replacement focuses on the system of record. A TMS-agnostic AI workflow focuses on the system of work. It asks how translation requests are created, how context is collected, how AI suggestions are produced, how human reviewers make decisions, how feedback is captured, and how that knowledge improves future work.
+Ce changement est important. Un remplacement de TMS se concentre sur le système d’enregistrement. Un flux de travail d’IA agnostique du TMS se concentre sur le système de travail. Il examine comment les demandes de traduction sont créées, comment le contexte est collecté, comment les suggestions de l’IA sont produites, comment les relecteurs humains prennent des décisions, comment les retours sont capturés et comment ces connaissances améliorent le travail futur.
 
-This approach allows teams to keep Phrase, Lokalise, Crowdin, Smartling, or another existing system while introducing AI where it has the most leverage.
+Cette approche permet aux équipes de conserver Phrase, Lokalise, Crowdin, Smartling ou un autre système existant tout en introduisant l’IA là où elle a le plus d’impact.
 
-## What AI translation needs to do beyond generating text
+## Ce que la traduction par IA doit faire au-delà de la génération de texte
 
-Most AI translation conversations focus on the output: how accurate the translation is, how natural it sounds, or how much editing it needs. Those are important, but they are only one part of the workflow.
+La plupart des conversations de traduction par IA se concentrent sur le résultat : la précision de la traduction, son naturel ou l’ampleur des retouches nécessaires. Ce sont des éléments importants, mais ils ne représentent qu’une partie du flux de travail.
 
-For AI translation to work well in a real company, it needs to support the entire localisation decision process.
+Pour que la traduction IA fonctionne bien dans une vraie entreprise, elle doit prendre en charge l’ensemble du processus de décision de localisation.
 
-It should **understand what the source text is used for**. A short string in a checkout button is not the same as a help centre paragraph, a legal notice, a campaign headline, or an onboarding tooltip. The same English phrase can require different translations depending on placement, audience, product surface, character limits, tone, and regional expectations.
+Il doit **comprendre à quoi sert le texte source**. Une courte chaîne dans un bouton de paiement n’est pas la même chose qu’un paragraphe du centre d’aide, une mention légale, un titre de campagne ou une infobulle d’intégration. La même expression anglaise peut nécessiter des traductions différentes selon son emplacement, son public, la surface du produit, les limites de caractères, le ton et les attentes régionales.
 
-It should **know the brand voice**. Some brands want direct, concise, product-led language. Others need a warmer, more conversational tone. B2B SaaS copy may need to sound precise and credible, while consumer marketing copy may need to feel local, emotional, and culturally familiar.
+Il doit **connaître la voix de la marque**. Certaines marques veulent un langage direct, concis et centré sur le produit. D’autres ont besoin d’un ton plus chaleureux et conversationnel. Les textes marketing pour le SaaS B2B doivent peut-être paraître précis et crédibles, tandis que les textes marketing grand public peuvent devoir sembler locaux, émotionnels et culturellement familiers.
 
-It should **respect terminology and glossary rules**. Product names, feature names, technical terms, and legal phrases should not be translated inconsistently across markets. AI should not invent terminology simply because it sounds natural.
+Elle doit **respecter la terminologie et les règles du glossaire**. Les noms de produits, les noms de fonctionnalités, les termes techniques et les formules juridiques ne doivent pas être traduits de manière incohérente d’un marché à l’autre. L’IA ne doit pas inventer de terminologie simplement parce qu’elle paraît naturelle.
 
-It should **help reviewers, not bypass them**. Localisation teams still need human judgement, especially for high-impact product, marketing, legal, regulated, or brand-sensitive content. The role of AI should be to reduce repetitive work, surface better suggestions, explain trade-offs, and help reviewers move faster with more confidence.
+Il devrait **aider les relecteurs, pas les contourner**. Les équipes de localisation ont toujours besoin du jugement humain, en particulier pour les contenus à fort impact produit, marketing, juridiques, réglementés ou sensibles à la marque. Le rôle de l’IA doit être de réduire le travail répétitif, de proposer de meilleures suggestions, d’expliquer les compromis et d’aider les relecteurs à aller plus vite avec davantage d’assurance.
 
-It should **learn from feedback**. The most valuable localisation knowledge often appears after the first translation is reviewed: why a phrase was rejected, why a tone was changed, why a market preferred one expression over another, or why a literal translation failed. If this feedback disappears into comments and spreadsheets, AI cannot improve over time.
+Il doit **apprendre des retours**. Les connaissances de localisation les plus précieuses apparaissent souvent après la révision de la première traduction : pourquoi une expression a été rejetée, pourquoi un ton a été modifié, pourquoi un marché a préféré une expression à une autre, ou pourquoi une traduction littérale a échoué. Si ces retours disparaissent dans des commentaires et des feuilles de calcul, l’IA ne peut pas s’améliorer avec le temps.
 
-For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
+Pour en savoir plus sur les raisons pour lesquelles le contexte compte autant que le résultat, consultez [La traduction par IA ne suffit pas : pourquoi les équipes internationales ont besoin d’une localisation tenant compte du contexte](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
-## The TMS-agnostic model
+## Le modèle agnostique du TMS
 
-A TMS-agnostic AI translation workflow does not require a company to abandon its current platform. Instead, it connects to the tools the team already uses and adds an intelligence layer across them.
+Un flux de travail de traduction par IA indépendant du TMS n’exige pas qu’une entreprise abandonne sa plateforme actuelle. Au lieu de cela, il se connecte aux outils que l’équipe utilise déjà et y ajoute une couche d’intelligence.
 
-For a team using Phrase AI translation workflows, this means AI can help gather product context, screenshots, glossary rules, and reviewer history before content reaches the translation workflow. For a team using Lokalise AI translation, it can support product teams by enriching source strings with context from repositories, design files, and tickets. For a team using Crowdin AI translation, it can help prepare better prompts, improve review confidence, and capture decisions across software localisation workflows. For a team using Smartling AI translation, it can support enterprise teams that need stronger brand, terminology, and approval context across multiple content systems.
+Pour une équipe utilisant les workflows de traduction IA de Phrase, cela signifie que l’IA peut aider à հավաքer le contexte produit, les captures d’écran, les règles de glossaire et l’historique des relecteurs avant que le contenu n’arrive dans le workflow de traduction. Pour une équipe utilisant la traduction IA de Lokalise, elle peut soutenir les équipes produit en enrichissant les chaînes source avec du contexte provenant des dépôts, des fichiers de conception et des tickets. Pour une équipe utilisant la traduction IA de Crowdin, elle peut aider à préparer de meilleurs prompts, à améliorer la confiance lors de la relecture et à consigner les décisions dans l’ensemble des workflows de localisation logicielle. Pour une équipe utilisant la traduction IA de Smartling, elle peut soutenir les équipes d’entreprise qui ont besoin d’un contexte plus solide sur la marque, la terminologie et les validations à travers plusieurs systèmes de contenu.
 
-The key is that AI does not need to live inside only one platform to be useful. In modern localisation, the work is distributed. The intelligence should be distributed too.
+L’essentiel, c’est que l’IA n’a pas besoin de vivre uniquement dans une seule plateforme pour être utile. Dans la localisation moderne, le travail est distribué. L’intelligence devrait l’être aussi.
 
-A TMS-agnostic layer can sit between source systems, translation platforms, reviewers, and downstream publishing workflows. It can collect context from where the work begins, apply AI translation and review support where appropriate, and send structured outputs back into the tools where teams already operate.
+Une couche indépendante du TMS peut se placer entre les systèmes source, les plateformes de traduction, les réviseurs et les flux de publication en aval. Elle peut collecter le contexte là où le travail commence, appliquer la traduction et l’assistance à la révision par IA lorsque c’est pertinent, et renvoyer des sorties structurées vers les outils où les équipes travaillent déjà.
 
-This is especially useful for companies with multiple localisation workflows. One team may use a TMS for software strings, another may rely on a CMS for marketing pages, another may work through spreadsheets with an agency, and another may use a help centre integration. A single-platform approach often struggles to cover all of this. A TMS-agnostic workflow gives the company a way to standardise localisation intelligence without forcing every team into the same tool.
+C’est particulièrement utile pour les entreprises qui ont plusieurs workflows de localisation. Une équipe peut utiliser un TMS pour les chaînes logicielles, une autre peut s’appuyer sur un CMS pour les pages marketing, une autre peut travailler via des feuilles de calcul avec une agence, et une autre peut utiliser une intégration de centre d’aide. Une approche à plateforme unique a souvent du mal à couvrir tout cela. Un workflow indépendant du TMS permet à l’entreprise de standardiser l’intelligence de localisation sans forcer chaque équipe à utiliser le même outil.
 
-## Where Hyperlocalise fits
+## Où Hyperlocalise s’intègre
 
-Hyperlocalise is built for teams that want to add AI translation intelligence without replacing their existing localisation stack.
+Hyperlocalise est conçu pour les équipes qui souhaitent ajouter une intelligence de traduction IA sans remplacer leur pile de localisation existante.
 
-Instead of asking teams to move away from Phrase, Lokalise, Crowdin, Smartling, or their current process, Hyperlocalise helps teams bring better context, automation, and AI-assisted decision-making into the workflow they already have. The goal is not to become another isolated translation system. The goal is to make localisation work smarter across systems.
+Au lieu de demander aux équipes d’abandonner Phrase, Lokalise, Crowdin, Smartling ou leur processus actuel, Hyperlocalise aide les équipes à intégrer davantage de contexte, d’automatisation et de prise de décision assistée par l’IA dans le flux de travail qu’elles utilisent déjà. L’objectif n’est pas de devenir un autre système de traduction isolé. L’objectif est de rendre le travail de localisation plus intelligent à l’échelle des systèmes.
 
-Hyperlocalise focuses on three areas.
+Hyperlocalise se concentre sur trois domaines.
 
-**First, it helps gather context automatically.** Translation quality improves when AI understands the product, the user journey, the screenshot, the design constraint, the previous decision, the glossary rule, and the intended audience. Instead of expecting localisation managers to manually collect all of this information for every task, AI agents can help retrieve and structure the context before translation begins.
+**D’abord, cela aide à rassembler automatiquement le contexte.** La qualité de la traduction s’améliore lorsque l’IA comprend le produit, le parcours utilisateur, la capture d’écran, la contrainte de conception, la décision précédente, la règle terminologique et le public visé. Au lieu d’attendre des responsables de localisation qu’ils collectent manuellement toutes ces informations pour chaque tâche, des agents IA peuvent aider à récupérer et structurer le contexte avant que la traduction ne commence.
 
-**Second, it supports human-in-the-loop translation.** AI can generate suggestions, explain choices, flag risks, and apply rules, but reviewers still need control. The best workflow is not fully manual or blindly automated. It is a structured collaboration between AI and human judgement, where the reviewer has more information and less repetitive work.
+**Deuxièmement, il prend en charge la traduction avec intervention humaine.** L’IA peut générer des suggestions, expliquer ses choix, signaler les risques et appliquer des règles, mais les réviseurs doivent toujours garder le contrôle. Le meilleur flux de travail n’est ni entièrement manuel ni aveuglément automatisé. Il s’agit d’une collaboration structurée entre l’IA et le jugement humain, dans laquelle le réviseur dispose de plus d’informations et de moins de travail répétitif.
 
-**Third, it creates a self-evolving knowledge layer.** Every approved translation, rejected suggestion, glossary update, reviewer comment, and market-specific decision can become part of the organisation's localisation intelligence. Over time, this reduces repeated mistakes and helps future translations become more consistent, more contextual, and faster to approve.
+**Troisièmement, cela crée une couche de connaissances auto-évolutive.** Chaque traduction approuvée, suggestion rejetée, mise à jour du glossaire, commentaire du relecteur et décision spécifique à un marché peut faire partie de l’intelligence de localisation de l’organisation. Avec le temps, cela réduit les erreurs répétées et aide les futures traductions à devenir plus cohérentes, plus contextuelles et plus rapides à approuver.
 
-This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
+Cela s’appuie sur la même base que [l’intelligence de traduction](/blog/what-is-translation-intelligence) : l’infrastructure qui transforme des connaissances dispersées sur le produit, la marque, l’interface utilisateur, le marché et les évaluateurs en meilleures décisions de localisation.
 
-## The practical benefits
+## Les avantages pratiques
 
-Adding AI translation through a TMS-agnostic workflow gives localisation teams a more flexible path to modernisation.
+L’ajout de la traduction IA via un workflow agnostique au TMS offre aux équipes de localisation une voie plus flexible vers la modernisation.
 
-It **reduces migration risk** because teams can keep their existing TMS, permissions, integrations, vendors, and reporting structures. It **improves AI quality** because translation decisions are informed by context outside the TMS. It **supports multiple departments** because product, marketing, support, and content teams can all benefit without being forced into a single rigid workflow.
+Il **réduit le risque de migration** car les équipes peuvent conserver leur TMS existant, leurs autorisations, leurs intégrations, leurs fournisseurs et leurs structures de reporting. Il **améliore la qualité de l’IA** car les décisions de traduction sont éclairées par un contexte en dehors du TMS. Il **prend en charge plusieurs départements** car les équipes produit, marketing, support et contenu peuvent toutes en tirer parti sans être forcées dans un flux de travail unique et rigide.
 
-It also gives companies more control over their AI strategy. Teams can avoid being locked into one platform's AI model, one workflow design, or one translation approach. They can use AI where it makes sense, keep human review where it matters, and adapt the workflow as their localisation maturity grows.
+Cela donne également aux entreprises davantage de contrôle sur leur stratégie d’IA. Les équipes peuvent éviter d’être enfermées dans le modèle d’IA d’une seule plateforme, dans une seule conception de flux de travail ou dans une seule approche de traduction. Elles peuvent utiliser l’IA là où cela a du sens, conserver une validation humaine là où c’est important et adapter le flux de travail à mesure que leur maturité en localisation se développe.
 
-This is important because AI translation is not a one-time feature purchase. It is an operating model. The companies that get the most value from AI will not simply translate more words faster. They will build better systems for capturing context, applying judgement, measuring quality, and learning from every localisation decision.
+C’est important, car la traduction par l’IA n’est pas un achat de fonctionnalité ponctuel. C’est un modèle opérationnel. Les entreprises qui tirent le plus de valeur de l’IA ne se contenteront pas de traduire davantage de mots plus rapidement. Elles construiront de meilleurs systèmes pour capturer le contexte, appliquer leur jugement, mesurer la qualité et tirer des enseignements de chaque décision de localisation.
 
-## Add AI translation without starting over
+## Ajouter la traduction IA sans recommencer
 
-Phrase, Lokalise, Crowdin, and Smartling have all moved strongly into AI-powered localisation. That is good for the industry. It shows that AI is becoming a core part of how global content will be created, translated, reviewed, and managed.
+Phrase, Lokalise, Crowdin et Smartling ont tous fortement évolué vers la localisation optimisée par l’IA. C’est une bonne chose pour le secteur. Cela montre que l’IA devient un élément central de la manière dont les contenus globaux seront créés, traduits, relus et gérés.
 
-But companies do not need to replace their TMS to benefit from AI translation. In many cases, the better path is to keep the systems that already work and add an intelligence layer that makes the entire workflow more contextual, automated, and adaptive.
+Mais les entreprises n’ont pas besoin de remplacer leur TMS pour bénéficier de la traduction par IA. Dans de nombreux cas, la meilleure approche consiste à conserver les systèmes qui fonctionnent déjà et à ajouter une couche d’intelligence qui rend l’ensemble du flux de travail plus contextuel, automatisé et adaptatif.
 
-That is the promise of a TMS-agnostic workflow.
+C’est la promesse d’un workflow agnostique au TMS.
 
-With Hyperlocalise, teams can bring AI translation intelligence into their existing localisation stack, connect context across tools, support human reviewers, and build a knowledge layer that improves over time.
+Avec Hyperlocalise, les équipes peuvent intégrer l’intelligence de traduction IA à leur pile de localisation existante, connecter le contexte entre les outils, soutenir les réviseurs humains et construire une couche de connaissances qui s’améliore au fil du temps.
 
-AI translation should not force teams to start again. It should help them move faster from where they already are.
+La traduction par IA ne devrait pas obliger les équipes à repartir de zéro. Elle devrait les aider à avancer plus vite à partir de là où elles en sont déjà.
