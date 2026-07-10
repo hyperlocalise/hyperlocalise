@@ -11,7 +11,8 @@ import (
 var extraPlaceholderPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`%[0-9]+\$[sdf@]`),
 	regexp.MustCompile(`%\([A-Za-z_][\w]*\)[sdf@]`),
-	regexp.MustCompile(`%[sdf@]\b`),
+	regexp.MustCompile(`%[sdf]\b`),
+	regexp.MustCompile(`%@`),
 	regexp.MustCompile(`%\{[ \w.-]+\}`),
 	regexp.MustCompile(`\$\{[A-Za-z_][\w.-]*\}`),
 	regexp.MustCompile(`\$[A-Za-z_][\w.+-]*\$`),

@@ -131,3 +131,7 @@
 ## 2025-05-23 - [PO Parser Comment State Reset]
 **Learning:** Comments in PO files must reset the `activeField` state, just like ignored fields. If a comment is followed by a continuation line (a quoted string), the continuation would otherwise be incorrectly appended to the last active field (e.g. `msgid` or `msgstr`), leading to data corruption.
 **Action:** Ensure comment line handlers explicitly reset `activeField` to prevent trailing continuations from leaking into preceding entries.
+
+## 2026-07-28 - [Go Regex Word Boundaries with Non-word Characters]
+**Learning:** In Go's `regexp` engine (RE2), the word boundary anchor `\b` matches the boundary between a word character (`[a-zA-Z0-9_]`) and a non-word character (or vice versa). If a placeholder ends with a non-word character like `@` (as in Objective-C's `%@`), a trailing `\b` will only match if the *following* character is a word character. It will fail if followed by space, punctuation, or end-of-string.
+**Action:** When matching placeholders that end with symbols, avoid naive `\b` anchors. Instead, match the specific symbol literally or use negative lookaheads (if available/needed) to ensure correct detection across all contexts.
