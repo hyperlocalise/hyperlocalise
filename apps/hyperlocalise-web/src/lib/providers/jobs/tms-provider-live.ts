@@ -91,7 +91,10 @@ import {
   type ExternalTmsTranslationMemoryMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedTranslationFileFormat,
+  isImageTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 const logger = createLogger("tms-provider-live");
 
@@ -1399,11 +1402,13 @@ async function downloadLiveProviderFileContent(input: {
   content: ProjectFileContent | null;
   contentType: string | null;
 }> {
-  if (input.context.providerKind === "smartling") {
-    if (!inferSupportedFileTranslationFileFormat(input.sourcePath)) {
-      return { byteSize: null, content: null, contentType: null };
-    }
+  const supportedFormat = inferSupportedTranslationFileFormat(input.sourcePath);
+  if (!supportedFormat) {
+    return { byteSize: null, content: null, contentType: null };
+  }
+  const isImage = isImageTranslationFileFormat(supportedFormat);
 
+  if (input.context.providerKind === "smartling") {
     const credentials = parseSmartlingCredentials(input.context.secretMaterial);
     const client = new SmartlingApiClient({
       credentials,
@@ -1420,9 +1425,9 @@ async function downloadLiveProviderFileContent(input: {
       return {
         byteSize,
         content:
-          byteSize <= maxLiveProviderInlineTextBytes
-            ? { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) }
-            : null,
+          isImage || byteSize > maxLiveProviderInlineTextBytes
+            ? null
+            : { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) },
         contentType: sourceContentType(input.sourcePath),
       };
     } catch (error) {
@@ -1448,10 +1453,6 @@ async function downloadLiveProviderFileContent(input: {
     return { byteSize: null, content: null, contentType: null };
   }
 
-  if (!inferSupportedFileTranslationFileFormat(input.sourcePath)) {
-    return { byteSize: null, content: null, contentType: null };
-  }
-
   const projectId = Number(input.externalProjectId);
   const fileId = Number(input.externalResourceId);
   if (Number.isNaN(projectId) || Number.isNaN(fileId)) {
@@ -1471,14 +1472,25 @@ async function downloadLiveProviderFileContent(input: {
     return {
       byteSize,
       content:
-        byteSize <= maxLiveProviderInlineTextBytes
-          ? { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) }
-          : null,
+        isImage || byteSize > maxLiveProviderInlineTextBytes
+          ? null
+          : { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) },
       contentType: sourceContentType(input.sourcePath),
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    if (isImage) {
+      logger.warn("tms_provider_live_file_content_failed", {
+        organizationId: input.context.organizationId,
+        providerKind: input.context.providerKind,
+        externalProjectId: input.externalProjectId,
+        externalResourceId: input.externalResourceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { byteSize: null, content: null, contentType: null };
     }
 
     try {

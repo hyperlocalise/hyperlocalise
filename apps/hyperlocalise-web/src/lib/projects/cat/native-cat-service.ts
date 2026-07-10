@@ -3,31 +3,80 @@ import { and, eq } from "drizzle-orm";
 import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,
+  ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { NativeCatCommentService } from "@/lib/projects/cat/native-cat-comment-service";
 import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
+import { getImageVariant, projectImageAssetPath } from "@/lib/projects/files/image-variant-service";
+import {
+  IMAGE_URL_CONTENT_KIND,
+  isImageUrlContentKind,
+} from "@/lib/projects/files/image-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
+import {
+  inferSupportedImageTranslationFileFormat,
+  looksLikeImageUrl,
+} from "@/lib/translation/file-formats";
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
+}
+
+function imageFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return sourceFileId || `image:${sourcePath}`;
 }
 
 function toCatTranslation(row: {
   id: string;
   text: string;
   status: "draft" | "needs_review" | "approved" | "rejected";
+  contentKind?: ProjectFileCatTranslation["contentKind"];
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
 }): ProjectFileCatTranslation {
   return {
     text: row.text,
     externalTranslationId: row.id,
     isApproved: row.status === "approved",
+    ...(row.contentKind ? { contentKind: row.contentKind } : {}),
+    ...(row.targetAssetUrl !== undefined ? { targetAssetUrl: row.targetAssetUrl } : {}),
+    ...(row.imageVariantId !== undefined ? { imageVariantId: row.imageVariantId } : {}),
+    status: row.status,
+  };
+}
+
+function mapTextSegment(key: {
+  id: string;
+  key: string;
+  sourceText: string;
+  context: string | null;
+  type: string | null;
+  maxLength: number | null;
+  metadata: Record<string, unknown> | null;
+}): ProjectFileCatSegment {
+  const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
+  const looksLikeUrl = looksLikeImageUrl(key.sourceText);
+
+  return {
+    externalStringId: key.id,
+    key: key.key,
+    sourceText: key.sourceText,
+    context: key.context,
+    type: key.type,
+    ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
+    ...(contentKind ? { contentKind } : {}),
+    ...(contentKind === IMAGE_URL_CONTENT_KIND ? { sourceAssetUrl: key.sourceText } : {}),
+    ...(looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND
+      ? { looksLikeImageUrl: looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND }
+      : {}),
   };
 }
 
@@ -51,6 +100,7 @@ export class NativeCatService extends ProjectServiceBase {
     sourcePath: string;
     targetLocale: string;
     canEditTranslations: boolean;
+    organizationSlug: string;
     pagination?: ProjectFileCatPaginationInput;
   }): Promise<ProjectFileCatQueueFile | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
@@ -61,6 +111,13 @@ export class NativeCatService extends ProjectServiceBase {
 
     if (!sourceFile) {
       return null;
+    }
+
+    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
+      return this.buildImageCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
     }
 
     const paginationInput = input.pagination ?? {
@@ -126,6 +183,73 @@ export class NativeCatService extends ProjectServiceBase {
     });
   }
 
+  private async buildImageCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileCatQueueFile> {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getImageVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
+    return {
+      sourcePath: input.input.sourcePath,
+      filename: filenameFromSourcePath(input.input.sourcePath),
+      provider: null,
+      targetLocale: input.input.targetLocale,
+      canEditTranslations: input.input.canEditTranslations,
+      truncated: false,
+      segments: [
+        {
+          externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+          key: input.input.sourcePath,
+          sourceText: input.input.sourcePath,
+          context: null,
+          type: null,
+          contentKind: "image_file",
+          sourceAssetUrl,
+          targetAssetUrl,
+          imageVariantId: variant?.id ?? null,
+        },
+      ],
+    };
+  }
+
   private async buildCatFileResponse(input: {
     input: {
       sourcePath: string;
@@ -146,14 +270,7 @@ export class NativeCatService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
-      segments: input.visibleKeys.map((key) => ({
-        externalStringId: key.id,
-        key: key.key,
-        sourceText: key.sourceText,
-        context: key.context,
-        type: key.type,
-        ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
-      })),
+      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
     };
   }
 
@@ -317,6 +434,7 @@ export class NativeCatService extends ProjectServiceBase {
     sourcePath: string;
     targetLocale: string;
     externalStringId: string;
+    organizationSlug: string;
   }): Promise<ProjectFileCatTranslation | null | "not_found"> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -328,8 +446,59 @@ export class NativeCatService extends ProjectServiceBase {
       return "not_found";
     }
 
+    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
+      const expectedId = imageFileExternalStringId(sourceFile.id, input.sourcePath);
+      if (
+        input.externalStringId !== expectedId &&
+        input.externalStringId !== sourceFile.id &&
+        input.externalStringId !== `image:${input.sourcePath}`
+      ) {
+        return "not_found";
+      }
+
+      const variant = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        db: this.database,
+      });
+
+      const targetAssetUrl = variant?.storedFileId
+        ? projectImageAssetPath({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            fileId: variant.storedFileId,
+          })
+        : null;
+
+      if (!variant) {
+        return {
+          text: "",
+          externalTranslationId: null,
+          isApproved: false,
+          contentKind: "image_file",
+          targetAssetUrl: null,
+          imageVariantId: null,
+          status: "draft",
+        };
+      }
+
+      return toCatTranslation({
+        id: variant.id,
+        text: targetAssetUrl ?? "",
+        status: variant.status,
+        contentKind: "image_file",
+        targetAssetUrl,
+        imageVariantId: variant.id,
+      });
+    }
+
     const [key] = await this.database
-      .select({ id: schema.projectTranslationKeys.id })
+      .select({
+        id: schema.projectTranslationKeys.id,
+        metadata: schema.projectTranslationKeys.metadata,
+      })
       .from(schema.projectTranslationKeys)
       .where(
         and(
@@ -354,7 +523,21 @@ export class NativeCatService extends ProjectServiceBase {
       })
     )[0];
 
-    return translation ? toCatTranslation(translation) : null;
+    if (!translation) {
+      return null;
+    }
+
+    const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
+
+    return toCatTranslation({
+      ...translation,
+      ...(contentKind
+        ? {
+            contentKind,
+            targetAssetUrl: translation.text,
+          }
+        : {}),
+    });
   }
 
   async getSegmentComments(input: {
@@ -371,6 +554,10 @@ export class NativeCatService extends ProjectServiceBase {
     });
 
     if (!sourceFile) {
+      return [];
+    }
+
+    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
       return [];
     }
 

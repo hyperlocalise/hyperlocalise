@@ -412,6 +412,89 @@ describe("project file CAT routes", () => {
     expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
   });
 
+  it("toggles treat-as-image metadata on a native CAT segment", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "banner.url",
+          text: "https://cdn.example.com/banner.png",
+          context: null,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          treatAsImage: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      segment: {
+        externalStringId: string;
+        contentKind: string;
+        looksLikeImageUrl: boolean;
+      };
+    };
+    expect(body.segment).toMatchObject({
+      externalStringId: translationKey!.id,
+      contentKind: "image_url",
+      looksLikeImageUrl: true,
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      contentKind: "image_url",
+      looksLikeImageUrl: true,
+    });
+  });
+
   it("posts and resolves native CAT issues", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

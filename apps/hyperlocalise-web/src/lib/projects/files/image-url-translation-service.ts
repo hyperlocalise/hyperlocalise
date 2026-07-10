@@ -237,3 +237,128 @@ export async function localizeImageUrlTranslation(input: {
 
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }
+
+export async function replaceImageUrlTranslationBytes(input: {
+  organizationId: string;
+  projectId: string;
+  translationKeyId: string;
+  targetLocale: string;
+  organizationSlug: string;
+  origin?: string | null;
+  content: Buffer;
+  contentType: string;
+  filename: string;
+  actorUserId?: string | null;
+  force?: boolean;
+}): Promise<
+  Result<
+    {
+      translation: typeof schema.projectTranslations.$inferSelect;
+      assetUrl: string;
+      storedFileId: string;
+    },
+    ImageUrlContentKindError
+  >
+> {
+  const [key] = await db
+    .select()
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.id, input.translationKeyId),
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+      ),
+    )
+    .limit(1);
+
+  if (!key) {
+    return err({ code: "key_not_found" });
+  }
+
+  const [existingTranslation] = await db
+    .select()
+    .from(schema.projectTranslations)
+    .where(
+      and(
+        eq(schema.projectTranslations.translationKeyId, key.id),
+        eq(schema.projectTranslations.targetLocale, input.targetLocale),
+      ),
+    )
+    .limit(1);
+
+  if (existingTranslation?.status === "approved" && !input.force) {
+    return err({ code: "approved_locked" });
+  }
+
+  const stored = await createStoredFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    createdByUserId: input.actorUserId ?? null,
+    role: "asset",
+    sourceKind: "chat_upload",
+    filename: input.filename,
+    contentType: input.contentType,
+    content: input.content,
+    metadata: {
+      imageLocalizationManualUpload: true,
+      contentKind: IMAGE_URL_CONTENT_KIND,
+      translationKeyId: key.id,
+      targetLocale: input.targetLocale,
+    },
+  });
+
+  const assetUrl = projectImageAssetUrl({
+    organizationSlug: input.organizationSlug,
+    projectId: input.projectId,
+    fileId: stored.id,
+    origin: input.origin,
+  });
+
+  const metadata = { ...key.metadata, contentKind: IMAGE_URL_CONTENT_KIND };
+  await db
+    .update(schema.projectTranslationKeys)
+    .set({ metadata, updatedAt: new Date() })
+    .where(eq(schema.projectTranslationKeys.id, key.id));
+
+  const [translation] = await db
+    .insert(schema.projectTranslations)
+    .values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: key.id,
+      targetLocale: input.targetLocale,
+      text: assetUrl,
+      status: "needs_review",
+      provenance: "manual",
+      metadata: {
+        contentKind: IMAGE_URL_CONTENT_KIND,
+        storedFileId: stored.id,
+      },
+    })
+    .onConflictDoUpdate({
+      target: [
+        schema.projectTranslations.translationKeyId,
+        schema.projectTranslations.targetLocale,
+      ],
+      set: {
+        text: assetUrl,
+        status: "needs_review",
+        provenance: "manual",
+        reviewedByUserId: null,
+        reviewedAt: null,
+        metadata: {
+          contentKind: IMAGE_URL_CONTENT_KIND,
+          storedFileId: stored.id,
+        },
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+
+  if (!translation) {
+    return err({ code: "key_not_found" });
+  }
+
+  return ok({ translation, assetUrl, storedFileId: stored.id });
+}
