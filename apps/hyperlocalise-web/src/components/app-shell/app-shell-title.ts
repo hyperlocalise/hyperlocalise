@@ -33,17 +33,20 @@ type RouteTitleKey =
   | "teams"
   | "translation-memories";
 
-type ProjectSectionKey =
-  | "activity"
-  | "agent-runs"
-  | "context"
-  | "files"
-  | "issue-sheet"
-  | "jobs"
-  | "locales"
-  | "qa"
-  | "reviews"
-  | "settings";
+const PROJECT_SECTION_KEYS = {
+  activity: true,
+  "agent-runs": true,
+  context: true,
+  files: true,
+  "issue-sheet": true,
+  jobs: true,
+  locales: true,
+  qa: true,
+  reviews: true,
+  settings: true,
+} as const;
+
+type ProjectSectionKey = keyof typeof PROJECT_SECTION_KEYS;
 
 function isRouteTitleKey(value: string): value is RouteTitleKey {
   return (
@@ -77,18 +80,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
 }
 
 function isProjectSectionKey(value: string): value is ProjectSectionKey {
-  return (
-    value === "activity" ||
-    value === "agent-runs" ||
-    value === "context" ||
-    value === "files" ||
-    value === "issue-sheet" ||
-    value === "jobs" ||
-    value === "locales" ||
-    value === "qa" ||
-    value === "reviews" ||
-    value === "settings"
-  );
+  return value in PROJECT_SECTION_KEYS;
 }
 
 function parseOrgRoute(pathname: string | null) {
