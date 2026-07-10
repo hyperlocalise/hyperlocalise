@@ -11,6 +11,14 @@ import {
   readBoundedResponseBody,
 } from "./fetch";
 
+const dnsMock = vi.hoisted(() => ({
+  lookup: vi.fn(),
+}));
+
+vi.mock("node:dns/promises", () => ({
+  lookup: dnsMock.lookup,
+}));
+
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
 
 describe("isAllowedWebUrl", () => {
@@ -94,6 +102,8 @@ describe("createFetchTool", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    dnsMock.lookup.mockReset();
+    dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     globalThis.fetch = vi.fn(async () => new Response("ok body", { status: 200 })) as typeof fetch;
   });
 
@@ -117,6 +127,22 @@ describe("createFetchTool", () => {
     const tool = createFetchTool();
     const result = await tool.execute!({ url: "https://example.com/page" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, status: 200, body: "ok body" });
+  });
+
+  it("rejects hostnames that resolve to restricted addresses", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
+
+    const tool = createFetchTool();
+    const result = await tool.execute!(
+      { url: "https://rebind.example.com/internal" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "URL host resolves to a private or restricted address.",
+    });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it("returns markdown by default for HTML pages", async () => {

@@ -3,6 +3,11 @@ import { Parser } from "htmlparser2";
 import TurndownService from "turndown";
 import { z } from "zod";
 
+import {
+  fetchPublicHttp,
+  MAX_PUBLIC_HTTP_RESPONSE_BYTES,
+  readBoundedResponseBody as readBoundedPublicResponseBody,
+} from "@/lib/security/public-http-fetch";
 import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 import { redact, truncate } from "./redact";
@@ -10,7 +15,7 @@ import { redact, truncate } from "./redact";
 export const DEFAULT_TIMEOUT_SECONDS = 30;
 export const MAX_TIMEOUT_SECONDS = 120;
 export const MAX_BODY_LENGTH = 100_000;
-export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+export const MAX_RESPONSE_BYTES = MAX_PUBLIC_HTTP_RESPONSE_BYTES;
 
 const BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
@@ -125,44 +130,7 @@ function convertContent(content: string, contentType: string, format: Format): s
 }
 
 export async function readBoundedResponseBody(response: Response): Promise<Uint8Array> {
-  if (!response.body) {
-    return new Uint8Array();
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      if (!value) {
-        continue;
-      }
-
-      total += value.byteLength;
-      if (total > MAX_RESPONSE_BYTES) {
-        throw new Error(`Response too large (exceeds ${MAX_RESPONSE_BYTES} byte limit)`);
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const body = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return body;
+  return readBoundedPublicResponseBody(response, MAX_RESPONSE_BYTES);
 }
 
 class CloudflareChallengeError extends Error {
@@ -182,7 +150,7 @@ async function fetchUrl(
   const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1_000);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchPublicHttp(url, {
       method: "GET",
       redirect: "error",
       signal: controller.signal,
@@ -268,7 +236,7 @@ export function createFetchTool() {
   return tool({
     description: `Fetch content from a public HTTP(S) URL and return it as text, markdown, or HTML. Markdown is the default for HTML pages.
 
-Use a more targeted tool when one is available. This tool is read-only. Only public http(s) hosts are allowed.
+Use a more targeted tool when one is available. This tool is read-only. Only public http(s) hosts are allowed, and hostnames are DNS-checked before each request.
 
 WHEN TO USE:
 - Reading public documentation, articles, or reference pages
@@ -293,7 +261,7 @@ USAGE:
         const headTimeout = setTimeout(() => controller.abort(), timeout * 1_000);
 
         try {
-          const response = await fetch(url, {
+          const response = await fetchPublicHttp(url, {
             method: "HEAD",
             redirect: "error",
             signal: controller.signal,

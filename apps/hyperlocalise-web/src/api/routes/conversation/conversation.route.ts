@@ -24,7 +24,10 @@ import {
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
-import { sanitizeInteractionMessagesForRole } from "./conversation-message-parts";
+import {
+  sanitizeInteractionMessagesForRole,
+  sanitizeLastMessagePreviewForRole,
+} from "./conversation-message-parts";
 import {
   conversationIdParamsSchema,
   createConversationRequestSchema,
@@ -198,6 +201,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               .selectDistinctOn([schema.interactionMessages.interactionId], {
                 interactionId: schema.interactionMessages.interactionId,
                 text: schema.interactionMessages.text,
+                parts: schema.interactionMessages.parts,
                 senderType: schema.interactionMessages.senderType,
                 createdAt: schema.interactionMessages.createdAt,
               })
@@ -211,12 +215,13 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
       const lastMessageMap = new Map<
         string,
-        { text: string; senderType: "user" | "agent"; createdAt: Date }
+        { text: string; senderType: "user" | "agent"; createdAt: Date; parts: unknown }
       >();
       for (const msg of lastMessages) {
         if (!lastMessageMap.has(msg.interactionId)) {
           lastMessageMap.set(msg.interactionId, {
             text: msg.text,
+            parts: msg.parts,
             senderType: msg.senderType,
             createdAt: msg.createdAt,
           });
@@ -253,7 +258,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           conversations: conversations.map((conv) => ({
             ...conv,
             participantEmail: participantEmailMap.get(conv.id) ?? null,
-            lastMessage: lastMessageMap.get(conv.id) ?? null,
+            lastMessage: sanitizeLastMessagePreviewForRole(
+              lastMessageMap.get(conv.id),
+              c.var.auth.membership.role,
+            ),
           })),
         },
         200,

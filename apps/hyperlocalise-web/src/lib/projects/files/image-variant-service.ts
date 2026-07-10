@@ -7,8 +7,12 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
-import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { formatSsrfGuardError, validatePublicHttpUrl } from "@/lib/security/ssrf-guard";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  fetchPublicHttp,
+  MAX_PUBLIC_HTTP_RESPONSE_BYTES,
+  readBoundedResponseBody,
+} from "@/lib/security/public-http-fetch";
 
 export type ProjectImageVariantStatus =
   (typeof schema.projectTranslationStatusEnum.enumValues)[number];
@@ -193,16 +197,8 @@ async function loadSourceImageBytes(input: {
 export async function fetchImageBytesFromUrl(
   url: string,
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
-  const urlResult = validatePublicHttpUrl(url);
-  if (isErr(urlResult)) {
-    return err({
-      code: "fetch_failed",
-      message: formatSsrfGuardError(urlResult.error),
-    });
-  }
-
   try {
-    const response = await fetch(url, { method: "GET", redirect: "error" });
+    const response = await fetchPublicHttp(url, { method: "GET", redirect: "error" });
     if (!response.ok) {
       return err({
         code: "fetch_failed",
@@ -215,8 +211,8 @@ export async function fetchImageBytesFromUrl(
       return err({ code: "unsupported_image_response" });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const content = Buffer.from(arrayBuffer);
+    const body = await readBoundedResponseBody(response, MAX_PUBLIC_HTTP_RESPONSE_BYTES);
+    const content = Buffer.from(body);
     let filename = "image.png";
     try {
       const pathname = new URL(url).pathname;

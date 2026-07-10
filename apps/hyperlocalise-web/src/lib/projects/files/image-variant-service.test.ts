@@ -7,6 +7,14 @@ const { regenerateImageFromAttachment } = vi.hoisted(() => ({
   regenerateImageFromAttachment: vi.fn(),
 }));
 
+const dnsMock = vi.hoisted(() => ({
+  lookup: vi.fn(),
+}));
+
+vi.mock("node:dns/promises", () => ({
+  lookup: dnsMock.lookup,
+}));
+
 vi.mock("@/lib/agents/image-generation", () => ({
   regenerateImageFromAttachment,
 }));
@@ -14,6 +22,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr, isOk } from "@/lib/primitives/result/results";
+import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
 import {
   fetchImageBytesFromUrl,
@@ -30,6 +39,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
   regenerateImageFromAttachment.mockResolvedValue({
     image: Buffer.from("localized-image"),
     mimeType: "image/png",
@@ -143,6 +153,51 @@ describe("fetchImageBytesFromUrl", () => {
       message: "URL host is not allowed.",
     });
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects hostnames that resolve to restricted addresses", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
+    globalThis.fetch = vi.fn() as typeof fetch;
+
+    const result = await fetchImageBytesFromUrl("https://rebind.example.com/secret.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected DNS-restricted host to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: "URL host resolves to a private or restricted address.",
+    });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized image bodies", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_PUBLIC_HTTP_RESPONSE_BYTES));
+        controller.enqueue(new Uint8Array(1));
+        controller.close();
+      },
+    });
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(stream, {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        }),
+    ) as typeof fetch;
+
+    const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/huge.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected oversized image to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: `Response too large (exceeds ${MAX_PUBLIC_HTTP_RESPONSE_BYTES} byte limit)`,
+    });
   });
 });
 

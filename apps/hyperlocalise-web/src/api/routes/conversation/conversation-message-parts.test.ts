@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   redactSensitiveAgentMessageParts,
   sanitizeInteractionMessagesForRole,
+  sanitizeLastMessagePreviewForRole,
 } from "./conversation-message-parts";
 
 describe("conversation message parts redaction", () => {
@@ -41,7 +42,7 @@ describe("conversation message parts redaction", () => {
       {
         id: "msg_agent",
         senderType: "agent",
-        text: "Found the login copy.",
+        text: "Found the login copy.\nSearch the repository for auth config.",
         parts: toolParts,
       },
     ];
@@ -50,11 +51,32 @@ describe("conversation message parts redaction", () => {
       messages[0],
       {
         ...messages[1],
+        text: "Found the login copy.",
         parts: [
           { type: "text", text: "Found the login copy." },
           { type: "source-url", sourceId: "src_1", url: "https://example.com/docs" },
         ],
       },
     ]);
+  });
+
+  it("rebuilds list preview text from readable parts for read-only members", () => {
+    const preview = {
+      text: "Found the login copy.\nSearch the repository for auth config.",
+      senderType: "agent" as const,
+      createdAt: new Date("2026-07-10T00:00:00.000Z"),
+      parts: toolParts,
+    };
+
+    expect(sanitizeLastMessagePreviewForRole(preview, "member")).toEqual({
+      text: "Found the login copy.",
+      senderType: "agent",
+      createdAt: preview.createdAt,
+    });
+    expect(sanitizeLastMessagePreviewForRole(preview, "admin")).toEqual({
+      text: preview.text,
+      senderType: "agent",
+      createdAt: preview.createdAt,
+    });
   });
 });
