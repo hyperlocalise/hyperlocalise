@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { readApiResponseError } from "@/lib/api-error";
@@ -46,6 +47,8 @@ import {
   type DashboardJobItem,
   type DashboardProjectItem,
 } from "./dashboard-page-view-model";
+import { dashboardPageContentMessages } from "./dashboard-page-content.messages";
+import { dashboardPageViewModelMessages } from "./dashboard-page-view-model.messages";
 import { DashboardPageView } from "./dashboard-page-view";
 
 const api = createApiClient();
@@ -184,6 +187,7 @@ function mapDashboardProjects(
   organizationSlug: string,
   projects: readonly ProjectListRow[],
   recentProjectVisits: readonly RecentProjectVisit[],
+  nativeSourceLabel: string,
 ): DashboardProjectItem[] {
   return sortDashboardProjects(projects, recentProjectVisits)
     .slice(0, 5)
@@ -193,7 +197,7 @@ function mapDashboardProjects(
       sourceLabel:
         project.source === "external_tms" && project.externalProviderKind
           ? providerLabel(project.externalProviderKind)
-          : "Native",
+          : nativeSourceLabel,
       localeRoute: formatDashboardLocaleRoute(project.sourceLocale, project.targetLocales),
       pendingActionCount: project.openJobCount,
       updatedAt: project.lastSyncedAt ?? project.updated,
@@ -208,6 +212,7 @@ export function DashboardPageContent({
   organizationSlug: string;
   automationsEnabled?: boolean;
 }) {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const handledFeatureUnavailableRef = useRef(false);
   const [recentProjectVisits, setRecentProjectVisits] = useState<RecentProjectVisit[] | null>(null);
@@ -226,8 +231,8 @@ export function DashboardPageContent({
     url.searchParams.delete("reason");
     window.history.replaceState(null, "", url.toString());
 
-    toast.error("This feature is not available for your workspace yet.");
-  }, [searchParams]);
+    toast.error(intl.formatMessage(dashboardPageContentMessages.featureUnavailable));
+  }, [intl, searchParams]);
 
   useEffect(() => {
     setRecentProjectVisits(readRecentProjectVisits(organizationSlug));
@@ -332,7 +337,7 @@ export function DashboardPageContent({
   const tmsBranding = getTmsProviderBranding(activeTmsProvider?.providerKind);
   const integrations = useMemo(
     () =>
-      resolveDashboardIntegrations({
+      resolveDashboardIntegrations(intl, {
         tmsConnected: hasTmsConnection,
         tmsProviderKind: activeTmsProvider?.providerKind,
         tmsProviderName: hasTmsConnection ? tmsBranding.name : undefined,
@@ -343,6 +348,7 @@ export function DashboardPageContent({
       activeTmsProvider?.providerKind,
       githubQuery.data,
       hasTmsConnection,
+      intl,
       slackQuery.data,
       tmsBranding.name,
     ],
@@ -359,7 +365,7 @@ export function DashboardPageContent({
 
   const hero = useMemo(
     () =>
-      resolveDashboardHero({
+      resolveDashboardHero(intl, {
         integrations,
         projectCount: allProjects.length,
         pendingCount,
@@ -367,7 +373,15 @@ export function DashboardPageContent({
         myJobsHref,
         newRequestHref,
       }),
-    [allProjects.length, integrations, integrationsHref, myJobsHref, newRequestHref, pendingCount],
+    [
+      allProjects.length,
+      integrations,
+      integrationsHref,
+      intl,
+      myJobsHref,
+      newRequestHref,
+      pendingCount,
+    ],
   );
 
   const automationStats = useMemo(
@@ -377,13 +391,13 @@ export function DashboardPageContent({
 
   const automationRuns = useMemo(
     () =>
-      mapDashboardAutomationRuns({
+      mapDashboardAutomationRuns(intl, {
         organizationSlug,
         automations: automationsQuery.data ?? [],
         runs: automationRunsQuery.data ?? [],
         limit: 5,
       }),
-    [automationRunsQuery.data, automationsQuery.data, organizationSlug],
+    [automationRunsQuery.data, automationsQuery.data, intl, organizationSlug],
   );
 
   const mappedJobs = useMemo(
@@ -401,6 +415,8 @@ export function DashboardPageContent({
     [latestTmsJobsQuery.data, organizationSlug],
   );
 
+  const nativeSourceLabel = intl.formatMessage(dashboardPageViewModelMessages.nativeSourceLabel);
+
   const mappedProjects = useMemo(
     () =>
       recentProjectVisits
@@ -408,17 +424,23 @@ export function DashboardPageContent({
             organizationSlug,
             nativeProjectsQuery.data ?? [],
             recentProjectVisits,
+            nativeSourceLabel,
           )
         : [],
-    [nativeProjectsQuery.data, organizationSlug, recentProjectVisits],
+    [nativeProjectsQuery.data, nativeSourceLabel, organizationSlug, recentProjectVisits],
   );
 
   const mappedTmsProjects = useMemo(
     () =>
       recentProjectVisits
-        ? mapDashboardProjects(organizationSlug, tmsProjectsQuery.data ?? [], recentProjectVisits)
+        ? mapDashboardProjects(
+            organizationSlug,
+            tmsProjectsQuery.data ?? [],
+            recentProjectVisits,
+            nativeSourceLabel,
+          )
         : [],
-    [organizationSlug, recentProjectVisits, tmsProjectsQuery.data],
+    [nativeSourceLabel, organizationSlug, recentProjectVisits, tmsProjectsQuery.data],
   );
 
   const isSetupLoading =
@@ -452,9 +474,9 @@ export function DashboardPageContent({
       isJobsError={assignedJobsQuery.isError && (!hasTmsConnection || assignedTmsJobsQuery.isError)}
       jobsWarning={
         assignedTmsJobsQuery.isError && !assignedJobsQuery.isError
-          ? "Live TMS jobs could not be loaded."
+          ? intl.formatMessage(dashboardPageContentMessages.liveTmsJobsWarning)
           : assignedJobsQuery.isError && assignedTmsJobsQuery.isSuccess
-            ? "Native workspace jobs could not be loaded."
+            ? intl.formatMessage(dashboardPageContentMessages.nativeJobsWarning)
             : undefined
       }
       isLatestJobsLoading={latestJobsQuery.isLoading}

@@ -1,4 +1,7 @@
+import type { IntlShape } from "react-intl";
+
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import { automationsFixture } from "../../automations/_components/automations.fixture";
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
@@ -22,16 +25,17 @@ import {
 } from "./dashboard-page-view-model";
 
 const organizationSlug = "acme";
+const intl = getIntlShape("en") as IntlShape;
 
 export const dashboardIntegrationsCompleteFixture: DashboardIntegrationItem[] =
-  resolveDashboardIntegrations({
+  resolveDashboardIntegrations(intl, {
     tmsConnected: true,
     githubConnected: true,
     slackConnected: true,
   });
 
 export const dashboardIntegrationsIncompleteFixture: DashboardIntegrationItem[] =
-  resolveDashboardIntegrations({
+  resolveDashboardIntegrations(intl, {
     tmsConnected: false,
     githubConnected: false,
     slackConnected: true,
@@ -226,7 +230,7 @@ const automationRunsFixture: WorkspaceAutomationRunRecord[] = [
 ];
 
 export const dashboardAutomationRunsFixture: DashboardAutomationRunItem[] =
-  mapDashboardAutomationRuns({
+  mapDashboardAutomationRuns(intl, {
     organizationSlug,
     automations: automationsFixture,
     runs: automationRunsFixture,

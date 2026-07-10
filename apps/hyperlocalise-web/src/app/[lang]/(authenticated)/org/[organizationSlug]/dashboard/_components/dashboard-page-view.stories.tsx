@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import { automationsFixture } from "../../automations/_components/automations.fixture";
 import {
@@ -17,8 +20,9 @@ import {
 } from "./dashboard-page-view-model";
 
 const organizationSlug = "acme";
+const intl = getIntlShape("en") as IntlShape;
 
-const activeHero = resolveDashboardHero({
+const activeHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsCompleteFixture,
   projectCount: dashboardProjectsItemsFixture.length,
   pendingCount: resolveWorkspacePendingActionCount({
@@ -32,7 +36,7 @@ const activeHero = resolveDashboardHero({
   newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
-const setupHero = resolveDashboardHero({
+const setupHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsIncompleteFixture,
   projectCount: 0,
   pendingCount: 0,
@@ -41,7 +45,7 @@ const setupHero = resolveDashboardHero({
   newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
-const caughtUpHero = resolveDashboardHero({
+const caughtUpHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsCompleteFixture,
   projectCount: dashboardProjectsItemsFixture.length,
   pendingCount: 0,

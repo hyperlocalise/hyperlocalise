@@ -15,6 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ComponentProps, ReactNode } from "react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { siGithub } from "simple-icons";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,9 +47,11 @@ import type {
   DashboardJobItem,
   DashboardProjectItem,
 } from "./dashboard-page-view-model";
+import { dashboardPageViewMessages } from "./dashboard-page-view.messages";
 
 type AutomationRunStatus = DashboardAutomationRunItem["status"];
 type AutomationRunBadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
+type AutomationRunTriggerSource = DashboardAutomationRunItem["triggerSource"];
 
 const AUTOMATION_RUN_BADGE_VARIANTS: Record<AutomationRunStatus, AutomationRunBadgeVariant> = {
   queued: "warning",
@@ -58,6 +61,23 @@ const AUTOMATION_RUN_BADGE_VARIANTS: Record<AutomationRunStatus, AutomationRunBa
   cancelled: "warning",
   skipped: "warning",
 };
+
+const AUTOMATION_RUN_STATUS_MESSAGES = {
+  queued: dashboardPageViewMessages.runStatusQueued,
+  running: dashboardPageViewMessages.runStatusRunning,
+  succeeded: dashboardPageViewMessages.runStatusSucceeded,
+  failed: dashboardPageViewMessages.runStatusFailed,
+  cancelled: dashboardPageViewMessages.runStatusCancelled,
+  skipped: dashboardPageViewMessages.runStatusSkipped,
+} as const;
+
+const AUTOMATION_TRIGGER_SOURCE_MESSAGES = {
+  manual: dashboardPageViewMessages.triggerManual,
+  scheduled: dashboardPageViewMessages.triggerScheduled,
+  github: dashboardPageViewMessages.triggerGithub,
+  contentful: dashboardPageViewMessages.triggerContentful,
+  source_upload: dashboardPageViewMessages.triggerSourceUpload,
+} as const;
 
 export type DashboardLinkRenderer = (props: {
   href: string;
@@ -77,6 +97,14 @@ function defaultRenderLink({
       {children}
     </Link>
   );
+}
+
+function formatAutomationRunStatus(status: AutomationRunStatus, intl: IntlShape) {
+  return intl.formatMessage(AUTOMATION_RUN_STATUS_MESSAGES[status]);
+}
+
+function formatAutomationTriggerSource(triggerSource: AutomationRunTriggerSource, intl: IntlShape) {
+  return intl.formatMessage(AUTOMATION_TRIGGER_SOURCE_MESSAGES[triggerSource]);
 }
 
 function DashboardPanel({
@@ -108,6 +136,8 @@ function DashboardPanel({
   children: ReactNode;
   renderLink?: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
+
   return (
     <Card className="rounded-lg border border-border bg-card py-0 text-foreground ring-0">
       <CardHeader className="border-b border-border px-5 pt-5 pb-4">
@@ -128,7 +158,9 @@ function DashboardPanel({
           <div
             className="flex flex-col divide-y divide-border"
             aria-busy="true"
-            aria-label={`Loading ${title.toLowerCase()}`}
+            aria-label={intl.formatMessage(dashboardPageViewMessages.loadingPanel, {
+              title: title.toLowerCase(),
+            })}
           >
             {Array.from({ length: 3 }).map((_, index) => (
               <DashboardPanelCardSkeleton key={index} />
@@ -143,7 +175,8 @@ function DashboardPanel({
                 className="mt-0.5 size-5 text-flame-100"
               />
               <TypographyP className="text-sm text-muted-foreground">
-                {errorMessage ?? `${title} could not be loaded.`}
+                {errorMessage ??
+                  intl.formatMessage(dashboardPageViewMessages.panelLoadError, { title })}
               </TypographyP>
             </div>
           </div>
@@ -206,7 +239,13 @@ function DashboardSetupHero({
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] lg:items-end">
           <div>
             <TypographyP className="text-sm font-medium text-subtle-foreground">
-              Workspace setup · {hero.completedCount} of {hero.totalCount} complete
+              <FormattedMessage
+                {...dashboardPageViewMessages.setupProgressLabel}
+                values={{
+                  completedCount: hero.completedCount,
+                  totalCount: hero.totalCount,
+                }}
+              />
             </TypographyP>
             <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
               {hero.title}
@@ -229,7 +268,7 @@ function DashboardSetupHero({
                 children: (
                   <Button variant="outline" className="rounded-full">
                     <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                    New request
+                    <FormattedMessage {...dashboardPageViewMessages.newRequest} />
                   </Button>
                 ),
               })}
@@ -237,8 +276,15 @@ function DashboardSetupHero({
           </div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Setup progress</span>
-              <span>{progressValue}%</span>
+              <span>
+                <FormattedMessage {...dashboardPageViewMessages.setupProgressMeter} />
+              </span>
+              <span>
+                <FormattedMessage
+                  {...dashboardPageViewMessages.setupProgressPercent}
+                  values={{ value: progressValue }}
+                />
+              </span>
             </div>
             <Progress value={progressValue} className="h-2" />
           </div>
@@ -249,12 +295,14 @@ function DashboardSetupHero({
 }
 
 function DashboardHeroSkeleton() {
+  const intl = useIntl();
+
   return (
     <>
       <Card
         className="rounded-2xl border border-border bg-card py-0 ring-0"
         aria-busy="true"
-        aria-label="Loading workspace overview"
+        aria-label={intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview)}
       >
         <CardContent className="flex h-full min-h-52 flex-col justify-between gap-6 px-6 py-6">
           <div className="flex flex-col gap-3">
@@ -327,18 +375,22 @@ function DashboardIntegrationsSection({
   isLoading?: boolean;
   renderLink?: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
   const connectedCount = integrations.filter((item) => item.connected).length;
 
   return (
     <section className="flex flex-col gap-4">
-      <OverviewSectionHeader title="Integrations" count={integrations.length - connectedCount} />
+      <OverviewSectionHeader
+        title={intl.formatMessage(dashboardPageViewMessages.integrationsTitle)}
+        count={integrations.length - connectedCount}
+      />
       <Card className="overflow-hidden rounded-lg border border-border bg-card py-0 ring-0">
         <CardContent className="p-0">
           {isLoading ? (
             <div
               className="flex flex-col divide-y divide-border"
               aria-busy="true"
-              aria-label="Loading integrations"
+              aria-label={intl.formatMessage(dashboardPageViewMessages.loadingIntegrations)}
             >
               {Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="flex items-center gap-4 px-5 py-4">
@@ -381,10 +433,18 @@ function DashboardIntegrationsSection({
                                 data-icon="inline-start"
                               />
                             ) : null}
-                            {item.connected ? "Connected" : "Not connected"}
+                            {item.connected ? (
+                              <FormattedMessage {...dashboardPageViewMessages.connected} />
+                            ) : (
+                              <FormattedMessage {...dashboardPageViewMessages.notConnected} />
+                            )}
                           </Badge>
                           <span className="inline-flex items-center gap-1 text-sm font-medium text-foreground">
-                            {item.connected ? "Manage" : "Connect"}
+                            {item.connected ? (
+                              <FormattedMessage {...dashboardPageViewMessages.manage} />
+                            ) : (
+                              <FormattedMessage {...dashboardPageViewMessages.connect} />
+                            )}
                             <HugeiconsIcon
                               icon={ArrowRight01Icon}
                               strokeWidth={1.8}
@@ -420,17 +480,20 @@ function DashboardAutomationsSection({
   isError?: boolean;
   renderLink?: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
   const automationsHref = `/org/${organizationSlug}/automations`;
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <OverviewSectionHeader title="Automation runs" />
+        <OverviewSectionHeader
+          title={intl.formatMessage(dashboardPageViewMessages.automationRunsTitle)}
+        />
         {renderLink({
           href: automationsHref,
           children: (
             <Button variant="outline" size="sm" className="rounded-full">
-              View automations
+              <FormattedMessage {...dashboardPageViewMessages.viewAutomations} />
               <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
             </Button>
           ),
@@ -443,7 +506,7 @@ function DashboardAutomationsSection({
             <div
               className="flex flex-col divide-y divide-border"
               aria-busy="true"
-              aria-label="Loading automation runs"
+              aria-label={intl.formatMessage(dashboardPageViewMessages.loadingAutomationRuns)}
             >
               <div className="px-5 py-4">
                 <Skeleton className="h-4 w-48" />
@@ -461,50 +524,65 @@ function DashboardAutomationsSection({
                   className="mt-0.5 size-5 text-flame-100"
                 />
                 <TypographyP className="text-sm text-muted-foreground">
-                  Automation runs could not be loaded.
+                  <FormattedMessage {...dashboardPageViewMessages.automationRunsLoadError} />
                 </TypographyP>
               </div>
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-border">
               <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
-                {stats.total} automations · {stats.active} active · {stats.paused} paused
+                <FormattedMessage
+                  {...dashboardPageViewMessages.automationStats}
+                  values={{
+                    total: stats.total,
+                    active: stats.active,
+                    paused: stats.paused,
+                  }}
+                />
               </TypographyP>
               {runs.length === 0 ? (
                 <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
-                  No automation runs yet.
+                  <FormattedMessage {...dashboardPageViewMessages.noAutomationRuns} />
                 </TypographyP>
               ) : (
-                runs.map((run) => (
-                  <div key={run.id}>
-                    {renderLink({
-                      href: run.href,
-                      className:
-                        "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                      children: (
-                        <>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
-                              {run.automationName}
+                runs.map((run) => {
+                  const triggerSourceLabel = formatAutomationTriggerSource(run.triggerSource, intl);
+
+                  return (
+                    <div key={run.id}>
+                      {renderLink({
+                        href: run.href,
+                        className:
+                          "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                        children: (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
+                                {run.automationName}
+                              </TypographyP>
+                              <Badge
+                                variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
+                                className="rounded-full"
+                              >
+                                {formatAutomationRunStatus(run.status, intl)}
+                              </Badge>
+                            </div>
+                            <TypographyP className="mt-1 text-xs text-muted-foreground">
+                              {run.completedAt
+                                ? intl.formatMessage(dashboardPageViewMessages.runCompleted, {
+                                    triggerSource: triggerSourceLabel,
+                                    completedAt: formatRelativeTimestamp(run.completedAt),
+                                  })
+                                : intl.formatMessage(dashboardPageViewMessages.runInProgress, {
+                                    triggerSource: triggerSourceLabel,
+                                  })}
                             </TypographyP>
-                            <Badge
-                              variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
-                              className="rounded-full capitalize"
-                            >
-                              {run.status}
-                            </Badge>
-                          </div>
-                          <TypographyP className="mt-1 text-xs text-muted-foreground">
-                            {run.triggerSource}
-                            {run.completedAt
-                              ? ` · completed ${formatRelativeTimestamp(run.completedAt)}`
-                              : " · in progress"}
-                          </TypographyP>
-                        </>
-                      ),
-                    })}
-                  </div>
-                ))
+                          </>
+                        ),
+                      })}
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
@@ -535,13 +613,15 @@ function DashboardJobsPanel({
   emptyMessage: string;
   renderLink: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
+
   return (
     <DashboardPanel
       title={title}
       description={description}
       icon={TaskDone01Icon}
       footerHref={footerHref}
-      footerLabel="View all jobs"
+      footerLabel={intl.formatMessage(dashboardPageViewMessages.viewAllJobs)}
       isLoading={isLoading}
       isError={isError}
       warningMessage={warningMessage}
@@ -550,6 +630,8 @@ function DashboardJobsPanel({
       renderLink={renderLink}
     >
       {jobs.map((job) => {
+        const projectName =
+          job.projectName ?? intl.formatMessage(dashboardPageViewMessages.workspaceFallbackProject);
         const content = (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -564,8 +646,11 @@ function DashboardJobsPanel({
               </Badge>
             </div>
             <TypographyP className="mt-1 text-xs text-muted-foreground">
-              {job.projectName ?? "Workspace"} · {job.kindLabel} · updated{" "}
-              {formatRelativeTimestamp(job.updatedAt)}
+              {intl.formatMessage(dashboardPageViewMessages.jobMeta, {
+                projectName,
+                kindLabel: job.kindLabel,
+                updatedAt: formatRelativeTimestamp(job.updatedAt),
+              })}
             </TypographyP>
           </>
         );
@@ -614,13 +699,15 @@ function DashboardProjectsPanel({
   emptyMessage: string;
   renderLink: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
+
   return (
     <DashboardPanel
       title={title}
       description={description}
       icon={FolderKanbanIcon}
       footerHref={footerHref}
-      footerLabel="View all projects"
+      footerLabel={intl.formatMessage(dashboardPageViewMessages.viewAllProjects)}
       isLoading={isLoading}
       isError={isError}
       isEmpty={projects.length === 0}
@@ -647,7 +734,9 @@ function DashboardProjectsPanel({
                       variant="outline"
                       className="rounded-full border-beam-500/30 bg-beam-500/15 text-beam-100"
                     >
-                      {formatPendingActionCount(project.pendingActionCount)} open
+                      {intl.formatMessage(dashboardPageViewMessages.projectOpenBadge, {
+                        count: formatPendingActionCount(project.pendingActionCount),
+                      })}
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="rounded-full text-muted-foreground">
@@ -656,15 +745,21 @@ function DashboardProjectsPanel({
                         strokeWidth={1.7}
                         className="mr-1 size-3.5"
                       />
-                      Up to date
+                      <FormattedMessage {...dashboardPageViewMessages.projectUpToDate} />
                     </Badge>
                   )}
                 </div>
                 <TypographyP className="mt-1 text-xs text-muted-foreground">
-                  {project.sourceLabel} · {project.localeRoute}
                   {project.updatedAt
-                    ? ` · updated ${formatRelativeTimestamp(project.updatedAt)}`
-                    : ""}
+                    ? intl.formatMessage(dashboardPageViewMessages.projectMetaWithUpdate, {
+                        sourceLabel: project.sourceLabel,
+                        localeRoute: project.localeRoute,
+                        updatedAt: formatRelativeTimestamp(project.updatedAt),
+                      })
+                    : intl.formatMessage(dashboardPageViewMessages.projectMeta, {
+                        sourceLabel: project.sourceLabel,
+                        localeRoute: project.localeRoute,
+                      })}
                 </TypographyP>
               </>
             ),
@@ -736,6 +831,7 @@ export function DashboardPageView({
   isAutomationsError?: boolean;
   renderLink?: DashboardLinkRenderer;
 }) {
+  const intl = useIntl();
   const integrationsHref = `/org/${organizationSlug}/integrations`;
   const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const jobsHref = `/org/${organizationSlug}/jobs`;
@@ -746,9 +842,9 @@ export function DashboardPageView({
     <WorkspacePageShell>
       <PageHeader
         icon={DashboardSquare01Icon}
-        label="Workspace"
-        title="Overview"
-        description="Your workspace at a glance — assigned work, latest activity, and recent projects."
+        label={intl.formatMessage(dashboardPageViewMessages.pageLabel)}
+        title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
+        description={intl.formatMessage(dashboardPageViewMessages.pageDescription)}
       />
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -769,14 +865,13 @@ export function DashboardPageView({
               <CardContent className="flex h-full flex-col justify-between gap-4 px-6 py-6">
                 <div>
                   <TypographyP className="text-sm font-medium text-subtle-foreground">
-                    Quick start
+                    <FormattedMessage {...dashboardPageViewMessages.quickStartLabel} />
                   </TypographyP>
                   <TypographyP className="mt-2 font-heading text-xl font-medium text-foreground">
-                    Ask the localization agent
+                    <FormattedMessage {...dashboardPageViewMessages.quickStartTitle} />
                   </TypographyP>
                   <TypographyP className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Describe what you need translated, researched, or reviewed and Hyperlocalise
-                    will prepare the work.
+                    <FormattedMessage {...dashboardPageViewMessages.quickStartDescription} />
                   </TypographyP>
                 </div>
                 {renderLink({
@@ -784,7 +879,7 @@ export function DashboardPageView({
                   children: (
                     <Button className="w-fit rounded-full">
                       <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                      New request
+                      <FormattedMessage {...dashboardPageViewMessages.newRequest} />
                     </Button>
                   ),
                 })}
@@ -796,61 +891,73 @@ export function DashboardPageView({
 
       <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <DashboardJobsPanel
-          title="My jobs"
-          description="The latest work assigned to you, prioritized by what needs action."
+          title={intl.formatMessage(dashboardPageViewMessages.myJobsTitle)}
+          description={intl.formatMessage(dashboardPageViewMessages.myJobsDescription)}
           jobs={jobs}
           footerHref={myJobsHref}
           isLoading={isJobsLoading}
           isError={isJobsError}
           warningMessage={jobsWarning}
-          emptyMessage="No jobs assigned to you yet."
+          emptyMessage={intl.formatMessage(dashboardPageViewMessages.myJobsEmpty)}
           renderLink={renderLink}
         />
 
         <DashboardJobsPanel
-          title="Latest jobs"
-          description="The most recently updated work across this workspace."
+          title={intl.formatMessage(dashboardPageViewMessages.latestJobsTitle)}
+          description={intl.formatMessage(dashboardPageViewMessages.latestJobsDescription)}
           jobs={latestJobs}
           footerHref={jobsHref}
           isLoading={isLatestJobsLoading}
           isError={isLatestJobsError}
-          emptyMessage="No workspace jobs yet."
+          emptyMessage={intl.formatMessage(dashboardPageViewMessages.latestJobsEmpty)}
           renderLink={renderLink}
         />
 
         <DashboardProjectsPanel
           organizationSlug={organizationSlug}
-          title="Recent projects"
-          description="Projects you opened recently, followed by active workspace projects."
+          title={intl.formatMessage(dashboardPageViewMessages.recentProjectsTitle)}
+          description={intl.formatMessage(dashboardPageViewMessages.recentProjectsDescription)}
           projects={projects}
           footerHref={projectsHref}
           isLoading={isProjectsLoading}
           isError={isProjectsError}
-          emptyMessage="No native projects yet. Create a project to get started."
+          emptyMessage={intl.formatMessage(dashboardPageViewMessages.recentProjectsEmpty)}
           renderLink={renderLink}
         />
 
         {showTmsSections ? (
           <>
             <DashboardJobsPanel
-              title={`${tmsProviderName} jobs`}
-              description={`Live jobs fetched from ${tmsProviderName}.`}
+              title={intl.formatMessage(dashboardPageViewMessages.tmsJobsTitle, {
+                providerName: tmsProviderName,
+              })}
+              description={intl.formatMessage(dashboardPageViewMessages.tmsJobsDescription, {
+                providerName: tmsProviderName,
+              })}
               jobs={tmsJobs}
               footerHref={jobsHref}
               isLoading={isTmsJobsLoading}
               isError={isTmsJobsError}
-              emptyMessage={`No jobs found in ${tmsProviderName}.`}
+              emptyMessage={intl.formatMessage(dashboardPageViewMessages.tmsJobsEmpty, {
+                providerName: tmsProviderName,
+              })}
               renderLink={renderLink}
             />
             <DashboardProjectsPanel
               organizationSlug={organizationSlug}
-              title={`${tmsProviderName} projects`}
-              description={`Live projects fetched from ${tmsProviderName}.`}
+              title={intl.formatMessage(dashboardPageViewMessages.tmsProjectsTitle, {
+                providerName: tmsProviderName,
+              })}
+              description={intl.formatMessage(dashboardPageViewMessages.tmsProjectsDescription, {
+                providerName: tmsProviderName,
+              })}
               projects={tmsProjects}
               footerHref={projectsHref}
               isLoading={isTmsProjectsLoading}
               isError={isTmsProjectsError}
-              emptyMessage={`No projects found in ${tmsProviderName}.`}
+              emptyMessage={intl.formatMessage(dashboardPageViewMessages.tmsProjectsEmpty, {
+                providerName: tmsProviderName,
+              })}
               renderLink={renderLink}
             />
           </>
