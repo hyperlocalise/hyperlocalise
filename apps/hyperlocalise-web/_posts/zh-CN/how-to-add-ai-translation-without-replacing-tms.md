@@ -1,8 +1,8 @@
 ---
-title: How to Add AI Translation Without Replacing Phrase, Lokalise, Crowdin, or Smartling
+title: 如何在不替换 Phrase、Lokalise、Crowdin 或 Smartling 的情况下添加 AI 翻译
 date: 2026-07-01T00:00:00.000Z
-excerpt: AI translation does not have to mean ripping out your TMS. Learn how to add an intelligence layer around Phrase, Lokalise, Crowdin, Smartling, and the workflows you already run.
-category: Product
+excerpt: AI 翻译并不意味着要拆掉你的 TMS。了解如何在 Phrase、Lokalise、Crowdin、Smartling 以及你现有的工作流周围添加一层智能。
+category: 产品
 tags:
   - AI translation
   - TMS-agnostic
@@ -21,98 +21,98 @@ tags:
   - terminology management
 ---
 
-Many localisation teams are under pressure to move faster, reduce manual work, and support more languages without increasing headcount. AI translation is an obvious part of the answer, but for most teams, the question is not whether AI should be used. The harder question is how to introduce AI translation without disrupting the systems, workflows, and vendor relationships that already exist.
+许多本地化团队都承受着加快交付、减少人工工作，并在不增加人员编制的情况下支持更多语言的压力。AI 翻译显然是解决方案的一部分，但对于大多数团队来说，问题不在于是否应该使用 AI。更难的问题是，如何在不扰乱现有系统、工作流程和供应商关系的前提下引入 AI 翻译。
 
-For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
+对于已经在使用 [Phrase](https://phrase.com)、[Lokalise](https://lokalise.com)、[Crowdin](https://crowdin.com)、[Smartling](https://www.smartling.com)，或其他翻译管理系统的公司来说，更换 TMS 往往不是最合适的第一步。这些平台通常深度嵌入产品发布流程、内容工作流、供应商运营、翻译记忆库、术语表管理、审校流程和报表体系中。一次彻底替换的项目，可能会在团队看到任何有意义的改进之前，就先带来数月的迁移工作。
 
-A better approach is to add AI translation as an intelligence layer around the existing localisation workflow. Instead of replacing the TMS, companies can augment it with AI that gathers context, prepares translation tasks, improves translation quality, supports reviewers, and learns from past decisions across tools.
+更好的方法是将 AI 翻译作为智能层添加到现有的本地化工作流中。企业不必替换 TMS，而是可以用 AI 对其进行增强：AI 可以收集上下文、准备翻译任务、提高翻译质量、支持审校人员，并在跨工具的过程中从过去的决策中学习。
 
-That is the idea behind a TMS-agnostic workflow.
+这就是与 TMS 无关的工作流程背后的理念。
 
-## The problem is not the TMS
+## 问题不在于 TMS
 
-Phrase, Lokalise, Crowdin, and Smartling already offer strong localisation infrastructure. Phrase positions itself as an AI-powered localisation platform with capabilities across workflow automation, context, model selection, quality evaluation, and output transformation. Lokalise promotes AI orchestration, smart routing across multiple LLMs, and continuous localisation integrations for product teams. Crowdin offers AI translation, AI QA checks, AI debugging, and a broad integration ecosystem. Smartling provides AI translation capabilities and tools for managing translation workflows, brand consistency, approval processes, and localisation spend.
+Phrase、Lokalise、Crowdin 和 Smartling 已经提供了强大的本地化基础设施。Phrase 将自己定位为一个由 AI 驱动的本地化平台，具备工作流自动化、上下文、模型选择、质量评估和输出转换等能力。Lokalise 主打 AI 编排、多 LLM 之间的智能路由，以及面向产品团队的持续本地化集成。Crowdin 提供 AI 翻译、AI QA 检查、AI 调试，以及广泛的集成生态系统。Smartling 提供 AI 翻译能力，以及用于管理翻译工作流、品牌一致性、审批流程和本地化支出的工具。
 
-These systems are not the problem. In many companies, they are the operational backbone of localisation.
+这些系统不是问题所在。在许多公司，它们是本地化运营的支柱。
 
-The problem is that localisation work now happens across far more places than the TMS alone. Product context sits in design files, screenshots, pull requests, tickets, customer feedback, CMS entries, marketing briefs, analytics, and internal discussions. Brand rules may live in documents. Glossary decisions may be scattered across spreadsheets, Slack threads, and reviewer comments. Engineering teams may ship strings through GitHub. Marketing teams may update pages in a CMS. Customer support teams may maintain help centre content elsewhere.
+问题在于，本地化工作如今发生在远不止 TMS 本身的更多地方。产品上下文存在于设计文件、截图、拉取请求、工单、客户反馈、CMS 条目、营销简报、分析数据和内部讨论中。品牌规范可能存放在文档里。术语表决策可能散落在电子表格、Slack 线程和审阅者评论中。工程团队可能通过 GitHub 发布字符串。营销团队可能会在 CMS 中更新页面。客户支持团队可能会在其他地方维护帮助中心内容。
 
-AI translation becomes much more useful when it can understand this broader context. Without it, AI is simply producing fluent output from limited input. That may be faster than traditional translation, but it does not always solve the real localisation problem: making the right translation decision for the right audience in the right context.
+当 AI 能够理解更广泛的上下文时，翻译就会变得更加有用。没有这些上下文，AI 只是基于有限的输入生成流畅的输出。这或许比传统翻译更快，但并不总能解决真正的本地化问题：为合适的受众在合适的上下文中做出正确的翻译决策。
 
-## Why replacing your TMS is usually the wrong starting point
+## 为什么更换你的 TMS 通常不是正确的起点
 
-Replacing an existing TMS sounds attractive when a team wants a more modern AI workflow, but the hidden cost is high. The team must migrate translation memory, glossaries, projects, integrations, vendor access, review workflows, permissions, billing rules, reporting, and internal operating habits. Even if the migration succeeds, the organisation may still face the same underlying issue: context remains fragmented outside the localisation platform.
+当团队希望采用更现代的 AI 工作流时，替换现有 TMS 听起来很有吸引力，但隐藏成本很高。团队必须迁移翻译记忆库、术语���、项目、集成、供应商访问权限、审校工作流、权限、计费规则、报表以及内部运营习惯。即使迁移成功，组织仍可能面临同样的根本问题：上下文仍然分散在本地化平台之外。
 
-For many companies, the smarter question is not "Which TMS should we move to?" but "How do we make our existing localisation workflow more intelligent?"
+对于许多公司来说，更明智的问题不是“我们应该迁移到哪个 TMS？”，而是“我们如何让现有的本地化工作流程更智能？”
 
-That shift matters. A TMS replacement focuses on the system of record. A TMS-agnostic AI workflow focuses on the system of work. It asks how translation requests are created, how context is collected, how AI suggestions are produced, how human reviewers make decisions, how feedback is captured, and how that knowledge improves future work.
+这种转变很重要。替代 TMS 的方案关注的是记录系统；而与 TMS 无关的 AI 工作流关注的是工作系统。它会追问：翻译请求如何创建，如何收集上下文，如何生成 AI 建议，人工审校者如何做出决策，如何捕获反馈，以及这些知识如何改进未来的工作。
 
-This approach allows teams to keep Phrase, Lokalise, Crowdin, Smartling, or another existing system while introducing AI where it has the most leverage.
+这种方法使团队能够继续使用 Phrase、Lokalise、Crowdin、Smartling 或其他现有系统，同时在最能发挥作用的地方引入 AI。
 
-## What AI translation needs to do beyond generating text
+## AI 翻译除了生成文本之外还需要做什么
 
-Most AI translation conversations focus on the output: how accurate the translation is, how natural it sounds, or how much editing it needs. Those are important, but they are only one part of the workflow.
+大多数 AI 翻译对话都关注输出：翻译是否准确、听起来是否自然，或者需要多少编辑。这些都很重要，但它们只是工作流程的一部分。
 
-For AI translation to work well in a real company, it needs to support the entire localisation decision process.
+要让 AI 翻译在真实公司中发挥良好作用，它需要支持整个本地化决策流程。
 
-It should **understand what the source text is used for**. A short string in a checkout button is not the same as a help centre paragraph, a legal notice, a campaign headline, or an onboarding tooltip. The same English phrase can require different translations depending on placement, audience, product surface, character limits, tone, and regional expectations.
+它应该**理解源文本的用途**。结账按钮中的短字符串，与帮助中心段落、法律声明、营销活动标题或引导提示并不相同。同一个英文短语，可能会因其所处位置、受众、产品界面、字符限制、语气以及地区预期的不同，而需要采用不同的译法。
 
-It should **know the brand voice**. Some brands want direct, concise, product-led language. Others need a warmer, more conversational tone. B2B SaaS copy may need to sound precise and credible, while consumer marketing copy may need to feel local, emotional, and culturally familiar.
+它应该**了解品牌语气**。有些品牌希望采用直接、简洁、以产品为导向的语言。另一些则需要更温暖、更具对话感的语气。B2B SaaS 文案可能需要听起来精准且可信，而面向消费者的营销文案则可能需要让人感觉更本地化、更有情感，并且在文化上更熟悉。
 
-It should **respect terminology and glossary rules**. Product names, feature names, technical terms, and legal phrases should not be translated inconsistently across markets. AI should not invent terminology simply because it sounds natural.
+它应当**遵守术语和词汇表规则**。产品名称、功能名称、技术术语和法律短语在不同市场中不应出现不一致的翻译。AI 不应仅仅因为某种说法听起来更自然，就擅自创造术语。
 
-It should **help reviewers, not bypass them**. Localisation teams still need human judgement, especially for high-impact product, marketing, legal, regulated, or brand-sensitive content. The role of AI should be to reduce repetitive work, surface better suggestions, explain trade-offs, and help reviewers move faster with more confidence.
+它应当**帮助审核者，而不是绕过他们**。本地化团队仍然需要人工判断，尤其是在高影响力的产品、营销、法律、受监管或对品牌敏感的内容中。AI 的作用应当是减少重复工作、提供更好的建议、解释权衡，并帮助审核者更快、更有信心地推进。
 
-It should **learn from feedback**. The most valuable localisation knowledge often appears after the first translation is reviewed: why a phrase was rejected, why a tone was changed, why a market preferred one expression over another, or why a literal translation failed. If this feedback disappears into comments and spreadsheets, AI cannot improve over time.
+它应该**从反馈中学习**。最有价值的本地化知识往往会在首次翻译被审校之后才显现出来：为什么一个短语被拒绝，为什么语气被调整，为什么某个市场偏好一种表达而不是另一种，或者为什么直译失败了。如果这些反馈消失在评论和电子表格中，AI 就无法随着时间推移而改进。
 
-For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
+要了解为什么上下文与输出同样重要，请参阅 [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation)。
 
-## The TMS-agnostic model
+## 与 TMS 无关的模型
 
-A TMS-agnostic AI translation workflow does not require a company to abandon its current platform. Instead, it connects to the tools the team already uses and adds an intelligence layer across them.
+与 TMS 无关的 AI 翻译工作流并不要求公司放弃其当前平台。相反，它会连接团队已经在使用的工具，并在这些工具之上增加一层智能能力。
 
-For a team using Phrase AI translation workflows, this means AI can help gather product context, screenshots, glossary rules, and reviewer history before content reaches the translation workflow. For a team using Lokalise AI translation, it can support product teams by enriching source strings with context from repositories, design files, and tickets. For a team using Crowdin AI translation, it can help prepare better prompts, improve review confidence, and capture decisions across software localisation workflows. For a team using Smartling AI translation, it can support enterprise teams that need stronger brand, terminology, and approval context across multiple content systems.
+对于使用 Phrase AI 翻译工作流的团队而言，这意味着 AI 可以在内容进入翻译工作流之前，帮助收集产品上下文、截图、术语表规则和审校历史。对于使用 Lokalise AI 翻译的团队，它可以通过从代码库、设计文件和工单中丰富源字符串，来支持产品团队。对于使用 Crowdin AI 翻译的团队，它可以帮助准备更好的提示词、提高审校信心，并在软件本地化工作流中记录各项决策。对于使用 Smartling AI 翻译的团队，它可以支持需要在多个内容系统中获得更强品牌、术语和审批上下文的企业团队。
 
-The key is that AI does not need to live inside only one platform to be useful. In modern localisation, the work is distributed. The intelligence should be distributed too.
+关键在于，AI 不需要只存在于一个平台中才能发挥作用。在现代本地化中，工作是分布式的。智能也应该是分布式的。
 
-A TMS-agnostic layer can sit between source systems, translation platforms, reviewers, and downstream publishing workflows. It can collect context from where the work begins, apply AI translation and review support where appropriate, and send structured outputs back into the tools where teams already operate.
+一个与 TMS 无关的层可以位于源系统、翻译平台、审校人员和下游发布工作流之间。它可以从工作开始的地方收集上下文，在适当的情况下应用 AI 翻译和审校支持，并将结构化输出发送回团队已经在使用的工具中。
 
-This is especially useful for companies with multiple localisation workflows. One team may use a TMS for software strings, another may rely on a CMS for marketing pages, another may work through spreadsheets with an agency, and another may use a help centre integration. A single-platform approach often struggles to cover all of this. A TMS-agnostic workflow gives the company a way to standardise localisation intelligence without forcing every team into the same tool.
+这对于拥有多个本地化工作流的公司尤其有用。一个团队可能使用 TMS 处理软件字符串，另一个团队可能依赖 CMS 处理营销页面，另一个团队可能通过电子表格与代理机构协作，而另一个团队可能使用帮助中心集成。单一平台的方法通常很难覆盖所有这些场景。与 TMS 无关的工作流为公司提供了一种标准化本地化智能的方式，而无需强迫每个团队都使用同一种工具。
 
-## Where Hyperlocalise fits
+## Hyperlocalise 的定位
 
-Hyperlocalise is built for teams that want to add AI translation intelligence without replacing their existing localisation stack.
+Hyperlocalise 专为希望在不替换现有本地化栈的情况下添加 AI 翻译智能的团队而构建。
 
-Instead of asking teams to move away from Phrase, Lokalise, Crowdin, Smartling, or their current process, Hyperlocalise helps teams bring better context, automation, and AI-assisted decision-making into the workflow they already have. The goal is not to become another isolated translation system. The goal is to make localisation work smarter across systems.
+Hyperlocalise 不会要求团队从 Phrase、Lokalise、Crowdin、Smartling 或他们现有流程中迁移出来，而是帮助团队将更好的上下文、自动化和 AI 辅助决策引入他们已经在使用的工作流程中。目标不是成为另一个孤立的翻译系统。目标是让本地化工作在各系统之间更智能地协同运作。
 
-Hyperlocalise focuses on three areas.
+Hyperlocalise 专注于三个领域。
 
-**First, it helps gather context automatically.** Translation quality improves when AI understands the product, the user journey, the screenshot, the design constraint, the previous decision, the glossary rule, and the intended audience. Instead of expecting localisation managers to manually collect all of this information for every task, AI agents can help retrieve and structure the context before translation begins.
+**首先，自动收集上下文会有所帮助。** 当 AI 了解产品、用户旅程、截图、设计约束、先前决策、术语规则以及目标受众时，翻译质量会更高。与其指望本地化经理为每个任务手动收集所有这些信息，不如让 AI 代理在翻译开始前帮助检索并整理上下文。
 
-**Second, it supports human-in-the-loop translation.** AI can generate suggestions, explain choices, flag risks, and apply rules, but reviewers still need control. The best workflow is not fully manual or blindly automated. It is a structured collaboration between AI and human judgement, where the reviewer has more information and less repetitive work.
+**其次，它支持人机协同翻译。** AI 可以生成建议、解释取舍、标记风险并应用规则，但审校者仍然需要掌控权。最好的工作流程既不是完全手动，也不是盲目自动化，而是 AI 与人类判断之间的结构化协作；在这个过程中，审校者拥有更多信息，重复性工作更少。
 
-**Third, it creates a self-evolving knowledge layer.** Every approved translation, rejected suggestion, glossary update, reviewer comment, and market-specific decision can become part of the organisation's localisation intelligence. Over time, this reduces repeated mistakes and helps future translations become more consistent, more contextual, and faster to approve.
+**第三，它创建了一个自我演化的知识层。** 每一条获批的译文、被拒绝的建议、术语表更新、审校者评论以及特定市场的决策，都可以成为组织本地化智能的一部分。随着时间推移，这会减少重复错误，并帮助未来的翻译变得更加一致、更具上下文感，而且审批速度更快。
 
-This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
+这建立在与[translation intelligence](/blog/what-is-translation-intelligence)相同的基础之上：该基础设施将分散的产品、品牌、UI、市场和评审者知识转化为更好的本地化决策。
 
-## The practical benefits
+## 实际好处
 
-Adding AI translation through a TMS-agnostic workflow gives localisation teams a more flexible path to modernisation.
+通过与 TMS 无关的工作流程添加 AI 翻译，为本地化团队提供了一条更灵活的现代化路径。
 
-It **reduces migration risk** because teams can keep their existing TMS, permissions, integrations, vendors, and reporting structures. It **improves AI quality** because translation decisions are informed by context outside the TMS. It **supports multiple departments** because product, marketing, support, and content teams can all benefit without being forced into a single rigid workflow.
+它**降低了迁移风险**，因为团队可以继续使用现有的 TMS、权限、集成、供应商和报告结构。它**提高了 AI 质量**，因为翻译决策会参考 TMS 之外的上下文。它**支持多个部门**，因为产品、市场、支持和内容团队都可以受益，而不必被迫采用单一僵化的工作流程。
 
-It also gives companies more control over their AI strategy. Teams can avoid being locked into one platform's AI model, one workflow design, or one translation approach. They can use AI where it makes sense, keep human review where it matters, and adapt the workflow as their localisation maturity grows.
+它还让公司对其 AI 策略拥有更多控制权。团队可以避免被锁定在某个平台的 AI 模型、某一种工作流设计或某一种翻译方法上。他们可以在合适的地方使用 AI，在重要的地方保留人工审校，并随着本地化成熟度的提高调整工作流程。
 
-This is important because AI translation is not a one-time feature purchase. It is an operating model. The companies that get the most value from AI will not simply translate more words faster. They will build better systems for capturing context, applying judgement, measuring quality, and learning from every localisation decision.
+这很重要，因为 AI 翻译并不是一次性的功能采购，而是一种运营模式。那些从 AI 中获得最大价值的公司，并不会只是更快地翻译更多词语；他们会构建更好的系统，用于捕捉上下文、运用判断、衡量质量，并从每一个本地化决策中学习。
 
-## Add AI translation without starting over
+## 添加 AI 翻译而不重新开始
 
-Phrase, Lokalise, Crowdin, and Smartling have all moved strongly into AI-powered localisation. That is good for the industry. It shows that AI is becoming a core part of how global content will be created, translated, reviewed, and managed.
+Phrase、Lokalise、Crowdin 和 Smartling 都已大力转向 AI 驱动的本地化。这对整个行业来说是件好事。这表明，AI 正在成为全球内容创建、翻译、审校和管理方式的核心组成部分。
 
-But companies do not need to replace their TMS to benefit from AI translation. In many cases, the better path is to keep the systems that already work and add an intelligence layer that makes the entire workflow more contextual, automated, and adaptive.
+但企业并不需要为了享受 AI 翻译的好处而更换其 TMS。很多情况下，更好的做法是保留已经正常运行的系统，并增加一层智能，使整个工作流程更具上下文感知性、更自动化，也更具适应性。
 
-That is the promise of a TMS-agnostic workflow.
+这就是与 TMS 无关的工作流程所带来的承诺。
 
-With Hyperlocalise, teams can bring AI translation intelligence into their existing localisation stack, connect context across tools, support human reviewers, and build a knowledge layer that improves over time.
+借助 Hyperlocalise，团队可以将 AI 翻译智能引入现有的本地化技术栈，跨工具连接上下文，支持人工审校者，并构建一个随时间不断改进的知识层。
 
-AI translation should not force teams to start again. It should help them move faster from where they already are.
+AI 翻译不应该迫使团队重新开始。它应该帮助他们在现有基础上更快前进。

@@ -1,8 +1,8 @@
 ---
-title: What Is Translation Intelligence?
+title: 什么是翻译智能？
 date: 2026-06-19T00:00:00.000Z
-excerpt: Translation is not the bottleneck. Missing context is. Learn what translation intelligence is and why modern localisation teams need it.
-category: Product
+excerpt: 翻译不是瓶颈。缺少上下文才是。了解什么是翻译智能，以及为什么现代本地化团队需要它。
+category: 产品
 tags:
   - translation intelligence
   - localisation
@@ -18,182 +18,182 @@ tags:
   - machine translation
 ---
 
-Translation is not the bottleneck. Missing context is.
+翻译不是瓶颈。缺少上下文才是。
 
-Localisation has long been treated as a translation problem.
+本地化长期以来一直被视为一个翻译问题。
 
-The industry has optimised around this assumption for years. Translation management systems help teams move content through workflows. Machine translation produces faster first drafts. Translation memory reuses previous segments. Glossaries improve terminology consistency. Review steps give humans a chance to correct mistakes before content goes live.
+多年来，整个行业一直围绕这一假设进行优化。翻译管理系统帮助团队通过工作流程推进内容。机器翻译可以更快地产出初稿。翻译记忆会重用之前的片段。术语表有助于提升术语一致性。审核步骤让人类有机会在内容上线前纠正错误。
 
-These systems have made localisation more efficient. They have helped companies translate more content, into more languages, with greater operational control.
+这些系统使本地化更加高效。它们帮助公司翻译更多内容，覆盖更多语言，并实现更强的运营控制。
 
-But they have not solved the hardest part of localisation.
+但他们还没有解决本地化中最难的部分。
 
-The hardest part is no longer producing a translation. AI can now generate fluent multilingual copy in seconds. The harder question is whether that translation is right for the product, the brand, the market, and the customer experience in which it appears.
+最难的部分不再是生成译文。AI 现在可以在几秒钟内生成流畅的多语言文案。更难的问题是，这个译文是否适合产品、品牌、市场，以及它所呈现的客户体验。
 
-A translation can be grammatically correct and still fail.
+翻译即使语法正确，也仍然可能失败。
 
-It can use the wrong product term. It can sound off-brand. It can miss the intent of a marketing message. It can be too long for a button. It can make sense in a translation editor but feel awkward inside the actual product. It can preserve the literal meaning of the source while losing the nuance that made the original work.
+它可能会使用错误的产品术语。它可能听起来不符合品牌调性。它可能会偏离营销信息的意图。它可能对于按钮来说太长。它在翻译编辑器里可能说得通，但在实际产品中却显得别扭。它可能保留了源文本的字面意思，却丢失了让原文奏效的细微含义。
 
-This is why translation quality is increasingly limited not by translation output, but by the intelligence around it.
+这就是为什么翻译质量日益受到限制的，不是翻译输出本身，而是其周边的智能。
 
-That is the role of translation intelligence.
+这就是翻译智能的作用。
 
-Translation intelligence is the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions. It helps humans and AI understand what content means, where it appears, how it should sound, and what constraints it must follow before translation begins.
+翻译智能是将分散的产品、品牌、UI、市场和审校者知识转化为更优本地化决策的基础设施。它帮助人类和 AI 在翻译开始前理解内容的含义、出现的位置、应有的语气，以及必须遵循的限制。
 
-In simple terms: translation intelligence gives translation the context it needs to be useful.
+简单来说：翻译智能为翻译提供了使其有用所需的上下文。
 
-## Why translation alone is not enough
+## 为什么仅仅翻译还不够
 
-Most translation workflows start with a piece of source text.
+大多数翻译工作流程都从一段源文本开始。
 
-That text may be a product string, help centre article, email, campaign headline, onboarding message, or legal notice. In many systems, the translator or AI model sees the source text, the target language, and perhaps a glossary match.
+那段文本可能是产品文案、帮助中心文章、电子邮件、营销活动标题、入门引导消息或法律声明。在许多系统中，翻译人员或 AI 模型会看到源文本、目标语言，以及可能的术语表匹配。
 
-But language rarely carries enough information on its own.
+但语言本身很少能单独承载足够的信息。
 
-Consider a simple string:
+考虑一个简单的字符串：
 
-> Create project
+> 创建项目
 
-This looks easy to translate. But the correct translation depends on several questions.
+这看起来很容易翻译。但正确的翻译取决于几个问题。
 
-Is it a button, a menu item, or a page title? Is "project" a formal product object, or a generic word? Is the user creating a blank project, importing one, or starting from a template? Does the target language require more explicit grammar? Does the button have a character limit? Has the same product object already been translated elsewhere? Should the tone feel technical, simple, or enterprise-grade?
+它是一个按钮、菜单项，还是页面标题？“project” 是正式的产品对象，还是一个通用词？用户是在创建一个空白项目、导入一个项目，还是从模板开始？目标语言是否需要更明确的语法？按钮是否有字符限制？同一个产品对象是否已在其他地方翻译过？语气应该偏技术化、简洁，还是企业级？
 
-Without this context, both humans and AI must guess.
+没有这个上下文，人与 AI 都必须猜测。
 
-The same problem appears in marketing localisation. A campaign headline may be short, clever, and emotionally effective in English, but a literal translation may not carry the same intent in another market. The translator needs to understand not just the words, but the positioning, audience, offer, tone, and desired reaction.
+同样的问题也出现在营销本地化中。一个活动标题在英文中可能简短、巧妙且富有情感感染力，但直译到另一个市场时，可能无法传达同样的意图。译者需要理解的不只是词语本身，还包括定位、受众、优惠、语气以及期望引发的反应。
 
-It also appears in support content. A help article may contain product terminology that must remain consistent with the interface. If the article uses one term and the product uses another, the translation may confuse users even if every sentence is linguistically correct.
+它也会出现在支持内容中。帮助文章可能包含必须与界面保持一致的产品术语。如果文章使用一个术语，而产品使用另一个术语，即使每个句子在语言上都正确，翻译也可能让用户感到困惑。
 
-These are not just language problems. They are context problems.
+这些不仅仅是语言问题，而是语境问题。
 
-## The bottleneck has moved from production to judgment
+## 瓶颈已经从生产转移到判断
 
-AI has changed the economics of translation.
+AI 改变了翻译的经济学。
 
-Generating a first draft is now fast. Producing more multilingual content is easier than ever. But this speed creates a new challenge: teams must decide what can be trusted, what needs review, and what requires deeper product or market understanding.
+生成第一稿现在很快。生成更多多语言内容比以往任何时候都更容易。但这种速度带来了一个新挑战：团队必须决定哪些内容可以信任，哪些需要审查，以及哪些需要更深入的产品或市场理解。
 
-In other words, the bottleneck has moved from production to judgment.
+换句话说，瓶颈已经从生产转移到了判断。
 
-The key question is no longer only:
+关键问题不再只是：
 
-> How do we translate this?
+> 我们该如何翻译这个？
 
-It is now:
+现在是：
 
-> Is this the right translation for this specific use case?
+> 这是针对这个特定用例的正确翻译吗？
 
-That question requires more than fluency. It requires context.
+那个问题需要的不仅仅是流利。它需要上下文。
 
-A high-quality localisation decision needs to account for product meaning, user intent, brand voice, design constraints, terminology rules, market expectations, compliance requirements, and previous decisions. When this information is missing, localisation teams compensate manually.
+高质量的本地化决策需要考虑产品含义、用户意图、品牌语气、设计约束、术语规则、市场预期、合规要求以及以往的决策。当这些信息缺失时，本地化团队会通过人工方式进行补充。
 
-Translators ask questions. Reviewers rewrite copy. Product managers explain features. Localisation managers collect screenshots. Regional teams debate tone. Engineers fix UI overflow issues. The same terminology decisions are made repeatedly across projects.
+译员提出问题。审校人员重写文案。产品经理解释功能。本地化经理收集截图。区域团队讨论语气。工程师修复 UI 溢出问题。同样的术语决策会在各个项目中反复做出。
 
-None of this means the team is doing localisation badly. It means the system is not carrying enough intelligence.
+这并不意味着团队的本地化工作做得不好。这意味着系统没有承载足够的智能。
 
-## Translation intelligence vs translation management
+## 翻译智能与翻译管理
 
-Translation management and translation intelligence solve different problems.
+翻译管理和翻译智能解决的是不同的问题。
 
-Translation management is about coordination. It helps teams organise content, assign work, manage languages, track progress, and approve translations.
+翻译管理关乎协调。它帮助团队组织内容、分配工作、管理语言、跟踪进度并审批译文。
 
-Translation intelligence is about decision quality. It helps teams understand the content deeply enough to translate, review, and adapt it correctly.
+翻译智能关乎决策质量。它帮助团队深入理解内容，从而正确地进行翻译、审校和本地化适配。
 
-A translation management system can tell a localisation manager that a string is ready for review.
+翻译管理系统可以通知本地化经理某个字符串已准备好供审核。
 
-A translation intelligence layer can show that the string has no screenshot, conflicts with a glossary rule, uses a high-risk product term, exceeds a UI character limit, or differs from a previous approved translation.
+翻译智能层可以显示，该字符串没有截图、与术语表规则冲突、使用了高风险产品术语、超出了 UI 字符限制，或与先前已批准的译文不同。
 
-This distinction matters because localisation quality is not determined only by whether a workflow is completed. It is determined by the knowledge available at the moment a translation decision is made.
+这种区别很重要，因为本地化质量不仅仅取决于工作流程是否完成，而是取决于在做出翻译决策的那一刻可获得的知识。
 
-When context is missing, even experienced translators and advanced AI models produce inconsistent results. When context is available, the workflow becomes more reliable.
+当缺少上下文时，即使是经验丰富的译者和先进的 AI 模型也会产生不一致的结果。有了上下文，工作流程就会更加可靠。
 
-## What translation intelligence includes
+## 翻译智能包括什么
 
-Translation intelligence brings together the knowledge that localisation teams usually have to search for manually.
+翻译智能将本地化团队通常必须手动查找的知识整合在一起。
 
-It includes **product context**: what a feature does, how users interact with it, and what specific product objects or actions a phrase refers to.
+它包含**产品上下文**：一个功能的作用、用户如何与之交互，以及某个短语所指的具体产品对象或操作。
 
-It includes **visual context**: screenshots, UI placement, component type, character limits, and design constraints.
+它包含**视觉上下文**：截图、UI 位置、组件类型、字符限制和设计约束。
 
-It includes **brand context**: voice, tone, messaging principles, and the level of formality expected across different markets.
+它包含**品牌上下文**：语气、风格、信息传达原则，以及在不同市场中预期的正式程度。
 
-It includes **terminology context**: approved terms, product names, forbidden words, glossary rules, and domain-specific language.
+它包含**术语上下文**：已批准术语、产品名称、禁用词、词汇表规则以及特定领域语言。
 
-It includes **market context**: cultural expectations, regional preferences, local conventions, and the difference between direct translation and adaptation.
+它包括**市场背景**：文化期望、地区偏好、本地惯例，以及直译与本地化改编之间的差异。
 
-It includes **workflow context**: who needs to review the content, what risk level it carries, and whether human approval is required.
+它包括**工作流上下文**：谁需要审核内容、它涉及什么风险级别，以及是否需要人工批准。
 
-Most importantly, it includes **decision history**: what was changed, what was approved, what reviewers corrected, and why a particular choice was made.
+最重要的是，它包括**决策历史**：更改了什么，批准了什么，审阅者纠正了什么，以及为什么作出某个特定选择。
 
-This is where traditional localisation systems often fall short. They may store the final translation, but they do not always preserve the reasoning behind it. As a result, teams remember what was translated, but not why.
+传统本地化系统往往在这里力不从心。它们可能会存储最终译文，但并不总是保留其背后的推理过程。因此，团队记住了翻译了什么，却不记得为什么这样翻译。
 
-Translation intelligence changes that. It turns localisation knowledge into a reusable asset.
+翻译智能改变了这一点。它将本地化知识转化为可重复使用的资产。
 
-## From translation memory to decision memory
+## 从翻译记忆到决策记忆
 
-Translation memory has been one of the most important ideas in localisation. It helps teams reuse previous translations, reduce repeated work, and maintain consistency.
+翻译记忆一直是本地化中最重要的概念之一。它帮助团队重复使用之前的翻译，减少重复工作，并保持一致性。
 
-But translation memory has a limitation: it remembers output.
+但是翻译记忆有一个局限：它只记住输出。
 
-It does not always remember context.
+它并不总是记住上下文。
 
-It may show that a sentence was translated a certain way, but not whether that choice was made because of brand tone, UI space, product terminology, legal preference, or reviewer feedback. It may not show whether the translation worked well in production. It may not explain whether the same decision should apply to a new feature or campaign.
+它可能会显示某个句子被翻译成了某种方式，但不会说明这一选择是出于品牌语气、界面空间、产品术语、法律偏好，还是审阅者反馈。它也可能不会显示该翻译在生产环境中是否表现良好。它可能也不会解释同样的决定是否应适用于新的功能或活动。
 
-Translation intelligence extends the idea of memory beyond translated segments.
+翻译智能将记忆的概念扩展到了已翻译片段之外。
 
-It creates decision memory.
+它会创建决策���忆。
 
-Decision memory captures the reasoning behind localisation choices. It helps teams understand not just what was translated, but why it was translated that way. This becomes especially important when AI is part of the workflow, because AI improves when it can learn from structured context and human feedback.
+决策记忆记录本地化选择背后的推理。它帮助团队不仅了解翻译了什么，还了解为什么要这样翻译。当 AI 参与工作流程时，这一点尤为重要，因为 AI 在能够从结构化上下文和人工反馈中学习时会不断改进。
 
-If a reviewer changes a term, the system should learn from that change. If a regional expert explains why a phrase does not work in-market, that knowledge should be available next time. If a product manager clarifies the meaning of a feature, that explanation should follow related strings in the future.
+如果审核员更改了某个术语，系统应从该更改中学习。如果区域专家解释了某个短语为何不适用于当地市场，那么下次就应能获取到这项知识。如果产品经理澄清了某个功能的含义，那么今后相关字符串也应沿用这一解释。
 
-This is how localisation becomes self-improving.
+本地化就是这样变得自我优化的。
 
-## What this looks like in practice
+## 这在实际中的表现如下
 
-A context-aware localisation workflow looks very different from a traditional string-based workflow.
+上下文感知的本地化工作流程与传统的基于字符串的工作流程截然不同。
 
-Before translation begins, the system gathers relevant context from the tools where work already happens. It can understand where the content came from, whether it belongs to a product interface, help article, marketing page, or campaign. It can attach screenshots, detect terminology, identify related strings, retrieve previous decisions, and surface risks before the translator or reviewer sees the task.
+在翻译开始之前，系统会从实际开展工作的工具中收集相关上下文。它可以理解内容的来源，以及它属于产品界面、帮助文章、营销页面还是活动内容。它还可以附加截图、检测术语、识别相关字符串、检索之前的决策，并在译者或审校者看到任务之前提示风险。
 
-During translation, AI suggestions are guided by product knowledge, glossary rules, brand voice, and UI constraints. Instead of producing a generic translation, the system can suggest a translation that fits the actual use case.
+在翻译过程中，AI 建议会受产品知识、术语表规则、品牌语调和界面约束的指导。系统不会生成泛泛的翻译，而是可以提供符合实际使用场景的译文。
 
-During review, humans are not asked to inspect everything from scratch. They can focus on the decisions that need judgment: ambiguous terms, high-impact copy, market adaptation, legal risk, tone, or content that conflicts with previous guidance.
+在审查过程中，不会要求人工从头检查所有内容。他们可以专注于需要判断的决策：歧义术语、高影响力文案、市场本地化、法律风险、语气，或与先前指导相冲突的内容。
 
-After review, the workflow does not simply store the final translation. It captures what changed and feeds that knowledge back into future work.
+审校后，工作流不会只是简单地存储最终译文。它会记录发生了哪些变更，并将这些知识反馈到未来的工作中。
 
-This is the shift from translation as a one-off task to localisation as a learning system.
+这是从一次性的翻译任务转向作为学习系统的本地化。
 
-## Why Hyperlocalise is building around translation intelligence
+## Hyperlocalise 为何围绕翻译智能构建
 
-At Hyperlocalise, we believe the next generation of localisation software will not be defined by translation speed alone.
+在 Hyperlocalise，我们相信下一代本地化软件的定义不仅仅是翻译速度。
 
-Speed matters. But speed without context can create more work for reviewers, more inconsistencies across markets, and more uncertainty before publishing.
+速度很重要。但没有上下文的速度会给审阅者带来更多工作，导致不同市场之间更多的不一致，并在发布前造成更多不确定性。
 
-Hyperlocalise is building translation intelligence into the localisation workflow so teams can bring context into the process from the start. Our approach is to help AI and human reviewers work with the information they need: product context, screenshots, glossary rules, brand voice, UI constraints, workflow requirements, and previous localisation decisions.
+Hyperlocalise 正在将翻译智能融入本地化工作流程，使团队能够从一开始就将上下文带入流程。我们的做法是帮助 AI 和人工审核人员获取他们所需的信息：产品上下文、截图、术语表规则、品牌语气、UI 约束、工作流要求以及之前的本地化决策。
 
-This matters because most companies already have the knowledge required for better localisation. The problem is that the knowledge is scattered. It lives in product tools, design files, support platforms, content systems, review comments, Slack discussions, and the heads of individual team members.
+这很重要，因为大多数公司已经拥有实现更好本地化所需的知识。问题在于，这些知识是分散的。它存在于产品工具、设计文件、支持平台、内容系统、审阅评论、Slack 讨论，以及各个团队成员的脑海中。
 
-Hyperlocalise helps make that knowledge operational.
+Hyperlocalise 帮助将这些知识转化为可操作的实践。
 
-Instead of asking translators and reviewers to hunt for context, Hyperlocalise aims to bring the right context into the translation experience automatically. Instead of treating AI as a generic translator, Hyperlocalise uses context to guide AI toward better decisions. Instead of losing reviewer feedback after a task is complete, Hyperlocalise helps turn feedback into memory that improves future work.
+Hyperlocalise 的目标不是让译员和审校人员去费力寻找上下文，而是自动把合适的上下文带入翻译体验中。Hyperlocalise 不把 AI 当作通用翻译器，而是利用上下文引导 AI 做出更好的决策。Hyperlocalise 也不会在任务完成后让审校反馈丢失，而是帮助把反馈转化为记忆，从而改进未来的工作。
 
-The goal is not to remove human judgment. The goal is to make human judgment more focused, informed, and reusable.
+目标不是消除人为判断。目标是让人为判断更加聚焦、更加明智，并且更具可复用性。
 
-## The future of localisation is context-aware
+## 本地化的未来是具备上下文感知的
 
-The companies that succeed globally will not simply be the companies that translate the most words. They will be the companies that communicate clearly, consistently, and naturally across every market.
+在全球取得成功的公司，并不只是翻译最多词语的公司。它们会是在每个市场都能清晰、一致且自然地进行沟通的公司。
 
-That requires more than translation.
+这不仅仅需要翻译。
 
-It requires systems that understand the relationship between language, product, brand, design, and customer experience.
+它需要能够理解语言、产品、品牌、设计和客户体验之间关系的系统。
 
-This is why translation intelligence matters.
+这就是翻译智能之所以重要的原因。
 
-It gives localisation teams a better foundation for working with AI. It reduces repeated context gathering. It helps reviewers focus on high-value decisions. It improves consistency across product, marketing, and support content. It preserves the knowledge behind translation choices so teams do not solve the same problems again and again.
+它为本地化团队与 AI 协作提供了更好的基础。它减少了重复收集上下文的工作。它帮助审校人员专注于高价值决策。它提升了产品、营销和支持内容之间的一致性。它保留了翻译选择背后的知识，使团队不必一再解决同样的问题。
 
-Translation is no longer the bottleneck.
+翻译不再是瓶颈。
 
-Missing context is.
+缺少上下文。
 
-Translation intelligence is how modern localisation teams close that gap.
+翻译智能是现代本地化团队弥合这一差距的方式。
 
-For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+关于从翻译到面向市场的沟通这一更广泛的转变，请参见 [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation)。
