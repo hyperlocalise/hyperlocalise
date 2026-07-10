@@ -67,6 +67,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   resolvingCommentId,
   commentPostError,
   isLookingUpContext,
+  isApproving = false,
+  isSavingDraft = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -108,6 +112,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   resolvingCommentId: string | null;
   commentPostError?: string;
   isLookingUpContext: boolean;
+  isApproving?: boolean;
+  isSavingDraft?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -314,6 +322,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           segment={intelligenceSegment}
           intelligence={intelligence}
           isLookingUpContext={isLookingUpContext}
+          isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
+          isAiSuggestionLoading={isAiSuggestionLoading}
+          isFormatChecksLoading={isFormatChecksLoading}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}

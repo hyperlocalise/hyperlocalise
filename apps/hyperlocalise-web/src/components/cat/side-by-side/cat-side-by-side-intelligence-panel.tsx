@@ -28,6 +28,10 @@ export function CatSideBySideIntelligencePanel({
   segment,
   intelligence,
   isLookingUpContext,
+  isApproving = false,
+  isSavingDraft = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -53,6 +57,10 @@ export function CatSideBySideIntelligencePanel({
   segment: CatSegment | null;
   intelligence: CatSegmentIntelligence | null;
   isLookingUpContext: boolean;
+  isApproving?: boolean;
+  isSavingDraft?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -78,7 +86,13 @@ export function CatSideBySideIntelligencePanel({
   const intl = useIntl();
   const isMac = useIsMac();
   const canTriggerFindContext =
-    Boolean(onAskQuestion) && canLookupFreshContext && !isLookingUpContext;
+    Boolean(onAskQuestion) &&
+    canLookupFreshContext &&
+    !isApproving &&
+    !isSavingDraft &&
+    !isLookingUpContext &&
+    !isAiSuggestionLoading &&
+    !isFormatChecksLoading;
 
   useHotkeys(
     "mod+k",

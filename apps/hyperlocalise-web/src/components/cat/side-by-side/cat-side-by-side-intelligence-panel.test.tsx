@@ -68,6 +68,17 @@ describe("CatSideBySideIntelligencePanel", () => {
     expect(screen.getByRole("button", { name: /Finding context/i })).toBeDisabled();
   });
 
+  it.each([
+    { isApproving: true },
+    { isSavingDraft: true },
+    { isAiSuggestionLoading: true },
+    { isFormatChecksLoading: true },
+  ] as const)("disables find context during busy state %j", (busyState) => {
+    renderIntelligencePanel(busyState);
+
+    expect(screen.getByRole("button", { name: /Find context/i })).toBeDisabled();
+  });
+
   it("hides find context when onAskQuestion is not provided", () => {
     renderIntelligencePanel({ onAskQuestion: undefined });
 
