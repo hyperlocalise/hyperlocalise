@@ -407,18 +407,19 @@ func skipPHPTrivia(text string, start int) int {
 				i++
 			}
 		} else if i+1 < len(text) && text[i] == '/' {
-			if text[i+1] == '/' {
+			switch text[i+1] {
+			case '/':
 				i += 2
 				for i < len(text) && text[i] != '\n' {
 					i++
 				}
-			} else if text[i+1] == '*' {
+			case '*':
 				end := strings.Index(text[i+2:], "*/")
 				if end < 0 {
 					return i
 				}
 				i = i + 2 + end + 2
-			} else {
+			default:
 				return i
 			}
 		} else {
@@ -502,9 +503,9 @@ var (
 func writePHPStringLiteral(b *bytes.Buffer, value string, quote byte) {
 	b.WriteByte(quote)
 	if quote == '"' {
-		phpDoubleQuoteReplacer.WriteString(b, value)
+		_, _ = phpDoubleQuoteReplacer.WriteString(b, value)
 	} else {
-		phpSingleQuoteReplacer.WriteString(b, value)
+		_, _ = phpSingleQuoteReplacer.WriteString(b, value)
 	}
 	b.WriteByte(quote)
 }
