@@ -131,6 +131,7 @@ import {
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
 import { createIssueSheetRoutes } from "./issue-sheet.route";
+import { createProjectAssetRoutes } from "./project-assets.route";
 import {
   generateCatAiRecommendation,
   loadCatSegmentConcordance,
@@ -679,6 +680,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
+    .route(
+      "/:projectId/assets",
+      createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,

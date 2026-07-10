@@ -3,8 +3,12 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   getLocaleScanExtensions,
   inferSupportedFileTranslationFileFormat,
+  inferSupportedImageTranslationFileFormat,
+  inferSupportedSourceUploadFormat,
   inferSupportedTranslationFileFormat,
   isImageTranslationFileFormat,
+  isSupportedSourceUploadFormat,
+  looksLikeImageUrl,
 } from "./file-formats";
 
 describe("translation file formats", () => {
@@ -36,8 +40,18 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("banner.jpeg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.webp")).toBe("webp");
     expect(inferSupportedFileTranslationFileFormat("banner.png")).toBeNull();
+    expect(inferSupportedSourceUploadFormat("banner.png")).toBe("png");
+    expect(inferSupportedImageTranslationFileFormat("banner.jpg")).toBe("jpeg");
+    expect(isSupportedSourceUploadFormat("banner.webp")).toBe(true);
     expect(isImageTranslationFileFormat("png")).toBe(true);
     expect(isImageTranslationFileFormat("json")).toBe(false);
+  });
+
+  it("detects image-looking http urls", () => {
+    expect(looksLikeImageUrl("https://cdn.example.com/hero.png")).toBe(true);
+    expect(looksLikeImageUrl("https://cdn.example.com/hero.jpg?w=800")).toBe(true);
+    expect(looksLikeImageUrl("https://cdn.example.com/doc.pdf")).toBe(false);
+    expect(looksLikeImageUrl("not-a-url")).toBe(false);
   });
 
   it("rejects unsupported file extensions", () => {

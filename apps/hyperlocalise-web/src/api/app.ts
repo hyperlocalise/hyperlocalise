@@ -35,6 +35,7 @@ import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
+import { createPublicImageRoutes } from "./routes/public-images/public-images.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
@@ -191,7 +192,11 @@ function createPublicApiRoutes(
   return new Hono()
     .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/jobs", createPublicJobRoutes(options))
-    .route("/projects", createPublicTranslationRoutes());
+    .route("/projects", createPublicTranslationRoutes())
+    .route(
+      "/projects",
+      createPublicImageRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    );
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

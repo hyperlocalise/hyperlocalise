@@ -76,6 +76,29 @@ func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 	}
 }
 
+func TestHyperlocaliseSyncRecognizesImageFiles(t *testing.T) {
+	cases := []struct {
+		path   string
+		format string
+	}{
+		{path: "assets/banner.png", format: "png"},
+		{path: "assets/banner.jpg", format: "jpeg"},
+		{path: "assets/banner.jpeg", format: "jpeg"},
+		{path: "assets/banner.webp", format: "webp"},
+	}
+	for _, tc := range cases {
+		if got := inferHyperlocaliseFileFormat(tc.path); got != tc.format {
+			t.Fatalf("inferHyperlocaliseFileFormat(%q) = %q, want %q", tc.path, got, tc.format)
+		}
+		if !isHyperlocaliseImageFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseImageFileFormat(%q) = false, want true", tc.format)
+		}
+	}
+	if isHyperlocaliseImageFileFormat("json") {
+		t.Fatalf("isHyperlocaliseImageFileFormat(json) = true, want false")
+	}
+}
+
 func TestHyperlocalisePullDownloadsTranslationExports(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "locales", "en.json")
