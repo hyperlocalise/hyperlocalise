@@ -128,6 +128,29 @@ function buildEmptyContext(
   };
 }
 
+function buildRawFallbackContext(
+  content: string,
+  maxChars: number,
+): SelectedKnowledgeMemoryContext {
+  const compactText =
+    content.length > maxChars
+      ? `${content.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`
+      : content;
+
+  return {
+    compactText,
+    segments: [],
+    metrics: {
+      selectedMemoryCount: 0,
+      selectedMemoryChars: compactText.length,
+      wholeMemoryChars: content.length,
+      reductionPercent: reductionPercent(content.length, compactText.length),
+      matchedHeadingPaths: [],
+      fallbackMode: "fallback",
+    },
+  };
+}
+
 function findGeneralFallback(segments: KnowledgeMemorySegment[]) {
   return segments.find((segment) =>
     segment.headingPath.some((heading) => /^(general|overview|summary)$/i.test(heading.trim())),
@@ -165,7 +188,7 @@ export function selectKnowledgeMemoryContext(
   const maxChars = input.maxChars ?? KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH;
   const segments = parseMarkdownMemory(content);
   if (segments.length === 0) {
-    return buildEmptyContext(content.length, "none");
+    return buildRawFallbackContext(content, maxChars);
   }
 
   const retrieveSegments = options.retrieveSegments ?? retrieveKnowledgeMemorySegmentsLexically;

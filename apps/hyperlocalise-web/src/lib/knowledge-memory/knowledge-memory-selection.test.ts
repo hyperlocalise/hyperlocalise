@@ -101,6 +101,17 @@ function multiLocaleMemoryWithDistractors() {
   ].join("\n");
 }
 
+function longHeadingOnlyMemory() {
+  return [
+    "# Memory.md",
+    "",
+    ...Array.from(
+      { length: 140 },
+      (_, index) => `## Locale rule outline ${index + 1}: keep protected token TOKEN-${index + 1}`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -226,6 +237,21 @@ describe("selectKnowledgeMemoryContext", () => {
 
     expect(selected.compactText).toContain("Brand voice");
     expect(selected.compactText).toContain("Glossary");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeGreaterThan(0);
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("falls back to raw markdown when long non-empty memory has no selectable segments", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: longHeadingOnlyMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Locale rule outline 1");
     expect(selected.metrics.fallbackMode).toBe("fallback");
     expect(selected.metrics.selectedMemoryChars).toBeGreaterThan(0);
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
