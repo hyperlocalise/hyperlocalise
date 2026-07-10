@@ -14,9 +14,21 @@ export class CatSegmentStore {
   isResolvingComment = false;
   resolvingCommentId: string | null = null;
   commentPostError: string | undefined;
+  queueTargetLoadingSegmentIds = new Set<string>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
+  }
+
+  setQueueTargetLoadingSegmentIds(segmentIds: readonly string[]) {
+    if (
+      this.queueTargetLoadingSegmentIds.size === segmentIds.length &&
+      segmentIds.every((segmentId) => this.queueTargetLoadingSegmentIds.has(segmentId))
+    ) {
+      return;
+    }
+
+    this.queueTargetLoadingSegmentIds = new Set(segmentIds);
   }
 
   get dirtySegmentIds(): ReadonlySet<string> {
@@ -32,6 +44,7 @@ export class CatSegmentStore {
   clear() {
     this.comments.clear();
     this.drafts.clear();
+    this.queueTargetLoadingSegmentIds.clear();
   }
 
   removeIfClean(segmentId: string) {

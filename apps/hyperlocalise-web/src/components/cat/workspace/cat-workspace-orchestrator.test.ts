@@ -700,4 +700,49 @@ describe("CatWorkspaceOrchestrator ui state", () => {
 
     expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
   });
+
+  it("includes queue target loading segment ids in side-by-side loading state", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.setQueueTargetLoadingSegmentIds(["seg-02", "seg-03"]);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-02", "seg-03"]);
+
+    store.setSegmentTargetLoading(true);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.setQueueTargetLoadingSegmentIds([]);
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+  });
+
+  it("drops queue loading ids once draft target text is present", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.setQueueTargetLoadingSegmentIds(["seg-02", "seg-03"]);
+    store.setTargetText("seg-02", "Typed while fetching");
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
+  });
 });

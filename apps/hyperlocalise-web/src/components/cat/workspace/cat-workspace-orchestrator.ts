@@ -534,12 +534,19 @@ export class CatWorkspaceOrchestrator {
   get loadingSegmentIds(): ReadonlySet<string> {
     const hasSelectedLoading = this.isSegmentTargetLoading && this.selectedSegmentId;
     const hasPreviewLoading = this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId;
+    const queueLoadingIds = this.segments.queueTargetLoadingSegmentIds;
 
-    if (!hasSelectedLoading && !hasPreviewLoading) {
+    if (!hasSelectedLoading && !hasPreviewLoading && queueLoadingIds.size === 0) {
       return EMPTY_LOADING_SEGMENT_IDS;
     }
 
     const ids = new Set<string>();
+    for (const segmentId of queueLoadingIds) {
+      // Read drafts here so MobX recomputes when the user types during a fetch.
+      if (!this.drafts.get(segmentId)?.targetText.trim()) {
+        ids.add(segmentId);
+      }
+    }
     if (hasSelectedLoading) {
       ids.add(this.selectedSegmentId);
     }
@@ -702,6 +709,10 @@ export class CatWorkspaceOrchestrator {
 
   setSegmentTargetLoading(loading: boolean) {
     this.isSegmentTargetLoading = loading;
+  }
+
+  setQueueTargetLoadingSegmentIds(segmentIds: readonly string[]) {
+    this.segments.setQueueTargetLoadingSegmentIds(segmentIds);
   }
 
   setCommentsLoading(loading: boolean) {
