@@ -1,9 +1,16 @@
 import { createIntl, createIntlCache, type IntlShape } from "@formatjs/intl";
 
+import deDEMessages from "../../../lang/de-DE.json";
+import frFRMessages from "../../../lang/fr-FR.json";
 import viVNMessages from "../../../lang/vi-VN.json";
 import zhCNMessages from "../../../lang/zh-CN.json";
 
-import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "./locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppContentLocale,
+  normalizeAppLocale,
+  type AppContentLocale,
+} from "./locales";
 
 const cache = createIntlCache();
 
@@ -24,26 +31,25 @@ function toMessages(catalog: LocaleCatalog): Record<string, string> {
   return messages;
 }
 
-const translatedCatalogs = {
+const translatedCatalogs: Partial<Record<AppContentLocale, Record<string, string>>> = {
   "zh-CN": toMessages(zhCNMessages as LocaleCatalog),
   "vi-VN": toMessages(viVNMessages as LocaleCatalog),
-} as const;
+  "de-DE": toMessages(deDEMessages as LocaleCatalog),
+  "fr-FR": toMessages(frFRMessages as LocaleCatalog),
+};
 
-function getMessagesForLocale(locale: AppLocale): Record<string, string> {
+function getMessagesForLocale(locale: AppContentLocale): Record<string, string> {
   // Source locale uses defaultMessage from descriptors; no en-US catalog needed.
   if (locale === DEFAULT_APP_LOCALE) {
     return {};
   }
 
-  if (locale in translatedCatalogs) {
-    return translatedCatalogs[locale as keyof typeof translatedCatalogs];
-  }
-
-  return {};
+  return translatedCatalogs[locale] ?? {};
 }
 
 export function getIntlShape(locale: string = DEFAULT_APP_LOCALE): IntlShape {
-  const normalizedLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  const normalizedLocale =
+    normalizeAppLocale(locale) ?? normalizeAppContentLocale(locale) ?? DEFAULT_APP_LOCALE;
 
   return createIntl(
     {

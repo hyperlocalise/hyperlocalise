@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import matter from "gray-matter";
 
-import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { DEFAULT_APP_LOCALE, normalizeAppContentLocale } from "@/lib/app-i18n/locales";
 import { isValidBlogPostSlug, normalizeBlogPostSlug } from "@/lib/blog/blog-post-path";
 
 export interface Post {
@@ -43,7 +43,8 @@ function frontmatterDate(value: unknown, fallback = ""): string {
 }
 
 function postsDirectory(locale: string) {
-  const safeLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  // Resolve against content locales (not only SUPPORTED) so posts are ready before a locale is enabled.
+  const safeLocale = normalizeAppContentLocale(locale) ?? DEFAULT_APP_LOCALE;
   return join(process.cwd(), "_posts", safeLocale);
 }
 

@@ -3,9 +3,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   APP_LOCALE_COOKIE_NAME,
+  AVAILABLE_APP_CONTENT_LOCALES,
   DEFAULT_APP_LOCALE,
   getAppLocaleFromRequest,
+  isAvailableAppContentLocale,
   isSupportedAppLocale,
+  normalizeAppContentLocale,
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "./locales";
@@ -32,6 +35,16 @@ describe("app i18n locales", () => {
   it("normalizes supported locales case-insensitively", () => {
     expect(normalizeAppLocale("EN")).toBe("en");
     expect(normalizeAppLocale("fr")).toBeNull();
+  });
+
+  it("keeps content locales ready ahead of supported routing locales", () => {
+    expect(AVAILABLE_APP_CONTENT_LOCALES).toEqual(["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"]);
+    expect(isAvailableAppContentLocale("zh-CN")).toBe(true);
+    expect(isAvailableAppContentLocale("fr-FR")).toBe(true);
+    expect(normalizeAppContentLocale("zh-cn")).toBe("zh-CN");
+    expect(normalizeAppContentLocale("de-de")).toBe("de-DE");
+    expect(normalizeAppContentLocale("ja-JP")).toBeNull();
+    expect(isSupportedAppLocale("zh-CN")).toBe(false);
   });
 
   it("prefers the locale cookie before accept-language negotiation", () => {
