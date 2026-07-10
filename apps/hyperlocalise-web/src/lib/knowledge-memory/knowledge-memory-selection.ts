@@ -164,12 +164,9 @@ function isPreferredFallbackSegment(segment: KnowledgeMemorySegment) {
 }
 
 function findDefaultFallbackSegments(segments: KnowledgeMemorySegment[]) {
-  const preferred = segments.filter(isPreferredFallbackSegment);
-  if (preferred.length > 0) {
-    return preferred.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
-  }
-
-  return segments.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+  return segments
+    .filter(isPreferredFallbackSegment)
+    .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
 }
 
 export function selectKnowledgeMemoryContext(
@@ -228,5 +225,5 @@ export function selectKnowledgeMemoryContext(
     });
   }
 
-  return buildEmptyContext(content.length, "none");
+  return buildRawFallbackContext(content, maxChars);
 }

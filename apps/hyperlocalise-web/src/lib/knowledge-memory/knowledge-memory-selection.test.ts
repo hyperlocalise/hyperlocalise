@@ -112,6 +112,21 @@ function longHeadingOnlyMemory() {
   ].join("\n");
 }
 
+function mixedHeadingOnlyGuidanceMemory() {
+  return [
+    "# Memory.md",
+    "",
+    "## Brand voice - Sound practical and precise",
+    "",
+    "## Tone - Avoid hype-heavy launch copy",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -254,6 +269,21 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.compactText).toContain("Locale rule outline 1");
     expect(selected.metrics.fallbackMode).toBe("fallback");
     expect(selected.metrics.selectedMemoryChars).toBeGreaterThan(0);
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("keeps heading-only guidance when other sections have body text", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: mixedHeadingOnlyGuidanceMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Brand voice - Sound practical and precise");
+    expect(selected.compactText).toContain("Tone - Avoid hype-heavy launch copy");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
