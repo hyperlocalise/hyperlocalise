@@ -1567,6 +1567,49 @@ func TestRunForceFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunMaxTranslationsFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{DeferredByLimit: 3}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--max-translations", "1000"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with max-translations: %v", err)
+	}
+	if gotInput.MaxTranslations != 1000 {
+		t.Fatalf("expected MaxTranslations=1000, got %d", gotInput.MaxTranslations)
+	}
+	if !strings.Contains(out.String(), "deferred_by_limit=3") {
+		t.Fatalf("expected deferred_by_limit in report output, got %q", out.String())
+	}
+}
+
+func TestRunRejectsNegativeMaxTranslationsFlag(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--max-translations", "-1"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected invalid max-translations error")
+	}
+	if !strings.Contains(err.Error(), "invalid --max-translations value") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunExperimentalContextMemoryFlagsPlumbedToServiceInput(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })

@@ -482,6 +482,175 @@ func TestRunAppliesLockFilterByTargetAndEntry(t *testing.T) {
 	}
 }
 
+func TestApplyMaxTranslationsLimit(t *testing.T) {
+	tasks := []Task{
+		{EntryKey: "a"},
+		{EntryKey: "b"},
+		{EntryKey: "c"},
+	}
+	limited, deferred := applyMaxTranslationsLimit(tasks, 2)
+	if deferred != 1 || len(limited) != 2 || limited[0].EntryKey != "a" || limited[1].EntryKey != "b" {
+		t.Fatalf("unexpected limit result: limited=%+v deferred=%d", limited, deferred)
+	}
+	unlimited, deferred := applyMaxTranslationsLimit(tasks, 0)
+	if deferred != 0 || len(unlimited) != 3 {
+		t.Fatalf("expected unlimited when max=0, got limited=%d deferred=%d", len(unlimited), deferred)
+	}
+}
+
+func TestRunMaxTranslationsDefersRemainingAndContinuesWithoutForce(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"a":"A","b":"B","c":"C"}`),
+		targetPath: []byte(`{}`),
+	}
+	var lockState lockfile.File
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		cloned := lockState
+		if cloned.RunCompleted == nil {
+			cloned.RunCompleted = map[string]lockfile.RunCompletion{}
+		}
+		if cloned.RunCheckpoint == nil {
+			cloned.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+		}
+		return &cloned, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockState = f
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return strings.ToUpper(req.Source), nil
+	}
+
+	first, err := svc.Run(context.Background(), Input{MaxTranslations: 2})
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if first.ExecutableTotal != 2 || first.DeferredByLimit != 1 || first.Succeeded != 2 {
+		t.Fatalf("unexpected first page report: %+v", first)
+	}
+	if len(first.Executable) != 2 {
+		t.Fatalf("expected 2 executable tasks on first page, got %d", len(first.Executable))
+	}
+
+	second, err := svc.Run(context.Background(), Input{MaxTranslations: 2})
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if second.SkippedByLock != 2 || second.ExecutableTotal != 1 || second.DeferredByLimit != 0 || second.Succeeded != 1 {
+		t.Fatalf("unexpected second page report: %+v", second)
+	}
+	if len(second.Executable) != 1 || second.Executable[0].EntryKey != "c" {
+		t.Fatalf("unexpected second page executable: %+v", second.Executable)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(files[targetPath], &payload); err != nil {
+		t.Fatalf("decode target: %v", err)
+	}
+	if payload["a"] != "A" || payload["b"] != "B" || payload["c"] != "C" {
+		t.Fatalf("unexpected merged target after pagination: %+v", payload)
+	}
+}
+
+func TestRunMaxTranslationsWithForceRedoesHeadOfQueue(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"a":"A","b":"B","c":"C"}`),
+		targetPath: []byte(`{}`),
+	}
+	var lockState lockfile.File
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		cloned := lockState
+		if cloned.RunCompleted == nil {
+			cloned.RunCompleted = map[string]lockfile.RunCompletion{}
+		}
+		if cloned.RunCheckpoint == nil {
+			cloned.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+		}
+		return &cloned, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockState = f
+		return nil
+	}
+	translated := map[string]int{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translated[req.Source]++
+		return strings.ToUpper(req.Source), nil
+	}
+
+	if _, err := svc.Run(context.Background(), Input{MaxTranslations: 2}); err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	second, err := svc.Run(context.Background(), Input{Force: true, MaxTranslations: 2})
+	if err != nil {
+		t.Fatalf("forced second page: %v", err)
+	}
+	if second.ExecutableTotal != 2 || second.DeferredByLimit != 1 {
+		t.Fatalf("unexpected forced page report: %+v", second)
+	}
+	if translated["A"] != 2 || translated["B"] != 2 || translated["C"] != 0 {
+		t.Fatalf("expected force+limit to redo head keys only, got %+v", translated)
+	}
+}
+
+func TestRunRejectsNegativeMaxTranslations(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(`{"a":"A"}`), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	_, err := svc.Run(context.Background(), Input{MaxTranslations: -1})
+	if err == nil || !strings.Contains(err.Error(), "invalid max translations") {
+		t.Fatalf("expected invalid max translations error, got %v", err)
+	}
+}
+
 func TestRunDoesNotSkipWhenSourceTextChanges(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"

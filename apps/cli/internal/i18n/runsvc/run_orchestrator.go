@@ -94,6 +94,16 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		report.ExecutableTotal = len(executable)
 	}
 
+	if in.MaxTranslations < 0 {
+		err := fmt.Errorf("invalid max translations %d: must be >= 0", in.MaxTranslations)
+		endRunSpan(lockSpan, err, "max_translations")
+		return Report{}, err
+	}
+	executable, deferredByLimit := applyMaxTranslationsLimit(executable, in.MaxTranslations)
+	report.DeferredByLimit = deferredByLimit
+	report.ExecutableTotal = len(executable)
+	report.Executable = append([]Task(nil), executable...)
+
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
 	report.Warnings = append(report.Warnings, planWarnings...)
@@ -102,11 +112,18 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		report.ContextMemoryEnabled = true
 		report.ContextMemoryScope = in.ContextMemoryScope
 	}
-	emitter.emit(Event{Kind: EventPlanned, PlannedTotal: report.PlannedTotal, SkippedByLock: report.SkippedByLock, ExecutableTotal: report.ExecutableTotal})
+	emitter.emit(Event{
+		Kind:            EventPlanned,
+		PlannedTotal:    report.PlannedTotal,
+		SkippedByLock:   report.SkippedByLock,
+		ExecutableTotal: report.ExecutableTotal,
+		DeferredByLimit: report.DeferredByLimit,
+	})
 	lockSpan.SetAttributes(
 		attribute.Int("run.planned_total", report.PlannedTotal),
 		attribute.Int("run.skipped_by_lock", report.SkippedByLock),
 		attribute.Int("run.executable_total", report.ExecutableTotal),
+		attribute.Int("run.deferred_by_limit", report.DeferredByLimit),
 	)
 	endRunSpan(lockSpan, nil, "")
 
@@ -520,6 +537,15 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 	return remaining, remainingMetadata
 }
 
+// applyMaxTranslationsLimit keeps the first max tasks in plan order and reports
+// how many executable tasks were deferred for a later session. max <= 0 means unlimited.
+func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, deferred int) {
+	if max <= 0 || len(executable) <= max {
+		return executable, 0
+	}
+	return executable[:max], len(executable) - max
+}
+
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
 	return eventWithTokenUsage(Event{
@@ -527,6 +553,7 @@ func completedEvent(report Report) Event {
 		PlannedTotal:    report.PlannedTotal,
 		SkippedByLock:   report.SkippedByLock,
 		ExecutableTotal: report.ExecutableTotal,
+		DeferredByLimit: report.DeferredByLimit,
 		Succeeded:       report.Succeeded,
 		Failed:          report.Failed,
 		PersistedToLock: report.PersistedToLock,
