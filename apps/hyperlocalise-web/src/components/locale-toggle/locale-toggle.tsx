@@ -1,7 +1,5 @@
 "use client";
 
-import { LanguageCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { usePathname } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -36,8 +34,8 @@ export function LocaleToggle() {
           render={
             <DropdownMenuTrigger
               render={
-                <Button variant="outline" size="icon-sm" className="rounded-full">
-                  <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={2} className="size-4" />
+                <Button variant="outline" size="icon-sm" className="rounded-full text-base leading-none">
+                  <span aria-hidden="true">{getAppLocaleFlagEmoji(activeLocale)}</span>
                   <span className="sr-only">
                     <FormattedMessage {...localeToggleMessages.changeLanguage} />
                   </span>
