@@ -7,10 +7,8 @@ import {
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import { db, schema } from "@/lib/database";
 import { createStoredFile } from "@/lib/file-storage/records";
-import {
-  fetchImageBytesFromUrl,
-  projectImageAssetUrl,
-} from "@/lib/projects/files/image-variant-service";
+import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
+import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export const IMAGE_URL_CONTENT_KIND = "image_url" as const;
@@ -74,7 +72,6 @@ export async function localizeImageUrlTranslation(input: {
   translationKeyId: string;
   targetLocale: string;
   sourceLocale?: string | null;
-  organizationSlug: string;
   origin?: string | null;
   instructions?: string | null;
   actorUserId?: string | null;
@@ -174,18 +171,16 @@ export async function localizeImageUrlTranslation(input: {
     ),
     contentType: localized.mimeType,
     content: localized.image,
-    metadata: {
+    metadata: publicMediaMetadata({
       imageLocalizationOutput: true,
       contentKind: IMAGE_URL_CONTENT_KIND,
       translationKeyId: key.id,
       sourceUrl: key.sourceText,
       targetLocale: input.targetLocale,
-    },
+    }),
   });
 
-  const assetUrl = projectImageAssetUrl({
-    organizationSlug: input.organizationSlug,
-    projectId: input.projectId,
+  const assetUrl = publicMediaAssetUrl({
     fileId: stored.id,
     origin: input.origin,
   });
@@ -243,7 +238,6 @@ export async function replaceImageUrlTranslationBytes(input: {
   projectId: string;
   translationKeyId: string;
   targetLocale: string;
-  organizationSlug: string;
   origin?: string | null;
   content: Buffer;
   contentType: string;
@@ -300,17 +294,15 @@ export async function replaceImageUrlTranslationBytes(input: {
     filename: input.filename,
     contentType: input.contentType,
     content: input.content,
-    metadata: {
+    metadata: publicMediaMetadata({
       imageLocalizationManualUpload: true,
       contentKind: IMAGE_URL_CONTENT_KIND,
       translationKeyId: key.id,
       targetLocale: input.targetLocale,
-    },
+    }),
   });
 
-  const assetUrl = projectImageAssetUrl({
-    organizationSlug: input.organizationSlug,
-    projectId: input.projectId,
+  const assetUrl = publicMediaAssetUrl({
     fileId: stored.id,
     origin: input.origin,
   });

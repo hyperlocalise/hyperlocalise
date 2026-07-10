@@ -57,7 +57,8 @@ Fetch or load source bytes → AI image edit for locale → store output → att
 
 ### Asset URLs
 
-Serve bytes via a Hyperlocalise route (org/project-scoped or signed) so CAT `<img src>` and exported strings resolve on the product domain.
+- **URL-backed translation targets** use a public, unauthenticated path: `/api/public/media/:fileId` (no org/project/credentials). Only files marked `metadata.publicMedia: true` with an image content type are served. Responses use long-lived cache headers (`public, max-age=31536000, immutable` plus `ETag`) so CDNs and browsers absorb repeat traffic.
+- **File-backed CAT previews** may still use the authenticated org/project asset route for private source bytes.
 
 ## Sync, upload, jobs
 
