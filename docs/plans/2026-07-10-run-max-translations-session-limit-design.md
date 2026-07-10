@@ -51,7 +51,7 @@ Notes:
 - Same-sandbox pagination relies on the lockfile only — no prefill mutation between pages.
 - If the sandbox is recreated mid-job, the lockfile is lost; that path may redo earlier keys (existing recreate limitation).
 - Incremental persist is best-effort (same as today's end-of-job persist). Failures log and continue.
-- Glossary retry keeps `--force` for the failed locale and can keep the same session cap.
+- Glossary retry keeps `--force` on page 0 for the failed locale, then pages without `--force` until `deferredByLimit` is 0 (same session cap).
 
 ## Errors
 

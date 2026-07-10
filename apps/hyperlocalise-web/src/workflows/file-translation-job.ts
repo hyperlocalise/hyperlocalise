@@ -1116,6 +1116,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
       // Retry each failed locale individually with locale-specific feedback so
       // one locale's glossary constraints cannot contaminate another.
+      // Page through --max-translations so a successful retry cannot leave
+      // deferred keys untranslated.
       const stillFailing: LocaleGlossaryFailure[] = [];
       for (const { targetLocale, failures } of glossaryFailuresByLocale) {
         const feedback = [
@@ -1127,27 +1129,50 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           ),
         ].join("\n");
 
-        const retryResult = await runHlForLocales([targetLocale], 2, {
-          retryFeedback: feedback,
-          force: true,
-          maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
-        });
-        if (!retryResult.ok) {
-          translatedByLocale.delete(targetLocale);
-          stillFailing.push({ targetLocale, failures });
+        let retryFailed = false;
+        for (let retryPage = 0; retryPage < FILE_TRANSLATION_MAX_PAGES; retryPage += 1) {
+          const retryResult = await runHlForLocales([targetLocale], 2, {
+            retryFeedback: feedback,
+            // Page 0 forces a clean rewrite; later pages omit --force so the
+            // lockfile advances through deferred work.
+            force: retryPage === 0,
+            maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+          });
+          if (!retryResult.ok) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+
+          const { readable, missing } = await tryReadLocaleOutputs([targetLocale], 2);
+          if (missing.length > 0) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+          if (readable.length > 0) {
+            await persistReadableLocales(readable, 2);
+          }
+          if (retryResult.deferredByLimit <= 0) {
+            break;
+          }
+          if (retryPage === FILE_TRANSLATION_MAX_PAGES - 1) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+          }
+        }
+        if (retryFailed) {
           continue;
         }
 
-        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-        let translatedContent: Buffer;
-        try {
-          translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
-        } catch {
-          translatedByLocale.delete(targetLocale);
+        const translatedContent = translatedByLocale.get(targetLocale);
+        if (!translatedContent) {
           stillFailing.push({ targetLocale, failures });
           continue;
         }
-        translatedByLocale.set(targetLocale, translatedContent);
 
         const localeTerms = (context.glossaryTerms ?? []).filter(
           (term) => term.targetLocale === targetLocale,
