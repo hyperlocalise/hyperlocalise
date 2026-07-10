@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ReadonlyRequestCookies } from "flags";
+import type { IntlShape } from "react-intl";
 
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import {
@@ -7,6 +8,7 @@ import {
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flags";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 const isEnabled = vi.fn();
 const waitUntilReady = vi.fn().mockResolvedValue(undefined);
@@ -134,9 +136,11 @@ describe("workosAdapter", () => {
   });
 });
 
+const intl = getIntlShape("en") as IntlShape;
+
 describe("filterNavigationByWorkspaceFlags", () => {
   it("removes Automations and Knowledge when workspace flags are disabled", () => {
-    const groups = buildGlobalNavigationGroups("acme");
+    const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: false,
       knowledge: false,
@@ -151,7 +155,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
   });
 
   it("keeps Automations and Knowledge when workspace flags are enabled", () => {
-    const groups = buildGlobalNavigationGroups("acme");
+    const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: true,
       knowledge: true,

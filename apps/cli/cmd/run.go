@@ -33,6 +33,7 @@ type runOptions struct {
 	prune                     bool
 	pruneLimit                int
 	pruneForce                bool
+	maxTranslations           int
 	workers                   int
 	progress                  string
 	bucket                    string
@@ -80,6 +81,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.prune, "prune", o.prune, "remove target keys that no longer exist in source files")
 	cmd.Flags().IntVar(&o.pruneLimit, "prune-max-deletions", 100, "maximum stale keys that can be deleted in one run before requiring an explicit override")
 	cmd.Flags().BoolVar(&o.pruneForce, "prune-force", o.pruneForce, "bypass prune deletion safety limit")
+	cmd.Flags().IntVar(&o.maxTranslations, "max-translations", 0, "maximum executable translations to run in this session (0 = unlimited); deferred work remains for a later run")
 	cmd.Flags().IntVar(&o.workers, "workers", o.workers, "number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
@@ -223,6 +225,10 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		span.SetStatus(codes.Error, "invalid_workers")
 		return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
 	}
+	if o.maxTranslations < 0 {
+		span.SetStatus(codes.Error, "invalid_max_translations")
+		return fmt.Errorf("invalid --max-translations value %d: must be >= 0", o.maxTranslations)
+	}
 	var targetLocales []string
 	if o.interactive {
 		targetLocales = o.targetLocales
@@ -272,6 +278,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		attribute.Bool("cli.force", o.force),
 		attribute.Bool("cli.interactive", o.interactive),
 		attribute.Bool("cli.prune", o.prune),
+		attribute.Int("cli.max_translations", o.maxTranslations),
 		attribute.Int("cli.workers", workers),
 		attribute.Bool("cli.experimental_context_memory", o.experimentalContextMemory),
 	)
@@ -310,6 +317,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		Prune:                     o.prune,
 		PruneLimit:                o.pruneLimit,
 		PruneForce:                o.pruneForce,
+		MaxTranslations:           o.maxTranslations,
 		Workers:                   workers,
 		Bucket:                    o.bucket,
 		Group:                     o.group,
@@ -340,6 +348,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		span.SetAttributes(
 			attribute.Int("run.planned_total", report.PlannedTotal),
 			attribute.Int("run.executable_total", report.ExecutableTotal),
+			attribute.Int("run.deferred_by_limit", report.DeferredByLimit),
 			attribute.Int("run.succeeded", report.Succeeded),
 			attribute.Int("run.failed", report.Failed),
 			attribute.Int("run.prune_applied", report.PruneApplied),
@@ -416,10 +425,11 @@ func writeRunReportArtifact(path string, report runsvc.Report, jsonDetail string
 func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 	if _, err := fmt.Fprintf(
 		w,
-		"planned_total=%d skipped_by_lock=%d executable_total=%d\n",
+		"planned_total=%d skipped_by_lock=%d executable_total=%d deferred_by_limit=%d\n",
 		report.PlannedTotal,
 		report.SkippedByLock,
 		report.ExecutableTotal,
+		report.DeferredByLimit,
 	); err != nil {
 		return err
 	}

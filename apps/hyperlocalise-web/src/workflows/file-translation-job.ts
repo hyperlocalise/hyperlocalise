@@ -26,6 +26,11 @@ import {
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
+import {
+  FILE_TRANSLATION_MAX_PAGES,
+  FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+  parseDeferredByLimit,
+} from "./file-translation-pagination";
 
 function shellSingleQuote(value: string) {
   return value.replaceAll("'", "'\\''");
@@ -286,7 +291,7 @@ async function runTranslationStep(
   instructions: string | null,
   context: SandboxTranslationContext,
   prefilledByLocale: Record<string, Record<string, string>>,
-  options?: { force?: boolean },
+  options?: { force?: boolean; maxTranslations?: number },
 ) {
   "use step";
 
@@ -334,13 +339,18 @@ async function runTranslationStep(
   // First runs use --force for a clean slate. Same-sandbox retries omit it so
   // `.hyperlocalise.lock.json` can skip completed tasks / resume checkpoints.
   const forceFlag = options?.force === false ? "" : " --force";
+  const maxTranslations = options?.maxTranslations;
+  const maxTranslationsFlag =
+    typeof maxTranslations === "number" && maxTranslations > 0
+      ? ` --max-translations ${maxTranslations}`
+      : "";
   try {
     return await runSandboxCommand(
       sandboxId,
       "bash",
       [
         "-lc",
-        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag} --progress off${prefilledFlags}`,
+        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --progress off${prefilledFlags}`,
       ],
       {
         env: getSandboxTranslationEnv(),
@@ -744,13 +754,61 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const translatedByLocale = new Map<string, Buffer>();
     const runFailures: Array<{ locale: string; kind: string; exitCode: number }> = [];
 
+    const persistReadableLocales = async (locales: string[], attempt: 1 | 2) => {
+      if (!sourceEntries || !repositorySourcePath) {
+        return;
+      }
+      for (const targetLocale of locales) {
+        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+        try {
+          const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
+            sourcePath: inputFilename,
+          });
+          await persistFileTranslationMemoryEntriesStep({
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourcePath: repositorySourcePath,
+            sourceFileHash: sourceFile.sha256,
+            sourceEntries,
+            targetEntries,
+          });
+          await persistFileProjectTranslationsStep({
+            organizationId,
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourcePath: repositorySourcePath,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourceEntries,
+            targetEntries,
+          });
+        } catch (error) {
+          console.warn("[file-translation-workflow] incremental translation persistence failed", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            attempt,
+            userFacingError: userFacingFailureReason(error, {
+              fileFormat: parsedInput.fileFormat,
+              sourceExtension: fileExtension(sourceFile.filename),
+              sandboxInputExtension: fileExtension(inputFilename),
+            }),
+          });
+        }
+      }
+    };
+
     const runHlForLocales = async (
       locales: string[],
       attempt: 1 | 2,
-      options?: { retryFeedback?: string; force?: boolean },
+      options?: { retryFeedback?: string; force?: boolean; maxTranslations?: number },
     ) => {
       const force = options?.force ?? true;
       const retryFeedback = options?.retryFeedback;
+      const maxTranslations =
+        options?.maxTranslations ?? FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION;
       const localeSet = new Set(locales);
       const runContext =
         context.glossaryTerms != null
@@ -776,7 +834,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               .filter((locale) => prefilledByLocale[locale])
               .map((locale) => [locale, prefilledByLocale[locale]]),
           ),
-          { force: runForce },
+          { force: runForce, maxTranslations },
         );
 
       let translation: Awaited<ReturnType<typeof runTranslationStep>>;
@@ -825,6 +883,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         }
       }
 
+      const deferredByLimit = parseDeferredByLimit(translation.output);
       if (translation.exitCode !== 0) {
         const cliFailureKind = classifyCliFailureKind(translation.output);
         console.error("[file-translation-workflow] hl run failed", {
@@ -835,6 +894,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocales: locales,
           attempt,
           force,
+          maxTranslations,
+          deferredByLimit,
           sandboxInputExtension: fileExtension(inputFilename),
           exitCode: translation.exitCode,
           cliOutputLength: translation.output.length,
@@ -843,7 +904,12 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           hasRetryFeedback: Boolean(retryFeedback),
           sandboxId,
         });
-        return { ok: false as const, cliFailureKind, exitCode: translation.exitCode };
+        return {
+          ok: false as const,
+          cliFailureKind,
+          exitCode: translation.exitCode,
+          deferredByLimit,
+        };
       }
 
       console.info("[file-translation-workflow] hl run succeeded", {
@@ -853,9 +919,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         targetLocales: locales,
         attempt,
         force,
+        maxTranslations,
+        deferredByLimit,
         exitCode: translation.exitCode,
       });
-      return { ok: true as const };
+      return { ok: true as const, deferredByLimit };
     };
 
     const tryReadLocaleOutputs = async (locales: string[], attempt: 1 | 2) => {
@@ -874,24 +942,57 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       return { readable, missing };
     };
 
-    // Happy path: one batched run for all locales. On non-zero exit, salvage
-    // any locale outputs the CLI already flushed, then retry only missing ones.
-    const batchResult = await runHlForLocales(parsedInput.targetLocales, 1, { force: true });
+    // Paginate hl run so large files stay under sandbox/workflow timeouts and
+    // project translations populate after each page.
+    let deferredByLimit = 0;
+    let page = 0;
     let localesNeedingWork = [...parsedInput.targetLocales];
+    let batchFailed = false;
 
-    if (batchResult.ok) {
-      const { missing } = await tryReadLocaleOutputs(parsedInput.targetLocales, 1);
-      localesNeedingWork = missing;
-    } else {
+    while (page < FILE_TRANSLATION_MAX_PAGES) {
+      // Page 0 may use --force for a clean slate. Later pages omit it so the
+      // lockfile skips completed tasks and advances through deferred work.
+      const batchResult = await runHlForLocales(parsedInput.targetLocales, 1, {
+        force: page === 0,
+        maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+      });
+      deferredByLimit = batchResult.deferredByLimit;
+
+      if (batchResult.ok) {
+        const { readable, missing } = await tryReadLocaleOutputs(parsedInput.targetLocales, 1);
+        localesNeedingWork = missing;
+        if (readable.length > 0) {
+          await persistReadableLocales(readable, 1);
+        }
+        console.info("[file-translation-workflow] hl run page completed", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          page,
+          deferredByLimit,
+          readableLocaleCount: readable.length,
+          missingLocaleCount: missing.length,
+        });
+        if (deferredByLimit <= 0) {
+          break;
+        }
+        page += 1;
+        continue;
+      }
+
       const { readable, missing } = await tryReadLocaleOutputs(parsedInput.targetLocales, 1);
       console.warn("[file-translation-workflow] batch hl run failed; salvaging readable outputs", {
         jobId: claim.job.id,
         projectId: claim.job.projectId,
+        page,
         readableLocales: readable,
         missingLocales: missing,
         cliFailureKind: batchResult.cliFailureKind,
         exitCode: batchResult.exitCode,
+        deferredByLimit,
       });
+      if (readable.length > 0) {
+        await persistReadableLocales(readable, 1);
+      }
       localesNeedingWork = missing;
       for (const locale of missing) {
         runFailures.push({
@@ -900,40 +1001,72 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           exitCode: batchResult.exitCode,
         });
       }
+      batchFailed = true;
+      break;
+    }
+
+    if (!batchFailed && deferredByLimit > 0) {
+      throw new Error(
+        `translation pagination exceeded ${FILE_TRANSLATION_MAX_PAGES} pages with deferred_by_limit=${deferredByLimit}`,
+      );
     }
 
     // Retry missing locales individually so one bad locale cannot block the rest.
-    // Use --force: a failed batch may have checkpointed a locale before flushing output.
+    // Page 0 uses --force; later pages omit it so deferred work advances.
     if (localesNeedingWork.length > 0) {
       const stillMissing: string[] = [];
       for (const targetLocale of localesNeedingWork) {
-        const localeResult = await runHlForLocales([targetLocale], 1, { force: true });
-        if (!localeResult.ok) {
-          stillMissing.push(targetLocale);
-          // Replace batch-level failure with the per-locale one when available.
-          const idx = runFailures.findIndex((f) => f.locale === targetLocale);
-          const failure = {
-            locale: targetLocale,
-            kind: localeResult.cliFailureKind,
-            exitCode: localeResult.exitCode,
-          };
-          if (idx >= 0) {
-            runFailures[idx] = failure;
-          } else {
-            runFailures.push(failure);
-          }
-          continue;
-        }
-        const { missing } = await tryReadLocaleOutputs([targetLocale], 1);
-        if (missing.length > 0) {
-          stillMissing.push(targetLocale);
-          runFailures.push({
-            locale: targetLocale,
-            kind: "missing_output",
-            exitCode: 0,
+        let localeFailed = false;
+        for (let localePage = 0; localePage < FILE_TRANSLATION_MAX_PAGES; localePage += 1) {
+          const localeResult = await runHlForLocales([targetLocale], 1, {
+            force: localePage === 0,
+            maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
           });
-        } else {
-          // Successfully recovered this locale; drop any prior batch failure record.
+          if (!localeResult.ok) {
+            stillMissing.push(targetLocale);
+            const idx = runFailures.findIndex((f) => f.locale === targetLocale);
+            const failure = {
+              locale: targetLocale,
+              kind: localeResult.cliFailureKind,
+              exitCode: localeResult.exitCode,
+            };
+            if (idx >= 0) {
+              runFailures[idx] = failure;
+            } else {
+              runFailures.push(failure);
+            }
+            localeFailed = true;
+            break;
+          }
+
+          const { readable, missing } = await tryReadLocaleOutputs([targetLocale], 1);
+          if (missing.length > 0) {
+            stillMissing.push(targetLocale);
+            runFailures.push({
+              locale: targetLocale,
+              kind: "missing_output",
+              exitCode: 0,
+            });
+            localeFailed = true;
+            break;
+          }
+          if (readable.length > 0) {
+            await persistReadableLocales(readable, 1);
+          }
+          if (localeResult.deferredByLimit <= 0) {
+            break;
+          }
+          if (localePage === FILE_TRANSLATION_MAX_PAGES - 1) {
+            stillMissing.push(targetLocale);
+            runFailures.push({
+              locale: targetLocale,
+              kind: "pagination_exhausted",
+              exitCode: 0,
+            });
+            localeFailed = true;
+          }
+        }
+        if (!localeFailed) {
           const idx = runFailures.findIndex((f) => f.locale === targetLocale);
           if (idx >= 0) {
             runFailures.splice(idx, 1);
@@ -983,6 +1116,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
       // Retry each failed locale individually with locale-specific feedback so
       // one locale's glossary constraints cannot contaminate another.
+      // Page through --max-translations so a successful retry cannot leave
+      // deferred keys untranslated.
       const stillFailing: LocaleGlossaryFailure[] = [];
       for (const { targetLocale, failures } of glossaryFailuresByLocale) {
         const feedback = [
@@ -994,26 +1129,50 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           ),
         ].join("\n");
 
-        const retryResult = await runHlForLocales([targetLocale], 2, {
-          retryFeedback: feedback,
-          force: true,
-        });
-        if (!retryResult.ok) {
-          translatedByLocale.delete(targetLocale);
-          stillFailing.push({ targetLocale, failures });
+        let retryFailed = false;
+        for (let retryPage = 0; retryPage < FILE_TRANSLATION_MAX_PAGES; retryPage += 1) {
+          const retryResult = await runHlForLocales([targetLocale], 2, {
+            retryFeedback: feedback,
+            // Page 0 forces a clean rewrite; later pages omit --force so the
+            // lockfile advances through deferred work.
+            force: retryPage === 0,
+            maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+          });
+          if (!retryResult.ok) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+
+          const { readable, missing } = await tryReadLocaleOutputs([targetLocale], 2);
+          if (missing.length > 0) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+          if (readable.length > 0) {
+            await persistReadableLocales(readable, 2);
+          }
+          if (retryResult.deferredByLimit <= 0) {
+            break;
+          }
+          if (retryPage === FILE_TRANSLATION_MAX_PAGES - 1) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+          }
+        }
+        if (retryFailed) {
           continue;
         }
 
-        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-        let translatedContent: Buffer;
-        try {
-          translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
-        } catch {
-          translatedByLocale.delete(targetLocale);
+        const translatedContent = translatedByLocale.get(targetLocale);
+        if (!translatedContent) {
           stillFailing.push({ targetLocale, failures });
           continue;
         }
-        translatedByLocale.set(targetLocale, translatedContent);
 
         const localeTerms = (context.glossaryTerms ?? []).filter(
           (term) => term.targetLocale === targetLocale,

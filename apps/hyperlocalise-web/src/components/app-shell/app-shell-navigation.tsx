@@ -6,6 +6,7 @@ import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -20,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
+import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import {
   buildOrganizationPath,
   buildProjectNavigationItems,
@@ -145,6 +147,7 @@ function ProjectNavigation({
   projectName?: string;
   items?: readonly NavigationItem[];
 }) {
+  const intl = useIntl();
   const projectQuery = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
     enabled: !projectName && !items,
@@ -160,9 +163,13 @@ function ProjectNavigation({
     },
   });
 
-  const resolvedItems = items ?? buildProjectNavigationItems(organizationSlug, projectId);
-  const resolvedProjectName = projectName ?? projectQuery.data?.name ?? "Project";
+  const resolvedItems = items ?? buildProjectNavigationItems(organizationSlug, projectId, intl);
+  const resolvedProjectName =
+    projectName ??
+    projectQuery.data?.name ??
+    intl.formatMessage(appShellNavigationMessages.projectFallbackName);
   const projectsHref = buildOrganizationPath(organizationSlug, "projects");
+  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
 
   return (
     <div className="flex flex-col gap-3">
@@ -172,11 +179,13 @@ function ProjectNavigation({
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={projectsHref} />}
-                tooltip="All projects"
+                tooltip={allProjectsLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
-                <span>All projects</span>
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -185,7 +194,7 @@ function ProjectNavigation({
 
       <SidebarGroup className="gap-1 p-0">
         <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
-          Project
+          <FormattedMessage {...appShellNavigationMessages.projectSection} />
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
           {!projectName && projectQuery.isLoading ? (
@@ -218,6 +227,8 @@ function NavigationGroupItems({
   organizationSlug: string;
   projectId?: string;
 }) {
+  const intl = useIntl();
+
   return (
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
@@ -226,13 +237,19 @@ function NavigationGroupItems({
             projectId,
             organizationSlug,
           });
+          const tooltip = item.badge
+            ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
+                label: item.label,
+                badge: item.badge,
+              })
+            : item.label;
 
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 render={<Link href={item.href} />}
                 isActive={isActive}
-                tooltip={item.badge ? `${item.label} · ${item.badge}` : item.label}
+                tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />

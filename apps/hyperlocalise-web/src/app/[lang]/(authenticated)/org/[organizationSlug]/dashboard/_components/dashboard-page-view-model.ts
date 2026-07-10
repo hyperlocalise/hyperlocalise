@@ -1,3 +1,5 @@
+import type { IntlShape } from "react-intl";
+
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
@@ -6,6 +8,8 @@ import type {
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../projects/_components/project-list";
 import type { RecentProjectVisit } from "../../projects/_components/recent-projects";
+
+import { dashboardPageViewModelMessages } from "./dashboard-page-view-model.messages";
 
 export type DashboardIntegrationId = "tms" | "github" | "slack";
 
@@ -114,33 +118,40 @@ export function formatDashboardLocaleRoute(
   return `${source} → ${preview}${suffix}`;
 }
 
-export function resolveDashboardIntegrations(input: {
-  tmsConnected: boolean;
-  tmsProviderKind?: ProjectListRow["externalProviderKind"];
-  tmsProviderName?: string;
-  githubConnected: boolean;
-  slackConnected: boolean;
-}): DashboardIntegrationItem[] {
+export function resolveDashboardIntegrations(
+  intl: IntlShape,
+  input: {
+    tmsConnected: boolean;
+    tmsProviderKind?: ProjectListRow["externalProviderKind"];
+    tmsProviderName?: string;
+    githubConnected: boolean;
+    slackConnected: boolean;
+  },
+): DashboardIntegrationItem[] {
   return [
     {
       id: "tms",
-      label: input.tmsProviderName ?? "Translation management",
+      label:
+        input.tmsProviderName ??
+        intl.formatMessage(dashboardPageViewModelMessages.tmsFallbackLabel),
       description: input.tmsProviderName
-        ? `${input.tmsProviderName} projects and translation work are available.`
-        : "Connect Crowdin, Lokalise, Phrase, or Smartling.",
+        ? intl.formatMessage(dashboardPageViewModelMessages.tmsConnectedDescription, {
+            providerName: input.tmsProviderName,
+          })
+        : intl.formatMessage(dashboardPageViewModelMessages.tmsDisconnectedDescription),
       connected: input.tmsConnected,
       providerKind: input.tmsProviderKind,
     },
     {
       id: "github",
-      label: "GitHub",
-      description: "Sync localized strings and run validation on push.",
+      label: intl.formatMessage(dashboardPageViewModelMessages.githubLabel),
+      description: intl.formatMessage(dashboardPageViewModelMessages.githubDescription),
       connected: input.githubConnected,
     },
     {
       id: "slack",
-      label: "Slack",
-      description: "Get review notifications and agent handoffs in Slack.",
+      label: intl.formatMessage(dashboardPageViewModelMessages.slackLabel),
+      description: intl.formatMessage(dashboardPageViewModelMessages.slackDescription),
       connected: input.slackConnected,
     },
   ];
@@ -168,14 +179,17 @@ export function resolveWorkspacePendingActionCount(input: {
   return openJobsFromProjects + actionableAssignedJobs;
 }
 
-export function resolveDashboardHero(input: {
-  integrations: readonly DashboardIntegrationItem[];
-  projectCount: number;
-  pendingCount: number;
-  integrationsHref: string;
-  myJobsHref: string;
-  newRequestHref: string;
-}): DashboardHeroState {
+export function resolveDashboardHero(
+  intl: IntlShape,
+  input: {
+    integrations: readonly DashboardIntegrationItem[];
+    projectCount: number;
+    pendingCount: number;
+    integrationsHref: string;
+    myJobsHref: string;
+    newRequestHref: string;
+  },
+): DashboardHeroState {
   const connectedCount = input.integrations.filter((item) => item.connected).length;
   const completedCount = connectedCount + (input.projectCount > 0 ? 1 : 0);
   const setupComplete = isDashboardSetupComplete(input.integrations, input.projectCount);
@@ -183,12 +197,11 @@ export function resolveDashboardHero(input: {
   if (!setupComplete) {
     return {
       mode: "setup",
-      title: "Get your workspace ready",
-      description:
-        "Connect your tools and create a project so Hyperlocalise can route translation work to you.",
+      title: intl.formatMessage(dashboardPageViewModelMessages.setupHeroTitle),
+      description: intl.formatMessage(dashboardPageViewModelMessages.setupHeroDescription),
       completedCount,
       totalCount: input.integrations.length + 1,
-      ctaLabel: "Finish setup",
+      ctaLabel: intl.formatMessage(dashboardPageViewModelMessages.setupHeroCta),
       ctaHref: input.integrationsHref,
     };
   }
@@ -197,10 +210,9 @@ export function resolveDashboardHero(input: {
     return {
       mode: "caught-up",
       pendingCount: 0,
-      title: "You're all caught up",
-      description:
-        "No pending actions right now. Start a new request or browse projects when you're ready to continue.",
-      ctaLabel: "New request",
+      title: intl.formatMessage(dashboardPageViewModelMessages.caughtUpHeroTitle),
+      description: intl.formatMessage(dashboardPageViewModelMessages.caughtUpHeroDescription),
+      ctaLabel: intl.formatMessage(dashboardPageViewModelMessages.newRequestCta),
       ctaHref: input.newRequestHref,
     };
   }
@@ -208,9 +220,11 @@ export function resolveDashboardHero(input: {
   return {
     mode: "attention",
     pendingCount: input.pendingCount,
-    title: "A few things need your attention",
-    description: `${input.pendingCount} pending ${input.pendingCount === 1 ? "action" : "actions"} across your workspace.`,
-    ctaLabel: "View my jobs",
+    title: intl.formatMessage(dashboardPageViewModelMessages.attentionHeroTitle),
+    description: intl.formatMessage(dashboardPageViewModelMessages.attentionHeroDescription, {
+      count: input.pendingCount,
+    }),
+    ctaLabel: intl.formatMessage(dashboardPageViewModelMessages.viewMyJobsCta),
     ctaHref: input.myJobsHref,
   };
 }
@@ -267,12 +281,15 @@ export function sortDashboardProjects(
   });
 }
 
-export function mapDashboardAutomationRuns(input: {
-  organizationSlug: string;
-  automations: readonly WorkspaceAutomationRecord[];
-  runs: readonly WorkspaceAutomationRunRecord[];
-  limit?: number;
-}): DashboardAutomationRunItem[] {
+export function mapDashboardAutomationRuns(
+  intl: IntlShape,
+  input: {
+    organizationSlug: string;
+    automations: readonly WorkspaceAutomationRecord[];
+    runs: readonly WorkspaceAutomationRunRecord[];
+    limit?: number;
+  },
+): DashboardAutomationRunItem[] {
   const automationNameById = new Map(
     input.automations.map((automation) => [automation.id, automation.name]),
   );
@@ -285,7 +302,9 @@ export function mapDashboardAutomationRuns(input: {
     .map((run) => ({
       id: run.id,
       automationId: run.automationId,
-      automationName: automationNameById.get(run.automationId) ?? "Automation",
+      automationName:
+        automationNameById.get(run.automationId) ??
+        intl.formatMessage(dashboardPageViewModelMessages.automationFallbackName),
       status: run.status,
       triggerSource: run.triggerSource,
       completedAt: run.completedAt,

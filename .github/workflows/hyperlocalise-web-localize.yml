@@ -47,7 +47,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.8.22
+          version: 1.8.23
 
       - name: Extract source catalog
         run: |
@@ -102,7 +102,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.8.22
+          version: 1.8.23
 
       - name: Extract source catalog
         run: |

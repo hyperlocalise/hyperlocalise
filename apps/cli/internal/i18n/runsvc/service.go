@@ -28,16 +28,20 @@ const (
 )
 
 type Input struct {
-	ConfigPath                string
-	Bucket                    string
-	Group                     string
-	TargetLocales             []string
-	SourcePaths               []string
-	DryRun                    bool
-	Force                     bool
-	Prune                     bool
-	PruneLimit                int
-	PruneForce                bool
+	ConfigPath    string
+	Bucket        string
+	Group         string
+	TargetLocales []string
+	SourcePaths   []string
+	DryRun        bool
+	Force         bool
+	Prune         bool
+	PruneLimit    int
+	PruneForce    bool
+	// MaxTranslations caps how many executable tasks run in this session after lock
+	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
+	// later run without --force can continue.
+	MaxTranslations           int
 	LockPath                  string
 	Workers                   int
 	ExperimentalContextMemory bool
@@ -130,6 +134,7 @@ type Event struct {
 	PlannedTotal             int       `json:"plannedTotal,omitempty"`
 	SkippedByLock            int       `json:"skippedByLock,omitempty"`
 	ExecutableTotal          int       `json:"executableTotal,omitempty"`
+	DeferredByLimit          int       `json:"deferredByLimit,omitempty"`
 	Succeeded                int       `json:"succeeded,omitempty"`
 	Failed                   int       `json:"failed,omitempty"`
 	PersistedToLock          int       `json:"persistedToLock,omitempty"`
@@ -269,9 +274,12 @@ type Report struct {
 	PlannedTotal    int       `json:"plannedTotal"`
 	SkippedByLock   int       `json:"skippedByLock"`
 	ExecutableTotal int       `json:"executableTotal"`
-	Succeeded       int       `json:"succeeded"`
-	Failed          int       `json:"failed"`
-	PersistedToLock int       `json:"persistedToLock"`
+	// DeferredByLimit is the number of executable tasks left for a later session
+	// because MaxTranslations capped this run.
+	DeferredByLimit int `json:"deferredByLimit"`
+	Succeeded       int `json:"succeeded"`
+	Failed          int `json:"failed"`
+	PersistedToLock int `json:"persistedToLock"`
 	TokenUsage
 	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
 	Batches                     []BatchUsage          `json:"batches,omitempty"`

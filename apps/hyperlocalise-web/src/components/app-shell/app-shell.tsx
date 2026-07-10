@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import {
   evaluateWorkspaceFeatureFlags,
   filterNavigationByWorkspaceFlags,
@@ -13,6 +15,7 @@ import {
   type TmsUserConnectCta,
 } from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import type { IntlShape } from "react-intl";
 
 import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
 import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
@@ -30,13 +33,14 @@ export async function AppShell({
 }: AppShellProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
+  const intl = getIntlShape(await getAppLocale()) as IntlShape;
 
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
   const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
   const navigationGroups = filterNavigationByWorkspaceFlags(
-    buildGlobalNavigationGroups(activeOrganizationSlug),
+    buildGlobalNavigationGroups(activeOrganizationSlug, intl),
     workspaceFeatureFlags,
   );
   const tmsUserConnectCta: TmsUserConnectCta = hasCapability(auth.membership.role, "jobs:read")
