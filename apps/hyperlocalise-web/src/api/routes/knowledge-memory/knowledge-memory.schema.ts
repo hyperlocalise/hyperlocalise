@@ -59,7 +59,7 @@ export const knowledgeMemoryPreviewSchema = z.object({
     wholeMemoryChars: z.number().int().nonnegative(),
     reductionPercent: z.number(),
     matchedHeadingPaths: z.array(z.string()),
-    fallbackMode: z.enum(["empty", "whole_small", "selective", "general", "none"]),
+    fallbackMode: z.enum(["empty", "whole_small", "selective", "general", "fallback", "none"]),
   }),
 });
 

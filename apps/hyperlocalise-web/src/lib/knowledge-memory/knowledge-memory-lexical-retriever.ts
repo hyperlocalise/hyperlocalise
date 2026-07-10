@@ -110,8 +110,16 @@ function buildQueryParts(input: SelectKnowledgeMemoryContextInput) {
   ]);
 }
 
-function inputLocaleFromParts(queryParts: string[]) {
-  return queryParts.find((part) => /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})?$/i.test(part)) ?? null;
+function normalizeLocaleForSearch(locale: string) {
+  return locale.toLowerCase().replace(/_/g, "-");
+}
+
+function inputLocalesFromParts(queryParts: string[]) {
+  return uniqueValues(
+    queryParts
+      .filter((part) => /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})?$/i.test(part))
+      .map(normalizeLocaleForSearch),
+  );
 }
 
 function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
@@ -136,10 +144,9 @@ function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
     }
   }
 
-  for (const locale of uniqueValues([inputLocaleFromParts(queryParts)])) {
-    const normalizedLocale = locale.toLowerCase();
-    const headingText = segment.headingPath.join(" ").toLowerCase();
-    const searchText = segment.searchText.toLowerCase();
+  for (const normalizedLocale of inputLocalesFromParts(queryParts)) {
+    const headingText = normalizeLocaleForSearch(segment.headingPath.join(" "));
+    const searchText = normalizeLocaleForSearch(segment.searchText);
     if (headingText.includes(normalizedLocale)) {
       score += 12;
     } else if (searchText.includes(normalizedLocale)) {

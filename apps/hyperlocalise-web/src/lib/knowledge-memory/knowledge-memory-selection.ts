@@ -134,6 +134,21 @@ function findGeneralFallback(segments: KnowledgeMemorySegment[]) {
   );
 }
 
+function isPreferredFallbackSegment(segment: KnowledgeMemorySegment) {
+  return segment.headingPath.some((heading) =>
+    /^(brand voice|voice|tone|style|style guide|glossary|terminology)$/i.test(heading.trim()),
+  );
+}
+
+function findDefaultFallbackSegments(segments: KnowledgeMemorySegment[]) {
+  const preferred = segments.filter(isPreferredFallbackSegment);
+  if (preferred.length > 0) {
+    return preferred.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+  }
+
+  return segments.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+}
+
 export function selectKnowledgeMemoryContext(
   input: SelectKnowledgeMemoryContextInput,
   options: SelectKnowledgeMemoryContextOptions = {},
@@ -176,6 +191,16 @@ export function selectKnowledgeMemoryContext(
       wholeMemoryChars: content.length,
       selectedSegments: [general],
       fallbackMode: "general",
+      maxChars,
+    });
+  }
+
+  const fallbackSegments = findDefaultFallbackSegments(segments);
+  if (fallbackSegments.length > 0) {
+    return buildSelectedContext({
+      wholeMemoryChars: content.length,
+      selectedSegments: fallbackSegments,
+      fallbackMode: "fallback",
       maxChars,
     });
   }

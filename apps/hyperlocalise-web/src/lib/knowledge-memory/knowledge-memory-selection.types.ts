@@ -21,6 +21,7 @@ export type KnowledgeMemoryFallbackMode =
   | "whole_small"
   | "selective"
   | "general"
+  | "fallback"
   | "none";
 
 export type SelectedKnowledgeMemorySegment = Pick<

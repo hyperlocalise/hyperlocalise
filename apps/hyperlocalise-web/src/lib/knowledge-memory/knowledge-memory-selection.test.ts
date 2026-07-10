@@ -47,6 +47,64 @@ function longRepresentativeMemory() {
   ].join("\n");
 }
 
+function unrelatedLongMemoryWithoutGeneralHeading() {
+  return [
+    "# Memory.md",
+    "",
+    "## Brand voice",
+    "",
+    "Sound calm, useful, and precise across every translated surface.",
+    "",
+    "## Glossary",
+    "",
+    "- Keep Hyperlocalise unchanged.",
+    "- Keep API unchanged unless a local convention requires expansion.",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) =>
+        [
+          `## Operations note ${index + 1}`,
+          "",
+          `Archive note ${index + 1} for internal process copy.`,
+        ].join("\n"),
+    ),
+  ].join("\n");
+}
+
+function multiLocaleMemoryWithDistractors() {
+  return [
+    "# Memory.md",
+    "",
+    "## French payment voice",
+    "",
+    "### fr-FR",
+    "",
+    "Use formal French for payment confirmation and billing messages.",
+    "",
+    ...Array.from(
+      { length: 5 },
+      (_, index) =>
+        [
+          `## Generic payment note ${index + 1}`,
+          "",
+          "Payment confirmation copy should stay short and direct.",
+        ].join("\n"),
+    ),
+    "",
+    "## Australian checkout voice",
+    "",
+    "### en-AU",
+    "",
+    "Use Australian English spelling and retail phrasing for this locale.",
+    "",
+    ...Array.from(
+      { length: 70 },
+      (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -161,6 +219,38 @@ describe("selectKnowledgeMemoryContext", () => {
 
     expect(selected.compactText).toBe("");
     expect(selected.metrics.fallbackMode).toBe("empty");
+  });
+
+  it("falls back to broadly useful sections instead of dropping long memories", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: unrelatedLongMemoryWithoutGeneralHeading(),
+      targetLocale: "de-DE",
+      sourceText: "Save changes",
+    });
+
+    expect(selected.compactText).toContain("Brand voice");
+    expect(selected.compactText).toContain("Glossary");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeGreaterThan(0);
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("boosts every target locale in multi-target memory selection", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: multiLocaleMemoryWithDistractors(),
+      targetLocales: ["fr-FR", "en-AU"],
+      sourceText: "Payment confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > French payment voice > fr-FR",
+    );
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Australian checkout voice > en-AU",
+    );
   });
 
   it("does not crash on malformed markdown and falls back safely", () => {
