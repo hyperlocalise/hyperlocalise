@@ -59,9 +59,12 @@ jobs:
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
-  web-sync-action-self-test:
-    name: Web Sync Action Self Test
+  web-sync-cli-smoke-test:
+    name: Web Sync CLI Smoke Test
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
     env:
       HYPERLOCALISE_API_KEY: hl_sync_self_test
       HYPERLOCALISE_PROJECT_ID: project_sync_self_test
@@ -75,65 +78,14 @@ jobs:
         with:
           version: 1.8.22
 
-      - name: Run Hyperlocalise upload sync action
-        id: hyperlocalise-sync-upload
-        uses: ./.github/actions/hyperlocalise-web-sync
-        with:
-          mode: upload
-          working-directory: apps/hyperlocalise-web
-          config-path: i18n.yml
-          extract-path: src
-          extract-out-file: lang/en-US.json
-          extract-ignore: |
-            **/*.test.ts
-            **/*.test.tsx
-            **/*.stories.tsx
-            **/*.fixture.ts
-            **/*.e2e.ts
-            **/__tests__/**
-          dry-run: true
-          fail-on-findings: false
-          upload-artifact: false
+      - name: Dry-run sync push
+        run: hl sync push --dry-run
 
-      - name: Run Hyperlocalise download sync action
-        id: hyperlocalise-sync-download
-        uses: ./.github/actions/hyperlocalise-web-sync
-        with:
-          mode: download
-          working-directory: apps/hyperlocalise-web
-          config-path: i18n.yml
-          extract-path: src
-          extract-out-file: lang/en-US.json
-          extract-ignore: |
-            **/*.test.ts
-            **/*.test.tsx
-            **/*.stories.tsx
-            **/*.fixture.ts
-            **/*.e2e.ts
-            **/__tests__/**
-          dry-run: true
-          fail-on-findings: false
-          upload-artifact: false
+      - name: Dry-run sync pull
+        run: hl sync pull --dry-run
 
-      - name: Verify sync action outputs
-        shell: bash
-        env:
-          FINDINGS_DETECTED: ${{ steps.hyperlocalise-sync-download.outputs.findings-detected }}
-          FINDINGS_TOTAL: ${{ steps.hyperlocalise-sync-download.outputs.findings-total }}
-          ERROR_COUNT: ${{ steps.hyperlocalise-sync-download.outputs.error-count }}
-          WARNING_COUNT: ${{ steps.hyperlocalise-sync-download.outputs.warning-count }}
-        run: |
-          set -euo pipefail
-          case "${FINDINGS_DETECTED}" in
-            true|false) ;;
-            *)
-              echo "Unexpected findings-detected output: ${FINDINGS_DETECTED}" >&2
-              exit 1
-              ;;
-          esac
-          [[ "${FINDINGS_TOTAL}" =~ ^[0-9]+$ ]]
-          [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
-          [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
+      - name: Pack locale catalogs
+        run: hl pack
 
   bazel-build-test:
     name: Bazel Build/Test
