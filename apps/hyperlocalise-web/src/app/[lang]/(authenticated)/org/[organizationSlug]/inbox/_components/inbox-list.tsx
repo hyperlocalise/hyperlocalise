@@ -119,7 +119,7 @@ const ConversationListItem = memo(function ConversationListItem({
         </div>
         <TypographyMuted className="mt-1 truncate">
           {conversation.lastMessage
-            ? stripMarkdown(conversation.lastMessage.text)
+            ? stripMarkdown(conversation.lastMessage.text) || "No messages yet"
             : "No messages yet"}
         </TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
