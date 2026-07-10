@@ -55,6 +55,11 @@ Glossary terms for all locales stay in the system prompt (already tagged by loca
 - Sandbox disconnect: retry the same sandbox without `--force` first; recreate only if the session is still unusable.
 - Single-locale jobs use the same multi-locale path with one target.
 
+## Session pagination
+
+Large files paginate with `hl run --max-translations 1000`. See
+[`2026-07-10-run-max-translations-session-limit-design.md`](./2026-07-10-run-max-translations-session-limit-design.md).
+
 ## Testing
 
 - CLI: flat vs nested parse; reject mixed; nested applies across locales; nested + `--prefilled-target-path` errors; unknown locale warns.
