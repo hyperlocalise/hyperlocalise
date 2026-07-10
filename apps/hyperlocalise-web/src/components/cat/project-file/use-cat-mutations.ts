@@ -277,6 +277,9 @@ export function useCatMutations(input: {
       if (mutationInput.force) {
         formData.set("force", "true");
       }
+      if (input.catFile?.provider) {
+        formData.set("externalResourceId", requireProviderExternalResourceId(input.catFile));
+      }
       formData.set("file", mutationInput.file);
 
       const response = await fetch(

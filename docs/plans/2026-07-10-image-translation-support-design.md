@@ -81,7 +81,7 @@ Fetch or load source bytes → AI image edit for locale → store output → att
 ### External TMS
 
 - Image files: `external_tms_files` + `stored_files`; push binary when the adapter supports it.
-- URL fields: same treat-as-image flow; write back HL URL, or upload to the provider when it requires hosted assets.
+- URL fields: treat-as-image + lightbox preview + manual upload write back a Hyperlocalise public media URL as the provider string target. AI regenerate and sync push/pull for external URL images are follow-ups.
 
 ## Errors
 

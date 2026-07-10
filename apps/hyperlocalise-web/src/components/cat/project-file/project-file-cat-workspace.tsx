@@ -615,9 +615,13 @@ export function ProjectFileCatWorkspace({
               treatAsImage: nextTreatAsImage,
             });
           },
-          onRegenerateImage: async (segmentId) => {
-            await regenerateImage({ externalStringId: segmentId });
-          },
+          ...(isNativeProject
+            ? {
+                onRegenerateImage: async (segmentId: string) => {
+                  await regenerateImage({ externalStringId: segmentId });
+                },
+              }
+            : {}),
           onUploadImage: async (segmentId, file) => {
             await uploadImage({ externalStringId: segmentId, file });
           },

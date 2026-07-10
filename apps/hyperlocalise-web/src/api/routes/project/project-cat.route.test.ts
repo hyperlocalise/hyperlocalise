@@ -34,6 +34,7 @@ const {
   loadCatSegmentVisualContextMock,
   generateCatAiRecommendationMock,
   ensureOrganizationProjectRecordMock,
+  createStoredFileMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
@@ -44,6 +45,7 @@ const {
   loadCatSegmentVisualContextMock: vi.fn(),
   generateCatAiRecommendationMock: vi.fn(),
   ensureOrganizationProjectRecordMock: vi.fn(),
+  createStoredFileMock: vi.fn(),
 }));
 
 vi.mock("@/lib/translation/cat", () => ({
@@ -56,6 +58,14 @@ vi.mock("@/lib/projects/organization/organization-project-service", () => ({
   ensureOrganizationProjectRecord: (...args: unknown[]) =>
     ensureOrganizationProjectRecordMock(...args),
 }));
+
+vi.mock("@/lib/file-storage/records", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/file-storage/records")>();
+  return {
+    ...actual,
+    createStoredFile: (...args: unknown[]) => createStoredFileMock(...args),
+  };
+});
 
 vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
@@ -493,6 +503,169 @@ describe("project file CAT routes", () => {
       contentKind: "image_url",
       looksLikeImageUrl: true,
     });
+  });
+
+  it("toggles treat-as-image for external TMS segments and enriches the CAT queue", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    getTmsProviderLiveCatFileMock.mockResolvedValue({
+      sourcePath: "crowdin/home.json",
+      filename: "home.json",
+      provider: {
+        kind: "crowdin",
+        resourceType: "file",
+        externalProjectId: "42",
+        externalResourceId: "101",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: null,
+      },
+      targetLocale: "fr",
+      canEditTranslations: true,
+      truncated: false,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        returnedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+      },
+      segments: [
+        {
+          externalStringId: "1001",
+          key: "banner.url",
+          sourceText: "https://cdn.example.com/banner.png",
+          context: null,
+          type: null,
+        },
+      ],
+      targetsByExternalStringId: {},
+    });
+
+    const treatResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+          externalStringId: "1001",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          treatAsImage: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(treatResponse.status).toBe(200);
+    expect(await treatResponse.json()).toMatchObject({
+      segment: {
+        externalStringId: "1001",
+        contentKind: "image_url",
+        looksLikeImageUrl: true,
+      },
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: { sourcePath: "crowdin/home.json", targetLocale: "fr" },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      externalStringId: "1001",
+      contentKind: "image_url",
+      sourceAssetUrl: "https://cdn.example.com/banner.png",
+      looksLikeImageUrl: true,
+    });
+  });
+
+  it("uploads a translated image for external TMS and writes back a public media URL", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    ensureOrganizationProjectRecordMock.mockResolvedValue(ok("ext:crowdin:42"));
+    createStoredFileMock.mockResolvedValue({
+      id: "file_external-upload",
+      organizationId: "org",
+      projectId: "ext:crowdin:42",
+      contentType: "image/png",
+      filename: "banner-fr.png",
+      metadata: { publicMedia: true },
+    });
+    saveTmsProviderLiveCatTranslationMock.mockResolvedValue({
+      text: "http://localhost:3000/api/public/media/file_external-upload",
+      externalTranslationId: "9001",
+      isApproved: false,
+    });
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set("externalResourceId", "101");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      translation: {
+        text: "http://localhost:3000/api/public/media/file_external-upload",
+        contentKind: "image_url",
+        targetAssetUrl: "http://localhost:3000/api/public/media/file_external-upload",
+      },
+    });
+    expect(createStoredFileMock).toHaveBeenCalled();
+    expect(saveTmsProviderLiveCatTranslationMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      expect.objectContaining({
+        targetLocale: "fr",
+        externalStringId: "1001",
+        externalResourceId: "101",
+        text: "http://localhost:3000/api/public/media/file_external-upload",
+      }),
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
   });
 
   it("posts and resolves native CAT issues", async () => {
