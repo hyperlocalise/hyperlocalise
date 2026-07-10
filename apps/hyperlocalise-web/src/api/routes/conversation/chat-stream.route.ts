@@ -12,6 +12,7 @@ import { db, schema } from "@/lib/database";
 import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
 
 import { conversationIdParamsSchema } from "./conversation.schema";
+import { extractLastUserMessage } from "./chat-stream-message";
 
 const chatRequestBodySchema = z.object({
   id: z.string().optional(),
@@ -27,38 +28,6 @@ const chatRequestBodySchema = z.object({
   trigger: z.string().optional(),
   messageId: z.string().optional(),
 });
-
-function extractLastUserText(messages: Array<{ role: string; parts?: unknown[] }> | undefined) {
-  if (!messages?.length) {
-    return "";
-  }
-
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message?.role !== "user") {
-      continue;
-    }
-
-    const parts = Array.isArray(message.parts) ? message.parts : [];
-    return parts
-      .flatMap((part) => {
-        if (
-          part &&
-          typeof part === "object" &&
-          "type" in part &&
-          part.type === "text" &&
-          "text" in part &&
-          typeof part.text === "string"
-        ) {
-          return [part.text];
-        }
-        return [];
-      })
-      .join("\n");
-  }
-
-  return "";
-}
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -90,27 +59,52 @@ export function createChatStreamRoutes() {
         return c.json({ error: "invalid_chat_payload" }, 400);
       }
 
-      const messageText = extractLastUserText(bodyResult.data.messages);
-      if (!messageText.trim()) {
+      const requestUserMessage = extractLastUserMessage(bodyResult.data.messages);
+      if (!requestUserMessage?.id || !requestUserMessage.text.trim()) {
         return c.json({ error: "invalid_chat_payload" }, 400);
       }
 
-      const [latestUserMessage] = await db
-        .select({ id: schema.interactionMessages.id })
-        .from(schema.interactionMessages)
-        .where(
-          and(
-            eq(schema.interactionMessages.interactionId, conversationId),
-            eq(schema.interactionMessages.senderType, "user"),
-          ),
-        )
-        .orderBy(desc(schema.interactionMessages.createdAt))
-        .limit(1);
+      const [[targetUserMessage], [latestUserMessage]] = await Promise.all([
+        db
+          .select({
+            id: schema.interactionMessages.id,
+            text: schema.interactionMessages.text,
+          })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.id, requestUserMessage.id),
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .limit(1),
+        db
+          .select({ id: schema.interactionMessages.id })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .orderBy(desc(schema.interactionMessages.createdAt))
+          .limit(1),
+      ]);
+
+      if (!targetUserMessage) {
+        return c.json({ error: "user_message_not_found" }, 404);
+      }
+
+      if (!latestUserMessage || latestUserMessage.id !== targetUserMessage.id) {
+        return c.json({ error: "stale_user_message" }, 409);
+      }
+
       const hasTranslationAttachments = await interactionHasTranslationAttachments(conversationId);
 
       return createWebChatAgentUIStreamResponse({
         conversationId,
-        messageText,
+        messageText: targetUserMessage.text,
         toolContext: {
           conversationId,
           organizationId: orgId,
@@ -120,9 +114,7 @@ export function createChatStreamRoutes() {
           db,
         },
         hasTranslationAttachments,
-        usageOperationKey: latestUserMessage
-          ? `chat-agent-turn:${latestUserMessage.id}:agent_runs`
-          : undefined,
+        usageOperationKey: `chat-agent-turn:${targetUserMessage.id}:agent_runs`,
         abortSignal: c.req.raw.signal,
       });
     });
