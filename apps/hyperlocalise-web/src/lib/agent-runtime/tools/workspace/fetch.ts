@@ -5,13 +5,12 @@ import { z } from "zod";
 
 import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
-import { MAX_RESPONSE_BYTES, withPinnedPublicFetch } from "./pinned-fetch";
-export { MAX_RESPONSE_BYTES } from "./pinned-fetch";
 import { redact, truncate } from "./redact";
 
 export const DEFAULT_TIMEOUT_SECONDS = 30;
 export const MAX_TIMEOUT_SECONDS = 120;
 export const MAX_BODY_LENGTH = 100_000;
+export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 const BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
@@ -183,40 +182,36 @@ async function fetchUrl(
   const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1_000);
 
   try {
-    return await withPinnedPublicFetch(
-      url,
-      {
-        method: "GET",
-        redirect: "error",
-        signal: controller.signal,
-        headers: requestHeaders(format, userAgent),
-      },
-      async (response) => {
-        if (!response.ok) {
-          if (isCloudflareChallenge(response)) {
-            throw new CloudflareChallengeError();
-          }
-          throw new Error(`HTTP ${response.status}`);
-        }
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "error",
+      signal: controller.signal,
+      headers: requestHeaders(format, userAgent),
+    });
 
-        const contentType = response.headers.get("content-type") ?? "";
-        const mime = mimeFrom(contentType);
+    if (!response.ok) {
+      if (isCloudflareChallenge(response)) {
+        throw new CloudflareChallengeError();
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-        if (isImageAttachment(mime)) {
-          throw new Error(`Unsupported fetched image content type: ${mime}`);
-        }
+    const contentType = response.headers.get("content-type") ?? "";
+    const mime = mimeFrom(contentType);
 
-        if (!isTextualMime(mime)) {
-          throw new Error(`Unsupported fetched file content type: ${mime}`);
-        }
+    if (isImageAttachment(mime)) {
+      throw new Error(`Unsupported fetched image content type: ${mime}`);
+    }
 
-        return {
-          status: response.status,
-          body: await readBoundedResponseBody(response),
-          contentType,
-        };
-      },
-    );
+    if (!isTextualMime(mime)) {
+      throw new Error(`Unsupported fetched file content type: ${mime}`);
+    }
+
+    return {
+      status: response.status,
+      body: await readBoundedResponseBody(response),
+      contentType,
+    };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error("Request timed out");
@@ -273,7 +268,7 @@ export function createFetchTool() {
   return tool({
     description: `Fetch content from a public HTTP(S) URL and return it as text, markdown, or HTML. Markdown is the default for HTML pages.
 
-Use a more targeted tool when one is available. This tool is read-only. Hostnames are DNS-vetted and connections are pinned to resolved public addresses before the request is sent.
+Use a more targeted tool when one is available. This tool is read-only. Only public http(s) hosts are allowed.
 
 WHEN TO USE:
 - Reading public documentation, articles, or reference pages
@@ -298,30 +293,26 @@ USAGE:
         const headTimeout = setTimeout(() => controller.abort(), timeout * 1_000);
 
         try {
-          return await withPinnedPublicFetch(
-            url,
-            {
-              method: "HEAD",
-              redirect: "error",
-              signal: controller.signal,
-            },
-            async (response) => {
-              if (response.status >= 300 && response.status < 400) {
-                return {
-                  success: false as const,
-                  error: redact("HTTP redirects are not allowed"),
-                };
-              }
+          const response = await fetch(url, {
+            method: "HEAD",
+            redirect: "error",
+            signal: controller.signal,
+          });
 
-              return {
-                success: true as const,
-                status: response.status,
-                url,
-                body: "",
-                truncated: false,
-              };
-            },
-          );
+          if (response.status >= 300 && response.status < 400) {
+            return {
+              success: false as const,
+              error: redact("HTTP redirects are not allowed"),
+            };
+          }
+
+          return {
+            success: true as const,
+            status: response.status,
+            url,
+            body: "",
+            truncated: false,
+          };
         } catch (error) {
           return {
             success: false as const,

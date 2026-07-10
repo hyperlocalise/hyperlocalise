@@ -7,8 +7,8 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
-import { withPinnedPublicFetch } from "@/lib/agent-runtime/tools/workspace/pinned-fetch";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { formatSsrfGuardError, validatePublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 export type ProjectImageVariantStatus =
   (typeof schema.projectTranslationStatusEnum.enumValues)[number];
@@ -193,35 +193,42 @@ async function loadSourceImageBytes(input: {
 export async function fetchImageBytesFromUrl(
   url: string,
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
-  try {
-    return await withPinnedPublicFetch(url, { method: "GET" }, async (response) => {
-      if (!response.ok) {
-        return err({
-          code: "fetch_failed",
-          message: `image fetch failed with status ${response.status}`,
-        });
-      }
-
-      const contentType = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
-      if (!contentType.toLowerCase().startsWith("image/")) {
-        return err({ code: "unsupported_image_response" });
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const content = Buffer.from(arrayBuffer);
-      let filename = "image.png";
-      try {
-        const pathname = new URL(url).pathname;
-        const base = pathname.split("/").filter(Boolean).at(-1);
-        if (base) {
-          filename = base;
-        }
-      } catch {
-        // keep default
-      }
-
-      return ok({ content, contentType, filename });
+  const urlResult = validatePublicHttpUrl(url);
+  if (isErr(urlResult)) {
+    return err({
+      code: "fetch_failed",
+      message: formatSsrfGuardError(urlResult.error),
     });
+  }
+
+  try {
+    const response = await fetch(url, { method: "GET", redirect: "error" });
+    if (!response.ok) {
+      return err({
+        code: "fetch_failed",
+        message: `image fetch failed with status ${response.status}`,
+      });
+    }
+
+    const contentType = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      return err({ code: "unsupported_image_response" });
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const content = Buffer.from(arrayBuffer);
+    let filename = "image.png";
+    try {
+      const pathname = new URL(url).pathname;
+      const base = pathname.split("/").filter(Boolean).at(-1);
+      if (base) {
+        filename = base;
+      }
+    } catch {
+      // keep default
+    }
+
+    return ok({ content, contentType, filename });
   } catch (error) {
     return err({
       code: "fetch_failed",

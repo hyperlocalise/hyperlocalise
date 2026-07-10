@@ -7,20 +7,9 @@ import {
   isAllowedWebUrl,
   isHtmlContent,
   looksLikeHtml,
+  MAX_RESPONSE_BYTES,
   readBoundedResponseBody,
 } from "./fetch";
-import { MAX_RESPONSE_BYTES } from "./pinned-fetch";
-
-vi.mock("./pinned-fetch", () => ({
-  MAX_RESPONSE_BYTES: 5 * 1024 * 1024,
-  withPinnedPublicFetch: vi.fn(
-    async (
-      url: string,
-      init: RequestInit | undefined,
-      handler: (response: Response) => Promise<unknown>,
-    ) => handler(await globalThis.fetch(url, init)),
-  ),
-}));
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
 
@@ -128,24 +117,6 @@ describe("createFetchTool", () => {
     const tool = createFetchTool();
     const result = await tool.execute!({ url: "https://example.com/page" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, status: 200, body: "ok body" });
-  });
-
-  it("rejects DNS-vetted hosts that resolve to restricted addresses", async () => {
-    const { withPinnedPublicFetch } = await import("./pinned-fetch");
-    vi.mocked(withPinnedPublicFetch).mockRejectedValueOnce(
-      new Error("URL host resolves to a private or restricted address."),
-    );
-
-    const tool = createFetchTool();
-    const result = await tool.execute!(
-      { url: "https://rebind.example.com/internal" },
-      toolCallInfo,
-    );
-
-    expect(result).toMatchObject({
-      success: false,
-      error: "URL host resolves to a private or restricted address.",
-    });
   });
 
   it("returns markdown by default for HTML pages", async () => {

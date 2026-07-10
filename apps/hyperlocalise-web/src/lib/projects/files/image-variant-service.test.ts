@@ -3,13 +3,8 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { regenerateImageFromAttachment, withPinnedPublicFetch } = vi.hoisted(() => ({
+const { regenerateImageFromAttachment } = vi.hoisted(() => ({
   regenerateImageFromAttachment: vi.fn(),
-  withPinnedPublicFetch: vi.fn(),
-}));
-
-vi.mock("@/lib/agent-runtime/tools/workspace/pinned-fetch", () => ({
-  withPinnedPublicFetch,
 }));
 
 vi.mock("@/lib/agents/image-generation", () => ({
@@ -46,23 +41,27 @@ afterEach(async () => {
 });
 
 describe("fetchImageBytesFromUrl", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it("returns image bytes with a normalized content type and URL filename", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
+    globalThis.fetch = vi.fn(
+      async () =>
         new Response(Buffer.from("source-image"), {
           status: 200,
           headers: { "content-type": "image/png; charset=binary" },
         }),
-      ),
-    );
+    ) as typeof fetch;
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png?v=1");
 
-    expect(withPinnedPublicFetch).toHaveBeenCalledWith(
-      "https://cdn.example.com/assets/hero.png?v=1",
-      { method: "GET" },
-      expect.any(Function),
-    );
+    expect(globalThis.fetch).toHaveBeenCalledWith("https://cdn.example.com/assets/hero.png?v=1", {
+      method: "GET",
+      redirect: "error",
+    });
     expect(isOk(result)).toBe(true);
     if (isErr(result)) {
       throw new Error("expected image fetch to succeed");
@@ -75,14 +74,13 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("maps non-OK responses to fetch_failed without reading them as images", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
+    globalThis.fetch = vi.fn(
+      async () =>
         new Response("bad gateway", {
           status: 502,
           headers: { "content-type": "image/png" },
         }),
-      ),
-    );
+    ) as typeof fetch;
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
@@ -97,14 +95,13 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("rejects successful responses that are not images", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
+    globalThis.fetch = vi.fn(
+      async () =>
         new Response("<html></html>", {
           status: 200,
           headers: { "content-type": "text/html; charset=utf-8" },
         }),
-      ),
-    );
+    ) as typeof fetch;
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
@@ -115,24 +112,49 @@ describe("fetchImageBytesFromUrl", () => {
     expect(result.error).toEqual({ code: "unsupported_image_response" });
   });
 
-  it("maps pinned fetch failures to fetch_failed", async () => {
-    withPinnedPublicFetch.mockRejectedValue(new Error("private address blocked"));
+  it("maps fetch failures to fetch_failed", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    }) as typeof fetch;
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
     expect(isErr(result)).toBe(true);
     if (isOk(result)) {
-      throw new Error("expected pinned fetch error to fail");
+      throw new Error("expected fetch error to fail");
     }
     expect(result.error).toEqual({
       code: "fetch_failed",
-      message: "private address blocked",
+      message: "network down",
     });
+  });
+
+  it("rejects blocked hosts without fetching", async () => {
+    globalThis.fetch = vi.fn() as typeof fetch;
+
+    const result = await fetchImageBytesFromUrl("http://127.0.0.1/secret.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected blocked host to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: "URL host is not allowed.",
+    });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
 
 describe("image variant approved locks", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it("does not localize over an approved variant unless forced", async () => {
+    globalThis.fetch = vi.fn() as typeof fetch;
     const { organization, project } = await createStoredProjectFixture();
     await db.insert(schema.projectImageVariants).values({
       organizationId: organization.id,
@@ -157,7 +179,7 @@ describe("image variant approved locks", () => {
       throw new Error("expected approved variant to remain locked");
     }
     expect(result.error).toEqual({ code: "approved_locked" });
-    expect(withPinnedPublicFetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
   });
 
