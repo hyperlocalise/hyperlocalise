@@ -693,6 +693,11 @@ export class CatWorkspaceOrchestrator {
         return;
       }
 
+      if (existingDraft.targetText.trim() && !targetText.trim()) {
+        existingDraft.applyServerStatus(status);
+        return;
+      }
+
       existingDraft.applyServerTarget(targetText, status);
       return;
     }

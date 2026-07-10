@@ -24,6 +24,7 @@ import {
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
+import { sanitizeInteractionMessagesForRole } from "./conversation-message-parts";
 import {
   conversationIdParamsSchema,
   createConversationRequestSchema,
@@ -423,11 +424,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(schema.interactionMessages.createdAt);
+      const messages = sanitizeInteractionMessagesForRole(
+        await db
+          .select()
+          .from(schema.interactionMessages)
+          .where(eq(schema.interactionMessages.interactionId, conversationId))
+          .orderBy(schema.interactionMessages.createdAt),
+        c.var.auth.membership.role,
+      );
 
       return c.json({ conversation, messages }, 200);
     })
@@ -439,14 +443,19 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(desc(schema.interactionMessages.createdAt))
-        .limit(50);
+      const messages = sanitizeInteractionMessagesForRole(
+        (
+          await db
+            .select()
+            .from(schema.interactionMessages)
+            .where(eq(schema.interactionMessages.interactionId, conversationId))
+            .orderBy(desc(schema.interactionMessages.createdAt))
+            .limit(50)
+        ).reverse(),
+        c.var.auth.membership.role,
+      );
 
-      return c.json({ messages: messages.reverse() }, 200);
+      return c.json({ messages }, 200);
     })
     .post(
       "/:conversationId/messages",

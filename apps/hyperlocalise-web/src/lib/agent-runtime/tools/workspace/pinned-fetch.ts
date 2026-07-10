@@ -36,6 +36,7 @@ export async function withPinnedPublicFetch<T>(
       ...init,
       headers,
       dispatcher,
+      redirect: init?.redirect ?? "error",
     } as UndiciRequestInit;
 
     const response = (await undiciFetch(pinned.requestUrl, requestInit)) as unknown as Response;

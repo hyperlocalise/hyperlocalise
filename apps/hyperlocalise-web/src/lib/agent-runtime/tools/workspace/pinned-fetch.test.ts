@@ -56,6 +56,18 @@ describe("withPinnedPublicFetch", () => {
     expect(undiciMock.close).toHaveBeenCalled();
   });
 
+  it("rejects HTTP redirects instead of following them to a new host", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    undiciMock.fetch.mockResolvedValue(new Response("ok", { status: 200 }));
+
+    await withPinnedPublicFetch("https://api.example.com/image.png", undefined, async () => "ok");
+
+    expect(undiciMock.fetch).toHaveBeenCalledWith(
+      "https://93.184.216.34/image.png",
+      expect.objectContaining({ redirect: "error" }),
+    );
+  });
+
   it("closes the dispatcher only after the response handler finishes", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     undiciMock.fetch.mockResolvedValue(
