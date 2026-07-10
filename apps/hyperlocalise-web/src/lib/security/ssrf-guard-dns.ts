@@ -1,49 +1,30 @@
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-import {
-  isBlockedHost,
-  normalizeHostname,
-  type SsrfGuardError,
-  validatePublicHttpUrl,
-} from "./ssrf-guard";
+import { isBlockedHost, normalizeHostname, type SsrfGuardError } from "./ssrf-guard";
 
-export type PinnedHttpConnectTarget = {
-  requestUrl: string;
-  hostHeader?: string;
-  connect: {
-    host: string;
-    port: number;
-    servername?: string;
-  };
+export type ResolvedPublicHostAddress = {
+  address: string;
+  family: 4 | 6;
 };
 
-export async function resolvePinnedHttpConnectTarget(
-  url: string,
-): Promise<Result<PinnedHttpConnectTarget, SsrfGuardError>> {
-  const urlResult = validatePublicHttpUrl(url);
-  if (isErr(urlResult)) {
-    return urlResult;
+export async function resolvePublicHostAddress(
+  hostname: string,
+): Promise<Result<ResolvedPublicHostAddress, SsrfGuardError>> {
+  const normalized = normalizeHostname(hostname);
+  if (!normalized || isBlockedHost(normalized)) {
+    return err({ code: "host_not_allowed" });
   }
 
-  const parsed = urlResult.value;
-  const hostname = normalizeHostname(parsed.hostname);
-  const port = parsed.port ? Number(parsed.port) : parsed.protocol === "https:" ? 443 : 80;
-  const servername = parsed.protocol === "https:" ? hostname : undefined;
-
-  if (looksLikeIpAddress(hostname)) {
-    if (isBlockedHost(hostname)) {
-      return err({ code: "host_not_allowed" });
-    }
-
+  if (looksLikeIpAddress(normalized)) {
     return ok({
-      requestUrl: parsed.toString(),
-      connect: { host: hostname, port, servername },
+      address: normalized,
+      family: normalized.includes(":") ? 6 : 4,
     });
   }
 
   const dns = await import("node:dns/promises");
   const lookupResult = await fromThrowableAsync(
-    dns.lookup(hostname, { all: true, verbatim: true }),
+    dns.lookup(normalized, { all: true, verbatim: true }),
   );
   if (isErr(lookupResult)) {
     return err({ code: "host_unresolvable" });
@@ -66,62 +47,21 @@ export async function resolvePinnedHttpConnectTarget(
     results[0];
 
   return ok({
-    requestUrl: toPinnedIpUrl(parsed, preferred.address),
-    hostHeader: parsed.host,
-    connect: {
-      host: preferred.address,
-      port,
-      servername,
-    },
+    address: preferred.address,
+    family: preferred.family === 6 ? 6 : 4,
   });
 }
 
 export async function resolveResolvablePublicHost(
   hostname: string,
 ): Promise<Result<void, SsrfGuardError>> {
-  const normalized = normalizeHostname(hostname);
-  if (!normalized || isBlockedHost(normalized)) {
-    return err({ code: "host_not_allowed" });
+  const result = await resolvePublicHostAddress(hostname);
+  if (isErr(result)) {
+    return result;
   }
-
-  if (looksLikeIpAddress(normalized)) {
-    return ok(undefined);
-  }
-
-  const dns = await import("node:dns/promises");
-  const lookupResult = await fromThrowableAsync(
-    dns.lookup(normalized, { all: true, verbatim: true }),
-  );
-  if (isErr(lookupResult)) {
-    return err({ code: "host_unresolvable" });
-  }
-
-  const results = lookupResult.value;
-  if (!results.length) {
-    return err({ code: "host_unresolvable" });
-  }
-
-  for (const result of results) {
-    if (isBlockedHost(result.address)) {
-      return err({ code: "host_resolves_to_restricted_address" });
-    }
-  }
-
   return ok(undefined);
-}
-
-export async function resolvePublicHttpUrl(
-  url: string,
-): Promise<Result<PinnedHttpConnectTarget, SsrfGuardError>> {
-  return resolvePinnedHttpConnectTarget(url);
 }
 
 function looksLikeIpAddress(hostname: string): boolean {
   return hostname.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
-}
-
-function toPinnedIpUrl(parsed: URL, address: string): string {
-  const pinned = new URL(parsed.toString());
-  pinned.hostname = address;
-  return pinned.toString();
 }

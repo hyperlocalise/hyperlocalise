@@ -461,7 +461,7 @@ export async function localizeImageVariantForJobStep(input: {
   "use step";
   const { getRepositorySourceFileVersionForStoredFile } =
     await import("@/lib/file-storage/records");
-  const { localizeAndStoreImageVariant } =
+  const { getImageVariant, localizeAndStoreImageVariant } =
     await import("@/lib/projects/files/image-variant-service");
   const { localizedImageOutputFilename } = await import("@/lib/agents/image-localization");
 
@@ -469,6 +469,12 @@ export async function localizeImageVariantForJobStep(input: {
     fileId: input.sourceStoredFileId,
     organizationId: input.organizationId,
   });
+
+  const filename = localizedImageOutputFilename(
+    input.sourcePath.split("/").at(-1) ?? "image.png",
+    input.targetLocale,
+    "image/png",
+  );
 
   const result = await localizeAndStoreImageVariant({
     organizationId: input.organizationId,
@@ -484,18 +490,31 @@ export async function localizeImageVariantForJobStep(input: {
   });
 
   if (!result.ok) {
+    if (result.error.code === "approved_locked") {
+      const existing = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+      });
+
+      if (!existing?.storedFileId) {
+        throw new Error("image localization failed: approved_locked");
+      }
+
+      return {
+        fileId: existing.storedFileId,
+        locale: input.targetLocale,
+        filename,
+      };
+    }
+
     throw new Error(`image localization failed: ${result.error.code}`);
   }
 
   if (!result.value.storedFileId) {
     throw new Error("image localization produced no stored file");
   }
-
-  const filename = localizedImageOutputFilename(
-    input.sourcePath.split("/").at(-1) ?? "image.png",
-    input.targetLocale,
-    "image/png",
-  );
 
   return {
     fileId: result.value.storedFileId,

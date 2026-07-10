@@ -3,13 +3,28 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { regenerateImageFromAttachment, withPinnedPublicFetch } = vi.hoisted(() => ({
+const { regenerateImageFromAttachment } = vi.hoisted(() => ({
   regenerateImageFromAttachment: vi.fn(),
-  withPinnedPublicFetch: vi.fn(),
 }));
 
-vi.mock("@/lib/agent-runtime/tools/workspace/pinned-fetch", () => ({
-  withPinnedPublicFetch,
+const dnsMock = vi.hoisted(() => ({
+  lookup: vi.fn(),
+}));
+
+const undiciMock = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  close: vi.fn(),
+}));
+
+vi.mock("node:dns/promises", () => ({
+  lookup: dnsMock.lookup,
+}));
+
+vi.mock("undici", () => ({
+  Agent: vi.fn(function Agent() {
+    return { close: undiciMock.close };
+  }),
+  fetch: undiciMock.fetch,
 }));
 
 vi.mock("@/lib/agents/image-generation", () => ({
@@ -19,6 +34,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr, isOk } from "@/lib/primitives/result/results";
+import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
 import {
   fetchImageBytesFromUrl,
@@ -35,6 +51,8 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  undiciMock.close.mockResolvedValue(undefined);
   regenerateImageFromAttachment.mockResolvedValue({
     image: Buffer.from("localized-image"),
     mimeType: "image/png",
@@ -47,21 +65,22 @@ afterEach(async () => {
 
 describe("fetchImageBytesFromUrl", () => {
   it("returns image bytes with a normalized content type and URL filename", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
-        new Response(Buffer.from("source-image"), {
-          status: 200,
-          headers: { "content-type": "image/png; charset=binary" },
-        }),
-      ),
+    undiciMock.fetch.mockResolvedValue(
+      new Response(Buffer.from("source-image"), {
+        status: 200,
+        headers: { "content-type": "image/png; charset=binary" },
+      }),
     );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png?v=1");
 
-    expect(withPinnedPublicFetch).toHaveBeenCalledWith(
+    expect(undiciMock.fetch).toHaveBeenCalledWith(
       "https://cdn.example.com/assets/hero.png?v=1",
-      { method: "GET" },
-      expect.any(Function),
+      expect.objectContaining({
+        method: "GET",
+        redirect: "error",
+        dispatcher: expect.anything(),
+      }),
     );
     expect(isOk(result)).toBe(true);
     if (isErr(result)) {
@@ -75,13 +94,11 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("maps non-OK responses to fetch_failed without reading them as images", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
-        new Response("bad gateway", {
-          status: 502,
-          headers: { "content-type": "image/png" },
-        }),
-      ),
+    undiciMock.fetch.mockResolvedValue(
+      new Response("bad gateway", {
+        status: 502,
+        headers: { "content-type": "image/png" },
+      }),
     );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
@@ -97,13 +114,11 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("rejects successful responses that are not images", async () => {
-    withPinnedPublicFetch.mockImplementation(async (_url, _init, handler) =>
-      handler(
-        new Response("<html></html>", {
-          status: 200,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        }),
-      ),
+    undiciMock.fetch.mockResolvedValue(
+      new Response("<html></html>", {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
     );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
@@ -115,18 +130,75 @@ describe("fetchImageBytesFromUrl", () => {
     expect(result.error).toEqual({ code: "unsupported_image_response" });
   });
 
-  it("maps pinned fetch failures to fetch_failed", async () => {
-    withPinnedPublicFetch.mockRejectedValue(new Error("private address blocked"));
+  it("maps fetch failures to fetch_failed", async () => {
+    undiciMock.fetch.mockRejectedValue(new Error("network down"));
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
     expect(isErr(result)).toBe(true);
     if (isOk(result)) {
-      throw new Error("expected pinned fetch error to fail");
+      throw new Error("expected fetch error to fail");
     }
     expect(result.error).toEqual({
       code: "fetch_failed",
-      message: "private address blocked",
+      message: "network down",
+    });
+  });
+
+  it("rejects blocked hosts without fetching", async () => {
+    const result = await fetchImageBytesFromUrl("http://127.0.0.1/secret.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected blocked host to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: "URL host is not allowed.",
+    });
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects hostnames that resolve to restricted addresses", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
+
+    const result = await fetchImageBytesFromUrl("https://rebind.example.com/secret.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected DNS-restricted host to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: "URL host resolves to a private or restricted address.",
+    });
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized image bodies", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_PUBLIC_HTTP_RESPONSE_BYTES));
+        controller.enqueue(new Uint8Array(1));
+        controller.close();
+      },
+    });
+    undiciMock.fetch.mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }),
+    );
+
+    const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/huge.png");
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected oversized image to fail");
+    }
+    expect(result.error).toEqual({
+      code: "fetch_failed",
+      message: `Response too large (exceeds ${MAX_PUBLIC_HTTP_RESPONSE_BYTES} byte limit)`,
     });
   });
 });
@@ -157,7 +229,7 @@ describe("image variant approved locks", () => {
       throw new Error("expected approved variant to remain locked");
     }
     expect(result.error).toEqual({ code: "approved_locked" });
-    expect(withPinnedPublicFetch).not.toHaveBeenCalled();
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
     expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
   });
 

@@ -7,8 +7,12 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
-import { withPinnedPublicFetch } from "@/lib/agent-runtime/tools/workspace/pinned-fetch";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  MAX_PUBLIC_HTTP_RESPONSE_BYTES,
+  readBoundedResponseBody,
+  withPublicHttpFetch,
+} from "@/lib/security/public-http-fetch";
 
 export type ProjectImageVariantStatus =
   (typeof schema.projectTranslationStatusEnum.enumValues)[number];
@@ -194,34 +198,39 @@ export async function fetchImageBytesFromUrl(
   url: string,
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
   try {
-    return await withPinnedPublicFetch(url, { method: "GET" }, async (response) => {
-      if (!response.ok) {
-        return err({
-          code: "fetch_failed",
-          message: `image fetch failed with status ${response.status}`,
-        });
-      }
-
-      const contentType = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
-      if (!contentType.toLowerCase().startsWith("image/")) {
-        return err({ code: "unsupported_image_response" });
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const content = Buffer.from(arrayBuffer);
-      let filename = "image.png";
-      try {
-        const pathname = new URL(url).pathname;
-        const base = pathname.split("/").filter(Boolean).at(-1);
-        if (base) {
-          filename = base;
+    return await withPublicHttpFetch(
+      url,
+      { method: "GET", redirect: "error" },
+      async (response) => {
+        if (!response.ok) {
+          return err({
+            code: "fetch_failed",
+            message: `image fetch failed with status ${response.status}`,
+          });
         }
-      } catch {
-        // keep default
-      }
 
-      return ok({ content, contentType, filename });
-    });
+        const contentType =
+          (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
+        if (!contentType.toLowerCase().startsWith("image/")) {
+          return err({ code: "unsupported_image_response" });
+        }
+
+        const body = await readBoundedResponseBody(response, MAX_PUBLIC_HTTP_RESPONSE_BYTES);
+        const content = Buffer.from(body);
+        let filename = "image.png";
+        try {
+          const pathname = new URL(url).pathname;
+          const base = pathname.split("/").filter(Boolean).at(-1);
+          if (base) {
+            filename = base;
+          }
+        } catch {
+          // keep default
+        }
+
+        return ok({ content, contentType, filename });
+      },
+    );
   } catch (error) {
     return err({
       code: "fetch_failed",

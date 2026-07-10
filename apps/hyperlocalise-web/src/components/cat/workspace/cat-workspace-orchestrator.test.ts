@@ -325,6 +325,33 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
   });
 
+  it("does not clear TM autofill when lazy target sync returns an empty server target", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
+      }),
+    );
+
+    store.applySegmentTarget("seg-01", {
+      text: "",
+      externalTranslationId: null,
+      isApproved: false,
+    });
+    store.setTargetText("seg-01", "Bonjour depuis la MT");
+
+    store.applySegmentTarget("seg-01", {
+      text: "",
+      externalTranslationId: null,
+      isApproved: false,
+    });
+
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour depuis la MT",
+    });
+    expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
+  });
+
   it("keeps lazy-loaded comments when queue snapshots omit comment bodies", () => {
     const queueState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
