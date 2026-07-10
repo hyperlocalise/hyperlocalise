@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import { getAppShellBreadcrumbs, getAppShellTitle } from "./app-shell-title";
+
+const intl = getIntlShape("en") as IntlShape;
 
 describe("getAppShellTitle", () => {
   it.each([
@@ -33,58 +38,58 @@ describe("getAppShellTitle", () => {
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
   ])("returns the route title for %s", (pathname, title) => {
-    expect(getAppShellTitle(pathname)).toBe(title);
+    expect(getAppShellTitle(pathname, intl)).toBe(title);
   });
 
   it("falls back to overview for unknown or empty paths", () => {
-    expect(getAppShellTitle(null)).toBe("Overview");
-    expect(getAppShellTitle("")).toBe("Overview");
-    expect(getAppShellTitle("/org/acme/unknown")).toBe("Overview");
+    expect(getAppShellTitle(null, intl)).toBe("Overview");
+    expect(getAppShellTitle("", intl)).toBe("Overview");
+    expect(getAppShellTitle("/org/acme/unknown", intl)).toBe("Overview");
   });
 
   it("falls back to overview when the org slug is missing", () => {
-    expect(getAppShellTitle("/org")).toBe("Overview");
-    expect(getAppShellTitle("/org/")).toBe("Overview");
-    expect(getAppShellTitle("/dashboard")).toBe("Overview");
+    expect(getAppShellTitle("/org", intl)).toBe("Overview");
+    expect(getAppShellTitle("/org/", intl)).toBe("Overview");
+    expect(getAppShellTitle("/dashboard", intl)).toBe("Overview");
   });
 
   it("resolves the title from locale-prefixed paths", () => {
-    expect(getAppShellTitle("/en/org/acme/inbox")).toBe("Inbox");
-    expect(getAppShellTitle("/en/org/acme/settings/billing")).toBe("Billing");
+    expect(getAppShellTitle("/en/org/acme/inbox", intl)).toBe("Inbox");
+    expect(getAppShellTitle("/en/org/acme/settings/billing", intl)).toBe("Billing");
   });
 
   it("uses the project id as the title for unknown project sections", () => {
-    expect(getAppShellTitle("/org/acme/projects/proj_1/unknown-section")).toBe("proj_1");
+    expect(getAppShellTitle("/org/acme/projects/proj_1/unknown-section", intl)).toBe("proj_1");
   });
 });
 
 describe("getAppShellBreadcrumbs", () => {
   it("returns a single crumb for top-level routes", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/inbox")).toEqual([{ label: "Inbox" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/inbox", intl)).toEqual([{ label: "Inbox" }]);
   });
 
   it("returns settings breadcrumbs for settings subpages", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/settings/account")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/settings/account", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
       { label: "Account" },
     ]);
   });
 
   it("returns teams breadcrumbs for team detail pages", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/teams")).toEqual([{ label: "Teams" }]);
-    expect(getAppShellBreadcrumbs("/org/acme/teams/team_1")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/teams", intl)).toEqual([{ label: "Teams" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/teams/team_1", intl)).toEqual([
       { label: "Teams", href: "/org/acme/teams" },
       { label: "team_1" },
     ]);
   });
 
   it("returns members breadcrumbs", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/members")).toEqual([{ label: "Members" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/members", intl)).toEqual([{ label: "Members" }]);
   });
 
   it("returns project breadcrumbs with the project name", () => {
     expect(
-      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", { projectName: "Checkout" }),
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", intl, { projectName: "Checkout" }),
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
@@ -93,7 +98,7 @@ describe("getAppShellBreadcrumbs", () => {
   });
 
   it("falls back to the project id when the project name is unavailable", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/jobs")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/jobs", intl)).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "proj_1", href: "/org/acme/projects/proj_1" },
       { label: "Jobs" },
@@ -102,60 +107,62 @@ describe("getAppShellBreadcrumbs", () => {
 
   it("returns project overview breadcrumbs without a section crumb", () => {
     expect(
-      getAppShellBreadcrumbs("/org/acme/projects/proj_1", { projectName: "Checkout" }),
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1", intl, { projectName: "Checkout" }),
     ).toEqual([{ label: "Projects", href: "/org/acme/projects" }, { label: "Checkout" }]);
-    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1", intl)).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "proj_1" },
     ]);
   });
 
   it("falls back to the dashboard crumb when there is no org route", () => {
-    expect(getAppShellBreadcrumbs(null)).toEqual([{ label: "Overview" }]);
-    expect(getAppShellBreadcrumbs("")).toEqual([{ label: "Overview" }]);
-    expect(getAppShellBreadcrumbs("/org")).toEqual([{ label: "Overview" }]);
-    expect(getAppShellBreadcrumbs("/dashboard")).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs(null, intl)).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("", intl)).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("/org", intl)).toEqual([{ label: "Overview" }]);
+    expect(getAppShellBreadcrumbs("/dashboard", intl)).toEqual([{ label: "Overview" }]);
   });
 
   it("resolves breadcrumbs from locale-prefixed paths", () => {
-    expect(getAppShellBreadcrumbs("/en/org/acme/settings/account")).toEqual([
+    expect(getAppShellBreadcrumbs("/en/org/acme/settings/account", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
       { label: "Account" },
     ]);
   });
 
   it("returns the settings section verbatim for unknown subsections", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/settings/unknown")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/settings/unknown", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
       { label: "unknown" },
     ]);
   });
 
   it("decodes encoded team detail segments", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/teams/team%20alpha")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/teams/team%20alpha", intl)).toEqual([
       { label: "Teams", href: "/org/acme/teams" },
       { label: "team alpha" },
     ]);
   });
 
   it("keeps a malformed team segment untouched when it cannot be decoded", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/teams/%E0%A4%A")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/teams/%E0%A4%A", intl)).toEqual([
       { label: "Teams", href: "/org/acme/teams" },
       { label: "%E0%A4%A" },
     ]);
   });
 
   it("decodes encoded external project ids while keeping hrefs encoded", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/projects/ext%3Acrowdin%3A902807/files")).toEqual([
-      { label: "Projects", href: "/org/acme/projects" },
-      { label: "ext:crowdin:902807", href: "/org/acme/projects/ext%3Acrowdin%3A902807" },
-      { label: "Files" },
-    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/projects/ext%3Acrowdin%3A902807/files", intl)).toEqual(
+      [
+        { label: "Projects", href: "/org/acme/projects" },
+        { label: "ext:crowdin:902807", href: "/org/acme/projects/ext%3Acrowdin%3A902807" },
+        { label: "Files" },
+      ],
+    );
   });
 
   it("ignores unknown project sections and keeps the project crumb", () => {
     expect(
-      getAppShellBreadcrumbs("/org/acme/projects/proj_1/unknown-section", {
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/unknown-section", intl, {
         projectName: "Checkout",
       }),
     ).toEqual([{ label: "Projects", href: "/org/acme/projects" }, { label: "Checkout" }]);
@@ -163,7 +170,7 @@ describe("getAppShellBreadcrumbs", () => {
 
   it("falls back to the project id when the project name is only whitespace", () => {
     expect(
-      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", { projectName: "   " }),
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", intl, { projectName: "   " }),
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "proj_1", href: "/org/acme/projects/proj_1" },

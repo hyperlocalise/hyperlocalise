@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
+import { useIntl } from "react-intl";
 
 import {
   Breadcrumb,
@@ -28,6 +29,7 @@ type AppShellBreadcrumbProps = {
 export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
   organizationSlug,
 }: AppShellBreadcrumbProps) {
+  const intl = useIntl();
   const store = useAppShellStore();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
@@ -52,7 +54,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
   });
 
   const breadcrumbs = store.breadcrumb.applyOverrides(
-    getAppShellBreadcrumbs(pathname, {
+    getAppShellBreadcrumbs(pathname, intl, {
       projectName: projectQuery.data?.name,
     }),
   );

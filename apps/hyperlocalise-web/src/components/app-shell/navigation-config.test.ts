@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
@@ -14,6 +17,8 @@ import {
   parseProjectRoute,
   stripAppLocalePrefix,
 } from "./navigation-config";
+
+const intl = getIntlShape("en") as IntlShape;
 
 describe("navigation-config", () => {
   it("encodes external project ids as one path segment and parses them back", () => {
@@ -145,7 +150,7 @@ describe("path builders", () => {
   });
 
   it("builds global navigation groups scoped to the organization", () => {
-    const groups = buildGlobalNavigationGroups("acme");
+    const groups = buildGlobalNavigationGroups("acme", intl);
     const items = groups.flatMap((group) => group.items);
     const byLabel = new Map(items.map((item) => [item.label, item]));
 
@@ -156,7 +161,7 @@ describe("path builders", () => {
   });
 
   it("builds project navigation items scoped to the project", () => {
-    const items = buildProjectNavigationItems("acme", "proj_1");
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
 
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
