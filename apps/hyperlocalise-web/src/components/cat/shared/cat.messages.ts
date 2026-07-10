@@ -499,6 +499,51 @@ export const catEditorPanelMessages = defineMessages({
     id: "wnYoaQhT6i",
     description: "Section heading for the source string with locale code",
   },
+  treatAsImage: {
+    defaultMessage: "Treat as image",
+    id: "ZkAl1q2it8",
+    description: "Button to treat a URL source string as a localizable image",
+  },
+  treatAsText: {
+    defaultMessage: "Treat as text",
+    id: "ismdmCNJ+n",
+    description: "Button to stop treating a URL source string as an image",
+  },
+  treatAsImageTitle: {
+    defaultMessage: "Preview and localize this URL as an image",
+    id: "vdOK0pRPUg",
+    description: "Tooltip for the treat-as-image toggle in CAT",
+  },
+  regenerateImage: {
+    defaultMessage: "Regenerate image",
+    id: "zA2ZC7UBbt",
+    description: "Button to regenerate a localized image with the agent",
+  },
+  uploadImage: {
+    defaultMessage: "Upload image",
+    id: "SUoQN+pj+e",
+    description: "Button to upload a replacement localized image",
+  },
+  imageSourceAlt: {
+    defaultMessage: "Source image",
+    id: "cHvtlHrefQ",
+    description: "Alt text for the CAT source image preview",
+  },
+  imageTargetAlt: {
+    defaultMessage: "Target image",
+    id: "dv6HEp4mGP",
+    description: "Alt text for the CAT target image preview",
+  },
+  imageSourceEmpty: {
+    defaultMessage: "Source image unavailable",
+    id: "gInelMBn+I",
+    description: "Empty state when the CAT source image cannot be shown",
+  },
+  imageTargetEmpty: {
+    defaultMessage: "No localized image yet",
+    id: "V04dsqCSZQ",
+    description: "Empty state when the CAT target image has not been created",
+  },
   targetHeading: {
     defaultMessage: "Target ({locale})",
     id: "1PcszZ/Z93",

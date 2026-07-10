@@ -204,6 +204,13 @@ export function projectFileCatToWorkspaceState(
     index: segmentOffset + index + 1,
     key: segment.key,
     sourceText: segment.sourceText,
+    ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
+    ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
+    ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
+    ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
+    ...(segment.looksLikeImageUrl !== undefined
+      ? { looksLikeImageUrl: segment.looksLikeImageUrl }
+      : {}),
   }));
 
   return {

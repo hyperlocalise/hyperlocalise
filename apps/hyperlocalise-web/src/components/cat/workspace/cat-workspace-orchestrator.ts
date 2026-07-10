@@ -675,6 +675,16 @@ export class CatWorkspaceOrchestrator {
       { hasOpenIssues: this.segmentHasOpenIssues(segmentId) },
       target,
     );
+    const existingMeta = this.segmentMeta.get(segmentId);
+    if (existingMeta) {
+      this.segmentMeta.set(segmentId, {
+        ...existingMeta,
+        ...(target?.contentKind ? { contentKind: target.contentKind } : {}),
+        ...(target?.targetAssetUrl !== undefined ? { targetAssetUrl: target.targetAssetUrl } : {}),
+        ...(target?.imageVariantId !== undefined ? { imageVariantId: target.imageVariantId } : {}),
+      });
+    }
+
     const existingDraft = this.drafts.get(segmentId);
 
     if (existingDraft) {

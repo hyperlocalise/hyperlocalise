@@ -191,6 +191,13 @@ export function useCatWorkspaceRuntime({
           applyGlossaryTermToTarget(sourceText, currentTarget, term),
         );
       },
+      ...(editingOverrides?.onTreatAsImage
+        ? { onTreatAsImage: editingOverrides.onTreatAsImage }
+        : {}),
+      ...(editingOverrides?.onRegenerateImage
+        ? { onRegenerateImage: editingOverrides.onRegenerateImage }
+        : {}),
+      ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
     };
 
     const navigation: CatWorkspaceNavigation = {
