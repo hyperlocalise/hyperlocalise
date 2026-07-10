@@ -101,6 +101,37 @@ function multiLocaleMemoryWithDistractors() {
   ].join("\n");
 }
 
+function multiSubtagLocaleMemoryWithDistractors() {
+  return [
+    "# Memory.md",
+    "",
+    "## French payment voice",
+    "",
+    "### fr-FR",
+    "",
+    "Use formal French for payment confirmation and billing messages.",
+    "",
+    ...Array.from({ length: 5 }, (_, index) =>
+      [
+        `## Generic payment note ${index + 1}`,
+        "",
+        "Payment confirmation copy should stay short and direct.",
+      ].join("\n"),
+    ),
+    "",
+    "## Simplified Chinese checkout voice",
+    "",
+    "### zh-Hans-CN",
+    "",
+    "Use Simplified Chinese locale conventions for this locale.",
+    "",
+    ...Array.from(
+      { length: 70 },
+      (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 function longHeadingOnlyMemory() {
   return [
     "# Memory.md",
@@ -124,6 +155,21 @@ function mixedHeadingOnlyGuidanceMemory() {
       { length: 90 },
       (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
     ),
+  ].join("\n");
+}
+
+function lateHeadingOnlyGuidanceMemory() {
+  return [
+    "# Memory.md",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+    "",
+    "## Protected token rule - Never translate SKU-LATE",
+    "",
+    "## Locale rule - Use formal voice for es-ES checkout",
   ].join("\n");
 }
 
@@ -289,6 +335,21 @@ describe("selectKnowledgeMemoryContext", () => {
     );
   });
 
+  it("keeps later heading-only guidance outside the raw prefix fallback", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: lateHeadingOnlyGuidanceMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Protected token rule - Never translate SKU-LATE");
+    expect(selected.compactText).toContain("Locale rule - Use formal voice for es-ES checkout");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
   it("boosts every target locale in multi-target memory selection", () => {
     const selected = selectKnowledgeMemoryContext({
       content: multiLocaleMemoryWithDistractors(),
@@ -302,6 +363,22 @@ describe("selectKnowledgeMemoryContext", () => {
     );
     expect(selected.metrics.matchedHeadingPaths).toContain(
       "Memory.md > Australian checkout voice > en-AU",
+    );
+  });
+
+  it("boosts multi-subtag locale tags in memory selection", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: multiSubtagLocaleMemoryWithDistractors(),
+      targetLocales: ["fr-FR", "zh-Hans-CN"],
+      sourceText: "Payment confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > French payment voice > fr-FR",
+    );
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Simplified Chinese checkout voice > zh-Hans-CN",
     );
   });
 

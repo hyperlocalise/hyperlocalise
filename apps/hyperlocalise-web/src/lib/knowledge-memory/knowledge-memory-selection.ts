@@ -128,14 +128,63 @@ function buildEmptyContext(
   };
 }
 
+function truncateFallbackText(content: string, maxChars: number) {
+  return content.length > maxChars
+    ? `${content.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`
+    : content;
+}
+
+function headingFallbackPriority(heading: string) {
+  if (
+    /brand|voice|tone|style|glossary|terminology|protected|token|never|avoid|locale|rule/i.test(
+      heading,
+    )
+  ) {
+    return 0;
+  }
+  return 1;
+}
+
+function buildHeadingFallbackText(content: string) {
+  const headings = content
+    .split("\n")
+    .map((line) => {
+      const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line.trim());
+      if (!match) {
+        return null;
+      }
+      return {
+        level: match[1]?.length ?? 1,
+        text: match[2]?.trim() ?? "",
+      };
+    })
+    .filter((heading): heading is { level: number; text: string } => Boolean(heading?.text));
+
+  if (headings.length === 0) {
+    return content;
+  }
+
+  const orderedHeadings = headings
+    .map((heading, index) => ({ ...heading, index }))
+    .sort((a, b) => {
+      const priorityDelta = headingFallbackPriority(a.text) - headingFallbackPriority(b.text);
+      return priorityDelta === 0 ? a.index - b.index : priorityDelta;
+    });
+
+  return [
+    "Memory.md heading fallback:",
+    ...orderedHeadings.map((heading) => {
+      const indent = "  ".repeat(Math.max(0, heading.level - 1));
+      return `${indent}- ${heading.text}`;
+    }),
+  ].join("\n");
+}
+
 function buildRawFallbackContext(
   content: string,
   maxChars: number,
 ): SelectedKnowledgeMemoryContext {
-  const compactText =
-    content.length > maxChars
-      ? `${content.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`
-      : content;
+  const compactText = truncateFallbackText(buildHeadingFallbackText(content), maxChars);
 
   return {
     compactText,

@@ -117,7 +117,7 @@ function normalizeLocaleForSearch(locale: string) {
 function inputLocalesFromParts(queryParts: string[]) {
   return uniqueValues(
     queryParts
-      .filter((part) => /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})?$/i.test(part))
+      .filter((part) => /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i.test(part))
       .map(normalizeLocaleForSearch),
   );
 }
