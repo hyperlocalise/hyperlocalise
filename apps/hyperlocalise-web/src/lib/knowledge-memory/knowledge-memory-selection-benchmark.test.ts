@@ -10,6 +10,7 @@ import {
 
 type BenchmarkFixture = {
   name: string;
+  content?: string;
   input: Omit<SelectKnowledgeMemoryContextInput, "content">;
   expectedHeading: string;
   goldNegativeHeadings?: string[];
@@ -19,11 +20,13 @@ type FixtureScore = {
   name: string;
   top1Coverage: 0 | 1;
   top3Coverage: 0 | 1;
-  irrelevantHits: number;
+  irrelevantSelectedCount: number;
   top3Count: number;
   reductionPercent: number;
   selectedMemoryChars: number;
   fallbackMode: SelectedKnowledgeMemoryContext["metrics"]["fallbackMode"];
+  fallbackTriggered: boolean;
+  selectedHeadingPaths: string[];
   topHeadings: string[];
 };
 
@@ -90,6 +93,29 @@ const benchmarkMemory = [
       `## Noise section ${index + 1}`,
       "",
       "This operational note is intentionally irrelevant filler for support, onboarding, analytics, incident review, and release process copy.",
+      "",
+    ].join("\n"),
+  ),
+].join("\n");
+
+const structuralRobustnessMemory = [
+  "# Memory.md",
+  "",
+  "## Broken but readable",
+  "### fr-FR ###",
+  "1) Keep panier checkout payment confirmations formal for fr-FR.",
+  "2) Prefer vous in payment failure and confirmation errors.",
+  "",
+  "### [Odd heading",
+  "- This malformed-looking heading should still parse as a local section.",
+  "",
+  "## Legal privacy compliance",
+  "Preserve legal, tax, cookie, and privacy disclosure meaning exactly.",
+  "",
+  ...Array.from({ length: 100 }, (_, index) =>
+    [
+      `## Noisy malformed section ${index + 1}`,
+      `- Repeated filler with support, analytics, release, operations, and onboarding words ${index + 1}.`,
       "",
     ].join("\n"),
   ),
@@ -176,6 +202,16 @@ const benchmarkFixtures: BenchmarkFixture[] = [
     expectedHeading: "Memory.md > French formal payment voice > fr-FR",
     goldNegativeHeadings: ["Australian English checkout rules", "Legal privacy compliance"],
   },
+  {
+    name: "structural robustness keeps odd markdown boundaries retrievable",
+    content: structuralRobustnessMemory,
+    input: {
+      targetLocale: "fr-FR",
+      sourceText: "paiement checkout confirmation vous",
+    },
+    expectedHeading: "Memory.md > Broken but readable > fr-FR",
+    goldNegativeHeadings: ["Legal privacy compliance", "Noisy malformed section"],
+  },
 ];
 
 function headingMatches(heading: string, expected: string) {
@@ -187,12 +223,13 @@ function topHeadings(selection: SelectedKnowledgeMemoryContext, count: number) {
 }
 
 function scoreFixture(fixture: BenchmarkFixture): FixtureScore {
+  const content = fixture.content ?? benchmarkMemory;
   const firstRun = selectKnowledgeMemoryContext({
-    content: benchmarkMemory,
+    content,
     ...fixture.input,
   });
   const secondRun = selectKnowledgeMemoryContext({
-    content: benchmarkMemory,
+    content,
     ...fixture.input,
   });
 
@@ -202,19 +239,22 @@ function scoreFixture(fixture: BenchmarkFixture): FixtureScore {
   const top1 = topHeadings(firstRun, 1);
   const top3 = topHeadings(firstRun, 3);
   const negativeHeadings = fixture.goldNegativeHeadings ?? [];
-  const irrelevantHits = top3.filter((heading) =>
+  const irrelevantSelectedCount = top3.filter((heading) =>
     negativeHeadings.some((negativeHeading) => headingMatches(heading, negativeHeading)),
   ).length;
+  const selectedHeadingPaths = firstRun.metrics.matchedHeadingPaths;
 
   return {
     name: fixture.name,
     top1Coverage: top1.some((heading) => headingMatches(heading, fixture.expectedHeading)) ? 1 : 0,
     top3Coverage: top3.some((heading) => headingMatches(heading, fixture.expectedHeading)) ? 1 : 0,
-    irrelevantHits,
+    irrelevantSelectedCount,
     top3Count: top3.length,
     reductionPercent: firstRun.metrics.reductionPercent,
     selectedMemoryChars: firstRun.metrics.selectedMemoryChars,
     fallbackMode: firstRun.metrics.fallbackMode,
+    fallbackTriggered: firstRun.metrics.fallbackMode !== "selective",
+    selectedHeadingPaths,
     topHeadings: top3,
   };
 }
@@ -228,15 +268,19 @@ function average(values: number[]) {
 }
 
 function summarize(scores: FixtureScore[]) {
-  const irrelevantHits = scores.reduce((sum, score) => sum + score.irrelevantHits, 0);
+  const irrelevantSelectedCount = scores.reduce(
+    (sum, score) => sum + score.irrelevantSelectedCount,
+    0,
+  );
   const top3Count = scores.reduce((sum, score) => sum + score.top3Count, 0);
 
   return {
     top1Coverage: Number(average(scores.map((score) => score.top1Coverage)).toFixed(2)),
     top3Coverage: Number(average(scores.map((score) => score.top3Coverage)).toFixed(2)),
-    irrelevantHitRate: Number((irrelevantHits / Math.max(1, top3Count)).toFixed(2)),
+    irrelevantHitRate: Number((irrelevantSelectedCount / Math.max(1, top3Count)).toFixed(2)),
     maxSelectedMemoryChars: Math.max(...scores.map((score) => score.selectedMemoryChars)),
     minReductionPercent: Math.min(...scores.map((score) => score.reductionPercent)),
+    fallbackTriggeredCount: scores.filter((score) => score.fallbackTriggered).length,
   };
 }
 
@@ -270,7 +314,7 @@ function ftsLikeTopHeadings(fixture: BenchmarkFixture) {
     ),
   );
 
-  return parseMarkdownMemory(benchmarkMemory)
+  return parseMarkdownMemory(fixture.content ?? benchmarkMemory)
     .map((segment) => {
       const segmentTokens = new Set(
         tokenizeForFtsLikeBaseline([segment.headingPath.join(" "), segment.segmentText].join(" ")),
@@ -308,10 +352,23 @@ describe("knowledge memory lexical retrieval benchmark", () => {
     expect(summary.top1Coverage).toBeGreaterThanOrEqual(0.75);
     expect(summary.top3Coverage).toBeGreaterThanOrEqual(0.9);
     expect(summary.irrelevantHitRate).toBeLessThanOrEqual(0.1);
+    expect(summary.fallbackTriggeredCount).toBe(0);
     expect(summary.maxSelectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
     expect(scores.every((score) => score.fallbackMode === "selective")).toBe(true);
+  });
+
+  it("does not select protected-token guidance when the protected token is absent", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: benchmarkMemory,
+      targetLocale: "de-DE",
+      sourceText: "Translate checkout accessory shipping copy",
+    });
+
+    expect(selected.metrics.matchedHeadingPaths).not.toContain(
+      "Memory.md > Protected product tokens",
+    );
   });
 
   it("documents the current lexical selector against a simple FTS-like baseline", () => {

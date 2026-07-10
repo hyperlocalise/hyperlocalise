@@ -130,6 +130,9 @@ function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
     }
     if (searchTokens.has(token)) {
       score += 3;
+      if (/[-\d]/.test(token)) {
+        score += 6;
+      }
     }
   }
 
