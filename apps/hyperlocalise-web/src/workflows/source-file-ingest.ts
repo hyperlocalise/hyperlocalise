@@ -1,11 +1,17 @@
 import { getWorkflowMetadata } from "workflow";
 
+import {
+  inferSupportedTranslationFileFormat,
+  isImageTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
   createSourceIngestSandboxStep,
   dispatchSourceUploadAutomationsStep,
+  ensureImageVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
+  getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
   markSourceFileIngestStateStep,
   parseHlEntriesStep,
@@ -57,15 +63,52 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
   let sandboxId: string | null = null;
 
   try {
-    const [storedFile, content] = await Promise.all([
-      getStoredFileMetadataStep(event.storedFileId, event.organizationId),
-      getStoredFileContentStep(event.storedFileId, event.organizationId),
-    ]);
+    const storedFile = await getStoredFileMetadataStep(event.storedFileId, event.organizationId);
 
     const repositorySourceFileId = claim.repositorySourceFileId;
     if (!repositorySourceFileId) {
       throw new Error(`repository source file not found for ${event.sourcePath}`);
     }
+
+    const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
+    if (inferredFormat && isImageTranslationFileFormat(inferredFormat)) {
+      const targetLocales = await getProjectTargetLocalesStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+      });
+
+      await ensureImageVariantsForSourceFileStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourcePath: event.sourcePath,
+        repositorySourceFileId,
+        targetLocales,
+      });
+
+      await markSourceFileIngestStateStep({
+        sourceFileVersionId: event.sourceFileVersionId,
+        organizationId: event.organizationId,
+        ingestState: "ingested",
+        ingestWorkflowRunId: workflowRunId,
+        ingestedAt: new Date(),
+        fromIngestingWorkflowRunId: workflowRunId,
+      });
+
+      await dispatchSourceUploadAutomationsStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourceFileId: event.storedFileId,
+        sourceFileVersionId: event.sourceFileVersionId,
+        sourcePath: event.sourcePath,
+      });
+
+      return {
+        status: "ingested" as const,
+        importedKeyCount: 0,
+      };
+    }
+
+    const content = await getStoredFileContentStep(event.storedFileId, event.organizationId);
 
     const inputFilename = sanitizeSandboxFilename(
       basename(event.sourcePath) || storedFile.filename,

@@ -271,6 +271,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         context: schema.projectTranslationKeys.context,
         type: schema.projectTranslationKeys.type,
         maxLength: schema.projectTranslationKeys.maxLength,
+        metadata: schema.projectTranslationKeys.metadata,
       })
       .from(schema.projectTranslationKeys)
       .where(

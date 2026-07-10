@@ -165,7 +165,15 @@ export function ProjectFileCatWorkspace({
     setQueueFilter("all");
   }, [availableQueueFilters, queueFilter, setQueueFilter]);
 
-  const { saveTranslation, postComment, resolveComment } = useCatMutations({
+  const {
+    saveTranslation,
+    postComment,
+    resolveComment,
+    regenerateImage,
+    uploadImage,
+    treatAsImage,
+    isImageBusy,
+  } = useCatMutations({
     organizationSlug,
     projectId,
     sourcePath,
@@ -232,6 +240,24 @@ export function ProjectFileCatWorkspace({
         throw new Error("Your role cannot write translations back.");
       }
 
+      const segment = catFile.segments.find((entry) => entry.externalStringId === segmentId);
+      if (segment?.contentKind === "image_file") {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.images.status.$patch({
+          param: { organizationSlug, projectId },
+          json: {
+            sourcePath,
+            targetLocale,
+            status: "approved",
+          },
+        });
+        if (!response.ok) {
+          throw new Error(await readApiError(response, "Failed to approve image"));
+        }
+        return "reviewed" as const;
+      }
+
       const translation = await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -239,7 +265,16 @@ export function ProjectFileCatWorkspace({
       });
       return translation.isApproved ? "reviewed" : "needs_review";
     },
-    [catFile?.canEditTranslations, isNativeProject, saveTranslation],
+    [
+      catFile?.canEditTranslations,
+      catFile?.segments,
+      isNativeProject,
+      organizationSlug,
+      projectId,
+      saveTranslation,
+      sourcePath,
+      targetLocale,
+    ],
   );
 
   const handleSaveDraft = useCallback(
@@ -573,6 +608,20 @@ export function ProjectFileCatWorkspace({
         }}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         navigation={{}}
+        editing={{
+          onTreatAsImage: async (segmentId, nextTreatAsImage) => {
+            await treatAsImage({
+              externalStringId: segmentId,
+              treatAsImage: nextTreatAsImage,
+            });
+          },
+          onRegenerateImage: async (segmentId) => {
+            await regenerateImage({ externalStringId: segmentId });
+          },
+          onUploadImage: async (segmentId, file) => {
+            await uploadImage({ externalStringId: segmentId, file });
+          },
+        }}
         services={{
           validateFormat,
           lookupSegmentConcordance,
@@ -601,6 +650,7 @@ export function ProjectFileCatWorkspace({
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
+        isImageBusy={isImageBusy}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}

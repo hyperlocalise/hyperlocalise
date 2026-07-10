@@ -61,12 +61,30 @@ export function composeSegmentView(input: {
 }
 
 export function toQueueSegment(
-  segment: Pick<CatSegment, "id" | "index" | "key" | "sourceText">,
+  segment: Pick<
+    CatSegment,
+    | "id"
+    | "index"
+    | "key"
+    | "sourceText"
+    | "contentKind"
+    | "sourceAssetUrl"
+    | "targetAssetUrl"
+    | "imageVariantId"
+    | "looksLikeImageUrl"
+  >,
 ): CatQueueSegment {
   return {
     id: segment.id,
     index: segment.index,
     key: segment.key,
     sourceText: segment.sourceText,
+    ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
+    ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
+    ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
+    ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
+    ...(segment.looksLikeImageUrl !== undefined
+      ? { looksLikeImageUrl: segment.looksLikeImageUrl }
+      : {}),
   };
 }

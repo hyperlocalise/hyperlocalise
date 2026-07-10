@@ -447,3 +447,59 @@ export async function completeFileTranslationJobStep(input: {
     });
   }
 }
+
+export async function localizeImageVariantForJobStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  sourceLocale?: string | null;
+  sourceStoredFileId: string;
+  sourceJobId: string;
+  createdByUserId?: string | null;
+}) {
+  "use step";
+  const { getRepositorySourceFileVersionForStoredFile } =
+    await import("@/lib/file-storage/records");
+  const { localizeAndStoreImageVariant } =
+    await import("@/lib/projects/files/image-variant-service");
+  const { localizedImageOutputFilename } = await import("@/lib/agents/image-localization");
+
+  const version = await getRepositorySourceFileVersionForStoredFile({
+    fileId: input.sourceStoredFileId,
+    organizationId: input.organizationId,
+  });
+
+  const result = await localizeAndStoreImageVariant({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+    sourceLocale: input.sourceLocale,
+    sourceStoredFileId: input.sourceStoredFileId,
+    repositorySourceFileId: version?.repositorySourceFileId ?? null,
+    provenance: "translation_job",
+    sourceJobId: input.sourceJobId,
+    createdByUserId: input.createdByUserId,
+  });
+
+  if (!result.ok) {
+    throw new Error(`image localization failed: ${result.error.code}`);
+  }
+
+  if (!result.value.storedFileId) {
+    throw new Error("image localization produced no stored file");
+  }
+
+  const filename = localizedImageOutputFilename(
+    input.sourcePath.split("/").at(-1) ?? "image.png",
+    input.targetLocale,
+    "image/png",
+  );
+
+  return {
+    fileId: result.value.storedFileId,
+    locale: input.targetLocale,
+    filename,
+  };
+}

@@ -7,7 +7,10 @@ import {
   buildProjectFileCatHref,
   canOpenProjectFileCat,
 } from "@/lib/projects/project-file-cat-routing";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedFileTranslationFileFormat,
+  isSupportedSourceUploadFormat,
+} from "@/lib/translation/file-formats";
 
 const EMPTY_STRING_ARRAY: readonly string[] = [];
 
@@ -40,7 +43,8 @@ export function buildProjectFileActionCapabilities({
   const canTranslateWithAgent =
     isNativeFile &&
     Boolean(file.storedFileId) &&
-    Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath)) &&
+    (isSupportedSourceUploadFormat(file.sourcePath) ||
+      Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath))) &&
     targetLocales.length > 0;
   const catHref = buildProjectFileCatHref(
     organizationSlug,

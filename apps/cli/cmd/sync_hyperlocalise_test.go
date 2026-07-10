@@ -48,6 +48,79 @@ func TestHyperlocaliseDownloadTranslationExportRejectsOversizedResponse(t *testi
 	}
 }
 
+func TestHyperlocalisePullWritesImageVariantsDirectly(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	sourcePath := "assets/en/banner.png"
+	targetPath := "assets/fr/banner.png"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "source-png-bytes")
+	imageBytes := []byte("localized-png-bytes")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/images/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
+			t.Fatalf("sourcePath = %q, want %q", got, sourcePath)
+		}
+		if got := r.URL.Query().Get("locale"); got != "fr" {
+			t.Fatalf("locale = %q, want fr", got)
+		}
+		_, _ = w.Write(imageBytes)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"images": {
+					Files: []config.BucketFileMapping{{
+						From: "assets/en/**/*.png",
+						To:   "assets/{{target}}/**/*.png",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull image variant: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded image", report)
+	}
+
+	got, err := os.ReadFile(filepath.FromSlash(targetPath))
+	if err != nil {
+		t.Fatalf("read target image: %v", err)
+	}
+	if string(got) != string(imageBytes) {
+		t.Fatalf("target content = %q, want %q", string(got), string(imageBytes))
+	}
+}
+
 func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

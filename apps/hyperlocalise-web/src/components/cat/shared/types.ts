@@ -38,6 +38,11 @@ export interface CatQueueSegment {
   index: number;
   key: string;
   sourceText: string;
+  contentKind?: "text" | "image_file" | "image_url";
+  sourceAssetUrl?: string | null;
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
+  looksLikeImageUrl?: boolean;
 }
 
 /** File and locale scope for the CAT editor, shared across all segments. */
@@ -66,6 +71,11 @@ export interface CatSegment {
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
+  contentKind?: "text" | "image_file" | "image_url";
+  sourceAssetUrl?: string | null;
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
+  looksLikeImageUrl?: boolean;
 }
 
 export interface CatFormatCheck {

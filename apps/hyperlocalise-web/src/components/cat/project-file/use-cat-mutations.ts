@@ -211,6 +211,122 @@ export function useCatMutations(input: {
     },
   });
 
+  async function invalidateAfterImageChange(externalStringId: string) {
+    const externalResourceId = input.catFile?.provider
+      ? requireProviderExternalResourceId(input.catFile)
+      : undefined;
+    const resourceType = input.catFile?.provider?.resourceType;
+
+    await Promise.all([
+      input.invalidateQueue(),
+      invalidateSegmentTarget({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId,
+      }),
+    ]);
+  }
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      instructions?: string;
+      force?: boolean;
+    }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.regenerate.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          instructions: mutationInput.instructions,
+          force: mutationInput.force,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to regenerate image"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      file: File;
+      force?: boolean;
+    }) => {
+      const formData = new FormData();
+      formData.set("sourcePath", input.sourcePath);
+      formData.set("targetLocale", input.targetLocale);
+      formData.set("externalStringId", mutationInput.externalStringId);
+      if (mutationInput.force) {
+        formData.set("force", "true");
+      }
+      formData.set("file", mutationInput.file);
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/files/detail/cat/images/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to upload image"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const treatAsImageMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsImage: boolean }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          treatAsImage: mutationInput.treatAsImage,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to update image mode"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -218,8 +334,18 @@ export function useCatMutations(input: {
     postComment: commentMutation.mutateAsync,
     resolveCommentMutation,
     resolveComment: resolveCommentMutation.mutateAsync,
+    regenerateImageMutation,
+    regenerateImage: regenerateImageMutation.mutateAsync,
+    uploadImageMutation,
+    uploadImage: uploadImageMutation.mutateAsync,
+    treatAsImageMutation,
+    treatAsImage: treatAsImageMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    isImageBusy:
+      regenerateImageMutation.isPending ||
+      uploadImageMutation.isPending ||
+      treatAsImageMutation.isPending,
   };
 }

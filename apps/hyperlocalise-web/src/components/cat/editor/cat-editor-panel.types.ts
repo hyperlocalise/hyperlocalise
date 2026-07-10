@@ -19,6 +19,7 @@ export type CatEditorPanelProps = {
   isFormatChecksLoading?: boolean;
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
+  isImageBusy?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;
@@ -48,4 +49,7 @@ export type CatEditorPanelProps = {
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;
   providerKind?: string | null;
+  onTreatAsImage?: (treatAsImage: boolean) => void;
+  onRegenerateImage?: () => void;
+  onUploadImage?: (file: File) => void;
 };

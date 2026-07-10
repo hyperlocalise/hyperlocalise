@@ -11,7 +11,7 @@ import {
 } from "@/lib/file-storage/records";
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
 import { runSandboxCommand } from "@/lib/translation/sandbox";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("upload-repository-source-files");
 
@@ -48,7 +48,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
 
   for (const path of input.paths) {
     const normalizedPath = normalizeSourcePath(path);
-    if (!inferSupportedFileTranslationFileFormat(normalizedPath)) {
+    if (!inferSupportedSourceUploadFormat(normalizedPath)) {
       results.push({
         path: normalizedPath,
         outcome: "skipped",

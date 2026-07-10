@@ -16,7 +16,7 @@ import {
   type SourceFileUploadError,
 } from "@/lib/projects/files/source-file-upload-service";
 import { isErr } from "@/lib/primitives/result/results";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 import { badRequestResponse, payloadTooLargeResponse } from "@/api/response.schema";
 
@@ -101,7 +101,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           return invalidFilePayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (!inferSupportedSourceUploadFormat(parsed.data.sourcePath)) {
           return unsupportedFileResponse(c, parsed.data.sourcePath);
         }
 

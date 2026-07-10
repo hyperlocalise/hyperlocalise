@@ -5,6 +5,20 @@ import type { ProjectTranslationService } from "@/lib/projects/translations/proj
 import { NativeCatCommentService } from "./native-cat-comment-service";
 import { NativeCatService } from "./native-cat-service";
 
+const getLatestRepositorySourceFileVersion = vi.fn();
+const getImageVariant = vi.fn();
+
+vi.mock("@/lib/file-storage/records", () => ({
+  getLatestRepositorySourceFileVersion: (...args: unknown[]) =>
+    getLatestRepositorySourceFileVersion(...args),
+}));
+
+vi.mock("@/lib/projects/files/image-variant-service", () => ({
+  getImageVariant: (...args: unknown[]) => getImageVariant(...args),
+  projectImageAssetPath: (input: { organizationSlug: string; projectId: string; fileId: string }) =>
+    `/api/orgs/${input.organizationSlug}/projects/${input.projectId}/assets/${input.fileId}`,
+}));
+
 describe("NativeCatService.getCatFile", () => {
   const getRepositorySourceFileByPath = vi.fn();
   const listKeysForFile = vi.fn();
@@ -16,6 +30,8 @@ describe("NativeCatService.getCatFile", () => {
     vi.clearAllMocks();
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue(null);
+    getImageVariant.mockResolvedValue(null);
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -51,6 +67,7 @@ describe("NativeCatService.getCatFile", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
       canEditTranslations: true,
+      organizationSlug: "acme",
     });
 
     expect(result).toBeNull();
@@ -65,6 +82,7 @@ describe("NativeCatService.getCatFile", () => {
         context: null,
         type: "text",
         maxLength: null,
+        metadata: {},
       },
     ]);
 
@@ -74,6 +92,7 @@ describe("NativeCatService.getCatFile", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
       canEditTranslations: true,
+      organizationSlug: "acme",
       pagination: {
         offset: 50,
         limit: 25,
@@ -119,6 +138,7 @@ describe("NativeCatService.getCatFile", () => {
         context: null,
         type: "text",
         maxLength: 24,
+        metadata: {},
       },
     ]);
 
@@ -128,6 +148,7 @@ describe("NativeCatService.getCatFile", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
       canEditTranslations: true,
+      organizationSlug: "acme",
     });
 
     expect(result?.segments[0]?.maxLength).toBe(24);
@@ -142,6 +163,7 @@ describe("NativeCatService.getCatFile", () => {
         context: null,
         type: "text",
         maxLength: 0,
+        metadata: {},
       },
     ]);
 
@@ -151,8 +173,70 @@ describe("NativeCatService.getCatFile", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
       canEditTranslations: true,
+      organizationSlug: "acme",
     });
 
     expect(result?.segments[0]?.maxLength).toBeUndefined();
+  });
+
+  it("returns a synthetic image_file segment for png sources", async () => {
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_1",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_1",
+      storedFileId: "stored_target_1",
+      status: "needs_review",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "file_1",
+      key: "assets/hero.png",
+      sourceText: "assets/hero.png",
+      contentKind: "image_file",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_1",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_1",
+      imageVariantId: "variant_1",
+    });
+  });
+
+  it("marks image URL keys with contentKind and looksLikeImageUrl", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_img",
+        key: "banner.url",
+        sourceText: "https://cdn.example.com/banner.png",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: { contentKind: "image_url" },
+      },
+    ]);
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments[0]).toMatchObject({
+      contentKind: "image_url",
+      sourceAssetUrl: "https://cdn.example.com/banner.png",
+      looksLikeImageUrl: true,
+    });
   });
 });

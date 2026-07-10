@@ -35,7 +35,9 @@ import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
+import { createPublicImageRoutes } from "./routes/public-images/public-images.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
+import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
@@ -108,6 +110,10 @@ export function createApp(options: CreateAppOptions = {}) {
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route(
+      "/public/media",
+      createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options));
 }
@@ -191,7 +197,11 @@ function createPublicApiRoutes(
   return new Hono()
     .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/jobs", createPublicJobRoutes(options))
-    .route("/projects", createPublicTranslationRoutes());
+    .route("/projects", createPublicTranslationRoutes())
+    .route(
+      "/projects",
+      createPublicImageRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    );
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {
