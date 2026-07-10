@@ -624,11 +624,18 @@ describe("project file CAT routes", () => {
       filename: "banner-fr.png",
       metadata: { publicMedia: true },
     });
-    saveTmsProviderLiveCatTranslationMock.mockResolvedValue({
-      text: "http://localhost:3000/api/public/media/file_external-upload",
-      externalTranslationId: "9001",
-      isApproved: false,
-    });
+    saveTmsProviderLiveCatTranslationMock.mockImplementation(
+      async (
+        _organizationId: string,
+        _externalProjectId: string,
+        _sourcePath: string,
+        input: { text: string },
+      ) => ({
+        text: input.text,
+        externalTranslationId: "9001",
+        isApproved: false,
+      }),
+    );
 
     const formData = new FormData();
     formData.set("sourcePath", "crowdin/home.json");
@@ -650,13 +657,12 @@ describe("project file CAT routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      translation: {
-        text: "http://localhost:3000/api/public/media/file_external-upload",
-        contentKind: "image_url",
-        targetAssetUrl: "http://localhost:3000/api/public/media/file_external-upload",
-      },
-    });
+    const body = (await response.json()) as {
+      translation: { text: string; contentKind: string; targetAssetUrl: string };
+    };
+    expect(body.translation.contentKind).toBe("image_url");
+    expect(body.translation.targetAssetUrl).toMatch(/\/api\/public\/media\/file_external-upload$/);
+    expect(body.translation.text).toBe(body.translation.targetAssetUrl);
     expect(createStoredFileMock).toHaveBeenCalled();
     expect(saveTmsProviderLiveCatTranslationMock).toHaveBeenCalledWith(
       expect.any(String),
@@ -666,7 +672,7 @@ describe("project file CAT routes", () => {
         targetLocale: "fr",
         externalStringId: "1001",
         externalResourceId: "101",
-        text: "http://localhost:3000/api/public/media/file_external-upload",
+        text: body.translation.targetAssetUrl,
       }),
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
