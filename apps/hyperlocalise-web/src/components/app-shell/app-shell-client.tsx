@@ -77,6 +77,8 @@ export function AppShellClient({
         defaultOpen
         style={
           {
+            "--app-shell-content-height":
+              "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
             "--app-shell-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
             "--sidebar-width": "15rem",
           } as CSSProperties
