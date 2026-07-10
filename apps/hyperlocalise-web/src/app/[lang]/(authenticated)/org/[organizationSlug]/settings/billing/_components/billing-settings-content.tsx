@@ -382,7 +382,7 @@ function ConfiguredBillingSettingsPanel({
         </CardHeader>
         <Separator className="bg-skeleton" />
         <div className="px-5 py-5">
-          <PlanUsageSummaryContent summary={planUsageSummary} variant="billing" />
+          <PlanUsageSummaryContent summary={planUsageSummary} />
         </div>
         <Separator className="bg-skeleton" />
         <CardContent className="divide-y divide-border px-5 py-0">
