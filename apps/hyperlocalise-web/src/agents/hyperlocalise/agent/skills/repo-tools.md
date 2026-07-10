@@ -26,7 +26,7 @@ Use `gitHistory` when the request asks what changed recently, asks for history/p
 ### Procedure
 
 1. Call `gitHistory` with `mode: "changedFiles"` and the requested `since`/`until` window (default to a recent window such as `"2 weeks ago"` when the user says "recent" without dates; use `"1 week ago"` when they say "last week").
-2. When no paths are provided, the tool discovers source files from `i18n.yml`, `i18n.jsonc`, `crowdin.yml`, `crowdin.yaml`, `.phrase.yml`, `phrase.yml`, or `phrase.yaml`.
+2. When no paths are provided, the tool discovers source files from **every tracked** `i18n.yml`, `i18n.jsonc`, `crowdin.yml`, `crowdin.yaml`, `.phrase.yml`, `phrase.yml`, or `phrase.yaml` in the repository (including nested paths such as `apps/hyperlocalise-web/i18n.yml`), and merges their source `from`/`source` patterns. Nested config paths are resolved relative to that config's directory.
 3. If discovery returns no files, an empty file list, or a "no localization config" / "no source files were resolved" diagnostic, **keep exploring the repository**:
    - Use `detectRepoConfig` and/or `glob`/`grep` to find likely source locale files (for example `**/en*.json`, `**/en-US/**`, `**/locales/**`, `**/messages/**`, `**/i18n/**`, `**/*.messages.ts`, `**/lang/**`).
    - Call `gitHistory` again with `mode: "changedFiles"` and those discovered `paths`.

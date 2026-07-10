@@ -767,11 +767,18 @@ describe("createGitHistoryTool", () => {
     ctx.bash.registerCommand(
       defineCommand("yq", async (args) => {
         yqCalls.push(args);
+        if (args.includes("i18n.yml")) {
+          return {
+            stdout: JSON.stringify({
+              locales: { source: "en-US" },
+              buckets: { web: { files: [{ from: "lang/{{source}}.json", to: "lang/fr.json" }] } },
+            }),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
         return {
-          stdout: JSON.stringify({
-            locales: { source: "en-US" },
-            buckets: { web: { files: [{ from: "lang/{{source}}.json", to: "lang/fr.json" }] } },
-          }),
+          stdout: JSON.stringify({ files: [{ source: "/ignored.json" }] }),
           stderr: "",
           exitCode: 0,
         };
@@ -781,7 +788,16 @@ describe("createGitHistoryTool", () => {
       defineCommand("git", async (args) => {
         gitCalls.push(args);
         if (args[0] === "ls-files") {
-          return { stdout: "lang/en-US.json\n", stderr: "", exitCode: 0 };
+          if (args.includes("i18n.yml") || args.includes("**/i18n.yml")) {
+            return { stdout: "i18n.yml\0", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("crowdin.yml") || args.includes("**/crowdin.yml")) {
+            return { stdout: "crowdin.yml\0", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("lang/en-US.json")) {
+            return { stdout: "lang/en-US.json\n", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "", stderr: "", exitCode: 0 };
         }
         if (args[0] === "log") {
           return {
@@ -804,13 +820,131 @@ describe("createGitHistoryTool", () => {
       success: true,
       mode: "changedFiles",
       files: ["lang/en-US.json"],
-      discovery: { configKind: "hyperlocalise", configPath: "i18n.yml" },
+      discovery: {
+        configKind: "hyperlocalise",
+        configPath: "i18n.yml",
+        configs: expect.arrayContaining([
+          expect.objectContaining({ configPath: "i18n.yml" }),
+          expect.objectContaining({ configPath: "crowdin.yml" }),
+        ]),
+      },
     });
     expect(yqCalls[0]).toEqual(["-o", "json", ".", "i18n.yml"]);
     expect(gitCalls).toContainEqual(["ls-files", "--", "lang/en-US.json"]);
     expect(gitCalls.find((args) => args[0] === "log")).toEqual(
       expect.arrayContaining(["--since=1 week ago", "--", "lang/en-US.json"]),
     );
+  });
+
+  it("merges source files from every i18n.yml in the repository", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.yml": "root",
+      "/home/user/project/apps/hyperlocalise-web/i18n.yml": "web",
+    });
+    const yqCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("yq", async (args) => {
+        yqCalls.push(args);
+        if (args.at(-1) === "i18n.yml") {
+          return {
+            stdout: JSON.stringify({
+              locales: { source: "en-US" },
+              buckets: { docs: { files: [{ from: "docs/**/*.mdx" }] } },
+            }),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return {
+          stdout: JSON.stringify({
+            locales: { source: "en-US" },
+            buckets: {
+              web: { files: [{ from: "lang/en-US.json" }] },
+              blog: { files: [{ from: "_posts/en/**/*.md" }] },
+            },
+          }),
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "ls-files") {
+          if (args.includes("i18n.yml") || args.includes("**/i18n.yml")) {
+            return {
+              stdout: "i18n.yml\0apps/hyperlocalise-web/i18n.yml\0",
+              stderr: "",
+              exitCode: 0,
+            };
+          }
+          if (args.includes("docs/**/*.mdx")) {
+            return { stdout: "docs/getting-started.mdx\n", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("apps/hyperlocalise-web/lang/en-US.json")) {
+            return {
+              stdout: "apps/hyperlocalise-web/lang/en-US.json\n",
+              stderr: "",
+              exitCode: 0,
+            };
+          }
+          if (args.includes("apps/hyperlocalise-web/_posts/en/**/*.md")) {
+            return {
+              stdout: "apps/hyperlocalise-web/_posts/en/hello.md\n",
+              stderr: "",
+              exitCode: 0,
+            };
+          }
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "log") {
+          return {
+            stdout: [
+              "abc\t2026-07-01T00:00:00Z\tMina\tUpdate strings",
+              "apps/hyperlocalise-web/lang/en-US.json",
+              "docs/getting-started.mdx",
+            ].join("\n"),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!({ mode: "changedFiles", since: "1 week ago" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      files: ["apps/hyperlocalise-web/lang/en-US.json", "docs/getting-started.mdx"],
+      discovery: {
+        configKind: "hyperlocalise",
+        configPath: "i18n.yml",
+        files: [
+          "apps/hyperlocalise-web/_posts/en/hello.md",
+          "apps/hyperlocalise-web/lang/en-US.json",
+          "docs/getting-started.mdx",
+        ],
+        configs: [
+          expect.objectContaining({
+            configPath: "i18n.yml",
+            files: ["docs/getting-started.mdx"],
+          }),
+          expect.objectContaining({
+            configPath: "apps/hyperlocalise-web/i18n.yml",
+            files: [
+              "apps/hyperlocalise-web/_posts/en/hello.md",
+              "apps/hyperlocalise-web/lang/en-US.json",
+            ],
+          }),
+        ],
+      },
+    });
+    expect(yqCalls.map((args) => args.at(-1))).toEqual([
+      "i18n.yml",
+      "apps/hyperlocalise-web/i18n.yml",
+    ]);
   });
 
   it("falls back to Crowdin files[].source", async () => {
@@ -827,7 +961,13 @@ describe("createGitHistoryTool", () => {
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
         if (args[0] === "ls-files") {
-          return { stdout: "src/messages.json\n", stderr: "", exitCode: 0 };
+          if (args.includes("crowdin.yml") || args.includes("**/crowdin.yml")) {
+            return { stdout: "crowdin.yml\0", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("src/messages.json")) {
+            return { stdout: "src/messages.json\n", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "", stderr: "", exitCode: 0 };
         }
         if (args[0] === "log") {
           return { stdout: "src/messages.json\n", stderr: "", exitCode: 0 };
@@ -897,6 +1037,17 @@ describe("createGitHistoryTool", () => {
         stderr: "",
         exitCode: 0,
       })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "ls-files") {
+          if (args.includes(".phrase.yml") || args.includes("**/.phrase.yml")) {
+            return { stdout: ".phrase.yml\0", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
     );
 
     const t = createGitHistoryTool(ctx);
