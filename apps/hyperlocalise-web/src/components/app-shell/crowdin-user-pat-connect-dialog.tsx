@@ -5,6 +5,7 @@ import { Key01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { tmsUserConnectCtaQueryKey } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
@@ -21,6 +22,8 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api-client-instance";
 
+import { crowdinUserPatConnectDialogMessages } from "./crowdin-user-pat-connect-dialog.messages";
+
 type CrowdinUserPatConnectDialogProps = {
   organizationSlug: string;
   providerDisplayName?: string;
@@ -34,6 +37,7 @@ export function CrowdinUserPatConnectDialog({
   open,
   onOpenChange,
 }: CrowdinUserPatConnectDialogProps) {
+  const intl = useIntl();
   const tokenFieldId = useId();
   const [personalAccessToken, setPersonalAccessToken] = useState("");
   const [showToken, setShowToken] = useState(false);
@@ -60,7 +64,11 @@ export function CrowdinUserPatConnectDialog({
           error?: string;
           message?: string;
         } | null;
-        throw new Error(body?.message ?? body?.error ?? "Failed to connect Crowdin");
+        throw new Error(
+          body?.message ??
+            body?.error ??
+            intl.formatMessage(crowdinUserPatConnectDialogMessages.connectFailed),
+        );
       }
 
       await Promise.all([
@@ -78,9 +86,17 @@ export function CrowdinUserPatConnectDialog({
       setPersonalAccessToken("");
       setShowToken(false);
       onOpenChange(false);
-      toast.success(`${providerDisplayName} connected`);
+      toast.success(
+        intl.formatMessage(crowdinUserPatConnectDialogMessages.connected, {
+          provider: providerDisplayName,
+        }),
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to connect Crowdin");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(crowdinUserPatConnectDialogMessages.connectFailed),
+      );
     } finally {
       setIsPending(false);
     }
@@ -101,18 +117,23 @@ export function CrowdinUserPatConnectDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Connect {providerDisplayName}</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage
+              {...crowdinUserPatConnectDialogMessages.title}
+              values={{ provider: providerDisplayName }}
+            />
+          </DialogTitle>
           <DialogDescription>
-            Paste your personal access token from Crowdin. Your admin already configured the API
-            base URL for this workspace—you only need your token.
+            <FormattedMessage {...crowdinUserPatConnectDialogMessages.description} />
           </DialogDescription>
         </DialogHeader>
 
         <Field className="gap-2">
-          <FieldLabel htmlFor={tokenFieldId}>Personal access token</FieldLabel>
+          <FieldLabel htmlFor={tokenFieldId}>
+            <FormattedMessage {...crowdinUserPatConnectDialogMessages.tokenLabel} />
+          </FieldLabel>
           <FieldDescription>
-            Create a token in Crowdin under Account Settings → API, or in Crowdin Enterprise under
-            your account or Organization Settings → User Access Tokens.
+            <FormattedMessage {...crowdinUserPatConnectDialogMessages.tokenHelp} />
           </FieldDescription>
           <div className="relative">
             <HugeiconsIcon
@@ -126,14 +147,18 @@ export function CrowdinUserPatConnectDialog({
               autoComplete="off"
               value={personalAccessToken}
               onChange={(event) => setPersonalAccessToken(event.target.value)}
-              placeholder="Paste your Crowdin token"
+              placeholder={intl.formatMessage(crowdinUserPatConnectDialogMessages.tokenPlaceholder)}
               className="ps-9 pe-9"
             />
             <button
               type="button"
               onClick={() => setShowToken((current) => !current)}
               className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label={showToken ? "Hide token" : "Show token"}
+              aria-label={intl.formatMessage(
+                showToken
+                  ? crowdinUserPatConnectDialogMessages.hideToken
+                  : crowdinUserPatConnectDialogMessages.showToken,
+              )}
             >
               {showToken ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
             </button>
@@ -147,7 +172,7 @@ export function CrowdinUserPatConnectDialog({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
-            Cancel
+            <FormattedMessage {...crowdinUserPatConnectDialogMessages.cancel} />
           </Button>
           <Button
             type="button"
@@ -156,7 +181,11 @@ export function CrowdinUserPatConnectDialog({
             }}
             disabled={!personalAccessToken.trim() || isPending}
           >
-            {isPending ? "Connecting..." : "Connect"}
+            {isPending ? (
+              <FormattedMessage {...crowdinUserPatConnectDialogMessages.connecting} />
+            ) : (
+              <FormattedMessage {...crowdinUserPatConnectDialogMessages.connect} />
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

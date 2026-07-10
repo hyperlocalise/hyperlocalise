@@ -12,6 +12,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildOrganizationSwitchHref } from "@/components/team-switcher";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
+
+import { navUserMessages } from "./nav-user.messages";
 
 type OrganizationOption = {
   name: string;
@@ -85,14 +88,19 @@ export function NavUser({
                     <AvatarImage src={user.avatar} alt={user.name} />
                     <AvatarFallback className="rounded-full text-xs">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="sr-only">Open account menu for {user.name}</span>
+                  <span className="sr-only">
+                    <FormattedMessage
+                      {...navUserMessages.openAccountMenu}
+                      values={{ name: user.name }}
+                    />
+                  </span>
                 </Button>
               }
             />
           }
         />
         <TooltipContent side="bottom" align="center">
-          Account
+          <FormattedMessage {...navUserMessages.accountTooltip} />
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent className="min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
@@ -114,24 +122,24 @@ export function NavUser({
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/account`} />}>
             <HugeiconsIcon icon={AiUserIcon} strokeWidth={2} className="size-4" />
-            Account
+            <FormattedMessage {...navUserMessages.account} />
           </DropdownMenuItem>
           {showMembersLink ? (
             <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/members`} />}>
               <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="size-4" />
-              Members
+              <FormattedMessage {...navUserMessages.members} />
             </DropdownMenuItem>
           ) : null}
           {showApiKeysLink ? (
             <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/api-keys`} />}>
               <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
-              API Keys
+              <FormattedMessage {...navUserMessages.apiKeys} />
             </DropdownMenuItem>
           ) : null}
           {showBillingLink ? (
             <DropdownMenuItem render={<Link href={buildPlanUsageHref(organizationSlug)} />}>
               <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} className="size-4" />
-              Billing
+              <FormattedMessage {...navUserMessages.billing} />
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuGroup>
@@ -141,11 +149,11 @@ export function NavUser({
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <HugeiconsIcon icon={Building02Icon} strokeWidth={2} className="size-4" />
-                Switch workspace
+                <FormattedMessage {...navUserMessages.switchWorkspace} />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Workspaces
+                  <FormattedMessage {...navUserMessages.workspaces} />
                 </DropdownMenuLabel>
                 {switchableOrganizations.map((organization) => {
                   const isActive = organization.slug === organizationSlug;
@@ -177,7 +185,7 @@ export function NavUser({
                 })}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem render={<Link href="/auth/select-organization" />}>
-                  View all workspaces
+                  <FormattedMessage {...navUserMessages.viewAllWorkspaces} />
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -186,7 +194,7 @@ export function NavUser({
         ) : null}
         <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}>
           <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} className="size-4" />
-          Log out
+          <FormattedMessage {...navUserMessages.logOut} />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

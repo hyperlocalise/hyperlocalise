@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { PlanUsageSidebarWidget } from "@/components/billing/plan-usage-summary";
 import {
@@ -28,6 +29,8 @@ import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organiza
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
+
+import { appShellClientMessages } from "./app-shell-client.messages";
 
 type AppShellClientProps = {
   autumnConfigured?: boolean;
@@ -63,6 +66,7 @@ export function AppShellClient({
   showMembersLink = false,
   user,
 }: AppShellClientProps) {
+  const intl = useIntl();
   const organizationSlug = activeOrganization.slug ?? "";
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
@@ -87,12 +91,12 @@ export function AppShellClient({
                 width={28}
                 height={28}
                 sizes="28px"
-                alt="Hyperlocalise logo"
+                alt={intl.formatMessage(appShellClientMessages.logoAlt)}
                 className="size-7 shrink-0 rounded-lg"
               />
               <div className="min-w-0 group-data-[collapsible=icon]:hidden">
                 <TypographyP className="truncate text-sm font-medium text-sidebar-foreground">
-                  Hyperlocalise
+                  <FormattedMessage {...appShellClientMessages.brandName} />
                 </TypographyP>
               </div>
             </div>
@@ -111,7 +115,7 @@ export function AppShellClient({
 
         <SidebarInset className="min-h-svh bg-background">
           <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
-            <div className="flex h-[var(--app-shell-header-height)] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <SidebarTrigger className="-ms-1" />
                 <Separator

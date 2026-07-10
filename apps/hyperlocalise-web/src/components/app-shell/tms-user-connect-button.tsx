@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Key01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { CrowdinUserPatConnectDialog } from "@/components/app-shell/crowdin-user-pat-connect-dialog";
@@ -13,6 +14,8 @@ import {
   formatTmsUserConnectProviderLabel,
   type TmsUserConnectProviderKind,
 } from "@/lib/providers/credentials/tms-user-connection-shared";
+
+import { tmsUserConnectButtonMessages } from "./tms-user-connect-button.messages";
 
 export function TmsUserConnectButton({
   organizationSlug,
@@ -27,6 +30,7 @@ export function TmsUserConnectButton({
   connectMethod?: "oauth" | "pat";
   className?: string;
 }) {
+  const intl = useIntl();
   const label = providerDisplayName ?? formatTmsUserConnectProviderLabel(providerKind);
   const [isPending, setIsPending] = useState(false);
   const [patDialogOpen, setPatDialogOpen] = useState(false);
@@ -56,14 +60,22 @@ export function TmsUserConnectButton({
           error?: string;
           message?: string;
         } | null;
-        throw new Error(body?.message ?? body?.error ?? `Failed to start ${label} connection`);
+        throw new Error(
+          body?.message ??
+            body?.error ??
+            intl.formatMessage(tmsUserConnectButtonMessages.startFailed, { provider: label }),
+        );
       }
 
       const body = (await response.json()) as { authorizationUrl: string };
       window.location.assign(body.authorizationUrl);
     } catch (error) {
       setIsPending(false);
-      toast.error(error instanceof Error ? error.message : `Failed to start ${label} connection`);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(tmsUserConnectButtonMessages.startFailed, { provider: label }),
+      );
     }
   }
 
@@ -87,7 +99,14 @@ export function TmsUserConnectButton({
         onClick={handleClick}
       >
         <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
-        {isPending ? "Connecting..." : `Connect ${label}`}
+        {isPending ? (
+          <FormattedMessage {...tmsUserConnectButtonMessages.connecting} />
+        ) : (
+          <FormattedMessage
+            {...tmsUserConnectButtonMessages.connect}
+            values={{ provider: label }}
+          />
+        )}
       </Button>
 
       {providerKind === "crowdin" && connectMethod === "pat" ? (
