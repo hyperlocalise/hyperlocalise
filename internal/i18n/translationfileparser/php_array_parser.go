@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -66,7 +67,7 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 		return []byte(d.template)
 	}
 
-	var b strings.Builder
+	var b bytes.Buffer
 	b.Grow(len(d.template))
 	cursor := 0
 
@@ -78,19 +79,20 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
-			b.WriteString(encodePHPStringLiteral(translated, entry.quote))
+			writePHPStringLiteral(&b, translated, entry.quote)
 		} else {
 			b.WriteString(entry.valueLiteral)
 		}
 		cursor = entry.valueEnd
 	}
 	b.WriteString(d.template[cursor:])
-	return []byte(b.String())
+	return b.Bytes()
 }
 
 func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
 	// BOLT OPTIMIZATION: Hint capacity for entries and seen map based on content size.
-	capacity := len(content) / 64
+	// Increased density hint from /64 to /32.
+	capacity := len(content) / 32
 	if capacity < 4 {
 		capacity = 4
 	}
@@ -399,24 +401,28 @@ func (s *phpArrayScanner) hasKeywordAt(keyword string, pos int) bool {
 func skipPHPTrivia(text string, start int) int {
 	i := skipPHPWhitespace(text, start)
 	for i < len(text) {
-		switch {
-		case strings.HasPrefix(text[i:], "//"):
-			i += len("//")
-			for i < len(text) && text[i] != '\n' {
-				i++
-			}
-		case strings.HasPrefix(text[i:], "#"):
+		if text[i] == '#' {
 			i++
 			for i < len(text) && text[i] != '\n' {
 				i++
 			}
-		case strings.HasPrefix(text[i:], "/*"):
-			end := strings.Index(text[i+2:], "*/")
-			if end < 0 {
+		} else if i+1 < len(text) && text[i] == '/' {
+			switch text[i+1] {
+			case '/':
+				i += 2
+				for i < len(text) && text[i] != '\n' {
+					i++
+				}
+			case '*':
+				end := strings.Index(text[i+2:], "*/")
+				if end < 0 {
+					return i
+				}
+				i = i + 2 + end + 2
+			default:
 				return i
 			}
-			i = i + 2 + end + 2
-		default:
+		} else {
 			return i
 		}
 		i = skipPHPWhitespace(text, i)
@@ -494,9 +500,12 @@ var (
 	)
 )
 
-func encodePHPStringLiteral(value string, quote byte) string {
+func writePHPStringLiteral(b *bytes.Buffer, value string, quote byte) {
+	b.WriteByte(quote)
 	if quote == '"' {
-		return `"` + phpDoubleQuoteReplacer.Replace(value) + `"`
+		_, _ = phpDoubleQuoteReplacer.WriteString(b, value)
+	} else {
+		_, _ = phpSingleQuoteReplacer.WriteString(b, value)
 	}
-	return "'" + phpSingleQuoteReplacer.Replace(value) + "'"
+	b.WriteByte(quote)
 }
