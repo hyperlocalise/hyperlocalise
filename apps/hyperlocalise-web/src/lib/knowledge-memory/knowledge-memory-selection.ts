@@ -184,15 +184,20 @@ function fallbackSegmentPriority(segment: KnowledgeMemorySegment) {
   return Math.min(...segment.headingPath.map(headingFallbackPriority));
 }
 
+function orderFallbackSegments(segments: KnowledgeMemorySegment[]) {
+  return [...segments].sort((a, b) => {
+    const priorityDelta = fallbackSegmentPriority(a) - fallbackSegmentPriority(b);
+    return priorityDelta === 0 ? a.startLine - b.startLine : priorityDelta;
+  });
+}
+
 function buildFallbackText(content: string, maxChars: number, segments: KnowledgeMemorySegment[]) {
   const headingBudget = Math.min(maxChars, 1_200);
   const lines = [truncateFallbackText(buildHeadingFallbackText(content), headingBudget)];
-  const fallbackSegments = [...segments]
-    .sort((a, b) => {
-      const priorityDelta = fallbackSegmentPriority(a) - fallbackSegmentPriority(b);
-      return priorityDelta === 0 ? a.startLine - b.startLine : priorityDelta;
-    })
-    .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+  const fallbackSegments = orderFallbackSegments(segments).slice(
+    0,
+    KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS,
+  );
 
   for (const segment of fallbackSegments) {
     if (!appendWithinBudget(lines, segment.compactPromptText, maxChars)) {
@@ -239,9 +244,21 @@ function isPreferredFallbackSegment(segment: KnowledgeMemorySegment) {
 }
 
 function findDefaultFallbackSegments(segments: KnowledgeMemorySegment[]) {
-  return segments
+  return orderFallbackSegments(segments)
     .filter(isPreferredFallbackSegment)
     .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+}
+
+function findGeneralFallbackSegments(
+  general: KnowledgeMemorySegment,
+  segments: KnowledgeMemorySegment[],
+) {
+  const remainingSegments = segments.filter((segment) => segment.id !== general.id);
+  const preferredSegments = findDefaultFallbackSegments(remainingSegments);
+  const supportingSegments =
+    preferredSegments.length > 0 ? preferredSegments : orderFallbackSegments(remainingSegments);
+
+  return [general, ...supportingSegments].slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
 }
 
 export function selectKnowledgeMemoryContext(
@@ -284,7 +301,7 @@ export function selectKnowledgeMemoryContext(
   if (general) {
     return buildSelectedContext({
       wholeMemoryChars: content.length,
-      selectedSegments: [general],
+      selectedSegments: findGeneralFallbackSegments(general, segments),
       fallbackMode: "general",
       maxChars,
     });

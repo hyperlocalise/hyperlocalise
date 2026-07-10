@@ -203,6 +203,25 @@ function checkoutCopyFallbackMemory() {
   ].join("\n");
 }
 
+function generalWithLaterRulesMemory() {
+  return [
+    "# Memory.md",
+    "",
+    "## General",
+    "",
+    "Use clear product copy across all locales.",
+    "",
+    "## Payment rules",
+    "",
+    "Keep settlement timing explicit and preserve card-network names.",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -407,6 +426,23 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.compactText).toContain("card confirmation wording");
     expect(selected.compactText).toContain("payment timing plainly");
     expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("keeps general fallback plus later representative sections", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: generalWithLaterRulesMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Memory.md > General");
+    expect(selected.compactText).toContain("clear product copy");
+    expect(selected.compactText).toContain("Memory.md > Payment rules");
+    expect(selected.compactText).toContain("settlement timing explicit");
+    expect(selected.metrics.fallbackMode).toBe("general");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
