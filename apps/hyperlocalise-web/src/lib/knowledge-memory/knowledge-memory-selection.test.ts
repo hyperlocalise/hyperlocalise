@@ -173,6 +173,21 @@ function lateHeadingOnlyGuidanceMemory() {
   ].join("\n");
 }
 
+function paymentRulesFallbackMemory() {
+  return [
+    "# Memory.md",
+    "",
+    "## Payment rules",
+    "",
+    "Use concise payment wording and keep card-network names unchanged.",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -344,6 +359,22 @@ describe("selectKnowledgeMemoryContext", () => {
 
     expect(selected.compactText).toContain("Protected token rule - Never translate SKU-LATE");
     expect(selected.compactText).toContain("Locale rule - Use formal voice for es-ES checkout");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("keeps fallback section body text for useful rule headings", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: paymentRulesFallbackMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Memory.md > Payment rules");
+    expect(selected.compactText).toContain("concise payment wording");
+    expect(selected.compactText).toContain("card-network names unchanged");
     expect(selected.metrics.fallbackMode).toBe("fallback");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,

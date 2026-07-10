@@ -207,9 +207,7 @@ function findGeneralFallback(segments: KnowledgeMemorySegment[]) {
 }
 
 function isPreferredFallbackSegment(segment: KnowledgeMemorySegment) {
-  return segment.headingPath.some((heading) =>
-    /^(brand voice|voice|tone|style|style guide|glossary|terminology)$/i.test(heading.trim()),
-  );
+  return segment.headingPath.some((heading) => headingFallbackPriority(heading) === 0);
 }
 
 function findDefaultFallbackSegments(segments: KnowledgeMemorySegment[]) {
