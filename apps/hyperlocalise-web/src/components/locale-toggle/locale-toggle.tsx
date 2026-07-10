@@ -2,7 +2,7 @@
 
 import { LanguageCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 import {
+  getAppLocaleFlagEmoji,
   getAppLocaleFromPathname,
   getNativeLocaleDisplayName,
   rewriteAppLocalePath,
@@ -26,7 +27,6 @@ import { localeToggleMessages } from "./locale-toggle.messages";
 export function LocaleToggle() {
   const intl = useIntl();
   const pathname = usePathname() ?? "/";
-  const router = useRouter();
   const activeLocale = getAppLocaleFromPathname(pathname);
 
   return (
@@ -60,15 +60,17 @@ export function LocaleToggle() {
               return;
             }
 
-            const search = typeof window !== "undefined" ? window.location.search : "";
-            const hash = typeof window !== "undefined" ? window.location.hash : "";
-            router.push(rewriteAppLocalePath(`${pathname}${search}${hash}`, nextLocale));
+            const search = window.location.search;
+            const hash = window.location.hash;
+            window.location.assign(rewriteAppLocalePath(`${pathname}${search}${hash}`, nextLocale));
           }}
         >
           {SUPPORTED_APP_LOCALES.map((locale) => (
             <DropdownMenuRadioItem key={locale} value={locale}>
-              <span className="truncate">{getNativeLocaleDisplayName(locale)}</span>
-              <span className="text-muted-foreground">({locale})</span>
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">{getAppLocaleFlagEmoji(locale)}</span>
+                <span>{getNativeLocaleDisplayName(locale)}</span>
+              </span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
