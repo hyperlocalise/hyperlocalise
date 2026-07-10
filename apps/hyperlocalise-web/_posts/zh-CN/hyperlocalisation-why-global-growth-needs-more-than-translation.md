@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalisation: Why Global Growth Needs More Than Translation"
+title: "超本地化：为何全球增长需要的不只是翻译"
 date: 2026-06-20T00:00:00.000Z
-excerpt: Global growth has outpaced traditional localisation. Hyperlocalisation adapts communication so it feels natural, relevant, and trusted in every market — with context, not just translation.
-category: Product
+excerpt: 全球增长已超过传统本地化。超本地化通过结合上下文而不只是翻译，来调整沟通方式，使其在每个市场中都显得自然、相关且值得信赖。
+category: 产品
 tags:
   - hyperlocalisation
   - hyperlocalization
@@ -21,142 +21,142 @@ tags:
   - self-evolving localisation
 ---
 
-For years, localisation has been treated as the final step before a product, campaign, or piece of content reaches a new market. The source content is created, translated, reviewed, and published. In many organisations, this process has been enough to support international expansion.
+多年来，本地化一直被视为产品、营销活动或内容进入新市场前的最后一步。源内容先被创建、翻译、审核，然后发布。在许多组织中，这一流程已足以支持国际扩张。
 
-But global growth has changed.
+但全球增长已经发生了变化。
 
-Companies now ship products continuously. Marketing teams launch campaigns across multiple regions at the same time. Support teams update help content every week. Product copy lives across repositories, CMS platforms, design tools, ticketing systems, landing pages, and customer-facing applications. The volume of multilingual content has increased, but the real challenge is not simply producing more translations faster.
+如今，公司持续不断地发布产品。营销团队同时在多个地区开展活动。支持团队每周更新帮助内容。产品文案分散在代码仓库、CMS 平台、设计工具、工单系统、落地页和面向客户的应用程序中。多语言内容的数量已经增加，但真正的挑战并不只是更快地产出更多翻译。
 
-The real challenge is context.
+真正的挑战在于上下文。
 
-A sentence can be translated correctly and still fail in the market. A product string can be linguistically accurate but confusing inside the interface. A campaign message can preserve the original meaning while losing the emotion, cultural relevance, or commercial intent that made it work in the first place.
+一句话即使翻译正确，也可能在市场上失败。一个产品文案在语言上可能准确，但在界面中却令人困惑。一条营销信息可以保留原意，却失去最初让它奏效的情感、文化相关性或商业意图。
 
-This is where hyperlocalisation becomes essential.
+在这里，超本地化变得至关重要。
 
-Hyperlocalisation is not just the act of translating content into another language. It is the practice of adapting communication so it feels natural, relevant, and trusted in each market. It considers language, culture, product experience, brand voice, customer expectations, regulatory nuance, and the specific context in which the content appears.
+超本地化不仅仅是将内容翻译成另一种语言。它是一种调整沟通方式的实践，使其在每个市场中都显得自然、相关且值得信赖。它会考虑语言、文化、产品体验、品牌语调、客户期望、监管细微差别，以及内容所呈现的具体情境。
 
-In other words, translation asks, "What does this say in another language?"
+换句话说，翻译是在问：“这句话用另一种语言怎么说？”
 
-Hyperlocalisation asks, "How should this message work for this audience, in this market, inside this experience?"
+超本地化会问：“这条消息应该如何在这个受众、在这个市场、在这个体验中发挥作用？”
 
-That distinction is becoming increasingly important for every company with global ambitions.
+对于每一家有全球雄心的公司来说，这种区别正变得越来越重要。
 
-## The limits of traditional localisation
+## 传统本地化的局限性
 
-Traditional localisation workflows were built for a more predictable operating model. Content moved through defined stages: creation, translation, review, approval, and release. Translation memories, glossaries, terminology databases, and review workflows helped teams improve consistency and manage quality at scale.
+传统本地化工作流程是为更可预测的运营模式而构建的。内容按既定阶段推进：创建、翻译、审校、批准和发布。翻译记忆库、词汇表、术语数据库和审校工作流帮助团队提高一致性，并在规模化管理中保证质量。
 
-These systems remain useful, but they were not designed for the way modern companies now build and communicate.
+这些系统仍然有用，但它们并不是为现代公司如今构建和沟通的方式而设计的。
 
-Today, localisation is no longer a simple handoff between content teams and translators. It is an ongoing collaboration between product, engineering, marketing, support, legal, brand, regional teams, and external language experts. A single translation decision may depend on the product surface, design constraints, previous reviewer feedback, market-specific terminology, brand positioning, legal requirements, and customer behaviour.
+如今，本地化不再只是内容团队与译者之间的简单交接。它是产品、工程、市场、支持、法务、品牌、地区团队以及外部语言专家之间持续不断的协作。一个单独的翻译决策，可能取决于产品界面、设计限制、先前审校反馈、特定市场术语、品牌定位、法律要求以及客户行为。
 
-Yet much of this context still sits outside the translation workflow.
+然而，这些上下文中的许多内容仍然处于翻译工作流之外。
 
-It may live in Slack conversations, Jira tickets, Figma files, GitHub repositories, product briefs, brand guidelines, screenshots, spreadsheets, or the memory of a reviewer who has worked on similar content before. As a result, localisation teams often spend as much time searching for context as they do managing the translation itself.
+它可能存在于 Slack 对话、Jira 工���、Figma 文件、GitHub 仓库、产品简报、品牌指南、截图、电子表格，或者曾处理过类似内容的审校者记忆中。因此，本地化团队经常花在搜索上下文上的时间，与管理翻译本身一样多。
 
-This creates a structural problem.
+这会造成一个结构性问题。
 
-When translators and reviewers work with incomplete context, quality becomes inconsistent. When localisation managers need to manually gather information from multiple tools, projects slow down. When decisions happen outside the workflow, valuable knowledge is lost. Over time, the organisation repeats the same questions, makes the same corrections, and rebuilds the same context from scratch.
+当翻译人员和审校人员在上下文不完整的情况下工作时，质量就会变得不一致。当本地化管理人员需要手动从多个工具中收集信息时，项目就会变慢。当决策发生在工作流之外时，宝贵的知识就会流失。随着时间推移，组织会反复提出同样的问题，进行同样的修改，并从头重建同样的上下文。
 
-The issue is not that localisation teams lack expertise.
+问题不在于本地化团队缺乏专业知识。
 
-The issue is that the workflow does not give them the intelligence they need at the moment decisions are made.
+问题在于���工作流程在做出决策的时刻并没有为他们提供所需的智能。
 
-## AI translation is only part of the answer
+## AI 翻译只是答案的一部分
 
-AI has already changed localisation. It can generate translations quickly, reduce manual effort, support terminology checks, and help teams scale multilingual content with greater efficiency. For many companies, AI translation is now an important part of the localisation stack.
+AI 已经改变了本地化。它可以快速生成译文、减少人工工作量、支持术语检查，并帮助团队以更高效率扩展多语言内容。对于许多公司来说，AI 翻译如今已成为本地化技术栈中的重要组成部分。
 
-But speed is not the same as quality.
+但速度并不等于质量。
 
-A model can produce fluent output without understanding where the copy appears. It can follow a glossary without knowing when a term should be adapted for a specific audience. It can translate a product message without understanding the user journey, the design constraint, the brand strategy, or the reviewer's previous preference.
+模型可以生成流畅的输出，却不了解文案出现在哪里。它可以遵循术语表，却不知道某个术语何时应针对特定受众进行调整。它可以翻译产品信息，却不了解用户旅程、设计约束、品牌策略，或审阅者之前的偏好。
 
-This is why [AI translation alone is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation).
+这就是为什么仅靠 [AI 翻译还不够](/blog/ai-translation-is-not-enough-context-aware-localisation)。
 
-The next phase of localisation will not be defined by who can translate the fastest. It will be defined by who can make the best decisions with the right context.
+下一阶段的本地化将不再由谁能最快完成翻译来定义，而将由谁能在正确的上下文下做出最佳决策来定义。
 
-That requires a new layer of translation intelligence.
+这需要新一层的翻译智能。
 
-[Translation intelligence](/blog/what-is-translation-intelligence) brings together the information required to make high-quality localisation decisions: product context, screenshots, source history, glossary rules, brand voice, UI constraints, customer expectations, market nuance, approval flows, and previous reviewer feedback.
+[Translation intelligence](/blog/what-is-translation-intelligence) 汇集了做出高质量本地化决策所需的信息：产品上下文、截图、源文本历史、术语表规则、品牌语调、界面限制、客户期望、市场细微差别、审批流程以及先前的审核反馈。
 
-Instead of asking translators to chase context manually, the system should bring context into the workflow automatically.
+系统应自动将上下文引入工作流程，而不是让译员手动追踪上下文。
 
-Instead of treating every project as a new starting point, the system should learn from previous decisions.
+系统不应将每个项目都视为新的起点，而应从先前的决策中学习。
 
-Instead of using AI as a generic translation engine, teams should be able to use AI as a context-aware assistant that supports better judgement, faster review, and more consistent outcomes.
+团队不应将 AI 仅仅用作通用翻译引擎，而应能够将 AI 作为一个具备上下文感知能力的助手来使用，以支持更好的判断、更快的审校以及更一致的结果。
 
-## Hyperlocalisation as an operating model
+## 作为一种运营模式的超本地化
 
-Hyperlocalisation is often misunderstood as making every market completely different. That is not the goal.
+超本地化常常被误解为让每个市场都完全不同。但这并不是目标。
 
-The goal is to understand what should remain globally consistent and what should be adapted locally.
+目标是理解哪些内容应保持全球一致，哪些内容应进行本地化调整。
 
-A strong global brand needs both discipline and flexibility. Product names, legal claims, core positioning, and brand principles often need consistency across markets. At the same time, tone, examples, calls to action, levels of formality, cultural references, payment language, and support expectations may need to vary depending on the region.
+一个强大的全球品牌既需要纪律性，也需要灵活性。产品名称、法律声明、核心定位和品牌原则通常需要在各个市场保持一致。与此同时，语气、示例、行动号召、正式程度、文化引用、支付措辞以及支持预期可能需要根据地区而变化。
 
-The best localisation systems help teams manage this balance.
+最好的本地化系统能帮助团队管理这种平衡。
 
-They do not simply move words from one language to another. They help teams decide how a message should behave in context. They preserve the intent of the source content while adapting it to the expectations of the local customer.
+他们不仅仅是将词语从一种语言转换到另一种语言。他们帮助团队决定一条信息在具体语境中应如何呈现。他们在保留源内容意图的同时，使其适应当地客户的期望。
 
-This is why hyperlocalisation should be seen as an operating model, not just a translation technique.
+这就是为什么超本地化应被视为一种运营模式，而不仅仅是一种翻译技术。
 
-It connects content, product, design, engineering, marketing, and regional knowledge into a shared workflow. It gives teams a clearer view of why a translation decision was made, who approved it, what context informed it, and how that decision should influence future work.
+它将内容、产品、设计、工程、市场和区域知识连接到一个共享工作流中。它让团队更清楚地了解某个翻译决策为何被做出、由谁批准、哪些上下文信息促成了这一决定，以及该决定应如何影响未来的工作。
 
-When done well, hyperlocalisation improves more than translation quality. It improves product experience, brand trust, conversion, customer support, and the speed at which companies can enter and grow in new markets.
+当本地化做得好时，它带来的提升不止于翻译质量。它还能提升产品体验、品牌信任、转化率、客户支持，以及企业进入并拓展新市场的速度。
 
-## The mission of Hyperlocalise
+## Hyperlocalise 的使命
 
-Hyperlocalise exists to help companies communicate with global customers as if they truly understand them.
+Hyperlocalise 的存在是为了帮助企业与全球客户沟通，就像它们真的理解客户一样。
 
-Our mission is to make localisation more intelligent, more contextual, and more connected to the way modern teams work.
+我们的使命是让本地化更加智能、更加具备上下文感知，并且更紧密地契合现代团队的工作方式。
 
-We believe the future of localisation is not a choice between human expertise and AI automation. The best outcomes will come from combining both. AI should reduce repetitive work, surface relevant context, suggest better options, and help teams operate faster. Human experts should remain focused on judgement, nuance, quality, and market relevance.
+我们相信，本地化的未来不是在人类专业能力和 AI 自动化之间做选择。最好的结果将来自二者的结合。AI 应该减少重复性工作，呈现相关上下文，提供更优选项，并帮助团队更快地运作。人类专家则应继续专注于判断、细微差别、质量以及市场相关性。
 
-This is especially important for teams managing complex multilingual products.
+这对于管理复杂多语言产品的团队尤其重要。
 
-Localisation managers should not need to chase product context across disconnected tools. Translators should not need to work from isolated strings. Reviewers should not need to repeat the same feedback across every project. Product and marketing teams should not need to compromise between speed and quality when launching globally.
+本地化经理不应需要在分散的工具之间追逐产品上下文。译员不应需要基于孤立的字符串进行工作。审校人员不应需要在每个项目中重复相同的反馈。产品和市场团队在全球发布时不应需要在速度和质量之间做出妥协。
 
-Hyperlocalise is building for a future where localisation workflows are context-aware by default.
+Hyperlocalise 正在构建一个未来，在这个未来中，本地化工作流默认具备上下文感知能力。
 
-That means the translation experience should understand the product. It should understand the brand. It should understand the market. It should understand previous decisions. And it should improve as the team continues to work.
+这意味着翻译体验应该理解产品。它应该理解品牌。它应该理解市场。它应该理解之前的决策。而且，随着团队持续协作，它还应该不断改进。
 
-Our [next-generation CAT tool](/product/next-gen-cat-tool) brings product context, glossary rules, screenshots, and reviewer feedback into the translation experience itself — so hyperlocalisation decisions happen where the work actually gets done.
+我们的[下一代 CAT 工具](/product/next-gen-cat-tool) 将产品上下文、术语表规则、截图和审校者反馈直接带入翻译体验本身——因此，超本地化决策会发生在实际完成工作的地方。
 
-## Our vision: self-evolving localisation intelligence
+## 我们的愿景：自我演进的本地化智能
 
-The long-term vision of Hyperlocalise is to create a living intelligence layer for global communication.
+Hyperlocalise 的长期愿景是为全球沟通创建一个动态智能层。
 
-Every approved translation, reviewer edit, product update, glossary rule, screenshot, support insight, and brand decision contains valuable knowledge. Today, much of that knowledge disappears after a project is completed. It remains trapped in comments, tickets, spreadsheets, or individual memory.
+每一条已批准的译文、审校修改、产品更新、术语规则、截图、支持洞察和品牌决策都包含宝贵的知识。今天，这些知识中的大部分会在项目完成后消失。它仍然被困在评论、工单、电子表格或个人记忆中。
 
-We believe that knowledge should become reusable.
+我们认为，知识应该变得可复用。
 
-A localisation system should learn from how a company communicates. It should remember how terms are used across products. It should understand how reviewers make decisions. It should recognise patterns in market feedback. It should help teams apply the right rules and context without requiring the same manual setup every time.
+本地化系统应从公司的沟通方式中学习。它应记住术语在不同产品中的使用方式。它应理解审校人员如何做出决策。它应识别市场反馈中的模式。它应帮助团队应用正确的规则和上下文，而无需每次都进行相同的手动设置。
 
-This is what we mean by [self-evolving localisation intelligence](/product/self-evolving-knowledge).
+这就是我们所说的 [self-evolving localisation intelligence](/product/self-evolving-knowledge)。
 
-The system should become more useful with every project. It should reduce repeated questions, improve consistency, and help teams make better decisions over time. The more a company localises, the stronger its localisation intelligence should become.
+系统应随着每个项目变得更加实用。它应减少重复提问，提高一致性，并帮助团队随着时间推移做出更好的决策。公司本地化得越多，其本地化智能就应越强。
 
-[Agents and automation](/product/agents-automation) help teams gather context, route work, and apply learned decisions across repositories, CMS platforms, and design tools — so hyperlocalisation scales with the pace of modern product development.
+[智能体和自动化](/product/agents-automation) 帮助团队收集上下文、路由工作，并将已学习的决策应用于各个代码库、CMS 平台和设计工具——从而使超本地化能够跟上现代产品开发的节奏。
 
-## Why this matters
+## 为什么这很重要
 
-Customers can tell when a company has simply translated content.
+顾客能分辨出一家公司是否只是简单地翻译了内容。
 
-They can also tell when a company has made the effort to understand them.
+他们也能看出一家公司是否真的努力去了解他们。
 
-That difference matters. It affects whether a product feels intuitive. It affects whether a campaign feels relevant. It affects whether support content feels helpful. It affects whether customers trust the brand enough to adopt, buy, and stay.
+这种差异很重要。它会影响一款产品是否感觉直观。它会影响一场营销活动是否感觉贴切。它会影响支持内容是否感觉有帮助。它会影响客户是否足够信任这个品牌，从而采纳、购买并持续使用。
 
-For global companies, localisation is no longer a back-office function. It is part of the customer experience.
+对于全球公司来说，本地化不再只是后台职能。它是客户体验的一部分。
 
-The companies that win internationally will not be the ones that translate the most words at the lowest cost. They will be the ones that communicate with clarity, relevance, and respect in every market they serve.
+在国际市场上获胜的公司，不会是那些以最低成本翻译最多词语的公司。它们会是那些在所服务的每个市场中都能以清晰、切合实际且充满尊重的方式进行沟通的公司。
 
-That is the promise of hyperlocalisation.
+这就是超本地化的承诺。
 
-Not translation as an afterthought.
+翻译不是事后补充。
 
-Not AI as a shortcut.
+不是把 AI 当作捷径。
 
-Not localisation as a disconnected workflow.
+不是作为一个脱节的工作流进行本地化。
 
-But a more intelligent way for global teams to create, adapt, review, and improve multilingual experiences with the context they need from the beginning.
+但对于全球团队而言，这是一种更智能的方式，让他们从一开始就能获得所需上下文，来创建、调整、审阅和改进多语言体验。
 
-That is the future Hyperlocalise is building.
+这是 Hyperlocalise 正在构建的未来。
 
-[Explore translation intelligence](/blog/what-is-translation-intelligence), see how [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation) works in practice, or [discover our next-gen CAT tool](/product/next-gen-cat-tool) to bring hyperlocalisation into your workflow.
+[探索翻译智能](/blog/what-is-translation-intelligence)，了解[上下文感知本地化](/blog/ai-translation-is-not-enough-context-aware-localisation)在实践中如何运作，或[探索我们的下一代CAT工具](/product/next-gen-cat-tool)，将超本地化融入您的工作流程。

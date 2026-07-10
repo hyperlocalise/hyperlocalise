@@ -25,12 +25,15 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain("Source text: Save");
   });
 
-  it("instructs bulk recent-change lookups to use git history and config discovery", () => {
+  it("supports recent-change discovery then per-key find-context", () => {
     const instructions = buildFindContextSkillInstructions({});
 
-    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain("Recent changes with full context");
+    expect(instructions).toContain("discover with `gitHistory`");
+    expect(instructions).toContain("exist in the current source files now");
+    expect(instructions).toContain("**Ignore deletions**");
+    expect(instructions).toContain("For **each** remaining present key or source string");
+    expect(instructions).toContain("one find-context section block per discovered entry");
     expect(instructions).toContain('mode: "changedFiles"');
-    expect(instructions).toContain("crowdin.yml");
-    expect(instructions).toContain(".phrase.yml");
   });
 });

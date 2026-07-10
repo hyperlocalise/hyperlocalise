@@ -178,9 +178,19 @@ const CONFIG_CANDIDATES = [
 
 type GitHistoryMode = (typeof GIT_HISTORY_MODES)[number];
 type ConfigCandidate = (typeof CONFIG_CANDIDATES)[number];
-type SourceFileDiscovery = {
+type ConfigDiscoveryResult = {
   configKind: ConfigCandidate["kind"];
   configPath: string;
+  files: string[];
+  skippedPatterns: Array<{ pattern: string; reason: string }>;
+};
+type SourceFileDiscovery = {
+  /** All localization configs that contributed source paths. */
+  configs: ConfigDiscoveryResult[];
+  /** Convenience: primary config kind after file/kind/path ranking. */
+  configKind: ConfigCandidate["kind"] | null;
+  /** Convenience: primary config path after file/kind/path ranking. */
+  configPath: string | null;
   files: string[];
   skippedPatterns: Array<{ pattern: string; reason: string }>;
 };
@@ -198,14 +208,14 @@ type GitHistoryInput = {
 export function createGitHistoryTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Inspect read-only git history for repository localization context. Use changedFiles for time-window discovery, fileDiff for bounded patches, entryLog for commits touching a key/source string, and blame only for current-line provenance.",
+      "Inspect read-only git history for repository localization source content. Use changedFiles for time-window discovery of changed source files, fileDiff for bounded patches of those files, entryLog for commits touching a key/source string, and blame only for current-line provenance. When paths are omitted, discover source files from every tracked i18n.yml/i18n.jsonc/crowdin/phrase config in the repository (not only the repo root). If discovery is empty, find likely source locale files and call again with explicit paths — do not stop at empty discovery.",
     inputSchema: z.object({
       mode: z.enum(GIT_HISTORY_MODES).describe("Git history lookup mode."),
       paths: z
         .array(z.string())
         .optional()
         .describe(
-          "Workspace-relative paths. If omitted for changedFiles, source files are discovered from localization config.",
+          "Workspace-relative source localization paths. If omitted for changedFiles, source files are discovered from every localization config in the repo; when discovery is empty, pass explicit paths found via glob/grep.",
         ),
       since: z.string().optional().describe('Git --since value, for example "1 week ago".'),
       until: z.string().optional().describe("Git --until value."),
@@ -301,7 +311,7 @@ async function changedFilesHistory(
     return {
       success: false as const,
       error:
-        "No localization config found. Looked for i18n.yml, i18n.jsonc, crowdin.yml, crowdin.yaml, .phrase.yml, phrase.yml, and phrase.yaml.",
+        "No localization config found anywhere in the repository. Looked for i18n.yml, i18n.jsonc, crowdin.yml, crowdin.yaml, .phrase.yml, phrase.yml, and phrase.yaml (including nested paths). Discover likely source locale paths in the repository, then call gitHistory again with those paths.",
     };
   }
 
@@ -313,7 +323,10 @@ async function changedFilesHistory(
       files: [],
       discovery,
       truncated: false,
-      diagnostics: ["No source files were resolved from localization config."],
+      diagnostics: [
+        "No source files were resolved from localization config.",
+        "Continue repository exploration: discover likely source locale paths, then call gitHistory again with those paths.",
+      ],
     };
   }
 
@@ -512,45 +525,134 @@ function buildGitLogArgs(
 }
 
 async function discoverSourceFiles(ctx: RepoToolContext): Promise<SourceFileDiscovery | null> {
+  const locatedConfigs = await locateLocalizationConfigs(ctx);
+  if (locatedConfigs.length === 0) {
+    return null;
+  }
+
+  const configs: ConfigDiscoveryResult[] = [];
+  for (const located of locatedConfigs) {
+    configs.push(await discoverSourceFilesFromConfig(ctx, located));
+  }
+
+  const files = Array.from(new Set(configs.flatMap((config) => config.files))).sort();
+  const skippedPatterns = configs.flatMap((config) => config.skippedPatterns);
+  const primary = pickPrimaryConfig(configs);
+
+  return {
+    configs,
+    configKind: primary?.configKind ?? null,
+    configPath: primary?.configPath ?? null,
+    files,
+    skippedPatterns,
+  };
+}
+
+/**
+ * Choose convenience discovery fields from the most relevant config:
+ * prefer configs that resolved source files, then kind priority
+ * (hyperlocalise → crowdin → phrase), then shallower paths.
+ */
+function pickPrimaryConfig(configs: ConfigDiscoveryResult[]): ConfigDiscoveryResult | null {
+  if (configs.length === 0) {
+    return null;
+  }
+
+  const kindPriority = new Map<ConfigCandidate["kind"], number>(
+    CONFIG_CANDIDATES.map((candidate, index) => [candidate.kind, index]),
+  );
+
+  const ranked = [...configs].sort((left, right) => {
+    const leftHasFiles = left.files.length > 0 ? 0 : 1;
+    const rightHasFiles = right.files.length > 0 ? 0 : 1;
+    if (leftHasFiles !== rightHasFiles) {
+      return leftHasFiles - rightHasFiles;
+    }
+
+    const leftKind = kindPriority.get(left.configKind) ?? Number.MAX_SAFE_INTEGER;
+    const rightKind = kindPriority.get(right.configKind) ?? Number.MAX_SAFE_INTEGER;
+    if (leftKind !== rightKind) {
+      return leftKind - rightKind;
+    }
+
+    return compareConfigPaths(left.configPath, right.configPath);
+  });
+
+  return ranked[0] ?? null;
+}
+
+async function locateLocalizationConfigs(
+  ctx: RepoToolContext,
+): Promise<
+  Array<{ kind: ConfigCandidate["kind"]; path: string; parser: ConfigCandidate["parser"] }>
+> {
+  const located: Array<{
+    kind: ConfigCandidate["kind"];
+    path: string;
+    parser: ConfigCandidate["parser"];
+  }> = [];
+  const seen = new Set<string>();
+
   for (const candidate of CONFIG_CANDIDATES) {
-    const exists = await ctx.bash.exec("test", { args: ["-f", candidate.path] });
-    if (exists.exitCode !== 0) {
+    const result = await ctx.bash.exec("git", {
+      args: ["ls-files", "-z", "--", candidate.path, `**/${candidate.path}`],
+    });
+    if (result.exitCode !== 0) {
       continue;
     }
 
-    const json = await readConfigAsJson(ctx, candidate);
-    if (!json) {
-      return {
-        configKind: candidate.kind,
-        configPath: candidate.path,
-        files: [],
-        skippedPatterns: [{ pattern: candidate.path, reason: "Config could not be parsed." }],
-      };
-    }
+    const paths = uniqueNullSeparatedLines(result.stdout)
+      .map((line) => normalizeSourcePath(line))
+      .filter((line): line is string => Boolean(line))
+      .filter((line) => basenameMatches(line, candidate.path))
+      .sort(compareConfigPaths);
 
-    const patterns = extractSourcePatterns(candidate.kind, json);
-    const skippedPatterns: Array<{ pattern: string; reason: string }> = [];
-    const files: string[] = [];
-    for (const pattern of patterns) {
-      const expanded = await expandSourcePattern(ctx, pattern);
-      files.push(...expanded.files);
-      skippedPatterns.push(...expanded.skippedPatterns);
+    for (const path of paths) {
+      if (seen.has(path)) continue;
+      seen.add(path);
+      located.push({ kind: candidate.kind, path, parser: candidate.parser });
     }
+  }
 
+  return located;
+}
+
+async function discoverSourceFilesFromConfig(
+  ctx: RepoToolContext,
+  candidate: { kind: ConfigCandidate["kind"]; path: string; parser: ConfigCandidate["parser"] },
+): Promise<ConfigDiscoveryResult> {
+  const json = await readConfigAsJson(ctx, candidate);
+  if (!json) {
     return {
       configKind: candidate.kind,
       configPath: candidate.path,
-      files: Array.from(new Set(files)).sort(),
-      skippedPatterns,
+      files: [],
+      skippedPatterns: [{ pattern: candidate.path, reason: "Config could not be parsed." }],
     };
   }
 
-  return null;
+  const patterns = extractSourcePatterns(candidate.kind, json);
+  const skippedPatterns: Array<{ pattern: string; reason: string }> = [];
+  const files: string[] = [];
+  const configDir = dirnameWorkspacePath(candidate.path);
+
+  for (const pattern of patterns) {
+    const expanded = await expandSourcePattern(ctx, pattern, configDir);
+    files.push(...expanded.files);
+    skippedPatterns.push(...expanded.skippedPatterns);
+  }
+
+  return {
+    configKind: candidate.kind,
+    configPath: candidate.path,
+    files: Array.from(new Set(files)).sort(),
+    skippedPatterns,
+  };
 }
 
 async function readConfigAsJson(
   ctx: RepoToolContext,
-  candidate: ConfigCandidate,
+  candidate: { path: string; parser: ConfigCandidate["parser"] },
 ): Promise<Record<string, unknown> | null> {
   try {
     let jsonText: string;
@@ -644,6 +746,7 @@ function extractPhraseSourcePatterns(json: Record<string, unknown>): string[] {
 async function expandSourcePattern(
   ctx: RepoToolContext,
   pattern: string,
+  configDir: string | null = null,
 ): Promise<{
   files: string[];
   skippedPatterns: Array<{ pattern: string; reason: string }>;
@@ -655,37 +758,116 @@ async function expandSourcePattern(
     };
   }
 
-  const normalizedPattern = normalizeSourcePath(pattern);
-  if (!normalizedPattern) {
+  const candidatePatterns = buildPatternLookupCandidates(pattern, configDir);
+  if (candidatePatterns.length === 0) {
     return {
       files: [],
       skippedPatterns: [{ pattern, reason: "Pattern escapes the workspace." }],
     };
   }
 
-  const result = await ctx.bash.exec("git", { args: ["ls-files", "--", normalizedPattern] });
-  if (result.exitCode !== 0) {
-    return {
-      files: [],
-      skippedPatterns: [{ pattern, reason: redact(result.stderr || "git ls-files failed.") }],
-    };
+  const matchedFiles: string[] = [];
+  const skippedPatterns: Array<{ pattern: string; reason: string }> = [];
+  let preferredLiteralPath: string | null = null;
+
+  for (const candidatePattern of candidatePatterns) {
+    if (!preferredLiteralPath && !hasGlobCharacters(candidatePattern)) {
+      preferredLiteralPath = candidatePattern;
+    }
+
+    const result = await ctx.bash.exec("git", { args: ["ls-files", "--", candidatePattern] });
+    if (result.exitCode !== 0) {
+      skippedPatterns.push({
+        pattern: candidatePattern,
+        reason: redact(result.stderr || "git ls-files failed."),
+      });
+      continue;
+    }
+
+    const files = uniqueLines(result.stdout)
+      .map((line) => normalizeSourcePath(line))
+      .filter((line): line is string => Boolean(line));
+    if (files.length > 0) {
+      matchedFiles.push(...files);
+      // Prefer the first successful resolution (config-dir-relative when present).
+      break;
+    }
+
+    if (hasGlobCharacters(candidatePattern)) {
+      skippedPatterns.push({
+        pattern: candidatePattern,
+        reason: "Glob did not match any git-tracked source files.",
+      });
+    }
   }
 
-  const files = uniqueLines(result.stdout)
-    .map((line) => normalizeSourcePath(line))
-    .filter((line): line is string => Boolean(line));
-  if (files.length > 0) {
-    return { files, skippedPatterns: [] };
+  if (matchedFiles.length > 0) {
+    return { files: Array.from(new Set(matchedFiles)).sort(), skippedPatterns: [] };
   }
 
-  if (hasGlobCharacters(normalizedPattern)) {
-    return {
-      files: [],
-      skippedPatterns: [{ pattern, reason: "Glob did not match any git-tracked source files." }],
-    };
+  if (preferredLiteralPath) {
+    // Keep literal non-glob paths so callers can still inspect them even if untracked.
+    return { files: [preferredLiteralPath], skippedPatterns: [] };
   }
 
-  return { files: [normalizedPattern], skippedPatterns: [] };
+  return {
+    files: [],
+    skippedPatterns:
+      skippedPatterns.length > 0
+        ? skippedPatterns
+        : [{ pattern, reason: "Pattern did not match any git-tracked source files." }],
+  };
+}
+
+function buildPatternLookupCandidates(pattern: string, configDir: string | null): string[] {
+  const normalizedPattern = normalizeSourcePath(pattern);
+  if (!normalizedPattern) {
+    return [];
+  }
+
+  const candidates = [normalizedPattern];
+  if (configDir) {
+    const nested = normalizeSourcePath(`${configDir}/${normalizedPattern}`);
+    if (nested && nested !== normalizedPattern) {
+      // Prefer config-directory-relative resolution for nested i18n.yml files,
+      // then fall back to treating the pattern as repo-root-relative.
+      candidates.unshift(nested);
+    }
+  }
+
+  return candidates;
+}
+
+function dirnameWorkspacePath(path: string): string | null {
+  const normalized = normalizeSourcePath(path);
+  if (!normalized) return null;
+  const slash = normalized.lastIndexOf("/");
+  if (slash <= 0) return null;
+  return normalized.slice(0, slash);
+}
+
+function basenameMatches(path: string, basename: string): boolean {
+  return path === basename || path.endsWith(`/${basename}`);
+}
+
+function compareConfigPaths(left: string, right: string): number {
+  const leftDepth = left.split("/").length;
+  const rightDepth = right.split("/").length;
+  if (leftDepth !== rightDepth) {
+    return leftDepth - rightDepth;
+  }
+  return left.localeCompare(right);
+}
+
+function uniqueNullSeparatedLines(output: string): string[] {
+  return Array.from(
+    new Set(
+      output
+        .split("\0")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function normalizeSourcePath(path: string): string | null {

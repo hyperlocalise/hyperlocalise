@@ -119,3 +119,4 @@ fi
 mkdir -p "${install_dir}"
 tar -xzf "${tmp_dir}/${archive}" -C "${tmp_dir}" "${binary_name}"
 install -m 0755 "${tmp_dir}/${binary_name}" "${install_dir}/${binary_name}"
+ln -sf "${binary_name}" "${install_dir}/hl"

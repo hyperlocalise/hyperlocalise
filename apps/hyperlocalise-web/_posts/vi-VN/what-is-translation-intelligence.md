@@ -1,8 +1,8 @@
 ---
-title: What Is Translation Intelligence?
+title: Bản dịch thông minh là gì?
 date: 2026-06-19T00:00:00.000Z
-excerpt: Translation is not the bottleneck. Missing context is. Learn what translation intelligence is and why modern localisation teams need it.
-category: Product
+excerpt: Dịch thuật không phải là nút thắt cổ chai. Thiếu ngữ cảnh mới là vấn đề. Hãy tìm hiểu trí tuệ dịch thuật là gì và vì sao các đội ngũ bản địa hóa hiện đại cần nó.
+category: Sản phẩm
 tags:
   - translation intelligence
   - localisation
@@ -18,182 +18,182 @@ tags:
   - machine translation
 ---
 
-Translation is not the bottleneck. Missing context is.
+Bản dịch không phải là nút thắt cổ chai. Thiếu ngữ cảnh mới là.
 
-Localisation has long been treated as a translation problem.
+Bản địa hóa từ lâu đã được coi là một vấn đề dịch thuật.
 
-The industry has optimised around this assumption for years. Translation management systems help teams move content through workflows. Machine translation produces faster first drafts. Translation memory reuses previous segments. Glossaries improve terminology consistency. Review steps give humans a chance to correct mistakes before content goes live.
+Ngành công nghiệp đã tối ưu hóa dựa trên giả định này trong nhiều năm. Hệ thống quản lý dịch thuật giúp các nhóm đưa nội dung qua các quy trình làm việc. Dịch máy tạo ra các bản nháp đầu tiên nhanh hơn. Bộ nhớ dịch thuật tái sử dụng các đoạn đã có trước đó. Bảng thuật ngữ cải thiện tính nhất quán của thuật ngữ. Các bước rà soát cho con người cơ hội sửa lỗi trước khi nội dung được phát hành.
 
-These systems have made localisation more efficient. They have helped companies translate more content, into more languages, with greater operational control.
+Các hệ thống này đã giúp bản địa hóa hiệu quả hơn. Chúng đã hỗ trợ các công ty dịch nhiều nội dung hơn, sang nhiều ngôn ngữ hơn, với khả năng kiểm soát vận hành tốt hơn.
 
-But they have not solved the hardest part of localisation.
+Nhưng họ vẫn chưa giải quyết được phần khó nhất của bản địa hoá.
 
-The hardest part is no longer producing a translation. AI can now generate fluent multilingual copy in seconds. The harder question is whether that translation is right for the product, the brand, the market, and the customer experience in which it appears.
+Phần khó nhất giờ không còn là tạo ra một bản dịch. AI hiện nay có thể tạo ra nội dung đa ngôn ngữ trôi chảy chỉ trong vài giây. Câu hỏi khó hơn là liệu bản dịch đó có phù hợp với sản phẩm, thương hiệu, thị trường và trải nghiệm khách hàng nơi nó xuất hiện hay không.
 
-A translation can be grammatically correct and still fail.
+Một bản dịch có thể đúng ngữ pháp nhưng vẫn không đạt.
 
-It can use the wrong product term. It can sound off-brand. It can miss the intent of a marketing message. It can be too long for a button. It can make sense in a translation editor but feel awkward inside the actual product. It can preserve the literal meaning of the source while losing the nuance that made the original work.
+Nó có thể dùng sai thuật ngữ sản phẩm. Nó có thể nghe không đúng với thương hiệu. Nó có thể bỏ lỡ ý định của một thông điệp tiếp thị. Nó có thể quá dài cho một nút bấm. Nó có thể hợp lý trong trình chỉnh sửa bản dịch nhưng lại gượng gạo khi nằm trong chính sản phẩm thực tế. Nó có thể giữ nguyên nghĩa đen của nguồn nhưng làm mất đi sắc thái đã tạo nên hiệu quả của bản gốc.
 
-This is why translation quality is increasingly limited not by translation output, but by the intelligence around it.
+Đây là lý do tại sao chất lượng dịch thuật ngày càng bị giới hạn không phải bởi đầu ra dịch thuật, mà bởi trí tuệ xung quanh nó.
 
-That is the role of translation intelligence.
+Đó là vai trò của trí tuệ dịch thuật.
 
-Translation intelligence is the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions. It helps humans and AI understand what content means, where it appears, how it should sound, and what constraints it must follow before translation begins.
+Trí tuệ dịch thuật là hạ tầng biến kiến thức rời rạc về sản phẩm, thương hiệu, giao diện người dùng, thị trường và người đánh giá thành các quyết định bản địa hóa tốt hơn. Nó giúp con người và AI hiểu nội dung có ý nghĩa gì, xuất hiện ở đâu, cần có giọng điệu như thế nào và những ràng buộc nào phải tuân theo trước khi quá trình dịch bắt đầu.
 
-In simple terms: translation intelligence gives translation the context it needs to be useful.
+Nói một cách đơn giản: trí tuệ dịch thuật cung cấp cho bản dịch ngữ cảnh cần thiết để trở nên hữu ích.
 
-## Why translation alone is not enough
+## Tại sao chỉ dịch thôi là chưa đủ
 
-Most translation workflows start with a piece of source text.
+Hầu hết quy trình dịch thuật bắt đầu với một đoạn văn bản nguồn.
 
-That text may be a product string, help centre article, email, campaign headline, onboarding message, or legal notice. In many systems, the translator or AI model sees the source text, the target language, and perhaps a glossary match.
+Văn bản đó có thể là một chuỗi sản phẩm, bài viết trung tâm trợ giúp, email, tiêu đề chiến dịch, thông điệp giới thiệu ban đầu hoặc thông báo pháp lý. Trong nhiều hệ thống, người dịch hoặc mô hình AI nhìn thấy văn bản nguồn, ngôn ngữ đích và có thể cả một mục khớp trong bảng thuật ngữ.
 
-But language rarely carries enough information on its own.
+Nhưng ngôn ngữ hiếm khi tự nó mang đủ thông tin.
 
-Consider a simple string:
+Hãy xét một chuỗi đơn giản:
 
-> Create project
+> Tạo dự án
 
-This looks easy to translate. But the correct translation depends on several questions.
+Việc này có vẻ dễ dịch. Nhưng bản dịch chính xác phụ thuộc vào vài câu hỏi.
 
-Is it a button, a menu item, or a page title? Is "project" a formal product object, or a generic word? Is the user creating a blank project, importing one, or starting from a template? Does the target language require more explicit grammar? Does the button have a character limit? Has the same product object already been translated elsewhere? Should the tone feel technical, simple, or enterprise-grade?
+Đó là một nút, một mục menu, hay một tiêu đề trang? "project" là một đối tượng sản phẩm chính thức, hay một từ chung? Người dùng đang tạo một project trống, nhập một project, hay bắt đầu từ một mẫu? Ngôn ngữ đích có cần ngữ pháp rõ ràng hơn không? Nút có giới hạn số ký tự không? Đối tượng sản phẩm đó đã được dịch ở nơi khác chưa? Giọng điệu nên mang tính kỹ thuật, đơn giản, hay cấp doanh nghiệp?
 
-Without this context, both humans and AI must guess.
+Nếu không có ngữ cảnh này, cả con người lẫn AI đều phải đoán.
 
-The same problem appears in marketing localisation. A campaign headline may be short, clever, and emotionally effective in English, but a literal translation may not carry the same intent in another market. The translator needs to understand not just the words, but the positioning, audience, offer, tone, and desired reaction.
+Vấn đề tương tự cũng xuất hiện trong bản địa hóa tiếp thị. Một tiêu đề chiến dịch có thể ngắn gọn, thông minh và tạo cảm xúc hiệu quả bằng tiếng Anh, nhưng một bản dịch theo nghĩa đen có thể không truyền tải cùng ý định trong một thị trường khác. Người dịch cần hiểu không chỉ các từ ngữ, mà còn cả định vị, đối tượng, ưu đãi, giọng điệu và phản ứng mong muốn.
 
-It also appears in support content. A help article may contain product terminology that must remain consistent with the interface. If the article uses one term and the product uses another, the translation may confuse users even if every sentence is linguistically correct.
+Nó cũng xuất hiện trong nội dung hỗ trợ. Một bài viết trợ giúp có thể chứa thuật ngữ sản phẩm cần phải nhất quán với giao diện. Nếu bài viết dùng một thuật ngữ còn sản phẩm dùng một thuật ngữ khác, bản dịch có thể khiến người dùng bối rối ngay cả khi mọi câu đều đúng về mặt ngôn ngữ.
 
-These are not just language problems. They are context problems.
+Đây không chỉ là những vấn đề về ngôn ngữ. Chúng là những vấn đề về ngữ cảnh.
 
-## The bottleneck has moved from production to judgment
+## Nút thắt cổ chai đã chuyển từ sản xuất sang phán đoán
 
-AI has changed the economics of translation.
+AI đã thay đổi kinh tế học của dịch thuật.
 
-Generating a first draft is now fast. Producing more multilingual content is easier than ever. But this speed creates a new challenge: teams must decide what can be trusted, what needs review, and what requires deeper product or market understanding.
+Việc tạo bản nháp đầu tiên giờ đã nhanh hơn. Việc sản xuất nhiều nội dung đa ngôn ngữ cũng dễ dàng hơn bao giờ hết. Nhưng tốc độ này tạo ra một thách thức mới: các nhóm phải quyết định điều gì có thể tin cậy, điều gì cần xem xét lại, và điều gì đòi hỏi sự hiểu biết sâu hơn về sản phẩm hoặc thị trường.
 
-In other words, the bottleneck has moved from production to judgment.
+Nói cách khác, nút thắt cổ chai đã chuyển từ sản xuất sang phán đoán.
 
-The key question is no longer only:
+Câu hỏi then chốt không còn chỉ là:
 
-> How do we translate this?
+> Dịch câu này như thế nào?
 
-It is now:
+Bây giờ là:
 
-> Is this the right translation for this specific use case?
+> Đây có phải là bản dịch đúng cho trường hợp sử dụng cụ thể này không?
 
-That question requires more than fluency. It requires context.
+Câu hỏi đó đòi hỏi nhiều hơn sự lưu loát. Nó đòi hỏi bối cảnh.
 
-A high-quality localisation decision needs to account for product meaning, user intent, brand voice, design constraints, terminology rules, market expectations, compliance requirements, and previous decisions. When this information is missing, localisation teams compensate manually.
+Một quyết định bản địa hóa chất lượng cao cần tính đến ý nghĩa của sản phẩm, ý định của người dùng, giọng điệu thương hiệu, các ràng buộc thiết kế, quy tắc thuật ngữ, kỳ vọng của thị trường, yêu cầu tuân thủ và các quyết định trước đó. Khi thiếu những thông tin này, các nhóm bản địa hóa sẽ bù đắp thủ công.
 
-Translators ask questions. Reviewers rewrite copy. Product managers explain features. Localisation managers collect screenshots. Regional teams debate tone. Engineers fix UI overflow issues. The same terminology decisions are made repeatedly across projects.
+Người dịch đặt câu hỏi. Người rà soát viết lại nội dung. Quản lý sản phẩm giải thích tính năng. Quản lý bản địa hóa thu thập ảnh chụp màn hình. Các nhóm khu vực tranh luận về giọng điệu. Kỹ sư sửa các vấn đề tràn giao diện người dùng. Những quyết định về thuật ngữ giống nhau được đưa ra lặp đi lặp lại trên khắp các dự án.
 
-None of this means the team is doing localisation badly. It means the system is not carrying enough intelligence.
+Không điều nào trong số này có nghĩa là đội ngũ đang làm bản địa hóa kém. Nó có nghĩa là hệ thống chưa mang đủ trí thông minh.
 
-## Translation intelligence vs translation management
+## Trí tuệ dịch thuật so với quản lý dịch thu���t
 
-Translation management and translation intelligence solve different problems.
+Quản lý dịch thuật và trí tuệ dịch thuật giải quyết các vấn đề khác nhau.
 
-Translation management is about coordination. It helps teams organise content, assign work, manage languages, track progress, and approve translations.
+Quản lý dịch thuật là về sự điều phối. Nó giúp các nhóm tổ chức nội dung, phân công công việc, quản lý ngôn ngữ, theo dõi tiến độ và phê duyệt bản dịch.
 
-Translation intelligence is about decision quality. It helps teams understand the content deeply enough to translate, review, and adapt it correctly.
+Trí tuệ dịch thuật là về chất lượng quyết định. Nó giúp các nhóm hiểu nội dung đủ sâu để dịch, rà soát và điều chỉnh nó một cách chính xác.
 
-A translation management system can tell a localisation manager that a string is ready for review.
+Một hệ thống quản lý bản dịch có thể thông báo cho quản lý bản địa hóa rằng một chuỗi đã sẵn sàng để xem xét.
 
-A translation intelligence layer can show that the string has no screenshot, conflicts with a glossary rule, uses a high-risk product term, exceeds a UI character limit, or differs from a previous approved translation.
+Một lớp thông minh dịch thuật có thể cho thấy rằng chuỗi không có ảnh chụp màn hình, xung đột với một quy tắc trong bảng thuật ngữ, sử dụng một thuật ngữ sản phẩm có rủi ro cao, vượt quá giới hạn ký tự của giao diện người dùng, hoặc khác với một bản dịch đã được phê duyệt trước đó.
 
-This distinction matters because localisation quality is not determined only by whether a workflow is completed. It is determined by the knowledge available at the moment a translation decision is made.
+Sự khác biệt này rất quan trọng vì chất lượng bản địa hóa không chỉ được xác định bởi việc một quy trình làm việc có được hoàn tất hay không. Nó được xác định bởi kiến thức có sẵn vào thời điểm một quyết định dịch thuật được đưa ra.
 
-When context is missing, even experienced translators and advanced AI models produce inconsistent results. When context is available, the workflow becomes more reliable.
+Khi thiếu ngữ cảnh, ngay cả những biên dịch viên giàu kinh nghiệm và các mô hình AI tiên tiến cũng tạo ra kết quả không nhất quán. Khi có ngữ cảnh, quy trình làm việc trở nên đáng tin cậy hơn.
 
-## What translation intelligence includes
+## Trí tuệ dịch thuật bao gồm những gì
 
-Translation intelligence brings together the knowledge that localisation teams usually have to search for manually.
+Tình báo bản dịch tập hợp những kiến thức mà các nhóm bản địa hóa thường phải tự tìm kiếm thủ công.
 
-It includes **product context**: what a feature does, how users interact with it, and what specific product objects or actions a phrase refers to.
+Nó bao gồm **ngữ cảnh sản phẩm**: tính năng đó làm gì, người dùng tương tác với nó như thế nào, và cụ thể cụm từ đó đề cập đến đối tượng hoặc hành động nào trong sản phẩm.
 
-It includes **visual context**: screenshots, UI placement, component type, character limits, and design constraints.
+Nó bao gồm **ngữ cảnh trực quan**: ảnh chụp màn hình, vị trí trong giao diện, loại thành phần, giới hạn ký tự và các ràng buộc thiết kế.
 
-It includes **brand context**: voice, tone, messaging principles, and the level of formality expected across different markets.
+Nó bao gồm **ngữ cảnh thương hiệu**: giọng điệu, phong cách, nguyên tắc truyền thông và mức độ trang trọng được kỳ vọng trên các thị trường khác nhau.
 
-It includes **terminology context**: approved terms, product names, forbidden words, glossary rules, and domain-specific language.
+Nó bao gồm **ngữ cảnh thuật ngữ**: các thuật ngữ đã được phê duyệt, tên sản phẩm, từ cấm, quy tắc bảng thuật ngữ và ngôn ngữ chuyên ngành.
 
-It includes **market context**: cultural expectations, regional preferences, local conventions, and the difference between direct translation and adaptation.
+Nó bao gồm **bối cảnh thị trường**: kỳ vọng văn hóa, sở thích khu vực, quy ước địa phương, và sự khác biệt giữa dịch trực tiếp và bản địa hóa.
 
-It includes **workflow context**: who needs to review the content, what risk level it carries, and whether human approval is required.
+Nó bao gồm **ngữ cảnh quy trình làm việc**: ai cần xem xét nội dung, mức độ rủi ro mà nội dung đó mang lại, và liệu có cần phê duyệt của con người hay không.
 
-Most importantly, it includes **decision history**: what was changed, what was approved, what reviewers corrected, and why a particular choice was made.
+Quan trọng nhất, nó bao gồm **lịch sử quyết định**: điều gì đã được thay đổi, điều gì đã được phê duyệt, những gì người duyệt đã sửa, và lý do một lựa chọn cụ thể được đưa ra.
 
-This is where traditional localisation systems often fall short. They may store the final translation, but they do not always preserve the reasoning behind it. As a result, teams remember what was translated, but not why.
+Đây là nơi các hệ thống bản địa hóa truyền thống thường không đáp ứng được kỳ vọng. Chúng có thể lưu bản dịch cuối cùng, nhưng không phải lúc nào cũng bảo toàn được lý do đằng sau bản dịch đó. Kết quả là, các nhóm nhớ những gì đã được dịch, nhưng không nhớ tại sao.
 
-Translation intelligence changes that. It turns localisation knowledge into a reusable asset.
+Trí tuệ dịch thuật thay đổi điều đó. Nó biến kiến thức bản địa hóa thành một tài sản có thể tái sử dụng.
 
-## From translation memory to decision memory
+## Từ bộ nhớ dịch sang bộ nhớ quyết định
 
-Translation memory has been one of the most important ideas in localisation. It helps teams reuse previous translations, reduce repeated work, and maintain consistency.
+Translation memory đã là một trong những ý tưởng quan trọng nhất trong bản địa hóa. Nó giúp các nhóm tái sử dụng các bản dịch trước đó, giảm công việc lặp lại và duy trì tính nhất quán.
 
-But translation memory has a limitation: it remembers output.
+Nhưng bộ nhớ dịch thuật có một hạn chế: nó ghi nhớ đầu ra.
 
-It does not always remember context.
+Nó không phải lúc nào cũng nhớ ngữ cảnh.
 
-It may show that a sentence was translated a certain way, but not whether that choice was made because of brand tone, UI space, product terminology, legal preference, or reviewer feedback. It may not show whether the translation worked well in production. It may not explain whether the same decision should apply to a new feature or campaign.
+Nó có thể cho thấy rằng một câu đã được dịch theo một cách nhất định, nhưng không cho thấy liệu lựa chọn đó được đưa ra vì giọng điệu thương hiệu, không gian giao diện, thuật ngữ sản phẩm, ưu tiên pháp lý hay phản hồi của người duyệt. Nó cũng có thể không cho biết bản dịch đó có hoạt động tốt trong môi trường thực tế hay không. Nó có thể không giải thích liệu quyết định tương tự có nên áp dụng cho một tính năng hoặc chiến dịch mới hay không.
 
-Translation intelligence extends the idea of memory beyond translated segments.
+Tình báo dịch thuật mở rộng khái niệm bộ nhớ vượt ra ngoài các đoạn đã dịch.
 
-It creates decision memory.
+Nó tạo ra bộ nhớ quyết định.
 
-Decision memory captures the reasoning behind localisation choices. It helps teams understand not just what was translated, but why it was translated that way. This becomes especially important when AI is part of the workflow, because AI improves when it can learn from structured context and human feedback.
+Bộ nhớ quyết định ghi lại lý do đằng sau các lựa chọn bản địa hóa. Nó giúp các nhóm hiểu không chỉ nội dung đã được dịch, mà còn vì sao nó được dịch theo cách đó. Điều này trở nên đặc biệt quan trọng khi AI là một phần của quy trình làm việc, vì AI cải thiện khi có thể học từ ngữ cảnh có cấu trúc và phản hồi của con người.
 
-If a reviewer changes a term, the system should learn from that change. If a regional expert explains why a phrase does not work in-market, that knowledge should be available next time. If a product manager clarifies the meaning of a feature, that explanation should follow related strings in the future.
+Nếu một người duyệt sửa một thuật ngữ, hệ thống nên học từ thay đổi đó. Nếu một chuyên gia khu vực giải thích vì sao một cụm từ không hiệu quả trên thị trường, kiến thức đó nên được sử dụng cho lần sau. Nếu một quản lý sản phẩm làm rõ ý nghĩa của một tính năng, lời giải thích đó nên đi kèm với các chuỗi liên quan trong tương lai.
 
-This is how localisation becomes self-improving.
+Đây là cách bản địa hóa trở nên tự cải thiện.
 
-## What this looks like in practice
+## Điều này trông như thế nào trong thực tế
 
-A context-aware localisation workflow looks very different from a traditional string-based workflow.
+Một quy trình bản địa hóa có nhận biết ngữ cảnh trông rất khác so với quy trình truyền thống dựa trên chuỗi.
 
-Before translation begins, the system gathers relevant context from the tools where work already happens. It can understand where the content came from, whether it belongs to a product interface, help article, marketing page, or campaign. It can attach screenshots, detect terminology, identify related strings, retrieve previous decisions, and surface risks before the translator or reviewer sees the task.
+Trước khi quá trình dịch bắt đầu, hệ thống thu thập ngữ cảnh liên quan từ các công cụ nơi công việc đã diễn ra. Hệ thống có thể hiểu nội dung đến từ đâu, liệu đó có phải là giao diện sản phẩm, bài viết trợ giúp, trang marketing hay chiến dịch. Hệ thống có thể đính kèm ảnh chụp màn hình, phát hiện thuật ngữ, nhận diện các chuỗi liên quan, truy xuất các quyết định trước đó và nêu bật các rủi ro trước khi dịch giả hoặc người rà soát nhìn thấy nhiệm vụ.
 
-During translation, AI suggestions are guided by product knowledge, glossary rules, brand voice, and UI constraints. Instead of producing a generic translation, the system can suggest a translation that fits the actual use case.
+Trong quá trình dịch, các gợi ý của AI được định hướng bởi kiến thức sản phẩm, quy tắc thuật ngữ, giọng điệu thương hiệu và các ràng buộc giao diện người dùng. Thay vì tạo ra một bản dịch chung chung, hệ thống có thể đề xuất một bản dịch phù hợp với trường hợp sử dụng thực tế.
 
-During review, humans are not asked to inspect everything from scratch. They can focus on the decisions that need judgment: ambiguous terms, high-impact copy, market adaptation, legal risk, tone, or content that conflicts with previous guidance.
+Trong quá trình rà soát, con người không được yêu cầu kiểm tra mọi thứ từ đầu. Họ có thể tập trung vào những quyết định cần đến sự đánh giá: các thuật ngữ mơ hồ, nội dung có tác động lớn, việc điều chỉnh theo thị trường, rủi ro pháp lý, giọng điệu hoặc nội dung mâu thuẫn với hướng dẫn trước đó.
 
-After review, the workflow does not simply store the final translation. It captures what changed and feeds that knowledge back into future work.
+Sau khi xem xét, quy trình làm việc không chỉ đơn thuần lưu bản dịch cuối cùng. Nó ghi lại những gì đã thay đổi và đưa kiến thức đó trở lại vào các công việc tiếp theo.
 
-This is the shift from translation as a one-off task to localisation as a learning system.
+Đây là sự chuyển đổi từ dịch thuật như một công việc đơn lẻ sang bản địa hóa như một hệ thống học hỏi.
 
-## Why Hyperlocalise is building around translation intelligence
+## Tại sao Hyperlocalise đang xây dựng dựa trên trí tuệ dịch thuật
 
-At Hyperlocalise, we believe the next generation of localisation software will not be defined by translation speed alone.
+Tại Hyperlocalise, chúng tôi tin rằng thế hệ tiếp theo của phần mềm bản địa hoá sẽ không chỉ được xác định bởi tốc độ dịch thuật.
 
-Speed matters. But speed without context can create more work for reviewers, more inconsistencies across markets, and more uncertainty before publishing.
+Tốc độ rất quan trọng. Nhưng tốc độ mà không có ngữ cảnh có thể tạo ra nhiều việc hơn cho người rà soát, nhiều điểm không nhất quán hơn giữa các thị trường, và nhiều bất định hơn trước khi xuất bản.
 
-Hyperlocalise is building translation intelligence into the localisation workflow so teams can bring context into the process from the start. Our approach is to help AI and human reviewers work with the information they need: product context, screenshots, glossary rules, brand voice, UI constraints, workflow requirements, and previous localisation decisions.
+Hyperlocalise đang tích hợp trí tuệ dịch thuật vào quy trình bản địa hóa để các nhóm có thể đưa ngữ cảnh vào ngay từ đầu. Cách tiếp cận của chúng tôi là giúp AI và người đánh giá là con người làm việc với những thông tin họ cần: ngữ cảnh sản phẩm, ảnh chụp màn hình, quy tắc thuật ngữ, giọng điệu thương hiệu, ràng buộc giao diện người dùng, yêu cầu quy trình làm việc và các quyết định bản địa hóa trước đó.
 
-This matters because most companies already have the knowledge required for better localisation. The problem is that the knowledge is scattered. It lives in product tools, design files, support platforms, content systems, review comments, Slack discussions, and the heads of individual team members.
+Điều này quan trọng vì hầu hết các công ty đã có sẵn kiến thức cần thiết để bản địa hóa tốt hơn. Vấn đề là kiến thức đó bị phân tán. Nó nằm trong các công cụ sản phẩm, tệp thiết kế, nền tảng hỗ trợ, hệ thống nội dung, nhận xét đánh giá, các cuộc thảo luận trên Slack và trong đầu từng thành viên trong nhóm.
 
-Hyperlocalise helps make that knowledge operational.
+Hyperlocalise giúp biến kiến thức đó thành hành động.
 
-Instead of asking translators and reviewers to hunt for context, Hyperlocalise aims to bring the right context into the translation experience automatically. Instead of treating AI as a generic translator, Hyperlocalise uses context to guide AI toward better decisions. Instead of losing reviewer feedback after a task is complete, Hyperlocalise helps turn feedback into memory that improves future work.
+Thay vì yêu cầu biên dịch viên và người duyệt phải đi tìm ngữ cảnh, Hyperlocalise hướng tới việc tự động đưa đúng ngữ cảnh vào trải nghiệm dịch thuật. Thay vì xem AI như một bộ dịch thuật chung chung, Hyperlocalise sử dụng ngữ cảnh để dẫn dắt AI đưa ra quyết định tốt hơn. Thay vì để mất phản hồi của người duyệt sau khi một nhiệm vụ hoàn tất, Hyperlocalise giúp biến phản hồi thành bộ nhớ cải thiện công việc trong tương lai.
 
-The goal is not to remove human judgment. The goal is to make human judgment more focused, informed, and reusable.
+Mục tiêu không phải là loại bỏ phán đoán của con người. Mục tiêu là làm cho phán đoán của con người trở nên tập trung hơn, có thông tin hơn và có thể tái sử dụng.
 
-## The future of localisation is context-aware
+## Tương lai của bản địa hóa là nhận biết ngữ cảnh
 
-The companies that succeed globally will not simply be the companies that translate the most words. They will be the companies that communicate clearly, consistently, and naturally across every market.
+Những công ty thành công trên toàn cầu sẽ không đơn thuần là những công ty dịch được nhiều từ nhất. Họ sẽ là những công ty giao tiếp một cách rõ ràng, nhất quán và tự nhiên trên mọi thị trường.
 
-That requires more than translation.
+Điều đó đòi hỏi nhiều hơn cả dịch thuật.
 
-It requires systems that understand the relationship between language, product, brand, design, and customer experience.
+Nó đòi hỏi các hệ thống hiểu được mối quan hệ giữa ngôn ngữ, sản phẩm, thương hiệu, thiết kế và trải nghiệm khách hàng.
 
-This is why translation intelligence matters.
+Đây là lý do tại sao trí tuệ dịch thuật quan trọng.
 
-It gives localisation teams a better foundation for working with AI. It reduces repeated context gathering. It helps reviewers focus on high-value decisions. It improves consistency across product, marketing, and support content. It preserves the knowledge behind translation choices so teams do not solve the same problems again and again.
+Nó mang lại cho các nhóm bản địa hóa một nền tảng tốt hơn để làm việc với AI. Nó giảm việc thu thập ngữ cảnh lặp đi lặp lại. Nó giúp người đánh giá tập trung vào các quyết định có giá trị cao. Nó cải thiện tính nhất quán trên nội dung sản phẩm, tiếp thị và hỗ trợ. Nó lưu giữ kiến thức đằng sau các lựa chọn dịch thuật để các nhóm không phải giải quyết đi giải quyết lại cùng một vấn đề.
 
-Translation is no longer the bottleneck.
+Việc dịch thuật không còn là nút thắt cổ chai nữa.
 
-Missing context is.
+Thiếu ngữ cảnh là.
 
-Translation intelligence is how modern localisation teams close that gap.
+Trí tuệ dịch thuật là cách các nhóm bản địa hóa hiện đại thu hẹp khoảng cách đó.
 
-For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Để biết về sự chuyển dịch rộng hơn từ dịch thuật sang giao tiếp sẵn sàng cho thị trường, xem [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).

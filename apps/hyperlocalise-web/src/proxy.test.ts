@@ -26,6 +26,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/en")).toBe(false);
     expect(isUnsupportedLocalePath("/en/blog")).toBe(false);
     expect(isUnsupportedLocalePath("/EN/product/localisation")).toBe(false);
+    expect(isUnsupportedLocalePath("/zh-CN/blog")).toBe(false);
+    expect(isUnsupportedLocalePath("/fr-FR/org/acme/dashboard")).toBe(false);
   });
 
   it("allows non-locale root routes", () => {

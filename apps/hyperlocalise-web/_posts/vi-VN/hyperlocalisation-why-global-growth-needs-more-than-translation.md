@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalisation: Why Global Growth Needs More Than Translation"
+title: "Siêu bản địa hóa: Vì sao tăng trưởng toàn cầu cần nhiều hơn bản dịch"
 date: 2026-06-20T00:00:00.000Z
-excerpt: Global growth has outpaced traditional localisation. Hyperlocalisation adapts communication so it feels natural, relevant, and trusted in every market — with context, not just translation.
-category: Product
+excerpt: Tăng trưởng toàn cầu đã vượt xa bản địa hóa truyền thống. Siêu bản địa hóa điều chỉnh giao tiếp để nó trở nên tự nhiên, phù hợp và đáng tin cậy ở mọi thị trường — với ngữ cảnh, chứ không chỉ là dịch thuật.
+category: Sản phẩm
 tags:
   - hyperlocalisation
   - hyperlocalization
@@ -21,142 +21,142 @@ tags:
   - self-evolving localisation
 ---
 
-For years, localisation has been treated as the final step before a product, campaign, or piece of content reaches a new market. The source content is created, translated, reviewed, and published. In many organisations, this process has been enough to support international expansion.
+Trong nhiều năm, bản địa hóa đã được xem là bước cuối cùng trước khi một sản phẩm, chiến dịch hoặc nội dung nào đó tiếp cận một thị trường mới. Nội dung gốc được tạo ra, dịch, rà soát và xuất bản. Trong nhiều tổ chức, quy trình này đã đủ để hỗ trợ mở rộng ra quốc tế.
 
-But global growth has changed.
+Nhưng tăng trưởng toàn cầu đã thay đổi.
 
-Companies now ship products continuously. Marketing teams launch campaigns across multiple regions at the same time. Support teams update help content every week. Product copy lives across repositories, CMS platforms, design tools, ticketing systems, landing pages, and customer-facing applications. The volume of multilingual content has increased, but the real challenge is not simply producing more translations faster.
+Các công ty hiện nay liên tục tung ra sản phẩm. Các đội marketing triển khai chiến dịch trên nhiều khu vực cùng lúc. Các đội hỗ trợ cập nhật nội dung trợ giúp mỗi tuần. Nội dung sản phẩm tồn tại trên nhiều kho lưu trữ, nền tảng CMS, công cụ thiết kế, hệ thống xử lý ticket, trang đích và các ứng dụng hướng tới khách hàng. Khối lượng nội dung đa ngôn ngữ đã tăng lên, nhưng thách thức thực sự không đơn giản chỉ là tạo ra nhiều bản dịch hơn với tốc độ nhanh hơn.
 
-The real challenge is context.
+Thử thách thực sự là bối cảnh.
 
-A sentence can be translated correctly and still fail in the market. A product string can be linguistically accurate but confusing inside the interface. A campaign message can preserve the original meaning while losing the emotion, cultural relevance, or commercial intent that made it work in the first place.
+Một câu có thể được dịch đúng mà vẫn thất bại trên thị trường. Một chuỗi nội dung sản phẩm có thể chính xác về mặt ngôn ngữ nhưng lại gây khó hiểu trong giao diện. Một thông điệp chiến dịch có thể giữ nguyên ý nghĩa gốc nhưng lại đánh mất cảm xúc, tính phù hợp văn hóa hoặc mục đích thương mại đã khiến nó hiệu quả ngay từ đầu.
 
-This is where hyperlocalisation becomes essential.
+Đây là nơi bản địa hóa siêu cấp trở nên thiết yếu.
 
-Hyperlocalisation is not just the act of translating content into another language. It is the practice of adapting communication so it feels natural, relevant, and trusted in each market. It considers language, culture, product experience, brand voice, customer expectations, regulatory nuance, and the specific context in which the content appears.
+Hyperlocalisation không chỉ là việc dịch nội dung sang một ngôn ngữ khác. Đó là thực hành điều chỉnh thông điệp để nó mang lại cảm giác tự nhiên, phù hợp và đáng tin cậy ở từng thị trường. Nó xem xét ngôn ngữ, văn hóa, trải nghiệm sản phẩm, giọng điệu thương hiệu, kỳ vọng của khách hàng, sắc thái quy định, và bối cảnh cụ thể mà nội dung xuất hiện.
 
-In other words, translation asks, "What does this say in another language?"
+Nói cách khác, việc dịch đặt ra câu hỏi: "Câu này nói gì bằng một ngôn ngữ khác?"
 
-Hyperlocalisation asks, "How should this message work for this audience, in this market, inside this experience?"
+Siêu bản địa hóa hỏi: "Thông điệp này nên hoạt động như thế nào đối với đối tượng này, trong thị trường này, trong trải nghiệm này?"
 
-That distinction is becoming increasingly important for every company with global ambitions.
+Sự khác biệt đó đang ngày càng trở nên quan trọng đối với mọi công ty có tham vọng toàn cầu.
 
-## The limits of traditional localisation
+## Giới hạn của bản địa hóa truyền thống
 
-Traditional localisation workflows were built for a more predictable operating model. Content moved through defined stages: creation, translation, review, approval, and release. Translation memories, glossaries, terminology databases, and review workflows helped teams improve consistency and manage quality at scale.
+Các quy trình bản địa hóa truyền thống được xây dựng cho một mô hình vận hành dễ dự đoán hơn. Nội dung được chuyển qua các giai đoạn xác định: tạo nội dung, dịch thuật, rà soát, phê duyệt và phát hành. Bộ nhớ dịch, bảng thuật ngữ, cơ sở dữ liệu thuật ngữ và quy trình rà soát đã giúp các nhóm cải thiện tính nhất quán và quản lý chất lượng ở quy mô lớn.
 
-These systems remain useful, but they were not designed for the way modern companies now build and communicate.
+Các hệ thống này vẫn hữu ích, nhưng chúng không được thiết kế cho cách các công ty hiện đại ngày nay xây dựng và giao tiếp.
 
-Today, localisation is no longer a simple handoff between content teams and translators. It is an ongoing collaboration between product, engineering, marketing, support, legal, brand, regional teams, and external language experts. A single translation decision may depend on the product surface, design constraints, previous reviewer feedback, market-specific terminology, brand positioning, legal requirements, and customer behaviour.
+Ngày nay, bản địa hóa không còn đơn thuần là việc bàn giao giữa các nhóm nội dung và dịch giả nữa. Đây là một quá trình cộng tác liên tục giữa sản phẩm, kỹ thuật, tiếp thị, hỗ trợ, pháp lý, thương hiệu, các nhóm khu vực và các chuyên gia ngôn ngữ bên ngoài. Một quyết định dịch thuật duy nhất có thể phụ thuộc vào bề mặt sản phẩm, các ràng buộc thiết kế, phản hồi trước đó của người duyệt, thuật ngữ đặc thù theo thị trường, định vị thương hiệu, các yêu cầu pháp lý và hành vi khách hàng.
 
-Yet much of this context still sits outside the translation workflow.
+Tuy nhiên, phần lớn bối cảnh này vẫn nằm ngoài quy trình dịch thuật.
 
-It may live in Slack conversations, Jira tickets, Figma files, GitHub repositories, product briefs, brand guidelines, screenshots, spreadsheets, or the memory of a reviewer who has worked on similar content before. As a result, localisation teams often spend as much time searching for context as they do managing the translation itself.
+Nó có thể nằm trong các cuộc trò chuyện trên Slack, ticket Jira, tệp Figma, kho GitHub, bản tóm tắt sản phẩm, bộ quy chuẩn thương hiệu, ảnh chụp màn hình, bảng tính, hoặc trong trí nhớ của một người duyệt đã từng làm việc với nội dung tương tự trước đó. Kết quả là, các nhóm bản địa hóa thường dành nhiều thời gian để tìm kiếm ngữ cảnh như thời gian họ dành để quản lý chính việc dịch thuật.
 
-This creates a structural problem.
+Điều này tạo ra một vấn đề về cấu trúc.
 
-When translators and reviewers work with incomplete context, quality becomes inconsistent. When localisation managers need to manually gather information from multiple tools, projects slow down. When decisions happen outside the workflow, valuable knowledge is lost. Over time, the organisation repeats the same questions, makes the same corrections, and rebuilds the same context from scratch.
+Khi biên dịch viên và người duyệt làm việc với ngữ cảnh không đầy đủ, chất lượng trở nên thiếu nhất quán. Khi quản lý bản địa hóa cần tự thu thập thông tin từ nhiều công cụ, các dự án sẽ chậm lại. Khi các quyết định diễn ra ngoài quy trình làm việc, kiến thức quý giá bị mất đi. Theo thời gian, tổ chức lặp lại cùng những câu hỏi, thực hiện cùng những chỉnh sửa và xây dựng lại cùng một ngữ cảnh từ đầu.
 
-The issue is not that localisation teams lack expertise.
+Vấn đề không phải là các nhóm bản địa hóa thiếu chuyên môn.
 
-The issue is that the workflow does not give them the intelligence they need at the moment decisions are made.
+Vấn đề là quy trình công việc không cung cấp cho họ những thông tin cần thiết vào thời điểm các quyết định được đưa ra.
 
-## AI translation is only part of the answer
+## Bản dịch bằng AI chỉ là một phần của câu trả lời
 
-AI has already changed localisation. It can generate translations quickly, reduce manual effort, support terminology checks, and help teams scale multilingual content with greater efficiency. For many companies, AI translation is now an important part of the localisation stack.
+AI đã thay đổi bản địa hóa. Nó có thể tạo bản dịch nhanh chóng, giảm công sức thủ công, hỗ trợ kiểm tra thuật ngữ và giúp các nhóm mở rộng nội dung đa ngôn ngữ với hiệu quả cao hơn. Đối với nhiều công ty, dịch máy bằng AI hiện là một phần quan trọng của bộ công cụ bản địa hóa.
 
-But speed is not the same as quality.
+Nhưng tốc độ không giống với chất lượng.
 
-A model can produce fluent output without understanding where the copy appears. It can follow a glossary without knowing when a term should be adapted for a specific audience. It can translate a product message without understanding the user journey, the design constraint, the brand strategy, or the reviewer's previous preference.
+Một mô hình có thể tạo ra đầu ra trôi chảy mà không hiểu bản sao xuất hiện ở đâu. Nó có thể tuân theo bảng thuật ngữ mà không biết khi nào một thuật ngữ nên được điều chỉnh cho một đối tượng cụ thể. Nó có thể dịch một thông điệp sản phẩm mà không hiểu hành trình người dùng, ràng buộc thiết kế, chiến lược thương hiệu hoặc sở thích trước đó của người duyệt.
 
-This is why [AI translation alone is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation).
+Đây là lý do tại sao [dịch thuật AI đơn thuần là không đủ](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
-The next phase of localisation will not be defined by who can translate the fastest. It will be defined by who can make the best decisions with the right context.
+Giai đoạn tiếp theo của bản địa hoá sẽ không được quyết định bởi ai có thể dịch nhanh nhất. Nó sẽ được quyết định bởi ai có thể đưa ra những quyết định tốt nhất với đúng bối cảnh.
 
-That requires a new layer of translation intelligence.
+Điều đó đòi hỏi một lớp trí tuệ dịch thuật mới.
 
-[Translation intelligence](/blog/what-is-translation-intelligence) brings together the information required to make high-quality localisation decisions: product context, screenshots, source history, glossary rules, brand voice, UI constraints, customer expectations, market nuance, approval flows, and previous reviewer feedback.
+[Translation intelligence](/blog/what-is-translation-intelligence) tập hợp các thông tin cần thiết để đưa ra các quyết định bản địa hóa chất lượng cao: ngữ cảnh sản phẩm, ảnh chụp màn hình, lịch sử nguồn, quy tắc bảng thuật ngữ, giọng điệu thương hiệu, ràng buộc giao diện người dùng, kỳ vọng của khách hàng, sắc thái thị trường, quy trình phê duyệt và phản hồi trước đây của người xem xét.
 
-Instead of asking translators to chase context manually, the system should bring context into the workflow automatically.
+Thay vì yêu cầu biên dịch viên tự đi săn ngữ cảnh thủ công, hệ thống nên tự động đưa ngữ cảnh vào quy trình làm việc.
 
-Instead of treating every project as a new starting point, the system should learn from previous decisions.
+Thay vì coi mỗi dự án là một điểm khởi đầu mới, hệ thống nên học hỏi từ các quyết định trước đó.
 
-Instead of using AI as a generic translation engine, teams should be able to use AI as a context-aware assistant that supports better judgement, faster review, and more consistent outcomes.
+Thay vì sử dụng AI như một công cụ dịch thuật chung chung, các nhóm nên có thể dùng AI như một trợ lý có hiểu biết ngữ cảnh, hỗ trợ phán đoán tốt hơn, rà soát nhanh hơn và mang lại kết quả nhất quán hơn.
 
-## Hyperlocalisation as an operating model
+## Hyperlocalisation như một mô hình vận hành
 
-Hyperlocalisation is often misunderstood as making every market completely different. That is not the goal.
+Bản địa hóa siêu cục bộ thường bị hiểu lầm là làm cho mọi thị trường hoàn toàn khác nhau. Đó không phải là mục tiêu.
 
-The goal is to understand what should remain globally consistent and what should be adapted locally.
+Mục tiêu là hiểu điều gì nên được giữ nhất quán trên toàn cầu và điều gì nên được điều chỉnh theo địa phương.
 
-A strong global brand needs both discipline and flexibility. Product names, legal claims, core positioning, and brand principles often need consistency across markets. At the same time, tone, examples, calls to action, levels of formality, cultural references, payment language, and support expectations may need to vary depending on the region.
+Một thương hiệu toàn cầu mạnh cần cả tính kỷ luật lẫn sự linh hoạt. Tên sản phẩm, các tuyên bố pháp lý, định vị cốt lõi và các nguyên tắc thương hiệu thường cần được giữ nhất quán giữa các thị trường. Đồng thời, giọng điệu, ví dụ, lời kêu gọi hành động, mức độ trang trọng, tham chiếu văn hóa, ngôn ngữ thanh toán và kỳ vọng về hỗ trợ có thể cần thay đổi tùy theo từng khu vực.
 
-The best localisation systems help teams manage this balance.
+Các hệ thống bản địa hóa tốt nhất giúp các nhóm quản lý sự cân bằng này.
 
-They do not simply move words from one language to another. They help teams decide how a message should behave in context. They preserve the intent of the source content while adapting it to the expectations of the local customer.
+Họ không chỉ đơn thuần chuyển từ ngữ từ ngôn ngữ này sang ngôn ngữ khác. Họ giúp các nhóm quyết định cách một thông điệp nên được thể hiện trong ngữ cảnh. Họ bảo toàn ý định của nội dung nguồn trong khi điều chỉnh nó cho phù hợp với kỳ vọng của khách hàng địa phương.
 
-This is why hyperlocalisation should be seen as an operating model, not just a translation technique.
+Đây là lý do tại sao hyperlocalisation nên được xem là một mô hình vận hành, chứ không chỉ là một kỹ thuật dịch thuật.
 
-It connects content, product, design, engineering, marketing, and regional knowledge into a shared workflow. It gives teams a clearer view of why a translation decision was made, who approved it, what context informed it, and how that decision should influence future work.
+Nó kết nối nội dung, sản phẩm, thiết kế, kỹ thuật, tiếp thị và kiến thức khu vực vào một quy trình làm việc chung. Nó giúp các nhóm có cái nhìn rõ ràng hơn về lý do một quyết định dịch thuật được đưa ra, ai đã phê duyệt quyết định đó, ngữ cảnh nào đã cung cấp thông tin cho quyết định đó, và cách quyết định đó nên ảnh hưởng đến công việc trong tương lai.
 
-When done well, hyperlocalisation improves more than translation quality. It improves product experience, brand trust, conversion, customer support, and the speed at which companies can enter and grow in new markets.
+Khi được thực hiện tốt, siêu bản địa hóa không chỉ cải thiện chất lượng bản dịch. Nó còn nâng cao trải nghiệm sản phẩm, niềm tin vào thương hiệu, tỷ lệ chuyển đổi, hỗ trợ khách hàng và tốc độ mà doanh nghiệp có thể thâm nhập và mở rộng tại các thị trường mới.
 
-## The mission of Hyperlocalise
+## Sứ mệnh của Hyperlocalise
 
-Hyperlocalise exists to help companies communicate with global customers as if they truly understand them.
+Hyperlocalise tồn tại để giúp các công ty giao tiếp với khách hàng toàn cầu như thể họ thực sự hiểu họ.
 
-Our mission is to make localisation more intelligent, more contextual, and more connected to the way modern teams work.
+Sứ mệnh của chúng tôi là làm cho việc bản địa hóa trở nên thông minh hơn, phù hợp ngữ cảnh hơn và gắn kết hơn với cách các nhóm hiện đại làm việc.
 
-We believe the future of localisation is not a choice between human expertise and AI automation. The best outcomes will come from combining both. AI should reduce repetitive work, surface relevant context, suggest better options, and help teams operate faster. Human experts should remain focused on judgement, nuance, quality, and market relevance.
+Chúng tôi tin rằng tương lai của bản địa hoá không phải là sự lựa chọn giữa chuyên môn của con người và tự động hoá bằng AI. Kết quả tốt nhất sẽ đến từ việc kết hợp cả hai. AI nên giảm bớt công việc lặp đi lặp lại, hiển thị bối cảnh phù hợp, đề xuất các phương án tốt hơn và giúp các nhóm vận hành nhanh hơn. Các chuyên gia con người vẫn nên tập trung vào đánh giá, sắc thái, chất lượng và mức độ phù hợp với thị trường.
 
-This is especially important for teams managing complex multilingual products.
+Điều này đặc biệt quan trọng đối với các nhóm đang quản lý các sản phẩm đa ngôn ngữ phức tạp.
 
-Localisation managers should not need to chase product context across disconnected tools. Translators should not need to work from isolated strings. Reviewers should not need to repeat the same feedback across every project. Product and marketing teams should not need to compromise between speed and quality when launching globally.
+Các quản lý bản địa hóa không nên phải theo đuổi bối cảnh sản phẩm qua các công cụ rời rạc. Dịch giả không nên phải làm việc từ các chuỗi rời rạc. Người duyệt không nên phải lặp lại cùng một phản hồi trên mọi dự án. Các nhóm sản phẩm và tiếp thị không nên phải đánh đổi giữa tốc độ và chất lượng khi ra mắt trên phạm vi toàn cầu.
 
-Hyperlocalise is building for a future where localisation workflows are context-aware by default.
+Hyperlocalise đang xây dựng cho một tương lai nơi các quy trình bản địa hóa mặc định sẽ nhận biết ngữ cảnh.
 
-That means the translation experience should understand the product. It should understand the brand. It should understand the market. It should understand previous decisions. And it should improve as the team continues to work.
+Điều đó có nghĩa là trải nghiệm dịch thuật nên hiểu sản phẩm. Nó nên hiểu thương hiệu. Nó nên hiểu thị trường. Nó nên hiểu các quyết định trước đây. Và nó nên được cải thiện khi đội ngũ tiếp tục làm việc.
 
-Our [next-generation CAT tool](/product/next-gen-cat-tool) brings product context, glossary rules, screenshots, and reviewer feedback into the translation experience itself — so hyperlocalisation decisions happen where the work actually gets done.
+Công cụ CAT thế hệ mới của chúng tôi ](/product/next-gen-cat-tool) đưa ngữ cảnh sản phẩm, quy tắc bảng thuật ngữ, ảnh chụp màn hình và phản hồi của người duyệt vào chính trải nghiệm dịch thuật — để các quyết định siêu bản địa hóa diễn ra ngay tại nơi công việc thực sự được thực hiện.
 
-## Our vision: self-evolving localisation intelligence
+## Tầm nhìn của chúng tôi: trí tuệ bản địa hóa tự tiến hóa
 
-The long-term vision of Hyperlocalise is to create a living intelligence layer for global communication.
+Tầm nhìn dài hạn của Hyperlocalise là tạo ra một lớp trí tuệ sống cho giao tiếp toàn cầu.
 
-Every approved translation, reviewer edit, product update, glossary rule, screenshot, support insight, and brand decision contains valuable knowledge. Today, much of that knowledge disappears after a project is completed. It remains trapped in comments, tickets, spreadsheets, or individual memory.
+Mỗi bản dịch đã được phê duyệt, chỉnh sửa của người rà soát, cập nhật sản phẩm, quy tắc thuật ngữ, ảnh chụp màn hình, thông tin hỗ trợ và quyết định thương hiệu đều chứa đựng kiến thức giá trị. Hôm nay, phần lớn kiến thức đó biến mất sau khi một dự án hoàn thành. Nó vẫn bị mắc kẹt trong các bình luận, ticket, bảng tính hoặc trí nhớ cá nhân.
 
-We believe that knowledge should become reusable.
+Chúng tôi tin rằng kiến thức nên có thể được tái sử dụng.
 
-A localisation system should learn from how a company communicates. It should remember how terms are used across products. It should understand how reviewers make decisions. It should recognise patterns in market feedback. It should help teams apply the right rules and context without requiring the same manual setup every time.
+Một hệ thống bản địa hóa nên học từ cách một công ty giao tiếp. Nó nên ghi nhớ cách các thuật ngữ được sử dụng xuyên suốt các sản phẩm. Nó nên hiểu cách những người duyệt nội dung đưa ra quyết định. Nó nên nhận ra các mẫu trong phản hồi thị trường. Nó nên giúp các nhóm áp dụng đúng quy tắc và ngữ cảnh mà không cần thiết lập thủ công giống nhau mỗi lần.
 
-This is what we mean by [self-evolving localisation intelligence](/product/self-evolving-knowledge).
+Đây là điều chúng tôi muốn nói bằng [trí tuệ bản địa hoá tự tiến hoá](/product/self-evolving-knowledge).
 
-The system should become more useful with every project. It should reduce repeated questions, improve consistency, and help teams make better decisions over time. The more a company localises, the stronger its localisation intelligence should become.
+Hệ thống nên trở nên hữu ích hơn với mỗi dự án. Nó nên giảm bớt các câu hỏi lặp lại, cải thiện tính nhất quán và giúp các nhóm đưa ra quyết định tốt hơn theo thời gian. Càng một công ty bản địa hoá nhiều, trí tuệ bản địa hoá của công ty đó càng nên mạnh hơn.
 
-[Agents and automation](/product/agents-automation) help teams gather context, route work, and apply learned decisions across repositories, CMS platforms, and design tools — so hyperlocalisation scales with the pace of modern product development.
+[Agents và tự động hóa](/product/agents-automation) giúp các nhóm thu thập ngữ cảnh, định tuyến công việc và áp dụng các quyết định đã học trên nhiều kho lưu trữ, nền tảng CMS và công cụ thiết kế — để hyperlocalisation mở rộng theo tốc độ của quá trình phát triển sản phẩm hiện đại.
 
-## Why this matters
+## Tại sao điều này quan trọng
 
-Customers can tell when a company has simply translated content.
+Khách hàng có thể nhận ra khi một công ty chỉ đơn giản là dịch nội dung.
 
-They can also tell when a company has made the effort to understand them.
+Họ cũng có thể nhận ra khi một công ty đã nỗ lực để thấu hiểu họ.
 
-That difference matters. It affects whether a product feels intuitive. It affects whether a campaign feels relevant. It affects whether support content feels helpful. It affects whether customers trust the brand enough to adopt, buy, and stay.
+Sự khác biệt đó rất quan trọng. Nó ảnh hưởng đến việc một sản phẩm có mang lại cảm giác trực quan hay không. Nó ảnh hưởng đến việc một chiến dịch có mang lại cảm giác phù hợp hay không. Nó ảnh hưởng đến việc nội dung hỗ trợ có mang lại cảm giác hữu ích hay không. Nó ảnh hưởng đến việc khách hàng có đủ tin tưởng thương hiệu để sử dụng, mua và gắn bó hay không.
 
-For global companies, localisation is no longer a back-office function. It is part of the customer experience.
+Đối với các công ty toàn cầu, bản địa hóa không còn là một chức năng hậu cần nữa. Nó là một phần của trải nghiệm khách hàng.
 
-The companies that win internationally will not be the ones that translate the most words at the lowest cost. They will be the ones that communicate with clarity, relevance, and respect in every market they serve.
+Những công ty chiến thắng trên phạm vi quốc tế sẽ không phải là những công ty dịch được nhiều từ nhất với chi phí thấp nhất. Họ sẽ là những công ty giao tiếp một cách rõ ràng, phù hợp và tôn trọng ở mọi thị trường mà họ phục vụ.
 
-That is the promise of hyperlocalisation.
+Đó là lời hứa của siêu địa phương hóa.
 
-Not translation as an afterthought.
+Không phải là việc dịch sau cùng.
 
-Not AI as a shortcut.
+Không phải AI như một lối tắt.
 
-Not localisation as a disconnected workflow.
+Không phải bản địa hóa như một quy trình tách rời.
 
-But a more intelligent way for global teams to create, adapt, review, and improve multilingual experiences with the context they need from the beginning.
+Nhưng là một cách thông minh hơn để các nhóm toàn cầu tạo, điều chỉnh, xem xét và cải thiện trải nghiệm đa ngôn ngữ với ngữ cảnh họ cần ngay từ đầu.
 
-That is the future Hyperlocalise is building.
+Đó là tương lai mà Hyperlocalise đang xây dựng.
 
-[Explore translation intelligence](/blog/what-is-translation-intelligence), see how [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation) works in practice, or [discover our next-gen CAT tool](/product/next-gen-cat-tool) to bring hyperlocalisation into your workflow.
+[Khám phá trí tuệ dịch thuật](/blog/what-is-translation-intelligence), xem cách [bản địa hóa theo ngữ cảnh](/blog/ai-translation-is-not-enough-context-aware-localisation) hoạt động trong thực tế, hoặc [khám phá công cụ CAT thế hệ mới của chúng tôi](/product/next-gen-cat-tool) để đưa siêu bản địa hóa vào quy trình làm việc của bạn.

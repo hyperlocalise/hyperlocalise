@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalise Selected for Slator Language AI 50 Under 50"
+title: "Hyperlocalise Sélectionné pour Slator Language AI 50 Under 50"
 date: 2026-07-04T00:00:00.000Z
-excerpt: Hyperlocalise has been named to Slator's 2026 Language AI 50 Under 50 — a list of the most promising new entrants shaping the future of language AI and localisation technology.
-category: Company
+excerpt: Hyperlocalise a été nommé dans le Slator’s 2026 Language AI 50 Under 50 — une liste des nouveaux entrants les plus prometteurs qui façonnent l’avenir de l’IA linguistique et de la technologie de localisation.
+category: Entreprise
 coverImage: /images/blog/slator-2026-language-ai-50-under-50.png
 tags:
   - Slator
@@ -18,36 +18,36 @@ tags:
   - terminology management
 ---
 
-We are proud to share that Hyperlocalise has been selected for the [2026 Slator Language AI 50 Under 50](https://slator.com/2026-slator-language-ai-50-under-50/) — Slator's annual list of the most promising new companies in language AI and localisation technology.
+Nous sommes fiers d’annoncer que Hyperlocalise a été sélectionné pour le [2026 Slator Language AI 50 Under 50](https://slator.com/2026-slator-language-ai-50-under-50/) — la liste annuelle de Slator des nouvelles entreprises les plus prometteuses dans l’IA linguistique et la technologie de localisation.
 
-The list is a cross-section of new entrants in one of the fastest-changing corners of enterprise software. Being included alongside this year's cohort is a meaningful milestone for our team, and a reflection of the direction we believe localisation needs to take.
+La liste est un échantillon représentatif des nouveaux entrants dans l’un des segments les plus dynamiques des logiciels d’entreprise. Être inclus aux côtés de la cohorte de cette année constitue une étape importante pour notre équipe et reflète la direction que nous estimons que la localisation doit prendre.
 
-## What the list recognises
+## Ce que la liste reconnaît
 
-Slator's report highlights a shift in how language AI startups are being built. Many of the companies on this year's list are not competing on translation output alone. They are building orchestration platforms that coordinate the context, terminology, governance, review, and decision-making that surround translation.
+Le rapport de Slator met en lumière une évolution dans la manière dont les startups d’IA linguistique sont conçues. Beaucoup des entreprises figurant sur la liste de cette année ne se contentent pas de concurrencer sur la seule qualité de la traduction. Elles développent des plateformes d’orchestration qui coordonnent le contexte, la terminologie, la gouvernance, la révision et la prise de décision qui entourent la traduction.
 
-Hyperlocalise was recognised in that group. As Slator notes, we focus on automating the work around translation — context retrieval, brand consistency, UI constraints, and review decisions — rather than translation alone.
+Hyperlocalise a été reconnu dans ce groupe. Comme le note Slator, nous nous concentrons sur l’automatisation du travail autour de la traduction — récupération du contexte, cohérence de marque, contraintes d’interface utilisateur et décisions de relecture — plutôt que sur la traduction seule.
 
-That framing matches how we think about the problem.
+Ce cadrage correspond à la façon dont nous pensons le problème.
 
-Translation is no longer the bottleneck for most teams. AI can produce fluent first drafts in seconds. The harder question is whether those drafts are right for the product, the brand, the market, and the customer experience in which they appear. That judgment depends on context that often lives outside the translation workflow: product surfaces, design constraints, prior reviewer decisions, terminology rules, and brand voice.
+La traduction n’est plus le goulot d’étranglement pour la plupart des équipes. L’IA peut produire en quelques secondes des premiers jets fluides. La question plus difficile est de savoir si ces brouillons sont adaptés au produit, à la marque, au marché et à l’expérience client dans laquelle ils apparaissent. Ce jugement dépend d’un contexte qui se situe souvent en dehors du flux de travail de traduction : interfaces produit, contraintes de conception, décisions antérieures des réviseurs, règles terminologiques et ton de marque.
 
-Hyperlocalise exists to make that context usable — and to turn localisation decisions into reusable intelligence over time.
+Hyperlocalise existe pour rendre ce contexte exploitable — et pour transformer les décisions de localisation en intelligence réutilisable au fil du temps.
 
-## A broader pattern in language AI
+## Un schéma plus large dans l’IA linguistique
 
-The 2026 cohort reflects several themes that resonate with our work:
+La promotion 2026 reflète plusieurs thèmes qui résonnent avec notre travail :
 
-- **Orchestration over output.** AI-first localisation startups are increasingly skipping the standalone "translation tool" phase and launching as platforms that govern how multilingual content moves through a product organisation.
-- **Learning loops.** Value is shifting from generating multilingual copy to capturing accumulated language expertise — terminology, style guides, product context, and reviewer decisions — and turning it into systems that improve with use.
-- **Workflow ownership.** The most interesting companies are not just producing translations. They are helping teams coordinate the people, systems, and decisions that determine whether localisation actually works in market.
+- **L’orchestration prime sur la sortie.** Les startups de localisation « AI-first » sautent de plus en plus l’étape autonome de l’« outil de traduction » pour se lancer comme des plateformes qui régissent la manière dont le contenu multilingue circule au sein d’une organisation produit.
+- **Boucles d’apprentissage.** La valeur se déplace de la génération de contenus multilingues vers la capture d’une expertise linguistique accumulée — terminologie, guides de style, contexte produit et décisions des réviseurs — puis vers sa transformation en systèmes qui s’améliorent avec l’usage.
+- **Propriété du flux de travail.** Les entreprises les plus intéressantes ne se contentent pas de produire des traductions. Elles aident les équipes à coordonner les personnes, les systèmes et les décisions qui déterminent si la localisation fonctionne réellement sur le marché.
 
-We are building Hyperlocalise in that direction: a translation intelligence layer that helps humans and AI make better localisation decisions, with the product context they need to do it well.
+Nous construisons Hyperlocalise dans cette direction : une couche d’intelligence de traduction qui aide les humains et l’IA à prendre de meilleures décisions de localisation, avec le contexte produit dont ils ont besoin pour bien le faire.
 
-## Thank you
+## Merci
 
-This recognition belongs to everyone who has helped shape Hyperlocalise so far — early customers, advisors, collaborators, and the team building the product every day.
+Cette reconnaissance revient à toutes celles et ceux qui ont contribué à façonner Hyperlocalise jusqu’à présent — les premiers clients, les conseillers, les collaborateurs et l’équipe qui construit le produit chaque jour.
 
-If you are exploring how to move beyond translation-as-a-handoff and toward localisation that understands your product, we would love to hear from you. [Join the waitlist](/) or [read more about translation intelligence](/blog/what-is-translation-intelligence).
+Si vous cherchez à aller au-delà de la traduction comme simple transmission et à vous orienter vers une localisation qui comprend votre produit, nous serions ravis d’avoir de vos nouvelles. [Rejoignez la liste d’attente](/) ou [en savoir plus sur l’intelligence de traduction](/blog/what-is-translation-intelligence).
 
-And thank you to [Slator](https://slator.com/) for including us in the 2026 Language AI 50 Under 50.
+Et merci à [Slator](https://slator.com/) de nous avoir inclus dans le 2026 Language AI 50 Under 50.

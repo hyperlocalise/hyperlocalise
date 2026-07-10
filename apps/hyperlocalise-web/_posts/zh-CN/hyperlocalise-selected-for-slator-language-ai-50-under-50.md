@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalise Selected for Slator Language AI 50 Under 50"
+title: "Hyperlocalise 入选 Slator Language AI 50 Under 50"
 date: 2026-07-04T00:00:00.000Z
-excerpt: Hyperlocalise has been named to Slator's 2026 Language AI 50 Under 50 — a list of the most promising new entrants shaping the future of language AI and localisation technology.
-category: Company
+excerpt: Hyperlocalise 入选了 Slator 2026 Language AI 50 Under 50——这份榜单汇集了正在塑造语言 AI 和本地化技术未来的最具潜力的新晋企业。
+category: 公司
 coverImage: /images/blog/slator-2026-language-ai-50-under-50.png
 tags:
   - Slator
@@ -18,36 +18,36 @@ tags:
   - terminology management
 ---
 
-We are proud to share that Hyperlocalise has been selected for the [2026 Slator Language AI 50 Under 50](https://slator.com/2026-slator-language-ai-50-under-50/) — Slator's annual list of the most promising new companies in language AI and localisation technology.
+我们很自豪地宣布，Hyperlocalise 已入选 [2026 Slator Language AI 50 Under 50](https://slator.com/2026-slator-language-ai-50-under-50/) — Slator 年度评选的语言 AI 和本地化技术领域最具潜力的新公司榜单。
 
-The list is a cross-section of new entrants in one of the fastest-changing corners of enterprise software. Being included alongside this year's cohort is a meaningful milestone for our team, and a reflection of the direction we believe localisation needs to take.
+这份名单汇集了企业软件领域变化最快的板块之一中的新晋企业。能够与今年的入选者一同上榜，对我们的团队来说是一个重要的里程碑，也反映了我们认为本地化需要前进的方向。
 
-## What the list recognises
+## 列表识别什么
 
-Slator's report highlights a shift in how language AI startups are being built. Many of the companies on this year's list are not competing on translation output alone. They are building orchestration platforms that coordinate the context, terminology, governance, review, and decision-making that surround translation.
+Slator 的报告突显了语言 AI 初创公司的构建方式正在发生转变。今年榜单上的许多公司并不只是单纯在翻译结果上竞争。它们正在构建编排平台，用于协调围绕翻译展开的上下文、术语、治理、审校和决策。
 
-Hyperlocalise was recognised in that group. As Slator notes, we focus on automating the work around translation — context retrieval, brand consistency, UI constraints, and review decisions — rather than translation alone.
+Hyperlocalise 在该组中得到了认可。正如 Slator 所指出的，我们专注于自动化翻译周边工作——上下文检索、品牌一致性、UI 约束和审校决策——而不仅仅是翻译本身。
 
-That framing matches how we think about the problem.
+这种表述与我们看待这个问题的方式一致。
 
-Translation is no longer the bottleneck for most teams. AI can produce fluent first drafts in seconds. The harder question is whether those drafts are right for the product, the brand, the market, and the customer experience in which they appear. That judgment depends on context that often lives outside the translation workflow: product surfaces, design constraints, prior reviewer decisions, terminology rules, and brand voice.
+对于大多数团队来说，翻译已不再是瓶颈。AI 可以在几秒内生成流畅的初稿。更难的问题是，这些初稿是否真正适合它们所呈现的产品、品牌、市场以及客户体验。这个判断取决于上下文，而这些上下文往往存在于翻译工作流之外：产品界面、设计约束、以往审核决策、术语规则以及品牌语气。
 
-Hyperlocalise exists to make that context usable — and to turn localisation decisions into reusable intelligence over time.
+Hyperlocalise 的存在是为了让这些上下文真正可用——并随着时间推移，把本地化决策转化为可复用的智能。
 
-## A broader pattern in language AI
+## 语言 AI 中的一个更广泛的模式
 
-The 2026 cohort reflects several themes that resonate with our work:
+2026 届体现了与我们的工作产生共鸣的几个主题：
 
-- **Orchestration over output.** AI-first localisation startups are increasingly skipping the standalone "translation tool" phase and launching as platforms that govern how multilingual content moves through a product organisation.
-- **Learning loops.** Value is shifting from generating multilingual copy to capturing accumulated language expertise — terminology, style guides, product context, and reviewer decisions — and turning it into systems that improve with use.
-- **Workflow ownership.** The most interesting companies are not just producing translations. They are helping teams coordinate the people, systems, and decisions that determine whether localisation actually works in market.
+- **围绕输出进行编排。** 以 AI 为先的本地化初创公司正越来越多地跳过独立的“翻译工具”阶段，而是以平台的形式推出，负责管理多语言内容在产品组织中的流转。
+- **学习闭环。** 价值正从生成多语言文案转向捕获积累的语言专业知识——术语、风格指南、产品上下文和审校决策——并将其转化为会随着使用而不断改进的系统。
+- **工作流所有权。** 最有意思的公司并不只是提供翻译。它们还在帮助团队协调人员、系统和决策，而这些因素决定了本地化在市场中是否真正奏效。
 
-We are building Hyperlocalise in that direction: a translation intelligence layer that helps humans and AI make better localisation decisions, with the product context they need to do it well.
+我们正在朝着那个方向构建 Hyperlocalise：一个翻译智能层，帮助人类和 AI 做出更好的本地化决策，并提供他们做好这件事所需的产品上下文。
 
-## Thank you
+## 谢谢你
 
-This recognition belongs to everyone who has helped shape Hyperlocalise so far — early customers, advisors, collaborators, and the team building the product every day.
+这份认可属于所有迄今为止帮助塑造 Hyperlocalise 的人——早期客户、顾问、合作伙伴，以及每天都在打造这款产品的团队。
 
-If you are exploring how to move beyond translation-as-a-handoff and toward localisation that understands your product, we would love to hear from you. [Join the waitlist](/) or [read more about translation intelligence](/blog/what-is-translation-intelligence).
+如果您正在探索如何超越“翻译即交付”，迈向真正理解您产品的本地化，我们很乐意听到您的反馈。[加入候补名单](/) 或 [了解更多关于翻译智能的内容](/blog/what-is-translation-intelligence)。
 
-And thank you to [Slator](https://slator.com/) for including us in the 2026 Language AI 50 Under 50.
+感谢 [Slator](https://slator.com/) 将我们纳入 2026 年 Language AI 50 Under 50。
