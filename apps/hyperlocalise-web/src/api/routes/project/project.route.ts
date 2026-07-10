@@ -1539,8 +1539,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             actorUserId: c.var.auth.user.localUserId,
           });
 
+          let translation;
           try {
-            const translation = await saveTmsProviderLiveCatTranslation(
+            translation = await saveTmsProviderLiveCatTranslation(
               organizationId,
               target.externalProjectId,
               sourcePath,
@@ -1552,16 +1553,27 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               },
               { actorUserId: c.var.auth.user.localUserId },
             );
+          } catch (error) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return tmsProviderLiveErrorResponse(c, error);
+          }
 
-            if (!translation) {
-              await cleanupFailedExternalCatImageUpload({
-                organizationId,
-                projectId: ensured.value,
-                storedFileId: stored.storedFileId,
-              });
-              return projectNotFoundResponse(c);
-            }
+          if (!translation) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return projectNotFoundResponse(c);
+          }
 
+          // Overlay is local metadata after a committed provider write-back.
+          // Never delete public media here — the provider already points at stored.assetUrl.
+          try {
             await setExternalCatStringTreatAsImage({
               organizationId,
               projectId: params.projectId,
@@ -1571,27 +1583,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               treatAsImage: true,
               actorUserId: c.var.auth.user.localUserId,
             });
-
-            return c.json(
-              {
-                translation: {
-                  text: translation.text,
-                  externalTranslationId: translation.externalTranslationId,
-                  isApproved: translation.isApproved,
-                  contentKind: "image_url" as const,
-                  targetAssetUrl: stored.assetUrl,
-                },
-              },
-              200,
-            );
-          } catch (error) {
-            await cleanupFailedExternalCatImageUpload({
-              organizationId,
-              projectId: ensured.value,
-              storedFileId: stored.storedFileId,
-            });
-            return tmsProviderLiveErrorResponse(c, error);
+          } catch {
+            // Best-effort: write-back already committed; CAT can still treat via URL heuristic.
           }
+
+          return c.json(
+            {
+              translation: {
+                text: translation.text,
+                externalTranslationId: translation.externalTranslationId,
+                isApproved: translation.isApproved,
+                contentKind: "image_url" as const,
+                targetAssetUrl: stored.assetUrl,
+              },
+            },
+            200,
+          );
         }
 
         const project = await getOwnedProject(c.var.auth, params.projectId);
