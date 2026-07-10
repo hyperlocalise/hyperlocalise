@@ -60,14 +60,12 @@ function unrelatedLongMemoryWithoutGeneralHeading() {
     "- Keep Hyperlocalise unchanged.",
     "- Keep API unchanged unless a local convention requires expansion.",
     "",
-    ...Array.from(
-      { length: 90 },
-      (_, index) =>
-        [
-          `## Operations note ${index + 1}`,
-          "",
-          `Archive note ${index + 1} for internal process copy.`,
-        ].join("\n"),
+    ...Array.from({ length: 90 }, (_, index) =>
+      [
+        `## Operations note ${index + 1}`,
+        "",
+        `Archive note ${index + 1} for internal process copy.`,
+      ].join("\n"),
     ),
   ].join("\n");
 }
@@ -82,14 +80,12 @@ function multiLocaleMemoryWithDistractors() {
     "",
     "Use formal French for payment confirmation and billing messages.",
     "",
-    ...Array.from(
-      { length: 5 },
-      (_, index) =>
-        [
-          `## Generic payment note ${index + 1}`,
-          "",
-          "Payment confirmation copy should stay short and direct.",
-        ].join("\n"),
+    ...Array.from({ length: 5 }, (_, index) =>
+      [
+        `## Generic payment note ${index + 1}`,
+        "",
+        "Payment confirmation copy should stay short and direct.",
+      ].join("\n"),
     ),
     "",
     "## Australian checkout voice",
