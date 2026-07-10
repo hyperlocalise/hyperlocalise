@@ -3,7 +3,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 
-import { PlanUsageSidebarWidget } from "@/components/billing/plan-usage-summary";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +27,7 @@ import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organiza
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
+import { AppShellFooter } from "./app-shell-footer";
 
 type AppShellClientProps = {
   autumnConfigured?: boolean;
@@ -98,18 +98,14 @@ export function AppShellClient({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 px-2 py-2">
+          <SidebarContent className="gap-0 px-2 pt-2 pb-12">
             <AppShellNavigation organizationSlug={organizationSlug} />
-
-            {showBillingLink && autumnConfigured ? (
-              <PlanUsageSidebarWidget organizationSlug={organizationSlug} />
-            ) : null}
           </SidebarContent>
 
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-h-svh bg-background">
+        <SidebarInset className="min-h-svh bg-background pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
           <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
             <div className="flex h-[var(--app-shell-header-height)] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
@@ -147,6 +143,11 @@ export function AppShellClient({
 
           <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
         </SidebarInset>
+
+        <AppShellFooter
+          organizationSlug={organizationSlug}
+          showPlan={showBillingLink && autumnConfigured}
+        />
       </SidebarProvider>
     </AppShellStoreProvider>
   );
