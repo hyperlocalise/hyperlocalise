@@ -25,16 +25,6 @@ concurrency:
 
 env:
   WEB_WORKING_DIRECTORY: apps/hyperlocalise-web
-  WEB_I18N_CONFIG: i18n.yml
-  WEB_EXTRACT_PATH: src
-  WEB_EXTRACT_OUT_FILE: lang/en-US.json
-  WEB_EXTRACT_IGNORE: |
-    **/*.test.ts
-    **/*.test.tsx
-    **/*.stories.tsx
-    **/*.fixture.ts
-    **/*.e2e.ts
-    **/__tests__/**
 
 jobs:
   upload:
@@ -46,6 +36,9 @@ jobs:
       }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: hyperlocalise-web-localize
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
 
     steps:
       - name: Checkout
@@ -56,17 +49,18 @@ jobs:
         with:
           version: 1.8.22
 
-      - name: Extract and upload web sources
-        uses: ./.github/actions/hyperlocalise-web-sync
-        with:
-          mode: upload
-          working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
-          config-path: ${{ env.WEB_I18N_CONFIG }}
-          extract-path: ${{ env.WEB_EXTRACT_PATH }}
-          extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
-          extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
-          fail-on-findings: false
-          upload-artifact: true
+      - name: Extract source catalog
+        run: |
+          hl extract src --out-file lang/en-US.json \
+            --ignore '**/*.test.ts' \
+            --ignore '**/*.test.tsx' \
+            --ignore '**/*.stories.tsx' \
+            --ignore '**/*.fixture.ts' \
+            --ignore '**/*.e2e.ts' \
+            --ignore '**/__tests__/**'
+
+      - name: Push sources
+        run: hl sync push
         env:
           HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
           HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
@@ -83,6 +77,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
 
     steps:
       - name: Create GitHub App token
@@ -107,28 +104,29 @@ jobs:
         with:
           version: 1.8.22
 
-      - name: Extract, download, and validate web translations
-        uses: ./.github/actions/hyperlocalise-web-sync
-        with:
-          mode: download
-          working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
-          config-path: ${{ env.WEB_I18N_CONFIG }}
-          extract-path: ${{ env.WEB_EXTRACT_PATH }}
-          extract-out-file: ${{ env.WEB_EXTRACT_OUT_FILE }}
-          extract-ignore: ${{ env.WEB_EXTRACT_IGNORE }}
-          fail-on-findings: true
-          upload-artifact: true
+      - name: Extract source catalog
+        run: |
+          hl extract src --out-file lang/en-US.json \
+            --ignore '**/*.test.ts' \
+            --ignore '**/*.test.tsx' \
+            --ignore '**/*.stories.tsx' \
+            --ignore '**/*.fixture.ts' \
+            --ignore '**/*.e2e.ts' \
+            --ignore '**/__tests__/**'
+
+      - name: Pull translations
+        run: hl sync pull
         env:
           HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
           HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 
+      - name: Pack locale catalogs
+        run: hl pack
+
       - name: Prepare translation branch name
         id: branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          timestamp="$(date -u +%Y%m%d-%H%M%S)"
-          echo "name=hyperlocalise/web-translations-${timestamp}" >>"${GITHUB_OUTPUT}"
+        working-directory: ${{ github.workspace }}
+        run: echo "name=hyperlocalise/web-translations-$(date -u +%Y%m%d-%H%M%S)" >>"${GITHUB_OUTPUT}"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
@@ -141,9 +139,9 @@ jobs:
           body: |
             Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
 
-            - Source catalog: `apps/hyperlocalise-web/lang/en-US.json` (refreshed via `hyperlocalise extract` before pull)
-            - Target catalogs: `apps/hyperlocalise-web/lang/*.json` (packed with `hyperlocalise pack` after pull)
-            - Validation: `hyperlocalise check --diff-stdin` on the pulled diff (warnings ignored)
+            - `hl extract` — refresh `lang/en-US.json`
+            - `hl sync pull` — download target locale catalogs
+            - `hl pack` — strip FormatJS metadata for runtime
 
             Review ICU placeholders, message ids, and locale coverage before merging.
           add-paths: |
