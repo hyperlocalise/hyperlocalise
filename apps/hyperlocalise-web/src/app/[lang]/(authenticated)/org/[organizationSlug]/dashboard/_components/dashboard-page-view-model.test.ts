@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../projects/_components/project-list";
@@ -14,6 +17,7 @@ import {
   sortDashboardProjects,
 } from "./dashboard-page-view-model";
 
+const intl = getIntlShape("en") as IntlShape;
 describe("dashboard-page-view-model", () => {
   it("merges native and live TMS jobs without duplicate resource IDs", () => {
     const jobs = mergeDashboardJobSources(
@@ -84,7 +88,7 @@ describe("dashboard-page-view-model", () => {
   });
 
   it("treats setup as complete only when integrations and projects exist", () => {
-    const integrations = resolveDashboardIntegrations({
+    const integrations = resolveDashboardIntegrations(intl, {
       tmsConnected: true,
       tmsProviderKind: "crowdin",
       tmsProviderName: "Crowdin",
@@ -102,13 +106,13 @@ describe("dashboard-page-view-model", () => {
   });
 
   it("builds setup hero before workspace is ready", () => {
-    const integrations = resolveDashboardIntegrations({
+    const integrations = resolveDashboardIntegrations(intl, {
       tmsConnected: false,
       githubConnected: false,
       slackConnected: false,
     });
 
-    const hero = resolveDashboardHero({
+    const hero = resolveDashboardHero(intl, {
       integrations,
       projectCount: 0,
       pendingCount: 0,
