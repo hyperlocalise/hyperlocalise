@@ -184,17 +184,12 @@ function useCatLoadedQueueTargetsSync(input: {
       return;
     }
 
-    const loadingIds = segmentIds.filter((segmentId, index) => {
+    // Track fetch-in-flight only. Draft text is filtered in `loadingSegmentIds`
+    // so typing during a fetch clears the skeleton without needing this effect
+    // to re-run on draft changes.
+    const loadingIds = segmentIds.filter((_segmentId, index) => {
       const query = targetQueries[index];
-      if (!query) {
-        return false;
-      }
-
-      return (
-        query.isFetching &&
-        query.data === undefined &&
-        !store.drafts.get(segmentId)?.targetText.trim()
-      );
+      return Boolean(query?.isFetching && query.data === undefined);
     });
 
     store.setQueueTargetLoadingSegmentIds(loadingIds);

@@ -540,7 +540,13 @@ export class CatWorkspaceOrchestrator {
       return EMPTY_LOADING_SEGMENT_IDS;
     }
 
-    const ids = new Set<string>(queueLoadingIds);
+    const ids = new Set<string>();
+    for (const segmentId of queueLoadingIds) {
+      // Read drafts here so MobX recomputes when the user types during a fetch.
+      if (!this.drafts.get(segmentId)?.targetText.trim()) {
+        ids.add(segmentId);
+      }
+    }
     if (hasSelectedLoading) {
       ids.add(this.selectedSegmentId);
     }
