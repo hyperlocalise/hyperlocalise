@@ -187,9 +187,9 @@ type ConfigDiscoveryResult = {
 type SourceFileDiscovery = {
   /** All localization configs that contributed source paths. */
   configs: ConfigDiscoveryResult[];
-  /** Convenience: first discovered config kind (same as configs[0]?.configKind). */
+  /** Convenience: primary config kind after file/kind/path ranking. */
   configKind: ConfigCandidate["kind"] | null;
-  /** Convenience: first discovered config path (same as configs[0]?.configPath). */
+  /** Convenience: primary config path after file/kind/path ranking. */
   configPath: string | null;
   files: string[];
   skippedPatterns: Array<{ pattern: string; reason: string }>;
@@ -537,15 +537,48 @@ async function discoverSourceFiles(ctx: RepoToolContext): Promise<SourceFileDisc
 
   const files = Array.from(new Set(configs.flatMap((config) => config.files))).sort();
   const skippedPatterns = configs.flatMap((config) => config.skippedPatterns);
-  const first = configs[0] ?? null;
+  const primary = pickPrimaryConfig(configs);
 
   return {
     configs,
-    configKind: first?.configKind ?? null,
-    configPath: first?.configPath ?? null,
+    configKind: primary?.configKind ?? null,
+    configPath: primary?.configPath ?? null,
     files,
     skippedPatterns,
   };
+}
+
+/**
+ * Choose convenience discovery fields from the most relevant config:
+ * prefer configs that resolved source files, then kind priority
+ * (hyperlocalise → crowdin → phrase), then shallower paths.
+ */
+function pickPrimaryConfig(configs: ConfigDiscoveryResult[]): ConfigDiscoveryResult | null {
+  if (configs.length === 0) {
+    return null;
+  }
+
+  const kindPriority = new Map<ConfigCandidate["kind"], number>(
+    CONFIG_CANDIDATES.map((candidate, index) => [candidate.kind, index]),
+  );
+
+  const ranked = [...configs].sort((left, right) => {
+    const leftHasFiles = left.files.length > 0 ? 0 : 1;
+    const rightHasFiles = right.files.length > 0 ? 0 : 1;
+    if (leftHasFiles !== rightHasFiles) {
+      return leftHasFiles - rightHasFiles;
+    }
+
+    const leftKind = kindPriority.get(left.configKind) ?? Number.MAX_SAFE_INTEGER;
+    const rightKind = kindPriority.get(right.configKind) ?? Number.MAX_SAFE_INTEGER;
+    if (leftKind !== rightKind) {
+      return leftKind - rightKind;
+    }
+
+    return compareConfigPaths(left.configPath, right.configPath);
+  });
+
+  return ranked[0] ?? null;
 }
 
 async function locateLocalizationConfigs(

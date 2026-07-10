@@ -986,6 +986,72 @@ describe("createGitHistoryTool", () => {
     });
   });
 
+  it("sets convenience discovery fields from Hyperlocalise when mixed with shallower Crowdin", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/crowdin.yml": "files:\n  - source: /ignored.json\n",
+      "/home/user/project/apps/web/i18n.yml": "locales:\n  source: en-US\n",
+    });
+    ctx.bash.registerCommand(
+      defineCommand("yq", async (args) => {
+        if (args.at(-1) === "crowdin.yml") {
+          return {
+            stdout: JSON.stringify({ files: [{ source: "/ignored.json" }] }),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return {
+          stdout: JSON.stringify({
+            locales: { source: "en-US" },
+            buckets: { web: { files: [{ from: "lang/en-US.json" }] } },
+          }),
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "ls-files") {
+          if (args.includes("i18n.yml") || args.includes("**/i18n.yml")) {
+            return { stdout: "apps/web/i18n.yml\0", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("crowdin.yml") || args.includes("**/crowdin.yml")) {
+            return { stdout: "crowdin.yml\0", stderr: "", exitCode: 0 };
+          }
+          if (args.includes("apps/web/lang/en-US.json")) {
+            return { stdout: "apps/web/lang/en-US.json\n", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "log") {
+          return {
+            stdout: "abc\t2026-07-01T00:00:00Z\tMina\tUpdate\napps/web/lang/en-US.json\n",
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!({ mode: "changedFiles" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      files: ["apps/web/lang/en-US.json"],
+      discovery: {
+        configKind: "hyperlocalise",
+        configPath: "apps/web/i18n.yml",
+        configs: expect.arrayContaining([
+          expect.objectContaining({ configPath: "crowdin.yml" }),
+          expect.objectContaining({ configPath: "apps/web/i18n.yml" }),
+        ]),
+      },
+    });
+  });
+
   it("reports truncation when changedFiles reaches the commit limit before the file limit", async () => {
     const ctx = createTestContext();
     const gitCalls: string[][] = [];
