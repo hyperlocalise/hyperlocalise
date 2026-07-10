@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  getAppLocaleFlagEmoji,
   getAppLocaleFromPathname,
   getNativeLocaleDisplayName,
   rewriteAppLocalePath,
@@ -53,5 +54,15 @@ describe("getNativeLocaleDisplayName", () => {
     expect(getNativeLocaleDisplayName("en")).toMatch(/english/i);
     expect(getNativeLocaleDisplayName("de-DE")).toMatch(/deutsch/i);
     expect(getNativeLocaleDisplayName("zh-CN")).toMatch(/中文|chinese/i);
+  });
+});
+
+describe("getAppLocaleFlagEmoji", () => {
+  it("returns a country flag for each supported locale", () => {
+    expect(getAppLocaleFlagEmoji("en")).toBe("🇺🇸");
+    expect(getAppLocaleFlagEmoji("zh-CN")).toBe("🇨🇳");
+    expect(getAppLocaleFlagEmoji("vi-VN")).toBe("🇻🇳");
+    expect(getAppLocaleFlagEmoji("de-DE")).toBe("🇩🇪");
+    expect(getAppLocaleFlagEmoji("fr-FR")).toBe("🇫🇷");
   });
 });
