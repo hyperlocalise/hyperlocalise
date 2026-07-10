@@ -8,6 +8,7 @@ import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 
 import { ConversationDetails } from "./conversation-details";
 import { ConversationMessageList } from "./conversation-message-list";
+import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import {
   formatRelativeTime,
   sourceLabel,
@@ -67,30 +68,46 @@ export function ConversationPanel({
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <ConversationDetails
-          conversation={conversation}
-          jobs={jobs}
-          jobsIsLoading={jobsIsLoading}
-          organizationSlug={organizationSlug}
-        />
+        <InboxPanelErrorBoundary
+          scope="details"
+          resetKeys={[conversation.id, jobs.length, jobsIsLoading]}
+        >
+          <ConversationDetails
+            conversation={conversation}
+            jobs={jobs}
+            jobsIsLoading={jobsIsLoading}
+            organizationSlug={organizationSlug}
+          />
+        </InboxPanelErrorBoundary>
 
         <div className="flex min-h-0 flex-1 flex-col xl:pr-80">
-          <ConversationMessageList
-            conversationId={conversation.id}
-            currentUser={currentUser}
-            isLoading={messagesIsLoading}
-            isStreaming={isStreaming}
-            messages={messages}
-            streamedAssistant={streamedAssistant}
-          />
+          <InboxPanelErrorBoundary
+            scope="messages"
+            className="min-h-0 flex-1"
+            resetKeys={[conversation.id, messages.length, streamedAssistant?.status]}
+          >
+            <ConversationMessageList
+              conversationId={conversation.id}
+              currentUser={currentUser}
+              isLoading={messagesIsLoading}
+              isStreaming={isStreaming}
+              messages={messages}
+              streamedAssistant={streamedAssistant}
+            />
+          </InboxPanelErrorBoundary>
 
           {isChatUi ? (
-            <ReplyComposer
-              disabled={composerDisabled}
-              isStreaming={isStreaming}
-              onSend={onSendMessage}
-              organizationSlug={organizationSlug}
-            />
+            <InboxPanelErrorBoundary
+              scope="composer"
+              resetKeys={[conversation.id, composerDisabled]}
+            >
+              <ReplyComposer
+                disabled={composerDisabled}
+                isStreaming={isStreaming}
+                onSend={onSendMessage}
+                organizationSlug={organizationSlug}
+              />
+            </InboxPanelErrorBoundary>
           ) : null}
         </div>
       </div>

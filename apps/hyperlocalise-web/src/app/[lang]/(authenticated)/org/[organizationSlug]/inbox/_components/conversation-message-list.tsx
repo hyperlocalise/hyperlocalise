@@ -17,6 +17,7 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
@@ -169,7 +170,9 @@ const PersistedMessage = memo(function PersistedMessage({
         ) : message.parts && message.parts.length > 0 ? (
           <AssistantMessageParts isStreaming={false} message={toAssistantUIMessage(message)} />
         ) : (
-          <MessageResponse>{message.text}</MessageResponse>
+          <AiElementErrorBoundary scope="message" resetKeys={[message.id, message.text]}>
+            <MessageResponse>{message.text}</MessageResponse>
+          </AiElementErrorBoundary>
         )}
         <MessageAttachments attachments={message.attachments} />
       </div>
@@ -328,28 +331,46 @@ function AssistantMessageParts({
   const toolParts = message.parts.filter(isToolPart);
   const text = message.parts
     .filter((part) => part.type === "text")
-    .map((part) => part.text)
+    .map((part) => part.text ?? "")
     .join("");
 
   return (
     <>
-      {sourceParts.length > 0 ? <AssistantSources parts={sourceParts} /> : null}
+      {sourceParts.length > 0 ? (
+        <AiElementErrorBoundary scope="sources" resetKeys={[sourceParts.length]}>
+          <AssistantSources parts={sourceParts} />
+        </AiElementErrorBoundary>
+      ) : null}
       {reasoningParts.map((part, index) =>
-        part.text.trim() ? (
-          <Reasoning
+        part.text?.trim() ? (
+          <AiElementErrorBoundary
             key={`${part.type}-${index}`}
-            isStreaming={isStreaming || part.state === "streaming"}
-            className="mb-3"
+            scope="reasoning"
+            resetKeys={[part.text, part.state]}
           >
-            <ReasoningTrigger />
-            <ReasoningContent>{part.text}</ReasoningContent>
-          </Reasoning>
+            <Reasoning isStreaming={isStreaming || part.state === "streaming"} className="mb-3">
+              <ReasoningTrigger />
+              <ReasoningContent>{part.text}</ReasoningContent>
+            </Reasoning>
+          </AiElementErrorBoundary>
         ) : null,
       )}
       {toolParts.map((part, index) => (
-        <AssistantToolPart key={`${part.type}-${index}`} part={part} />
+        <AiElementErrorBoundary
+          key={`${part.type}-${index}`}
+          scope="tool"
+          resetKeys={[part.type, part.state, part.toolCallId]}
+        >
+          <AssistantToolPart part={part} />
+        </AiElementErrorBoundary>
       ))}
-      {text ? <MessageResponse>{text}</MessageResponse> : isStreaming ? <TypingIndicator /> : null}
+      {text ? (
+        <AiElementErrorBoundary scope="message" resetKeys={[text, isStreaming]}>
+          <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
+        </AiElementErrorBoundary>
+      ) : isStreaming ? (
+        <TypingIndicator />
+      ) : null}
     </>
   );
 }

@@ -17,6 +17,7 @@ import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { CodeBlock } from "./code-block";
+import { AiElementErrorBoundary } from "./ai-element-error-boundary";
 import { toolMessages } from "./tool.messages";
 import { TypographyH4 } from "@/components/ui/typography";
 
@@ -85,7 +86,12 @@ export const ToolHeader = ({
   toolName,
   ...props
 }: ToolHeaderProps) => {
-  const derivedName = type === "dynamic-tool" ? toolName : type.split("-").slice(1).join("-");
+  const derivedName =
+    type === "dynamic-tool"
+      ? toolName
+      : typeof type === "string"
+        ? type.split("-").slice(1).join("-")
+        : "tool";
 
   return (
     <CollapsibleTrigger
@@ -118,16 +124,36 @@ export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolPart["input"];
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
-    <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      <FormattedMessage {...toolMessages.parameters} />
-    </TypographyH4>
-    <div className="rounded-md bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+/** `JSON.stringify(undefined)` returns `undefined`, which crashes CodeBlock's `.split`. */
+export function serializeToolJson(value: unknown): string {
+  if (value === undefined) {
+    return "{}";
+  }
+
+  try {
+    const serialized = JSON.stringify(value, null, 2);
+    return typeof serialized === "string" ? serialized : "{}";
+  } catch {
+    return "{}";
+  }
+}
+
+export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
+  const serializedInput = serializeToolJson(input);
+
+  return (
+    <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
+      <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+        <FormattedMessage {...toolMessages.parameters} />
+      </TypographyH4>
+      <div className="rounded-md bg-muted/50">
+        <AiElementErrorBoundary scope="code-block" resetKeys={[serializedInput]}>
+          <CodeBlock code={serializedInput} language="json" />
+        </AiElementErrorBoundary>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export type ToolOutputProps = ComponentProps<"div"> & {
   output: ToolPart["output"];
@@ -142,9 +168,18 @@ export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutpu
   let Output = <div>{output as ReactNode}</div>;
 
   if (typeof output === "object" && !isValidElement(output)) {
-    Output = <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />;
+    const serializedOutput = serializeToolJson(output);
+    Output = (
+      <AiElementErrorBoundary scope="code-block" resetKeys={[serializedOutput]}>
+        <CodeBlock code={serializedOutput} language="json" />
+      </AiElementErrorBoundary>
+    );
   } else if (typeof output === "string") {
-    Output = <CodeBlock code={output} language="json" />;
+    Output = (
+      <AiElementErrorBoundary scope="code-block" resetKeys={[output]}>
+        <CodeBlock code={output} language="json" />
+      </AiElementErrorBoundary>
+    );
   }
 
   return (

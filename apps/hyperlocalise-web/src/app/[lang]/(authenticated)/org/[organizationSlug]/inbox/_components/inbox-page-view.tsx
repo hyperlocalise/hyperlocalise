@@ -4,6 +4,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
 import { InboxList } from "./inbox-list";
+import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import type {
   Conversation,
   ConversationMessage,
@@ -66,14 +67,20 @@ export function InboxPageView({
             : "lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]",
         )}
       >
-        <InboxList
-          conversations={conversations}
-          currentUser={currentUser}
-          isError={conversationsIsError}
-          isLoading={conversationsIsLoading}
-          onSelectConversation={onSelectConversation}
-          selectedConversationId={selectedConversationId}
-        />
+        <InboxPanelErrorBoundary
+          scope="list"
+          className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
+          resetKeys={[selectedConversationId, conversations.length, conversationsIsLoading]}
+        >
+          <InboxList
+            conversations={conversations}
+            currentUser={currentUser}
+            isError={conversationsIsError}
+            isLoading={conversationsIsLoading}
+            onSelectConversation={onSelectConversation}
+            selectedConversationId={selectedConversationId}
+          />
+        </InboxPanelErrorBoundary>
 
         <ConversationPanel
           conversation={selectedConversation}
