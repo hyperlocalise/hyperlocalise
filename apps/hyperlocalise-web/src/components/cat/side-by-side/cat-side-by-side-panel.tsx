@@ -67,6 +67,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   resolvingCommentId,
   commentPostError,
   isLookingUpContext,
+  isApproving = false,
+  isSavingDraft = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -85,6 +89,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue,
   onFocusSegment,
   onTargetChange,
+  onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
   onUseGlossaryTerm,
@@ -107,6 +112,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   resolvingCommentId: string | null;
   commentPostError?: string;
   isLookingUpContext: boolean;
+  isApproving?: boolean;
+  isSavingDraft?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -125,6 +134,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue?: () => void;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
+  onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (segmentId: string, term: CatGlossaryTerm) => void;
@@ -312,6 +322,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           segment={intelligenceSegment}
           intelligence={intelligence}
           isLookingUpContext={isLookingUpContext}
+          isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
+          isAiSuggestionLoading={isAiSuggestionLoading}
+          isFormatChecksLoading={isFormatChecksLoading}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
@@ -325,6 +339,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
+          onAskQuestion={onAskQuestion}
           onRefreshContext={onRefreshContext}
           onUseTmMatch={
             onUseTmMatch && intelligenceSegment
