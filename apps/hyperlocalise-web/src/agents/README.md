@@ -43,6 +43,7 @@ The Hyperlocalise conversational agent resolves capability skills from `hyperloc
 | `conversation`      | always (includes project resolution tools)         |
 | `tms-tools`         | external TMS integrated                            |
 | `repo-tools`        | GitHub sandbox is connected                        |
+| `find-context`      | GitHub sandbox is connected                        |
 | `translation-tools` | always (`createTranslationJob` when files/project) |
 
 Skill frontmatter declares `tools`, `sharedSkills`, and context requirements (`requiresSandbox`, `requiresTmsIntegration`, `requiresProjectOrAttachments`). The agent uses whichever skills and tools are available for the turn.

@@ -38,6 +38,10 @@ import {
   sortJobCatProviderFiles,
 } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
 
@@ -150,6 +154,7 @@ export function JobCatPageContent({
   initialQueueFilter?: CatQueueFilter;
 }) {
   const router = useRouter();
+  const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const hasFileReference = Boolean(sourcePath || storedFileId);
   const isNativeJob = Boolean(storedFileId);
@@ -277,18 +282,22 @@ export function JobCatPageContent({
       return;
     }
 
-    router.push(
-      stringsPageHref({
-        organizationSlug,
-        projectId,
-        jobId,
-        sourcePath: sourcePath ?? undefined,
-        storedFileId: storedFileId ?? undefined,
-        targetLocale: nextLocale,
-        segment: initialSegmentKey,
-        queueFilter: initialQueueFilter,
-      }),
-    );
+    const navigate = () => {
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: sourcePath ?? undefined,
+          storedFileId: storedFileId ?? undefined,
+          targetLocale: nextLocale,
+          segment: initialSegmentKey,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
   useEffect(() => {
@@ -561,6 +570,7 @@ export function JobCatPageContent({
             initialQueueFilter={initialQueueFilter}
             layout="fullscreen"
             className="min-h-0 flex-1"
+            pageNavigationGuardRef={pageNavigationGuardRef}
           />
         </div>
       </main>
@@ -685,6 +695,7 @@ export function JobCatPageContent({
           initialQueueFilter={initialQueueFilter}
           layout="fullscreen"
           className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
         />
       </div>
     </main>

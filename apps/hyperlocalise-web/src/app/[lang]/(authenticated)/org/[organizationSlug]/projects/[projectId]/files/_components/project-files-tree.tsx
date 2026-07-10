@@ -7,7 +7,13 @@ import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { formatBytes } from "./project-files-shared";
+
+import {
+  ProjectFileTreeContextMenu,
+  type ProjectFileTreeActionsConfig,
+} from "./project-file-tree-context-menu";
+import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
+import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export const TREE_HEIGHT_PX = 480;
 
@@ -29,6 +35,9 @@ const projectFilesTreeStyle = {
   "--trees-fg-override": "var(--foreground)",
   "--trees-fg-muted-override": "var(--muted-foreground)",
   "--trees-focus-ring-color-override": "var(--ring)",
+  "--trees-input-bg-override": "var(--background)",
+  "--trees-search-bg-override": "var(--background)",
+  "--trees-search-fg-override": "var(--foreground)",
   "--trees-selected-bg-override": "var(--muted)",
   "--trees-selected-fg-override": "var(--foreground)",
   "--trees-selected-focused-border-color-override": "var(--ring)",
@@ -61,20 +70,70 @@ export function ProjectFilesTree({
   selectedSourcePath,
   onSelectFile,
   onActivateFile,
+  fileActions,
   ariaLabel = "Project files",
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectFile: (sourcePath: string) => void;
   onActivateFile?: (sourcePath: string) => void;
+  fileActions?: ProjectFileTreeActionsConfig;
+  ariaLabel?: string;
+}) {
+  if (fileActions) {
+    return (
+      <ProjectFilesTreeView
+        files={files}
+        selectedSourcePath={selectedSourcePath}
+        onSelectFile={onSelectFile}
+        onActivateFile={onActivateFile}
+        fileActions={fileActions}
+        ariaLabel={ariaLabel}
+      />
+    );
+  }
+
+  return (
+    <ProjectFilesTreeView
+      files={files}
+      selectedSourcePath={selectedSourcePath}
+      onSelectFile={onSelectFile}
+      onActivateFile={onActivateFile}
+      ariaLabel={ariaLabel}
+    />
+  );
+}
+
+function ProjectFilesTreeView({
+  files,
+  selectedSourcePath,
+  onSelectFile,
+  onActivateFile,
+  fileActions,
+  ariaLabel = "Project files",
+}: {
+  files: ProjectFileRecord[];
+  selectedSourcePath: string | null;
+  onSelectFile: (sourcePath: string) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
-  const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
+  const displayFiles = useMemo(() => dedupeProjectFilesBySourcePath(files), [files]);
+  const paths = useMemo(() => displayFiles.map((file) => file.sourcePath), [displayFiles]);
+  const fileByPath = useMemo(
+    () => new Map(displayFiles.map((file) => [file.sourcePath, file])),
+    [displayFiles],
+  );
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
-  const latestStateRef = useRef({ fileByPath, onSelectFile, onActivateFile });
+  const latestStateRef = useRef({
+    fileActions,
+    fileByPath,
+    onSelectFile,
+    onActivateFile,
+  });
   const preloadedData = useMemo(
     () =>
       paths.length > 0
@@ -89,8 +148,13 @@ export function ProjectFilesTree({
   );
 
   useEffect(() => {
-    latestStateRef.current = { fileByPath, onSelectFile, onActivateFile };
-  }, [fileByPath, onActivateFile, onSelectFile]);
+    latestStateRef.current = {
+      fileActions,
+      fileByPath,
+      onActivateFile,
+      onSelectFile,
+    };
+  }, [fileActions, fileByPath, onActivateFile, onSelectFile]);
 
   useEffect(() => {
     if (!onActivateFile) {
@@ -128,6 +192,18 @@ export function ProjectFilesTree({
     initialSelectedPaths: selectedPaths,
     initialVisibleRowCount: Math.max(paths.length, 8),
     paths,
+    search: true,
+    searchBlurBehavior: "retain",
+    fileTreeSearchMode: "hide-non-matches",
+    composition: fileActions
+      ? {
+          contextMenu: {
+            enabled: true,
+            triggerMode: "button",
+            buttonVisibility: "when-needed",
+          },
+        }
+      : undefined,
     renderRowDecoration: (context: FileTreeRowDecorationContext) => {
       if (context.item.kind !== "file") {
         return null;
@@ -168,18 +244,59 @@ export function ProjectFilesTree({
     model.scrollToPath(selectedSourcePath, { offset: "nearest" });
   }, [fileByPath, model, selectedSourcePath]);
 
+  useEffect(() => {
+    const host = containerRef.current?.querySelector("file-tree-container");
+    const searchInput = host?.shadowRoot?.querySelector("[data-file-tree-search-input]");
+    if (searchInput instanceof HTMLInputElement) {
+      searchInput.setAttribute("aria-label", "Search files");
+    }
+  }, [model, paths.length]);
+
   if (paths.length === 0) {
     return null;
   }
 
   return (
-    <div ref={containerRef} className="w-full min-w-0">
+    <div ref={containerRef} className="flex w-full min-w-0 flex-col">
       <PierreFileTree
         aria-label={ariaLabel}
         className="w-full min-w-0 border-0 bg-transparent"
         id="project-files-tree"
         model={model}
         preloadedData={preloadedData ?? undefined}
+        renderContextMenu={
+          fileActions
+            ? (item, context) => {
+                if (item.kind !== "file") {
+                  return null;
+                }
+
+                const file = latestStateRef.current.fileByPath.get(item.path);
+                const actions = latestStateRef.current.fileActions;
+                if (!file || !actions) {
+                  return null;
+                }
+
+                const capabilities = buildProjectFileActionCapabilities({
+                  organizationSlug: actions.organizationSlug,
+                  projectId: actions.projectId,
+                  file,
+                  highlightLocale: actions.highlightLocale,
+                  projectTargetLocales: actions.projectTargetLocales,
+                  branch: actions.branch,
+                });
+
+                return (
+                  <ProjectFileTreeContextMenu
+                    file={file}
+                    context={context}
+                    fileActions={actions}
+                    capabilities={capabilities}
+                  />
+                );
+              }
+            : undefined
+        }
         style={projectFilesTreeStyle}
       />
     </div>

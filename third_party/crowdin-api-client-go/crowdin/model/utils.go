@@ -28,6 +28,26 @@ func JoinSlice[T any](s []T) string {
 
 	case []string:
 		return strings.Join(val, ",")
+
+	case []TaskStatus:
+		var b strings.Builder
+		for i, v := range val {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(string(v))
+		}
+		return b.String()
+
+	case []TaskType:
+		var b strings.Builder
+		for i, v := range val {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(strconv.Itoa(int(v)))
+		}
+		return b.String()
 	}
 
 	var b strings.Builder

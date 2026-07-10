@@ -22,20 +22,40 @@ vi.mock("@vercel/sandbox", () => ({
     create: sandboxMocks.create,
     get: sandboxMocks.get,
   },
+  StreamError: class StreamError extends Error {
+    code: string;
+    sessionId: string;
+    constructor(code: string, message: string, sessionId: string) {
+      super(message);
+      this.name = "StreamError";
+      this.code = code;
+      this.sessionId = sessionId;
+    }
+  },
 }));
 
 import {
   buildCrowdinFileSandboxConfig,
   buildCrowdinTranslationPath,
+  buildMultiLocaleTempConfig,
   buildTempConfig,
   createTranslationSandbox,
+  getOutputFilenamePattern,
+  isSandboxDisconnectError,
+  isSandboxStreamClosedError,
+  isSandboxTransientNetworkError,
+  readTranslatedFile,
   runSandboxCommand,
+  sandboxFileBucketName,
+  sandboxI18nConfigPath,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox";
+import { StreamError } from "@vercel/sandbox";
 
 describe("sandbox command runner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // createConfiguredVercelSandbox calls sandbox.runCommand directly (blocking).
     sandboxMocks.runCommand.mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
@@ -67,10 +87,14 @@ describe("sandbox command runner", () => {
   });
 
   it("captures combined output by default", async () => {
-    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
-    sandboxMocks.runCommand.mockResolvedValueOnce({
+    const wait = vi.fn().mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
     });
     sandboxMocks.get.mockResolvedValueOnce({
       runCommand: sandboxMocks.runCommand,
@@ -85,10 +109,14 @@ describe("sandbox command runner", () => {
   });
 
   it("can capture stdout only for machine-readable command output", async () => {
-    sandboxMocks.output.mockResolvedValueOnce('{"hello":"world"}');
-    sandboxMocks.runCommand.mockResolvedValueOnce({
+    const wait = vi.fn().mockResolvedValue({
       exitCode: 0,
       output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce('{"hello":"world"}');
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
     });
     sandboxMocks.get.mockResolvedValueOnce({
       runCommand: sandboxMocks.runCommand,
@@ -105,9 +133,215 @@ describe("sandbox command runner", () => {
 
     expect(sandboxMocks.output).toHaveBeenCalledWith("stdout");
   });
+
+  it("detects sandbox stream closed errors", () => {
+    expect(
+      isSandboxStreamClosedError(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxStreamClosedError(
+        new Error("Sandbox stream was closed and is not accepting commands."),
+      ),
+    ).toBe(true);
+    expect(isSandboxStreamClosedError(new Error("translation failed"))).toBe(false);
+  });
+
+  it("detects undici terminated network disconnects", () => {
+    const terminated = new TypeError("terminated");
+    (terminated as Error & { cause?: Error }).cause = Object.assign(new Error("read ECONNRESET"), {
+      code: "ECONNRESET",
+    });
+
+    expect(isSandboxTransientNetworkError(terminated)).toBe(true);
+    expect(isSandboxDisconnectError(terminated)).toBe(true);
+    expect(isSandboxStreamClosedError(terminated)).toBe(false);
+  });
+
+  it("runs commands detached and waits for completion", async () => {
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "stdout and stderr",
+    });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "echo",
+      args: ["hello"],
+      env: undefined,
+      detached: true,
+    });
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(sandboxMocks.output).toHaveBeenCalledWith("both");
+  });
+
+  it("retries wait when the wait connection drops with TypeError terminated", async () => {
+    const wait = vi.fn().mockRejectedValueOnce(new TypeError("terminated")).mockResolvedValueOnce({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(wait).toHaveBeenCalledTimes(2);
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconnects to the detached command before stop/resume when the stream closes", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const wait = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      )
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        output: sandboxMocks.output,
+      });
+    const getCommand = vi.fn().mockResolvedValue({ wait });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        getCommand,
+      });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(stop).not.toHaveBeenCalled();
+    expect(sandboxMocks.get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resume: expect.anything() }),
+    );
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(getCommand).toHaveBeenCalledWith("cmd_1");
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers the sandbox session when reconnect wait fails after stream close", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const wait = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      )
+      .mockRejectedValueOnce(new Error("command not found"))
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        output: sandboxMocks.output,
+      });
+    const getCommand = vi.fn().mockResolvedValue({ wait });
+    sandboxMocks.output.mockResolvedValueOnce("recovered");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_1",
+      wait,
+    });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        getCommand,
+      })
+      .mockResolvedValueOnce({
+        stop,
+      })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({
+        getCommand,
+      });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "recovered",
+    });
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: false });
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123", resume: true });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledTimes(1);
+    expect(getCommand).toHaveBeenCalledWith("cmd_1");
+    expect(wait).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries read without stop/resume when the read connection drops", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const readFileToBuffer = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("terminated"))
+      .mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+    sandboxMocks.get
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({ readFileToBuffer });
+
+    await expect(readTranslatedFile("sandbox_123", "source-de-DE.md")).resolves.toEqual(
+      Buffer.from([1, 2, 3]),
+    );
+
+    expect(readFileToBuffer).toHaveBeenCalledTimes(2);
+    expect(stop).not.toHaveBeenCalled();
+    expect(sandboxMocks.get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resume: expect.anything() }),
+    );
+  });
 });
 
 describe("sandbox translation temporary config", () => {
+  it("colocates reserved i18n config with sandbox files under a file bucket", () => {
+    expect(sandboxI18nConfigPath).toBe(".hl-sandbox-i18n.yml");
+    expect(sandboxFileBucketName).toBe("file");
+
+    const config = buildTempConfig("source.md", "source-de-DE.md", "en-US", "de-DE", null);
+    expect(config).toContain("  file:");
+    expect(config).not.toContain("  email:");
+    expect(config).toContain('from: "source.md"');
+    expect(config).toContain('to: "source-de-DE.md"');
+  });
+
   it("augments file translation system prompt with project context, job context, and glossary", () => {
     const config = buildTempConfig(
       "source.json",
@@ -131,6 +365,7 @@ describe("sandbox translation temporary config", () => {
     );
 
     expect(config).toContain("system_prompt:");
+    expect(config).toContain("  file:");
     expect(config).toContain("Project: Marketing Site");
     expect(config).toContain("Project translation context: Use concise product-marketing copy.");
     expect(config).toContain("Job context: Homepage launch banner.");
@@ -143,8 +378,41 @@ describe("sandbox translation temporary config", () => {
     const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
 
     expect(config).toContain("system_prompt:");
+    expect(config).toContain("  file:");
     expect(config).not.toContain("Project translation context:");
     expect(config).not.toContain("Glossary terms:");
+  });
+
+  it("builds multi-locale configs with {{target}} output patterns", () => {
+    expect(getOutputFilenamePattern("messages.json")).toBe("messages-{{target}}.json");
+
+    const config = buildMultiLocaleTempConfig(
+      "messages.json",
+      "messages-{{target}}.json",
+      "en-US",
+      ["fr-FR", "de-DE"],
+      null,
+      {
+        glossaryTerms: [
+          {
+            sourceTerm: "workspace",
+            targetTerm: "espace de travail",
+            targetLocale: "fr-FR",
+          },
+          {
+            sourceTerm: "workspace",
+            targetTerm: "Arbeitsbereich",
+            targetLocale: "de-DE",
+          },
+        ],
+      },
+    );
+
+    expect(config).toContain('- "fr-FR"');
+    expect(config).toContain('- "de-DE"');
+    expect(config).toContain('to: "messages-{{target}}.json"');
+    expect(config).toContain("workspace -> espace de travail (fr-FR)");
+    expect(config).toContain("workspace -> Arbeitsbereich (de-DE)");
   });
 });
 
@@ -178,5 +446,68 @@ describe("sandbox translation failure reasons", () => {
     const message = `glossary validation failed: ${JSON.stringify(diagnostics)}`;
 
     expect(userFacingFailureReason(new Error(message))).toBe(message);
+  });
+
+  it("does not claim supported formats are unsupported", () => {
+    expect(
+      userFacingFailureReason(new Error("translation failed for fr-FR: exitCode=1 kind=unknown"), {
+        fileFormat: "markdown",
+      }),
+    ).toBe("translating the markdown file failed. This is usually temporary — try again.");
+
+    expect(
+      userFacingFailureReason(
+        new Error("translation failed for fr-FR: exitCode=1 kind=markdown_ast_parity_mismatch"),
+        {
+          fileFormat: "markdown",
+        },
+      ),
+    ).toBe(
+      "markdown translation finished but the output structure no longer matched the source. Try again, or simplify complex markdown in the source file.",
+    );
+
+    expect(
+      userFacingFailureReason(new Error("translation failed for fr-FR: boom"), {
+        sourceExtension: ".md",
+      }),
+    ).toBe("translating the markdown file failed. This is usually temporary — try again.");
+  });
+
+  it("maps extract-entry parser failures to parse errors", () => {
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=parser_failed"),
+        {
+          fileFormat: "markdown",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
+
+    expect(
+      userFacingFailureReason(
+        new Error("failed to extract entries: exitCode=1 kind=missing_file_extension"),
+        {
+          sourceExtension: ".md",
+        },
+      ),
+    ).toBe("the markdown file couldn't be parsed for translation.");
+  });
+
+  it("maps sandbox stream closed errors to a temporary disconnect message", () => {
+    expect(
+      userFacingFailureReason(
+        new StreamError(
+          "sandbox_stream_closed",
+          "Sandbox stream was closed and is not accepting commands.",
+          "session_1",
+        ),
+      ),
+    ).toBe(
+      "the translation environment disconnected mid-run. This is usually temporary — try again.",
+    );
+
+    expect(userFacingFailureReason(new TypeError("terminated"))).toBe(
+      "the translation environment disconnected mid-run. This is usually temporary — try again.",
+    );
   });
 });

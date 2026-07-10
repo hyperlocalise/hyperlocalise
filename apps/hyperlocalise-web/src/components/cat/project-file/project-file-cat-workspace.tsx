@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -20,6 +20,10 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
 import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/cat-recommendation-mapper";
 import { cn } from "@/lib/primitives/cn";
 
@@ -36,7 +40,16 @@ import type {
   CatSegmentIntelligence,
 } from "@/components/cat/shared/types";
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuard,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
 import { CatWorkspaceSkeleton } from "@/components/cat/workspace/cat-workspace-skeleton";
+import {
+  catPageLimitForViewMode,
+  readCatWorkspaceViewMode,
+} from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
 import { fetchCatSegmentValidation } from "./project-file-cat-validation";
@@ -67,6 +80,7 @@ export function ProjectFileCatWorkspace({
   initialQueueFilter = "all",
   layout = "default",
   className,
+  pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -83,8 +97,14 @@ export function ProjectFileCatWorkspace({
   initialQueueFilter?: CatQueueFilter;
   layout?: "default" | "fullscreen";
   className?: string;
+  pageNavigationGuardRef?: CatPageNavigationGuardRef;
 }) {
   const intl = useIntl();
+  const internalPageNavigationGuardRef = useRef<CatPageNavigationGuard | null>(null);
+  const resolvedPageNavigationGuardRef = pageNavigationGuardRef ?? internalPageNavigationGuardRef;
+  const [pageLimit, setPageLimit] = useState(() =>
+    catPageLimitForViewMode(readCatWorkspaceViewMode()),
+  );
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -129,6 +149,7 @@ export function ProjectFileCatWorkspace({
     targetLocale,
     enabled: Boolean(targetLocale),
     initialQueueFilter,
+    pageLimit,
   });
 
   const availableQueueFilters = useMemo(
@@ -503,18 +524,31 @@ export function ProjectFileCatWorkspace({
           <Select
             value={targetLocale}
             onValueChange={(value) => {
-              if (value) {
-                setTargetLocaleState(value);
+              if (!value || value === targetLocale) {
+                return;
               }
+
+              attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => {
+                setTargetLocaleState(value);
+              });
             }}
           >
-            <SelectTrigger className="h-9 w-full font-mono text-xs">
+            <SelectTrigger className="h-9 w-full text-xs">
               <SelectValue placeholder="Select locale" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent
+              align="start"
+              alignItemWithTrigger={false}
+              className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
+            >
               {(targetLocales ?? []).map((locale) => (
-                <SelectItem key={locale} value={locale}>
-                  {locale}
+                <SelectItem
+                  key={locale}
+                  value={locale}
+                  label={formatLocaleOptionLabel(intl, locale)}
+                >
+                  <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
+                  <span className="font-mono text-muted-foreground">({locale})</span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -526,6 +560,7 @@ export function ProjectFileCatWorkspace({
         key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
         initialState={workspaceForRender}
         queueSnapshot={workspaceState}
+        pageNavigationGuardRef={resolvedPageNavigationGuardRef}
         lazySegment={{
           organizationSlug,
           projectId,
@@ -570,6 +605,7 @@ export function ProjectFileCatWorkspace({
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}
         canLookupFreshContext={canLookupFreshContext}
+        onPageLimitChange={setPageLimit}
       />
     </div>
   );

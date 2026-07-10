@@ -127,3 +127,7 @@
 ## 2025-08-15 - [PHP Hex Escape Robustness]
 **Learning:** PHP's string parser is lenient with invalid hex escape sequences (e.g., `\x` followed by a non-hex character), treating them as literal text rather than fatal errors. Mirroring this behavior in translation parsers prevents unnecessary extraction failures on valid PHP files that happen to contain these sequences.
 **Action:** When parsing escaped sequences in format-specific parsers, prefer falling back to literal text for malformed or incomplete escapes if that matches the source language's runtime behavior.
+
+## 2025-05-23 - [PO Parser Comment State Reset]
+**Learning:** Comments in PO files must reset the `activeField` state, just like ignored fields. If a comment is followed by a continuation line (a quoted string), the continuation would otherwise be incorrectly appended to the last active field (e.g. `msgid` or `msgstr`), leading to data corruption.
+**Action:** Ensure comment line handlers explicitly reset `activeField` to prevent trailing continuations from leaking into preceding entries.

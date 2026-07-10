@@ -117,6 +117,7 @@ func consumePOLine(
 		return nil
 	}
 	if strings.HasPrefix(line, "#") {
+		*activeField = ""
 		return nil
 	}
 

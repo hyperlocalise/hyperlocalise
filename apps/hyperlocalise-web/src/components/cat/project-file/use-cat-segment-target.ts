@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ProjectFileCatTranslation } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
@@ -60,6 +60,28 @@ export async function fetchProjectFileCatSegmentTarget(input: {
   return body.target;
 }
 
+function catSegmentTargetQueryOptions(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+  targetLocale: string;
+  externalStringId: string;
+  enabled?: boolean;
+}) {
+  return {
+    queryKey: projectFileCatSegmentTargetQueryKey(input),
+    enabled:
+      input.enabled !== false &&
+      Boolean(input.externalStringId) &&
+      Boolean(input.targetLocale) &&
+      Boolean(input.sourcePath),
+    staleTime: 30_000,
+    queryFn: () => fetchProjectFileCatSegmentTarget(input),
+  };
+}
+
 export function useCatSegmentTarget(input: {
   organizationSlug: string;
   projectId: string;
@@ -72,8 +94,8 @@ export function useCatSegmentTarget(input: {
 }) {
   const externalStringId = input.externalStringId ?? "";
 
-  return useQuery({
-    queryKey: projectFileCatSegmentTargetQueryKey({
+  return useQuery(
+    catSegmentTargetQueryOptions({
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
@@ -81,15 +103,28 @@ export function useCatSegmentTarget(input: {
       resourceType: input.resourceType,
       targetLocale: input.targetLocale,
       externalStringId,
+      enabled: input.enabled,
     }),
-    enabled:
-      input.enabled !== false &&
-      Boolean(input.externalStringId) &&
-      Boolean(input.targetLocale) &&
-      Boolean(input.sourcePath),
-    staleTime: 30_000,
-    queryFn: () =>
-      fetchProjectFileCatSegmentTarget({
+  );
+}
+
+export function useCatSegmentTargets(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+  targetLocale: string;
+  externalStringIds: string[];
+  enabled?: boolean;
+}) {
+  const externalStringIds = Array.from(
+    new Set(input.externalStringIds.filter((id) => id.trim().length > 0)),
+  );
+
+  return useQueries({
+    queries: externalStringIds.map((externalStringId) =>
+      catSegmentTargetQueryOptions({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
@@ -97,7 +132,9 @@ export function useCatSegmentTarget(input: {
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         externalStringId,
+        enabled: input.enabled,
       }),
+    ),
   });
 }
 

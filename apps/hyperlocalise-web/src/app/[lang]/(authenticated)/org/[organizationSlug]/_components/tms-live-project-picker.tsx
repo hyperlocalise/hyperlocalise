@@ -26,11 +26,16 @@ export function TmsLiveProjectPicker({
   const projects = (tmsProjectsQuery.data ?? []).filter(
     (project) => project.isActive !== false && project.externalProjectId,
   );
+  const projectItems = projects.map((project) => ({
+    value: project.externalProjectId!,
+    label: project.name,
+  }));
 
   return (
     <WorkspaceFilterField label="TMS project" className="w-full sm:max-w-sm">
       <Select
         value={value || null}
+        items={projectItems}
         onValueChange={(nextValue) => onValueChange(nextValue ?? "")}
         disabled={disabled || tmsProjectsQuery.isLoading}
       >

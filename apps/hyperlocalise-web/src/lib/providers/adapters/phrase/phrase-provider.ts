@@ -349,7 +349,7 @@ export class PhraseTmsProvider extends TmsProvider {
       });
 
       for (const upload of uploads) {
-        const sourcePath = buildPhraseUploadSourcePath(sourceLocale, upload.filename);
+        const sourcePath = buildPhraseUploadSourcePath(sourceLocale, upload.filename, branch);
         const uploadTags = this.mergeTags(upload.tags, upload.tag);
         const localeReadiness = this.buildUploadLocaleReadiness({
           keys,
@@ -2012,26 +2012,39 @@ export function buildPhraseKeyExternalResourceId(keyId: string, branch: string |
   return `${trimmedBranch}::${trimmedId}`;
 }
 
+/** Encodes a Phrase branch name for use as a single source-path segment. */
+export function encodePhraseBranchPathSegment(branch: string) {
+  return encodeURIComponent(branch.trim());
+}
+
+function buildPhraseBranchScopedPath(branch: string | null, relativePath: string) {
+  const trimmedBranch = branch?.trim();
+  if (!trimmedBranch) {
+    return relativePath;
+  }
+
+  return `branches/${encodePhraseBranchPathSegment(trimmedBranch)}/${relativePath}`;
+}
+
 /** Canonical Hyperlocalise source path for a Phrase key resource. */
 export function buildPhraseKeySourcePath(keyName: string, branch: string | null) {
   const trimmedName = keyName.trim();
-  const trimmedBranch = branch?.trim();
-  if (!trimmedBranch) {
-    return `keys/${trimmedName}`;
-  }
-
-  return `${trimmedBranch}/keys/${trimmedName}`;
+  return buildPhraseBranchScopedPath(branch, `keys/${trimmedName}`);
 }
 
 /** Canonical Hyperlocalise source path for a Phrase upload (file) resource. */
-export function buildPhraseUploadSourcePath(sourceLocale: string | null, filename: string) {
+export function buildPhraseUploadSourcePath(
+  sourceLocale: string | null,
+  filename: string,
+  branch: string | null = null,
+) {
   const trimmedFilename = filename.trim();
   const trimmedLocale = sourceLocale?.trim();
-  if (!trimmedLocale) {
-    return `uploads/${trimmedFilename}`;
-  }
+  const basePath = trimmedLocale
+    ? `locales/${trimmedLocale}/${trimmedFilename}`
+    : `uploads/${trimmedFilename}`;
 
-  return `locales/${trimmedLocale}/${trimmedFilename}`;
+  return buildPhraseBranchScopedPath(branch, basePath);
 }
 
 /** Normalizes Phrase TMS match scores to 0–100 integer percentages. */

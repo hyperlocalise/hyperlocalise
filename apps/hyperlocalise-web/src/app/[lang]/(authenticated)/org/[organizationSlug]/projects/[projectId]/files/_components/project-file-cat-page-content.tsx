@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
@@ -74,6 +78,7 @@ export function ProjectFileCatPageContent({
   branch?: string | null;
 }) {
   const router = useRouter();
+  const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
   const hasFileReference = Boolean(sourcePath);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
@@ -357,26 +362,30 @@ export function ProjectFileCatPageContent({
       return;
     }
 
-    const params = new URLSearchParams({
-      sourcePath,
-      locale: nextLocale,
-    });
+    const navigate = () => {
+      const params = new URLSearchParams({
+        sourcePath,
+        locale: nextLocale,
+      });
 
-    if (resolvedExternalResourceId) {
-      params.set("externalResourceId", resolvedExternalResourceId);
-    }
+      if (resolvedExternalResourceId) {
+        params.set("externalResourceId", resolvedExternalResourceId);
+      }
 
-    if (resolvedResourceType && resolvedResourceType !== "file") {
-      params.set("resourceType", resolvedResourceType);
-    }
+      if (resolvedResourceType && resolvedResourceType !== "file") {
+        params.set("resourceType", resolvedResourceType);
+      }
 
-    if (branch) {
-      params.set("branch", branch);
-    }
+      if (branch) {
+        params.set("branch", branch);
+      }
 
-    router.push(
-      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
-    );
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
+      );
+    };
+
+    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
   return (
@@ -469,6 +478,7 @@ export function ProjectFileCatPageContent({
           initialSegmentKey={initialSegmentKey}
           layout="fullscreen"
           className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
         />
       </div>
     </main>

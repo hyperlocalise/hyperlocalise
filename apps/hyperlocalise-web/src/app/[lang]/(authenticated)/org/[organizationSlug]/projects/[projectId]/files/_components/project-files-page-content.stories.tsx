@@ -5,7 +5,6 @@ import { expect, waitFor } from "storybook/test";
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
-import { ProjectFileSelectionActions } from "./project-file-selection-actions";
 import { ProjectFilesBranchFilterView } from "./project-files-branch-filter-view";
 import { ProjectFilesPageContentView } from "./project-files-page-content";
 import { ProjectFilesTree } from "./project-files-tree";
@@ -25,14 +24,10 @@ function storyFilesTree({
   files,
   selectedSourcePath,
   onSelectSourcePath,
-  organizationSlug,
-  projectId,
-  highlightLocale,
-  projectTargetLocales = null,
-  nativeSourcePaths = null,
   showBranchFilter = false,
   selectedBranch = null,
   onSelectBranch,
+  fileActions,
 }: {
   files: typeof projectFilesFixture;
   selectedSourcePath: string | null;
@@ -45,8 +40,9 @@ function storyFilesTree({
   showBranchFilter?: boolean;
   selectedBranch?: string | null;
   onSelectBranch?: (branch: string | null) => void;
+  fileActions?: Parameters<typeof ProjectFilesTree>[0]["fileActions"];
 }) {
-  return (selectedFileRecord: ReturnType<typeof createProjectFileRecord> | null) => (
+  return () => (
     <>
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="min-w-0">
@@ -55,29 +51,15 @@ function storyFilesTree({
             {files.length} file{files.length === 1 ? "" : "s"}
           </TypographyP>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          {showBranchFilter ? (
+        {showBranchFilter ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <ProjectFilesBranchFilterView
               branches={providerProjectBranchesFixture}
               selectedBranch={selectedBranch}
               onSelectedBranchChange={onSelectBranch ?? (() => undefined)}
             />
-          ) : null}
-          {selectedFileRecord ? (
-            <ProjectFileSelectionActions
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              file={selectedFileRecord}
-              highlightLocale={highlightLocale}
-              projectTargetLocales={projectTargetLocales}
-              nativeSourcePaths={
-                nativeSourcePaths ??
-                files.filter((entry) => !entry.provider).map((entry) => entry.sourcePath)
-              }
-              layout="compact"
-            />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="min-h-0 flex-1 p-2">
@@ -85,6 +67,7 @@ function storyFilesTree({
           files={files}
           selectedSourcePath={selectedSourcePath}
           onSelectFile={(sourcePath) => onSelectSourcePath(sourcePath)}
+          fileActions={fileActions}
         />
       </div>
     </>
@@ -133,9 +116,10 @@ export const RepositoryFiles: Story = {
     await expect(canvas.getByRole("heading", { name: "Project files" })).toBeInTheDocument();
     await expect(canvas.getByText("3 files")).toBeInTheDocument();
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
-    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Import translations" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Download" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Translate with agent" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Import translations" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Download" })).toBeNull();
     await waitFor(() => {
       void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
     });
@@ -180,7 +164,7 @@ export const ProviderFiles: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Branch")).toBeInTheDocument();
     await expect(canvas.getByRole("combobox")).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
   },
 };
 

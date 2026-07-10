@@ -221,3 +221,13 @@
 **Learning:** Crowdin API v2 allows specifying task content via `directoryIds`, and the Source Strings upload response includes an `updateOption` attribute indicating how string updates were handled. These were missing from the Go SDK models.
 
 **Action:** Added `DirectoryIDs` to the `Task` model and all relevant task creation forms (`TaskCreateForm`, `EnterpriseTaskCreateForm`, etc.) and updated validation logic. Added `UpdateOption` to the `SourceStringsUpload` attributes. Updated contract tests to verify correct unmarshaling and request validation.
+
+## 2026-11-14 - Improve Label parity and Model type consistency
+
+**Learning:** The Crowdin Label response model was missing the `isSystem` field, which indicates if a label was created by the system (e.g., for tasks). Additionally, several resource models like `Distribution` and `ReportArchive` used raw `string` types for fields where specific enum-like types (`ExportMode`, `ReportScopeType`) were already defined and used in request models.
+
+**Action:** Added `IsSystem` (bool) to the `Label` struct in `model/labels.go`. Updated `Distribution.ExportMode` and `ReportArchive.ScopeType` to use their respective typed definitions. Updated contract tests in `labels_test.go`, `distributions_test.go`, and `reports_test.go` to verify correct unmarshaling and ensure end-to-end type safety.
+
+## 2026-11-21 - Optimize JoinSlice for task-related enums
+**Learning:** The `model.JoinSlice` utility used for encoding query parameters was using reflection-based `fmt.Fprintf` for any slice type other than `[]int` and `[]string`. This included task-related enums like `TaskStatus` and `TaskType`, which are frequently joined into comma-separated strings for filtering. Specialized type switch cases using `strings.Builder` and direct string/integer conversion are significantly more efficient.
+**Action:** Added specialized type switch cases for `[]TaskStatus` and `[]TaskType` to `JoinSlice` and updated the test suite to use concrete typed slices to ensure these optimized paths are exercised and verified.

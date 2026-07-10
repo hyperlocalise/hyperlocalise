@@ -427,6 +427,51 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     ]);
   });
 
+  it("returns composed target text for side-by-side queue rows", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "hero.title",
+            sourceText: "Hello",
+            targetText: "Saved translation",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "reviewed",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "footer.title",
+            sourceText: "Footer",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.setTargetText("seg-02", "Unsaved draft");
+
+    expect(store.getQueuePanelSegments("all", false)).toEqual([
+      expect.objectContaining({
+        id: "seg-01",
+        targetText: "Saved translation",
+        status: "reviewed",
+      }),
+      expect.objectContaining({
+        id: "seg-02",
+        targetText: "Unsaved draft",
+        status: "pending",
+      }),
+    ]);
+  });
+
   it("stores file locale context separately from queue segment metadata", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({
@@ -599,5 +644,60 @@ describe("resolveSegmentIntelligenceForDisplay", () => {
         aiReasoning: "File-level reasoning.",
       }),
     );
+  });
+});
+
+describe("CatWorkspaceOrchestrator ui state", () => {
+  it("resolves intelligence segment from hover and clears hover on selection", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "first",
+            sourceText: "First",
+            targetText: "First target",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "Second target",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.ui.setHoveredSegment("seg-02");
+
+    expect(store.intelligenceSegmentId).toBe("seg-02");
+    expect(store.intelligenceSegmentView?.key).toBe("second");
+
+    store.setSelectedSegmentId("seg-02");
+
+    expect(store.selectedSegmentId).toBe("seg-02");
+    expect(store.ui.hoveredSegmentId).toBeNull();
+    expect(store.intelligenceSegmentId).toBe("seg-02");
+  });
+
+  it("tracks loading segment ids from selected and preview targets", () => {
+    const store = createCatWorkspace(createCatWorkspaceState({ selectedSegmentId: "seg-01" }));
+
+    store.setSegmentTargetLoading(true);
+    store.ui.setPreviewLoadingState("seg-02", {
+      isTargetLoading: true,
+      isCommentsLoading: false,
+    });
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
   });
 });

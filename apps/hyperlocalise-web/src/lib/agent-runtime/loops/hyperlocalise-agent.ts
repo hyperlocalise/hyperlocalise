@@ -154,15 +154,18 @@ export function createConversationToolLoopAgent({
   onFinish,
   hasFileAttachments = false,
   hasTmsIntegration = false,
+  hasVisualMockSkill = false,
 }: CreateConversationAgentInput & {
   hasFileAttachments?: boolean;
   hasTmsIntegration?: boolean;
+  hasVisualMockSkill?: boolean;
 }) {
   const runtime: HyperlocaliseAgentRuntimeContext = {
     surface,
     toolContext,
     hasFileAttachments,
     hasTmsIntegration,
+    hasVisualMockSkill,
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };
 

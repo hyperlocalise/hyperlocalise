@@ -59,8 +59,8 @@ jobs:
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
-  sync-action-self-test:
-    name: Sync Action Self Test
+  web-sync-action-self-test:
+    name: Web Sync Action Self Test
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       HYPERLOCALISE_API_KEY: hl_sync_self_test
@@ -70,9 +70,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.22
+
       - name: Run Hyperlocalise upload sync action
         id: hyperlocalise-sync-upload
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: upload
           working-directory: apps/hyperlocalise-web
@@ -92,7 +97,7 @@ jobs:
 
       - name: Run Hyperlocalise download sync action
         id: hyperlocalise-sync-download
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: download
           working-directory: apps/hyperlocalise-web

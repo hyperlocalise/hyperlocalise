@@ -7,7 +7,15 @@ export { createGrepTool } from "./grep";
 export { createFuzzySearchTool } from "./fuzzy-search";
 export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
-export { createFetchTool, isAllowedWebUrl } from "./fetch";
+export { createWriteTool } from "./write";
+export { createApplyPatchTool } from "./apply-patch";
+export { createCaptureScreenshotTool } from "./capture-screenshot";
+export {
+  convertHTMLToMarkdown,
+  createFetchTool,
+  extractTextFromHTML,
+  isAllowedWebUrl,
+} from "./fetch";
 export { createTodoWriteTool } from "./todo";
 
 export const workspacePrimitiveToolNames = [
@@ -16,6 +24,9 @@ export const workspacePrimitiveToolNames = [
   "fuzzySearch",
   "glob",
   "bash",
+  "write",
+  "applyPatch",
+  "captureScreenshot",
   "fetch",
 ] as const;
 

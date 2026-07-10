@@ -4,12 +4,18 @@ locales:
   targets:
     - zh-CN
     - vi-VN
+    - de-DE
+    - fr-FR
 
 buckets:
   web:
     files:
       - from: lang/en-US.json
         to: lang/{{target}}.json
+  blog:
+    files:
+      - from: _posts/en/**/*.md
+        to: _posts/{{target}}/**/*.md
 
 llm:
   profiles:

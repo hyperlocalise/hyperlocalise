@@ -88,8 +88,8 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "only run tasks for the given target locale(s)")
 	cmd.Flags().StringSliceVar(&o.targetLocaleAlias, "target-locale", nil, "alias for --locale")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
-	cmd.Flags().StringVar(&o.prefilledEntriesPath, "prefilled-entries", "", "JSON file containing prefilled translation entries keyed by entry id")
-	cmd.Flags().StringVar(&o.prefilledTargetPath, "prefilled-target-path", "", "target output path to apply --prefilled-entries to")
+	cmd.Flags().StringVar(&o.prefilledEntriesPath, "prefilled-entries", "", "JSON file of prefilled translations: flat {entryId:value} with --prefilled-target-path, or locale-keyed {locale:{entryId:value}}")
+	cmd.Flags().StringVar(&o.prefilledTargetPath, "prefilled-target-path", "", "target output path for flat --prefilled-entries (omit for locale-keyed maps)")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
@@ -136,25 +136,74 @@ func normalizeRunFileFlags(paths []string) ([]string, error) {
 	return normalized, nil
 }
 
-func loadPrefilledEntries(path string) (map[string]string, error) {
+type loadedPrefilledEntries struct {
+	Flat     map[string]string
+	ByLocale map[string]map[string]string
+}
+
+func loadPrefilledEntries(path string) (loadedPrefilledEntries, error) {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
-		return nil, nil
+		return loadedPrefilledEntries{}, nil
 	}
 	raw, err := os.ReadFile(trimmed)
 	if err != nil {
-		return nil, fmt.Errorf("read --prefilled-entries %q: %w", trimmed, err)
+		return loadedPrefilledEntries{}, fmt.Errorf("read --prefilled-entries %q: %w", trimmed, err)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	entries := map[string]string{}
-	if err := decoder.Decode(&entries); err != nil {
-		return nil, fmt.Errorf("parse --prefilled-entries %q: %w", trimmed, err)
+	decoder.UseNumber()
+	var top map[string]json.RawMessage
+	if err := decoder.Decode(&top); err != nil {
+		return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: %w", trimmed, err)
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("parse --prefilled-entries %q: unexpected trailing data", trimmed)
+		return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: unexpected trailing data", trimmed)
 	}
-	return entries, nil
+	if len(top) == 0 {
+		return loadedPrefilledEntries{}, nil
+	}
+
+	flat := map[string]string{}
+	byLocale := map[string]map[string]string{}
+	sawString := false
+	sawObject := false
+	for key, rawValue := range top {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: empty top-level key", trimmed)
+		}
+		rawValue = bytes.TrimSpace(rawValue)
+		if len(rawValue) == 0 {
+			return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: empty value for %q", trimmed, trimmedKey)
+		}
+		switch rawValue[0] {
+		case '"':
+			sawString = true
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: flat value for %q: %w", trimmed, trimmedKey, err)
+			}
+			flat[trimmedKey] = value
+		case '{':
+			sawObject = true
+			var entries map[string]string
+			entryDecoder := json.NewDecoder(bytes.NewReader(rawValue))
+			entryDecoder.DisallowUnknownFields()
+			if err := entryDecoder.Decode(&entries); err != nil {
+				return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: locale map for %q: %w", trimmed, trimmedKey, err)
+			}
+			byLocale[trimmedKey] = entries
+		default:
+			return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: value for %q must be a string or object", trimmed, trimmedKey)
+		}
+	}
+	if sawString && sawObject {
+		return loadedPrefilledEntries{}, fmt.Errorf("parse --prefilled-entries %q: mixed flat and locale-keyed shapes are not allowed", trimmed)
+	}
+	if sawObject {
+		return loadedPrefilledEntries{ByLocale: byLocale}, nil
+	}
+	return loadedPrefilledEntries{Flat: flat}, nil
 }
 
 func executeRun(cmd *cobra.Command, o runOptions) error {
@@ -242,12 +291,16 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		defer renderer.Close()
 	}
 
-	prefilledEntries, err := loadPrefilledEntries(o.prefilledEntriesPath)
+	prefilled, err := loadPrefilledEntries(o.prefilledEntriesPath)
 	if err != nil {
 		return err
 	}
-	if len(prefilledEntries) > 0 && strings.TrimSpace(o.prefilledTargetPath) == "" {
-		return fmt.Errorf("--prefilled-target-path is required when --prefilled-entries is provided")
+	prefilledTargetPath := strings.TrimSpace(o.prefilledTargetPath)
+	if len(prefilled.Flat) > 0 && prefilledTargetPath == "" {
+		return fmt.Errorf("--prefilled-target-path is required when --prefilled-entries uses a flat entry map")
+	}
+	if len(prefilled.ByLocale) > 0 && prefilledTargetPath != "" {
+		return fmt.Errorf("--prefilled-target-path must not be set when --prefilled-entries uses a locale-keyed map")
 	}
 
 	input := runsvc.Input{
@@ -266,8 +319,9 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,
 		ReportJSONDetail:          jsonDetail,
-		PrefilledEntries:          prefilledEntries,
-		PrefilledTargetPath:       strings.TrimSpace(o.prefilledTargetPath),
+		PrefilledEntries:          prefilled.Flat,
+		PrefilledByLocale:         prefilled.ByLocale,
+		PrefilledTargetPath:       prefilledTargetPath,
 	}
 	if renderer != nil {
 		input.OnEvent = func(event runsvc.Event) {

@@ -15,20 +15,12 @@ on:
     - cron: "0 2 * * *"
     # Download translated catalogs later so Hyperlocalise has time to finish jobs.
     - cron: "0 10 * * *"
-  push:
-    branches:
-      - main
-    paths:
-      - apps/hyperlocalise-web/src/**
-      - apps/hyperlocalise-web/i18n.yml
-      - .github/workflows/hyperlocalise-web-localize.yml
-      - sync/action.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'push' }}-${{ github.ref }}
+  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'manual' }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -49,7 +41,6 @@ jobs:
     name: Upload Web Sources
     if: >-
       ${{
-        github.event_name == 'push' ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'upload') ||
         (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
       }}
@@ -60,8 +51,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.22
+
       - name: Extract and upload web sources
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: upload
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
@@ -89,13 +85,30 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # Client ID from the GitHub App settings page (not the numeric App ID).
+          # Secret names must not start with GITHUB_.
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          persist-credentials: true
+          token: ${{ steps.app-token.outputs.token }}
+          # Avoid duplicate Authorization headers with create-pull-request on checkout v6+.
+          # Sync only needs local git add/diff; the PR action supplies its own token.
+          persist-credentials: false
+
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.22
 
       - name: Extract, download, and validate web translations
-        uses: ./sync
+        uses: ./.github/actions/hyperlocalise-web-sync
         with:
           mode: download
           working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
@@ -118,8 +131,9 @@ jobs:
           echo "name=hyperlocalise/web-translations-${timestamp}" >>"${GITHUB_OUTPUT}"
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
+          token: ${{ steps.app-token.outputs.token }}
           branch: ${{ steps.branch.outputs.name }}
           delete-branch: true
           commit-message: "chore(web): sync Hyperlocalise translations"
@@ -128,7 +142,7 @@ jobs:
             Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
 
             - Source catalog: `apps/hyperlocalise-web/lang/en-US.json` (refreshed via `hyperlocalise extract` before pull)
-            - Target catalogs: `apps/hyperlocalise-web/lang/*.json`
+            - Target catalogs: `apps/hyperlocalise-web/lang/*.json` (packed with `hyperlocalise pack` after pull)
             - Validation: `hyperlocalise check --diff-stdin` on the pulled diff (warnings ignored)
 
             Review ICU placeholders, message ids, and locale coverage before merging.

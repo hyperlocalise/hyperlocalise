@@ -1,4 +1,4 @@
-import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
+import { computed, makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
 
 import type {
   ProjectFileCatComment,
@@ -32,6 +32,7 @@ import { CatIntelligenceStore } from "./store/cat-intelligence-store";
 import { CatQueueStore } from "./store/cat-queue-store";
 import { CatSegmentDraft } from "./store/cat-segment-draft";
 import { CatSegmentStore } from "./store/cat-segment-store";
+import { CatWorkspaceUiStore } from "./store/cat-workspace-ui-store";
 import { composeSegmentView, toQueueSegment } from "./store/cat-segment-view";
 import {
   collectSegmentsWithAgentContext,
@@ -131,10 +132,28 @@ function intelligenceFromHydratedSegment(
   };
 }
 
+const EMPTY_LOADING_SEGMENT_IDS: ReadonlySet<string> = new Set<string>();
+
+function loadingSegmentIdsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const id of left) {
+    if (!right.has(id)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export class CatWorkspaceOrchestrator {
   readonly queue = new CatQueueStore();
   readonly segments = new CatSegmentStore();
   readonly intelligenceState = new CatIntelligenceStore();
+  readonly ui = new CatWorkspaceUiStore();
 
   jobTitle?: string;
   breadcrumbs?: string[];
@@ -164,6 +183,7 @@ export class CatWorkspaceOrchestrator {
       {
         validationSequence: false,
         reviewSequence: false,
+        loadingSegmentIds: computed({ equals: loadingSegmentIdsEqual }),
       },
       { autoBind: true },
     );
@@ -482,18 +502,64 @@ export class CatWorkspaceOrchestrator {
   }
 
   getQueuePanelSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean): CatSegment[] {
-    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).map((meta) => ({
-      ...meta,
-      sourceLocale: this.fileContext.sourceLocale,
-      targetLocale: this.fileContext.targetLocale,
-      targetText: "",
-      status: this.drafts.get(meta.id)?.status ?? "pending",
-    }));
+    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).flatMap((meta) => {
+      const view = this.getSegmentView(meta.id);
+      if (!view) {
+        return [];
+      }
+
+      return [view];
+    });
   }
 
   get selectedSegmentView(): CatSegment | undefined {
     const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
     return this.getSegmentView(segmentId);
+  }
+
+  get intelligenceSegmentId() {
+    return this.ui.hoveredSegmentId ?? this.selectedSegmentId;
+  }
+
+  get intelligenceSegmentView(): CatSegment | undefined {
+    const segmentId =
+      this.findSegmentIdByKeyOrId(this.intelligenceSegmentId) ?? this.intelligenceSegmentId;
+    if (!segmentId) {
+      return undefined;
+    }
+
+    return this.getSegmentView(segmentId);
+  }
+
+  get loadingSegmentIds(): ReadonlySet<string> {
+    const hasSelectedLoading = this.isSegmentTargetLoading && this.selectedSegmentId;
+    const hasPreviewLoading = this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId;
+
+    if (!hasSelectedLoading && !hasPreviewLoading) {
+      return EMPTY_LOADING_SEGMENT_IDS;
+    }
+
+    const ids = new Set<string>();
+    if (hasSelectedLoading) {
+      ids.add(this.selectedSegmentId);
+    }
+    if (hasPreviewLoading && this.ui.previewLoadingSegmentId) {
+      ids.add(this.ui.previewLoadingSegmentId);
+    }
+    return ids;
+  }
+
+  get isIntelligenceCommentsLoading() {
+    const segmentId = this.intelligenceSegmentId;
+    if (!segmentId) {
+      return false;
+    }
+
+    if (segmentId === this.selectedSegmentId) {
+      return this.isCommentsLoading;
+    }
+
+    return this.ui.previewCommentsLoading;
   }
 
   get selectedDraft(): CatSegmentDraft | undefined {
@@ -755,6 +821,7 @@ export class CatWorkspaceOrchestrator {
   setSelectedSegmentId(segmentId: string) {
     this.queue.select(segmentId);
     this.segments.clearCommentError();
+    this.ui.clearHoveredSegment();
   }
 
   setTargetText(segmentId: string, value: string) {

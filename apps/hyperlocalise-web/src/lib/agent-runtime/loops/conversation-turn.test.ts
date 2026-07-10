@@ -7,6 +7,7 @@ const {
   resolveConversationRepositoryGitHubContextMock,
   createRepositorySandboxMock,
   resolveOrganizationHasTmsIntegrationMock,
+  resolveWorkspaceVisualMockFlagMock,
   getOrganizationRepositoryConnectorConfigMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
@@ -15,6 +16,7 @@ const {
   resolveConversationRepositoryGitHubContextMock: vi.fn(),
   createRepositorySandboxMock: vi.fn(),
   resolveOrganizationHasTmsIntegrationMock: vi.fn(),
+  resolveWorkspaceVisualMockFlagMock: vi.fn(),
   getOrganizationRepositoryConnectorConfigMock: vi.fn(
     async (): Promise<Record<string, unknown> | null> => null,
   ),
@@ -69,6 +71,10 @@ vi.mock("../skills/conversation-tms-integration", () => ({
   resolveOrganizationHasTmsIntegration: resolveOrganizationHasTmsIntegrationMock,
 }));
 
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  resolveWorkspaceVisualMockFlag: resolveWorkspaceVisualMockFlagMock,
+}));
+
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({
     child: vi.fn(() => ({
@@ -103,6 +109,7 @@ describe("conversation turn preparation", () => {
       { role: "user", content: "what's the progress of HL test project?" },
     ]);
     resolveOrganizationHasTmsIntegrationMock.mockResolvedValue(true);
+    resolveWorkspaceVisualMockFlagMock.mockResolvedValue(false);
     resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
       status: "not_applicable",
     });
@@ -284,6 +291,94 @@ describe("conversation turn preparation", () => {
     expect(result.updatedRepositorySession?.repositorySandboxSession?.sandboxId).toBe(
       "sandbox_123",
     );
+  });
+
+  it("passes a chat UI actor when visual-mock enables repository writes", async () => {
+    const githubContext = {
+      resolved: true as const,
+      installationId: 42,
+      repositoryFullName: "acme/web",
+    };
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "resolved",
+      source: "single_installed_repository",
+      context: githubContext,
+    });
+    createRepositorySandboxMock.mockResolvedValue("sandbox_123");
+    resolveWorkspaceVisualMockFlagMock.mockResolvedValue(true);
+
+    await prepareConversationAgentTurn({
+      surface: "web",
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "admin",
+      projectId: null,
+      messageText: "mock the checkout screen",
+      hasTranslationAttachments: false,
+      db: {} as never,
+    });
+
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolContext: expect.objectContaining({
+          sandboxId: "sandbox_123",
+          repositorySource: "chat_ui",
+          workMode: "write",
+          actor: {
+            sourceUserId: "user_123",
+            userId: "user_123",
+            role: "admin",
+          },
+        }),
+      }),
+    );
+  });
+
+  it("keeps the latest lookup target as the active agent-facing message", async () => {
+    const githubContext = {
+      resolved: true as const,
+      installationId: 42,
+      repositoryFullName: "acme/web",
+    };
+    loadInteractionModelMessagesMock.mockResolvedValue([
+      { role: "user", content: 'What is the context of "Knowledge"?' },
+      { role: "assistant", content: "Knowledge is a sidebar item." },
+      { role: "user", content: 'What is the context of "Dashboard"?' },
+    ]);
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+      continuesRepositoryThread: true,
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "resolved",
+      source: "single_installed_repository",
+      context: githubContext,
+    });
+    createRepositorySandboxMock.mockResolvedValue("sandbox_123");
+
+    const result = await prepareConversationAgentTurn({
+      surface: "web",
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "admin",
+      projectId: null,
+      messageText: 'What is the context of "Dashboard"?',
+      hasTranslationAttachments: false,
+      db: {} as never,
+    });
+
+    expect(result.chatMessages.at(-1)).toEqual({
+      role: "user",
+      content: 'What is the context of "Dashboard"?',
+    });
+    expect(result.chatMessages.at(-1)?.content).not.toContain("Knowledge");
   });
 
   it("skips creating a sandbox when only a committed sandbox may be reused", async () => {

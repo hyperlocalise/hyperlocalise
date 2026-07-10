@@ -5,7 +5,10 @@ export const repositoryWorkspaceToolNames = [
   "read",
   "glob",
   "detectRepoConfig",
+  "gitHistory",
   "todoWrite",
+  "write",
+  "applyPatch",
 ] as const;
 
 /** Extended toolkit for long-running repository workflows. */

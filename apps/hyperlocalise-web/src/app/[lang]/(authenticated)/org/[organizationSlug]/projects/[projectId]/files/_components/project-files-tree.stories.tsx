@@ -46,3 +46,31 @@ export const SelectFile: Story = {
     await expect(args.onSelectFile).toHaveBeenCalledWith("marketing/pricing.json");
   },
 };
+
+export const SearchFiles: Story = {
+  play: async ({ canvasElement }) => {
+    await waitFor(() => {
+      void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+    });
+
+    const treeContainer = canvasElement.querySelector("file-tree-container");
+    const searchInput = treeContainer?.shadowRoot?.querySelector("[data-file-tree-search-input]");
+    if (!(searchInput instanceof HTMLInputElement)) {
+      throw new Error("Expected built-in file tree search input");
+    }
+    await expect(searchInput.getAttribute("aria-label")).toBe("Search files");
+
+    await userEvent.type(searchInput, "pricing");
+
+    await waitFor(() => {
+      const pricingRow = treeContainer?.shadowRoot?.querySelector(
+        '[data-item-path="marketing/pricing.json"]',
+      );
+      const homeRow = treeContainer?.shadowRoot?.querySelector(
+        '[data-item-path="marketing/home.json"]',
+      );
+      void expect(pricingRow).toBeTruthy();
+      void expect(homeRow).toBeFalsy();
+    });
+  },
+};

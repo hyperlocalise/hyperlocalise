@@ -184,11 +184,30 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
+        instructions: expect.stringContaining("Find context in repository"),
         toolContext: expect.objectContaining({
           githubContext: expect.objectContaining({
             repositoryFullName: "hyperlocalise/explicit",
           }),
         }),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Repository tools"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("String key: home.hero.title"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Source text: Ship localized product experiences"),
       }),
     );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");

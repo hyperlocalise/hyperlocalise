@@ -7,6 +7,7 @@ import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/transl
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
 import { buildTools, buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
 import {
@@ -17,8 +18,10 @@ import {
 
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
-const REPO_TOOL_NAMES = new Set<string>(repositoryWorkspaceToolNames);
+const REPO_TOOL_NAMES = new Set<string>([...repositoryWorkspaceToolNames, "captureScreenshot"]);
+const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
+const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
 
 export type ConversationSkillMetadata = {
   id: string;
@@ -28,6 +31,7 @@ export type ConversationSkillMetadata = {
   requiresTmsIntegration: boolean;
   requiresFileAttachments?: boolean;
   requiresProjectOrAttachments: boolean;
+  requiresVisualMockSkill: boolean;
   tools: string[];
   sharedSkills: string[];
 };
@@ -43,6 +47,7 @@ export type ConversationSkillActivationContext = {
   hasProjectId: boolean;
   hasSandbox: boolean;
   hasTmsIntegration: boolean;
+  hasVisualMockSkill: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -90,6 +95,7 @@ export function parseConversationSkillMetadata(
     requiresTmsIntegration: frontmatter.requiresTmsIntegration === "true",
     requiresFileAttachments: parseBooleanFlag(frontmatter.requiresFileAttachments),
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
+    requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
     tools: parseCommaSeparated(frontmatter.tools),
     sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
   };
@@ -103,7 +109,7 @@ export function listConversationSkills(): ConversationSkillMetadata[] {
 export function toConversationSkillActivationContext(
   runtime: Pick<
     HyperlocaliseAgentRuntimeContext,
-    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
   >,
 ): ConversationSkillActivationContext {
   return {
@@ -111,6 +117,7 @@ export function toConversationSkillActivationContext(
     hasProjectId: Boolean(runtime.toolContext.projectId),
     hasSandbox: Boolean(runtime.toolContext.sandboxId),
     hasTmsIntegration: runtime.hasTmsIntegration,
+    hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
   };
 }
 
@@ -146,12 +153,17 @@ export function isConversationSkillActivated(
     return false;
   }
 
+  if (skill.requiresVisualMockSkill && !context.hasVisualMockSkill) {
+    return false;
+  }
+
   const hasActivationRule =
     skill.requiresSandbox ||
     skill.requiresTmsIntegration ||
     skill.requiresProjectId ||
     skill.requiresFileAttachments !== undefined ||
-    skill.requiresProjectOrAttachments;
+    skill.requiresProjectOrAttachments ||
+    skill.requiresVisualMockSkill;
 
   return hasActivationRule;
 }
@@ -159,7 +171,7 @@ export function isConversationSkillActivated(
 export function buildConversationSkillPlan(
   runtime: Pick<
     HyperlocaliseAgentRuntimeContext,
-    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
   >,
 ): ConversationSkillPlan {
   const context = toConversationSkillActivationContext(runtime);
@@ -179,6 +191,13 @@ export function filterAvailableConversationToolNames(
   runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
 ): string[] {
   return toolNames.filter((toolName) => {
+    if (REPO_WRITE_TOOL_NAMES.has(toolName)) {
+      const gate = assertRepositoryWriteAllowed(runtime.toolContext, "apply_fixes");
+      if (!gate.allowed) {
+        return false;
+      }
+    }
+
     if (
       FILE_JOB_GATED_TOOL_NAMES.has(toolName) &&
       !runtime.toolContext.projectId &&
@@ -222,6 +241,14 @@ export function buildConversationSkillTools(
 
     if (toolName === "createTranslationJob" && builtTools.createTranslationJob) {
       tools[toolName] = builtTools.createTranslationJob;
+      continue;
+    }
+
+    if (WEB_TOOL_NAMES.has(toolName)) {
+      const webTool = builtTools[toolName];
+      if (webTool) {
+        tools[toolName] = webTool;
+      }
       continue;
     }
 

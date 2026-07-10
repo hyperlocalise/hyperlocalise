@@ -10,6 +10,7 @@ import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 const maxKeysPerImport = 5_000;
+const prefillKeysPageSize = maxKeysPerImport;
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -349,59 +350,62 @@ export class ProjectTranslationService extends ProjectServiceBase {
       };
     }
 
-    const keys = await this.listKeysForFile({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      repositorySourceFileId: sourceFile.id,
-      limit: maxKeysPerImport + 1,
-    });
-
-    const truncated = keys.length > maxKeysPerImport;
-    const visibleKeys = truncated ? keys.slice(0, maxKeysPerImport) : keys;
-
-    if (visibleKeys.length === 0) {
-      return {
-        prefilled: {},
-        truncated,
-        loadedKeyCount: 0,
-        maxKeyCount: maxKeysPerImport,
-        translatedKeyCount: 0,
-      };
-    }
-
-    const translations = await this.getTranslationsByKeyIds({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyIds: visibleKeys.map((key) => key.id),
-      targetLocale: input.targetLocale,
-    });
-    const translationByKeyId = new Map(
-      translations.map((translation) => [translation.translationKeyId, translation]),
-    );
-
     const prefilled: Record<string, string> = {};
+    let loadedKeyCount = 0;
     let translatedKeyCount = 0;
+    let offset = 0;
 
-    for (const key of visibleKeys) {
-      const translation = translationByKeyId.get(key.id);
-      const hasValidTranslation =
-        Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+    while (true) {
+      const keys = await this.listKeysForFile({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: sourceFile.id,
+        limit: prefillKeysPageSize,
+        offset,
+      });
 
-      if (hasValidTranslation) {
-        prefilled[key.key] = translation!.text;
-        translatedKeyCount += 1;
-        continue;
+      if (keys.length === 0) {
+        break;
       }
 
-      if (input.includeAllSourceKeys) {
-        prefilled[key.key] = key.sourceText;
+      const translations = await this.getTranslationsByKeyIds({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyIds: keys.map((key) => key.id),
+        targetLocale: input.targetLocale,
+      });
+      const translationByKeyId = new Map(
+        translations.map((translation) => [translation.translationKeyId, translation]),
+      );
+
+      for (const key of keys) {
+        const translation = translationByKeyId.get(key.id);
+        const hasValidTranslation =
+          Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+
+        if (hasValidTranslation) {
+          prefilled[key.key] = translation!.text;
+          translatedKeyCount += 1;
+          continue;
+        }
+
+        if (input.includeAllSourceKeys) {
+          prefilled[key.key] = key.sourceText;
+        }
+      }
+
+      loadedKeyCount += keys.length;
+      offset += keys.length;
+
+      if (keys.length < prefillKeysPageSize) {
+        break;
       }
     }
 
     return {
       prefilled,
-      truncated,
-      loadedKeyCount: visibleKeys.length,
+      truncated: false,
+      loadedKeyCount,
       maxKeyCount: maxKeysPerImport,
       translatedKeyCount,
     };

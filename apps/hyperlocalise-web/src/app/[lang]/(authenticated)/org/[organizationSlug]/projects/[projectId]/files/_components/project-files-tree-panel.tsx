@@ -15,6 +15,8 @@ import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resour
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
+import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
+import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
 
 export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
@@ -47,6 +49,11 @@ export function findCachedProjectFiles(
   const exact = queryClient.getQueryData<ProjectFileRecord[]>(exactKey);
   if (exact?.length) {
     return exact;
+  }
+
+  // Never reuse another branch's cached file list while the branch query loads.
+  if (branch?.trim()) {
+    return undefined;
   }
 
   const prefix = ["project-files", organizationSlug, projectId] as const;
@@ -95,7 +102,7 @@ function apiPath(organizationSlug: string, projectId: string) {
 }
 
 export function sortFilesByPath(files: ProjectFileRecord[]) {
-  return [...files].toSorted((a, b) =>
+  return dedupeProjectFilesBySourcePath(files).toSorted((a, b) =>
     a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );
 }
@@ -107,6 +114,7 @@ function ProjectFilesTreeBody({
   onSelectSourcePath,
   onActivateFile,
   catOpenHint,
+  fileActions,
 }: {
   projectId: string;
   files: ProjectFileRecord[];
@@ -114,6 +122,7 @@ function ProjectFilesTreeBody({
   onSelectSourcePath: (sourcePath: string | null) => void;
   onActivateFile?: (sourcePath: string) => void;
   catOpenHint?: string | null;
+  fileActions?: ProjectFileTreeActionsConfig;
 }) {
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -147,6 +156,7 @@ function ProjectFilesTreeBody({
           selectedSourcePath={selectedSourcePath}
           onSelectFile={onSelectSourcePath}
           onActivateFile={onActivateFile}
+          fileActions={fileActions}
         />
       </div>
     </div>
@@ -161,6 +171,7 @@ function ProjectFilesTreeQueryResult({
   onSelectSourcePath,
   onActivateFile,
   catOpenHint,
+  fileActions,
 }: {
   error: unknown;
   projectId: string;
@@ -169,6 +180,7 @@ function ProjectFilesTreeQueryResult({
   onSelectSourcePath: (sourcePath: string | null) => void;
   onActivateFile?: (sourcePath: string) => void;
   catOpenHint?: string | null;
+  fileActions?: ProjectFileTreeActionsConfig;
 }) {
   if (error) {
     throw error;
@@ -182,6 +194,7 @@ function ProjectFilesTreeQueryResult({
       onSelectSourcePath={onSelectSourcePath}
       onActivateFile={onActivateFile}
       catOpenHint={catOpenHint}
+      fileActions={fileActions}
     />
   );
 }
@@ -195,6 +208,7 @@ export function ProjectFilesTreePanel({
   onActivateFile,
   catOpenHint = null,
   headerActions,
+  fileActions,
   branch = null,
 }: {
   organizationSlug: string;
@@ -205,6 +219,7 @@ export function ProjectFilesTreePanel({
   onActivateFile?: (sourcePath: string) => void;
   catOpenHint?: string | null;
   headerActions?: ReactNode;
+  fileActions?: ProjectFileTreeActionsConfig;
   branch?: string | null;
 }) {
   const queryClient = useQueryClient();
@@ -315,6 +330,7 @@ export function ProjectFilesTreePanel({
             onSelectSourcePath={onSelectSourcePath}
             onActivateFile={onActivateFile}
             catOpenHint={catOpenHint}
+            fileActions={fileActions}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -28,7 +28,8 @@ import {
   ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
-import { ProjectFileSelectionActions } from "./project-file-selection-actions";
+import { ProjectFileActionDialogs } from "./project-file-action-dialogs";
+import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
 import { ProjectFilesBranchFilter } from "./project-files-branch-filter";
 import {
   ProjectFilesTreePanel,
@@ -37,10 +38,82 @@ import {
 } from "./project-files-tree-panel";
 import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
+import { useProjectFileActions } from "./use-project-file-actions";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
 const MAX_UPLOAD_FILES = 10;
+
+type PendingFileDialogAction = "translate" | "import" | "download";
+
+function ProjectFileDialogHost({
+  file,
+  initialAction,
+  organizationSlug,
+  projectId,
+  highlightLocale,
+  projectTargetLocales,
+  sourceLocale,
+  nativeSourcePaths,
+  branch,
+  onClose,
+}: {
+  file: ProjectFileRecord;
+  initialAction: PendingFileDialogAction;
+  organizationSlug: string;
+  projectId: string;
+  highlightLocale: string | null;
+  projectTargetLocales?: readonly string[] | null;
+  sourceLocale: string;
+  nativeSourcePaths: readonly string[];
+  branch: string | null;
+  onClose: () => void;
+}) {
+  const actions = useProjectFileActions({
+    organizationSlug,
+    projectId,
+    file,
+    highlightLocale,
+    projectTargetLocales,
+    sourceLocale,
+    nativeSourcePaths,
+    branch,
+  });
+  const [hasOpened, setHasOpened] = useState(false);
+
+  useEffect(() => {
+    if (hasOpened) {
+      return;
+    }
+    const openDialog = {
+      translate: () => actions.setTranslateDialogOpen(true),
+      import: () => actions.setImportDialogOpen(true),
+      download: () => actions.setDownloadDialogOpen(true),
+    }[initialAction];
+    openDialog();
+    setHasOpened(true);
+  }, [actions, hasOpened, initialAction]);
+
+  useEffect(() => {
+    if (!hasOpened) {
+      return;
+    }
+
+    const anyOpen =
+      actions.translateDialogOpen || actions.importDialogOpen || actions.downloadDialogOpen;
+    if (!anyOpen) {
+      onClose();
+    }
+  }, [
+    actions.downloadDialogOpen,
+    actions.importDialogOpen,
+    actions.translateDialogOpen,
+    hasOpened,
+    onClose,
+  ]);
+
+  return <ProjectFileActionDialogs file={file} actions={actions} />;
+}
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
@@ -205,6 +278,7 @@ export function ProjectFilesPageContent({
   const isProviderProject = projectCapabilities.isProviderProject;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const projectTargetLocales = projectQuery.data?.targetLocales;
+  const projectSourceLocale = projectQuery.data?.sourceLocale ?? "en";
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -293,63 +367,108 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
+  const [dialogRequest, setDialogRequest] = useState<{
+    file: ProjectFileRecord;
+    action: PendingFileDialogAction;
+  } | null>(null);
+
+  const closeFileDialog = useCallback(() => {
+    setDialogRequest(null);
+  }, []);
+
+  const openFileDialog = useCallback((file: ProjectFileRecord, action: PendingFileDialogAction) => {
+    setDialogRequest({ file, action });
+  }, []);
+
+  const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
+    () => ({
+      organizationSlug,
+      projectId,
+      highlightLocale,
+      projectTargetLocales,
+      sourceLocale: projectSourceLocale,
+      nativeSourcePaths,
+      branch: selectedBranch,
+      onViewStrings: (file) => openFileInCat(file.sourcePath),
+      onTranslateFile: (file) => openFileDialog(file, "translate"),
+      onImportFile: (file) => openFileDialog(file, "import"),
+      onDownloadFile: (file) => openFileDialog(file, "download"),
+    }),
+    [
+      highlightLocale,
+      nativeSourcePaths,
+      openFileDialog,
+      openFileInCat,
+      organizationSlug,
+      projectId,
+      projectSourceLocale,
+      projectTargetLocales,
+      selectedBranch,
+    ],
+  );
+
   return (
-    <ProjectFilesPageContentView
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      files={[]}
-      resolvedFiles={resolvedFiles}
-      isFilesLoading={false}
-      isFilesFetching={false}
-      selectedSourcePath={selectedSourcePath}
-      highlightLocale={highlightLocale}
-      selectedBranch={selectedBranch}
-      projectTargetLocales={projectTargetLocales}
-      isProviderProject={isProviderProject}
-      selectedFiles={selectedFiles}
-      isUploading={uploadFiles.isPending}
-      onSelectSourcePath={setSelectedSourcePath}
-      onSelectBranch={setSelectedBranch}
-      onAddSelectedFiles={addSelectedFiles}
-      onRemoveSelectedFile={removeSelectedFile}
-      onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
-      filesTree={(selectedFile) => (
-        <ProjectFilesTreePanel
+    <>
+      {dialogRequest ? (
+        <ProjectFileDialogHost
+          key={`${dialogRequest.file.sourcePath}:${dialogRequest.action}`}
+          file={dialogRequest.file}
+          initialAction={dialogRequest.action}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          selectedSourcePath={selectedSourcePath}
-          onSelectSourcePath={setSelectedSourcePath}
-          onLoadedFilesChange={setLoadedFiles}
-          onActivateFile={openFileInCat}
-          catOpenHint={catOpenHint}
+          highlightLocale={highlightLocale}
+          projectTargetLocales={projectTargetLocales}
+          sourceLocale={projectSourceLocale}
+          nativeSourcePaths={nativeSourcePaths}
           branch={selectedBranch}
-          headerActions={
-            <>
-              {isProviderProject ? (
+          onClose={closeFileDialog}
+        />
+      ) : null}
+      <ProjectFilesPageContentView
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        files={[]}
+        resolvedFiles={resolvedFiles}
+        isFilesLoading={false}
+        isFilesFetching={false}
+        selectedSourcePath={selectedSourcePath}
+        highlightLocale={highlightLocale}
+        selectedBranch={selectedBranch}
+        projectTargetLocales={projectTargetLocales}
+        projectSourceLocale={projectSourceLocale}
+        isProviderProject={isProviderProject}
+        selectedFiles={selectedFiles}
+        isUploading={uploadFiles.isPending}
+        onSelectSourcePath={setSelectedSourcePath}
+        onSelectBranch={setSelectedBranch}
+        onAddSelectedFiles={addSelectedFiles}
+        onRemoveSelectedFile={removeSelectedFile}
+        onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
+        filesTree={() => (
+          <ProjectFilesTreePanel
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            selectedSourcePath={selectedSourcePath}
+            onSelectSourcePath={setSelectedSourcePath}
+            onLoadedFilesChange={setLoadedFiles}
+            onActivateFile={openFileInCat}
+            catOpenHint={catOpenHint}
+            fileActions={treeFileActions}
+            branch={selectedBranch}
+            headerActions={
+              isProviderProject ? (
                 <ProjectFilesBranchFilter
                   organizationSlug={organizationSlug}
                   projectId={projectId}
                   selectedBranch={selectedBranch}
                   onSelectedBranchChange={setSelectedBranch}
                 />
-              ) : null}
-              {selectedFile ? (
-                <ProjectFileSelectionActions
-                  organizationSlug={organizationSlug}
-                  projectId={projectId}
-                  file={selectedFile}
-                  highlightLocale={highlightLocale}
-                  projectTargetLocales={projectTargetLocales}
-                  nativeSourcePaths={nativeSourcePaths}
-                  branch={selectedBranch}
-                  layout="compact"
-                />
-              ) : null}
-            </>
-          }
-        />
-      )}
-    />
+              ) : null
+            }
+          />
+        )}
+      />
+    </>
   );
 }
 
@@ -362,9 +481,10 @@ export function ProjectFilesPageContentView({
   isFilesFetching,
   filesError,
   selectedSourcePath,
-  highlightLocale,
+  highlightLocale: _highlightLocale,
   selectedBranch: _selectedBranch = null,
-  projectTargetLocales,
+  projectTargetLocales: _projectTargetLocales,
+  projectSourceLocale: _projectSourceLocale = "en",
   isProviderProject: isProviderProjectProp,
   selectedFiles,
   isUploading,
@@ -388,6 +508,7 @@ export function ProjectFilesPageContentView({
   highlightLocale: string | null;
   selectedBranch?: string | null;
   projectTargetLocales?: readonly string[] | null;
+  projectSourceLocale?: string;
   isProviderProject?: boolean;
   selectedFiles: File[];
   isUploading: boolean;
@@ -405,10 +526,6 @@ export function ProjectFilesPageContentView({
   const selectedFile = useMemo(
     () => displayFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [displayFiles, selectedSourcePath],
-  );
-  const nativeSourcePaths = useMemo(
-    () => displayFiles.filter((entry) => !entry.provider).map((entry) => entry.sourcePath),
-    [displayFiles],
   );
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = isProviderProjectProp ?? projectCapabilities.isProviderProject;
@@ -505,17 +622,6 @@ export function ProjectFilesPageContentView({
           <div className="flex min-h-0 flex-1 flex-col">{filesTree(selectedFile)}</div>
         ) : (
           <>
-            {selectedFile ? (
-              <ProjectFileSelectionActions
-                organizationSlug={organizationSlug}
-                projectId={projectId}
-                file={selectedFile}
-                highlightLocale={highlightLocale}
-                projectTargetLocales={projectTargetLocales}
-                nativeSourcePaths={nativeSourcePaths}
-                branch={_selectedBranch}
-              />
-            ) : null}
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
                 <ProjectSectionTitle>Project files</ProjectSectionTitle>

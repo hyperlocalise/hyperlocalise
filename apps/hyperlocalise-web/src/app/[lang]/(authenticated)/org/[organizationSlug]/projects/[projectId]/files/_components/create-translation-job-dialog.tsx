@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -42,6 +42,12 @@ export function CreateTranslationJobDialog({
 }: CreateTranslationJobDialogProps) {
   const queryClient = useQueryClient();
   const [selectedLocales, setSelectedLocales] = useState<string[]>(targetLocales);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedLocales(targetLocales);
+    }
+  }, [open, targetLocales]);
 
   const createJob = useMutation({
     mutationFn: async () => {
@@ -88,7 +94,7 @@ export function CreateTranslationJobDialog({
         }),
         queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
       ]);
-      toast.success("Translation job created");
+      toast.success("Translation agent is running");
       onCreated?.(jobId);
       onOpenChange(false);
     },
@@ -109,9 +115,9 @@ export function CreateTranslationJobDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create translation job</DialogTitle>
+          <DialogTitle>Translate with agent</DialogTitle>
           <DialogDescription>
-            Queue AI translation for{" "}
+            Queue an AI translation agent for{" "}
             <span className="font-mono text-foreground">{file?.sourcePath ?? "this file"}</span>.
           </DialogDescription>
         </DialogHeader>
@@ -150,11 +156,16 @@ export function CreateTranslationJobDialog({
           </Button>
           <Button
             type="button"
-            disabled={createJob.isPending || targetLocales.length === 0 || !file?.storedFileId}
+            disabled={
+              createJob.isPending ||
+              targetLocales.length === 0 ||
+              selectedLocales.length === 0 ||
+              !file?.storedFileId
+            }
             onClick={() => createJob.mutate()}
           >
             {createJob.isPending ? <Spinner className="size-4" /> : null}
-            Translate
+            Translate with agent
           </Button>
         </DialogFooter>
       </DialogContent>

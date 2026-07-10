@@ -6,6 +6,7 @@ import { ensureAgentSession, type ToolContext } from "@/lib/agent-contracts/tool
 
 import {
   createDetectRepoConfigTool,
+  createGitHistoryTool,
   createRepoGitStateTool,
   createRunHyperlocaliseCliTool,
 } from "./repo-read-tools";
@@ -14,12 +15,15 @@ import { resolveToolPolicy } from "./policy";
 import { wrapToolSetWithLogging } from "./tool-logging";
 import {
   createBashTool,
+  createApplyPatchTool,
+  createCaptureScreenshotTool,
   createFetchTool,
   createFuzzySearchTool,
   createGlobTool,
   createGrepTool,
   createReadTool,
   createTodoWriteTool,
+  createWriteTool,
   type RepoToolContext,
 } from "./workspace";
 
@@ -45,8 +49,20 @@ function createWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): Tool
   if (policy.isToolAllowed("detectRepoConfig")) {
     tools.detectRepoConfig = createDetectRepoConfigTool(repoBash);
   }
+  if (policy.isToolAllowed("gitHistory")) {
+    tools.gitHistory = createGitHistoryTool(repoBash);
+  }
   if (policy.isToolAllowed("bash")) {
     tools.bash = createBashTool(repoBash);
+  }
+  if (policy.isToolAllowed("write")) {
+    tools.write = createWriteTool(ctx, repoBash);
+  }
+  if (policy.isToolAllowed("applyPatch")) {
+    tools.applyPatch = createApplyPatchTool(ctx, repoBash);
+  }
+  if (policy.isToolAllowed("captureScreenshot")) {
+    tools.captureScreenshot = createCaptureScreenshotTool(ctx, repoBash);
   }
   if (policy.isToolAllowed("fetch")) {
     tools.fetch = createFetchTool();
@@ -82,7 +98,7 @@ export function buildTools(ctx: ToolContext): ToolSet {
   }
 
   if (ctx.sandboxId) {
-    const repoBash = createSandboxRepoBash(ctx.sandboxId) as Bash;
+    const repoBash = createSandboxRepoBash(ctx.sandboxId) as Bash & RepoToolContext["bash"];
     Object.assign(tools, createWorkspaceTools(ctx, { bash: repoBash }));
   } else if (policy.isToolAllowed("fetch")) {
     tools.fetch = createFetchTool();
