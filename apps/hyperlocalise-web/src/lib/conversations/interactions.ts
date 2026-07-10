@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { UIMessage } from "ai";
 
 import { db, schema } from "@/lib/database";
 
@@ -48,6 +49,7 @@ type AddMessageInput = {
   senderType: "user" | "agent";
   text: string;
   senderEmail?: string;
+  parts?: UIMessage["parts"] | null;
   attachments?: Array<{ id: string; filename: string; contentType: string; url: string }>;
 };
 
@@ -60,6 +62,7 @@ export async function addInteractionMessage(input: AddMessageInput) {
       senderType: input.senderType,
       text: input.text,
       senderEmail: input.senderEmail ?? null,
+      parts: input.parts ?? null,
       attachments: input.attachments ?? null,
       createdAt: now,
     })

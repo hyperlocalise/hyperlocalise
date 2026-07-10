@@ -10,6 +10,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { UIMessage } from "ai";
+
 import {
   agentRunKindEnum,
   agentRunStatusEnum,
@@ -252,6 +254,7 @@ export const interactionMessages = pgTable(
     senderType: messageSenderTypeEnum("sender_type").notNull(),
     senderEmail: text("sender_email"),
     text: text("text").notNull(),
+    parts: jsonb("parts").$type<UIMessage["parts"]>(),
     attachments:
       jsonb("attachments").$type<
         Array<{ id: string; filename: string; contentType: string; url: string }>
