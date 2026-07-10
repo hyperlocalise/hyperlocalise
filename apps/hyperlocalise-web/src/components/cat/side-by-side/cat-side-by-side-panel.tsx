@@ -85,6 +85,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue,
   onFocusSegment,
   onTargetChange,
+  onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
   onUseGlossaryTerm,
@@ -125,6 +126,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue?: () => void;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
+  onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (segmentId: string, term: CatGlossaryTerm) => void;
@@ -325,6 +327,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
+          onAskQuestion={onAskQuestion}
           onRefreshContext={onRefreshContext}
           onUseTmMatch={
             onUseTmMatch && intelligenceSegment

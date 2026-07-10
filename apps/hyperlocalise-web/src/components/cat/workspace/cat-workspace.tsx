@@ -290,6 +290,9 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onLoadMoreQueue={onLoadMoreQueue}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
+          onAskQuestion={
+            intelligenceSegment ? () => review.onAskQuestion(intelligenceSegment.id) : undefined
+          }
           onRefreshContext={() =>
             intelligenceSegment
               ? review.onAskQuestion(intelligenceSegment.id, { forceRefresh: true })

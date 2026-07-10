@@ -1,13 +1,21 @@
 "use client";
 
-import { FormattedMessage } from "react-intl";
+import { useHotkeys } from "react-hotkeys-hook";
+import { FormattedMessage, useIntl } from "react-intl";
 
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatEditorCommentsSection } from "@/components/cat/editor/cat-editor-comments-section";
+import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcut-kbd";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
-import { catSideBySidePanelMessages } from "@/components/cat/shared/cat.messages";
+import {
+  catEditorPanelMessages,
+  catSideBySidePanelMessages,
+} from "@/components/cat/shared/cat.messages";
 import type {
   CatGlossaryTerm,
   CatSegment,
@@ -33,6 +41,7 @@ export function CatSideBySideIntelligencePanel({
   isResolvingComment,
   resolvingCommentId,
   commentPostError,
+  onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
   onUseGlossaryTerm,
@@ -57,6 +66,7 @@ export function CatSideBySideIntelligencePanel({
   isResolvingComment: boolean;
   resolvingCommentId: string | null;
   commentPostError?: string;
+  onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
@@ -65,6 +75,25 @@ export function CatSideBySideIntelligencePanel({
   placement?: "bottom" | "right";
   className?: string;
 }) {
+  const intl = useIntl();
+  const isMac = useIsMac();
+  const canTriggerFindContext =
+    Boolean(onAskQuestion) && canLookupFreshContext && !isLookingUpContext;
+
+  useHotkeys(
+    "mod+k",
+    (event) => {
+      event.preventDefault();
+      onAskQuestion?.();
+    },
+    {
+      enabled: canTriggerFindContext,
+      enableOnFormTags: false,
+      preventDefault: true,
+    },
+    [canTriggerFindContext, onAskQuestion],
+  );
+
   if (!segment || !intelligence) {
     return (
       <div
@@ -120,10 +149,36 @@ export function CatSideBySideIntelligencePanel({
         className,
       )}
     >
-      <div className="shrink-0 border-b border-border px-4 py-2">
-        <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <p
+          className="min-w-0 truncate font-mono text-[11px] text-muted-foreground"
+          title={segment.key}
+        >
           {segment.key}
         </p>
+        {onAskQuestion ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 gap-1.5 px-2.5"
+            onClick={onAskQuestion}
+            disabled={!canTriggerFindContext}
+            title={
+              canLookupFreshContext
+                ? intl.formatMessage(catEditorPanelMessages.findContextTitle)
+                : intl.formatMessage(catEditorPanelMessages.findContextUnavailableTitle)
+            }
+          >
+            {isLookingUpContext ? <Spinner className="size-3.5" /> : null}
+            {isLookingUpContext ? (
+              <FormattedMessage {...catEditorPanelMessages.findingContext} />
+            ) : (
+              <FormattedMessage {...catEditorPanelMessages.findContext} />
+            )}
+            <CatEditorShortcutKbd shortcut="findContext" isMac={isMac} />
+          </Button>
+        ) : null}
       </div>
 
       {placement === "right" ? (
