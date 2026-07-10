@@ -1,10 +1,12 @@
+import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from "undici";
+
 import { isErr, type Result } from "@/lib/primitives/result/results";
 import {
   formatSsrfGuardError,
   validatePublicHttpUrl,
   type SsrfGuardError,
 } from "@/lib/security/ssrf-guard";
-import { resolveResolvablePublicHost } from "@/lib/security/ssrf-guard-dns";
+import { resolvePublicHostAddress } from "@/lib/security/ssrf-guard-dns";
 
 export const MAX_PUBLIC_HTTP_RESPONSE_BYTES = 5 * 1024 * 1024;
 
@@ -16,7 +18,7 @@ export async function assertResolvablePublicHttpUrl(
     return urlResult;
   }
 
-  const hostResult = await resolveResolvablePublicHost(urlResult.value.hostname);
+  const hostResult = await resolvePublicHostAddress(urlResult.value.hostname);
   if (isErr(hostResult)) {
     return hostResult;
   }
@@ -24,16 +26,47 @@ export async function assertResolvablePublicHttpUrl(
   return urlResult;
 }
 
-export async function fetchPublicHttp(url: string, init?: RequestInit): Promise<Response> {
-  const urlResult = await assertResolvablePublicHttpUrl(url);
+/**
+ * Fetch a public HTTP(S) URL with the DNS-vetted address pinned into the socket.
+ * Keeps the original hostname for Host/SNI; only the TCP connect target is pinned.
+ */
+export async function withPublicHttpFetch<T>(
+  url: string,
+  init: RequestInit | undefined,
+  handler: (response: Response) => Promise<T>,
+): Promise<T> {
+  const urlResult = validatePublicHttpUrl(url);
   if (isErr(urlResult)) {
     throw new Error(formatSsrfGuardError(urlResult.error));
   }
 
-  return fetch(url, {
-    ...init,
-    redirect: init?.redirect ?? "error",
+  const hostResult = await resolvePublicHostAddress(urlResult.value.hostname);
+  if (isErr(hostResult)) {
+    throw new Error(formatSsrfGuardError(hostResult.error));
+  }
+
+  const { address, family } = hostResult.value;
+  const dispatcher = new Agent({
+    connect: {
+      lookup(_hostname, _options, callback) {
+        callback(null, address, family);
+      },
+    },
+    maxResponseSize: MAX_PUBLIC_HTTP_RESPONSE_BYTES,
   });
+
+  try {
+    const requestInit = {
+      ...init,
+      dispatcher,
+      redirect: init?.redirect ?? "error",
+    } as UndiciRequestInit;
+
+    const response = (await undiciFetch(url, requestInit)) as unknown as Response;
+    return await handler(response);
+  } finally {
+    await dispatcher.close();
+  }
 }
 
 export async function readBoundedResponseBody(

@@ -4,30 +4,43 @@ import { isErr } from "@/lib/primitives/result/results";
 
 import {
   assertResolvablePublicHttpUrl,
-  fetchPublicHttp,
   MAX_PUBLIC_HTTP_RESPONSE_BYTES,
   readBoundedResponseBody,
+  withPublicHttpFetch,
 } from "./public-http-fetch";
 
 const dnsMock = vi.hoisted(() => ({
   lookup: vi.fn(),
 }));
 
+const undiciMock = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  close: vi.fn(),
+  agents: [] as Array<{ connect?: { lookup?: Function } }>,
+}));
+
 vi.mock("node:dns/promises", () => ({
   lookup: dnsMock.lookup,
 }));
 
-describe("public-http-fetch", () => {
-  const originalFetch = globalThis.fetch;
+vi.mock("undici", () => ({
+  Agent: vi.fn(function Agent(options: { connect?: { lookup?: Function } }) {
+    undiciMock.agents.push(options);
+    return { close: undiciMock.close };
+  }),
+  fetch: undiciMock.fetch,
+}));
 
+describe("public-http-fetch", () => {
   beforeEach(() => {
     dnsMock.lookup.mockReset();
-    globalThis.fetch = originalFetch;
+    undiciMock.fetch.mockReset();
+    undiciMock.close.mockReset();
+    undiciMock.agents.length = 0;
   });
 
   it("rejects hostnames that resolve to restricted addresses before fetching", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
-    globalThis.fetch = vi.fn() as typeof fetch;
 
     const result = await assertResolvablePublicHttpUrl("https://rebind.example.com/internal");
     expect(result).toEqual({
@@ -35,22 +48,45 @@ describe("public-http-fetch", () => {
       error: { code: "host_resolves_to_restricted_address" },
     });
 
-    await expect(fetchPublicHttp("https://rebind.example.com/internal")).rejects.toThrow(
-      "URL host resolves to a private or restricted address.",
-    );
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    await expect(
+      withPublicHttpFetch("https://rebind.example.com/internal", undefined, async () => "ok"),
+    ).rejects.toThrow("URL host resolves to a private or restricted address.");
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
   });
 
-  it("fetches after DNS validation for public hosts", async () => {
+  it("pins the vetted address into the connect lookup while keeping the hostname URL", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
-    globalThis.fetch = vi.fn(async () => new Response("ok", { status: 200 })) as typeof fetch;
+    undiciMock.fetch.mockResolvedValue(new Response("ok", { status: 200 }));
 
-    const response = await fetchPublicHttp("https://api.example.com/docs", { method: "GET" });
-    expect(response.status).toBe(200);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
+    const response = await withPublicHttpFetch(
       "https://api.example.com/docs",
-      expect.objectContaining({ method: "GET", redirect: "error" }),
+      { method: "GET" },
+      async (res) => res,
     );
+
+    expect(response.status).toBe(200);
+    expect(undiciMock.fetch).toHaveBeenCalledWith(
+      "https://api.example.com/docs",
+      expect.objectContaining({
+        method: "GET",
+        redirect: "error",
+        dispatcher: expect.anything(),
+      }),
+    );
+
+    const lookup = undiciMock.agents[0]?.connect?.lookup;
+    expect(lookup).toEqual(expect.any(Function));
+    const pinned = await new Promise<{ address: string; family: number }>((resolve, reject) => {
+      lookup?.("api.example.com", {}, (error: Error | null, address: string, family: number) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve({ address, family });
+      });
+    });
+    expect(pinned).toEqual({ address: "93.184.216.34", family: 4 });
+    expect(undiciMock.close).toHaveBeenCalled();
   });
 
   it("allows literal public IPs without DNS lookup", async () => {

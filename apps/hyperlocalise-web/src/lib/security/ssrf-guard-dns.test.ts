@@ -43,4 +43,17 @@ describe("ssrf-guard-dns", () => {
     });
     expect(dnsMock.lookup).not.toHaveBeenCalled();
   });
+
+  it("returns the preferred public address for connect pinning", async () => {
+    dnsMock.lookup.mockResolvedValue([
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+      { address: "93.184.216.34", family: 4 },
+    ]);
+
+    const { resolvePublicHostAddress } = await import("./ssrf-guard-dns");
+    await expect(resolvePublicHostAddress("api.example.test")).resolves.toEqual({
+      ok: true,
+      value: { address: "93.184.216.34", family: 4 },
+    });
+  });
 });

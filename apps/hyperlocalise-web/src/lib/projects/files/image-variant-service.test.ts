@@ -11,8 +11,20 @@ const dnsMock = vi.hoisted(() => ({
   lookup: vi.fn(),
 }));
 
+const undiciMock = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  close: vi.fn(),
+}));
+
 vi.mock("node:dns/promises", () => ({
   lookup: dnsMock.lookup,
+}));
+
+vi.mock("undici", () => ({
+  Agent: vi.fn(function Agent() {
+    return { close: undiciMock.close };
+  }),
+  fetch: undiciMock.fetch,
 }));
 
 vi.mock("@/lib/agents/image-generation", () => ({
@@ -40,6 +52,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  undiciMock.close.mockResolvedValue(undefined);
   regenerateImageFromAttachment.mockResolvedValue({
     image: Buffer.from("localized-image"),
     mimeType: "image/png",
@@ -51,27 +64,24 @@ afterEach(async () => {
 });
 
 describe("fetchImageBytesFromUrl", () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
   it("returns image bytes with a normalized content type and URL filename", async () => {
-    globalThis.fetch = vi.fn(
-      async () =>
-        new Response(Buffer.from("source-image"), {
-          status: 200,
-          headers: { "content-type": "image/png; charset=binary" },
-        }),
-    ) as typeof fetch;
+    undiciMock.fetch.mockResolvedValue(
+      new Response(Buffer.from("source-image"), {
+        status: 200,
+        headers: { "content-type": "image/png; charset=binary" },
+      }),
+    );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png?v=1");
 
-    expect(globalThis.fetch).toHaveBeenCalledWith("https://cdn.example.com/assets/hero.png?v=1", {
-      method: "GET",
-      redirect: "error",
-    });
+    expect(undiciMock.fetch).toHaveBeenCalledWith(
+      "https://cdn.example.com/assets/hero.png?v=1",
+      expect.objectContaining({
+        method: "GET",
+        redirect: "error",
+        dispatcher: expect.anything(),
+      }),
+    );
     expect(isOk(result)).toBe(true);
     if (isErr(result)) {
       throw new Error("expected image fetch to succeed");
@@ -84,13 +94,12 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("maps non-OK responses to fetch_failed without reading them as images", async () => {
-    globalThis.fetch = vi.fn(
-      async () =>
-        new Response("bad gateway", {
-          status: 502,
-          headers: { "content-type": "image/png" },
-        }),
-    ) as typeof fetch;
+    undiciMock.fetch.mockResolvedValue(
+      new Response("bad gateway", {
+        status: 502,
+        headers: { "content-type": "image/png" },
+      }),
+    );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
@@ -105,13 +114,12 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("rejects successful responses that are not images", async () => {
-    globalThis.fetch = vi.fn(
-      async () =>
-        new Response("<html></html>", {
-          status: 200,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        }),
-    ) as typeof fetch;
+    undiciMock.fetch.mockResolvedValue(
+      new Response("<html></html>", {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
+    );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
@@ -123,9 +131,7 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("maps fetch failures to fetch_failed", async () => {
-    globalThis.fetch = vi.fn(async () => {
-      throw new Error("network down");
-    }) as typeof fetch;
+    undiciMock.fetch.mockRejectedValue(new Error("network down"));
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/hero.png");
 
@@ -140,8 +146,6 @@ describe("fetchImageBytesFromUrl", () => {
   });
 
   it("rejects blocked hosts without fetching", async () => {
-    globalThis.fetch = vi.fn() as typeof fetch;
-
     const result = await fetchImageBytesFromUrl("http://127.0.0.1/secret.png");
 
     expect(isErr(result)).toBe(true);
@@ -152,12 +156,11 @@ describe("fetchImageBytesFromUrl", () => {
       code: "fetch_failed",
       message: "URL host is not allowed.",
     });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
   });
 
   it("rejects hostnames that resolve to restricted addresses", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
-    globalThis.fetch = vi.fn() as typeof fetch;
 
     const result = await fetchImageBytesFromUrl("https://rebind.example.com/secret.png");
 
@@ -169,7 +172,7 @@ describe("fetchImageBytesFromUrl", () => {
       code: "fetch_failed",
       message: "URL host resolves to a private or restricted address.",
     });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
   });
 
   it("rejects oversized image bodies", async () => {
@@ -180,13 +183,12 @@ describe("fetchImageBytesFromUrl", () => {
         controller.close();
       },
     });
-    globalThis.fetch = vi.fn(
-      async () =>
-        new Response(stream, {
-          status: 200,
-          headers: { "content-type": "image/png" },
-        }),
-    ) as typeof fetch;
+    undiciMock.fetch.mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }),
+    );
 
     const result = await fetchImageBytesFromUrl("https://cdn.example.com/assets/huge.png");
 
@@ -202,14 +204,7 @@ describe("fetchImageBytesFromUrl", () => {
 });
 
 describe("image variant approved locks", () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
   it("does not localize over an approved variant unless forced", async () => {
-    globalThis.fetch = vi.fn() as typeof fetch;
     const { organization, project } = await createStoredProjectFixture();
     await db.insert(schema.projectImageVariants).values({
       organizationId: organization.id,
@@ -234,7 +229,7 @@ describe("image variant approved locks", () => {
       throw new Error("expected approved variant to remain locked");
     }
     expect(result.error).toEqual({ code: "approved_locked" });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
     expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
   });
 

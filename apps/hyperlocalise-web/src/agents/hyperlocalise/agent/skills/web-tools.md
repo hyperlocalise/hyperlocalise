@@ -13,4 +13,4 @@ Use these tools to read public web content.
 - Use `format: "text"` for plain-text extraction from HTML pages.
 - Use `method: "HEAD"` when you only need response headers or availability.
 - Do not use web tools for repository files or private/internal hosts.
-- Only public http(s) hosts are allowed; hostnames are DNS-checked before each request and redirects are not followed.
+- Only public http(s) hosts are allowed; hostnames are DNS-checked and connections are pinned to the vetted address. Redirects are not followed.

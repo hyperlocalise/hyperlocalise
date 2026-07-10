@@ -9,9 +9,9 @@ import {
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
-  fetchPublicHttp,
   MAX_PUBLIC_HTTP_RESPONSE_BYTES,
   readBoundedResponseBody,
+  withPublicHttpFetch,
 } from "@/lib/security/public-http-fetch";
 
 export type ProjectImageVariantStatus =
@@ -198,33 +198,39 @@ export async function fetchImageBytesFromUrl(
   url: string,
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
   try {
-    const response = await fetchPublicHttp(url, { method: "GET", redirect: "error" });
-    if (!response.ok) {
-      return err({
-        code: "fetch_failed",
-        message: `image fetch failed with status ${response.status}`,
-      });
-    }
+    return await withPublicHttpFetch(
+      url,
+      { method: "GET", redirect: "error" },
+      async (response) => {
+        if (!response.ok) {
+          return err({
+            code: "fetch_failed",
+            message: `image fetch failed with status ${response.status}`,
+          });
+        }
 
-    const contentType = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
-    if (!contentType.toLowerCase().startsWith("image/")) {
-      return err({ code: "unsupported_image_response" });
-    }
+        const contentType =
+          (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
+        if (!contentType.toLowerCase().startsWith("image/")) {
+          return err({ code: "unsupported_image_response" });
+        }
 
-    const body = await readBoundedResponseBody(response, MAX_PUBLIC_HTTP_RESPONSE_BYTES);
-    const content = Buffer.from(body);
-    let filename = "image.png";
-    try {
-      const pathname = new URL(url).pathname;
-      const base = pathname.split("/").filter(Boolean).at(-1);
-      if (base) {
-        filename = base;
-      }
-    } catch {
-      // keep default
-    }
+        const body = await readBoundedResponseBody(response, MAX_PUBLIC_HTTP_RESPONSE_BYTES);
+        const content = Buffer.from(body);
+        let filename = "image.png";
+        try {
+          const pathname = new URL(url).pathname;
+          const base = pathname.split("/").filter(Boolean).at(-1);
+          if (base) {
+            filename = base;
+          }
+        } catch {
+          // keep default
+        }
 
-    return ok({ content, contentType, filename });
+        return ok({ content, contentType, filename });
+      },
+    );
   } catch (error) {
     return err({
       code: "fetch_failed",
