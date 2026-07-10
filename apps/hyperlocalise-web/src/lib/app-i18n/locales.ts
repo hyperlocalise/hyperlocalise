@@ -2,13 +2,15 @@ import { match } from "@formatjs/intl-localematcher";
 import Negotiator from "negotiator";
 import type { NextRequest } from "next/server";
 
-export const SUPPORTED_APP_LOCALES = ["en"] as const;
-
 /**
  * Locales with message catalogs and/or blog posts ready to serve.
- * Keep this ahead of SUPPORTED_APP_LOCALES so enabling a locale is a one-line change.
+ * When adding a locale, land catalogs here first, then promote into
+ * SUPPORTED_APP_LOCALES once routing should accept it.
  */
 export const AVAILABLE_APP_CONTENT_LOCALES = ["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"] as const;
+
+/** Locales accepted by `/[lang]` routing, cookies, and the language toggle. */
+export const SUPPORTED_APP_LOCALES = AVAILABLE_APP_CONTENT_LOCALES;
 
 export type AppLocale = (typeof SUPPORTED_APP_LOCALES)[number];
 export type AppContentLocale = (typeof AVAILABLE_APP_CONTENT_LOCALES)[number];

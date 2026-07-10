@@ -186,6 +186,11 @@ describe("stripAppLocalePrefix", () => {
     expect(stripAppLocalePrefix("/org/acme/inbox")).toBe("/org/acme/inbox");
     expect(stripAppLocalePrefix("/fr/org/acme/inbox")).toBe("/fr/org/acme/inbox");
   });
+
+  it("removes newly supported locale prefixes", () => {
+    expect(stripAppLocalePrefix("/fr-FR/org/acme/inbox")).toBe("/org/acme/inbox");
+    expect(stripAppLocalePrefix("/zh-CN/blog")).toBe("/blog");
+  });
 });
 
 describe("parseProjectRoute", () => {

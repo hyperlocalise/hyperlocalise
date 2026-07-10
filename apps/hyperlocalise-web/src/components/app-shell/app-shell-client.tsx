@@ -13,6 +13,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
@@ -129,6 +130,7 @@ export function AppShellClient({
                     connectMethod={resolvedTmsUserConnectCta.connectMethod}
                   />
                 ) : null}
+                <LocaleToggle />
                 <ThemeToggle />
                 <NavUser
                   organizationName={activeOrganization.name}
