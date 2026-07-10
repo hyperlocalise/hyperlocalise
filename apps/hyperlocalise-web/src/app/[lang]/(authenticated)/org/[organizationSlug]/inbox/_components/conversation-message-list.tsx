@@ -42,6 +42,20 @@ import {
 
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
 type ToolPart = ToolUIPart | DynamicToolUIPart;
+
+function toAssistantUIMessage(message: ConversationMessage): UIMessage {
+  return {
+    id: message.id,
+    role: "assistant",
+    parts:
+      message.parts && message.parts.length > 0
+        ? message.parts
+        : message.text
+          ? [{ type: "text", text: message.text, state: "done" }]
+          : [],
+  };
+}
+
 export function ConversationMessageList({
   conversationId,
   currentUser,
@@ -152,6 +166,8 @@ const PersistedMessage = memo(function PersistedMessage({
       <div className="flex flex-col gap-3">
         {message.senderType === "user" ? (
           <TypographyP className="whitespace-pre-wrap leading-6">{message.text}</TypographyP>
+        ) : message.parts && message.parts.length > 0 ? (
+          <AssistantMessageParts isStreaming={false} message={toAssistantUIMessage(message)} />
         ) : (
           <MessageResponse>{message.text}</MessageResponse>
         )}
@@ -333,7 +349,7 @@ function AssistantMessageParts({
       {toolParts.map((part, index) => (
         <AssistantToolPart key={`${part.type}-${index}`} part={part} />
       ))}
-      {text ? <MessageResponse>{text}</MessageResponse> : <TypingIndicator />}
+      {text ? <MessageResponse>{text}</MessageResponse> : isStreaming ? <TypingIndicator /> : null}
     </>
   );
 }

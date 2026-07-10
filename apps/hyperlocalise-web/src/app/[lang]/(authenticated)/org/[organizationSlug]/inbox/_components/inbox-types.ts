@@ -29,6 +29,7 @@ export type ConversationMessage = {
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
+  parts?: UIMessage["parts"] | null;
   attachments: ConversationMessageAttachment[] | null;
   createdAt: string;
 };
