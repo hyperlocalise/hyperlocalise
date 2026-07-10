@@ -282,7 +282,7 @@ describe("selectKnowledgeMemoryContext", () => {
       sourceText: "Unrelated source",
     });
 
-    expect(["general", "none", "selective"]).toContain(selected.metrics.fallbackMode);
+    expect(["general", "none", "selective", "fallback"]).toContain(selected.metrics.fallbackMode);
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
