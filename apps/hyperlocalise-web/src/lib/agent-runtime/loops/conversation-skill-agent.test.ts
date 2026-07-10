@@ -133,6 +133,7 @@ describe("conversation skill agent", () => {
     };
     expect(settings.instructions).toContain("Repository tools");
     expect(settings.instructions).toContain("Find context in repository");
-    expect(settings.instructions).toContain("source text or a string key");
+    expect(settings.instructions).toContain("Recent changes with full context");
+    expect(settings.instructions).toContain("exist in the current source files now");
   });
 });
