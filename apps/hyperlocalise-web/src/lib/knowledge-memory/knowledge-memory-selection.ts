@@ -180,11 +180,39 @@ function buildHeadingFallbackText(content: string) {
   ].join("\n");
 }
 
+function fallbackSegmentPriority(segment: KnowledgeMemorySegment) {
+  return Math.min(...segment.headingPath.map(headingFallbackPriority));
+}
+
+function buildFallbackText(content: string, maxChars: number, segments: KnowledgeMemorySegment[]) {
+  const headingBudget = Math.min(maxChars, 1_200);
+  const lines = [truncateFallbackText(buildHeadingFallbackText(content), headingBudget)];
+  const fallbackSegments = [...segments]
+    .sort((a, b) => {
+      const priorityDelta = fallbackSegmentPriority(a) - fallbackSegmentPriority(b);
+      return priorityDelta === 0 ? a.startLine - b.startLine : priorityDelta;
+    })
+    .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+
+  for (const segment of fallbackSegments) {
+    if (!appendWithinBudget(lines, segment.compactPromptText, maxChars)) {
+      break;
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function buildRawFallbackContext(
   content: string,
   maxChars: number,
+  segments: KnowledgeMemorySegment[] = [],
 ): SelectedKnowledgeMemoryContext {
-  const compactText = truncateFallbackText(buildHeadingFallbackText(content), maxChars);
+  const fallbackText =
+    segments.length > 0
+      ? buildFallbackText(content, maxChars, segments)
+      : buildHeadingFallbackText(content);
+  const compactText = truncateFallbackText(fallbackText, maxChars);
 
   return {
     compactText,
@@ -272,5 +300,5 @@ export function selectKnowledgeMemoryContext(
     });
   }
 
-  return buildRawFallbackContext(content, maxChars);
+  return buildRawFallbackContext(content, maxChars, segments);
 }
