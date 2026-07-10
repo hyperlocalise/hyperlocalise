@@ -154,6 +154,8 @@ function useCatLoadedQueueTargetsSync(input: {
       catFile: input.catFile,
     });
 
+  const targetsEnabled = input.enabled && Boolean(input.catFile) && segmentIds.length > 0;
+
   const targetQueries = useCatSegmentTargets({
     organizationSlug: input.organizationSlug,
     projectId: input.projectId,
@@ -162,7 +164,7 @@ function useCatLoadedQueueTargetsSync(input: {
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,
     externalStringIds: segmentIds,
-    enabled: input.enabled && Boolean(input.catFile) && segmentIds.length > 0,
+    enabled: targetsEnabled,
   });
 
   useEffect(() => {
@@ -175,6 +177,28 @@ function useCatLoadedQueueTargetsSync(input: {
       store.applySegmentTarget(segmentId, query.data);
     });
   }, [segmentIds, store, targetQueries]);
+
+  useEffect(() => {
+    if (!targetsEnabled) {
+      store.setQueueTargetLoadingSegmentIds([]);
+      return;
+    }
+
+    const loadingIds = segmentIds.filter((segmentId, index) => {
+      const query = targetQueries[index];
+      if (!query) {
+        return false;
+      }
+
+      return (
+        query.isFetching &&
+        query.data === undefined &&
+        !store.drafts.get(segmentId)?.targetText.trim()
+      );
+    });
+
+    store.setQueueTargetLoadingSegmentIds(loadingIds);
+  }, [segmentIds, store, targetQueries, targetsEnabled]);
 }
 
 export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySegmentSync({

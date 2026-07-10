@@ -700,4 +700,20 @@ describe("CatWorkspaceOrchestrator ui state", () => {
 
     expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
   });
+
+  it("includes queue target loading segment ids in side-by-side loading state", () => {
+    const store = createCatWorkspace(createCatWorkspaceState({ selectedSegmentId: "seg-01" }));
+
+    store.setQueueTargetLoadingSegmentIds(["seg-02", "seg-03"]);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-02", "seg-03"]);
+
+    store.setSegmentTargetLoading(true);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.setQueueTargetLoadingSegmentIds([]);
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+  });
 });
