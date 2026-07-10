@@ -306,6 +306,7 @@ export const projectFileCatTreatAsImageBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
   externalStringId: z.string().trim().min(1).max(128),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
   treatAsImage: z.boolean(),
 });
 

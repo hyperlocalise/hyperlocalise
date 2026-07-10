@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, deleteStoredFile } from "@/lib/file-storage/records";
 import {
   IMAGE_URL_CONTENT_KIND,
   isImageUrlContentKind,
@@ -18,6 +18,7 @@ export async function setExternalCatStringTreatAsImage(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId: string;
   externalStringId: string;
   treatAsImage: boolean;
   actorUserId?: string | null;
@@ -30,6 +31,7 @@ export async function setExternalCatStringTreatAsImage(input: {
         eq(schema.projectCatStringOverlays.organizationId, input.organizationId),
         eq(schema.projectCatStringOverlays.projectId, input.projectId),
         eq(schema.projectCatStringOverlays.sourcePath, input.sourcePath),
+        eq(schema.projectCatStringOverlays.externalResourceId, input.externalResourceId),
         eq(schema.projectCatStringOverlays.externalStringId, input.externalStringId),
       ),
     )
@@ -66,6 +68,7 @@ export async function setExternalCatStringTreatAsImage(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      externalResourceId: input.externalResourceId,
       externalStringId: input.externalStringId,
       metadata,
       updatedByUserId: input.actorUserId ?? null,
@@ -83,6 +86,7 @@ export async function getExternalCatStringOverlays(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId: string;
   externalStringIds: string[];
 }): Promise<Map<string, ExternalCatStringOverlay>> {
   const result = new Map<string, ExternalCatStringOverlay>();
@@ -98,6 +102,7 @@ export async function getExternalCatStringOverlays(input: {
         eq(schema.projectCatStringOverlays.organizationId, input.organizationId),
         eq(schema.projectCatStringOverlays.projectId, input.projectId),
         eq(schema.projectCatStringOverlays.sourcePath, input.sourcePath),
+        eq(schema.projectCatStringOverlays.externalResourceId, input.externalResourceId),
         inArray(schema.projectCatStringOverlays.externalStringId, input.externalStringIds),
       ),
     );
@@ -113,6 +118,7 @@ export async function getExternalCatStringOverlay(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  externalResourceId: string;
   externalStringId: string;
 }): Promise<ExternalCatStringOverlay | null> {
   const overlays = await getExternalCatStringOverlays({
@@ -172,6 +178,7 @@ export function enrichExternalCatTranslationImageFields<
 export async function enrichExternalCatFileImageFields<
   T extends {
     sourcePath: string;
+    provider?: { externalResourceId?: string | null } | null;
     segments: Array<{
       externalStringId: string;
       sourceText: string;
@@ -181,10 +188,21 @@ export async function enrichExternalCatFileImageFields<
     }>;
   },
 >(input: { organizationId: string; projectId: string; catFile: T }): Promise<T> {
+  const externalResourceId = input.catFile.provider?.externalResourceId;
+  if (!externalResourceId) {
+    return {
+      ...input.catFile,
+      segments: input.catFile.segments.map((segment) =>
+        enrichExternalCatSegmentImageFields(segment, null),
+      ),
+    };
+  }
+
   const overlays = await getExternalCatStringOverlays({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePath: input.catFile.sourcePath,
+    externalResourceId,
     externalStringIds: input.catFile.segments.map((segment) => segment.externalStringId),
   });
 
@@ -201,6 +219,7 @@ export async function storeExternalCatImageUpload(input: {
   organizationId: string;
   projectId: string;
   externalStringId: string;
+  externalResourceId: string;
   sourcePath: string;
   targetLocale: string;
   origin?: string | null;
@@ -222,6 +241,7 @@ export async function storeExternalCatImageUpload(input: {
       imageLocalizationManualUpload: true,
       contentKind: IMAGE_URL_CONTENT_KIND,
       externalStringId: input.externalStringId,
+      externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
       targetLocale: input.targetLocale,
     }),
@@ -233,4 +253,17 @@ export async function storeExternalCatImageUpload(input: {
   });
 
   return { assetUrl, storedFileId: stored.id };
+}
+
+/** Best-effort cleanup when provider write-back fails after storing public media. */
+export async function cleanupFailedExternalCatImageUpload(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+}) {
+  await deleteStoredFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    fileId: input.storedFileId,
+  });
 }

@@ -303,6 +303,10 @@ export function useCatMutations(input: {
 
   const treatAsImageMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringId: string; treatAsImage: boolean }) => {
+      const externalResourceId = input.catFile?.provider
+        ? requireProviderExternalResourceId(input.catFile)
+        : undefined;
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
@@ -315,6 +319,7 @@ export function useCatMutations(input: {
           sourcePath: input.sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
+          externalResourceId,
           treatAsImage: mutationInput.treatAsImage,
         },
       });

@@ -35,6 +35,7 @@ const {
   generateCatAiRecommendationMock,
   ensureOrganizationProjectRecordMock,
   createStoredFileMock,
+  deleteStoredFileMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
@@ -46,6 +47,7 @@ const {
   generateCatAiRecommendationMock: vi.fn(),
   ensureOrganizationProjectRecordMock: vi.fn(),
   createStoredFileMock: vi.fn(),
+  deleteStoredFileMock: vi.fn(),
 }));
 
 vi.mock("@/lib/translation/cat", () => ({
@@ -64,6 +66,7 @@ vi.mock("@/lib/file-storage/records", async (importOriginal) => {
   return {
     ...actual,
     createStoredFile: (...args: unknown[]) => createStoredFileMock(...args),
+    deleteStoredFile: (...args: unknown[]) => deleteStoredFileMock(...args),
   };
 });
 
@@ -565,6 +568,7 @@ describe("project file CAT routes", () => {
           sourcePath: "crowdin/home.json",
           targetLocale: "fr",
           externalStringId: "1001",
+          externalResourceId: "101",
           treatAsImage: true,
         },
       },
@@ -665,6 +669,89 @@ describe("project file CAT routes", () => {
         text: "http://localhost:3000/api/public/media/file_external-upload",
       }),
       expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("rejects provider image upload without externalResourceId", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "external_resource_id_required" });
+    expect(createStoredFileMock).not.toHaveBeenCalled();
+    expect(saveTmsProviderLiveCatTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes stored public media when provider write-back fails after upload", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    ensureOrganizationProjectRecordMock.mockResolvedValue(ok("ext:crowdin:42"));
+    createStoredFileMock.mockResolvedValue({
+      id: "file_external-upload-fail",
+      organizationId: "org",
+      projectId: "ext:crowdin:42",
+      contentType: "image/png",
+      filename: "banner-fr.png",
+      metadata: { publicMedia: true },
+    });
+    deleteStoredFileMock.mockResolvedValue(undefined);
+    saveTmsProviderLiveCatTranslationMock.mockRejectedValue(
+      new TmsProviderLiveError("provider_unauthorized", "Token expired"),
+    );
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set("externalResourceId", "101");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(deleteStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "ext:crowdin:42",
+        fileId: "file_external-upload-fail",
+      }),
     );
   });
 

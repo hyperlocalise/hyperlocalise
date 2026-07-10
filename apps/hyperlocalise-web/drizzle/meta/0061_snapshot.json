@@ -1,5 +1,5 @@
 {
-  "id": "c2354c1a-d4c7-4430-9751-9f273712b7dd",
+  "id": "7e620adb-310a-4830-a311-77b6f4ee8c76",
   "prevId": "9d0654b7-050b-4cd1-baa4-4aad94e10be3",
   "version": "7",
   "dialect": "postgresql",
@@ -14893,6 +14893,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "external_resource_id": {
+          "name": "external_resource_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "external_string_id": {
           "name": "external_string_id",
           "type": "text",
@@ -14950,6 +14956,12 @@
               "nulls": "last"
             },
             {
+              "expression": "external_resource_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "external_string_id",
               "isExpression": false,
               "asc": true,
@@ -14978,6 +14990,12 @@
             },
             {
               "expression": "source_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_resource_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

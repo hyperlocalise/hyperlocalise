@@ -21,7 +21,7 @@ describe("external CAT string overlay service", () => {
     await projectFixture.cleanup();
   });
 
-  it("persists treat-as-image overlays for external project ids", async () => {
+  it("persists treat-as-image overlays scoped by external resource id", async () => {
     const { organization, user } = await projectFixture.createStoredProjectFixture();
     const projectId = "ext:crowdin:99";
     const sourcePath = "crowdin/home.json";
@@ -31,6 +31,7 @@ describe("external CAT string overlay service", () => {
       organizationId: organization.id,
       projectId,
       sourcePath,
+      externalResourceId: "101",
       externalStringId,
       treatAsImage: true,
       actorUserId: user.id,
@@ -41,14 +42,25 @@ describe("external CAT string overlay service", () => {
       organizationId: organization.id,
       projectId,
       sourcePath,
+      externalResourceId: "101",
       externalStringId,
     });
     expect(overlay?.metadata).toMatchObject({ contentKind: "image_url" });
+
+    const otherResource = await getExternalCatStringOverlay({
+      organizationId: organization.id,
+      projectId,
+      sourcePath,
+      externalResourceId: "202",
+      externalStringId,
+    });
+    expect(otherResource).toBeNull();
 
     const clearResult = await setExternalCatStringTreatAsImage({
       organizationId: organization.id,
       projectId,
       sourcePath,
+      externalResourceId: "101",
       externalStringId,
       treatAsImage: false,
       actorUserId: user.id,
@@ -59,6 +71,7 @@ describe("external CAT string overlay service", () => {
       organizationId: organization.id,
       projectId,
       sourcePath,
+      externalResourceId: "101",
       externalStringId,
     });
     expect(cleared?.metadata.contentKind).toBeUndefined();
@@ -86,6 +99,7 @@ describe("external CAT string overlay service", () => {
       organizationId: "org",
       projectId: "ext:crowdin:1",
       sourcePath: "a.json",
+      externalResourceId: "101",
       externalStringId: "1",
       metadata: { contentKind: "image_url" },
       updatedByUserId: null,
@@ -109,6 +123,7 @@ describe("external CAT string overlay service", () => {
         organizationId: "org",
         projectId: "ext:crowdin:1",
         sourcePath: "a.json",
+        externalResourceId: "101",
         externalStringId: "1",
         metadata: { contentKind: "image_url" },
         updatedByUserId: null,

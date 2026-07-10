@@ -59,6 +59,7 @@ import {
   getExternalCatStringOverlay,
   setExternalCatStringTreatAsImage,
   storeExternalCatImageUpload,
+  cleanupFailedExternalCatImageUpload,
 } from "@/lib/projects/cat/external-cat-string-overlay-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
@@ -861,10 +862,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
+          if (!query.externalResourceId) {
+            return c.json({ target: segmentTarget }, 200);
+          }
+
           const overlay = await getExternalCatStringOverlay({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: query.sourcePath,
+            externalResourceId: query.externalResourceId,
             externalStringId: params.externalStringId,
           });
 
@@ -1495,6 +1501,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
+          if (!externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider image upload",
+            );
+          }
+
           if (inferSupportedImageTranslationFileFormat(sourcePath)) {
             return badRequestResponse(
               c,
@@ -1516,20 +1530,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId,
             projectId: ensured.value,
             externalStringId,
+            externalResourceId,
             sourcePath,
             targetLocale,
             content,
             contentType,
             filename: file.name || "image.png",
-            actorUserId: c.var.auth.user.localUserId,
-          });
-
-          await setExternalCatStringTreatAsImage({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath,
-            externalStringId,
-            treatAsImage: true,
             actorUserId: c.var.auth.user.localUserId,
           });
 
@@ -1548,8 +1554,23 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
 
             if (!translation) {
+              await cleanupFailedExternalCatImageUpload({
+                organizationId,
+                projectId: ensured.value,
+                storedFileId: stored.storedFileId,
+              });
               return projectNotFoundResponse(c);
             }
+
+            await setExternalCatStringTreatAsImage({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath,
+              externalResourceId,
+              externalStringId,
+              treatAsImage: true,
+              actorUserId: c.var.auth.user.localUserId,
+            });
 
             return c.json(
               {
@@ -1564,6 +1585,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               200,
             );
           } catch (error) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
             return tmsProviderLiveErrorResponse(c, error);
           }
         }
@@ -1760,10 +1786,19 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind === "provider") {
+          if (!body.externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider treat-as-image",
+            );
+          }
+
           const result = await setExternalCatStringTreatAsImage({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: body.sourcePath,
+            externalResourceId: body.externalResourceId,
             externalStringId: body.externalStringId,
             treatAsImage: body.treatAsImage,
             actorUserId: c.var.auth.user.localUserId,
