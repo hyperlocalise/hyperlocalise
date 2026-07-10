@@ -12,7 +12,7 @@ The left side contains a compact plan pill with a plan icon and the active plan 
 
 The right side contains a Support icon button. It opens the user's email client with `mailto:minh@hyperlocalise.com`.
 
-The app shell reserves space for the footer, including the device safe area, so the footer never covers navigation or page content. The footer remains independent of the sidebar's expanded or collapsed state.
+The app shell uses one shared footer-height token for the footer, sidebar scroll padding, and main content padding. The token includes the device safe area so the footer never covers navigation or page content. The footer remains independent of the sidebar's expanded or collapsed state.
 
 ## Data and permissions
 

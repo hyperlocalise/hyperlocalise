@@ -75,7 +75,12 @@ export function AppShellClient({
       <TmsUserOAuthErrorToast />
       <SidebarProvider
         defaultOpen
-        style={{ "--sidebar-width": "15rem" } as CSSProperties}
+        style={
+          {
+            "--app-shell-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
+            "--sidebar-width": "15rem",
+          } as CSSProperties
+        }
         className="min-h-svh bg-background text-foreground"
       >
         <SidebarStoreBridge />
@@ -98,14 +103,14 @@ export function AppShellClient({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 px-2 pt-2 pb-12">
+          <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
             <AppShellNavigation organizationSlug={organizationSlug} />
           </SidebarContent>
 
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-h-svh bg-background pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+        <SidebarInset className="min-h-svh bg-background pb-[var(--app-shell-footer-height)]">
           <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
             <div className="flex h-[var(--app-shell-header-height)] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
