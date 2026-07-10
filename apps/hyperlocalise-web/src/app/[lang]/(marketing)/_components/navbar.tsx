@@ -18,6 +18,7 @@ import { env } from "@/lib/env";
 import Image from "next/image";
 import Link from "next/link";
 
+import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 
 const navigationLinks: { href: string; label: string; active?: boolean }[] = [
@@ -161,6 +162,7 @@ export default function Navbar() {
           <Button nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
             Join waitlist
           </Button>
+          <LocaleToggle />
           <ThemeToggle />
         </div>
 
@@ -173,6 +175,7 @@ export default function Navbar() {
             Join waitlist
           </Button>
           <MobileNavigation />
+          <LocaleToggle />
           <ThemeToggle />
         </div>
       </div>

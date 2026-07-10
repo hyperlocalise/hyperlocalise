@@ -153,7 +153,7 @@ describe("postsDirectory locale resolution", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves content locales that are not yet in SUPPORTED_APP_LOCALES", () => {
+  it("resolves posts for supported content locales", () => {
     directoryEntries.push("translated-post.md");
     fileContents["translated-post"] = serializePost({
       slug: "translated-post",
