@@ -144,8 +144,6 @@ jobs:
             - `hl pack` — strip FormatJS metadata for runtime
 
             Review ICU placeholders, message ids, and locale coverage before merging.
-          add-paths: |
-            apps/hyperlocalise-web/lang/**
           labels: |
             localization
             hyperlocalise-web
