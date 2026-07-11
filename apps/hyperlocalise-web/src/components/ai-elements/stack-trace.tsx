@@ -112,14 +112,15 @@ const parseStackFrame = (line: string): StackFrame => {
 };
 
 const parseStackTrace = (trace: string): ParsedStackTrace => {
-  const lines = trace.split("\n").filter((line) => line.trim());
+  const safeTrace = trace ?? "";
+  const lines = safeTrace.split("\n").filter((line) => line.trim());
 
   if (lines.length === 0) {
     return {
-      errorMessage: trace,
+      errorMessage: safeTrace,
       errorType: null,
       frames: [],
-      raw: trace,
+      raw: safeTrace,
     };
   }
 
@@ -145,7 +146,7 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
     errorMessage,
     errorType,
     frames,
-    raw: trace,
+    raw: safeTrace,
   };
 };
 
