@@ -775,7 +775,7 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		// into malformed Markdown without leaving a sentinel behind.
 		placeholderErr := ValidateMarkdownInternalPlaceholders(part.source, rendered)
 		canRecoverSingle := len(part.placeholders) == 1 && len(MarkdownInternalPlaceholderTokens(rendered)) == 1
-		linkOrderValid := markdownLinkPlaceholderOrderValid(rendered, part.placeholders)
+		linkOrderValid := markdownLinkPlaceholderOrderValid(part.source, rendered, part.placeholders)
 		if (placeholderErr != nil || !linkOrderValid) && !canRecoverSingle {
 			if diags != nil && part.key != "" {
 				diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
@@ -798,8 +798,31 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 	return rendered
 }
 
-func markdownLinkPlaceholderOrderValid(rendered string, placeholders map[string]string) bool {
-	depth := 0
+func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map[string]string) bool {
+	expectedCloserByOpener := make(map[string]string)
+	var sourceOpeners []string
+	for _, token := range markdownPlaceholderPattern.FindAllString(source, -1) {
+		original, ok := placeholders[token]
+		if !ok {
+			continue
+		}
+		switch {
+		case original == "[":
+			sourceOpeners = append(sourceOpeners, token)
+		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
+			if len(sourceOpeners) == 0 {
+				return false
+			}
+			opener := sourceOpeners[len(sourceOpeners)-1]
+			sourceOpeners = sourceOpeners[:len(sourceOpeners)-1]
+			expectedCloserByOpener[opener] = token
+		}
+	}
+	if len(sourceOpeners) != 0 {
+		return false
+	}
+
+	var expectedClosers []string
 	for _, token := range markdownPlaceholderPattern.FindAllString(rendered, -1) {
 		original, ok := placeholders[token]
 		if !ok {
@@ -807,15 +830,19 @@ func markdownLinkPlaceholderOrderValid(rendered string, placeholders map[string]
 		}
 		switch {
 		case original == "[":
-			depth++
-		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
-			if depth == 0 {
+			expectedCloser, ok := expectedCloserByOpener[token]
+			if !ok {
 				return false
 			}
-			depth--
+			expectedClosers = append(expectedClosers, expectedCloser)
+		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
+			if len(expectedClosers) == 0 || expectedClosers[len(expectedClosers)-1] != token {
+				return false
+			}
+			expectedClosers = expectedClosers[:len(expectedClosers)-1]
 		}
 	}
-	return depth == 0
+	return len(expectedClosers) == 0
 }
 
 func yamlPlainScalarNeedsQuotes(value string) bool {

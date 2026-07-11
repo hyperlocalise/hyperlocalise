@@ -326,6 +326,45 @@ func TestMarshalMarkdownFallsBackWhenLinkPlaceholdersAreInvalid(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownKeepsLinkPlaceholderPairsTogether(t *testing.T) {
+	template := []byte("First [A](/url-1), then [B](/url-2).\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var key, value string
+	for entryKey, entryValue := range entries {
+		key, value = entryKey, entryValue
+	}
+	tokens := markdownPlaceholderPattern.FindAllString(value, -1)
+	if len(tokens) != 4 {
+		t.Fatalf("expected four link placeholders in %q", value)
+	}
+
+	t.Run("crossed destinations fall back", func(t *testing.T) {
+		crossed := "First " + tokens[0] + "A" + tokens[3] + ", then " + tokens[2] + "B" + tokens[1] + "."
+		output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: crossed}, false)
+		if string(output) != string(template) {
+			t.Fatalf("expected source fallback, got %q", output)
+		}
+		if len(diags.SourceFallbackKeys) != 1 {
+			t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+		}
+	})
+
+	t.Run("complete links may reorder", func(t *testing.T) {
+		reordered := "First " + tokens[2] + "B" + tokens[3] + ", then " + tokens[0] + "A" + tokens[1] + "."
+		output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: reordered}, false)
+		if got, want := string(output), "First [B](/url-2), then [A](/url-1).\n"; got != want {
+			t.Fatalf("output = %q, want %q", got, want)
+		}
+		if len(diags.SourceFallbackKeys) != 0 {
+			t.Fatalf("unexpected fallback diagnostic: %+v", diags)
+		}
+	})
+}
+
 func TestMarshalMarkdownPreservesLinkTitleWithParenthesis(t *testing.T) {
 	template := []byte("[link](/url \"title with ) paren\")\n")
 
