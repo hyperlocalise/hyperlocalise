@@ -124,23 +124,19 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	out.WriteString("{\n")
 
 	first := true
-	writeField := func(key string, value []byte) error {
+	writeFieldHeader := func(key string) error {
 		if !first {
 			out.WriteString(",\n")
 		}
 		first = false
 
 		out.WriteString("  ")
-		if isSimpleJSONString(key) {
-			out.WriteByte('"')
-			out.WriteString(key)
-			out.WriteByte('"')
-		} else {
-			encodedKey, err := json.Marshal(key)
-			if err != nil {
-				return err
-			}
-			out.Write(encodedKey)
+		return writeJSONString(&out, key)
+	}
+
+	writeRawField := func(key string, value []byte) error {
+		if err := writeFieldHeader(key); err != nil {
+			return err
 		}
 		out.WriteString(": ")
 
@@ -156,8 +152,21 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		return nil
 	}
 
+	writeStringField := func(key string, value string) error {
+		if err := writeFieldHeader(key); err != nil {
+			return err
+		}
+		out.WriteString(": ")
+		// Values that fail to marshal (unlikely for strings) fallback to empty string
+		// to maintain compatibility with previous behavior.
+		if err := writeJSONString(&out, value); err != nil {
+			out.WriteString(`""`)
+		}
+		return nil
+	}
+
 	if !hasLocaleField && normalizedTargetLocale != "" {
-		if err := writeField("@@locale", marshalJSONString(normalizedTargetLocale)); err != nil {
+		if err := writeStringField("@@locale", normalizedTargetLocale); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields["@@locale"] = struct{}{}
@@ -166,7 +175,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	for _, field := range fields {
 		if isARBMetadataKey(field.Key) {
 			if field.Key == "@@locale" && normalizedTargetLocale != "" {
-				if err := writeField(field.Key, marshalJSONString(normalizedTargetLocale)); err != nil {
+				if err := writeStringField(field.Key, normalizedTargetLocale); err != nil {
 					return nil, fmt.Errorf("arb encode: %w", err)
 				}
 				writtenFields[field.Key] = struct{}{}
@@ -177,7 +186,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 					continue
 				}
 			}
-			if err := writeField(field.Key, field.RawValue); err != nil {
+			if err := writeRawField(field.Key, field.RawValue); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
 			writtenFields[field.Key] = struct{}{}
@@ -188,7 +197,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if !ok {
 			continue
 		}
-		if err := writeField(field.Key, marshalJSONString(value)); err != nil {
+		if err := writeStringField(field.Key, value); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[field.Key] = struct{}{}
@@ -203,7 +212,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	slices.Sort(newKeys)
 
 	for _, key := range newKeys {
-		if err := writeField(key, marshalJSONString(values[key])); err != nil {
+		if err := writeStringField(key, values[key]); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[key] = struct{}{}
@@ -213,7 +222,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 			continue
 		}
 		if rawMeta, ok := sourceMessageMetadata[key]; ok {
-			if err := writeField(metaKey, rawMeta); err != nil {
+			if err := writeRawField(metaKey, rawMeta); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
 			writtenFields[metaKey] = struct{}{}
@@ -346,17 +355,16 @@ func isSimpleJSONString(s string) bool {
 	return true
 }
 
-func marshalJSONString(s string) []byte {
+func writeJSONString(w *bytes.Buffer, s string) error {
 	if isSimpleJSONString(s) {
-		b := make([]byte, 0, len(s)+2)
-		b = append(b, '"')
-		b = append(b, s...)
-		b = append(b, '"')
-		return b
+		_ = w.WriteByte('"')
+		_, _ = w.WriteString(s)
+		return w.WriteByte('"')
 	}
 	encoded, err := json.Marshal(s)
 	if err != nil {
-		return []byte(`""`)
+		return err
 	}
-	return encoded
+	_, err = w.Write(encoded)
+	return err
 }
