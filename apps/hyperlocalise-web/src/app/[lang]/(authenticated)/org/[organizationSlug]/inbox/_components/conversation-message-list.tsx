@@ -22,6 +22,7 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import {
+  serializeToolJson,
   Tool,
   ToolContent,
   ToolHeader,
@@ -366,7 +367,14 @@ function AssistantMessageParts({
         <AiElementErrorBoundary
           key={`${part.type}-${index}`}
           scope="tool"
-          resetKeys={[part.type, part.state, part.toolCallId]}
+          resetKeys={[
+            part.type,
+            part.state,
+            part.toolCallId,
+            serializeToolJson(part.input),
+            serializeToolJson(part.output),
+            part.errorText ?? "",
+          ]}
         >
           <AssistantToolPart part={part} />
         </AiElementErrorBoundary>
