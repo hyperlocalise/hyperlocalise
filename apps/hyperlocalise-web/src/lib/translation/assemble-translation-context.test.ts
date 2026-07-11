@@ -123,7 +123,7 @@ describe("assembleStringTranslationContextSnapshot", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.snapshot.knowledgeMemory).toBeNull();
+      expect(result.snapshot.knowledgeMemory).toBeUndefined();
     }
   });
 });

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { flag, type Flag } from "flags/next";
+import type { Adapter } from "flags";
 import { and, eq } from "drizzle-orm";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
@@ -17,21 +17,54 @@ import {
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
 
-export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
+type WorkspaceFlagRunInput = {
+  identify: () => WorkosFlagEntities;
+};
+
+type WorkspaceFlag = {
+  run(input: WorkspaceFlagRunInput): Promise<boolean>;
+};
+
+type WorkspaceFlagDefinition = {
+  key: string;
+  defaultValue: boolean;
+  description: string;
+  adapter: Adapter<boolean, WorkosFlagEntities>;
+};
+
+function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag {
+  let flagPromise: Promise<WorkspaceFlag> | undefined;
+
+  return {
+    async run(input) {
+      try {
+        flagPromise ??= import("flags/next").then(({ flag }) =>
+          flag<boolean, WorkosFlagEntities>(definition),
+        );
+        return (await flagPromise).run(input);
+      } catch {
+        flagPromise = undefined;
+        return definition.defaultValue;
+      }
+    },
+  };
+}
+
+export const workspaceAutomationsFlag = createWorkspaceFlag({
   key: WORKSPACE_AUTOMATIONS_FLAG,
   defaultValue: false,
   description: "Workspace automations for scheduled and GitHub-triggered workflows.",
   adapter: workosAdapter(),
 });
 
-export const workspaceKnowledgeFlag = flag<boolean, WorkosFlagEntities>({
+export const workspaceKnowledgeFlag = createWorkspaceFlag({
   key: WORKSPACE_KNOWLEDGE_FLAG,
   defaultValue: false,
   description: "Workspace knowledge memory for agents and teams.",
   adapter: workosAdapter(),
 });
 
-export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
+export const workspaceVisualMockFlag = createWorkspaceFlag({
   key: WORKSPACE_VISUAL_MOCK_FLAG,
   defaultValue: false,
   description: "Visual mock skill for repository-backed Hyperlocalise agent previews.",
@@ -142,7 +175,7 @@ export async function resolveWorkspaceKnowledgeFlag(input: {
 }
 
 export async function requireWorkspaceFeatureFlag(
-  workspaceFlag: Flag<boolean, WorkosFlagEntities>,
+  workspaceFlag: WorkspaceFlag,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ) {
   const enabled = await workspaceFlag.run({ identify: () => createWorkosIdentify(auth) });
