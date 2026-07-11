@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS,
   KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
   KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH,
 } from "./knowledge-memory.shared";
@@ -222,6 +223,60 @@ function generalWithLaterRulesMemory() {
   ].join("\n");
 }
 
+function generalWithManyPreferredSectionsMemory() {
+  return [
+    "# Memory.md",
+    "",
+    "## General",
+    "",
+    "Apply the saved workspace guidance before narrower rules.",
+    "",
+    "## Brand voice",
+    "",
+    "Keep brand copy practical and precise.",
+    "",
+    "## Glossary",
+    "",
+    "Keep Hyperlocalise unchanged.",
+    "",
+    "## Protected tokens",
+    "",
+    "Never translate SKU-GENERAL.",
+    "",
+    "## Locale rules",
+    "",
+    "Use local checkout conventions.",
+    "",
+    "## Tone",
+    "",
+    "Avoid hype-heavy launch copy.",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
+function preferredFallbackWithHeadingOnlySiblingsMemory() {
+  return [
+    "# Memory.md",
+    "",
+    "## Protected tokens",
+    "",
+    "Never translate SKU-HEADING-ONLY.",
+    "",
+    "## Design principles",
+    "",
+    "## Implementation guidelines",
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -415,6 +470,24 @@ describe("selectKnowledgeMemoryContext", () => {
     );
   });
 
+  it("keeps heading-only siblings when a preferred fallback section has body text", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: preferredFallbackWithHeadingOnlySiblingsMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Memory.md heading fallback:");
+    expect(selected.compactText).toContain("Protected tokens");
+    expect(selected.compactText).toContain("Never translate SKU-HEADING-ONLY");
+    expect(selected.compactText).toContain("Design principles");
+    expect(selected.compactText).toContain("Implementation guidelines");
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
   it("keeps representative body text in the final parsed fallback", () => {
     const selected = selectKnowledgeMemoryContext({
       content: checkoutCopyFallbackMemory(),
@@ -445,6 +518,22 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.metrics.fallbackMode).toBe("general");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("keeps the general fallback anchor when many preferred sections compete", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: generalWithManyPreferredSectionsMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.compactText).toContain("Memory.md > General");
+    expect(selected.compactText).toContain("saved workspace guidance");
+    expect(selected.metrics.fallbackMode).toBe("general");
+    expect(selected.metrics.matchedHeadingPaths[0]).toBe("Memory.md > General");
+    expect(selected.metrics.selectedMemoryCount).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS,
     );
   });
 

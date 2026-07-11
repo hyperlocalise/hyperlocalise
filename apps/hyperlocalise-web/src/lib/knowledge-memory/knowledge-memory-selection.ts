@@ -258,7 +258,10 @@ function findGeneralFallbackSegments(
   const supportingSegments =
     preferredSegments.length > 0 ? preferredSegments : orderFallbackSegments(remainingSegments);
 
-  return [general, ...supportingSegments].slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+  return [
+    general,
+    ...supportingSegments.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS - 1),
+  ];
 }
 
 export function selectKnowledgeMemoryContext(
@@ -309,12 +312,7 @@ export function selectKnowledgeMemoryContext(
 
   const fallbackSegments = findDefaultFallbackSegments(segments);
   if (fallbackSegments.length > 0) {
-    return buildSelectedContext({
-      wholeMemoryChars: content.length,
-      selectedSegments: fallbackSegments,
-      fallbackMode: "fallback",
-      maxChars,
-    });
+    return buildRawFallbackContext(content, maxChars, fallbackSegments);
   }
 
   return buildRawFallbackContext(content, maxChars, segments);
