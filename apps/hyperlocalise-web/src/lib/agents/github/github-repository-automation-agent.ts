@@ -80,7 +80,7 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
 
   const result = await withAgentRuntimeUsageMetering({
     organizationId: input.organizationId,
-    operationKey: `github-commit-review:${input.commitSha}:agent_runs`,
+    operationKey: `github-commit-review:${input.organizationId}:${input.commitSha}:agent_runs`,
     source: "github_repository_commit_review",
     dimensions: {
       surface: "automation",

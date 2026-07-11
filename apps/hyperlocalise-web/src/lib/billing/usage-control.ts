@@ -375,6 +375,8 @@ export async function completeAndTrackBillableUsage(input: {
   interactionId?: string;
   aiCreditSource?: string;
   dimensions?: UsageEventDimensions;
+  autumnApiKey?: string;
+  fetchFn?: typeof fetch;
 }): Promise<Result<TrackUsageEventResult, UsageControlError>> {
   const tokenUsage = input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
 
@@ -398,6 +400,8 @@ export async function completeAndTrackBillableUsage(input: {
   const trackUsageResult = await trackUsageEventInAutumnByOperationKey({
     db: input.db,
     operationKey: input.operationKey,
+    autumnApiKey: input.autumnApiKey,
+    fetchFn: input.fetchFn,
   });
 
   if (!trackUsageResult.ok) {
@@ -413,6 +417,8 @@ export async function completeAndTrackBillableUsage(input: {
       source: input.aiCreditSource ?? "ai_token_usage",
       jobId: input.jobId,
       interactionId: input.interactionId,
+      autumnApiKey: input.autumnApiKey,
+      fetchFn: input.fetchFn,
     });
 
     if (!aiCreditResult.ok) {
@@ -421,6 +427,7 @@ export async function completeAndTrackBillableUsage(input: {
         operationKey: input.operationKey,
         error: formatUsageControlError(aiCreditResult.error),
       });
+      return aiCreditResult;
     }
   }
 

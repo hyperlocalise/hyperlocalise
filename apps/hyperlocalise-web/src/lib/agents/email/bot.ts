@@ -347,6 +347,21 @@ async function enqueuePendingTranslation(input: {
     "enqueueing pending translation",
   );
 
+  if (!organizationId) {
+    log.error("missing organization for pending translation");
+    await thread.post(
+      [
+        "This inbound email address isn't active for one of your organizations.",
+        "",
+        "Please use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+        "",
+        "—Hyperlocalise Agent",
+        `Request ID: ${pending.requestId}`,
+      ].join("\n"),
+    );
+    return;
+  }
+
   if (!pending.targetLocale) {
     log.info("missing target locale, requesting clarification");
     await thread.post(buildClarificationMessage(pending));
@@ -379,7 +394,10 @@ async function enqueuePendingTranslation(input: {
           imageAttachment,
           rawForImage,
           imageIntent,
-          organizationId ? { organizationId, interactionId: conversationId } : undefined,
+          {
+            organizationId,
+            interactionId: conversationId,
+          },
         );
       }
     } else {
@@ -432,24 +450,22 @@ async function enqueuePendingTranslation(input: {
 
     processedKeys.add(key);
     nextProcessedKeys.push(key);
-    const { jobId } = organizationId
-      ? await createTranslationJob({
-          organizationId,
-          conversationId,
-          requestId: pending.requestId,
-          subject: pending.subject,
-          senderEmail: pending.senderEmail,
-          attachment: {
-            id: att.id,
-            filename: att.filename,
-            contentType: att.contentType,
-            downloadUrl: att.downloadUrl,
-          },
-          sourceLocale: pending.sourceLocale,
-          targetLocale: pending.targetLocale,
-          instructions: pending.instructions,
-        })
-      : { jobId: `job_${randomUUID()}` };
+    const { jobId } = await createTranslationJob({
+      organizationId,
+      conversationId,
+      requestId: pending.requestId,
+      subject: pending.subject,
+      senderEmail: pending.senderEmail,
+      attachment: {
+        id: att.id,
+        filename: att.filename,
+        contentType: att.contentType,
+        downloadUrl: att.downloadUrl,
+      },
+      sourceLocale: pending.sourceLocale,
+      targetLocale: pending.targetLocale,
+      instructions: pending.instructions,
+    });
 
     queuedTasks.push({
       jobId,
@@ -506,16 +522,14 @@ async function enqueuePendingTranslation(input: {
     try {
       result = await queue.enqueue(task);
     } catch (error) {
-      if (organizationId) {
-        await failTranslationJobBeforeRun({
-          organizationId,
-          jobId,
-          reason: error instanceof Error ? error.message : "email translation queue unavailable",
-        });
-      }
+      await failTranslationJobBeforeRun({
+        organizationId,
+        jobId,
+        reason: error instanceof Error ? error.message : "email translation queue unavailable",
+      });
       throw error;
     }
-    if (organizationId && result.ids.length > 0) {
+    if (result.ids.length > 0) {
       await setTranslationJobWorkflowRun({
         organizationId,
         jobId,
@@ -767,6 +781,20 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
 
         if (track && conversationId) {
           wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+        }
+
+        if (!conversationOrganizationId) {
+          log.warn("no organization found for pending clarification");
+          await thread.post(
+            [
+              "This inbound email address isn't active for one of your organizations.",
+              "",
+              "Please use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+              "",
+              "—Hyperlocalise Agent",
+            ].join("\n"),
+          );
+          return;
         }
 
         log.info("resuming pending clarification");

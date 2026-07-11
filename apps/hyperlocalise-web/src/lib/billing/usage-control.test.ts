@@ -9,6 +9,7 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  completeAndTrackBillableUsage,
   markUsageEventSucceededByOperationKey,
   reserveUsageEvent,
   trackAiCreditUsageInAutumn,
@@ -258,6 +259,38 @@ describe("usage-control", () => {
     await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
       status: "tracking_failed",
       autumnTrackError: "Autumn usage tracking failed with HTTP 500",
+    });
+  });
+
+  it("returns AI credit tracking failure after the feature meter succeeds", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+      .mockResolvedValueOnce(new Response("bad", { status: 500 })) as unknown as typeof fetch;
+
+    const trackResult = await completeAndTrackBillableUsage({
+      organizationId: organization.id,
+      operationKey,
+      autumnEventName: "translation_job.completed",
+      unit: "job",
+      tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: false,
+      error: {
+        code: "autumn_usage_tracking_failed",
+        operationKey: `${operationKey}:ai_tokens`,
+      },
+    });
+    await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
+      status: "tracking_succeeded",
+    });
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      status: "tracking_failed",
     });
   });
 

@@ -103,10 +103,12 @@ function createDependencies() {
       firstName: "Sender",
       lastName: "Example",
     })),
-    resolveInboundEmailOrganization: vi.fn(async () => ({
-      id: "org_123",
-      inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
-    })),
+    resolveInboundEmailOrganization: vi.fn(
+      async (): Promise<{ id: string; inboundEmailAddress: string } | null> => ({
+        id: "org_123",
+        inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
+      }),
+    ),
     interpretEmailRequest: vi.fn(
       async (): Promise<EmailRequestIntent> => ({
         kind: "translate",
@@ -336,6 +338,41 @@ describe("createEmailHandler", () => {
         },
       }),
     );
+  });
+
+  it("stops pending clarification when organization resolution fails", async () => {
+    const dependencies = createDependencies();
+    dependencies.resolveInboundEmailOrganization.mockImplementationOnce(async () => null);
+    const { thread, posts, getState } = createThread({
+      pendingEmailAgentTask: {
+        kind: "translate",
+        requestId: "eml_pending",
+        senderEmail: "sender@example.com",
+        subject: "Translate",
+        originalMessageId: "message_original",
+        emailId: "email_original",
+        inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
+        attachments: [{ id: "att_123", filename: "homepage.xlsx", contentType: "text/csv" }],
+        sourceLocale: "en",
+        targetLocale: "fr",
+        instructions: null,
+      },
+    });
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "yes",
+        raw: { emailId: "email_reply", messageId: "message_reply", attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(posts[0]).toContain("isn't active for one of your organizations");
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+    expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
+    expect(getState().pendingEmailAgentTask).toBeDefined();
   });
 
   it("asks for confirmation when intent confidence is low", async () => {
