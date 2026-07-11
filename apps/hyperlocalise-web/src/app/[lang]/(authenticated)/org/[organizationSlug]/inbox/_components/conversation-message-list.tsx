@@ -11,14 +11,9 @@ import type {
 import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { memo, type ReactNode } from "react";
 
-import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
+import { ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import {
@@ -30,7 +25,18 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
+import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
 
 import {
@@ -78,55 +84,76 @@ export function ConversationMessageList({
   let renderedStream = false;
 
   return (
-    <Conversation className="min-h-0 flex-1">
-      <ConversationContent className="mx-auto w-full max-w-4xl gap-4 px-4 py-5 sm:px-6">
-        {isLoading ? (
-          <MessageListSkeleton />
-        ) : messages.length === 0 && !activeStream ? (
-          <ConversationEmptyState
-            className="min-h-96"
-            title="No messages yet"
-            description="Conversation messages will appear here."
-          />
-        ) : (
-          <>
-            {messages.map((message, index) => {
-              const previousMessage = messages[index - 1];
-              const shouldRenderStream =
-                message.senderType === "agent" &&
-                activeStream?.responseToMessageId === previousMessage?.id;
+    <MessageScrollerProvider
+      autoScroll
+      defaultScrollPosition="last-anchor"
+      scrollPreviousItemPeek={64}
+    >
+      <MessageScroller className="min-h-0 flex-1">
+        <MessageScrollerViewport>
+          <MessageScrollerContent className="mx-auto w-full max-w-4xl gap-4 px-4 py-5 sm:px-6">
+            {isLoading ? (
+              <MessageScrollerItem messageId="loading">
+                <MessageListSkeleton />
+              </MessageScrollerItem>
+            ) : messages.length === 0 && !activeStream ? (
+              <MessageScrollerItem messageId="empty">
+                <ConversationEmptyState
+                  className="min-h-96"
+                  title="No messages yet"
+                  description="Conversation messages will appear here."
+                />
+              </MessageScrollerItem>
+            ) : (
+              <>
+                {messages.map((message, index) => {
+                  const previousMessage = messages[index - 1];
+                  const shouldRenderStream =
+                    message.senderType === "agent" &&
+                    activeStream?.responseToMessageId === previousMessage?.id;
 
-              if (shouldRenderStream && activeStream) {
-                renderedStream = true;
-                return (
-                  <AssistantStreamMessage
-                    key={message.id}
-                    message={activeStream.message}
-                    isStreaming={isStreaming && activeStream.status === "streaming"}
-                    createdAt={message.createdAt}
-                  />
-                );
-              }
+                  if (shouldRenderStream && activeStream) {
+                    renderedStream = true;
+                    return (
+                      <MessageScrollerItem key={message.id} messageId={message.id}>
+                        <AssistantStreamMessage
+                          message={activeStream.message}
+                          isStreaming={isStreaming && activeStream.status === "streaming"}
+                          createdAt={message.createdAt}
+                        />
+                      </MessageScrollerItem>
+                    );
+                  }
 
-              return (
-                <PersistedMessage key={message.id} currentUser={currentUser} message={message} />
-              );
-            })}
+                  return (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={message.id}
+                      scrollAnchor={message.senderType === "user"}
+                    >
+                      <PersistedMessage currentUser={currentUser} message={message} />
+                    </MessageScrollerItem>
+                  );
+                })}
 
-            {activeStream &&
-            !renderedStream &&
-            messages.at(-1)?.id === activeStream.responseToMessageId ? (
-              <AssistantStreamMessage
-                message={activeStream.message}
-                isStreaming={isStreaming && activeStream.status === "streaming"}
-                createdAt={null}
-              />
-            ) : null}
-          </>
-        )}
-      </ConversationContent>
-      <ConversationScrollButton />
-    </Conversation>
+                {activeStream &&
+                !renderedStream &&
+                messages.at(-1)?.id === activeStream.responseToMessageId ? (
+                  <MessageScrollerItem messageId={activeStream.message.id}>
+                    <AssistantStreamMessage
+                      message={activeStream.message}
+                      isStreaming={isStreaming && activeStream.status === "streaming"}
+                      createdAt={null}
+                    />
+                  </MessageScrollerItem>
+                ) : null}
+              </>
+            )}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        <MessageScrollerButton />
+      </MessageScroller>
+    </MessageScrollerProvider>
   );
 }
 
@@ -265,26 +292,24 @@ function MessageFrame({
   createdAt: string | null;
   role: "user" | "assistant";
 }) {
-  const timestamp = (
-    <TypographyMuted className="mt-1 text-xs">
-      {createdAt ? formatRelativeTime(createdAt) : "now"}
-    </TypographyMuted>
-  );
+  const timestamp = createdAt ? formatRelativeTime(createdAt) : "now";
 
   if (role === "assistant") {
     return (
-      <Message from="assistant" className="w-full max-w-full">
+      <Message className="w-full max-w-full">
         <MessageContent className="w-full max-w-full leading-6">
           {children}
-          {timestamp}
+          <MessageFooter className="px-0">
+            <TypographyMuted className="text-xs">{timestamp}</TypographyMuted>
+          </MessageFooter>
         </MessageContent>
       </Message>
     );
   }
 
   return (
-    <Message from="user" className="max-w-[85%]">
-      <div className="flex flex-row-reverse items-start gap-3">
+    <Message align="end" className="max-w-[85%]">
+      <MessageAvatar className="size-8 self-start">
         <Avatar className="size-8 shrink-0 bg-muted">
           {avatarImageUrl ? (
             <AvatarImage src={avatarImageUrl} alt={avatarAlt ?? avatarLabel} />
@@ -293,11 +318,15 @@ function MessageFrame({
             {avatarLabel}
           </AvatarFallback>
         </Avatar>
-        <MessageContent className="leading-6">
+      </MessageAvatar>
+      <MessageContent className="leading-6">
+        <div className="w-fit max-w-full rounded-lg bg-muted px-4 py-3 text-foreground">
           {children}
-          {timestamp}
-        </MessageContent>
-      </div>
+        </div>
+        <MessageFooter className="px-0">
+          <TypographyMuted className="text-xs">{timestamp}</TypographyMuted>
+        </MessageFooter>
+      </MessageContent>
     </Message>
   );
 }
@@ -384,7 +413,12 @@ function AssistantMessageParts({
           <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
         </AiElementErrorBoundary>
       ) : isStreaming ? (
-        <TypingIndicator />
+        <Marker role="status">
+          <MarkerIcon>
+            <Spinner />
+          </MarkerIcon>
+          <MarkerContent>Hyperlocalise is working…</MarkerContent>
+        </Marker>
       ) : null}
     </>
   );
@@ -436,16 +470,6 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
         )}
       </SourcesContent>
     </Sources>
-  );
-}
-
-function TypingIndicator() {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
-    </span>
   );
 }
 
