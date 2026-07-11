@@ -31,8 +31,9 @@ const notoSerif = Noto_Serif({
 });
 
 const notoSerifSc = Noto_Serif_SC({
-  subsets: ["latin", "vietnamese"],
+  subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  preload: false,
   variable: "--font-heading",
 });
 
