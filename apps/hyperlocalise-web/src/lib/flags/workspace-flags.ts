@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { Adapter } from "flags";
 import { and, eq } from "drizzle-orm";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
@@ -7,7 +6,12 @@ import { db, schema } from "@/lib/database";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
 import { createWorkosIdentify } from "./identify-workos-context";
-import { workosAdapter } from "./workos-adapter";
+import {
+  workspaceAutomationsFlagDefinition,
+  workspaceKnowledgeFlagDefinition,
+  workspaceVisualMockFlagDefinition,
+  type WorkspaceFlagDefinition,
+} from "./workspace-flag-definitions";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
@@ -23,13 +27,6 @@ type WorkspaceFlagRunInput = {
 
 type WorkspaceFlag = {
   run(input: WorkspaceFlagRunInput): Promise<boolean>;
-};
-
-type WorkspaceFlagDefinition = {
-  key: string;
-  defaultValue: boolean;
-  description: string;
-  adapter: Adapter<boolean, WorkosFlagEntities>;
 };
 
 function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag {
@@ -50,26 +47,11 @@ function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag
   };
 }
 
-export const workspaceAutomationsFlag = createWorkspaceFlag({
-  key: WORKSPACE_AUTOMATIONS_FLAG,
-  defaultValue: false,
-  description: "Workspace automations for scheduled and GitHub-triggered workflows.",
-  adapter: workosAdapter(),
-});
+export const workspaceAutomationsFlag = createWorkspaceFlag(workspaceAutomationsFlagDefinition);
 
-export const workspaceKnowledgeFlag = createWorkspaceFlag({
-  key: WORKSPACE_KNOWLEDGE_FLAG,
-  defaultValue: false,
-  description: "Workspace knowledge memory for agents and teams.",
-  adapter: workosAdapter(),
-});
+export const workspaceKnowledgeFlag = createWorkspaceFlag(workspaceKnowledgeFlagDefinition);
 
-export const workspaceVisualMockFlag = createWorkspaceFlag({
-  key: WORKSPACE_VISUAL_MOCK_FLAG,
-  defaultValue: false,
-  description: "Visual mock skill for repository-backed Hyperlocalise agent previews.",
-  adapter: workosAdapter(),
-});
+export const workspaceVisualMockFlag = createWorkspaceFlag(workspaceVisualMockFlagDefinition);
 
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
