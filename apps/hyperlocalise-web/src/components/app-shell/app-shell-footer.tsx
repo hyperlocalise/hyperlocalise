@@ -35,26 +35,27 @@ export function AppShellFooter({
 
       <div className="flex h-[var(--app-shell-plan-footer-height)] shrink-0 items-stretch px-2">
         <div className="flex h-10 w-full items-center gap-2">
-          {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
           {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ms-auto"
-                  render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
-                  aria-label="Email support"
-                >
-                  <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} />
-                </Button>
-              }
-            />
-            <TooltipContent side="top" align="end">
-              Support
-            </TooltipContent>
-          </Tooltip>
+          <div className="ms-auto flex min-w-0 items-center gap-2">
+            {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
+                    aria-label="Email support"
+                  >
+                    <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} />
+                  </Button>
+                }
+              />
+              <TooltipContent side="top" align="end">
+                Support
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
     </footer>

@@ -108,7 +108,7 @@ describe("AppShellFooter", () => {
     );
   });
 
-  it("hosts chat tabs on the left of the footer status row", async () => {
+  it("hosts chat tabs on the right of the footer status row with support", async () => {
     const user = userEvent.setup();
     autumnMocks.useCustomer.mockReturnValue({
       data: null,
@@ -124,8 +124,12 @@ describe("AppShellFooter", () => {
     renderFooter({ showPlan: false, withChat: true });
 
     const newChat = screen.getByRole("button", { name: "New chat" });
+    const support = screen.getByRole("link", { name: "Email support" });
     expect(newChat.closest("footer")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Email support" })).toBeTruthy();
+    expect(support.closest("footer")).toBeTruthy();
+    expect(
+      newChat.compareDocumentPosition(support) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     await user.click(newChat);
     const tablist = screen.getByRole("tablist", { name: "Chat conversations" });
