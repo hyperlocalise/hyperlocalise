@@ -376,6 +376,47 @@ function preferredFallbackWithHeadingOnlySiblingsMemory() {
   ].join("\n");
 }
 
+function densePreferredFallbackMemory() {
+  const denseBody = (heading: string) =>
+    [
+      `${heading} must stay available in fallback context.`,
+      ...Array.from(
+        { length: 18 },
+        (_, index) =>
+          `${heading} detailed rule ${index + 1}: preserve saved guidance when lexical retrieval misses.`,
+      ),
+    ].join(" ");
+
+  return [
+    "# Memory.md",
+    "",
+    "## Brand voice",
+    "",
+    denseBody("Brand voice"),
+    "",
+    "## Glossary",
+    "",
+    denseBody("Glossary"),
+    "",
+    "## Protected tokens",
+    "",
+    denseBody("Protected tokens"),
+    "",
+    "## Locale rules",
+    "",
+    denseBody("Locale rules"),
+    "",
+    "## Tone",
+    "",
+    denseBody("Tone"),
+    "",
+    ...Array.from(
+      { length: 90 },
+      (_, index) => `## Operations note ${index + 1}\n\nInternal archive note ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -634,6 +675,25 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.metrics.matchedHeadingPaths[0]).toBe("Memory.md > General");
     expect(selected.metrics.selectedMemoryCount).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS,
+    );
+  });
+
+  it("balances dense fallback section bodies after the heading outline", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: densePreferredFallbackMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated source text",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Brand voice");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Glossary");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Protected tokens");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Locale rules");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Tone");
+    expect(selected.compactText).toContain("Tone must stay available");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
   });
 

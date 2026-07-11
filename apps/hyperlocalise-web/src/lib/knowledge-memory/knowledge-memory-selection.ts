@@ -72,9 +72,10 @@ function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
 function maxCharsPerSelectedSegment(input: {
   maxChars: number;
   selectedSegmentCount: number;
-  requestedLocaleCount: number;
+  shouldBalance: boolean;
+  reservedChars?: number;
 }) {
-  if (input.requestedLocaleCount <= 1) {
+  if (!input.shouldBalance) {
     return undefined;
   }
 
@@ -82,12 +83,18 @@ function maxCharsPerSelectedSegment(input: {
     return undefined;
   }
 
+  const availableChars = Math.max(0, input.maxChars - (input.reservedChars ?? 0));
+
   return Math.max(
     80,
     Math.floor(
-      (input.maxChars - Math.max(0, input.selectedSegmentCount - 1)) / input.selectedSegmentCount,
+      (availableChars - Math.max(0, input.selectedSegmentCount - 1)) / input.selectedSegmentCount,
     ),
   );
+}
+
+function headingFallbackReservedChars(headingFallbackText: string, maxChars: number) {
+  return Math.min(headingFallbackText.length, Math.min(maxChars, 1_200)) + 1;
 }
 
 function buildSelectedContext(input: {
@@ -351,30 +358,47 @@ export function selectKnowledgeMemoryContext(
       maxSegmentChars: maxCharsPerSelectedSegment({
         maxChars,
         selectedSegmentCount: selectedSegments.length,
-        requestedLocaleCount,
+        shouldBalance: requestedLocaleCount > 1,
       }),
     });
   }
 
   const general = findGeneralFallback(segments);
   if (general) {
+    const headingFallbackText = buildHeadingFallbackText(content);
+    const selectedSegments = findGeneralFallbackSegments(general, segments);
+
     return buildSelectedContext({
       wholeMemoryChars: content.length,
-      selectedSegments: findGeneralFallbackSegments(general, segments),
+      selectedSegments,
       fallbackMode: "general",
       maxChars,
-      headingFallbackText: buildHeadingFallbackText(content),
+      headingFallbackText,
+      maxSegmentChars: maxCharsPerSelectedSegment({
+        maxChars,
+        selectedSegmentCount: selectedSegments.length,
+        shouldBalance: true,
+        reservedChars: headingFallbackReservedChars(headingFallbackText, maxChars),
+      }),
     });
   }
 
   const fallbackSegments = findDefaultFallbackSegments(segments);
   if (fallbackSegments.length > 0) {
+    const headingFallbackText = buildHeadingFallbackText(content);
+
     return buildSelectedContext({
       wholeMemoryChars: content.length,
       selectedSegments: fallbackSegments,
       fallbackMode: "fallback",
       maxChars,
-      headingFallbackText: buildHeadingFallbackText(content),
+      headingFallbackText,
+      maxSegmentChars: maxCharsPerSelectedSegment({
+        maxChars,
+        selectedSegmentCount: fallbackSegments.length,
+        shouldBalance: true,
+        reservedChars: headingFallbackReservedChars(headingFallbackText, maxChars),
+      }),
     });
   }
 
