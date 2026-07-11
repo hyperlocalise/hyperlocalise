@@ -202,6 +202,34 @@ function extensionLocaleMemoryWithDistractors() {
   ].join("\n");
 }
 
+function languageLevelLocaleMemoryWithDistractors() {
+  return [
+    "# Memory.md",
+    "",
+    "## French guidance",
+    "",
+    "### fr",
+    "",
+    "Use formal French address for checkout confirmations.",
+    "",
+    "## Portuguese guidance",
+    "",
+    "### pt",
+    "",
+    "Use concise Portuguese checkout confirmations.",
+    "",
+    ...Array.from(
+      { length: 10 },
+      (_, index) =>
+        `## Generic payment note ${index + 1}\n\nPayment confirmation copy should stay short.`,
+    ),
+    ...Array.from(
+      { length: 70 },
+      (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 function longHeadingOnlyMemory() {
   return [
     "# Memory.md",
@@ -692,6 +720,20 @@ describe("selectKnowledgeMemoryContext", () => {
     );
     expect(selected.metrics.matchedHeadingPaths).toContain(
       "Memory.md > Formal German > de-DE-x-formal",
+    );
+  });
+
+  it("boosts language-level sections for regional target locales", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: languageLevelLocaleMemoryWithDistractors(),
+      targetLocales: ["fr-FR", "pt-BR"],
+      sourceText: "Checkout confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > French guidance > fr");
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Portuguese guidance > pt",
     );
   });
 

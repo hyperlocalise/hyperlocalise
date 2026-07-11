@@ -114,6 +114,37 @@ function normalizeLocaleForSearch(locale: string) {
   return locale.toLowerCase().replace(/_/g, "-");
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function localeSearchCandidates(normalizedLocale: string) {
+  const language = normalizedLocale.split("-")[0];
+  return language && language !== normalizedLocale
+    ? [normalizedLocale, language]
+    : [normalizedLocale];
+}
+
+function includesLocaleMarker(text: string, locale: string) {
+  return new RegExp(`(^|[^a-z0-9])${escapeRegExp(locale)}([^a-z0-9]|$)`).test(text);
+}
+
+function includesLanguageMarker(text: string, language: string) {
+  return new RegExp(`(^|[^a-z0-9])${escapeRegExp(language)}([^a-z0-9-]|$)`).test(text);
+}
+
+function includesAnyLocaleMarker(text: string, normalizedLocale: string) {
+  const [fullLocale, language] = localeSearchCandidates(normalizedLocale);
+  if (!fullLocale) {
+    return false;
+  }
+
+  return (
+    includesLocaleMarker(text, fullLocale) ||
+    (language ? includesLanguageMarker(text, language) : false)
+  );
+}
+
 function inputLocalesFromParts(queryParts: string[]) {
   return uniqueValues(
     queryParts
@@ -147,9 +178,9 @@ function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
   for (const normalizedLocale of inputLocalesFromParts(queryParts)) {
     const headingText = normalizeLocaleForSearch(segment.headingPath.join(" "));
     const searchText = normalizeLocaleForSearch(segment.searchText);
-    if (headingText.includes(normalizedLocale)) {
+    if (includesAnyLocaleMarker(headingText, normalizedLocale)) {
       score += 12;
-    } else if (searchText.includes(normalizedLocale)) {
+    } else if (includesAnyLocaleMarker(searchText, normalizedLocale)) {
       score += 6;
     }
   }
