@@ -404,8 +404,8 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
       };
 
   return (
-    <Tool defaultOpen={part.state !== "output-available"}>
-      <ToolHeader {...headerProps} />
+    <Tool>
+      <ToolHeader {...headerProps} input={part.input} />
       <ToolContent>
         <ToolInput input={part.input} />
         <ToolOutput output={part.output} errorText={part.errorText} />
