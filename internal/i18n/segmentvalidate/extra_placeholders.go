@@ -25,9 +25,14 @@ func extractExtraPlaceholders(text string) []string {
 
 	var out []string
 	for _, pattern := range extraPlaceholderPatterns {
-		for _, match := range pattern.FindAllString(text, -1) {
-			match = strings.TrimSpace(match)
+		for _, loc := range pattern.FindAllStringIndex(text, -1) {
+			match := strings.TrimSpace(text[loc[0]:loc[1]])
 			if match == "" {
+				continue
+			}
+			// Printf-style %% escapes a literal percent. Skip matches whose
+			// leading '%' is the second half of an escape pair (e.g. %%@).
+			if strings.HasPrefix(match, "%") && isEscapedPercentAt(text, loc[0]) {
 				continue
 			}
 			out = append(out, match)
@@ -40,6 +45,20 @@ func extractExtraPlaceholders(text string) []string {
 
 	sort.Strings(out)
 	return out
+}
+
+// isEscapedPercentAt reports whether text[index] is '%' that belongs to a
+// %% escape rather than starting a format placeholder. An odd run of '%'
+// ending at index is a real placeholder; an even run is escaped.
+func isEscapedPercentAt(text string, index int) bool {
+	if index < 0 || index >= len(text) || text[index] != '%' {
+		return false
+	}
+	count := 0
+	for i := index; i >= 0 && text[i] == '%'; i-- {
+		count++
+	}
+	return count%2 == 0
 }
 
 func validateExtraPlaceholderParity(source, translated string) error {
