@@ -321,7 +321,7 @@ describe("createEmailHandler", () => {
     );
 
     expect(posts[0]).toContain("Thanks. I've queued");
-    expect(dependencies.resolveInboundEmailOrganization).not.toHaveBeenCalled();
+    expect(dependencies.resolveInboundEmailOrganization).toHaveBeenCalled();
     expect(dependencies.interpretClarificationReply).toHaveBeenCalledWith(
       expect.objectContaining({ text: "English to French" }),
     );
@@ -462,6 +462,7 @@ describe("createEmailHandler", () => {
       expect.objectContaining({ type: "image", name: "banner.png" }),
       expect.objectContaining({ emailId: "email_123" }),
       expect.objectContaining({ targetLocale: "fr" }),
+      expect.objectContaining({ organizationId: "org_123" }),
     );
     expect(dependencies.interpretEmailRequest).toHaveBeenCalled();
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
@@ -703,6 +704,7 @@ describe("createEmailHandler", () => {
       expect.objectContaining({ type: "image", name: "banner.png" }),
       expect.objectContaining({ emailId: "email_original" }),
       expect.objectContaining({ targetLocale: "fr" }),
+      expect.objectContaining({ organizationId: "org_123" }),
     );
     expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
     expect(getState().pendingEmailAgentTask).toBeUndefined();

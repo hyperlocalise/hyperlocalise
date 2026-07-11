@@ -103,12 +103,14 @@ export function buildImageLocalizationPrompt(input: LocalizeImageAttachmentInput
 export async function localizeImageAttachment(input: LocalizeImageAttachmentInput) {
   const image = await getImageAttachmentData(input.attachment);
   const prompt = buildImageLocalizationPrompt(input);
-  const result = await regenerateImageFromAttachment(
-    image,
-    input.attachment.mimeType ?? "image/png",
-    prompt,
-    input.billing,
-  );
+  const result = input.billing
+    ? await regenerateImageFromAttachment(
+        image,
+        input.attachment.mimeType ?? "image/png",
+        prompt,
+        input.billing,
+      )
+    : await regenerateImageFromAttachment(image, input.attachment.mimeType ?? "image/png", prompt);
   const mimeType = result.mimeType || "image/png";
 
   return {

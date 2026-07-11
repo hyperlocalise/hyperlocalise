@@ -725,29 +725,37 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         // Conversation tracking for pending clarification
         let conversationId: string | undefined;
         let conversationOrganizationId: string | undefined;
+        try {
+          const organization = await dependencies.resolveInboundEmailOrganization({
+            senderUserId: user.id,
+            recipientAddresses: raw.to ?? [],
+          });
+          if (organization) {
+            conversationOrganizationId = organization.id;
+          }
+        } catch (resolveError) {
+          log.error(
+            { error: resolveError instanceof Error ? resolveError.message : String(resolveError) },
+            "failed to resolve organization for pending clarification",
+          );
+        }
+
         const track = dependencies.trackConversation;
-        if (track) {
+        if (track && conversationOrganizationId) {
           try {
-            const organization = await dependencies.resolveInboundEmailOrganization({
-              senderUserId: user.id,
-              recipientAddresses: raw.to ?? [],
+            const existing = await track.findBySourceThreadId({
+              organizationId: conversationOrganizationId,
+              source: "email_agent",
+              sourceThreadId: thread.id,
             });
-            if (organization) {
-              conversationOrganizationId = organization.id;
-              const existing = await track.findBySourceThreadId({
-                organizationId: organization.id,
-                source: "email_agent",
-                sourceThreadId: thread.id,
+            if (existing) {
+              conversationId = existing.id;
+              await track.addMessage({
+                interactionId: conversationId,
+                senderType: "user",
+                text: message.text,
+                senderEmail,
               });
-              if (existing) {
-                conversationId = existing.id;
-                await track.addMessage({
-                  interactionId: conversationId,
-                  senderType: "user",
-                  text: message.text,
-                  senderEmail,
-                });
-              }
             }
           } catch (trackError) {
             log.error(

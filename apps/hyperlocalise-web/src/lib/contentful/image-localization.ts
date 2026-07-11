@@ -63,12 +63,12 @@ export async function localizeContentfulAssetForLocale(input: {
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
   });
-  const localized = await regenerateImageFromAttachment(
-    downloadedResult.value.buffer,
-    downloadedResult.value.contentType,
-    prompt,
-    input.organizationId
-      ? {
+  const localized = input.organizationId
+    ? await regenerateImageFromAttachment(
+        downloadedResult.value.buffer,
+        downloadedResult.value.contentType,
+        prompt,
+        {
           organizationId: input.organizationId,
           operationKey: `image-localization:contentful:${input.runId ?? input.assetId}:${input.targetLocale}`,
           source: "contentful_image_localization",
@@ -77,9 +77,13 @@ export async function localizeContentfulAssetForLocale(input: {
             asset_id: input.assetId,
             target_locale: input.targetLocale,
           },
-        }
-      : undefined,
-  );
+        },
+      )
+    : await regenerateImageFromAttachment(
+        downloadedResult.value.buffer,
+        downloadedResult.value.contentType,
+        prompt,
+      );
   const localizedFileName = localizedImageOutputFilename(
     downloadedResult.value.fileName,
     input.targetLocale,
