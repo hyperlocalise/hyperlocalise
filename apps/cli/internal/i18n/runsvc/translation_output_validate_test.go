@@ -13,7 +13,9 @@ func TestTranslationOutputKindForSourcePath(t *testing.T) {
 		want segmentvalidate.FormatKind
 	}{
 		{"/content/en/guide.md", segmentvalidate.FormatMarkdown},
+		{"file.markdown", segmentvalidate.FormatMarkdown},
 		{"/srv/page.html", segmentvalidate.FormatHTML},
+		{"file.htm", segmentvalidate.FormatHTML},
 		{"/srv/sections/header.liquid", segmentvalidate.FormatLiquid},
 		{"/pkg/messages.json", segmentvalidate.FormatICUInvariant},
 	}

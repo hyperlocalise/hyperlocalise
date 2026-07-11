@@ -101,7 +101,7 @@ func validateForKind(kind FormatKind, source, translated string) error {
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return fmt.Errorf("raw HTML syntax introduced in translated markdown")
 		}
-		return nil
+		err = validateICUInvariant(source, translated)
 	case FormatHTML:
 		if htmltagparity.Mismatch(source, translated) {
 			return fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))
