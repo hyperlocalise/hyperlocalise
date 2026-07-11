@@ -138,7 +138,11 @@ export async function markEmailTranslationJobSucceeded(input: {
   });
 
   if (isErr(trackUsageResult)) {
-    throw new Error(formatUsageControlError(trackUsageResult.error));
+    console.error("[email-translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
   }
 }
 
@@ -460,7 +464,11 @@ export async function completeFileTranslationJobStep(input: {
   });
 
   if (isErr(trackUsageResult)) {
-    throw new Error(formatUsageControlError(trackUsageResult.error));
+    console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
   }
 }
 

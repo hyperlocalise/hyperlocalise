@@ -390,7 +390,11 @@ class TranslationJobCompletionService {
       aiCreditSource: "translation_job_complete",
     });
     if (isErr(trackUsageResult)) {
-      throw new Error(formatUsageControlError(trackUsageResult.error));
+      console.error("[translation-job] Autumn usage tracking failed after job succeeded", {
+        jobId: input.jobId,
+        operationKey,
+        error: formatUsageControlError(trackUsageResult.error),
+      });
     }
 
     const succeededJob = await this.repository.getStored(input.jobId, input.projectId);

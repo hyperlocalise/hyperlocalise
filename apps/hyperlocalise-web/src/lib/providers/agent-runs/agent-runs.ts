@@ -306,7 +306,6 @@ async function trackCompletedAgentRunUsage(input: {
       operationKey,
       error: formatUsageControlError(trackUsageResult.error),
     });
-    throw new Error(formatUsageControlError(trackUsageResult.error));
   }
 }
 

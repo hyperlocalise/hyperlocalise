@@ -65,7 +65,7 @@ describe("agent-runtime-usage", () => {
     );
   });
 
-  it("rethrows when marking usage succeeded throws", async () => {
+  it("fails open when marking usage succeeded throws", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     completeAndTrackBillableUsageMock.mockRejectedValue(new Error("database unavailable"));
 
@@ -74,7 +74,7 @@ describe("agent-runtime-usage", () => {
         organizationId: "org_123",
         operationKey: "agent-run:test",
       }),
-    ).rejects.toThrow("database unavailable");
+    ).resolves.toBeUndefined();
 
     expect(consoleError).toHaveBeenCalledWith(
       "[agent-runtime-usage] usage event completion threw",
@@ -85,7 +85,7 @@ describe("agent-runtime-usage", () => {
     );
   });
 
-  it("rethrows when billable usage completion returns an error", async () => {
+  it("fails open when billable usage completion returns an error", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     completeAndTrackBillableUsageMock.mockResolvedValue({
       ok: false,
@@ -97,7 +97,7 @@ describe("agent-runtime-usage", () => {
         organizationId: "org_123",
         operationKey: "agent-run:test",
       }),
-    ).rejects.toThrow("autumn_usage_tracking_failed");
+    ).resolves.toBeUndefined();
 
     expect(consoleError).toHaveBeenCalledWith(
       "[agent-runtime-usage] usage event completion failed",
@@ -180,7 +180,7 @@ describe("agent-runtime-usage", () => {
     expect(completeAndTrackBillableUsageMock).not.toHaveBeenCalled();
   });
 
-  it("propagates usage completion failures after a successful run", async () => {
+  it("still returns the successful run when usage completion fails", async () => {
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
     completeAndTrackBillableUsageMock.mockResolvedValue({
       ok: false,
@@ -195,7 +195,7 @@ describe("agent-runtime-usage", () => {
         source: "workspace_orchestrator",
         run: async () => ({ text: "done" }),
       }),
-    ).rejects.toThrow("autumn_usage_tracking_failed");
+    ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
   });
