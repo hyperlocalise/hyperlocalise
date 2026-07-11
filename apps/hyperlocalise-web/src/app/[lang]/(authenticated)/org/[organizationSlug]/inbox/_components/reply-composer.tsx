@@ -48,7 +48,9 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
 
 type ReplyComposerViewProps = {
   disabled: boolean;
+  draft?: string;
   isStreaming: boolean;
+  onDraftChange?: (draft: string) => void;
   onSend: (
     text: string,
     files: File[],
@@ -61,13 +63,15 @@ type ReplyComposerViewProps = {
 
 export function ReplyComposerView({
   disabled,
+  draft = "",
   isStreaming,
+  onDraftChange,
   onSend,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
 }: ReplyComposerViewProps) {
-  const [replyText, setReplyText] = useState("");
+  const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
 
   useEffect(() => {
@@ -96,6 +100,7 @@ export function ReplyComposerView({
       repositoryFullName: resolvedRepositoryFullName || undefined,
     });
     setReplyText("");
+    onDraftChange?.("");
     attachments.clear();
   };
 
@@ -126,7 +131,11 @@ export function ReplyComposerView({
             )}
             <PromptInputTextarea
               disabled={disabled}
-              onChange={(event) => setReplyText(event.currentTarget.value)}
+              onChange={(event) => {
+                const next = event.currentTarget.value;
+                setReplyText(next);
+                onDraftChange?.(next);
+              }}
               className="min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
               placeholder={
                 isStreaming
@@ -190,6 +199,7 @@ type ReplyComposerProps = Omit<
 export const ReplyComposer = memo(function ReplyComposer({
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
+  draft,
   ...viewProps
 }: ReplyComposerProps) {
   const repositoriesQuery = useQuery({
@@ -198,9 +208,10 @@ export const ReplyComposer = memo(function ReplyComposer({
   });
 
   return (
-    <PromptInputProvider>
+    <PromptInputProvider initialInput={draft ?? ""}>
       <ReplyComposerView
         {...viewProps}
+        draft={draft}
         repositories={repositoriesQuery.data ?? []}
         repositoriesIsError={repositoriesQuery.isError}
         repositoriesIsLoading={repositoriesQuery.isLoading}
