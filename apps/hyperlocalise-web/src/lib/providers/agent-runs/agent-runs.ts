@@ -171,19 +171,30 @@ export async function completeAgentRun(input: {
   changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
-  const run = await finishAgentRun({
+  const existing = await getAgentRun({
     runId: input.runId,
     organizationId: input.organizationId,
-    status: "succeeded",
-    outputSummary: input.outputSummary,
-    changedItems: input.changedItems,
-    warnings: input.warnings,
   });
+  if (!existing) {
+    throw new Error("Agent run not found");
+  }
+
+  const run =
+    existing.status === "succeeded"
+      ? existing
+      : await finishAgentRun({
+          runId: input.runId,
+          organizationId: input.organizationId,
+          status: "succeeded",
+          outputSummary: input.outputSummary,
+          changedItems: input.changedItems,
+          warnings: input.warnings,
+        });
 
   await trackCompletedAgentRunUsage({
     runId: input.runId,
     organizationId: input.organizationId,
-    outputSummary: input.outputSummary,
+    outputSummary: input.outputSummary ?? (run.outputSummary as AgentRunOutputSummary),
   });
 
   return run;
@@ -295,6 +306,7 @@ async function trackCompletedAgentRunUsage(input: {
       operationKey,
       error: formatUsageControlError(trackUsageResult.error),
     });
+    throw new Error(formatUsageControlError(trackUsageResult.error));
   }
 }
 

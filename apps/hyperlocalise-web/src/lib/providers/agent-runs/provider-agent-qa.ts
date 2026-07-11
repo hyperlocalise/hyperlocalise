@@ -232,6 +232,11 @@ export async function prepareProviderAgentQaRun(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     const storedReport = readStoredReport(outputSummary);
     return {

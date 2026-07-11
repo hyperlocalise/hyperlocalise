@@ -91,8 +91,9 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   tokenUsage?: AiTokenUsage | null;
   interactionId?: string | null;
 }) {
+  let trackUsageResult;
   try {
-    const trackUsageResult = await completeAndTrackBillableUsage({
+    trackUsageResult = await completeAndTrackBillableUsage({
       organizationId: input.organizationId,
       operationKey: input.operationKey,
       autumnEventName: "agent_run.completed",
@@ -102,21 +103,23 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       interactionId: input.interactionId ?? undefined,
       aiCreditSource: "agent_runtime_complete",
     });
-
-    if (isErr(trackUsageResult)) {
-      logAgentRuntimeUsageError("usage event completion failed", {
-        organizationId: input.organizationId,
-        operationKey: input.operationKey,
-        dimensions: input.dimensions,
-        error: formatUsageControlError(trackUsageResult.error),
-      });
-    }
   } catch (error) {
     logAgentRuntimeUsageError("usage event completion threw", {
       organizationId: input.organizationId,
       operationKey: input.operationKey,
       err: serializeErrorForLog(error),
     });
+    throw error;
+  }
+
+  if (isErr(trackUsageResult)) {
+    logAgentRuntimeUsageError("usage event completion failed", {
+      organizationId: input.organizationId,
+      operationKey: input.operationKey,
+      dimensions: input.dimensions,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
+    throw new Error(formatUsageControlError(trackUsageResult.error));
   }
 }
 

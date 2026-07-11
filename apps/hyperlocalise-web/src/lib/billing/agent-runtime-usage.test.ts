@@ -65,7 +65,7 @@ describe("agent-runtime-usage", () => {
     );
   });
 
-  it("fails open when marking usage succeeded throws", async () => {
+  it("rethrows when marking usage succeeded throws", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     completeAndTrackBillableUsageMock.mockRejectedValue(new Error("database unavailable"));
 
@@ -74,13 +74,37 @@ describe("agent-runtime-usage", () => {
         organizationId: "org_123",
         operationKey: "agent-run:test",
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("database unavailable");
 
     expect(consoleError).toHaveBeenCalledWith(
       "[agent-runtime-usage] usage event completion threw",
       expect.objectContaining({
         organizationId: "org_123",
         operationKey: "agent-run:test",
+      }),
+    );
+  });
+
+  it("rethrows when billable usage completion returns an error", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    completeAndTrackBillableUsageMock.mockResolvedValue({
+      ok: false,
+      error: { code: "autumn_usage_tracking_failed" },
+    });
+
+    await expect(
+      trackSucceededAgentRuntimeUsage({
+        organizationId: "org_123",
+        operationKey: "agent-run:test",
+      }),
+    ).rejects.toThrow("autumn_usage_tracking_failed");
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[agent-runtime-usage] usage event completion failed",
+      expect.objectContaining({
+        organizationId: "org_123",
+        operationKey: "agent-run:test",
+        error: "autumn_usage_tracking_failed",
       }),
     );
   });
@@ -154,5 +178,25 @@ describe("agent-runtime-usage", () => {
     ).rejects.toThrow("agent failed");
 
     expect(completeAndTrackBillableUsageMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates usage completion failures after a successful run", async () => {
+    reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
+    completeAndTrackBillableUsageMock.mockResolvedValue({
+      ok: false,
+      error: { code: "autumn_usage_tracking_failed" },
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      withAgentRuntimeUsageMetering({
+        organizationId: "org_123",
+        operationKey: "workspace-automation:run_tokens_fail:agent_runs",
+        source: "workspace_orchestrator",
+        run: async () => ({ text: "done" }),
+      }),
+    ).rejects.toThrow("autumn_usage_tracking_failed");
+
+    expect(consoleError).toHaveBeenCalled();
   });
 });

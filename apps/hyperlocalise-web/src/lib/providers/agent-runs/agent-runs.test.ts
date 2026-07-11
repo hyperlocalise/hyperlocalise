@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -25,7 +25,15 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+  );
+});
+
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await projectFixture.cleanup();
 });
 
