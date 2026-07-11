@@ -6,7 +6,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 
-import { ConversationDetails } from "./conversation-details";
 import { ConversationMessageList } from "./conversation-message-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import {
@@ -67,49 +66,32 @@ export function ConversationPanel({
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <InboxPanelErrorBoundary
-          scope="details"
-          resetKeys={[conversation.id, jobs.length, jobsIsLoading]}
+          scope="messages"
+          className="min-h-0 flex-1"
+          resetKeys={[conversation.id, messages, streamedAssistant?.message]}
         >
-          <ConversationDetails
-            conversation={conversation}
-            jobs={jobs}
-            jobsIsLoading={jobsIsLoading}
-            organizationSlug={organizationSlug}
+          <ConversationMessageList
+            conversationId={conversation.id}
+            currentUser={currentUser}
+            isLoading={messagesIsLoading}
+            isStreaming={isStreaming}
+            messages={messages}
+            streamedAssistant={streamedAssistant}
           />
         </InboxPanelErrorBoundary>
 
-        <div className="flex min-h-0 flex-1 flex-col xl:pr-80">
-          <InboxPanelErrorBoundary
-            scope="messages"
-            className="min-h-0 flex-1"
-            resetKeys={[conversation.id, messages, streamedAssistant?.message]}
-          >
-            <ConversationMessageList
-              conversationId={conversation.id}
-              currentUser={currentUser}
-              isLoading={messagesIsLoading}
+        {isChatUi ? (
+          <InboxPanelErrorBoundary scope="composer" resetKeys={[conversation.id, composerDisabled]}>
+            <ReplyComposer
+              disabled={composerDisabled}
               isStreaming={isStreaming}
-              messages={messages}
-              streamedAssistant={streamedAssistant}
+              onSend={onSendMessage}
+              organizationSlug={organizationSlug}
             />
           </InboxPanelErrorBoundary>
-
-          {isChatUi ? (
-            <InboxPanelErrorBoundary
-              scope="composer"
-              resetKeys={[conversation.id, composerDisabled]}
-            >
-              <ReplyComposer
-                disabled={composerDisabled}
-                isStreaming={isStreaming}
-                onSend={onSendMessage}
-                organizationSlug={organizationSlug}
-              />
-            </InboxPanelErrorBoundary>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </section>
   );

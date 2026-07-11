@@ -11,7 +11,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { inboxPanelErrorBoundaryMessages } from "./inbox-panel-error-boundary.messages";
 
-export type InboxPanelErrorBoundaryScope = "list" | "messages" | "details" | "composer";
+export type InboxPanelErrorBoundaryScope = "list" | "messages" | "composer";
 
 type InboxPanelErrorBoundaryProps = {
   children: ReactNode;
@@ -23,7 +23,6 @@ type InboxPanelErrorBoundaryProps = {
 const panelTitleMessageByScope = {
   list: inboxPanelErrorBoundaryMessages.listTitle,
   messages: inboxPanelErrorBoundaryMessages.messagesTitle,
-  details: inboxPanelErrorBoundaryMessages.detailsTitle,
   composer: inboxPanelErrorBoundaryMessages.composerTitle,
 } as const;
 

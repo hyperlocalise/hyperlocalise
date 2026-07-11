@@ -96,13 +96,13 @@ export const ConversationScrollButton = ({
             <Button
               aria-label={intl.formatMessage(conversationMessages.scrollToBottomAria)}
               className={cn(
-                "absolute bottom-4 start-[50%] translate-x-[-50%] rtl:-translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
+                "absolute bottom-4 start-[50%] z-10 translate-x-[-50%] rounded-full shadow-md rtl:-translate-x-[-50%]",
                 className,
               )}
               onClick={handleScrollToBottom}
               size="icon"
               type="button"
-              variant="outline"
+              variant="secondary"
               {...props}
             >
               <ArrowDownIcon className="size-4" />

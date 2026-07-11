@@ -5,13 +5,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/primitives/cn";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
-  CheckCircleIcon,
-  ChevronDownIcon,
+  CheckmarkCircle02Icon,
   CircleIcon,
-  ClockIcon,
-  WrenchIcon,
-  XCircleIcon,
-} from "lucide-react";
+  Clock01Icon,
+  MultiplicationSignCircleIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -23,9 +22,10 @@ import { TypographyH4 } from "@/components/ui/typography";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
 
-export const Tool = ({ className, ...props }: ToolProps) => (
+export const Tool = ({ className, defaultOpen = false, ...props }: ToolProps) => (
   <Collapsible
-    className={cn("group not-prose mb-4 w-full rounded-md border", className)}
+    className={cn("group not-prose mb-1 w-full", className)}
+    defaultOpen={defaultOpen}
     {...props}
   />
 );
@@ -35,6 +35,9 @@ export type ToolPart = ToolUIPart | DynamicToolUIPart;
 export type ToolHeaderProps = {
   title?: string;
   className?: string;
+  /** Optional muted trailing detail. Overrides auto-derived input/status detail. */
+  detail?: string;
+  input?: ToolPart["input"];
 } & (
   | { type: ToolUIPart["type"]; state: ToolUIPart["state"]; toolName?: never }
   | {
@@ -55,14 +58,79 @@ const statusMessageKeys: Record<ToolPart["state"], keyof typeof toolMessages> = 
 };
 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
-  "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
-  "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
-  "input-available": <ClockIcon className="size-4 animate-pulse" />,
-  "input-streaming": <CircleIcon className="size-4" />,
-  "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
-  "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
-  "output-error": <XCircleIcon className="size-4 text-red-600" />,
+  "approval-requested": (
+    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 text-yellow-600" />
+  ),
+  "approval-responded": (
+    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-blue-600" />
+  ),
+  "input-available": (
+    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 animate-pulse" />
+  ),
+  "input-streaming": <HugeiconsIcon icon={CircleIcon} strokeWidth={2} className="size-4" />,
+  "output-available": (
+    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-green-600" />
+  ),
+  "output-denied": (
+    <HugeiconsIcon
+      icon={MultiplicationSignCircleIcon}
+      strokeWidth={2}
+      className="size-4 text-orange-600"
+    />
+  ),
+  "output-error": (
+    <HugeiconsIcon
+      icon={MultiplicationSignCircleIcon}
+      strokeWidth={2}
+      className="size-4 text-red-600"
+    />
+  ),
 };
+
+const INPUT_DETAIL_KEYS = [
+  "path",
+  "file",
+  "filename",
+  "filePath",
+  "command",
+  "query",
+  "url",
+  "name",
+  "title",
+  "pattern",
+  "target",
+] as const;
+
+/** Pull a short, human-readable detail from tool input for the collapsed summary line. */
+export function extractToolInputDetail(input: unknown): string | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+
+  const record = input as Record<string, unknown>;
+
+  for (const key of INPUT_DETAIL_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return truncateDetail(value.trim());
+    }
+  }
+
+  for (const value of Object.values(record)) {
+    if (typeof value === "string" && value.trim() && value.length < 120) {
+      return truncateDetail(value.trim());
+    }
+  }
+
+  return null;
+}
+
+function truncateDetail(value: string, max = 64): string {
+  if (value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, max - 1)}…`;
+}
 
 export const ToolStatusBadge = ({ status }: { status: ToolPart["state"] }) => {
   const intl = useIntl();
@@ -84,8 +152,11 @@ export const ToolHeader = ({
   type,
   state,
   toolName,
+  detail,
+  input,
   ...props
 }: ToolHeaderProps) => {
+  const intl = useIntl();
   const derivedName =
     type === "dynamic-tool"
       ? toolName
@@ -93,17 +164,33 @@ export const ToolHeader = ({
         ? type.split("-").slice(1).join("-")
         : "tool";
 
+  const name = title ?? derivedName;
+  const inputDetail = detail ?? extractToolInputDetail(input);
+  // Match the screenshot: primary = action/subject, muted = trailing metadata only.
+  // Prefer input detail as the muted trailer; fall back to status while in-flight/errored.
+  const muted =
+    inputDetail ??
+    (state === "output-available"
+      ? null
+      : intl.formatMessage(toolMessages[statusMessageKeys[state]]));
+  const isPending = state === "input-streaming" || state === "input-available";
+
   return (
     <CollapsibleTrigger
-      className={cn("flex w-full items-center justify-between gap-4 p-3", className)}
+      className={cn(
+        "flex w-full cursor-pointer items-baseline gap-1.5 py-0.5 text-start text-sm",
+        className,
+      )}
       {...props}
     >
-      <div className="flex items-center gap-2">
-        <WrenchIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{title ?? derivedName}</span>
-        <ToolStatusBadge status={state} />
-      </div>
-      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+      <span className="truncate text-foreground">{name}</span>
+      {muted ? (
+        <span
+          className={cn("min-w-0 truncate text-muted-foreground", isPending && "animate-pulse")}
+        >
+          {muted}
+        </span>
+      ) : null}
     </CollapsibleTrigger>
   );
 };
@@ -113,7 +200,7 @@ export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 space-y-4 p-4 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 space-y-3 py-2 ps-0 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
       className,
     )}
     {...props}
