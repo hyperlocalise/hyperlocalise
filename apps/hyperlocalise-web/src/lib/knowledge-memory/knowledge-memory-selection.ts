@@ -53,6 +53,20 @@ function reductionPercent(wholeChars: number, selectedChars: number) {
   return Number((((wholeChars - selectedChars) / wholeChars) * 100).toFixed(2));
 }
 
+function normalizeInputLocale(locale: string | null | undefined) {
+  return locale?.trim().toLowerCase().replace(/_/g, "-") || null;
+}
+
+function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
+  const requestedLocaleCount = new Set(
+    [input.targetLocale, ...(input.targetLocales ?? [])]
+      .map(normalizeInputLocale)
+      .filter((locale): locale is string => Boolean(locale)),
+  ).size;
+
+  return Math.max(KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS, requestedLocaleCount);
+}
+
 function buildSelectedContext(input: {
   wholeMemoryChars: number;
   selectedSegments: KnowledgeMemorySegment[];
@@ -302,7 +316,7 @@ export function selectKnowledgeMemoryContext(
     return buildSelectedContext({
       wholeMemoryChars: content.length,
       selectedSegments: rankedSegments
-        .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS)
+        .slice(0, selectiveSegmentLimit(input))
         .map((item) => item.segment),
       fallbackMode: "selective",
       maxChars,

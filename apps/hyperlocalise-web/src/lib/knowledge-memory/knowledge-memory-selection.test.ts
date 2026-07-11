@@ -133,6 +133,25 @@ function multiSubtagLocaleMemoryWithDistractors() {
   ].join("\n");
 }
 
+function sixLocaleMemoryWithMatchingSections() {
+  return [
+    "# Memory.md",
+    "",
+    "## Locale guidance",
+    "",
+    ...["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP", "pt-BR"].flatMap((locale) => [
+      `### ${locale}`,
+      "",
+      `Use ${locale} payment confirmation guidance for checkout copy.`,
+      "",
+    ]),
+    ...Array.from(
+      { length: 70 },
+      (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
 function longHeadingOnlyMemory() {
   return [
     "# Memory.md",
@@ -569,6 +588,25 @@ describe("selectKnowledgeMemoryContext", () => {
     );
     expect(selected.metrics.matchedHeadingPaths).toContain(
       "Memory.md > Simplified Chinese checkout voice > zh-Hans-CN",
+    );
+  });
+
+  it("keeps one matched section per requested target locale when more than five locales match", () => {
+    const targetLocales = ["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP", "pt-BR"];
+    const selected = selectKnowledgeMemoryContext({
+      content: sixLocaleMemoryWithMatchingSections(),
+      targetLocales,
+      sourceText: "Payment confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    for (const locale of targetLocales) {
+      expect(selected.metrics.matchedHeadingPaths).toContain(
+        `Memory.md > Locale guidance > ${locale}`,
+      );
+    }
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
   });
 
