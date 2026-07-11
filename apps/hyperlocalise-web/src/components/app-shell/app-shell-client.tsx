@@ -29,7 +29,6 @@ import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { AppShellFooter } from "./app-shell-footer";
-import { ChatDock } from "./chat-dock/chat-dock";
 
 import { appShellClientMessages } from "./app-shell-client.messages";
 
@@ -159,21 +158,18 @@ export function AppShellClient({
           <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
         </SidebarInset>
 
-        {organizationSlug ? (
-          <ChatDock
-            organizationSlug={organizationSlug}
-            currentUser={{
-              avatarUrl: user.avatarUrl ?? null,
-              email: user.email,
-              name: user.name,
-            }}
-            planFooterHeightPx={40}
-          />
-        ) : null}
-
         <AppShellFooter
           organizationSlug={organizationSlug}
           showPlan={showBillingLink && autumnConfigured}
+          currentUser={
+            organizationSlug
+              ? {
+                  avatarUrl: user.avatarUrl ?? null,
+                  email: user.email,
+                  name: user.name,
+                }
+              : undefined
+          }
         />
       </SidebarProvider>
     </AppShellStoreProvider>

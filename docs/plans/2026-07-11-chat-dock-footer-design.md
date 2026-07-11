@@ -24,19 +24,22 @@ AppShellStore
         └── persistence (localStorage)
 
 AppShellClient
-  ├── page content
-  ├── ChatDockPanel + ChatDockTabBar
-  └── AppShellFooter (plan + support)
+  └── AppShellFooter
+        ├── ChatDockPanel + ChatDockTabBar
+        └── status row (New chat / plan / support)
 ```
 
 Persistence key: `chat-dock:v1:${organizationSlug}`.
 
 ## UI
 
-- Tab bar above the existing plan/support footer: titles, streaming pulse, close, and **+** for a new chat.
-- Expandable panel (~40–50vh) shows the active conversation with the existing message list and reply composer.
-- Collapsing the panel or changing routes does not stop background streams.
-- Dynamic `--app-shell-dock-height` keeps page padding clear of the dock chrome.
+The chat dock is part of the fixed app shell footer:
+
+1. Expandable conversation panel (when open)
+2. Conversation tab bar (when tabs exist)
+3. Status row: New chat (when empty), plan usage, support
+
+Dynamic `--app-shell-dock-height` keeps page padding clear of the full footer chrome.
 
 ## Data flow
 

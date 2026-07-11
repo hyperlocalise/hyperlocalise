@@ -2,9 +2,12 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { IntlProvider } from "react-intl";
 
 import { AppShellFooter } from "@/components/app-shell/app-shell-footer";
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import { planUsagePrimaryFeatureId } from "@/lib/billing/plan-usage";
 
 const autumnMocks = vi.hoisted(() => ({
@@ -14,10 +17,46 @@ const autumnMocks = vi.hoisted(() => ({
 
 vi.mock("autumn-js/react", () => autumnMocks);
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/org/acme/dashboard",
+}));
+
 afterEach(() => {
   autumnMocks.useCustomer.mockReset();
   autumnMocks.useListPlans.mockReset();
 });
+
+function renderFooter(
+  props: {
+    organizationSlug?: string;
+    showPlan?: boolean;
+    withChat?: boolean;
+  } = {},
+) {
+  const { organizationSlug = "acme", showPlan = true, withChat = false } = props;
+
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <IntlProvider locale="en" messages={{}}>
+        <AppShellStoreProvider defaultNavigationGroups={[]}>
+          <AppShellFooter
+            organizationSlug={organizationSlug}
+            showPlan={showPlan}
+            currentUser={
+              withChat
+                ? {
+                    avatarUrl: null,
+                    email: "user@example.com",
+                    name: "Test User",
+                  }
+                : undefined
+            }
+          />
+        </AppShellStoreProvider>
+      </IntlProvider>
+    </QueryClientProvider>,
+  );
+}
 
 describe("AppShellFooter", () => {
   it("opens plan usage from the fixed footer control", async () => {
@@ -48,7 +87,7 @@ describe("AppShellFooter", () => {
       error: null,
     });
 
-    render(<AppShellFooter organizationSlug="acme" showPlan />);
+    renderFooter({ showPlan: true });
 
     await user.click(screen.getByRole("button", { name: "Open plan usage: Growth" }));
 
@@ -61,11 +100,35 @@ describe("AppShellFooter", () => {
   });
 
   it("keeps support available without billing access", () => {
-    render(<AppShellFooter organizationSlug="acme" showPlan={false} />);
+    renderFooter({ showPlan: false });
 
     expect(screen.queryByText("Growth")).toBeNull();
     expect(screen.getByRole("link", { name: "Email support" }).getAttribute("href")).toBe(
       "mailto:minh@hyperlocalise.com",
     );
+  });
+
+  it("hosts the chat dock new-chat control in the footer status row", async () => {
+    const user = userEvent.setup();
+    autumnMocks.useCustomer.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+    });
+    autumnMocks.useListPlans.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
+
+    renderFooter({ showPlan: false, withChat: true });
+
+    const newChat = screen.getByRole("button", { name: "New chat" });
+    expect(newChat).toBeTruthy();
+    expect(newChat.closest("footer")).toBeTruthy();
+
+    await user.click(newChat);
+    expect(screen.getByRole("tablist", { name: "Chat conversations" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /New chat/i })).toBeTruthy();
   });
 });

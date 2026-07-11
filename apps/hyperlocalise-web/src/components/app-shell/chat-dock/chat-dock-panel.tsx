@@ -290,7 +290,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
   return (
     <section
-      className="flex flex-col overflow-hidden border-t border-border bg-background shadow-[0_-8px_24px_rgba(0,0,0,0.06)]"
+      className="flex flex-col overflow-hidden bg-background"
       style={{ height: CHAT_DOCK_PANEL_HEIGHT_PX }}
       aria-label={tab.title}
     >

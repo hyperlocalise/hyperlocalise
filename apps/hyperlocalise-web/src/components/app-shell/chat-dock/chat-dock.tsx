@@ -18,16 +18,14 @@ import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockPanel } from "./chat-dock-panel";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
 
+/** Footer-embedded chat dock: panel + tabs (no fixed positioning of its own). */
 export const ChatDock = observer(function ChatDock({
   organizationSlug,
   currentUser,
-  planFooterHeightPx = 40,
 }: {
   organizationSlug: string;
   currentUser: InboxCurrentUser;
-  planFooterHeightPx?: number;
 }) {
-  const intl = useIntl();
   const store = useAppShellStore();
   const { chatDock } = store;
 
@@ -53,8 +51,7 @@ export const ChatDock = observer(function ChatDock({
     };
   }, [chatDock.chromeHeightPx]);
 
-  // Best-effort reconnect: tabs marked streaming after hydrate get a message refetch;
-  // live SSE cannot resume, so clear the streaming flag once messages are available again.
+  // Best-effort reconnect after hydrate: keep restored snapshot, clear spinning state.
   useEffect(() => {
     if (!chatDock.hydrated) {
       return;
@@ -65,7 +62,6 @@ export const ChatDock = observer(function ChatDock({
         continue;
       }
 
-      // Keep the restored snapshot visible; mark as complete so UI does not spin forever.
       if (tab.streamSnapshot) {
         chatDock.setStreamSnapshot(tab.id, {
           ...tab.streamSnapshot,
@@ -78,38 +74,12 @@ export const ChatDock = observer(function ChatDock({
     }
   }, [chatDock, chatDock.hydrated]);
 
-  if (!organizationSlug) {
+  if (!organizationSlug || !chatDock.hasTabs) {
     return null;
   }
 
-  const bottomOffset = planFooterHeightPx;
-
-  if (!chatDock.hasTabs) {
-    return (
-      <div
-        className="pointer-events-none fixed inset-x-0 z-40 flex justify-end px-3"
-        style={{ bottom: `calc(${bottomOffset}px + env(safe-area-inset-bottom))` }}
-      >
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="pointer-events-auto mb-1 h-8 gap-1.5 shadow-sm"
-          aria-label={intl.formatMessage(chatDockMessages.newChat)}
-          onClick={() => chatDock.openNewTab()}
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
-          {intl.formatMessage(chatDockMessages.newChat)}
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="fixed inset-x-0 z-40 flex flex-col"
-      style={{ bottom: `calc(${bottomOffset}px + env(safe-area-inset-bottom))` }}
-    >
+    <div className="flex min-h-0 flex-col">
       {chatDock.panelOpen ? (
         <ChatDockPanel
           organizationSlug={organizationSlug}
@@ -129,5 +99,42 @@ export const ChatDock = observer(function ChatDock({
         onNewTab={() => chatDock.openNewTab()}
       />
     </div>
+  );
+});
+
+/** Compact New chat control for the footer status row when no tabs are open. */
+export const ChatDockNewChatButton = observer(function ChatDockNewChatButton({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
+  const intl = useIntl();
+  const store = useAppShellStore();
+  const { chatDock } = store;
+
+  useEffect(() => {
+    if (!organizationSlug) {
+      return;
+    }
+
+    chatDock.setOrganizationSlug(organizationSlug);
+  }, [chatDock, organizationSlug]);
+
+  if (!organizationSlug || chatDock.hasTabs) {
+    return null;
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-7 gap-1.5 px-2 text-xs"
+      aria-label={intl.formatMessage(chatDockMessages.newChat)}
+      onClick={() => chatDock.openNewTab()}
+    >
+      <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
+      {intl.formatMessage(chatDockMessages.newChat)}
+    </Button>
   );
 });

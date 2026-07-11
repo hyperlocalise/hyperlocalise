@@ -29,7 +29,7 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
 
   return (
     <div
-      className="flex items-center gap-1 border-t border-border bg-background px-2"
+      className="flex items-center gap-1 border-b border-border bg-background px-2"
       style={{ height: CHAT_DOCK_TAB_BAR_HEIGHT_PX }}
       role="tablist"
       aria-label="Chat conversations"
