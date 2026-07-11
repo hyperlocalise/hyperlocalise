@@ -732,9 +732,7 @@ describe("selectKnowledgeMemoryContext", () => {
 
     expect(selected.metrics.fallbackMode).toBe("selective");
     expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > French guidance > fr");
-    expect(selected.metrics.matchedHeadingPaths).toContain(
-      "Memory.md > Portuguese guidance > pt",
-    );
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Portuguese guidance > pt");
   });
 
   it("does not crash on malformed markdown and falls back safely", () => {

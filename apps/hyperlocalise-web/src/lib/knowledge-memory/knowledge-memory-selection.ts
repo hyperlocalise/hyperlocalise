@@ -85,8 +85,7 @@ function maxCharsPerSelectedSegment(input: {
   return Math.max(
     80,
     Math.floor(
-      (input.maxChars - Math.max(0, input.selectedSegmentCount - 1)) /
-        input.selectedSegmentCount,
+      (input.maxChars - Math.max(0, input.selectedSegmentCount - 1)) / input.selectedSegmentCount,
     ),
   );
 }
@@ -310,10 +309,7 @@ function findGeneralFallbackSegments(
   const supportingSegments =
     preferredSegments.length > 0 ? preferredSegments : orderFallbackSegments(remainingSegments);
 
-  return [
-    general,
-    ...supportingSegments.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS - 1),
-  ];
+  return [general, ...supportingSegments.slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS - 1)];
 }
 
 export function selectKnowledgeMemoryContext(
