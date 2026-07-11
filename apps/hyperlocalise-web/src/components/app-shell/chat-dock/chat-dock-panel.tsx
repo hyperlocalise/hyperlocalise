@@ -208,15 +208,15 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       }
 
       if (tab.isPending) {
+        const pendingId = tab.id;
         try {
-          const pendingId = tab.id;
-          store.setDraft(pendingId, "");
           store.setLastError(pendingId, null);
           const result = await createConversationMutation.mutateAsync({
             text,
             files,
             repositoryFullName: options?.repositoryFullName,
           });
+          store.setDraft(pendingId, "");
           const title = text.trim().slice(0, 48) || result.conversation.title || "Chat";
           store.promotePendingTab(pendingId, result.conversation.id, title);
           await queryClient.invalidateQueries({
@@ -227,8 +227,9 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           });
         } catch (error) {
           console.error(error);
-          store.setLastError(tab.id, intl.formatMessage(chatDockMessages.createFailed));
+          store.setLastError(pendingId, intl.formatMessage(chatDockMessages.createFailed));
           toast.error(intl.formatMessage(chatDockMessages.createFailed));
+          throw error;
         }
         return;
       }
@@ -245,6 +246,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
         console.error(error);
         store.setLastError(tab.id, intl.formatMessage(chatDockMessages.sendFailed));
         toast.error(intl.formatMessage(chatDockMessages.sendFailed));
+        throw error;
       }
     },
     [
