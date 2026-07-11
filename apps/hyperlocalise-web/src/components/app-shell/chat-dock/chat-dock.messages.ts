@@ -29,9 +29,59 @@ export const chatDockMessages = defineMessages({
     description: "Link from chat dock to the full inbox page",
   },
   emptyComposer: {
-    id: "V9yUZUb6UP",
-    defaultMessage: "Ask Hyperlocalise to translate or localise…",
+    id: "NuylnhUe8K",
+    defaultMessage: "Ask Hyperlocalise…",
     description: "Placeholder for a new chat dock composer",
+  },
+  emptyTitle: {
+    id: "wUNlUdJpD/",
+    defaultMessage: "Welcome to Hyperlocalise",
+    description: "Empty state title for a new chat dock conversation",
+  },
+  emptySubtitle: {
+    id: "l2MbFKxoMr",
+    defaultMessage: "Ask about strings, context, progress, or translations",
+    description: "Empty state subtitle describing chat capabilities",
+  },
+  suggestionFindContext: {
+    id: "vHurxfGj2i",
+    defaultMessage: "Find context for a string",
+    description: "Suggested prompt chip to find localisation context",
+  },
+  suggestionRecentChanges: {
+    id: "EChSkkf+KW",
+    defaultMessage: "What changed recently",
+    description: "Suggested prompt chip for recent localisation changes",
+  },
+  suggestionProgress: {
+    id: "QpIX9JaUhS",
+    defaultMessage: "Check localisation progress",
+    description: "Suggested prompt chip for TMS localisation progress",
+  },
+  suggestionTranslate: {
+    id: "C1FbXuFTUH",
+    defaultMessage: "Start a translation",
+    description: "Suggested prompt chip to start a translation",
+  },
+  promptFindContext: {
+    id: "VKjWHU/QDH",
+    defaultMessage: "What does this string mean, and where is it used?",
+    description: "Prefilled prompt when choosing the find-context chip",
+  },
+  promptRecentChanges: {
+    id: "N83FNjAdU2",
+    defaultMessage: "What localisation strings changed recently?",
+    description: "Prefilled prompt when choosing the recent-changes chip",
+  },
+  promptProgress: {
+    id: "W8paQ6RjZy",
+    defaultMessage: "How is localisation progress looking across linked TMS projects?",
+    description: "Prefilled prompt when choosing the progress chip",
+  },
+  promptTranslate: {
+    id: "homymlbTZo",
+    defaultMessage: "Translate the following text:",
+    description: "Prefilled prompt when choosing the translate chip",
   },
   streaming: {
     id: "pXpP8bdMfG",

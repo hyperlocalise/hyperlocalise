@@ -23,6 +23,7 @@ import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
+import { ChatDockEmptyState } from "./chat-dock-empty-state";
 import { chatDockMessages } from "./chat-dock.messages";
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore } from "./chat-dock-store";
@@ -71,6 +72,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   const queryClient = useQueryClient();
   const streamManager = getChatStreamManager(organizationSlug, store);
   const autoTriggeredRef = useRef<string | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
 
   const conversationId = tab && !tab.isPending ? tab.id : "";
 
@@ -278,6 +280,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
   return (
     <section
+      ref={panelRef}
       className="fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[30rem]"
       aria-label={tab.title}
     >
@@ -329,11 +332,20 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {tab.isPending ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center px-4">
-            <TypographyMuted className="text-center text-sm">
-              <FormattedMessage {...chatDockMessages.emptyComposer} />
-            </TypographyMuted>
-          </div>
+          <ChatDockEmptyState
+            onSelectSuggestion={(prompt) => {
+              store.setDraft(tab.id, prompt);
+              requestAnimationFrame(() => {
+                const textarea = panelRef.current?.querySelector("textarea");
+                if (!textarea) {
+                  return;
+                }
+                textarea.focus();
+                const cursor = textarea.value.length;
+                textarea.setSelectionRange(cursor, cursor);
+              });
+            }}
+          />
         ) : (
           <ConversationMessageList
             conversationId={tab.id}
@@ -353,6 +365,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}
+          placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
           variant="compact"
         />
       </div>
