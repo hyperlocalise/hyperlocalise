@@ -211,7 +211,26 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				continue
 			}
 
-			content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
+			var content []byte
+			if isHyperlocaliseImageFileFormat(plan.FileFormat) {
+				content, err = rt.client.downloadImageVariant(ctx, rt.projectID, plan.SourcePath, locale)
+				if err != nil {
+					if isHyperlocaliseNotFound(err) {
+						report.Skipped++
+						continue
+					}
+					report.Complete = false
+					return report, fmt.Errorf("download image variant for source %q locale %q: %w", plan.SourcePath, locale, err)
+				}
+				if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+					report.Complete = false
+					return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
+				}
+				report.Downloaded++
+				continue
+			}
+
+			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
 			if err != nil {
 				if isHyperlocaliseNotFound(err) {
 					report.Skipped++
@@ -438,8 +457,23 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".png":
+		return "png"
+	case ".jpg", ".jpeg":
+		return "jpeg"
+	case ".webp":
+		return "webp"
 	default:
 		return ""
+	}
+}
+
+func isHyperlocaliseImageFileFormat(format string) bool {
+	switch format {
+	case "png", "jpeg", "webp":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -530,6 +564,43 @@ func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, 
 	}
 	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
 		return nil, fmt.Errorf("downloaded translation export exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
+	}
+	return content, nil
+}
+
+func (c *hyperlocaliseAPIClient) downloadImageVariant(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
+	query := url.Values{}
+	query.Set("sourcePath", sourcePath)
+	query.Set("locale", locale)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		c.baseURL+"/v1/projects/"+url.PathEscape(projectID)+"/images/download?"+query.Encode(),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	content, err := io.ReadAll(io.LimitReader(resp.Body, hyperlocaliseMaxDownloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
+		return nil, fmt.Errorf("downloaded image variant exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
 	}
 	return content, nil
 }

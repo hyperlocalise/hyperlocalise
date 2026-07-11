@@ -1,5 +1,5 @@
 {
-  "id": "c303852e-e6f9-4ec7-a50b-8516eea3b24e",
+  "id": "9d0654b7-050b-4cd1-baa4-4aad94e10be3",
   "prevId": "2d256dd2-4c7e-4029-8e49-2cf0530d20a2",
   "version": "7",
   "dialect": "postgresql",
@@ -13394,6 +13394,315 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.project_image_variants": {
+      "name": "project_image_variants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "repository_source_file_id": {
+          "name": "repository_source_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_tms_file_id": {
+          "name": "external_tms_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_path": {
+          "name": "source_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_locale": {
+          "name": "target_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stored_file_id": {
+          "name": "stored_file_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "project_translation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "project_translation_provenance",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "source_job_id": {
+          "name": "source_job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_by_user_id": {
+          "name": "reviewed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "project_image_variants_project_path_locale": {
+          "name": "project_image_variants_project_path_locale",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_project_image_variants_org_project": {
+          "name": "idx_project_image_variants_org_project",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_project_image_variants_repo_file": {
+          "name": "idx_project_image_variants_repo_file",
+          "columns": [
+            {
+              "expression": "repository_source_file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_project_image_variants_external_file": {
+          "name": "idx_project_image_variants_external_file",
+          "columns": [
+            {
+              "expression": "external_tms_file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_project_image_variants_status": {
+          "name": "idx_project_image_variants_status",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "project_image_variants_organization_id_organizations_id_fk": {
+          "name": "project_image_variants_organization_id_organizations_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_project_id_projects_id_fk": {
+          "name": "project_image_variants_project_id_projects_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_repository_source_file_id_repository_source_files_id_fk": {
+          "name": "project_image_variants_repository_source_file_id_repository_source_files_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "repository_source_files",
+          "columnsFrom": [
+            "repository_source_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_external_tms_file_id_external_tms_files_id_fk": {
+          "name": "project_image_variants_external_tms_file_id_external_tms_files_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "external_tms_files",
+          "columnsFrom": [
+            "external_tms_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_stored_file_id_stored_files_id_fk": {
+          "name": "project_image_variants_stored_file_id_stored_files_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "stored_files",
+          "columnsFrom": [
+            "stored_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_source_job_id_jobs_id_fk": {
+          "name": "project_image_variants_source_job_id_jobs_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "jobs",
+          "columnsFrom": [
+            "source_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "project_image_variants_reviewed_by_user_id_users_id_fk": {
+          "name": "project_image_variants_reviewed_by_user_id_users_id_fk",
+          "tableFrom": "project_image_variants",
+          "tableTo": "users",
+          "columnsFrom": [
+            "reviewed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.issue_sheet_columns": {
       "name": "issue_sheet_columns",
       "schema": "",
@@ -14369,7 +14678,7 @@
       "checkConstraints": {
         "knowledge_memories_content_length_check": {
           "name": "knowledge_memories_content_length_check",
-          "value": "char_length(\"knowledge_memories\".\"content\") <= 50000"
+          "value": "char_length(\"knowledge_memories\".\"content\") <= 2048"
         }
       },
       "isRLSEnabled": false

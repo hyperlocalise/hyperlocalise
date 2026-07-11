@@ -36,6 +36,9 @@ export interface CatWorkspaceEditing {
   onUseAiSuggestion: (segmentId: string) => void;
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => void;
+  onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
+  onRegenerateImage?: (segmentId: string) => void | Promise<void>;
+  onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
 }
 
 export interface CatWorkspaceReview {
@@ -134,6 +137,7 @@ export interface CatWorkspaceViewProps {
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
+  isImageBusy?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];

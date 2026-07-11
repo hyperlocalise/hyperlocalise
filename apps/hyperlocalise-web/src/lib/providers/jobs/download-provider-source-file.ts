@@ -1,7 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
   LokaliseApiClient,
@@ -17,7 +20,7 @@ import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared
 
 type ProviderSourceFileMetadata = {
   filename: string;
-  fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+  fileFormat: SupportedTranslationFileFormat;
 };
 
 export type ResolveProviderSourceFileDownloadResult =
@@ -96,14 +99,14 @@ function resolveCrowdinSourceFileMetadata(input: { externalFileId: string; sourc
   | {
       ok: true;
       filename: string;
-      fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+      fileFormat: SupportedTranslationFileFormat;
     }
   | {
       ok: false;
       code: string;
       message: string;
     } {
-  const fileFormat = inferSupportedFileTranslationFileFormat(input.sourcePath);
+  const fileFormat = inferSupportedTranslationFileFormat(input.sourcePath);
   if (!fileFormat) {
     return {
       ok: false,
@@ -221,7 +224,7 @@ function resolveLokaliseSourceFileMetadata(input: { externalFileId: string; sour
   | {
       ok: true;
       filename: string;
-      fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+      fileFormat: SupportedTranslationFileFormat;
       filterFilename: string;
     }
   | {
@@ -229,7 +232,7 @@ function resolveLokaliseSourceFileMetadata(input: { externalFileId: string; sour
       code: string;
       message: string;
     } {
-  const fileFormat = inferSupportedFileTranslationFileFormat(input.sourcePath);
+  const fileFormat = inferSupportedTranslationFileFormat(input.sourcePath);
   if (!fileFormat) {
     return {
       ok: false,

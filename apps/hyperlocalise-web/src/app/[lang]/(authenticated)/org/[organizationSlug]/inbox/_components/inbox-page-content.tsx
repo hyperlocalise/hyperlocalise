@@ -63,9 +63,11 @@ export function InboxPageContent({
   });
 
   const refetchConversations = conversationsQuery.refetch;
+  const refetchMessages = messagesQuery.refetch;
   const onStreamFinished = useCallback(() => {
     void refetchConversations();
-  }, [refetchConversations]);
+    void refetchMessages();
+  }, [refetchConversations, refetchMessages]);
 
   const { isStreaming, startStreaming, streamedAssistant } = useConversationStream({
     organizationSlug,

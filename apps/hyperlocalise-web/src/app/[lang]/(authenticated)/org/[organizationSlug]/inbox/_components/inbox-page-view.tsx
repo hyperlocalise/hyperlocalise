@@ -4,6 +4,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
 import { InboxList } from "./inbox-list";
+import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import type {
   Conversation,
   ConversationMessage,
@@ -56,7 +57,7 @@ export function InboxPageView({
   return (
     <main
       data-organization={organizationSlug}
-      className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
+      className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
     >
       <div
         className={cn(
@@ -66,14 +67,20 @@ export function InboxPageView({
             : "lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]",
         )}
       >
-        <InboxList
-          conversations={conversations}
-          currentUser={currentUser}
-          isError={conversationsIsError}
-          isLoading={conversationsIsLoading}
-          onSelectConversation={onSelectConversation}
-          selectedConversationId={selectedConversationId}
-        />
+        <InboxPanelErrorBoundary
+          scope="list"
+          className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
+          resetKeys={[selectedConversationId, conversations.length, conversationsIsLoading]}
+        >
+          <InboxList
+            conversations={conversations}
+            currentUser={currentUser}
+            isError={conversationsIsError}
+            isLoading={conversationsIsLoading}
+            onSelectConversation={onSelectConversation}
+            selectedConversationId={selectedConversationId}
+          />
+        </InboxPanelErrorBoundary>
 
         <ConversationPanel
           conversation={selectedConversation}

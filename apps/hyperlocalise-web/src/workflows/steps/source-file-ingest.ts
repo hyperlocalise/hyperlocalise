@@ -124,3 +124,44 @@ export async function dispatchSourceUploadAutomationsStep(input: {
     await import("@/lib/projects/files/source-file-ingest");
   return dispatchSourceUploadAutomations(input);
 }
+
+export async function getProjectTargetLocalesStep(input: {
+  organizationId: string;
+  projectId: string;
+}) {
+  "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
+
+  const [project] = await db
+    .select({
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!project) {
+    throw new Error(`project ${input.projectId} not found`);
+  }
+
+  return project.targetLocales ?? [];
+}
+
+export async function ensureImageVariantsForSourceFileStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  repositorySourceFileId?: string | null;
+  targetLocales: string[];
+}) {
+  "use step";
+  const { ensureImageVariantsForSourceFile } =
+    await import("@/lib/projects/files/image-variant-service");
+  return ensureImageVariantsForSourceFile(input);
+}

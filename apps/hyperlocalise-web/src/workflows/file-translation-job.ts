@@ -21,6 +21,7 @@ import {
   getStoredFileStep,
   getRepositorySourcePathForStoredFileStep,
   loadProjectTranslationsAsPrefilledEntriesStep,
+  localizeImageVariantForJobStep,
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
@@ -554,17 +555,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw new Error("invalid file job input");
   }
 
-  if (isImageTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
-    await failTranslationJobStep({
-      jobId: claim.job.id,
-      projectId: claim.job.projectId,
-      workflowRunId: claim.job.workflowRunId,
-      code: "unsupported_file_format",
-      message: `binary image format '${parsedInput.fileFormat}' is not supported for file translation`,
-    });
-    throw new Error(`unsupported image format: ${parsedInput.fileFormat}`);
-  }
-
   let organizationId: string;
   try {
     organizationId = await getProjectOrganizationStep(claim.job.projectId);
@@ -577,6 +567,61 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `project ${claim.job.projectId} not found`,
     });
     throw new Error("project not found");
+  }
+
+  if (isImageTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+    let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;
+    try {
+      sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
+    } catch {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "source_file_not_found",
+        message: `source file ${parsedInput.sourceFileId} not found`,
+      });
+      throw new Error("source file not found");
+    }
+
+    const repositorySourcePath =
+      (await getRepositorySourcePathForStoredFileStep(parsedInput.sourceFileId, organizationId)) ??
+      sourceFile.filename;
+
+    const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
+    try {
+      for (const targetLocale of parsedInput.targetLocales) {
+        const output = await localizeImageVariantForJobStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+          sourceLocale: parsedInput.sourceLocale,
+          sourceStoredFileId: parsedInput.sourceFileId,
+          sourceJobId: claim.job.id,
+        });
+        outputFiles.push(output);
+      }
+
+      await completeFileTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        outputFiles,
+      });
+
+      return outputFiles;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "image translation failed";
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "image_translation_failed",
+        message,
+      });
+      throw error;
+    }
   }
 
   let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;

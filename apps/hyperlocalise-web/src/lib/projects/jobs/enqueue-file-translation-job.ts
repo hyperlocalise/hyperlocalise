@@ -19,8 +19,8 @@ import {
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
 import {
-  inferSupportedFileTranslationFileFormat,
-  type SupportedFileTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+  type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -32,7 +32,7 @@ export type EnqueueFileTranslationJobInput = {
   sourceFileId: string;
   sourceLocale: string;
   targetLocales: string[];
-  fileFormat?: SupportedFileTranslationFileFormat;
+  fileFormat?: SupportedTranslationFileFormat;
   metadata?: Record<string, string>;
   jobQueue: JobQueue<TranslationJobEventData>;
 };
@@ -86,7 +86,7 @@ export async function enqueueFileTranslationJob(
     return { ok: false, code: "source_file_not_found", message: "Source file not found." };
   }
 
-  const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+  const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
   if (!inferredFileFormat) {
     return {
       ok: false,

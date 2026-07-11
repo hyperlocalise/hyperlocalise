@@ -72,6 +72,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   isQueueLoading = false,
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
+  isImageBusy = false,
   queuePagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -270,6 +271,10 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
           isLookingUpContext={isLookingUpContext}
+          isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
+          isAiSuggestionLoading={isAiSuggestionLoading}
+          isFormatChecksLoading={isFormatChecksLoading}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={
@@ -290,6 +295,9 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onLoadMoreQueue={onLoadMoreQueue}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
+          onAskQuestion={
+            intelligenceSegment ? () => review.onAskQuestion(intelligenceSegment.id) : undefined
+          }
           onRefreshContext={() =>
             intelligenceSegment
               ? review.onAskQuestion(intelligenceSegment.id, { forceRefresh: true })
@@ -335,6 +343,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isFormatChecksLoading={isFormatChecksLoading}
           isCommentsLoading={isCommentsLoading}
           isSegmentTargetLoading={isSegmentTargetLoading}
+          isImageBusy={isImageBusy}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
@@ -376,6 +385,21 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onAskQuestion={() => review.onAskQuestion(editorSegment.id)}
           onGenerateAiRecommendation={
             canUseAiRecommendation ? () => void review.onReviewWithAi(editorSegment.id) : undefined
+          }
+          onTreatAsImage={
+            editing.onTreatAsImage
+              ? (treatAsImage) => void editing.onTreatAsImage?.(editorSegment.id, treatAsImage)
+              : undefined
+          }
+          onRegenerateImage={
+            editing.onRegenerateImage
+              ? () => void editing.onRegenerateImage?.(editorSegment.id)
+              : undefined
+          }
+          onUploadImage={
+            editing.onUploadImage
+              ? (file) => void editing.onUploadImage?.(editorSegment.id, file)
+              : undefined
           }
           aiRecommendationError={aiRecommendationError}
           onPrevious={navigation.onPreviousSegment}

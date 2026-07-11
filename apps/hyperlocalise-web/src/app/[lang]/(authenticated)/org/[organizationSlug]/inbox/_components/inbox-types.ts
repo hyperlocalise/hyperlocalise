@@ -29,6 +29,7 @@ export type ConversationMessage = {
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
+  parts?: UIMessage["parts"] | null;
   attachments: ConversationMessageAttachment[] | null;
   createdAt: string;
 };
@@ -91,19 +92,6 @@ export const statusStyles: Record<Conversation["status"], string> = {
   active:
     "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
   archived: "border-border bg-muted text-muted-foreground",
-};
-
-export const jobStatusStyles: Record<LinkedJob["status"], string> = {
-  queued: "border-border bg-muted text-muted-foreground",
-  running:
-    "border-beam-700/30 bg-beam-100 text-beam-900 dark:border-beam-500/25 dark:bg-beam-500/10 dark:text-beam-700",
-  succeeded:
-    "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
-  failed:
-    "border-flame-700/30 bg-flame-100 text-flame-900 dark:border-flame-500/25 dark:bg-flame-500/10 dark:text-flame-100",
-  waiting_for_review:
-    "border-bud-700/30 bg-bud-100 text-gray-900 dark:border-bud-500/25 dark:bg-bud-500/10 dark:text-bud-300",
-  cancelled: "border-border bg-muted text-muted-foreground",
 };
 
 /**

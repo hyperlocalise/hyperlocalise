@@ -1,29 +1,33 @@
 import { Hono } from "hono";
 import { and, desc, eq } from "drizzle-orm";
-import { createWebAdapter } from "@chat-adapter/web";
-import { createMemoryState } from "@chat-adapter/state-memory";
-import { Chat } from "chat";
+import { z } from "zod";
 
 import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
 import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
-import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
-import {
-  postStreamingAgentReply,
-  postWebClarificationReply,
-  runWebChatAgentTurn,
-} from "@/agents/hyperlocalise/agent/channels/web";
+import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent/channels/web";
 import { db, schema } from "@/lib/database";
-import {
-  addInteractionMessage,
-  interactionHasTranslationAttachments,
-} from "@/lib/conversations/interactions";
+import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
 
 import { conversationIdParamsSchema } from "./conversation.schema";
+import { extractLastUserMessage } from "./chat-stream-message";
 
-type WebInboxBotState = Record<string, unknown>;
+const chatRequestBodySchema = z.object({
+  id: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string(),
+        role: z.string(),
+        parts: z.array(z.unknown()).optional(),
+      }),
+    )
+    .optional(),
+  trigger: z.string().optional(),
+  messageId: z.string().optional(),
+});
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -50,40 +54,32 @@ export function createChatStreamRoutes() {
         return c.json({ error: "conversation_not_replyable" }, 400);
       }
 
-      const webAdapter = createWebAdapter({
-        userName: "hyperlocalise",
-        persistMessageHistory: false,
-        getUser: async (request) => {
-          const auth = await resolveApiAuthContextFromSession({
-            cookie: request.headers.get("cookie") ?? undefined,
-            organizationSlug: c.req.param("organizationSlug"),
-          });
+      const bodyResult = chatRequestBodySchema.safeParse(await c.req.json());
+      if (!bodyResult.success) {
+        return c.json({ error: "invalid_chat_payload" }, 400);
+      }
 
-          if (!auth) {
-            return null;
-          }
+      const requestUserMessage = extractLastUserMessage(bodyResult.data.messages);
+      if (!requestUserMessage?.id || !requestUserMessage.text.trim()) {
+        return c.json({ error: "invalid_chat_payload" }, 400);
+      }
 
-          return {
-            id: auth.user.localUserId,
-            name: auth.user.email,
-          };
-        },
-      });
-
-      const bot = new Chat<{ web: typeof webAdapter }, WebInboxBotState>({
-        adapters: { web: webAdapter },
-        logger: "info",
-        state: createMemoryState(),
-        userName: "hyperlocalise",
-      });
-
-      bot.onDirectMessage(async (thread, message) => {
-        const threadData = webAdapter.decodeThreadId(thread.id);
-        if (threadData.conversationId !== conversationId) {
-          throw new Error("web_thread_conversation_mismatch");
-        }
-
-        const [latestUserMessage] = await db
+      const [[targetUserMessage], [latestUserMessage]] = await Promise.all([
+        db
+          .select({
+            id: schema.interactionMessages.id,
+            text: schema.interactionMessages.text,
+          })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.id, requestUserMessage.id),
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .limit(1),
+        db
           .select({ id: schema.interactionMessages.id })
           .from(schema.interactionMessages)
           .where(
@@ -93,49 +89,33 @@ export function createChatStreamRoutes() {
             ),
           )
           .orderBy(desc(schema.interactionMessages.createdAt))
-          .limit(1);
-        const hasTranslationAttachments =
-          await interactionHasTranslationAttachments(conversationId);
+          .limit(1),
+      ]);
 
-        const turn = await runWebChatAgentTurn({
+      if (!targetUserMessage) {
+        return c.json({ error: "user_message_not_found" }, 404);
+      }
+
+      if (!latestUserMessage || latestUserMessage.id !== targetUserMessage.id) {
+        return c.json({ error: "stale_user_message" }, 409);
+      }
+
+      const hasTranslationAttachments = await interactionHasTranslationAttachments(conversationId);
+
+      return createWebChatAgentUIStreamResponse({
+        conversationId,
+        messageText: targetUserMessage.text,
+        toolContext: {
           conversationId,
-          messageText: message.text,
-          toolContext: {
-            conversationId,
-            organizationId: orgId,
-            localUserId: c.var.auth.user.localUserId,
-            membershipRole: c.var.auth.membership.role,
-            projectId: conversation.projectId ?? null,
-            db,
-          },
-          hasTranslationAttachments,
-          usageOperationKey: latestUserMessage
-            ? `chat-agent-turn:${latestUserMessage.id}:agent_runs`
-            : undefined,
-        });
-
-        if (turn.clarificationFollowUp) {
-          await postWebClarificationReply(thread, conversationId, turn.clarificationFollowUp);
-          return;
-        }
-
-        if (!turn.textStream) {
-          return;
-        }
-
-        const text = await postStreamingAgentReply(thread, turn.textStream);
-
-        try {
-          await addInteractionMessage({
-            interactionId: conversationId,
-            senderType: "agent",
-            text,
-          });
-        } catch (error) {
-          console.error("Failed to persist agent message:", error);
-        }
+          organizationId: orgId,
+          localUserId: c.var.auth.user.localUserId,
+          membershipRole: c.var.auth.membership.role,
+          projectId: conversation.projectId ?? null,
+          db,
+        },
+        hasTranslationAttachments,
+        usageOperationKey: `chat-agent-turn:${targetUserMessage.id}:agent_runs`,
+        abortSignal: c.req.raw.signal,
       });
-
-      return bot.webhooks.web(c.req.raw);
     });
 }

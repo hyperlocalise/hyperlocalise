@@ -6,12 +6,14 @@ const {
   setWebConversationRepositorySessionMock,
   reserveAgentRuntimeUsageMock,
   trackSucceededAgentRuntimeUsageMock,
+  addInteractionMessageMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
   getWebConversationRepositorySessionMock: vi.fn(),
   setWebConversationRepositorySessionMock: vi.fn(),
   reserveAgentRuntimeUsageMock: vi.fn(),
   trackSucceededAgentRuntimeUsageMock: vi.fn(),
+  addInteractionMessageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-turn", () => ({
@@ -31,7 +33,11 @@ vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
 }));
 
-import { runWebChatAgentTurn } from "./web";
+vi.mock("@/lib/conversations/interactions", () => ({
+  addInteractionMessage: addInteractionMessageMock,
+}));
+
+import { createWebChatAgentUIStreamResponse, runWebChatAgentTurn } from "./web";
 
 const baseClassification = {
   needsRepositoryTools: false,
@@ -51,6 +57,35 @@ const updatedSession = {
   },
 };
 
+function createToolContext() {
+  return {
+    conversationId: "conv_123",
+    organizationId: "org_123",
+    localUserId: "user_123",
+    membershipRole: "admin" as const,
+    projectId: null,
+    db: {} as never,
+  };
+}
+
+async function readSseText(response: Response) {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("missing response body");
+  }
+
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text;
+}
+
 describe("runWebChatAgentTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,6 +103,7 @@ describe("runWebChatAgentTurn", () => {
     setWebConversationRepositorySessionMock.mockReturnValue(false);
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
+    addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
     prepareConversationAgentTurnMock.mockResolvedValue({
       classification: baseClassification,
       agent: { stream: vi.fn(async () => ({ textStream: (async function* () {})() })) },
@@ -83,14 +119,7 @@ describe("runWebChatAgentTurn", () => {
     await runWebChatAgentTurn({
       conversationId: "conv_123",
       messageText: "where is the login copy?",
-      toolContext: {
-        conversationId: "conv_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "admin",
-        projectId: null,
-        db: {} as never,
-      },
+      toolContext: createToolContext(),
       hasTranslationAttachments: false,
     });
 
@@ -141,14 +170,7 @@ describe("runWebChatAgentTurn", () => {
     const turn = await runWebChatAgentTurn({
       conversationId: "conv_123",
       messageText: "search acme/other",
-      toolContext: {
-        conversationId: "conv_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "admin",
-        projectId: null,
-        db: {} as never,
-      },
+      toolContext: createToolContext(),
       hasTranslationAttachments: false,
     });
 
@@ -178,14 +200,7 @@ describe("runWebChatAgentTurn", () => {
     const turn = await runWebChatAgentTurn({
       conversationId: "conv_123",
       messageText: "where is the login copy?",
-      toolContext: {
-        conversationId: "conv_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "admin",
-        projectId: null,
-        db: {} as never,
-      },
+      toolContext: createToolContext(),
       hasTranslationAttachments: false,
       usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
     });
@@ -207,6 +222,114 @@ describe("runWebChatAgentTurn", () => {
     expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org_123",
+        operationKey: "chat-agent-turn:msg_123:agent_runs",
+      }),
+    );
+  });
+});
+
+describe("createWebChatAgentUIStreamResponse", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getWebConversationRepositorySessionMock.mockReturnValue(null);
+    setWebConversationRepositorySessionMock.mockReturnValue(true);
+    reserveAgentRuntimeUsageMock.mockResolvedValue(true);
+    trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
+    addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
+  });
+
+  it("streams a prep status event before clarification text", async () => {
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      agent: { stream: vi.fn() },
+      chatMessages: [],
+      clarificationFollowUp: "Which repository should I search?",
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "where is the login copy?",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+
+    const body = await readSseText(response);
+    expect(body).toContain("data-status");
+    expect(body).toContain("Preparing");
+    expect(body).toContain("Which repository should I search?");
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interactionId: "conv_123",
+        senderType: "agent",
+        text: "Which repository should I search?",
+        parts: [{ type: "text", text: "Which repository should I search?" }],
+      }),
+    );
+    expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
+  });
+
+  it("merges tool and text UI message chunks from the agent stream", async () => {
+    const toUIMessageStream = vi.fn(() => {
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue({ type: "start", messageId: "assistant_1" });
+          controller.enqueue({
+            type: "tool-input-available",
+            toolCallId: "call_1",
+            toolName: "grep",
+            input: { pattern: "login" },
+          });
+          controller.enqueue({ type: "text-start", id: "text_1" });
+          controller.enqueue({ type: "text-delta", id: "text_1", delta: "Found it." });
+          controller.enqueue({ type: "text-end", id: "text_1" });
+          controller.enqueue({ type: "finish" });
+          controller.close();
+        },
+      });
+    });
+
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      agent: {
+        stream: vi.fn(async () => ({
+          textStream: (async function* () {
+            yield "Found it.";
+          })(),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "where is the login copy?",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
+    });
+
+    const body = await readSseText(response);
+    expect(body).toContain("data-status");
+    expect(body).toContain("tool-input-available");
+    expect(body).toContain("Found it.");
+    expect(toUIMessageStream).toHaveBeenCalled();
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interactionId: "conv_123",
+        senderType: "agent",
+        text: "Found it.",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
         operationKey: "chat-agent-turn:msg_123:agent_runs",
       }),
     );

@@ -288,6 +288,28 @@ export const projectFileCatStatusBodySchema = z.object({
   status: z.enum(["needs_review", "approved", "rejected"]),
 });
 
+export const projectFileCatImageRegenerateBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128).optional(),
+  instructions: z.string().trim().max(16_384).optional(),
+  force: z.boolean().optional(),
+});
+
+export const projectFileCatImageStatusBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  status: z.enum(["draft", "needs_review", "approved", "rejected"]),
+});
+
+export const projectFileCatTreatAsImageBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  treatAsImage: z.boolean(),
+});
+
 export const maxProjectFileUploadBytes = 25 * 1024 * 1024;
 
 export const projectFileUploadBodySchema = z.object({
@@ -550,10 +572,16 @@ export const projectFileCatCommentResolveResponseSchema = z.object({
   comment: projectFileCatCommentSchema,
 });
 
+export const projectFileCatContentKindSchema = z.enum(["text", "image_file", "image_url"]);
+
 export const projectFileCatTranslationSchema = z.object({
   text: z.string(),
   externalTranslationId: z.string().nullable(),
   isApproved: z.boolean(),
+  contentKind: projectFileCatContentKindSchema.optional(),
+  targetAssetUrl: z.string().nullable().optional(),
+  imageVariantId: z.string().nullable().optional(),
+  status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
 });
 
 export const projectFileCatSegmentSchema = z.object({
@@ -563,6 +591,11 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
+  contentKind: projectFileCatContentKindSchema.optional(),
+  sourceAssetUrl: z.string().nullable().optional(),
+  targetAssetUrl: z.string().nullable().optional(),
+  imageVariantId: z.string().nullable().optional(),
+  looksLikeImageUrl: z.boolean().optional(),
 });
 
 export const projectFileCatSegmentParamsSchema = z.object({
@@ -626,6 +659,11 @@ export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
+export type ProjectFileCatImageRegenerateBody = z.infer<
+  typeof projectFileCatImageRegenerateBodySchema
+>;
+export type ProjectFileCatImageStatusBody = z.infer<typeof projectFileCatImageStatusBodySchema>;
+export type ProjectFileCatTreatAsImageBody = z.infer<typeof projectFileCatTreatAsImageBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema
 >;

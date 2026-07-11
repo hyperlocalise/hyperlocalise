@@ -14,7 +14,7 @@ import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
   getRepositoryContextKey,
@@ -24,6 +24,10 @@ import {
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
+import {
+  sanitizeInteractionMessagesForRole,
+  sanitizeLastMessagePreviewForRole,
+} from "./conversation-message-parts";
 import {
   conversationIdParamsSchema,
   createConversationRequestSchema,
@@ -197,6 +201,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               .selectDistinctOn([schema.interactionMessages.interactionId], {
                 interactionId: schema.interactionMessages.interactionId,
                 text: schema.interactionMessages.text,
+                parts: schema.interactionMessages.parts,
                 senderType: schema.interactionMessages.senderType,
                 createdAt: schema.interactionMessages.createdAt,
               })
@@ -210,12 +215,13 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
       const lastMessageMap = new Map<
         string,
-        { text: string; senderType: "user" | "agent"; createdAt: Date }
+        { text: string; senderType: "user" | "agent"; createdAt: Date; parts: unknown }
       >();
       for (const msg of lastMessages) {
         if (!lastMessageMap.has(msg.interactionId)) {
           lastMessageMap.set(msg.interactionId, {
             text: msg.text,
+            parts: msg.parts,
             senderType: msg.senderType,
             createdAt: msg.createdAt,
           });
@@ -252,7 +258,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           conversations: conversations.map((conv) => ({
             ...conv,
             participantEmail: participantEmailMap.get(conv.id) ?? null,
-            lastMessage: lastMessageMap.get(conv.id) ?? null,
+            lastMessage: sanitizeLastMessagePreviewForRole(
+              lastMessageMap.get(conv.id),
+              c.var.auth.membership.role,
+            ),
           })),
         },
         200,
@@ -287,7 +296,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
 
         for (const file of files) {
-          if (!inferSupportedFileTranslationFileFormat(file.name)) {
+          if (!inferSupportedSourceUploadFormat(file.name)) {
             return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
               filename: file.name,
             });
@@ -423,11 +432,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(schema.interactionMessages.createdAt);
+      const messages = sanitizeInteractionMessagesForRole(
+        await db
+          .select()
+          .from(schema.interactionMessages)
+          .where(eq(schema.interactionMessages.interactionId, conversationId))
+          .orderBy(schema.interactionMessages.createdAt),
+        c.var.auth.membership.role,
+      );
 
       return c.json({ conversation, messages }, 200);
     })
@@ -439,14 +451,19 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(desc(schema.interactionMessages.createdAt))
-        .limit(50);
+      const messages = sanitizeInteractionMessagesForRole(
+        (
+          await db
+            .select()
+            .from(schema.interactionMessages)
+            .where(eq(schema.interactionMessages.interactionId, conversationId))
+            .orderBy(desc(schema.interactionMessages.createdAt))
+            .limit(50)
+        ).reverse(),
+        c.var.auth.membership.role,
+      );
 
-      return c.json({ messages: messages.reverse() }, 200);
+      return c.json({ messages }, 200);
     })
     .post(
       "/:conversationId/messages",

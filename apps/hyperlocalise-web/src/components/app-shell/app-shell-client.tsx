@@ -4,7 +4,6 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { PlanUsageSidebarWidget } from "@/components/billing/plan-usage-summary";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +28,7 @@ import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organiza
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
+import { AppShellFooter } from "./app-shell-footer";
 
 import { appShellClientMessages } from "./app-shell-client.messages";
 
@@ -79,7 +79,14 @@ export function AppShellClient({
       <TmsUserOAuthErrorToast />
       <SidebarProvider
         defaultOpen
-        style={{ "--sidebar-width": "15rem" } as CSSProperties}
+        style={
+          {
+            "--app-shell-content-height":
+              "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
+            "--app-shell-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
+            "--sidebar-width": "15rem",
+          } as CSSProperties
+        }
         className="min-h-svh bg-background text-foreground"
       >
         <SidebarStoreBridge />
@@ -102,18 +109,14 @@ export function AppShellClient({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 px-2 py-2">
+          <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
             <AppShellNavigation organizationSlug={organizationSlug} />
-
-            {showBillingLink && autumnConfigured ? (
-              <PlanUsageSidebarWidget organizationSlug={organizationSlug} />
-            ) : null}
           </SidebarContent>
 
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-h-svh bg-background">
+        <SidebarInset className="min-h-svh bg-background pb-[var(--app-shell-footer-height)]">
           <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
             <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
@@ -151,6 +154,11 @@ export function AppShellClient({
 
           <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
         </SidebarInset>
+
+        <AppShellFooter
+          organizationSlug={organizationSlug}
+          showPlan={showBillingLink && autumnConfigured}
+        />
       </SidebarProvider>
     </AppShellStoreProvider>
   );

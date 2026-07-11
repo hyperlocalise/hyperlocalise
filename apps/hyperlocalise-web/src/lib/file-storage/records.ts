@@ -50,6 +50,7 @@ type RepositorySourceFileVersionInput = {
 type DbInsertClient = Pick<typeof db, "insert">;
 type DbSelectClient = Pick<typeof db, "select">;
 type DbReadWriteClient = DbInsertClient & DbSelectClient;
+type DbDeleteClient = Pick<typeof db, "delete" | "select">;
 
 export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
@@ -227,6 +228,38 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
     .limit(1);
 
   return file ?? null;
+}
+
+/** Best-effort delete of a stored file row and its object storage blob. */
+export async function deleteStoredFile(input: {
+  organizationId: string;
+  projectId?: string | null;
+  fileId: string;
+  adapter?: FileStorageAdapter;
+  db?: DbDeleteClient;
+}) {
+  const file = await getStoredFileForJobScope({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    fileId: input.fileId,
+    db: input.db,
+  });
+  if (!file) {
+    return;
+  }
+
+  const adapter = input.adapter ?? getFileStorageAdapter();
+  await adapter.delete({ keyOrUrl: file.storageKey }).catch(() => undefined);
+
+  const dbClient = input.db ?? db;
+  await dbClient
+    .delete(schema.storedFiles)
+    .where(
+      and(
+        eq(schema.storedFiles.id, file.id),
+        eq(schema.storedFiles.organizationId, input.organizationId),
+      ),
+    );
 }
 
 function stringMetadata(metadata: Record<string, unknown>, key: string) {

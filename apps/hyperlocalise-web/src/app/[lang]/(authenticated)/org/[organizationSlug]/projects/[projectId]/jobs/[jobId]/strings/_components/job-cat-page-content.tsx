@@ -518,7 +518,7 @@ export function JobCatPageContent({
     }
 
     return (
-      <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
           <Button
             variant="outline"
@@ -636,7 +636,7 @@ export function JobCatPageContent({
   };
 
   return (
-    <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+    <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
         <Button
           variant="outline"
