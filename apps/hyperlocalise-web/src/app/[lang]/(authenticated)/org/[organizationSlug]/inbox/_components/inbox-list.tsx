@@ -5,6 +5,7 @@ import { memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
+import { stripMarkdown } from "@/lib/markdown/strip-markdown";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -117,7 +118,9 @@ const ConversationListItem = memo(function ConversationListItem({
           <TypographySmall className="truncate">{conversation.title}</TypographySmall>
         </div>
         <TypographyMuted className="mt-1 truncate">
-          {conversation.lastMessage?.text ?? "No messages yet"}
+          {conversation.lastMessage
+            ? stripMarkdown(conversation.lastMessage.text) || conversation.lastMessage.text
+            : "No messages yet"}
         </TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">

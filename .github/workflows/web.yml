@@ -73,22 +73,7 @@ jobs:
         run: vp install --frozen-lockfile
 
       - name: Check for Drizzle migration collisions
-        run: |
-          set -euo pipefail
-          duplicate_idx=$(grep -oE '"idx":[[:space:]]*[0-9]+' drizzle/meta/_journal.json | sort | uniq -d || true)
-          if [ -n "${duplicate_idx}" ]; then
-            echo "::error::Duplicate idx in drizzle/meta/_journal.json (likely a merge from parallel branches that each generated the same migration number):"
-            echo "${duplicate_idx}"
-            echo "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'."
-            exit 1
-          fi
-          duplicate_prefix=$(ls drizzle/*.sql 2>/dev/null | xargs -n1 basename | cut -c1-5 | sort | uniq -d || true)
-          if [ -n "${duplicate_prefix}" ]; then
-            echo "::error::Duplicate migration index prefix in drizzle/ (likely a merge from parallel branches):"
-            echo "${duplicate_prefix}"
-            echo "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'."
-            exit 1
-          fi
+        run: vp run db:check-migrations
 
       - name: Check for Drizzle migration drift
         run: |

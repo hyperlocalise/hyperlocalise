@@ -502,10 +502,15 @@ var (
 
 func writePHPStringLiteral(b *bytes.Buffer, value string, quote byte) {
 	b.WriteByte(quote)
+	var err error
 	if quote == '"' {
-		_, _ = phpDoubleQuoteReplacer.WriteString(b, value)
+		_, err = phpDoubleQuoteReplacer.WriteString(b, value)
 	} else {
-		_, _ = phpSingleQuoteReplacer.WriteString(b, value)
+		_, err = phpSingleQuoteReplacer.WriteString(b, value)
+	}
+	if err != nil {
+		// bytes.Buffer.Write never fails; Replacer only surfaces writer errors.
+		panic(err)
 	}
 	b.WriteByte(quote)
 }

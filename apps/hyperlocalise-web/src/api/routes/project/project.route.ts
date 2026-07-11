@@ -53,6 +53,14 @@ import {
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
+import {
+  enrichExternalCatFileImageFields,
+  enrichExternalCatTranslationImageFields,
+  getExternalCatStringOverlay,
+  setExternalCatStringTreatAsImage,
+  storeExternalCatImageUpload,
+  cleanupFailedExternalCatImageUpload,
+} from "@/lib/projects/cat/external-cat-string-overlay-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   getProjectFileDetail,
@@ -672,7 +680,13 @@ async function loadProjectFileCatQueue(
       return { kind: "project_not_found" as const };
     }
 
-    return { kind: "ok" as const, catQueue };
+    const enrichedCatQueue = await enrichExternalCatFileImageFields({
+      organizationId: auth.organization.localOrganizationId,
+      projectId,
+      catFile: catQueue,
+    });
+
+    return { kind: "ok" as const, catQueue: enrichedCatQueue };
   } catch (error) {
     return { kind: "provider_error" as const, error };
   }
@@ -848,7 +862,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ target: segmentTarget }, 200);
+          if (!query.externalResourceId) {
+            return c.json({ target: segmentTarget }, 200);
+          }
+
+          const overlay = await getExternalCatStringOverlay({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            externalResourceId: query.externalResourceId,
+            externalStringId: params.externalStringId,
+          });
+
+          return c.json(
+            {
+              target: segmentTarget
+                ? enrichExternalCatTranslationImageFields(segmentTarget, overlay)
+                : segmentTarget,
+            },
+            200,
+          );
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
@@ -1439,23 +1472,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
-        if (target.kind === "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "Image upload is only available for workspace files.",
-          );
-        }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
 
         const form = await c.req.parseBody({ all: true });
         const sourcePath = asString(form.sourcePath);
         const targetLocale = asString(form.targetLocale);
         const externalStringId = asString(form.externalStringId);
+        const externalResourceId = asString(form.externalResourceId);
         const forceRaw = asString(form.force);
         const force = forceRaw === "true" || forceRaw === "1";
         const file = asFile(form.file);
@@ -1469,6 +1491,120 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationId = c.var.auth.organization.localOrganizationId;
         const content = Buffer.from(await file.arrayBuffer());
         const contentType = file.type || sourceContentType(file.name || sourcePath);
+
+        if (target.kind === "provider") {
+          if (!externalStringId) {
+            return badRequestResponse(
+              c,
+              "external_string_id_required",
+              "externalStringId is required for URL-backed image upload",
+            );
+          }
+
+          if (!externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider image upload",
+            );
+          }
+
+          if (inferSupportedImageTranslationFileFormat(sourcePath)) {
+            return badRequestResponse(
+              c,
+              "provider_cat_unsupported",
+              "File-backed image upload is only available for workspace files.",
+            );
+          }
+
+          const ensured = await ensureOrganizationProjectRecord({
+            organizationId,
+            projectId: params.projectId,
+            userId: c.var.auth.user.localUserId,
+          });
+          if (isErr(ensured)) {
+            return projectNotFoundResponse(c);
+          }
+
+          const stored = await storeExternalCatImageUpload({
+            organizationId,
+            projectId: ensured.value,
+            externalStringId,
+            externalResourceId,
+            sourcePath,
+            targetLocale,
+            content,
+            contentType,
+            filename: file.name || "image.png",
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          let translation;
+          try {
+            translation = await saveTmsProviderLiveCatTranslation(
+              organizationId,
+              target.externalProjectId,
+              sourcePath,
+              {
+                targetLocale,
+                externalStringId,
+                text: stored.assetUrl,
+                externalResourceId,
+              },
+              { actorUserId: c.var.auth.user.localUserId },
+            );
+          } catch (error) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return tmsProviderLiveErrorResponse(c, error);
+          }
+
+          if (!translation) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return projectNotFoundResponse(c);
+          }
+
+          // Overlay is local metadata after a committed provider write-back.
+          // Never delete public media here — the provider already points at stored.assetUrl.
+          try {
+            await setExternalCatStringTreatAsImage({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath,
+              externalResourceId,
+              externalStringId,
+              treatAsImage: true,
+              actorUserId: c.var.auth.user.localUserId,
+            });
+          } catch {
+            // Best-effort: write-back already committed; CAT can still treat via URL heuristic.
+          }
+
+          return c.json(
+            {
+              translation: {
+                text: translation.text,
+                externalTranslationId: translation.externalTranslationId,
+                isApproved: translation.isApproved,
+                contentKind: "image_url" as const,
+                targetAssetUrl: stored.assetUrl,
+              },
+            },
+            200,
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
 
         if (inferSupportedImageTranslationFileFormat(sourcePath)) {
           const sourceFile = await getRepositorySourceFileByPath({
@@ -1655,11 +1791,42 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
+
         if (target.kind === "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "Treat as image is only available for workspace files.",
+          if (!body.externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider treat-as-image",
+            );
+          }
+
+          const result = await setExternalCatStringTreatAsImage({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            externalResourceId: body.externalResourceId,
+            externalStringId: body.externalStringId,
+            treatAsImage: body.treatAsImage,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "Failed to update image mode");
+          }
+
+          // Source text is not stored on the overlay; the client already has it.
+          // Prefer looksLikeImageUrl true when treating as image so the editor stays in image mode.
+          return c.json(
+            {
+              segment: {
+                externalStringId: body.externalStringId,
+                contentKind: body.treatAsImage ? ("image_url" as const) : ("text" as const),
+                looksLikeImageUrl: body.treatAsImage,
+                ...(body.treatAsImage ? { sourceAssetUrl: null as string | null } : {}),
+              },
+            },
+            200,
           );
         }
 
@@ -1689,6 +1856,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
                 ? ("image_url" as const)
                 : ("text" as const),
               looksLikeImageUrl: looksLikeImageUrl(result.value.sourceText),
+              ...(isImageUrlContentKind(result.value.metadata)
+                ? { sourceAssetUrl: result.value.sourceText }
+                : {}),
             },
           },
           200,

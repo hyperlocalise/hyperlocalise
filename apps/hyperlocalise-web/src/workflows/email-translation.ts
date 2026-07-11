@@ -1,5 +1,6 @@
 import { getWorkflowMetadata } from "workflow";
 
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { env } from "@/lib/env";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
@@ -104,7 +105,7 @@ export function buildTempConfig(
     "  profiles:",
     "    default:",
     "      provider: openai",
-    "      model: gpt-5.4-mini",
+    `      model: ${hyperlocaliseAgentModelId}`,
     `      system_prompt: ${yamlString(systemPrompt)}`,
     `      user_prompt: ${yamlString(userPrompt)}`,
   ].join("\n");

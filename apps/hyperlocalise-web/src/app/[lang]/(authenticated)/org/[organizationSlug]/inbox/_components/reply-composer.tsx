@@ -48,7 +48,9 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
 
 type ReplyComposerViewProps = {
   disabled: boolean;
+  draft?: string;
   isStreaming: boolean;
+  onDraftChange?: (draft: string) => void;
   onSend: (
     text: string,
     files: File[],
@@ -57,17 +59,21 @@ type ReplyComposerViewProps = {
   repositories: InboxGithubRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
+  variant?: "default" | "compact";
 };
 
 export function ReplyComposerView({
   disabled,
+  draft = "",
   isStreaming,
+  onDraftChange,
   onSend,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
+  variant = "default",
 }: ReplyComposerViewProps) {
-  const [replyText, setReplyText] = useState("");
+  const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
 
   useEffect(() => {
@@ -96,15 +102,26 @@ export function ReplyComposerView({
       repositoryFullName: resolvedRepositoryFullName || undefined,
     });
     setReplyText("");
+    onDraftChange?.("");
     attachments.clear();
   };
 
   return (
-    <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+    <section
+      className={
+        variant === "compact"
+          ? "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3"
+          : "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+      }
+    >
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
-          className="overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+          className={
+            variant === "compact"
+              ? "overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+              : "overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+          }
         >
           <PromptInputBody>
             {attachments.files.length > 0 && (
@@ -126,8 +143,16 @@ export function ReplyComposerView({
             )}
             <PromptInputTextarea
               disabled={disabled}
-              onChange={(event) => setReplyText(event.currentTarget.value)}
-              className="min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
+              onChange={(event) => {
+                const next = event.currentTarget.value;
+                setReplyText(next);
+                onDraftChange?.(next);
+              }}
+              className={
+                variant === "compact"
+                  ? "min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
+                  : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
+              }
               placeholder={
                 isStreaming
                   ? "Agent is responding..."
@@ -136,7 +161,13 @@ export function ReplyComposerView({
               rows={1}
             />
           </PromptInputBody>
-          <PromptInputFooter className="flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
+          <PromptInputFooter
+            className={
+              variant === "compact"
+                ? "min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap"
+                : "flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5"
+            }
+          >
             <PromptInputTools className="flex-wrap gap-2 text-sm text-muted-foreground">
               <PromptInputButton
                 className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
@@ -190,6 +221,7 @@ type ReplyComposerProps = Omit<
 export const ReplyComposer = memo(function ReplyComposer({
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
+  draft,
   ...viewProps
 }: ReplyComposerProps) {
   const repositoriesQuery = useQuery({
@@ -198,9 +230,10 @@ export const ReplyComposer = memo(function ReplyComposer({
   });
 
   return (
-    <PromptInputProvider>
+    <PromptInputProvider initialInput={draft ?? ""}>
       <ReplyComposerView
         {...viewProps}
+        draft={draft}
         repositories={repositoriesQuery.data ?? []}
         repositoriesIsError={repositoriesQuery.isError}
         repositoriesIsLoading={repositoriesQuery.isLoading}

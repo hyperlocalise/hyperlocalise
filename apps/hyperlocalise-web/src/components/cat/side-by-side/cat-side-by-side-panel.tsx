@@ -3,7 +3,7 @@
 import { FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { observer } from "mobx-react-lite";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -146,6 +146,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   const store = useCatWorkspace();
   const hoveredSegmentId = store.ui.hoveredSegmentId;
   const intelligenceSegmentId = store.intelligenceSegmentId;
+  const handleVisibleSegmentIdsChange = useCallback(
+    (segmentIds: string[]) => store.ui.setVisibleSideBySideSegmentIds(segmentIds),
+    [store],
+  );
 
   const loadedCount = segments.length;
   const hasActiveFilter = queueFilter !== "all";
@@ -273,6 +277,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
+              onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
               onTargetChange={onTargetChange}
               hasMore={hasMoreQueue}
               isLoadingMore={isFetchingPage}

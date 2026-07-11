@@ -1,5 +1,6 @@
 import { makeAutoObservable } from "mobx";
 
+import { ChatDockStore } from "@/components/app-shell/chat-dock/chat-dock-store";
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 
 import { BreadcrumbStore } from "./breadcrumb-store";
@@ -12,14 +13,22 @@ export class AppShellStore {
   navigation: NavigationStore;
   breadcrumb: BreadcrumbStore;
   headerActions: HeaderActionsStore;
+  chatDock: ChatDockStore;
 
   constructor(defaultNavigationGroups: readonly NavigationGroup[]) {
     this.sidebar = new SidebarStore();
     this.navigation = new NavigationStore(defaultNavigationGroups);
     this.breadcrumb = new BreadcrumbStore();
     this.headerActions = new HeaderActionsStore();
+    this.chatDock = new ChatDockStore();
 
-    makeAutoObservable(this, {}, { autoBind: true });
+    makeAutoObservable(
+      this,
+      {
+        chatDock: false,
+      },
+      { autoBind: true },
+    );
   }
 
   resetPageScope() {

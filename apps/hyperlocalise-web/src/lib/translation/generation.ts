@@ -585,7 +585,7 @@ export const translateStringJobWithOpenAI: StringTranslationGenerator = async (i
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
-  return createStringTranslationGenerator({ model: openai("gpt-5.4-mini") })(input);
+  return createStringTranslationGenerator({ model: openai(hyperlocaliseAgentModelId) })(input);
 };
 
 const defaultModelResolver = new OrganizationModelResolver();

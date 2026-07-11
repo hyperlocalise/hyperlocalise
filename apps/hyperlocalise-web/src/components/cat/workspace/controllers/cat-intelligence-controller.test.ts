@@ -148,6 +148,7 @@ describe("CatIntelligenceController", () => {
 
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
       expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(true);
+      expect(workspace.dirtySegmentIds.has("seg-02")).toBe(true);
       expect(onTargetChange).toHaveBeenCalledWith("seg-02", "Deuxième");
     });
 

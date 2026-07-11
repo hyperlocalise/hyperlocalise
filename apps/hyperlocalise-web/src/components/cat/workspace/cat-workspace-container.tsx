@@ -125,12 +125,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         snapshot={queueSnapshot ?? null}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
       />
-      {lazySegment ? (
-        <CatWorkspaceLazySegmentSync
-          {...lazySegment}
-          queueSegmentIds={controller.queueSegments.map((segment) => segment.id)}
-        />
-      ) : null}
+      {lazySegment ? <CatWorkspaceLazySegmentSync {...lazySegment} /> : null}
 
       <CatPanelErrorBoundary
         scope="workspace"

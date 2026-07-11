@@ -1,10 +1,9 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import {
+  completeAndTrackBillableUsage,
   formatUsageControlError,
-  markUsageEventSucceededByOperationKey,
   reserveUsageEvent,
-  trackUsageEventInAutumnByOperationKey,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database";
@@ -172,19 +171,30 @@ export async function completeAgentRun(input: {
   changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
-  const run = await finishAgentRun({
+  const existing = await getAgentRun({
     runId: input.runId,
     organizationId: input.organizationId,
-    status: "succeeded",
-    outputSummary: input.outputSummary,
-    changedItems: input.changedItems,
-    warnings: input.warnings,
   });
+  if (!existing) {
+    throw new Error("Agent run not found");
+  }
+
+  const run =
+    existing.status === "succeeded"
+      ? existing
+      : await finishAgentRun({
+          runId: input.runId,
+          organizationId: input.organizationId,
+          status: "succeeded",
+          outputSummary: input.outputSummary,
+          changedItems: input.changedItems,
+          warnings: input.warnings,
+        });
 
   await trackCompletedAgentRunUsage({
     runId: input.runId,
     organizationId: input.organizationId,
-    outputSummary: input.outputSummary,
+    outputSummary: input.outputSummary ?? (run.outputSummary as AgentRunOutputSummary),
   });
 
   return run;
@@ -280,28 +290,15 @@ async function trackCompletedAgentRunUsage(input: {
 }) {
   const operationKey = `agent-run:${input.runId}:agent_runs`;
   const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
-  const markUsageResult = await markUsageEventSucceededByOperationKey({
+  const trackUsageResult = await completeAndTrackBillableUsage({
+    organizationId: input.organizationId,
     operationKey,
-    quantity: tokenUsage?.totalTokens && tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : 1,
-    dimensions: {
-      autumn_event_name: "agent_run.completed",
-      unit: tokenUsage ? "model_tokens" : "run",
-      input_tokens: tokenUsage?.inputTokens ?? null,
-      output_tokens: tokenUsage?.outputTokens ?? null,
-    },
+    autumnEventName: "agent_run.completed",
+    unit: "run",
+    tokenUsage,
+    aiCreditSource: "agent_run_complete",
   });
 
-  if (isErr(markUsageResult)) {
-    console.error("[agent-run] Autumn usage event completion failed", {
-      runId: input.runId,
-      organizationId: input.organizationId,
-      operationKey,
-      error: formatUsageControlError(markUsageResult.error),
-    });
-    return;
-  }
-
-  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
   if (isErr(trackUsageResult)) {
     console.error("[agent-run] Autumn usage tracking failed after run succeeded", {
       runId: input.runId,
