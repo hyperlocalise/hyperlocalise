@@ -1,8 +1,8 @@
 ---
-title: From Translation Management to Translation Intelligence
+title: De la gestion de la traduction à l’intelligence de la traduction
 date: 2026-07-10T00:00:00.000Z
-excerpt: Localisation technology spent two decades organising translation work. The next challenge is understanding the context behind every translation decision.
-category: Product
+excerpt: La technologie de localisation a passé deux décennies à organiser le travail de traduction. Le prochain défi consiste à comprendre le contexte derrière chaque décision de traduction.
+category: Produit
 tags:
   - translation intelligence
   - translation management
@@ -20,276 +20,276 @@ tags:
   - quality evaluation
 ---
 
-For more than two decades, localisation technology has focused on a central operational challenge: how to manage translation at scale.
+Depuis plus de deux décennies, la technologie de localisation s’est concentrée sur un défi opérationnel central : comment gérer la traduction à grande échelle.
 
-Translation Management Systems helped organisations replace spreadsheets, email threads, disconnected vendors, and manual file exchanges with structured workflows. They centralised multilingual content, coordinated translators and reviewers, maintained terminology, reused previous translations, and tracked delivery across markets.
+Les systèmes de gestion de traduction ont aidé les organisations à remplacer les feuilles de calcul, les fils de courriels, les prestataires déconnectés et les échanges manuels de fichiers par des flux de travail structurés. Ils ont centralisé le contenu multilingue, coordonné les traducteurs et les relecteurs, maintenu la terminologie, réutilisé les traductions précédentes et suivi la livraison sur plusieurs marchés.
 
-This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
+Il s’agissait d’une évolution importante. La traduction est devenue plus facile à piloter, à mesurer et à intégrer dans des opérations de contenu plus larges. [RWS](https://www.rws.com/glossary/translation-management/) décrit la gestion de la traduction comme la coordination des personnes, des processus et de la technologie nécessaires pour traduire le contenu de manière efficace et cohérente dans plusieurs langues.
 
-But the environment in which localisation operates has changed.
+Mais l’environnement dans lequel la localisation s’opère a changé.
 
-Modern organisations no longer translate only completed documents or occasional product releases. They localise continuously changing interfaces, campaigns, help-centre articles, onboarding flows, pricing pages, legal messages, design systems, and customer communications. Content is created across repositories, design tools, content management systems, support platforms, and marketing applications.
+Les organisations modernes ne traduisent plus seulement des documents finalisés ou des lancements de produits occasionnels. Elles localisent en continu des interfaces en constante évolution, des campagnes, des articles du centre d’aide, des parcours d’intégration, des pages de tarification, des messages juridiques, des systèmes de design et des communications clients. Le contenu est créé dans des dépôts, des outils de conception, des systèmes de gestion de contenu, des plateformes de support et des applications marketing.
 
-The challenge is therefore no longer limited to managing translation work.
+Le défi ne se limite donc plus à gérer le travail de traduction.
 
-The larger challenge is understanding the context behind every translation decision.
+Le plus grand défi consiste à comprendre le contexte derrière chaque décision de traduction.
 
-This is the shift from Translation Management to Translation Intelligence.
+C'est le passage de la gestion des traductions à l'intelligence de traduction.
 
-## Translation management was built to organise production
+## La gestion des traductions a été conçue pour organiser la production
 
-The traditional localisation workflow follows a relatively clear sequence. Source content enters a system, work is assigned, translators produce target-language content, reviewers approve it, and the completed translation is returned to the requesting team.
+Le flux de travail de localisation traditionnel suit une séquence relativement claire. Le contenu source entre dans un système, le travail est attribué, les traducteurs produisent du contenu dans la langue cible, les réviseurs l’approuvent, puis la traduction terminée est renvoyée à l’équipe demandeuse.
 
-Translation memory supports the reuse of previously approved content. Terminology databases improve consistency. Workflow rules automate assignments, approvals, and delivery. Integrations reduce the need to manually move files between systems.
+La mémoire de traduction prend en charge la réutilisation de contenu précédemment approuvé. Les bases terminologiques améliorent la cohérence. Les règles de workflow automatisent les attributions, les approbations et la livraison. Les intégrations réduisent la nécessité de déplacer manuellement des fichiers entre les systèmes.
 
-These capabilities remain valuable. They solve the operational problem of moving multilingual content through a controlled process.
+Ces capacités restent précieuses. Elles résolvent le problème opérationnel du transfert de contenu multilingue dans un processus contrôlé.
 
-However, they mainly operate after the translation task has already been defined.
+Cependant, ils interviennent principalement après que la tâche de traduction a déjà été définie.
 
-They can show a translator how a similar sentence was translated previously, but they do not always explain why that choice was made. They can provide an approved term, but they may not determine whether that term applies to this particular screen, feature, audience, or market.
+Ils peuvent montrer à un traducteur comment une phrase similaire a été traduite précédemment, mais ils n’expliquent pas toujours pourquoi ce choix a été fait. Ils peuvent fournir un terme approuvé, mais ils ne peuvent pas toujours déterminer si ce terme s’applique à cet écran, cette fonctionnalité, ce public ou ce marché particuliers.
 
-Consider a short source string such as:
+Considérez une courte chaîne source telle que :
 
-> Upgrade now
+> Mettez à niveau maintenant
 
-The correct translation may depend on whether the text appears on a button, in an email subject, on a pricing page, or inside an account notification. It may refer to a subscription plan, a software version, an entitlement, or a service tier. It may need to follow an approved campaign message, fit within a strict interface constraint, or use a different tone in a particular market.
+La traduction correcte peut dépendre du fait que le texte apparaisse sur un bouton, dans l’objet d’un e-mail, sur une page de tarification ou dans une notification de compte. Il peut faire référence à un forfait d’abonnement, à une version logicielle, à un droit d’accès ou à une offre de service. Il peut devoir respecter un message de campagne approuvé, tenir dans une contrainte d’interface stricte ou adopter un ton différent sur un marché particulier.
 
-The sentence is simple. The decision is not.
+La phrase est simple. La décision ne l’est pas.
 
-A traditional system can route the string to the right person. It cannot always reconstruct the complete product and business context needed to translate it well.
+Un système traditionnel peut acheminer la chaîne vers la bonne personne. Il ne peut pas toujours reconstituer le contexte complet du produit et de l’entreprise nécessaire pour la traduire correctement.
 
-## The workflow is centralised, but the knowledge is fragmented
+## Le workflow est centralisé, mais les connaissances sont fragmentées
 
-In most organisations, the knowledge required for localisation is distributed across many systems.
+Dans la plupart des organisations, les connaissances nécessaires à la localisation sont réparties dans de nombreux systèmes.
 
-Product behaviour may be documented in an issue tracker. The latest interface may exist in Figma. Technical constraints may be visible only in source code. Brand guidance may live in a presentation or document. Market preferences may be buried in reviewer comments. Legal requirements may be stored in a separate policy repository.
+Le comportement du produit peut être documenté dans un outil de suivi des problèmes. La dernière interface peut exister dans Figma. Les contraintes techniques peuvent n’être visibles que dans le code स्रोत. Les consignes de marque peuvent se trouver dans une présentation ou un document. Les préférences du marché peuvent être enfouies dans les commentaires des évaluateurs. Les exigences légales peuvent être stockées dans un dépôt de politiques distinct.
 
-The translator is then expected to reconstruct meaning from incomplete evidence.
+Le traducteur est alors censé reconstruire le sens à partir de preuves incomplètes.
 
-This is one of the core limitations of the traditional model: the translation workflow may be centralised, but the knowledge surrounding the work is not.
+C’est l’une des principales limites du modèle traditionnel : le flux de travail de traduction peut être centralisé, mais les connaissances qui l’entourent ne le sont pas.
 
-As product and content teams move faster, this gap becomes more expensive. Product strings may change several times before release. Campaigns may be updated while they are running. Support content evolves in response to customer behaviour. Teams increasingly expect localisation to operate continuously rather than as a downstream production stage.
+À mesure que les équipes produit et contenu gagnent en vitesse, cet écart devient plus coûteux. Les chaînes produit peuvent être modifiées plusieurs fois avant la mise en production. Les campagnes peuvent être mises à jour pendant leur diffusion. Le contenu d’assistance évolue en réponse au comportement des clients. Les équipes s’attendent de plus en plus à ce que la localisation fonctionne en continu plutôt que comme une étape de production en aval.
 
-Yet the supporting context often remains manual.
+Pourtant, le contexte de support reste souvent manuel.
 
-Screenshots are added inconsistently. Descriptions become outdated. Translators ask product teams for clarification. Reviewers explain the same market preference repeatedly. Important corrections remain trapped inside comments instead of improving future work.
+Les captures d’écran sont ajoutées de manière incohérente. Les descriptions deviennent obsolètes. Les traducteurs demandent des clarifications aux équipes produit. Les relecteurs expliquent à plusieurs reprises la même préférence du marché. D’importantes corrections restent enfermées dans les commentaires au lieu d’améliorer les travaux futurs.
 
-The organisation may have automated the movement of content while leaving the movement of knowledge largely unchanged.
+L’organisation a peut-être automatisé le déplacement du contenu tout en laissant le déplacement des connaissances largement inchangé.
 
-## AI makes translation faster, but not necessarily more accurate
+## L’IA accélère la traduction, mais pas nécessairement sa précision
 
-Generative AI has changed the economics of multilingual content.
+L’IA générative a changé l’économie du contenu multilingue.
 
-Translation can now be produced in seconds. Models can rewrite content for different tones, generate alternatives, follow terminology instructions, and process substantially more contextual information than earlier systems.
+La traduction peut désormais être produite en quelques secondes. Les modèles peuvent réécrire du contenu dans différents tons, générer des alternatives, suivre des instructions terminologiques et traiter beaucoup plus d’informations contextuelles que les systèmes antérieurs.
 
-But fluency should not be confused with correctness.
+Mais la fluidité ne doit pas être confondue avec l’exactitude.
 
-An AI-generated translation can sound natural while misunderstanding the product, selecting the wrong approved term, violating an interface constraint, or failing to preserve the intent of the source message.
+Une traduction générée par l’IA peut sembler naturelle tout en mal comprenant le produit, en choisissant le mauvais terme approuvé, en enfreignant une contrainte d’interface ou en ne préservant pas l’intention du message source.
 
-Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
+Les recherches sur la traduction automatique continuent de montrer que la qualité de la traduction dépend de bien plus que de la fluidité au niveau de la phrase. [Le contexte du document, les connaissances du domaine, le discours, la terminologie et l’usage prévu](https://www.sciencedirect.com/science/article/pii/S2589004224021035) peuvent tous influer sur le caractère approprié d’une traduction.
 
-This distinction becomes more important as AI output becomes more convincing.
+Cette distinction devient plus importante à mesure que les résultats de l’IA deviennent plus convaincants.
 
-Obvious grammatical errors are easy to identify. Subtle product errors are not. A sentence may read perfectly while communicating the wrong action, the wrong level of certainty, or the wrong relationship between the user and the product.
+Les erreurs grammaticales évidentes sont faciles à identifier. Les erreurs subtiles de produit ne le sont pas. Une phrase peut sembler parfaitement correcte tout en communiquant la mauvaise action, le mauvais niveau de certitude ou la mauvaise relation entre l’utilisateur et le produit.
 
-The important question is therefore not simply whether AI can translate.
+La question importante n’est donc pas simplement de savoir si l’IA peut traduire.
 
-It is whether the system can provide the right model or person with the right evidence, instructions, constraints, and organisational knowledge.
+Il s’agit de savoir si le système peut fournir le bon modèle ou la bonne personne avec les bonnes preuves, instructions, contraintes et connaissances organisationnelles.
 
-That is the role of Translation Intelligence.
+C’est le rôle de l’intelligence de traduction.
 
-## What is Translation Intelligence?
+## Qu'est-ce que l'intelligence de traduction ?
 
-Translation Intelligence is the infrastructure that turns product, brand, linguistic, market, and reviewer knowledge into better localisation decisions.
+L’intelligence de traduction est l’infrastructure qui transforme les connaissances sur le produit, la marque, la linguistique, le marché et les réviseurs en meilleures décisions de localisation.
 
-Translation Management coordinates the work.
+La gestion de la traduction coordonne le travail.
 
-Translation Intelligence improves the reasoning behind the work.
+L’intelligence de traduction améliore le raisonnement derrière le travail.
 
-A Translation Intelligence system should help determine:
+Un système d’intelligence de traduction devrait aider à déterminer :
 
-- what a piece of content means;
-- where it appears;
-- who it is intended for;
-- which product, brand, linguistic, and market rules apply;
-- how similar content has been handled previously;
-- what level of risk the translation carries;
-- and when human judgement is required.
+- ce que signifie une partie de contenu ;
+- là où il apparaît;
+- à qui il est destiné ;
+- quelles règles de produit, de marque, linguistiques et de marché s’appliquent ;
+- comment un contenu similaire a été traité précédemment ;
+- quel niveau de risque comporte la traduction ;
+- et lorsqu'un jugement humain est requis.
 
-This represents a broader role for localisation technology.
+Cela représente un rôle plus large pour la technologie de localisation.
 
-Traditional platforms organise assets such as files, translation memories, glossaries, workflows, and reference material. An intelligent system also connects screenshots, product documentation, design components, source-code metadata, reviewer feedback, market preferences, content performance, and historical quality data.
+Les plateformes traditionnelles organisent des ressources telles que des fichiers, des mémoires de traduction, des glossaires, des flux de travail et du matériel de référence. Un système intelligent relie également les captures d’écran, la documentation produit, les composants de conception, les métadonnées du code स्रोत, les retours des relecteurs, les préférences du marché, les performances du contenu et les données historiques de qualité.
 
-The objective is not to collect every piece of company information into one large repository. It is to retrieve and apply the relevant information when a translation decision is being made.
+L’objectif n’est pas de rassembler toutes les informations de l’entreprise dans un seul grand dépôt. Il s’agit de récupérer et d’appliquer les informations pertinentes lorsqu’une décision de traduction est en cours de prise.
 
-For a product label, this may mean the latest screenshot, component name, approved terminology, and character limit. For a campaign headline, it may mean the target audience, brand positioning, local market expectations, and previous creative feedback.
+Pour une étiquette de produit, cela peut signifier la dernière capture d’écran, le nom du composant, la terminologie approuvée et la limite de caractères. Pour un titre de campagne, cela peut signifier le public cible, le positionnement de la marque, les attentes du marché local et les retours créatifs précédents.
 
-Translation Intelligence makes context operational rather than optional.
+La traduction intelligente rend le contexte opérationnel plutôt qu’optionnel.
 
-As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
+Comme exploré dans [Qu’est-ce que l’intelligence de traduction ?](/blog/what-is-translation-intelligence), la traduction elle-même devient plus facile à générer. La capacité la plus difficile à acquérir et la plus défendable consiste à comprendre quelles connaissances doivent influencer le résultat.
 
-## From workflow automation to intelligent investigation
+## De l’automatisation des workflows à l’enquête intelligente
 
-Traditional workflow automation follows predefined rules.
+L'automatisation traditionnelle des flux de travail suit des règles prédéfinies.
 
-When new content appears, create a translation task. When translation is complete, assign review. When approval is received, return the content to the source system.
+Lorsqu’un nouveau contenu apparaît, créez une tâche de traduction. Lorsque la traduction est terminée, assignez une révision. Lorsque l’approbation est reçue, renvoyez le contenu au système source.
 
-This reduces coordination work, but it does not investigate what the translation requires.
+Cela réduit le travail de coordination, mais n’examine pas ce que la traduction exige.
 
-A more intelligent system can inspect the source content, identify the relevant feature, retrieve supporting screenshots, locate terminology rules, search historical decisions, detect ambiguity, select an appropriate model or reviewer, and evaluate the result before delivery.
+Un système plus intelligent peut examiner le contenu source, identifier la fonctionnalité pertinente, récupérer les captures d’écran associées, localiser les règles terminologiques, rechercher les décisions historiques, détecter les ambiguïtés, sélectionner un modèle ou un réviseur approprié, et évaluer le résultat avant la livraison.
 
-This is where AI agents become particularly valuable.
+C’est ici que les agents d’IA deviennent particulièrement précieux.
 
-Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
+Au lieu d’attendre que les équipes de localisation rassemblent manuellement les informations, [agents](/product/agents-automation) peuvent recueillir le contexte à partir des systèmes connectés et le rendre disponible directement dans le flux de travail de traduction.
 
-An agent might help answer:
+Un agent pourrait aider à répondre à :
 
-- Where does this content appear?
-- What does the feature do?
-- Which terminology applies?
-- Has similar wording been corrected before?
-- Does the content contain variables or interface constraints?
-- Is the translation safe to automate?
-- Does it require legal, creative, or market review?
+- Où ce contenu apparaît-il ?
+- Que fait la fonctionnalité ?
+- Quelle terminologie s’applique ?
+- Un libellé similaire a-t-il déjà été corrigé auparavant ?
+- Le contenu contient-il des variables ou des contraintes d’interface ?
+- La traduction peut-elle être automatisée en toute sécurité ?
+- Faut-il une révision juridique, créative ou marketing ?
 
-At Hyperlocalise, this investigative layer is a central part of how we see the next generation of localisation platforms evolving.
+Chez Hyperlocalise, cette couche d’investigation est un élément central de la façon dont nous voyons l’évolution de la prochaine génération de plateformes de localisation.
 
-The system should not only process translation tasks. It should help understand them.
+Le système ne doit pas seulement traiter des tâches de traduction. Il doit aider à les comprendre.
 
-## From static assets to self-evolving knowledge
+## Des ressources statiques aux connaissances auto-évolutives
 
-Translation memories and glossaries preserve valuable linguistic knowledge, but they are often maintained as relatively static assets.
+Les mémoires de traduction et les glossaires préservent des connaissances linguistiques précieuses, mais ils sont souvent maintenus comme des ressources relativement statiques.
 
-Products change. Brand language evolves. New features introduce new concepts. Market teams develop preferences. Reviewers repeatedly make corrections that may never become formal guidance.
+Les produits changent. Le langage de la marque évolue. De nouvelles fonctionnalités introduisent de nouveaux concepts. Les équipes marché développent des préférences. Les relecteurs apportent à plusieurs reprises des corrections qui ne deviennent peut-être jamais des consignes officielles.
 
-A Translation Intelligence system should learn from this activity.
+Un système d’intelligence de traduction devrait apprendre de cette activité.
 
-When reviewers consistently replace one term with another, the system should identify the pattern. When a phrase is translated differently depending on the product feature, the system should preserve that distinction. When a model repeatedly performs poorly on a specific content type or language pair, the workflow should adapt.
+Lorsque les évaluateurs remplacent systématiquement un terme par un autre, le système doit identifier ce schéma. Lorsqu’une phrase est traduite différemment selon la fonctionnalité du produit, le système doit préserver cette distinction. Lorsqu’un modèle obtient à plusieurs reprises de mauvais résultats sur un type de contenu ou une paire de langues spécifique, le flux de travail doit s’adapter.
 
-The objective is not to convert every edit into a universal rule.
+L’objectif n’est pas de transformer chaque modification en règle universelle.
 
-Some feedback applies globally. Some applies only to one market, campaign, feature, or content type. Intelligent localisation infrastructure must understand that scope.
+Certaines remarques s’appliquent à l’échelle globale. D’autres ne s’appliquent qu’à un marché, une campagne, une fonctionnalité ou un type de contenu. Une infrastructure de localisation intelligente doit comprendre cette portée.
 
-This turns reviewer feedback from an isolated correction into reusable organisational knowledge.
+Cela transforme les retours des réviseurs d’une correction isolée en connaissance organisationnelle réutilisable.
 
-Instead of solving the same issue repeatedly, the system becomes more informed after every approved decision.
+Au lieu de résoudre le même problème à plusieurs reprises, le système devient mieux informé après chaque décision approuvée.
 
-## From uniform workflows to risk-based orchestration
+## Des workflows uniformes à l’orchestration fondée sur les risques
 
-Traditional translation workflows often apply the same process to large groups of content.
+Les flux de travail de traduction traditionnels appliquent souvent le même processus à de grands ensembles de contenu.
 
-Every string may pass through the same model, translator, reviewer, and approval sequence regardless of its business importance or linguistic complexity.
+Chaque chaîne peut passer par le même processus de modèle, de traduction, de relecture et de validation, indépendamment de son importance métier ou de sa complexité linguistique.
 
-But not every translation carries the same risk.
+Mais toutes les traductions n'entraînent pas le même risque.
 
-A navigation label with a strong historical match may be suitable for automation. A launch campaign may require creative adaptation. A regulated claim may need legal review. A high-visibility onboarding flow may justify market validation.
+Une étiquette de navigation avec une forte correspondance historique peut convenir à l’automatisation. Une campagne de lancement peut nécessiter une adaptation créative. Une allégation réglementée peut nécessiter une revue juridique. Un parcours d’intégration très visible peut justifier une validation du marché.
 
-Translation Intelligence allows work to be routed according to context, confidence, and impact.
+L’Intelligence de traduction permet d’acheminer le travail en fonction du contexte, du niveau de confiance et de l’impact.
 
-The system can determine whether to reuse an approved translation, generate a new suggestion, compare multiple outputs, involve a specialist, or escalate the content for additional review.
+Le système peut déterminer s’il convient de réutiliser une traduction approuvée, de générer une nouvelle suggestion, de comparer plusieurs résultats, de faire appel à un spécialiste ou de transmettre le contenu pour un examen supplémentaire.
 
-This creates a more effective human-in-the-loop model.
+Cela crée un modèle human-in-the-loop plus efficace.
 
-Linguists and market experts spend less time checking predictable content and more time on decisions that require cultural judgement, strategic interpretation, or accountability.
+Les linguistes et les experts du marché consacrent moins de temps à vérifier des contenus prévisibles et davantage de temps aux décisions qui exigent un jugement culturel, une interprétation stratégique ou une responsabilité.
 
-That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
+C’est aussi la direction de l’expérience CAT de nouvelle génération](/product/next-gen-cat-tool) : ne pas supprimer les humains de la localisation, mais leur offrir un meilleur contexte, des recommandations plus pertinentes et une vue plus claire des domaines où leur expertise compte.
 
-## From quality assurance to continuous evaluation
+## De l'assurance qualité à l'évaluation continue
 
-In traditional workflows, quality assurance often occurs near the end of the process.
+Dans les workflows traditionnels, l’assurance qualité intervient souvent vers la fin du processus.
 
-A reviewer checks the translation, makes corrections, and approves the final content. The work is delivered, but the reasoning behind those corrections may not materially affect future workflows.
+Un réviseur vérifie la traduction, apporte des corrections et approuve le contenu final. Le travail est livré, mais le raisonnement derrière ces corrections peut ne pas avoir d’incidence matérielle sur les flux de travail futurs.
 
-Translation Intelligence moves evaluation throughout the process.
+La Translation Intelligence déplace l’évaluation tout au long du processus.
 
-Before translation begins, the system can assess whether sufficient context is available. During generation, it can check terminology, formatting, numbers, variables, and length constraints. After generation, it can assess meaning, tone, consistency, and market suitability.
+Avant de commencer la traduction, le système peut évaluer si le contexte disponible est suffisant. Pendant la génération, il peut vérifier la terminologie, le formatage, les nombres, les variables et les contraintes de longueur. Après la génération, il peut évaluer le sens, le ton, la cohérence et l’adéquation au marché.
 
-Once a human reviewer makes a decision, the system can compare the generated output with the approved result and determine what changed.
+Une fois qu’un évaluateur humain a pris une décision, le système peut comparer le résultat généré avec le résultat approuvé et déterminer ce qui a changé.
 
-Over time, this creates evidence for questions such as:
+Au fil du temps, cela crée des éléments de preuve pour des questions telles que :
 
-- Which models perform best for each language and content type?
-- Which product areas create the most ambiguity?
-- Which terminology rules are repeatedly violated?
-- Which markets require more human involvement?
-- Which context sources have the greatest effect on quality?
-- Where can automation safely increase?
-- Where should human review remain mandatory?
+- Quels modèles obtiennent les meilleures performances pour chaque langue et type de contenu ?
+- Quelles zones de produit créent le plus d’ambiguïté ?
+- Quelles règles terminologiques sont violées de manière répétée ?
+- Quels marchés nécessitent davantage d’intervention humaine ?
+- Quelles sources de contexte ont le plus grand impact sur la qualité ?
+- Où l’automatisation peut-elle augmenter en toute sécurité ?
+- Où la relecture humaine doit-elle rester obligatoire ?
 
-This moves localisation quality beyond checking individual outputs.
+Cela fait passer la qualité de la localisation au-delà de la vérification de sorties individuelles.
 
-It becomes a continuous learning system.
+Cela devient un système d’apprentissage continu.
 
-## Translation Intelligence changes the role of localisation teams
+## L’intelligence de la traduction change le rôle des équipes de localisation
 
-The shift from Translation Management to Translation Intelligence is not only a technology change. It also changes the role of the localisation function.
+Le passage de la gestion de la traduction à l’intelligence de la traduction n’est pas seulement un changement technologique. Il modifie également le rôle de la fonction de localisation.
 
-Under the traditional model, localisation is often treated as a downstream service. Product, marketing, or support teams create content, submit it for translation, and wait for the multilingual output.
+Dans le modèle traditionnel, la localisation est souvent considérée comme un service en aval. Les équipes produit, marketing ou support créent du contenu, le soumettent à la traduction et attendent la version multilingue.
 
-Under an intelligence model, localisation becomes part of the organisation’s global decision infrastructure.
+Dans un modèle d’intelligence, la localisation devient partie intégrante de l’infrastructure mondiale de décision de l’organisation.
 
-It connects product, engineering, design, marketing, legal, support, and local market knowledge. It reveals where source content is ambiguous, where terminology creates confusion, where automation is reliable, and where human expertise generates the greatest value.
+Il relie le produit, l’ingénierie, la conception, le marketing, le juridique, le support et la connaissance du marché local. Il révèle où le contenu source est ambigu, où la terminologie crée de la confusion, où l’automatisation est fiable et où l’expertise humaine génère la plus grande valeur.
 
-Localisation teams are therefore no longer responsible only for coordinating projects and vendors.
+Les équipes de localisation ne sont donc plus seulement responsables de la coordination des projets et des fournisseurs.
 
-They are increasingly responsible for designing how multilingual decisions are made, evaluated, governed, and improved.
+Ils sont de plus en plus responsables de la conception de la manière dont les décisions multilingues sont prises, évaluées, gouvernées et améliorées.
 
-This requires stronger capabilities in knowledge management, AI governance, context engineering, quality evaluation, system integration, and risk-based workflow design.
+Cela nécessite des capacités plus solides en gestion des connaissances, en gouvernance de l’IA, en ingénierie du contexte, en évaluation de la qualité, en intégration des systèmes et en conception de workflows fondés sur les risques.
 
-Linguistic expertise remains central. But it becomes embedded within a broader intelligence layer.
+L’expertise linguistique reste centrale. Mais elle s’inscrit dans une couche d’intelligence plus large.
 
-## Translation management is not disappearing
+## La gestion de la traduction ne disparaît pas
 
-Translation Intelligence should not be understood as a replacement for Translation Management Systems.
+La Translation Intelligence ne doit pas être comprise comme un remplacement des Translation Management Systems.
 
-Organisations still need project coordination, permissions, terminology, translation memory, workflow controls, integrations, and reporting. These remain foundational capabilities.
+Les organisations ont toujours besoin de coordination de projet, d’autorisations, de terminologie, de mémoire de traduction, de contrôles de workflow, d’intégrations et de rapports. Ce sont des fonctionnalités fondamentales.
 
-What changes is the expected role of the platform.
+Ce qui change, c’est le rôle attendu de la plateforme.
 
-The previous generation of localisation technology focused on moving content through a process efficiently.
+La génération précédente de la technologie de localisation se concentrait sur le déplacement efficace du contenu à travers un processus.
 
-The next generation must also bring knowledge into that process, guide decisions, evaluate outcomes, and learn from human feedback.
+La prochaine génération doit également apporter des connaissances à ce processus, guider les décisions, évaluer les résultats et tirer des enseignements des retours humains.
 
-Translation Management asks:
+La gestion des traductions demande :
 
-How do we organise and deliver multilingual content?
+Comment organisons-nous et livrons-nous du contenu multilingue ?
 
 Translation Intelligence asks:
 
-How do we ensure that every human and AI system has the knowledge required to make the right localisation decision?
+Comment pouvons-nous nous assurer que chaque système humain et IA dispose des connaissances nécessaires pour prendre la bonne décision de localisation ?
 
-Global organisations will need both.
+Les organisations mondiales auront besoin des deux.
 
-## The next era of localisation
+## La prochaine ère de la localisation
 
-As translation becomes faster and more automated, competitive advantage will not come from generating multilingual words alone.
+À mesure que la traduction devient plus rapide et plus automatisée, l’avantage concurrentiel ne viendra pas seulement de la génération de mots multilingues.
 
-It will come from understanding meaning.
+Cela viendra de la compréhension du sens.
 
-The strongest localisation systems will know how content connects to the product, the audience, the market, the brand, and the organisation’s previous decisions. They will retrieve relevant context automatically, apply it selectively, evaluate outputs continuously, and improve through human review.
+Les systèmes de localisation les plus performants sauront comment le contenu se relie au produit, au public, au marché, à la marque et aux décisions précédentes de l’organisation. Ils récupéreront automatiquement le contexte pertinent, l’appliqueront de manière sélective, évalueront les résultats en continu et s’amélioreront grâce à la relecture humaine.
 
-This is the transition now taking place across the localisation industry.
+C’est la transition qui est en train de s’opérer dans l’ensemble du secteur de la localisation.
 
-From managing files to understanding content.
+De la gestion des fichiers à la compréhension du contenu.
 
-From storing translations to learning from decisions.
+De l’enregistrement des traductions à l’apprentissage à partir des décisions.
 
-From automating handoffs to automating investigation.
+De l’automatisation des transferts à l’automatisation des investigations.
 
-From static linguistic assets to self-evolving knowledge.
+Des actifs linguistiques statiques à une connaissance auto-évolutive.
 
-From Translation Management to Translation Intelligence.
+De la gestion de la traduction à l’intelligence de la traduction.
 
-Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/self-evolving-knowledge) designed to help global teams produce better translations with less manual investigation.
+Hyperlocalise construit cet avenir grâce à [agents d’IA](/product/agents-automation), une [expérience CAT de nouvelle génération](/product/next-gen-cat-tool) et un [moteur de contexte auto-évolutif](/product/self-evolving-knowledge) conçu pour aider les équipes internationales à produire de meilleures traductions avec moins d’investigations manuelles.
 
-The next generation of localisation software will not simply manage translation.
+La prochaine génération de logiciels de localisation ne se contentera pas de gérer la traduction.
 
-It will make the organisation more intelligent about how it communicates across markets.
+Cela rendra l’organisation plus intelligente quant à la manière dont elle communique sur les différents marchés.
 
-## Further reading
+## Lectures complémentaires
 
-- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [Qu'est-ce que l'intelligence de la traduction ?](/blog/what-is-translation-intelligence)
 - [Hyperlocalise](/)
-- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
-- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)
+- [Vue d’ensemble de la gestion des traductions — RWS](https://www.rws.com/glossary/translation-management/)
+- [Recherche en traduction automatique contextuelle — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- L'évaluation humaine et le contexte au niveau du document dans la traduction automatique — arXiv](https://arxiv.org/abs/2104.14478)
