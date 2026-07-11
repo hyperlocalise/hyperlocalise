@@ -16,9 +16,9 @@ const (
 
 func KindForSourcePath(path string) FormatKind {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".md", ".mdx":
+	case ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd":
 		return FormatMarkdown
-	case ".html":
+	case ".html", ".htm":
 		return FormatHTML
 	case ".liquid":
 		return FormatLiquid
