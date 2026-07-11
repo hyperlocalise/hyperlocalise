@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,

@@ -1,6 +1,6 @@
 import { getWorkflowMetadata } from "workflow";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { env } from "@/lib/env";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {

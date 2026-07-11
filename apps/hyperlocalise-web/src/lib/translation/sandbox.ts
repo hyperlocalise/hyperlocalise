@@ -1,6 +1,6 @@
 import { Sandbox, StreamError } from "@vercel/sandbox";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { env } from "@/lib/env";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import {
