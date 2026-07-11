@@ -58,9 +58,18 @@ function buildSelectedContext(input: {
   selectedSegments: KnowledgeMemorySegment[];
   fallbackMode: KnowledgeMemoryFallbackMode;
   maxChars: number;
+  headingFallbackText?: string;
 }) {
   const lines: string[] = [];
   const segments: SelectedKnowledgeMemorySegment[] = [];
+
+  if (input.headingFallbackText) {
+    appendWithinBudget(
+      lines,
+      truncateFallbackText(input.headingFallbackText, Math.min(input.maxChars, 1_200)),
+      input.maxChars,
+    );
+  }
 
   for (const segment of input.selectedSegments) {
     if (!appendWithinBudget(lines, segment.compactPromptText, input.maxChars)) {
@@ -307,12 +316,19 @@ export function selectKnowledgeMemoryContext(
       selectedSegments: findGeneralFallbackSegments(general, segments),
       fallbackMode: "general",
       maxChars,
+      headingFallbackText: buildHeadingFallbackText(content),
     });
   }
 
   const fallbackSegments = findDefaultFallbackSegments(segments);
   if (fallbackSegments.length > 0) {
-    return buildRawFallbackContext(content, maxChars, fallbackSegments);
+    return buildSelectedContext({
+      wholeMemoryChars: content.length,
+      selectedSegments: fallbackSegments,
+      fallbackMode: "fallback",
+      maxChars,
+      headingFallbackText: buildHeadingFallbackText(content),
+    });
   }
 
   return buildRawFallbackContext(content, maxChars, segments);

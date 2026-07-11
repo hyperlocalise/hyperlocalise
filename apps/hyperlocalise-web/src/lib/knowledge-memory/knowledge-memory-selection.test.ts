@@ -231,6 +231,8 @@ function generalWithManyPreferredSectionsMemory() {
     "",
     "Apply the saved workspace guidance before narrower rules.",
     "",
+    "## Brand voice - Never translate SKU-GENERAL-HEADING",
+    "",
     "## Brand voice",
     "",
     "Keep brand copy practical and precise.",
@@ -530,6 +532,7 @@ describe("selectKnowledgeMemoryContext", () => {
 
     expect(selected.compactText).toContain("Memory.md > General");
     expect(selected.compactText).toContain("saved workspace guidance");
+    expect(selected.compactText).toContain("Brand voice - Never translate SKU-GENERAL-HEADING");
     expect(selected.metrics.fallbackMode).toBe("general");
     expect(selected.metrics.matchedHeadingPaths[0]).toBe("Memory.md > General");
     expect(selected.metrics.selectedMemoryCount).toBeLessThanOrEqual(
