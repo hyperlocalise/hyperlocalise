@@ -64,7 +64,7 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       operationKey: input.operationKey,
       autumnEventName: "agent_run.completed",
       unit: "run",
-      interactionId: undefined,
+      dimensions: input.dimensions,
       aiCreditSource: "agent_runtime_complete",
     });
 

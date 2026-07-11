@@ -376,8 +376,7 @@ export async function completeAndTrackBillableUsage(input: {
   aiCreditSource?: string;
   dimensions?: UsageEventDimensions;
 }): Promise<Result<TrackUsageEventResult, UsageControlError>> {
-  const tokenUsage =
-    input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
+  const tokenUsage = input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
 
   const markUsageResult = await markUsageEventSucceededByOperationKey({
     db: input.db,

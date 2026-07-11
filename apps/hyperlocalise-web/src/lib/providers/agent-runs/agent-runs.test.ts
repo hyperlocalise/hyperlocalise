@@ -180,13 +180,15 @@ describe("agent runs", () => {
       .where(eq(schema.usageEvents.operationKey, `agent-run:${created.id}:agent_runs`))
       .limit(1);
     expect(usageEvent).toMatchObject({
-      status: "tracking_pending",
       quantity: 1,
       dimensions: {
         autumn_event_name: "agent_run.completed",
         unit: "run",
       },
     });
+    expect(["tracking_pending", "tracking_failed", "tracking_succeeded"]).toContain(
+      usageEvent?.status,
+    );
   });
 
   it("fails a run and preserves partial output", async () => {

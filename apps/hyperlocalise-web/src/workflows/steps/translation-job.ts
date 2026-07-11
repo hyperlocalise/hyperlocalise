@@ -124,10 +124,8 @@ export async function markEmailTranslationJobSucceeded(input: {
     return updatedJob;
   });
 
-  const {
-    completeAndTrackBillableUsage,
-    formatUsageControlError,
-  } = await import("@/lib/billing/usage-control");
+  const { completeAndTrackBillableUsage, formatUsageControlError } =
+    await import("@/lib/billing/usage-control");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const trackUsageResult = await completeAndTrackBillableUsage({
@@ -446,10 +444,8 @@ export async function completeFileTranslationJobStep(input: {
     );
   }
 
-  const {
-    completeAndTrackBillableUsage,
-    formatUsageControlError,
-  } = await import("@/lib/billing/usage-control");
+  const { completeAndTrackBillableUsage, formatUsageControlError } =
+    await import("@/lib/billing/usage-control");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const [jobForUsage] = await db
