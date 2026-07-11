@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
+import type { ReadonlyHeaders, ReadonlyRequestCookies } from "flags";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 import { db, schema } from "@/lib/database";
@@ -29,18 +30,22 @@ type WorkspaceFlag = {
   run(input: WorkspaceFlagRunInput): Promise<boolean>;
 };
 
-function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag {
-  let flagPromise: Promise<WorkspaceFlag> | undefined;
+const emptyHeaders = {} as ReadonlyHeaders;
+const emptyCookies = {} as ReadonlyRequestCookies;
 
+function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag {
   return {
     async run(input) {
       try {
-        flagPromise ??= import("flags/next").then(({ flag }) =>
-          flag<boolean, WorkosFlagEntities>(definition),
-        );
-        return (await flagPromise).run(input);
+        const value = await definition.adapter.decide({
+          key: definition.key,
+          entities: input.identify(),
+          headers: emptyHeaders,
+          cookies: emptyCookies,
+          defaultValue: definition.defaultValue,
+        });
+        return value ?? definition.defaultValue;
       } catch {
-        flagPromise = undefined;
         return definition.defaultValue;
       }
     },
