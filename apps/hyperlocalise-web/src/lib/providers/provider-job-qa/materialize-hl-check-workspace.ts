@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
@@ -85,7 +86,7 @@ function buildCheckConfigContent(
   "locales": {"source":${JSON.stringify(sourceLocale)},"targets":[${quotedLocales.join(",")}]},
   "buckets": {"provider":{"files":[{"from":${JSON.stringify(sourcePath)},"to":${JSON.stringify(targetPathTemplate)}}]}},
   "groups": {"default":{"targets":[${quotedLocales.join(",")}],"buckets":["provider"]}},
-  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-5.4-mini","prompt":"Translate {{input}}"}}}
+  "llm": {"profiles":{"default":{"provider":"openai","model":${JSON.stringify(hyperlocaliseAgentModelId)},"prompt":"Translate {{input}}"}}}
 }`;
 }
 
