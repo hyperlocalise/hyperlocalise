@@ -337,7 +337,14 @@ function AssistantMessageParts({
   return (
     <>
       {sourceParts.length > 0 ? (
-        <AiElementErrorBoundary scope="sources" resetKeys={[sourceParts.length]}>
+        <AiElementErrorBoundary
+          scope="sources"
+          resetKeys={sourceParts.map((part) =>
+            part.type === "source-url"
+              ? `${part.sourceId}:${part.url}:${part.title ?? ""}`
+              : `${part.sourceId}:${part.title ?? ""}:${part.filename ?? ""}:${part.mediaType ?? ""}`,
+          )}
+        >
           <AssistantSources parts={sourceParts} />
         </AiElementErrorBoundary>
       ) : null}

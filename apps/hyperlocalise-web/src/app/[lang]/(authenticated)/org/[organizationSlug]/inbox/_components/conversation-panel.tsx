@@ -84,7 +84,7 @@ export function ConversationPanel({
           <InboxPanelErrorBoundary
             scope="messages"
             className="min-h-0 flex-1"
-            resetKeys={[conversation.id, messages.length, streamedAssistant?.status]}
+            resetKeys={[conversation.id, messages, streamedAssistant?.message]}
           >
             <ConversationMessageList
               conversationId={conversation.id}
