@@ -73,15 +73,15 @@ export const ChatDockBridge = observer(function ChatDockBridge({
       return;
     }
 
-    const interruptedIds = chatDock.tabs
-      .filter((tab) => tab.isStreaming && !tab.isPending)
+    const staleIds = chatDock.tabs
+      .filter((tab) => !tab.isPending && tab.streamSnapshot !== null)
       .map((tab) => tab.id);
 
-    if (interruptedIds.length === 0) {
+    if (staleIds.length === 0) {
       return;
     }
 
-    for (const conversationId of interruptedIds) {
+    for (const conversationId of staleIds) {
       chatDock.clearStreamSnapshot(conversationId);
       void queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
     }
