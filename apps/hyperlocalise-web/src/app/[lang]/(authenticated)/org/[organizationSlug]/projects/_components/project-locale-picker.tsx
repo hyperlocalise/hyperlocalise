@@ -25,6 +25,15 @@ function sortLocaleCodes(locales: string[]) {
   return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
 }
 
+function sortLocalesByDisplayName(
+  locales: string[],
+  intl: Parameters<typeof formatLocaleDisplayName>[0],
+) {
+  return [...locales].toSorted((a, b) =>
+    formatLocaleDisplayName(intl, a).localeCompare(formatLocaleDisplayName(intl, b)),
+  );
+}
+
 export function ProjectSourceLocalePicker({
   value,
   onChange,
@@ -115,12 +124,20 @@ export function ProjectTargetLocalesPicker({
     [],
   );
   const commonLocales = useMemo(
-    () => sortLocaleCodes(COMMON_LOCALES.filter((locale) => locale.toLowerCase() !== sourceKey)),
-    [sourceKey],
+    () =>
+      sortLocalesByDisplayName(
+        COMMON_LOCALES.filter((locale) => locale.toLowerCase() !== sourceKey),
+        intl,
+      ),
+    [intl, sourceKey],
   );
   const extraSelectedLocales = useMemo(
-    () => sortLocaleCodes(value.filter((locale) => !commonLocaleKeys.has(locale.toLowerCase()))),
-    [commonLocaleKeys, value],
+    () =>
+      sortLocalesByDisplayName(
+        value.filter((locale) => !commonLocaleKeys.has(locale.toLowerCase())),
+        intl,
+      ),
+    [commonLocaleKeys, intl, value],
   );
 
   useEffect(() => {
@@ -183,8 +200,9 @@ export function ProjectTargetLocalesPicker({
               onClick={() => toggleLocale(locale)}
               className="h-7 px-2.5 text-xs"
               title={formatLocaleOptionLabel(intl, locale)}
+              aria-label={formatLocaleOptionLabel(intl, locale)}
             >
-              {locale}
+              {formatLocaleDisplayName(intl, locale)}
             </Button>
           );
         })}
@@ -200,8 +218,9 @@ export function ProjectTargetLocalesPicker({
               onClick={() => toggleLocale(locale)}
               className="h-7 px-2.5 text-xs"
               title={formatLocaleOptionLabel(intl, locale)}
+              aria-label={formatLocaleOptionLabel(intl, locale)}
             >
-              {locale}
+              {formatLocaleDisplayName(intl, locale)}
             </Button>
           ))}
       </div>
