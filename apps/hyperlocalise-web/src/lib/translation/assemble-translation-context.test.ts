@@ -1,6 +1,14 @@
 import "dotenv/config";
 
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(() => ({
+  resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
+}));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
@@ -35,6 +43,10 @@ const longKnowledgeMemory = [
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+});
+
+beforeEach(() => {
+  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -89,6 +101,29 @@ describe("assembleStringTranslationContextSnapshot", () => {
       expect(result.snapshot.knowledgeMemory).toContain("customise");
       expect(result.snapshot.knowledgeMemory).not.toContain("fr-FR");
       expect(result.snapshot.knowledgeMemory?.length).toBeLessThan(longKnowledgeMemory.length);
+    }
+  });
+
+  it("omits saved workspace knowledge memory when the feature flag is disabled", async () => {
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Always refer to Hyperlocalise as the product name.",
+    });
+
+    const result = await assembleStringTranslationContextSnapshot(project.id, {
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      sourceText: "Welcome to Hyperlocalise",
+      context: "",
+      metadata: {},
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.knowledgeMemory).toBeNull();
     }
   });
 });

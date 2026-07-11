@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
@@ -73,8 +74,14 @@ export class TranslationContextBuilder {
 
     const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-    const knowledgeMemoryPromise = getKnowledgeMemoryForOrganization(project.organizationId).then(
-      (memory) =>
+    const knowledgeMemoryPromise = resolveWorkspaceKnowledgeFlag({
+      organizationId: project.organizationId,
+    }).then((enabled) => {
+      if (!enabled) {
+        return "";
+      }
+
+      return getKnowledgeMemoryForOrganization(project.organizationId).then((memory) =>
         selectKnowledgeMemoryContext({
           content: memory.content,
           sourceLocale: jobInput.sourceLocale,
@@ -85,7 +92,8 @@ export class TranslationContextBuilder {
           projectName: project.name,
           projectTranslationContext: project.translationContext,
         }).compactText.trim(),
-    );
+      );
+    });
 
     if (options?.skipConcordance) {
       const knowledgeMemory = await knowledgeMemoryPromise;

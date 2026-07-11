@@ -1,5 +1,5 @@
 {
-  "id": "b74a6ecd-9a7b-4679-bc5f-57ed3b611562",
+  "id": "c303852e-e6f9-4ec7-a50b-8516eea3b24e",
   "prevId": "2d256dd2-4c7e-4029-8e49-2cf0530d20a2",
   "version": "7",
   "dialect": "postgresql",
@@ -14369,7 +14369,7 @@
       "checkConstraints": {
         "knowledge_memories_content_length_check": {
           "name": "knowledge_memories_content_length_check",
-          "value": "char_length(\"knowledge_memories\".\"content\") <= 8000"
+          "value": "char_length(\"knowledge_memories\".\"content\") <= 50000"
         }
       },
       "isRLSEnabled": false

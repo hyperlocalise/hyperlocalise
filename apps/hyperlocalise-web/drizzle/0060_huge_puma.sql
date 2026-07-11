@@ -1,2 +1,0 @@
-ALTER TABLE "knowledge_memories" DROP CONSTRAINT "knowledge_memories_content_length_check";--> statement-breakpoint
-ALTER TABLE "knowledge_memories" ADD CONSTRAINT "knowledge_memories_content_length_check" CHECK (char_length("knowledge_memories"."content") <= 8000);
