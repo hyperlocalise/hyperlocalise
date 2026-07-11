@@ -262,6 +262,7 @@ export type PrepareConversationAgentTurnInput = {
   localUserId: string;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
+  knowledgeMemoryEnabled?: boolean;
   messageText: string;
   hasTranslationAttachments: boolean;
   repositorySession?: ConversationRepositorySession | null;
@@ -369,6 +370,7 @@ export async function prepareConversationAgentTurn(
       localUserId: input.localUserId,
       membershipRole: input.membershipRole,
       projectId: input.projectId,
+      knowledgeMemoryEnabled: input.knowledgeMemoryEnabled,
       db: input.db,
       ...(sandboxId
         ? {

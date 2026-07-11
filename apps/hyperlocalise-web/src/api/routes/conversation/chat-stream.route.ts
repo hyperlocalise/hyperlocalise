@@ -7,6 +7,10 @@ import { canAccessInteraction } from "@/api/auth/team-access";
 import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
+import {
+  resolveWorkspaceKnowledgeEnabled,
+  type WorkspaceKnowledgeFlagResolver,
+} from "@/api/workspace-feature-flags";
 import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent/channels/web";
 import { db, schema } from "@/lib/database";
 import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
@@ -29,7 +33,11 @@ const chatRequestBodySchema = z.object({
   messageId: z.string().optional(),
 });
 
-export function createChatStreamRoutes() {
+type CreateChatStreamRoutesOptions = {
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
+};
+
+export function createChatStreamRoutes(options: CreateChatStreamRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .post("/", async (c) => {
@@ -101,6 +109,10 @@ export function createChatStreamRoutes() {
       }
 
       const hasTranslationAttachments = await interactionHasTranslationAttachments(conversationId);
+      const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
+        options.workspaceKnowledgeFlagResolver,
+        c.var.auth,
+      );
 
       return createWebChatAgentUIStreamResponse({
         conversationId,
@@ -111,6 +123,7 @@ export function createChatStreamRoutes() {
           localUserId: c.var.auth.user.localUserId,
           membershipRole: c.var.auth.membership.role,
           projectId: conversation.projectId ?? null,
+          knowledgeMemoryEnabled,
           db,
         },
         hasTranslationAttachments,

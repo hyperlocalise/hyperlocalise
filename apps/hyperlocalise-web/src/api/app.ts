@@ -3,6 +3,7 @@ import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
 
 import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { WorkspaceKnowledgeFlagResolver } from "@/api/workspace-feature-flags";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
@@ -76,6 +77,7 @@ type CreateAppOptions = {
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -149,7 +151,12 @@ function createOrgScopedAppRoutes(
   return new Hono()
     .route("/issues", createOrganizationIssuesRoutes())
     .route("/glossaries", createGlossaryRoutes())
-    .route("/knowledge-memory", createKnowledgeMemoryRoutes())
+    .route(
+      "/knowledge-memory",
+      createKnowledgeMemoryRoutes({
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
+      }),
+    )
     .route("/translation-memories", createMemoryRoutes())
     .route("/projects", createProjectRoutes(options))
     .route(
@@ -160,6 +167,7 @@ function createOrgScopedAppRoutes(
         providerAgentQaQueue: options.providerAgentQaQueue,
         providerAgentCommentQueue: options.providerAgentCommentQueue,
         providerAgentWritebackQueue: options.providerAgentWritebackQueue,
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
       }),
     )
     .route("/provider-credential", createProviderCredentialRoutes())
@@ -170,6 +178,7 @@ function createOrgScopedAppRoutes(
       "/tms-provider",
       createTmsProviderRoutes({
         providerAgentTranslationQueue: options.providerAgentTranslationQueue,
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
       }),
     )
     .route("/tms-agent-automation", createTmsAgentAutomationRoutes())
@@ -182,7 +191,10 @@ function createOrgScopedAppRoutes(
     .route("/automations", createWorkspaceAutomationRoutes())
     .route(
       "/conversations",
-      createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+      createConversationRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
+      }),
     )
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/api-keys", createApiKeyRoutes())

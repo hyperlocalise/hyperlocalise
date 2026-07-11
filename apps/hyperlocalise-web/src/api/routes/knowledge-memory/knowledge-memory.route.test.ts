@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(
+const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagResolverMock } = vi.hoisted(
   () => ({
     resolveApiAuthContextFromSessionMock: vi.fn(
       (options) =>
@@ -12,7 +12,7 @@ const { resolveApiAuthContextFromSessionMock, resolveWorkspaceKnowledgeFlagMock 
         globalThis.__testApiAuthContext ??
         null,
     ),
-    resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
+    workspaceKnowledgeFlagResolverMock: vi.fn(async () => true),
   }),
 );
 
@@ -24,20 +24,16 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
-  };
-});
-
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
-const client = testClient(createApp());
+const client = testClient(
+  createApp({
+    workspaceKnowledgeFlagResolver: workspaceKnowledgeFlagResolverMock,
+  }),
+);
 const fixture = createAuthTestFixture();
 
 const previewMemory = [
@@ -74,7 +70,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
+  workspaceKnowledgeFlagResolverMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -84,7 +80,7 @@ afterEach(async () => {
 
 describe("knowledgeMemoryRoutes", () => {
   it("denies workspace memory access when the feature flag is disabled", async () => {
-    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+    workspaceKnowledgeFlagResolverMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
 

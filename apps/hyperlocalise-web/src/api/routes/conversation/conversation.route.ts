@@ -16,6 +16,7 @@ import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
+import type { WorkspaceKnowledgeFlagResolver } from "@/api/workspace-feature-flags";
 import {
   getRepositoryContextKey,
   getWebConversationRepositorySession,
@@ -158,6 +159,7 @@ function asFiles(value: unknown) {
 
 type CreateConversationRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 export function createConversationRoutes(options: CreateConversationRoutesOptions = {}) {
@@ -631,5 +633,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
       return c.json({ jobs }, 200);
     })
-    .route("/:conversationId/chat", createChatStreamRoutes());
+    .route(
+      "/:conversationId/chat",
+      createChatStreamRoutes({
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
+      }),
+    );
 }

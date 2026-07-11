@@ -1,18 +1,13 @@
 import { redirect } from "next/navigation";
+import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
-import type { ReadonlyHeaders, ReadonlyRequestCookies } from "flags";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 import { db, schema } from "@/lib/database";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
 import { createWorkosIdentify } from "./identify-workos-context";
-import {
-  workspaceAutomationsFlagDefinition,
-  workspaceKnowledgeFlagDefinition,
-  workspaceVisualMockFlagDefinition,
-  type WorkspaceFlagDefinition,
-} from "./workspace-flag-definitions";
+import { workosAdapter } from "./workos-adapter";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
@@ -22,41 +17,26 @@ import {
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
 
-type WorkspaceFlagRunInput = {
-  identify: () => WorkosFlagEntities;
-};
+export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_AUTOMATIONS_FLAG,
+  defaultValue: false,
+  description: "Workspace automations for scheduled and GitHub-triggered workflows.",
+  adapter: workosAdapter(),
+});
 
-type WorkspaceFlag = {
-  run(input: WorkspaceFlagRunInput): Promise<boolean>;
-};
+export const workspaceKnowledgeFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_KNOWLEDGE_FLAG,
+  defaultValue: false,
+  description: "Workspace knowledge memory for agents and teams.",
+  adapter: workosAdapter(),
+});
 
-const emptyHeaders = {} as ReadonlyHeaders;
-const emptyCookies = {} as ReadonlyRequestCookies;
-
-function createWorkspaceFlag(definition: WorkspaceFlagDefinition): WorkspaceFlag {
-  return {
-    async run(input) {
-      try {
-        const value = await definition.adapter.decide({
-          key: definition.key,
-          entities: input.identify(),
-          headers: emptyHeaders,
-          cookies: emptyCookies,
-          defaultValue: definition.defaultValue,
-        });
-        return value ?? definition.defaultValue;
-      } catch {
-        return definition.defaultValue;
-      }
-    },
-  };
-}
-
-export const workspaceAutomationsFlag = createWorkspaceFlag(workspaceAutomationsFlagDefinition);
-
-export const workspaceKnowledgeFlag = createWorkspaceFlag(workspaceKnowledgeFlagDefinition);
-
-export const workspaceVisualMockFlag = createWorkspaceFlag(workspaceVisualMockFlagDefinition);
+export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_VISUAL_MOCK_FLAG,
+  defaultValue: false,
+  description: "Visual mock skill for repository-backed Hyperlocalise agent previews.",
+  adapter: workosAdapter(),
+});
 
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
@@ -117,52 +97,8 @@ export async function resolveWorkspaceVisualMockFlag(input: {
   }
 }
 
-export async function resolveWorkspaceKnowledgeFlag(input: {
-  organizationId: string;
-  localUserId?: string;
-  dbClient?: Pick<typeof db, "select">;
-}) {
-  const dbClient = input.dbClient ?? db;
-  if (typeof dbClient.select !== "function") {
-    return false;
-  }
-
-  try {
-    const [organization] = await dbClient
-      .select({
-        workosOrganizationId: schema.organizations.workosOrganizationId,
-      })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, input.organizationId))
-      .limit(1);
-
-    if (!organization) {
-      return false;
-    }
-
-    let workosUserId: string | undefined;
-    if (input.localUserId) {
-      const [user] = await dbClient
-        .select({ workosUserId: schema.users.workosUserId })
-        .from(schema.users)
-        .where(eq(schema.users.id, input.localUserId))
-        .limit(1);
-      workosUserId = user?.workosUserId;
-    }
-
-    return workspaceKnowledgeFlag.run({
-      identify: () => ({
-        organization: { id: organization.workosOrganizationId },
-        user: workosUserId ? { id: workosUserId } : undefined,
-      }),
-    });
-  } catch {
-    return false;
-  }
-}
-
 export async function requireWorkspaceFeatureFlag(
-  workspaceFlag: WorkspaceFlag,
+  workspaceFlag: Flag<boolean, WorkosFlagEntities>,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ) {
   const enabled = await workspaceFlag.run({ identify: () => createWorkosIdentify(auth) });

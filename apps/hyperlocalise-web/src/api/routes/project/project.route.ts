@@ -93,6 +93,7 @@ import type {
   TranslationFileImportQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
+import type { WorkspaceKnowledgeFlagResolver } from "@/api/workspace-feature-flags";
 import {
   createTranslationFileImportQueue,
   createTranslationJobEventQueue,
@@ -623,6 +624,7 @@ type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 async function loadProjectFileCatQueue(
@@ -745,7 +747,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         throw error;
       }
     })
-    .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .route(
+      "/:projectId/jobs",
+      createJobRoutes({
+        jobQueue,
+        workspaceKnowledgeFlagResolver: options.workspaceKnowledgeFlagResolver,
+      }),
+    )
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route(
       "/:projectId/assets",

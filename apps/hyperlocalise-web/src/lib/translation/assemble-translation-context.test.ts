@@ -1,14 +1,6 @@
 import "dotenv/config";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
-const { resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(() => ({
-  resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
-}));
-
-vi.mock("@/lib/flags/workspace-flags", () => ({
-  resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
-}));
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
@@ -45,10 +37,6 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
-beforeEach(() => {
-  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
-});
-
 afterEach(async () => {
   await fixture.cleanup();
 });
@@ -62,13 +50,18 @@ describe("assembleStringTranslationContextSnapshot", () => {
       content: "Always refer to Hyperlocalise as the product name.",
     });
 
-    const result = await assembleStringTranslationContextSnapshot(project.id, {
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
-      sourceText: "Welcome to Hyperlocalise",
-      context: "",
-      metadata: {},
-    });
+    const result = await assembleStringTranslationContextSnapshot(
+      project.id,
+      {
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        sourceText: "Welcome to Hyperlocalise",
+        context: "",
+        metadata: {},
+      },
+      undefined,
+      { knowledgeMemoryEnabled: true },
+    );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -86,13 +79,18 @@ describe("assembleStringTranslationContextSnapshot", () => {
       content: longKnowledgeMemory,
     });
 
-    const result = await assembleStringTranslationContextSnapshot(project.id, {
-      sourceLocale: "en-US",
-      targetLocales: ["en-AU"],
-      sourceText: "Customize your color settings",
-      context: "",
-      metadata: {},
-    });
+    const result = await assembleStringTranslationContextSnapshot(
+      project.id,
+      {
+        sourceLocale: "en-US",
+        targetLocales: ["en-AU"],
+        sourceText: "Customize your color settings",
+        context: "",
+        metadata: {},
+      },
+      undefined,
+      { knowledgeMemoryEnabled: true },
+    );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -104,8 +102,7 @@ describe("assembleStringTranslationContextSnapshot", () => {
     }
   });
 
-  it("omits saved workspace knowledge memory when the feature flag is disabled", async () => {
-    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+  it("omits saved workspace knowledge memory when the caller has not enabled it", async () => {
     const { organization, user, project } = await fixture.createStoredProjectFixture();
     await db.insert(schema.knowledgeMemories).values({
       organizationId: organization.id,

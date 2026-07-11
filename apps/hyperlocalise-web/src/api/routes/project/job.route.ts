@@ -14,6 +14,10 @@ import {
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import {
+  resolveWorkspaceKnowledgeEnabled,
+  type WorkspaceKnowledgeFlagResolver,
+} from "@/api/workspace-feature-flags";
+import {
   badRequestResponse,
   conflictResponse,
   internalErrorResponse,
@@ -100,6 +104,7 @@ import {
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 type CreateWorkspaceJobRoutesOptions = {
@@ -108,6 +113,7 @@ type CreateWorkspaceJobRoutesOptions = {
   providerAgentQaQueue: ProviderAgentQaQueue;
   providerAgentCommentQueue: ProviderAgentCommentQueue;
   providerAgentWritebackQueue: ProviderAgentWritebackQueue;
+  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 const providerQaAgentActions = new Set(["review_with_agent", "run_qa_checks"]);
@@ -493,11 +499,16 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       try {
+        const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
+          options.workspaceKnowledgeFlagResolver,
+          c.var.auth,
+        );
         await options.jobQueue.enqueue({
           kind: "translation",
           jobId: job.id,
           projectId: job.projectId ?? params.projectId,
           type: job.type,
+          knowledgeMemoryEnabled,
         });
       } catch (error) {
         await db
@@ -885,9 +896,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
         if (payload.action === "translate_with_agent") {
           try {
+            const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
+              options.workspaceKnowledgeFlagResolver,
+              c.var.auth,
+            );
             await options.providerAgentTranslationQueue.enqueue({
               agentRunId: agentRun.id,
               organizationId,
+              knowledgeMemoryEnabled,
             });
           } catch (error) {
             await failAgentRun({
@@ -1145,11 +1161,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       try {
+        const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
+          options.workspaceKnowledgeFlagResolver,
+          c.var.auth,
+        );
         const result = await options.jobQueue.enqueue({
           kind: "translation",
           jobId: restartedJob.id,
           projectId: restartedJob.projectId,
           type: restartedJob.type,
+          knowledgeMemoryEnabled,
         });
 
         await db
@@ -1257,11 +1278,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       try {
+        const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
+          options.workspaceKnowledgeFlagResolver,
+          c.var.auth,
+        );
         await options.jobQueue.enqueue({
           kind: "translation",
           jobId: retriedJob.id,
           projectId: retriedJob.projectId,
           type: retriedJob.type,
+          knowledgeMemoryEnabled,
         });
       } catch (error) {
         await db.transaction(async (tx) => {
