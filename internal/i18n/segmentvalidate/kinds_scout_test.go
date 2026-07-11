@@ -30,6 +30,9 @@ func TestKindForSourcePathExtended(t *testing.T) {
 		// Fallback
 		{"file.json", FormatICUInvariant},
 		{"file.txt", FormatICUInvariant},
+
+		// Trailing space
+		{"file.md ", FormatMarkdown},
 	}
 
 	for _, tt := range tests {
