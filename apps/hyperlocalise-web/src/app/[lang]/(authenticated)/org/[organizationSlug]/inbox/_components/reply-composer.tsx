@@ -16,6 +16,7 @@ import {
   PromptInputTextarea,
   PromptInputTools,
   usePromptInputAttachments,
+  usePromptInputController,
 } from "@/components/ai-elements/prompt-input";
 import {
   Attachment,
@@ -56,6 +57,7 @@ type ReplyComposerViewProps = {
     files: File[],
     options?: { projectId?: string; repositoryFullName?: string },
   ) => void | Promise<void>;
+  placeholder?: string;
   repositories: InboxGithubRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
@@ -68,6 +70,7 @@ export function ReplyComposerView({
   isStreaming,
   onDraftChange,
   onSend,
+  placeholder,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
@@ -75,6 +78,15 @@ export function ReplyComposerView({
 }: ReplyComposerViewProps) {
   const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
+  const promptInputController = usePromptInputController();
+
+  useEffect(() => {
+    if (draft === replyText) {
+      return;
+    }
+    setReplyText(draft);
+    promptInputController.textInput.setInput(draft);
+  }, [draft, promptInputController, replyText]);
 
   useEffect(() => {
     if (
@@ -154,9 +166,7 @@ export function ReplyComposerView({
                   : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
               }
               placeholder={
-                isStreaming
-                  ? "Agent is responding..."
-                  : "Paste text or describe what to translate..."
+                isStreaming ? "Agent is responding..." : (placeholder ?? "Ask Hyperlocalise…")
               }
               rows={1}
             />

@@ -46,9 +46,7 @@ export const ChatConversation: Story = {
     await expect(
       canvas.getByRole("heading", { name: "Translate homepage hero copy" }),
     ).toBeInTheDocument();
-    await expect(
-      canvas.getByPlaceholderText("Paste text or describe what to translate..."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
   },
 };
 
@@ -85,9 +83,7 @@ export const EmailConversation: Story = {
     jobs: [],
   },
   play: async ({ canvas }) => {
-    await expect(
-      canvas.queryByPlaceholderText("Paste text or describe what to translate..."),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByPlaceholderText("Ask Hyperlocalise…")).not.toBeInTheDocument();
   },
 };
 

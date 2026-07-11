@@ -1379,6 +1379,10 @@
     "defaultMessage": "Could not start this chat. Try again.",
     "description": "Error when creating a conversation from the chat dock fails"
   },
+  "C1FbXuFTUH": {
+    "defaultMessage": "Start a translation",
+    "description": "Suggested prompt chip to start a translation"
+  },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
     "description": "Toast after saving Phrase OAuth app when user OAuth is still required"
@@ -1582,6 +1586,10 @@
   "ECh2wuwOCJ": {
     "defaultMessage": "Markdown content",
     "description": "Default accessible label for read-only rendered markdown content"
+  },
+  "EChSkkf+KW": {
+    "defaultMessage": "What changed recently",
+    "description": "Suggested prompt chip for recent localisation changes"
   },
   "ECw5CTvkCi": {
     "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
@@ -2295,6 +2303,10 @@
     "defaultMessage": "Installed on {workspace}",
     "description": "Slack integration description when a workspace is linked"
   },
+  "N83FNjAdU2": {
+    "defaultMessage": "What localisation strings changed recently?",
+    "description": "Prefilled prompt when choosing the recent-changes chip"
+  },
   "NBLnrSCLwC": {
     "defaultMessage": "Save provider",
     "description": "Button label to save a BYOK provider credential"
@@ -2342,6 +2354,10 @@
   "Nuj0umLVvu": {
     "defaultMessage": "Workspace name",
     "description": "Label for the workspace name input on onboarding"
+  },
+  "NuylnhUe8K": {
+    "defaultMessage": "Ask Hyperlocalise…",
+    "description": "Placeholder for a new chat dock composer"
   },
   "NxMkWJ+eS3": {
     "defaultMessage": "Choose a Hyperlocalise project for pull translations.",
@@ -2602,6 +2618,10 @@
   "Qov7AjZh9+": {
     "defaultMessage": "A pricing page refactor opens a pull request on Tuesday",
     "description": "Scenario section title for the github-release-localisation use case"
+  },
+  "QpIX9JaUhS": {
+    "defaultMessage": "Check localisation progress",
+    "description": "Suggested prompt chip for TMS localisation progress"
   },
   "Qy1pnimpzM": {
     "defaultMessage": "Block merge when locales are unresolved",
@@ -2935,10 +2955,6 @@
     "defaultMessage": "Contentful connection saved",
     "description": "Toast after successfully saving a Contentful connection"
   },
-  "V9yUZUb6UP": {
-    "defaultMessage": "Ask Hyperlocalise to translate or localise…",
-    "description": "Placeholder for a new chat dock composer"
-  },
   "VBPz2AKNYS": {
     "defaultMessage": "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
     "description": "Open Graph description for the Trust Center page"
@@ -2950,6 +2966,10 @@
   "VGayu+ZFkL": {
     "defaultMessage": "Previous segment ({shortcut})",
     "description": "Tooltip for the previous segment navigation button"
+  },
+  "VKjWHU/QDH": {
+    "defaultMessage": "What does this string mean, and where is it used?",
+    "description": "Prefilled prompt when choosing the find-context chip"
   },
   "VMLVh0fGup": {
     "defaultMessage": "Workspace",
@@ -3026,6 +3046,10 @@
   "W5kKZQXtt1": {
     "defaultMessage": "Intelligence panel failed to load",
     "description": "Error boundary title when the CAT intelligence panel crashes"
+  },
+  "W8paQ6RjZy": {
+    "defaultMessage": "How is localisation progress looking across linked TMS projects?",
+    "description": "Prefilled prompt when choosing the progress chip"
   },
   "WA49vhY6w5": {
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
@@ -4035,6 +4059,10 @@
     "defaultMessage": "Secret: {secret}",
     "description": "Displays the Contentful webhook signing secret"
   },
+  "homymlbTZo": {
+    "defaultMessage": "Translate the following text:",
+    "description": "Prefilled prompt when choosing the translate chip"
+  },
   "huDfeEPmkj": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the github-release-localisation use case"
@@ -4330,6 +4358,10 @@
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini",
     "description": "Google Gemini BYOK provider name on the integrations page"
+  },
+  "l2MbFKxoMr": {
+    "defaultMessage": "Ask about strings, context, progress, or translations",
+    "description": "Empty state subtitle describing chat capabilities"
   },
   "l5r0xPEJDX": {
     "defaultMessage": "Add at least one branch pattern for push triggers.",
@@ -5187,6 +5219,10 @@
     "defaultMessage": "Built for localisation operations at scale",
     "description": "Differentiator point 5 for the localisation-operations use case"
   },
+  "vHurxfGj2i": {
+    "defaultMessage": "Find context for a string",
+    "description": "Suggested prompt chip to find localisation context"
+  },
   "vJGZC1FhAF": {
     "defaultMessage": "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
     "description": "Proof point 1 body for the agents automation product page"
@@ -5310,6 +5346,10 @@
   "wUKFu5cEaD": {
     "defaultMessage": "default",
     "description": "Fallback label when a repository has no default branch name"
+  },
+  "wUNlUdJpD/": {
+    "defaultMessage": "Welcome to Hyperlocalise",
+    "description": "Empty state title for a new chat dock conversation"
   },
   "wYUzxhVyTO": {
     "defaultMessage": "e.g. Crowdin Production",
