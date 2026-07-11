@@ -149,6 +149,16 @@ export async function localizeImageUrlTranslation(input: {
       fetched.value.content,
       fetched.value.contentType,
       prompt,
+      {
+        organizationId: input.organizationId,
+        operationKey: `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        source: "project_image_url_translation",
+        dimensions: {
+          channel: "project",
+          project_id: input.projectId,
+          target_locale: input.targetLocale,
+        },
+      },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {

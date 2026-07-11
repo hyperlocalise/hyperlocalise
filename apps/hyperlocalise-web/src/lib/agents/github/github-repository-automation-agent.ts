@@ -8,6 +8,10 @@ import {
   repositoryWorkspaceToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db } from "@/lib/database";
@@ -74,8 +78,20 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     "Return a concise summary for automation logs: findings, likely fixes, and whether the change looks safe to merge from a localization perspective.",
   ].join("\n\n");
 
-  const result = await agent.generate({
-    messages: [{ role: "user", content: prompt }] as ModelMessage[],
+  const result = await withAgentRuntimeUsageMetering({
+    organizationId: input.organizationId,
+    operationKey: `github-commit-review:${input.commitSha}:agent_runs`,
+    source: "github_repository_commit_review",
+    dimensions: {
+      surface: "automation",
+      agent_surface: "github_commit_review",
+      commit_sha: input.commitSha,
+    },
+    extractTokenUsage: extractGenerateResultTokenUsage,
+    run: () =>
+      agent.generate({
+        messages: [{ role: "user", content: prompt }] as ModelMessage[],
+      }),
   });
 
   return result.text.trim() || "Completed automated localization review.";

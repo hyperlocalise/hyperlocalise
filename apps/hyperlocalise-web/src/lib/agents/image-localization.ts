@@ -10,6 +10,13 @@ type LocalizeImageAttachmentInput = {
   targetLocale?: string | null;
   instructions?: string | null;
   contextLines?: Array<string | null | undefined>;
+  billing?: {
+    organizationId: string;
+    operationKey: string;
+    source?: string;
+    interactionId?: string | null;
+    dimensions?: Record<string, string | number | boolean | null>;
+  };
 };
 
 export function getImageAttachments(message: Message): ImageLocalizationAttachment[] {
@@ -100,6 +107,7 @@ export async function localizeImageAttachment(input: LocalizeImageAttachmentInpu
     image,
     input.attachment.mimeType ?? "image/png",
     prompt,
+    input.billing,
   );
   const mimeType = result.mimeType || "image/png";
 

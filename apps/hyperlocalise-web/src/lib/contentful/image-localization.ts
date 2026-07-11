@@ -25,6 +25,8 @@ export async function localizeContentfulAssetForLocale(input: {
   sourceLocale: string;
   targetLocale: string;
   fieldName: string;
+  organizationId?: string;
+  runId?: string;
 }): Promise<
   Result<
     {
@@ -65,6 +67,18 @@ export async function localizeContentfulAssetForLocale(input: {
     downloadedResult.value.buffer,
     downloadedResult.value.contentType,
     prompt,
+    input.organizationId
+      ? {
+          organizationId: input.organizationId,
+          operationKey: `image-localization:contentful:${input.runId ?? input.assetId}:${input.targetLocale}`,
+          source: "contentful_image_localization",
+          dimensions: {
+            channel: "contentful",
+            asset_id: input.assetId,
+            target_locale: input.targetLocale,
+          },
+        }
+      : undefined,
   );
   const localizedFileName = localizedImageOutputFilename(
     downloadedResult.value.fileName,

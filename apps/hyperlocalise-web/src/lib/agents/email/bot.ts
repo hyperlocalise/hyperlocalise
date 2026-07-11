@@ -379,6 +379,7 @@ async function enqueuePendingTranslation(input: {
           imageAttachment,
           rawForImage,
           imageIntent,
+          organizationId ? { organizationId, interactionId: conversationId } : undefined,
         );
       }
     } else {
@@ -926,7 +927,14 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         } else {
           log.info({ count: imageAttachments.length }, "handling image attachments");
           for (const imageAttachment of imageAttachments) {
-            await dependencies.handleImageAttachment(thread, message, imageAttachment, raw, intent);
+            await dependencies.handleImageAttachment(
+              thread,
+              message,
+              imageAttachment,
+              raw,
+              intent,
+              { organizationId: organization.id, interactionId: conversationId },
+            );
           }
         }
       }
