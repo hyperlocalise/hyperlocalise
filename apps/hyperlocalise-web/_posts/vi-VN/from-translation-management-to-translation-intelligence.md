@@ -1,8 +1,8 @@
 ---
-title: From Translation Management to Translation Intelligence
+title: Từ quản lý dịch thuật đến trí tuệ dịch thuật
 date: 2026-07-10T00:00:00.000Z
-excerpt: Localisation technology spent two decades organising translation work. The next challenge is understanding the context behind every translation decision.
-category: Product
+excerpt: Công nghệ bản địa hóa đã dành hai thập kỷ để tổ chức công việc dịch thuật. Thách thức tiếp theo là hiểu bối cảnh đằng sau mọi quyết định dịch thuật.
+category: Sản phẩm
 tags:
   - translation intelligence
   - translation management
@@ -20,276 +20,276 @@ tags:
   - quality evaluation
 ---
 
-For more than two decades, localisation technology has focused on a central operational challenge: how to manage translation at scale.
+Trong hơn hai thập kỷ qua, công nghệ bản địa hóa đã tập trung vào một thách thức vận hành cốt lõi: làm thế nào để quản lý dịch thuật ở quy mô lớn.
 
-Translation Management Systems helped organisations replace spreadsheets, email threads, disconnected vendors, and manual file exchanges with structured workflows. They centralised multilingual content, coordinated translators and reviewers, maintained terminology, reused previous translations, and tracked delivery across markets.
+Hệ thống quản lý dịch thuật đã giúp các tổ chức thay thế bảng tính, chuỗi email, các nhà cung cấp rời rạc và việc trao đổi tệp thủ công bằng các quy trình làm việc có cấu trúc. Chúng tập trung nội dung đa ngôn ngữ, điều phối biên dịch viên và người rà soát, duy trì thuật ngữ, tái sử dụng các bản dịch trước đó và theo dõi việc bàn giao trên c��c thị trường.
 
-This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
+Đây là một bước tiến quan trọng. Việc dịch thuật trở nên dễ quản lý, đo lường và tích hợp hơn vào các hoạt động nội dung rộng lớn hơn. [RWS](https://www.rws.com/glossary/translation-management/) mô tả quản lý dịch thuật là sự phối hợp giữa con người, quy trình và công nghệ cần thiết để dịch nội dung một cách hiệu quả và nhất quán trên nhiều ngôn ngữ.
 
-But the environment in which localisation operates has changed.
+Nhưng môi trường mà trong đó bản địa hóa hoạt động đã thay đổi.
 
-Modern organisations no longer translate only completed documents or occasional product releases. They localise continuously changing interfaces, campaigns, help-centre articles, onboarding flows, pricing pages, legal messages, design systems, and customer communications. Content is created across repositories, design tools, content management systems, support platforms, and marketing applications.
+Các tổ chức hiện đại không còn chỉ dịch những tài liệu hoàn chỉnh hoặc các bản phát hành sản phẩm thỉnh thoảng nữa. Họ bản địa hóa các giao diện thay đổi liên tục, các chiến dịch, bài viết trung tâm trợ giúp, luồng onboarding, trang giá, thông điệp pháp lý, hệ thống thiết kế và các thông tin liên lạc với khách hàng. Nội dung được tạo ra trên nhiều kho lưu trữ, công cụ thiết kế, hệ thống quản lý nội dung, nền tảng hỗ trợ và ứng dụng tiếp thị.
 
-The challenge is therefore no longer limited to managing translation work.
+Thách thức do đó không còn chỉ giới hạn ở việc quản lý công việc dịch thuật.
 
-The larger challenge is understanding the context behind every translation decision.
+Thách thức lớn hơn là hiểu ngữ cảnh đằng sau mọi quyết định dịch thuật.
 
-This is the shift from Translation Management to Translation Intelligence.
+Đây là sự chuyển đổi từ Quản lý dịch thuật sang Trí tuệ dịch thuật.
 
-## Translation management was built to organise production
+## Bản dịch quản lý được xây dựng để tổ chức sản xuất
 
-The traditional localisation workflow follows a relatively clear sequence. Source content enters a system, work is assigned, translators produce target-language content, reviewers approve it, and the completed translation is returned to the requesting team.
+Quy trình bản địa hóa truyền thống tuân theo một trình tự tương đối rõ ràng. Nội dung nguồn được đưa vào một hệ thống, công việc được phân công, người dịch tạo ra nội dung bằng ngôn ngữ đích, người biên tập phê duyệt nội dung đó, và bản dịch hoàn chỉnh được trả lại cho nhóm yêu cầu.
 
-Translation memory supports the reuse of previously approved content. Terminology databases improve consistency. Workflow rules automate assignments, approvals, and delivery. Integrations reduce the need to manually move files between systems.
+Bộ nhớ dịch thuật hỗ trợ tái sử dụng nội dung đã được phê duyệt trước đó. Cơ sở dữ liệu thuật ngữ giúp cải thiện tính nhất quán. Quy tắc quy trình làm việc tự động hóa việc phân công, phê duyệt và bàn giao. Các tích hợp giúp giảm nhu cầu phải chuyển tệp thủ công giữa các hệ thống.
 
-These capabilities remain valuable. They solve the operational problem of moving multilingual content through a controlled process.
+Những khả năng này vẫn còn giá trị. Chúng giải quyết vấn đề vận hành là chuyển nội dung đa ngôn ngữ qua một quy trình được kiểm soát.
 
-However, they mainly operate after the translation task has already been defined.
+Tuy nhiên, họ chủ yếu hoạt động sau khi nhiệm vụ dịch thuật đã được xác định.
 
-They can show a translator how a similar sentence was translated previously, but they do not always explain why that choice was made. They can provide an approved term, but they may not determine whether that term applies to this particular screen, feature, audience, or market.
+Họ có thể cho người dịch xem một câu tương tự đã được dịch như thế nào trước đây, nhưng không phải lúc nào họ cũng giải thích tại sao lại chọn cách đó. Họ có thể cung cấp một thuật ngữ đã được phê duyệt, nhưng có thể họ không xác định được liệu thuật ngữ đó có áp dụng cho màn hình, tính năng, đối tượng người dùng hoặc thị trường cụ thể này hay không.
 
-Consider a short source string such as:
+Hãy xem xét một chuỗi nguồn ngắn như:
 
-> Upgrade now
+> Nâng cấp ngay
 
-The correct translation may depend on whether the text appears on a button, in an email subject, on a pricing page, or inside an account notification. It may refer to a subscription plan, a software version, an entitlement, or a service tier. It may need to follow an approved campaign message, fit within a strict interface constraint, or use a different tone in a particular market.
+Bản dịch chính xác có thể phụ thuộc vào việc văn bản xuất hiện trên nút, trong tiêu đề email, trên trang giá, hay trong thông báo tài khoản. Nó có thể đề cập đến gói đăng ký, phiên bản phần mềm, quyền lợi được cấp, hoặc cấp dịch vụ. Nó có thể cần tuân theo một thông điệp chiến dịch đã được phê duyệt, phù hợp với ràng buộc nghiêm ngặt của giao diện, hoặc sử dụng giọng điệu khác ở một thị trường cụ thể.
 
-The sentence is simple. The decision is not.
+Câu thì đơn giản. Quyết định thì không.
 
-A traditional system can route the string to the right person. It cannot always reconstruct the complete product and business context needed to translate it well.
+Một hệ thống truyền thống có thể định tuyến chuỗi đến đúng người. Tuy nhiên, nó không phải lúc nào cũng có thể tái tạo bối cảnh đầy đủ về sản phẩm và kinh doanh cần thiết để dịch tốt.
 
-## The workflow is centralised, but the knowledge is fragmented
+## Quy trình làm việc được tập trung hóa, nhưng kiến thức lại bị phân mảnh
 
-In most organisations, the knowledge required for localisation is distributed across many systems.
+Ở hầu hết các tổ chức, kiến thức cần thiết cho việc bản địa hóa được phân tán trên nhiều hệ thống.
 
-Product behaviour may be documented in an issue tracker. The latest interface may exist in Figma. Technical constraints may be visible only in source code. Brand guidance may live in a presentation or document. Market preferences may be buried in reviewer comments. Legal requirements may be stored in a separate policy repository.
+Hành vi của sản phẩm có thể được ghi chép trong trình theo dõi vấn đề. Giao diện mới nhất có thể tồn tại trong Figma. Các ràng buộc kỹ thuật có thể chỉ hiển thị trong mã nguồn. Hướng dẫn thương hiệu có thể nằm trong một bản trình bày hoặc tài liệu. Sở thích thị trường có thể ẩn trong các nhận xét của người đánh giá. Các yêu cầu pháp lý có thể được lưu trong một kho chính sách riêng biệt.
 
-The translator is then expected to reconstruct meaning from incomplete evidence.
+Người dịch sau đó được kỳ vọng sẽ tái tạo ý nghĩa từ những bằng chứng không đầy đủ.
 
-This is one of the core limitations of the traditional model: the translation workflow may be centralised, but the knowledge surrounding the work is not.
+Đây là một trong những hạn chế cốt lõi của mô hình truyền thống: quy trình dịch thuật có thể được tập trung hóa, nhưng kiến thức xoay quanh công việc thì không.
 
-As product and content teams move faster, this gap becomes more expensive. Product strings may change several times before release. Campaigns may be updated while they are running. Support content evolves in response to customer behaviour. Teams increasingly expect localisation to operate continuously rather than as a downstream production stage.
+Khi các nhóm sản phẩm và nội dung làm việc nhanh hơn, khoảng cách này trở nên tốn kém hơn. Chuỗi văn bản sản phẩm có thể thay đổi nhiều lần trước khi phát hành. Các chiến dịch có thể được cập nhật ngay trong khi đang chạy. Nội dung hỗ trợ cũng phát triển để phản hồi hành vi của khách hàng. Các nhóm ngày càng kỳ vọng bản địa hóa phải vận hành liên tục thay vì chỉ là một giai đoạn sản xuất ở bước sau.
 
-Yet the supporting context often remains manual.
+Tuy nhiên, ngữ cảnh hỗ trợ thường vẫn còn được thực hiện thủ công.
 
-Screenshots are added inconsistently. Descriptions become outdated. Translators ask product teams for clarification. Reviewers explain the same market preference repeatedly. Important corrections remain trapped inside comments instead of improving future work.
+Ảnh chụp màn hình được thêm vào không nhất quán. Mô tả trở nên lỗi thời. Dịch giả hỏi các nhóm sản phẩm để làm rõ. Người kiểm duyệt phải giải thích cùng một sở thích thị trường lặp đi lặp lại. Những sửa lỗi quan trọng vẫn bị mắc kẹt trong phần bình luận thay vì cải thiện công việc trong tương lai.
 
-The organisation may have automated the movement of content while leaving the movement of knowledge largely unchanged.
+Tổ chức có thể đã tự động hóa việc di chuyển nội dung trong khi phần lớn vẫn giữ nguyên cách di chuyển tri thức.
 
-## AI makes translation faster, but not necessarily more accurate
+## AI giúp dịch nhanh hơn, nhưng không nhất thiết chính xác hơn
 
-Generative AI has changed the economics of multilingual content.
+AI tạo sinh đã thay đổi nền kinh tế của nội dung đa ngôn ngữ.
 
-Translation can now be produced in seconds. Models can rewrite content for different tones, generate alternatives, follow terminology instructions, and process substantially more contextual information than earlier systems.
+Bản dịch giờ đây có thể được tạo ra trong vài giây. Các mô hình có thể viết lại nội dung theo các giọng điệu khác nhau, tạo ra các phương án thay thế, tuân thủ hướng dẫn thuật ngữ, và xử lý lượng thông tin ngữ cảnh lớn hơn đáng kể so với các hệ thống trước đây.
 
-But fluency should not be confused with correctness.
+Nhưng sự trôi chảy không nên bị nhầm lẫn với sự chính xác.
 
-An AI-generated translation can sound natural while misunderstanding the product, selecting the wrong approved term, violating an interface constraint, or failing to preserve the intent of the source message.
+Một bản dịch do AI tạo ra có thể nghe tự nhiên nhưng lại hiểu sai sản phẩm, chọn sai thuật ngữ đã được phê duyệt, vi phạm ràng buộc giao diện, hoặc không giữ được ý định của thông điệp gốc.
 
-Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
+Nghiên cứu về dịch máy tiếp tục cho thấy rằng chất lượng bản dịch phụ thuộc vào nhiều yếu tố hơn là chỉ độ trôi chảy ở cấp câu. [Bối cảnh tài liệu, kiến thức chuyên ngành, diễn ngôn, thuật ngữ và mục đích sử dụng](https://www.sciencedirect.com/science/article/pii/S2589004224021035) đều có thể ảnh hưởng đến việc một bản dịch có phù hợp hay không.
 
-This distinction becomes more important as AI output becomes more convincing.
+Sự phân biệt này trở nên quan trọng hơn khi đầu ra của AI ngày càng thuyết phục hơn.
 
-Obvious grammatical errors are easy to identify. Subtle product errors are not. A sentence may read perfectly while communicating the wrong action, the wrong level of certainty, or the wrong relationship between the user and the product.
+Các lỗi ngữ pháp hiển nhiên thì dễ nhận ra. Những lỗi sản phẩm tinh vi thì không. Một câu có thể đọc rất trôi chảy nhưng lại truyền đạt sai hành động, sai mức độ chắc chắn, hoặc sai mối quan hệ giữa người dùng và sản phẩm.
 
-The important question is therefore not simply whether AI can translate.
+Vì vậy, câu hỏi quan trọng không chỉ đơn giản là liệu AI có thể dịch hay không.
 
-It is whether the system can provide the right model or person with the right evidence, instructions, constraints, and organisational knowledge.
+Đó là việc hệ thống có thể cung cấp cho đúng mô hình hoặc người có bằng chứng, hướng dẫn, ràng buộc và kiến thức tổ chức phù hợp hay không.
 
-That is the role of Translation Intelligence.
+Đó là vai trò của Trí tuệ Dịch thuật.
 
-## What is Translation Intelligence?
+## Translation Intelligence là gì?
 
-Translation Intelligence is the infrastructure that turns product, brand, linguistic, market, and reviewer knowledge into better localisation decisions.
+Translation Intelligence là cơ sở hạ tầng biến kiến thức về sản phẩm, thương hiệu, ngôn ngữ, thị trường và người duyệt thành những quyết định bản địa hóa tốt hơn.
 
-Translation Management coordinates the work.
+Translation Management điều phối công việc.
 
-Translation Intelligence improves the reasoning behind the work.
+Translation Intelligence cải thiện khả năng suy luận đằng sau công việc.
 
-A Translation Intelligence system should help determine:
+Một hệ thống Trí tuệ Dịch thuật nên giúp xác định:
 
-- what a piece of content means;
-- where it appears;
-- who it is intended for;
-- which product, brand, linguistic, and market rules apply;
-- how similar content has been handled previously;
-- what level of risk the translation carries;
-- and when human judgement is required.
+- một nội dung tệ hại;
+- nơi nó xuất hiện;
+- người mà nó được dự định dành cho;
+- quy tắc nào về sản phẩm, thương hiệu, ngôn ngữ và thị trường áp dụng;
+- nội dung tương tự đã được xử lý như thế nào trước đây;
+- mức độ rủi ro mà bản dịch mang lại;
+- và khi cần đến phán đoán của con người.
 
-This represents a broader role for localisation technology.
+Điều này thể hiện một vai trò rộng hơn đối với công nghệ bản địa hóa.
 
-Traditional platforms organise assets such as files, translation memories, glossaries, workflows, and reference material. An intelligent system also connects screenshots, product documentation, design components, source-code metadata, reviewer feedback, market preferences, content performance, and historical quality data.
+Các nền tảng truyền thống tổ chức các tài sản như tệp, bộ nhớ dịch, bảng thuật ngữ, quy trình làm việc và tài liệu tham khảo. Một hệ thống thông minh cũng kết nối ảnh chụp màn hình, tài liệu sản phẩm, các thành phần thiết kế, siêu dữ liệu mã nguồn, phản hồi của người duyệt, sở thích thị trường, hiệu suất nội dung và dữ liệu chất lượng lịch sử.
 
-The objective is not to collect every piece of company information into one large repository. It is to retrieve and apply the relevant information when a translation decision is being made.
+Mục tiêu không phải là thu thập mọi thông tin về công ty vào một kho lưu trữ lớn duy nhất. Mục tiêu là truy xuất và áp dụng những thông tin liên quan khi một quyết định dịch thuật đang được đưa ra.
 
-For a product label, this may mean the latest screenshot, component name, approved terminology, and character limit. For a campaign headline, it may mean the target audience, brand positioning, local market expectations, and previous creative feedback.
+Đối với nhãn sản phẩm, điều này có thể có nghĩa là ảnh chụp màn hình mới nhất, tên thành phần, thuật ngữ đã được phê duyệt và giới hạn ký tự. Đối với tiêu đề chiến dịch, điều này có thể có nghĩa là đối tượng mục tiêu, định vị thương hiệu, kỳ vọng của thị trường địa phương và phản hồi sáng tạo trước đó.
 
-Translation Intelligence makes context operational rather than optional.
+Translation Intelligence biến ngữ cảnh thành yếu tố vận hành bắt buộc, thay vì tùy chọn.
 
-As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
+Như đã được khám phá trong [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), bản dịch tự thân đang ngày càng dễ tạo ra hơn. Năng lực khó hơn và có giá trị bảo vệ hơn là hiểu được kiến thức nào nên ảnh hưởng đến kết quả.
 
-## From workflow automation to intelligent investigation
+## Từ tự động hóa quy trình làm việc đến điều tra thông minh
 
-Traditional workflow automation follows predefined rules.
+Tự động hóa quy trình làm việc truyền thống tuân theo các quy tắc được xác định trước.
 
-When new content appears, create a translation task. When translation is complete, assign review. When approval is received, return the content to the source system.
+Khi nội dung mới xuất hiện, hãy tạo một tác vụ dịch. Khi bản dịch hoàn tất, hãy giao để xem xét. Khi nhận được phê duyệt, hãy trả nội dung về hệ thống nguồn.
 
-This reduces coordination work, but it does not investigate what the translation requires.
+Điều này giảm bớt công việc phối hợp, nhưng nó không tìm hiểu những gì bản dịch đòi hỏi.
 
-A more intelligent system can inspect the source content, identify the relevant feature, retrieve supporting screenshots, locate terminology rules, search historical decisions, detect ambiguity, select an appropriate model or reviewer, and evaluate the result before delivery.
+Một hệ thống thông minh hơn có thể kiểm tra nội dung nguồn, xác định tính năng liên quan, truy xuất các ảnh chụp màn hình hỗ trợ, tìm các quy tắc thuật ngữ, tìm kiếm các quyết định trước đây, phát hiện sự mơ hồ, chọn mô hình hoặc người duyệt phù hợp, và đánh giá kết quả trước khi bàn giao.
 
-This is where AI agents become particularly valuable.
+Đây là nơi các tác nhân AI trở nên đặc biệt hữu ích.
 
-Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
+Thay vì chờ các nhóm bản địa hóa tự tổng hợp thông tin, [agents](/product/agents-automation) có thể thu thập ngữ cảnh từ các hệ thống được kết nối và cung cấp trực tiếp trong quy trình dịch.
 
-An agent might help answer:
+Một tác nhân có thể giúp trả lời:
 
-- Where does this content appear?
-- What does the feature do?
-- Which terminology applies?
-- Has similar wording been corrected before?
-- Does the content contain variables or interface constraints?
-- Is the translation safe to automate?
-- Does it require legal, creative, or market review?
+- Nội dung này xuất hiện ở đâu?
+- Tính năng này làm gì?
+- Thuật ngữ nào được áp dụng?
+- Đã có cách diễn đạt tương tự nào được chỉnh sửa trước đây chưa?
+- Nội dung có chứa biến hoặc ràng buộc giao diện không?
+- Bản dịch có an toàn để tự động hóa không?
+- Nó có yêu cầu xem xét về pháp lý, sáng tạo hoặc thị trường không?
 
-At Hyperlocalise, this investigative layer is a central part of how we see the next generation of localisation platforms evolving.
+Tại Hyperlocalise, lớp điều tra này là một phần cốt lõi trong cách chúng tôi nhìn nhận sự phát triển của thế hệ nền tảng bản địa hoá tiếp theo.
 
-The system should not only process translation tasks. It should help understand them.
+Hệ thống không chỉ nên xử lý các tác vụ dịch thuật. Nó cũng nên giúp hiểu chúng.
 
-## From static assets to self-evolving knowledge
+## Từ tài sản tĩnh đến tri thức tự tiến hóa
 
-Translation memories and glossaries preserve valuable linguistic knowledge, but they are often maintained as relatively static assets.
+Bộ nhớ dịch và bảng thuật ngữ bảo tồn những kiến thức ngôn ngữ giá trị, nhưng chúng thường được duy trì như những tài sản tương đối tĩnh.
 
-Products change. Brand language evolves. New features introduce new concepts. Market teams develop preferences. Reviewers repeatedly make corrections that may never become formal guidance.
+Sản phẩm thay đổi. Ngôn ngữ thương hiệu phát triển. Các tính năng mới đưa ra những khái niệm mới. Các nhóm thị trường phát triển các sở thích riêng. Người rà soát liên tục thực hiện các chỉnh sửa có thể không bao giờ trở thành hướng dẫn chính thức.
 
-A Translation Intelligence system should learn from this activity.
+Một hệ thống Trí tuệ Dịch thuật nên học từ hoạt động này.
 
-When reviewers consistently replace one term with another, the system should identify the pattern. When a phrase is translated differently depending on the product feature, the system should preserve that distinction. When a model repeatedly performs poorly on a specific content type or language pair, the workflow should adapt.
+Khi người duyệt nhất quán thay thế một thuật ngữ bằng một thuật ngữ khác, hệ thống nên xác định được mẫu đó. Khi một cụm từ được dịch khác nhau tùy theo tính năng sản phẩm, hệ thống nên giữ nguyên sự khác biệt đó. Khi một mô hình liên tục hoạt động kém trên một loại nội dung hoặc cặp ngôn ngữ cụ thể, quy trình làm việc nên thích ứng.
 
-The objective is not to convert every edit into a universal rule.
+Mục tiêu không phải là chuyển mọi chỉnh sửa thành một quy tắc phổ quát.
 
-Some feedback applies globally. Some applies only to one market, campaign, feature, or content type. Intelligent localisation infrastructure must understand that scope.
+Một số phản hồi áp dụng trên toàn cầu. Một số chỉ áp dụng cho một thị trường, chiến dịch, tính năng hoặc loại nội dung. Hạ tầng bản địa hoá thông minh phải hiểu được phạm vi đó.
 
-This turns reviewer feedback from an isolated correction into reusable organisational knowledge.
+Điều này biến phản hồi của người đánh giá từ một chỉnh sửa riêng lẻ thành tri thức tổ chức có thể tái sử dụng.
 
-Instead of solving the same issue repeatedly, the system becomes more informed after every approved decision.
+Thay vì giải quyết cùng một vấn đề lặp đi lặp lại, hệ thống trở nên hiểu biết hơn sau mỗi quyết định được phê duyệt.
 
-## From uniform workflows to risk-based orchestration
+## Từ quy trình đồng nhất đến điều phối dựa trên rủi ro
 
-Traditional translation workflows often apply the same process to large groups of content.
+Các quy trình dịch thuật truyền thống thường áp dụng cùng một quy trình cho các nhóm nội dung lớn.
 
-Every string may pass through the same model, translator, reviewer, and approval sequence regardless of its business importance or linguistic complexity.
+Mọi chuỗi đều có thể đi qua cùng một quy trình model, dịch, rà soát và phê duyệt, bất kể mức độ quan trọng trong kinh doanh hay độ phức tạp ngôn ngữ của chúng.
 
-But not every translation carries the same risk.
+Nhưng không phải bản dịch nào cũng mang cùng một mức độ rủi ro.
 
-A navigation label with a strong historical match may be suitable for automation. A launch campaign may require creative adaptation. A regulated claim may need legal review. A high-visibility onboarding flow may justify market validation.
+Một nhãn điều hướng có mức độ khớp lịch sử cao có thể phù hợp để tự động hóa. Một chiến dịch ra mắt có thể cần điều chỉnh sáng tạo. Một tuyên bố chịu quy định có thể cần xem xét pháp lý. Một luồng onboarding có độ hiển thị cao có thể biện minh cho việc thẩm định thị trường.
 
-Translation Intelligence allows work to be routed according to context, confidence, and impact.
+Translation Intelligence cho phép công việc được định tuyến theo ngữ cảnh, độ tin cậy và mức độ ảnh hưởng.
 
-The system can determine whether to reuse an approved translation, generate a new suggestion, compare multiple outputs, involve a specialist, or escalate the content for additional review.
+Hệ thống có thể xác định liệu có nên tái sử dụng một bản dịch đã được phê duyệt, tạo một đề xuất mới, so sánh nhiều đầu ra, huy động một chuyên gia hay chuyển nội dung lên cấp cao hơn để xem xét bổ sung.
 
-This creates a more effective human-in-the-loop model.
+Điều này tạo ra một mô hình có sự tham gia của con người hiệu quả hơn.
 
-Linguists and market experts spend less time checking predictable content and more time on decisions that require cultural judgement, strategic interpretation, or accountability.
+Các chuyên gia ngôn ngữ và chuyên gia thị trường dành ít thời gian hơn để kiểm tra nội dung có thể dự đoán trước và nhiều thời gian hơn cho các quyết định đòi hỏi sự phán đoán văn hóa, diễn giải chiến lược hoặc trách nhiệm giải trình.
 
-That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
+Đó cũng là định hướng của [trải nghiệm CAT thế hệ tiếp theo](/product/next-gen-cat-tool): không phải loại bỏ con người khỏi bản địa hóa, mà là cung cấp cho họ ngữ cảnh tốt hơn, các đề xuất phù hợp hơn và cái nhìn rõ ràng hơn về nơi chuyên môn của họ thực sự quan trọng.
 
-## From quality assurance to continuous evaluation
+## Từ đảm bảo chất lượng đến đánh giá liên tục
 
-In traditional workflows, quality assurance often occurs near the end of the process.
+Trong các quy trình làm việc truyền thống, việc đảm bảo chất lượng thường diễn ra gần cuối quy trình.
 
-A reviewer checks the translation, makes corrections, and approves the final content. The work is delivered, but the reasoning behind those corrections may not materially affect future workflows.
+Người duyệt xem xét bản dịch, thực hiện các chỉnh sửa và phê duyệt nội dung cuối cùng. Công việc được bàn giao, nhưng lý do đằng sau những chỉnh sửa đó có thể không ảnh hưởng đáng kể đến các quy trình làm việc trong tương lai.
 
-Translation Intelligence moves evaluation throughout the process.
+Translation Intelligence di chuyển việc đánh giá xuyên suốt quá trình.
 
-Before translation begins, the system can assess whether sufficient context is available. During generation, it can check terminology, formatting, numbers, variables, and length constraints. After generation, it can assess meaning, tone, consistency, and market suitability.
+Trước khi bắt đầu dịch, hệ thống có thể đánh giá xem đã có đủ ngữ cảnh hay chưa. Trong quá trình tạo, nó có thể kiểm tra thuật ngữ, định dạng, số, biến và các ràng buộc về độ dài. Sau khi tạo xong, nó có thể đánh giá ý nghĩa, giọng điệu, tính nhất quán và mức độ phù hợp với thị trường.
 
-Once a human reviewer makes a decision, the system can compare the generated output with the approved result and determine what changed.
+Khi một người duyệt xét đưa ra quyết định, hệ thống có thể so sánh đầu ra được tạo ra với kết quả đã được phê duyệt và xác định những gì đã thay đổi.
 
-Over time, this creates evidence for questions such as:
+Theo thời gian, điều này tạo ra bằng chứng cho các câu hỏi như:
 
-- Which models perform best for each language and content type?
-- Which product areas create the most ambiguity?
-- Which terminology rules are repeatedly violated?
-- Which markets require more human involvement?
-- Which context sources have the greatest effect on quality?
-- Where can automation safely increase?
-- Where should human review remain mandatory?
+- Những mô hình nào hoạt động tốt nhất cho từng ngôn ngữ và loại nội dung?
+- Những lĩnh vực sản phẩm nào tạo ra nhiều sự mơ hồ nhất?
+- Thuật ngữ nào thường xuyên bị vi phạm?
+- Những thị trường nào cần nhiều sự tham gia của con người hơn?
+- Những nguồn ngữ cảnh nào có ảnh hưởng lớn nhất đến chất lượng?
+- Tự động hóa có thể tăng ở đâu một cách an toàn?
+- Cần giữ bắt buộc kiểm duyệt của con người ở đâu?
 
-This moves localisation quality beyond checking individual outputs.
+Điều này đưa ch��t lượng bản địa hóa vượt ra ngoài việc kiểm tra từng đầu ra riêng lẻ.
 
-It becomes a continuous learning system.
+Nó trở thành một hệ thống học tập liên tục.
 
-## Translation Intelligence changes the role of localisation teams
+## Trí tuệ dịch thuật thay đổi vai trò của các đội ngũ bản địa hóa
 
-The shift from Translation Management to Translation Intelligence is not only a technology change. It also changes the role of the localisation function.
+Sự chuyển dịch từ Quản lý Dịch thuật sang Trí tuệ Dịch thuật không chỉ là một thay đổi về công nghệ. Nó cũng làm thay đổi vai trò của chức năng bản địa hóa.
 
-Under the traditional model, localisation is often treated as a downstream service. Product, marketing, or support teams create content, submit it for translation, and wait for the multilingual output.
+Theo mô hình truyền thống, bản địa hóa thường được xem như một dịch vụ ở giai đoạn sau. Các nhóm sản phẩm, tiếp thị hoặc hỗ trợ tạo nội dung, gửi nội dung đó để dịch và chờ đầu ra đa ngôn ngữ.
 
-Under an intelligence model, localisation becomes part of the organisation’s global decision infrastructure.
+Theo mô hình trí tuệ, bản địa hoá trở thành một phần của hạ tầng ra quyết định toàn cầu của tổ chức.
 
-It connects product, engineering, design, marketing, legal, support, and local market knowledge. It reveals where source content is ambiguous, where terminology creates confusion, where automation is reliable, and where human expertise generates the greatest value.
+Nó kết nối sản phẩm, kỹ thuật, thiết kế, tiếp thị, pháp lý, hỗ trợ và kiến thức thị trường địa phương. Nó cho thấy nội dung nguồn ở đâu còn mơ hồ, thuật ngữ ở đâu gây nhầm lẫn, tự động hóa ở đâu đáng tin cậy, và chuyên môn của con người tạo ra giá trị lớn nhất ở đâu.
 
-Localisation teams are therefore no longer responsible only for coordinating projects and vendors.
+Do đó, các nhóm bản địa hóa không còn chỉ chịu trách nhiệm điều phối các dự án và nhà cung cấp nữa.
 
-They are increasingly responsible for designing how multilingual decisions are made, evaluated, governed, and improved.
+Họ ngày càng chịu trách nhiệm thiết kế cách các quyết định đa ngôn ngữ được đưa ra, đánh giá, quản trị và cải thiện.
 
-This requires stronger capabilities in knowledge management, AI governance, context engineering, quality evaluation, system integration, and risk-based workflow design.
+Điều này đòi hỏi năng lực mạnh hơn trong quản lý tri thức, quản trị AI, thiết kế ngữ cảnh, đánh giá chất lượng, tích hợp hệ thống và thiết kế quy trình làm việc dựa trên rủi ro.
 
-Linguistic expertise remains central. But it becomes embedded within a broader intelligence layer.
+Chuyên môn ngôn ngữ vẫn giữ vai trò cốt lõi. Nhưng nó trở thành một phần của một lớp thông minh rộng hơn.
 
-## Translation management is not disappearing
+## Quản lý bản dịch sẽ không biến mất
 
-Translation Intelligence should not be understood as a replacement for Translation Management Systems.
+Translation Intelligence không nên được hiểu là sự thay thế cho Translation Management Systems.
 
-Organisations still need project coordination, permissions, terminology, translation memory, workflow controls, integrations, and reporting. These remain foundational capabilities.
+Các tổ chức vẫn cần điều phối dự án, quyền truy cập, thuật ngữ, bộ nhớ dịch, kiểm soát quy trình làm việc, tích hợp và báo cáo. Đây vẫn là những năng lực nền tảng.
 
-What changes is the expected role of the platform.
+Điều thay đổi là vai trò dự kiến của nền tảng.
 
-The previous generation of localisation technology focused on moving content through a process efficiently.
+Thế hệ trước của công nghệ bản địa hóa tập trung vào việc chuyển nội dung qua một quy trình một cách hiệu quả.
 
-The next generation must also bring knowledge into that process, guide decisions, evaluate outcomes, and learn from human feedback.
+Thế hệ tiếp theo cũng phải mang kiến thức vào quá trình đó, định hướng các quyết định, đánh giá kết quả và học hỏi từ phản hồi của con người.
 
-Translation Management asks:
+Translation Management hỏi:
 
-How do we organise and deliver multilingual content?
+Chúng ta tổ chức và cung cấp nội dung đa ngôn ngữ như thế nào?
 
 Translation Intelligence asks:
 
-How do we ensure that every human and AI system has the knowledge required to make the right localisation decision?
+Làm thế nào để đảm bảo rằng mọi hệ thống con người và AI đều có kiến thức cần thiết để đưa ra quyết định bản địa hóa đúng đắn?
 
-Global organisations will need both.
+Các tổ chức toàn cầu sẽ cần cả hai.
 
-## The next era of localisation
+## Kỷ nguyên tiếp theo của bản địa hóa
 
-As translation becomes faster and more automated, competitive advantage will not come from generating multilingual words alone.
+Khi dịch thuật trở nên nhanh hơn và tự động hóa hơn, lợi thế cạnh tranh sẽ không chỉ đến từ việc tạo ra các từ đa ngôn ngữ.
 
-It will come from understanding meaning.
+Nó sẽ đến từ việc hiểu ý nghĩa.
 
-The strongest localisation systems will know how content connects to the product, the audience, the market, the brand, and the organisation’s previous decisions. They will retrieve relevant context automatically, apply it selectively, evaluate outputs continuously, and improve through human review.
+Các hệ thống bản địa hóa mạnh nhất sẽ biết nội dung kết nối với sản phẩm, đối tượng, thị trường, thương hiệu và các quyết định trước đây của tổ chức như thế nào. Chúng sẽ tự động truy xuất ngữ cảnh liên quan, áp dụng ngữ cảnh đó một cách có chọn lọc, đánh giá đầu ra liên tục và cải thiện thông qua rà soát của con người.
 
-This is the transition now taking place across the localisation industry.
+Đây là sự chuyển đổi hiện đang diễn ra trên toàn ngành bản địa hóa.
 
-From managing files to understanding content.
+Từ việc quản lý tệp đến việc hiểu nội dung.
 
-From storing translations to learning from decisions.
+Từ việc lưu trữ bản dịch đến việc học hỏi từ các quyết định.
 
-From automating handoffs to automating investigation.
+Từ tự động hóa việc bàn giao đến tự động hóa việc điều tra.
 
-From static linguistic assets to self-evolving knowledge.
+Từ các tài sản ngôn ngữ tĩnh đến tri thức tự tiến hóa.
 
-From Translation Management to Translation Intelligence.
+Từ quản lý dịch thuật đến trí tuệ dịch thuật.
 
-Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/self-evolving-knowledge) designed to help global teams produce better translations with less manual investigation.
+Hyperlocalise đang hướng tới tương lai này thông qua [các tác nhân AI](/product/agents-automation), một [trải nghiệm CAT thế hệ mới](/product/next-gen-cat-tool), và một [công cụ ngữ cảnh tự tiến hóa](/product/self-evolving-knowledge) được thiết kế để giúp các nhóm toàn cầu tạo ra bản dịch tốt hơn với ít công sức dò tìm thủ công hơn.
 
-The next generation of localisation software will not simply manage translation.
+Phần mềm bản địa hóa thế hệ tiếp theo sẽ không chỉ đơn thuần quản lý việc dịch thuật.
 
-It will make the organisation more intelligent about how it communicates across markets.
+Nó sẽ giúp tổ chức trở nên thông minh hơn về cách giao tiếp trên các thị trường khác nhau.
 
-## Further reading
+## Đọc thêm
 
-- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [Translation Intelligence là gì?](/blog/what-is-translation-intelligence)
 - [Hyperlocalise](/)
-- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
-- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)
+- [Tổng quan quản lý bản dịch — RWS](https://www.rws.com/glossary/translation-management/)
+- [Nghiên cứu dịch máy nhận biết ngữ cảnh — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [Đánh giá của con người và ngữ cảnh cấp tài liệu trong dịch máy — arXiv](https://arxiv.org/abs/2104.14478)

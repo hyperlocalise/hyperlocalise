@@ -1,8 +1,8 @@
 ---
-title: From Translation Management to Translation Intelligence
+title: 从翻译管理到翻译智能
 date: 2026-07-10T00:00:00.000Z
-excerpt: Localisation technology spent two decades organising translation work. The next challenge is understanding the context behind every translation decision.
-category: Product
+excerpt: 本地化技术花了二十年时间来组织翻译工作。下一个挑战是理解每一个翻译决策背后的上下文。
+category: 产品
 tags:
   - translation intelligence
   - translation management
@@ -20,276 +20,276 @@ tags:
   - quality evaluation
 ---
 
-For more than two decades, localisation technology has focused on a central operational challenge: how to manage translation at scale.
+二十多年来，本地化技术一直聚焦于一个核心运营挑战：如何大规模管理翻译。
 
-Translation Management Systems helped organisations replace spreadsheets, email threads, disconnected vendors, and manual file exchanges with structured workflows. They centralised multilingual content, coordinated translators and reviewers, maintained terminology, reused previous translations, and tracked delivery across markets.
+翻译管理系统帮助组织用结构化工作流程取代了电子表格、电子邮件线程、分散的供应商和手动文件交换。它们集中管理多语言内容，协调译者和审校人员，维护术语，复用以往译文，并跟踪各市场的交付情况。
 
-This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
+这是一次重要的演进。翻译变得更容易管理、衡量，并整合到更广泛的内容运营中。[RWS](https://www.rws.com/glossary/translation-management/) 将翻译管理描述为协调人员、流程和技术，以高效且一致地跨语言翻译内容。
 
-But the environment in which localisation operates has changed.
+但是，本地化所处的环境已经发生了变化。
 
-Modern organisations no longer translate only completed documents or occasional product releases. They localise continuously changing interfaces, campaigns, help-centre articles, onboarding flows, pricing pages, legal messages, design systems, and customer communications. Content is created across repositories, design tools, content management systems, support platforms, and marketing applications.
+现代组织不再只是翻译已完成的文档或偶尔发布的产品版本。他们持续本地化不断变化的界面、营销活动、帮助中心文章、新手引导流程、定价页面、法律信息、设计系统和客户沟通内容。内容分布在代码仓库、设计工具、内容管理系统、支持平台和营销应用程序���创建。
 
-The challenge is therefore no longer limited to managing translation work.
+因此，挑战不再仅限于管理翻译工作。
 
-The larger challenge is understanding the context behind every translation decision.
+更大的挑战是理解每一个翻译决策背后的上下文。
 
-This is the shift from Translation Management to Translation Intelligence.
+这是从翻译管理到翻译智能的转变。
 
-## Translation management was built to organise production
+## 翻译管理旨在组织生产
 
-The traditional localisation workflow follows a relatively clear sequence. Source content enters a system, work is assigned, translators produce target-language content, reviewers approve it, and the completed translation is returned to the requesting team.
+传统的本地化工作流通常遵循相对清晰的顺序。源内容进入系统，任务被分配，译员生成目标语言内容，审校人员予以批准，随后完成的译文返回给请求方团队。
 
-Translation memory supports the reuse of previously approved content. Terminology databases improve consistency. Workflow rules automate assignments, approvals, and delivery. Integrations reduce the need to manually move files between systems.
+翻译记忆支持复用先前已批准的内容。术语数据库提高一致性。工作流规则可自动分配、审批和交付。集成减少了在系统之间手动传输文件的需要。
 
-These capabilities remain valuable. They solve the operational problem of moving multilingual content through a controlled process.
+这些功能仍然很有价值。它们解决了通过受控流程处理多语言内容的运营问题。
 
-However, they mainly operate after the translation task has already been defined.
+然而，他们主要是在翻译任务已经定义之后才进行操作。
 
-They can show a translator how a similar sentence was translated previously, but they do not always explain why that choice was made. They can provide an approved term, but they may not determine whether that term applies to this particular screen, feature, audience, or market.
+他们可以向译员展示类似句子之前是如何翻译的，但他们并不总是解释为什么会作出那样的选择。他们可以提供一个已批准的术语，但未必能判断该术语是否适用于这个特定的界面、功能、受众或市场。
 
-Consider a short source string such as:
+比如考虑一个简短的源字符串：
 
-> Upgrade now
+> 立即升级
 
-The correct translation may depend on whether the text appears on a button, in an email subject, on a pricing page, or inside an account notification. It may refer to a subscription plan, a software version, an entitlement, or a service tier. It may need to follow an approved campaign message, fit within a strict interface constraint, or use a different tone in a particular market.
+正确的翻译可能取决于文本是出现在按钮上、电子邮件主题中、定价页面上，还是账户通知里。它可能指的是订阅方案、软件版本、权益或服务等级。它可能需要遵循已批准的营销活动文案，符合严格的界面限制，或者在特定市场中使用不同的语气。
 
-The sentence is simple. The decision is not.
+这句话很简单。这个决定却不简单。
 
-A traditional system can route the string to the right person. It cannot always reconstruct the complete product and business context needed to translate it well.
+传统系统可以将字符串路由给合适的人，但它并不总能重建出准确翻译所需的完整产品和业务上下文。
 
-## The workflow is centralised, but the knowledge is fragmented
+## 工作流程是集中的，但知识是分散的
 
-In most organisations, the knowledge required for localisation is distributed across many systems.
+在大多数组织中，本地化所需的知识分散在许多系统中。
 
-Product behaviour may be documented in an issue tracker. The latest interface may exist in Figma. Technical constraints may be visible only in source code. Brand guidance may live in a presentation or document. Market preferences may be buried in reviewer comments. Legal requirements may be stored in a separate policy repository.
+产品行为可能记录在问题跟踪系统中。最新的界面可能存在于 Figma 中。技术限制可能只体现在源代码里。品牌指导可能保存在演示文稿或文档中。市场偏好可能隐藏在审阅者评论里。法律要求可能存储在单独的政策仓库中。
 
-The translator is then expected to reconstruct meaning from incomplete evidence.
+然后，译者需要根据不完整的证据来重构含义。
 
-This is one of the core limitations of the traditional model: the translation workflow may be centralised, but the knowledge surrounding the work is not.
+这是传统模式的核心局限之一：翻译流程可能是集中式的，但围绕这项工作的知识却不是。
 
-As product and content teams move faster, this gap becomes more expensive. Product strings may change several times before release. Campaigns may be updated while they are running. Support content evolves in response to customer behaviour. Teams increasingly expect localisation to operate continuously rather than as a downstream production stage.
+随着产品和内容团队加快节奏，这一差距的代价也会越来越高。产品文案在发布前可能会多次变更。营销活动在运行期间也可能会更新。支持内容会根据客户行为不断演进。团队越来越期望本地化能够持续运作，而不是作为下游的制作阶段。
 
-Yet the supporting context often remains manual.
+然而，支持性上下文通常仍然需要手动处理。
 
-Screenshots are added inconsistently. Descriptions become outdated. Translators ask product teams for clarification. Reviewers explain the same market preference repeatedly. Important corrections remain trapped inside comments instead of improving future work.
+截图添加不一致。描述会过时。译员向产品团队询问澄清。审校人员反复解释同样的市场偏好。重要的更正仍然被困在评论中，而没有改进未来的工作。
 
-The organisation may have automated the movement of content while leaving the movement of knowledge largely unchanged.
+该组织可能已经实现了内容流转的自动化，而知识的流转基本上仍未改变。
 
-## AI makes translation faster, but not necessarily more accurate
+## AI 让翻译更快，但不一定更准确
 
-Generative AI has changed the economics of multilingual content.
+生成式 AI 已改变了多语言内容的经济模式。
 
-Translation can now be produced in seconds. Models can rewrite content for different tones, generate alternatives, follow terminology instructions, and process substantially more contextual information than earlier systems.
+翻译现在可以在几秒内完成。模型可以针对不同语气重写内容，生成替代版本，遵循术语说明，并处理比早期系统多得多的上下文信息。
 
-But fluency should not be confused with correctness.
+但流畅性不应与正确性混为一谈。
 
-An AI-generated translation can sound natural while misunderstanding the product, selecting the wrong approved term, violating an interface constraint, or failing to preserve the intent of the source message.
+AI 生成的翻译可能听起来自然，却误解了产品、选用了错误的已批准术语、违反了界面约束，或者未能保留源消息的意图。
 
-Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
+研究表明，机器翻译的质量不仅取决于句子层面的流畅性。[文档上下文、领域知识、话语、术语和预期用途](https://www.sciencedirect.com/science/article/pii/S2589004224021035)都可能影响译文是否合适。
 
-This distinction becomes more important as AI output becomes more convincing.
+随着 AI 输出变得越来越令人信服，这种区别变得更加重要。
 
-Obvious grammatical errors are easy to identify. Subtle product errors are not. A sentence may read perfectly while communicating the wrong action, the wrong level of certainty, or the wrong relationship between the user and the product.
+明显的语法错误很容易识别。细微的产品错误则不然。一句话可能读起来完全通顺，却传达了错误的操作、错误的确定性程度，或用户与产品之间错误的关系。
 
-The important question is therefore not simply whether AI can translate.
+因此，重要的问题并不仅仅是 AI 是否能够翻译。
 
-It is whether the system can provide the right model or person with the right evidence, instructions, constraints, and organisational knowledge.
+关键在于系统是否能够为合适的模型或人员提供正确的证据、说明、约束和组织知识。
 
-That is the role of Translation Intelligence.
+这就是翻译智能的作用。
 
-## What is Translation Intelligence?
+## 什么是翻译智能？
 
-Translation Intelligence is the infrastructure that turns product, brand, linguistic, market, and reviewer knowledge into better localisation decisions.
+翻译智能是将产品、品牌、语言、市场和审校人员知识转化为更优本地化决策的基础设施。
 
-Translation Management coordinates the work.
+翻译管理协调工作。
 
-Translation Intelligence improves the reasoning behind the work.
+Translation Intelligence 可提升工作的推理质量。
 
-A Translation Intelligence system should help determine:
+Translation Intelligence 系统应帮助确定：
 
-- what a piece of content means;
-- where it appears;
-- who it is intended for;
-- which product, brand, linguistic, and market rules apply;
-- how similar content has been handled previously;
-- what level of risk the translation carries;
-- and when human judgement is required.
+- 这段内容的含义是；
+- 出现的位置；
+- 适用于谁；
+- 适用哪些产品、品牌、语言和市场规则；
+- 之前类似内容是如何处理的；
+- 翻译具有多大风险；
+- 以及在需要人工判断时。
 
-This represents a broader role for localisation technology.
+这代表本地化技术发挥更广泛的作用。
 
-Traditional platforms organise assets such as files, translation memories, glossaries, workflows, and reference material. An intelligent system also connects screenshots, product documentation, design components, source-code metadata, reviewer feedback, market preferences, content performance, and historical quality data.
+传统平台会组织文件、翻译记忆、术语表、工作流和参考资料等资产。智能系统还会连接截图、产品文档、设计组件、源代码元数据、审核者反馈、市场偏好、内容表现和历史质量数据。
 
-The objective is not to collect every piece of company information into one large repository. It is to retrieve and apply the relevant information when a translation decision is being made.
+目标不是将所有公司信息收集到一个大型资料库中，而是在做出翻译决策时检索并应用相关信息。
 
-For a product label, this may mean the latest screenshot, component name, approved terminology, and character limit. For a campaign headline, it may mean the target audience, brand positioning, local market expectations, and previous creative feedback.
+对于产品标签，这可能意味着最新的截图、组件名称、批准的术语以及字符限制。对于活动标题，这可能意味着目标受众、品牌定位、本地市场预期以及以往的创意反馈。
 
-Translation Intelligence makes context operational rather than optional.
+翻译智能使上下文从可选变为可操作。
 
-As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
+如在[What Is Translation Intelligence?](/blog/what-is-translation-intelligence)中所探讨的，翻译本身正变得更容易生成。更困难且更具防御性的能力，是理解哪些知识应当影响结果。
 
-## From workflow automation to intelligent investigation
+## 从工作流自动化到智能调查
 
-Traditional workflow automation follows predefined rules.
+传统工作流自动化遵循预定义规则。
 
-When new content appears, create a translation task. When translation is complete, assign review. When approval is received, return the content to the source system.
+当出现新内容时，创建翻译任务。当翻译完成时，分配审核。当收到批准时，将内容返回到源系统。
 
-This reduces coordination work, but it does not investigate what the translation requires.
+这减少了协调工作，但它并没有探究翻译需要什么��
 
-A more intelligent system can inspect the source content, identify the relevant feature, retrieve supporting screenshots, locate terminology rules, search historical decisions, detect ambiguity, select an appropriate model or reviewer, and evaluate the result before delivery.
+更智能的系统可以检查源内容，识别相关功能，检索支持性截图，查找术语规则，搜索历史决策，检测歧义，选择合适的模型或审阅者，并在交付前评估结果。
 
-This is where AI agents become particularly valuable.
+这是 AI 代理变得尤为有价值的地方。
 
-Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
+不用等待本地化团队手动整理信息，[agents](/product/agents-automation) 可以从已连接的系统中收集上下文，并直接在翻译工作流中提供这些信息。
 
-An agent might help answer:
+代理人可能有助于回答：
 
-- Where does this content appear?
-- What does the feature do?
-- Which terminology applies?
-- Has similar wording been corrected before?
-- Does the content contain variables or interface constraints?
-- Is the translation safe to automate?
-- Does it require legal, creative, or market review?
+- 这段内容出现在哪里？
+- 这个功能是做什么的？
+- 适用哪种术语？
+- 以前是否已更正过类似表述？
+- 内容是否包含变量或界面约束？
+- 翻译可以自动化吗？
+- 是否需要法律、创意或市场审核？
 
-At Hyperlocalise, this investigative layer is a central part of how we see the next generation of localisation platforms evolving.
+在 Hyperlocalise，我们认为这一调查层是我们看待下一代本地化平台演进方式的核心组成部分。
 
-The system should not only process translation tasks. It should help understand them.
+系统不应仅仅处理翻译任务。它还应帮助理解这些任务。
 
-## From static assets to self-evolving knowledge
+## 从静态资产到自我演化的知识
 
-Translation memories and glossaries preserve valuable linguistic knowledge, but they are often maintained as relatively static assets.
+翻译记忆和术语表保留了宝贵的语言知识，但它们通常被维护为相对静态的资源。
 
-Products change. Brand language evolves. New features introduce new concepts. Market teams develop preferences. Reviewers repeatedly make corrections that may never become formal guidance.
+产品会变化。品牌语言会演进。新功能会引入新概念。市场团队会形成偏好。审核者会反复进行更正，而这些更正可能永远不会成为正式指南。
 
-A Translation Intelligence system should learn from this activity.
+翻译智能系统应从此活动中学习。
 
-When reviewers consistently replace one term with another, the system should identify the pattern. When a phrase is translated differently depending on the product feature, the system should preserve that distinction. When a model repeatedly performs poorly on a specific content type or language pair, the workflow should adapt.
+当审核人员持续用一个术语替换另一个术语时，系统应识别出这种模式。当某个短语会因产品功能不同而被译为不同内容时，系统应保留这种区分。当模型在特定内容类型或语言对上反复表现不佳时，工作流应进行调整。
 
-The objective is not to convert every edit into a universal rule.
+目标不是将每一次编辑都转化为一条普遍规则。
 
-Some feedback applies globally. Some applies only to one market, campaign, feature, or content type. Intelligent localisation infrastructure must understand that scope.
+有些反馈适用于全局。有些只适用于某个市场、活动、功能或内容类型。智能本地化基础设施必须理解这种作用范围。
 
-This turns reviewer feedback from an isolated correction into reusable organisational knowledge.
+这将把审阅者反馈从孤立的修正转变为可重复使用的组织知识。
 
-Instead of solving the same issue repeatedly, the system becomes more informed after every approved decision.
+系统不会一遍又一遍地解决同一个问题，而是在每次获得批准的决策后变得更加明智。
 
-## From uniform workflows to risk-based orchestration
+## 从统一工作流到基于风险的编排
 
-Traditional translation workflows often apply the same process to large groups of content.
+传统翻译工作流程通常会对大量内容采用相同的流程。
 
-Every string may pass through the same model, translator, reviewer, and approval sequence regardless of its business importance or linguistic complexity.
+每个字符串都可能通过相同的模型、翻译、审核和批准流程，无论其业务重要性或语言复杂性如何。
 
-But not every translation carries the same risk.
+但并非每个翻译都承担相同的风险。
 
-A navigation label with a strong historical match may be suitable for automation. A launch campaign may require creative adaptation. A regulated claim may need legal review. A high-visibility onboarding flow may justify market validation.
+具有强历史匹配的导航标签可能适合自动化。发射活动可能需要创意改编。受监管的声明可能需要法律审查。高可见度的入职流程可能需要市场验证。
 
-Translation Intelligence allows work to be routed according to context, confidence, and impact.
+翻译智能使工作能够根据上下文、置信度和影响进行路由。
 
-The system can determine whether to reuse an approved translation, generate a new suggestion, compare multiple outputs, involve a specialist, or escalate the content for additional review.
+系统可以确定是否重用已批准的翻译、生成新的建议、比较多个输出、引入专家，或将内容升级以进行进一步审核。
 
-This creates a more effective human-in-the-loop model.
+这创建了一个更有效的人在回路模型。
 
-Linguists and market experts spend less time checking predictable content and more time on decisions that require cultural judgement, strategic interpretation, or accountability.
+语言学家和市场专家会花更少的时间检查可预测的内容，而将更多时间用于需要文化判断、战略解读或责任承担的决策。
 
-That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
+这也是[下一代 CAT 体验](/product/next-gen-cat-tool)的方向：不是将人类从本地化中移除，而是为他们提供更好的上下文、更相关的推荐，以及更清晰地了解他们的专业知识何处真正发挥作用。
 
-## From quality assurance to continuous evaluation
+## 从质量保证到持续评估
 
-In traditional workflows, quality assurance often occurs near the end of the process.
+在传统工作流程中，质量保证通常发生在流程接近结束时。
 
-A reviewer checks the translation, makes corrections, and approves the final content. The work is delivered, but the reasoning behind those corrections may not materially affect future workflows.
+审校人员会检查译文、进行修正并批准最终内容。工作已交付，但这些修正背后的推理未必会实质性影响未来的工作流程。
 
-Translation Intelligence moves evaluation throughout the process.
+Translation Intelligence 将评估贯穿整个流程。
 
-Before translation begins, the system can assess whether sufficient context is available. During generation, it can check terminology, formatting, numbers, variables, and length constraints. After generation, it can assess meaning, tone, consistency, and market suitability.
+在翻译开始之前，系统可以评估是否具备足够的上下文。在生成过程中，它可以检查术语、格式、数字、变量和长度限制。在生成之后，它可以评估含义、语气、一致性以及是否适合目标市场。
 
-Once a human reviewer makes a decision, the system can compare the generated output with the approved result and determine what changed.
+一旦人工审核员做出决定，系统就可以将生成的输出与已批准的结果进行比较，并确定发生了哪些变化。
 
-Over time, this creates evidence for questions such as:
+随着时间的推移，这会为如下问题提供证据：
 
-- Which models perform best for each language and content type?
-- Which product areas create the most ambiguity?
-- Which terminology rules are repeatedly violated?
-- Which markets require more human involvement?
-- Which context sources have the greatest effect on quality?
-- Where can automation safely increase?
-- Where should human review remain mandatory?
+- 哪些模型在每种语言和内容类型上表现最好？
+- 哪些产品领域最容易产生歧义？
+- 哪些术语规则被反复违反？
+- 哪些市场需要更多人工参与？
+- 哪些上下文来源对质量影响最大？
+- 自动化可以在哪些方面安全地增加？
+- 哪些情况下应继续要求人工审核？
 
-This moves localisation quality beyond checking individual outputs.
+这将本地化质量提升到超越检查单个输出的层面。
 
-It becomes a continuous learning system.
+它变成了一个持续学习系统。
 
-## Translation Intelligence changes the role of localisation teams
+## 翻译智能正在改变本地化团队的角色
 
-The shift from Translation Management to Translation Intelligence is not only a technology change. It also changes the role of the localisation function.
+从翻译管理转向翻译智能不仅仅是技术上的变化。它也改变了本地化职能的角色。
 
-Under the traditional model, localisation is often treated as a downstream service. Product, marketing, or support teams create content, submit it for translation, and wait for the multilingual output.
+在传统模式下，本地化通常被视为一项下游服务。产品、营销或支持团队创建内容，将其提交翻译，然后等待多语言输出。
 
-Under an intelligence model, localisation becomes part of the organisation’s global decision infrastructure.
+在智能模型下，本地化成为组织全球决策基础设施的一部分。
 
-It connects product, engineering, design, marketing, legal, support, and local market knowledge. It reveals where source content is ambiguous, where terminology creates confusion, where automation is reliable, and where human expertise generates the greatest value.
+它连接了产品、工程、设计、营销、法律、支持以及本地市场知识。它揭示了源内容在哪些地方存在歧义、术语在哪些地方会引起混淆、自动化在哪些地方可靠，以及人工专业知识在哪些地方能创造最大的价值。
 
-Localisation teams are therefore no longer responsible only for coordinating projects and vendors.
+因此，本地化团队不再只负责协调项目和供应商。
 
-They are increasingly responsible for designing how multilingual decisions are made, evaluated, governed, and improved.
+他们越来越负责设计多语言决策如何被制定、评估、治理和改进。
 
-This requires stronger capabilities in knowledge management, AI governance, context engineering, quality evaluation, system integration, and risk-based workflow design.
+这需要在知识管理、AI 治理、上下文工程、质量评估、系统集成以及基于风险的工作流设计方面具备更强的能力。
 
-Linguistic expertise remains central. But it becomes embedded within a broader intelligence layer.
+语言专业能力仍然至关重要。但它会嵌入到更广泛的智能层中。
 
-## Translation management is not disappearing
+## 翻译管理并不会消失
 
-Translation Intelligence should not be understood as a replacement for Translation Management Systems.
+不应将翻译智能理解为翻译管理系统的替代品。
 
-Organisations still need project coordination, permissions, terminology, translation memory, workflow controls, integrations, and reporting. These remain foundational capabilities.
+组织仍然需要项目协调、权限、术语、翻译记忆、工作流控制、集成和报告。这些仍然是基础能力。
 
-What changes is the expected role of the platform.
+变化的是平台的预期角色。
 
-The previous generation of localisation technology focused on moving content through a process efficiently.
+上一代本地化技术的重点是高效地推动内容通过流程。
 
-The next generation must also bring knowledge into that process, guide decisions, evaluate outcomes, and learn from human feedback.
+下一代还必须将知识带入这一过程，指导决策，评估结果，并从人类反馈中学习。
 
-Translation Management asks:
+翻译管理要求：
 
-How do we organise and deliver multilingual content?
+我们如何组织和交付多语言内容？
 
-Translation Intelligence asks:
+翻译智能要求：
 
-How do we ensure that every human and AI system has the knowledge required to make the right localisation decision?
+我们如何确保每个人类和 AI 系统都具备做出正确本地化决策所需的知识？
 
-Global organisations will need both.
+全球组织将需要两者。
 
-## The next era of localisation
+## 本地化的下一个时代
 
-As translation becomes faster and more automated, competitive advantage will not come from generating multilingual words alone.
+随着翻译变得更快、更自动化，竞争优势将不再仅仅来自生成多语言文本。
 
-It will come from understanding meaning.
+它将来自对含义的理解。
 
-The strongest localisation systems will know how content connects to the product, the audience, the market, the brand, and the organisation’s previous decisions. They will retrieve relevant context automatically, apply it selectively, evaluate outputs continuously, and improve through human review.
+最强大的本地化系统将了解内容如何与产品、受众、市场、品牌以及组织先前的决策相联系。它们会自动检索相关上下文，选择性地应用这些上下文，持续评估输出，并通过人工审核不断改进。
 
-This is the transition now taking place across the localisation industry.
+这就是本地化行业正在发生的转变。
 
-From managing files to understanding content.
+从管理文件到理解内容。
 
-From storing translations to learning from decisions.
+从存储翻译到从决策中学习。
 
-From automating handoffs to automating investigation.
+从自动化交接到自动化调查。
 
-From static linguistic assets to self-evolving knowledge.
+从静态语言资产到自我演化的知识。
 
-From Translation Management to Translation Intelligence.
+从翻译管理到翻译智能。
 
-Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/self-evolving-knowledge) designed to help global teams produce better translations with less manual investigation.
+Hyperlocalise 正在通过[AI 代理](/product/agents-automation)、[下一代 CAT 体验](/product/next-gen-cat-tool)以及[一个自我演进的上下文引擎](/product/self-evolving-knowledge)来构建这一未来，旨在帮助全球团队以更少的人工调查产出更优质的翻译。
 
-The next generation of localisation software will not simply manage translation.
+下一代本地化软件将不仅仅管理翻译。
 
-It will make the organisation more intelligent about how it communicates across markets.
+这将使组织在跨市场沟通方面更加智能。
 
-## Further reading
+## 进一步阅读
 
-- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [什么是翻译智能？](/blog/what-is-translation-intelligence)
 - [Hyperlocalise](/)
-- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
-- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)
+- [翻译管理概览 — RWS](https://www.rws.com/glossary/translation-management/)
+- [上下文感知机器翻译研究 — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [机器翻译中的人工评估和文档级上下文 — arXiv](https://arxiv.org/abs/2104.14478)
