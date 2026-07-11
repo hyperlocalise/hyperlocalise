@@ -304,6 +304,16 @@ export async function localizeAndStoreImageVariant(input: {
       sourceBytes.content,
       sourceBytes.contentType,
       prompt,
+      {
+        organizationId: input.organizationId,
+        operationKey: `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+        source: "project_image_variant",
+        dimensions: {
+          channel: "project",
+          project_id: input.projectId,
+          target_locale: input.targetLocale,
+        },
+      },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {

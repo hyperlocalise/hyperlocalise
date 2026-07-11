@@ -11,6 +11,10 @@ import {
   repositoryWorkflowToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db, schema } from "@/lib/database";
@@ -129,8 +133,20 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
           "Return the final digest as plain text for automation delivery.",
         ].join("\n");
 
-        const result = await agent.generate({
-          messages: [{ role: "user", content: prompt }] as ModelMessage[],
+        const result = await withAgentRuntimeUsageMetering({
+          organizationId: session.organizationId,
+          operationKey: `workspace-github-repo:${session.run.id}:agent_runs`,
+          source: "workspace_github_repository_agent",
+          dimensions: {
+            surface: "automation",
+            agent_surface: "github_repository",
+            repository_full_name: repositoryRow.fullName,
+          },
+          extractTokenUsage: extractGenerateResultTokenUsage,
+          run: () =>
+            agent.generate({
+              messages: [{ role: "user", content: prompt }] as ModelMessage[],
+            }),
         });
 
         const digest =

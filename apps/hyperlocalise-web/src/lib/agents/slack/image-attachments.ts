@@ -202,6 +202,13 @@ async function localizeSlackImageSource(input: LocalizeSlackImageSourceInput) {
     targetLocale: input.targetLocale,
     instructions: input.instructions,
     contextLines: [input.message.text ? `Slack request: ${input.message.text}` : null],
+    billing: {
+      organizationId: input.storage.organizationId,
+      operationKey: `image-localization:slack:${input.source.sourceFileId}:${input.targetLocale}`,
+      source: "slack_image_localization",
+      interactionId: input.storage.interactionId,
+      dimensions: { channel: "slack", target_locale: input.targetLocale },
+    },
   });
 
   const storedOutput = await storeSlackImageOutput({

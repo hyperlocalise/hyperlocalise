@@ -1536,6 +1536,10 @@ describe("handleSubscribedMessage", () => {
       imageData,
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(agentGenerateMock).toHaveBeenCalledWith({
       messages: [
@@ -1742,11 +1746,19 @@ describe("handleSubscribedMessage", () => {
       imageData,
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
       imageData,
       "image/png",
       expect.stringContaining("User instructions: Use refined campaign copy."),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(posts).toEqual([
       SLACK_PROCESSING_ACK_POST,
@@ -1888,6 +1900,10 @@ describe("handleSubscribedMessage", () => {
       Buffer.from("source-image"),
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(createStoredFile).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1982,6 +1998,10 @@ describe("handleSubscribedMessage", () => {
       Buffer.from("source-image"),
       "image/png",
       expect.stringContaining("Target locale: ja"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([

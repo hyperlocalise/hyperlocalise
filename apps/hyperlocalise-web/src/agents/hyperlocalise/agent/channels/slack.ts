@@ -22,6 +22,10 @@ import {
   postThreadMessageWithoutTracking,
   wrapThreadPostForInteraction,
 } from "@/lib/agent-runtime/runs/agent-run-events";
+import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
@@ -445,7 +449,27 @@ async function processSlackMessage(
       },
       "running slack conversation agent",
     );
+
+    const usageOperationKey = `slack-agent-turn:${persistedMessage.id}:agent_runs`;
+    const usageDimensions = {
+      surface: "slack",
+      agent_surface: "chat",
+      repository_tools: Boolean(sandboxId),
+    };
+    await reserveAgentRuntimeUsage({
+      organizationId,
+      operationKey: usageOperationKey,
+      source: "slack_agent_turn",
+      interactionId,
+      dimensions: usageDimensions,
+    });
+
     const result = await agent.generate({ messages: chatMessages });
+    await trackSucceededAgentRuntimeUsage({
+      organizationId,
+      operationKey: usageOperationKey,
+      dimensions: usageDimensions,
+    });
     log.info(
       {
         hasReplyText: result.text.trim().length > 0,
