@@ -3,7 +3,7 @@
 import { observer } from "mobx-react-lite";
 import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
@@ -81,12 +81,13 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
       <Button
         type="button"
         variant="ghost"
-        size="icon-xs"
-        className="shrink-0"
+        size="xs"
+        className="shrink-0 gap-1.5 px-2"
         aria-label={intl.formatMessage(chatDockMessages.newChat)}
         onClick={onNewTab}
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
+        <FormattedMessage {...chatDockMessages.newChat} />
       </Button>
     </div>
   );

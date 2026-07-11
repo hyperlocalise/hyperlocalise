@@ -58,7 +58,7 @@ describe("ChatDockTabBar", () => {
     await user.click(screen.getAllByLabelText("Close chat")[0]!);
     expect(onCloseTab).toHaveBeenCalledWith("conv_1");
 
-    await user.click(screen.getByLabelText("New chat"));
+    await user.click(screen.getByRole("button", { name: "New request" }));
     expect(onNewTab).toHaveBeenCalled();
   });
 });

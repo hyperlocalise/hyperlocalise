@@ -123,7 +123,7 @@ describe("AppShellFooter", () => {
 
     renderFooter({ showPlan: false, withChat: true });
 
-    const newChat = screen.getByRole("button", { name: "New chat" });
+    const newChat = screen.getByRole("button", { name: "New request" });
     const support = screen.getByRole("link", { name: "Email support" });
     expect(newChat.closest("footer")).toBeTruthy();
     expect(support.closest("footer")).toBeTruthy();

@@ -4,8 +4,8 @@ import { defineMessages } from "react-intl";
 
 export const chatDockMessages = defineMessages({
   newChat: {
-    id: "BpXeCSziJl",
-    defaultMessage: "New chat",
+    id: "mV0v+ofKFK",
+    defaultMessage: "New request",
     description: "Button to open a new chat dock tab",
   },
   closeTab: {
