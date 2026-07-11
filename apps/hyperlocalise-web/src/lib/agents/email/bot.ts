@@ -5,9 +5,15 @@ import { and, eq } from "drizzle-orm";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
+import { isErr } from "@/lib/primitives/result/results";
 import { createResendAdapter } from "@/lib/resend/adapter";
 import type { EmailAgentTask, EmailAgentTaskQueue } from "@/lib/workflow/types";
 import { createEmailAgentTaskQueue } from "@/workflows/adapters";
@@ -111,6 +117,20 @@ async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) 
       jobId,
       type: "file",
     });
+
+    const usageEventResult = await reserveUsageEvent({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey: `job:${jobId}:translation_jobs`,
+      source: "email_translation_job_create",
+      jobId,
+      interactionId: input.conversationId ?? undefined,
+      quantity: 1,
+    });
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
 
     return [createdJob];
   });

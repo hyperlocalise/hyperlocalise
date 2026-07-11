@@ -87,7 +87,7 @@ export async function markEmailTranslationJobSucceeded(input: {
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
 
-  await db.transaction(async (tx) => {
+  const succeededJob = await db.transaction(async (tx) => {
     const [updatedJob] = await tx
       .update(schema.jobs)
       .set({
@@ -108,7 +108,7 @@ export async function markEmailTranslationJobSucceeded(input: {
           eq(schema.jobs.workflowRunId, input.workflowRunId),
         ),
       )
-      .returning({ id: schema.jobs.id });
+      .returning({ id: schema.jobs.id, organizationId: schema.jobs.organizationId });
 
     if (!updatedJob) {
       throw new Error(
@@ -120,7 +120,35 @@ export async function markEmailTranslationJobSucceeded(input: {
       .update(schema.translationJobDetails)
       .set({ outcomeKind: "file_result" })
       .where(eq(schema.translationJobDetails.jobId, input.jobId));
+
+    return updatedJob;
   });
+
+  const {
+    completeAndTrackBillableUsage,
+    formatUsageControlError,
+  } = await import("@/lib/billing/usage-control");
+  const { isErr } = await import("@/lib/primitives/result/results");
+  const operationKey = `job:${input.jobId}:translation_jobs`;
+  const trackUsageResult = await completeAndTrackBillableUsage({
+    organizationId: succeededJob.organizationId,
+    operationKey,
+    autumnEventName: "translation_job.completed",
+    unit: "job",
+    jobId: input.jobId,
+    aiCreditSource: "email_translation_job_complete",
+  });
+
+  if (isErr(trackUsageResult)) {
+    if (trackUsageResult.error.code === "usage_event_not_found") {
+      throw new Error(formatUsageControlError(trackUsageResult.error));
+    }
+    console.error("[email-translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
+  }
 }
 
 export async function markEmailTranslationJobFailed(input: {
@@ -419,27 +447,33 @@ export async function completeFileTranslationJobStep(input: {
   }
 
   const {
+    completeAndTrackBillableUsage,
     formatUsageControlError,
-    markUsageEventSucceededByOperationKey,
-    trackUsageEventInAutumnByOperationKey,
   } = await import("@/lib/billing/usage-control");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
-  const markUsageResult = await markUsageEventSucceededByOperationKey({
-    operationKey,
-    quantity: 1,
-    dimensions: {
-      autumn_event_name: "translation_job.completed",
-      unit: "job",
-    },
-  });
-
-  if (isErr(markUsageResult)) {
-    throw new Error(formatUsageControlError(markUsageResult.error));
+  const [jobForUsage] = await db
+    .select({ organizationId: schema.jobs.organizationId })
+    .from(schema.jobs)
+    .where(eq(schema.jobs.id, input.jobId))
+    .limit(1);
+  if (!jobForUsage?.organizationId) {
+    throw new Error(`translation job ${input.jobId} has no organization for usage tracking`);
   }
 
-  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+  const trackUsageResult = await completeAndTrackBillableUsage({
+    organizationId: jobForUsage.organizationId,
+    operationKey,
+    autumnEventName: "translation_job.completed",
+    unit: "job",
+    jobId: input.jobId,
+    aiCreditSource: "translation_job_complete",
+  });
+
   if (isErr(trackUsageResult)) {
+    if (trackUsageResult.error.code === "usage_event_not_found") {
+      throw new Error(formatUsageControlError(trackUsageResult.error));
+    }
     console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {
       jobId: input.jobId,
       operationKey,

@@ -1,8 +1,7 @@
 import {
+  completeAndTrackBillableUsage,
   formatUsageControlError,
-  markUsageEventSucceededByOperationKey,
   reserveUsageEvent,
-  trackUsageEventInAutumnByOperationKey,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { serializeErrorForLog } from "@/lib/log";
@@ -60,33 +59,20 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   dimensions?: AgentRuntimeUsageDimensions;
 }) {
   try {
-    const markUsageResult = await markUsageEventSucceededByOperationKey({
+    const trackUsageResult = await completeAndTrackBillableUsage({
+      organizationId: input.organizationId,
       operationKey: input.operationKey,
-      quantity: 1,
-      dimensions: {
-        ...input.dimensions,
-        autumn_event_name: "agent_run.completed",
-        unit: "run",
-      },
-    });
-
-    if (isErr(markUsageResult)) {
-      logAgentRuntimeUsageError("usage event completion failed", {
-        organizationId: input.organizationId,
-        operationKey: input.operationKey,
-        error: formatUsageControlError(markUsageResult.error),
-      });
-      return;
-    }
-
-    const trackUsageResult = await trackUsageEventInAutumnByOperationKey({
-      operationKey: input.operationKey,
+      autumnEventName: "agent_run.completed",
+      unit: "run",
+      interactionId: undefined,
+      aiCreditSource: "agent_runtime_complete",
     });
 
     if (isErr(trackUsageResult)) {
-      logAgentRuntimeUsageError("Autumn usage tracking failed", {
+      logAgentRuntimeUsageError("usage event completion failed", {
         organizationId: input.organizationId,
         operationKey: input.operationKey,
+        dimensions: input.dimensions,
         error: formatUsageControlError(trackUsageResult.error),
       });
     }

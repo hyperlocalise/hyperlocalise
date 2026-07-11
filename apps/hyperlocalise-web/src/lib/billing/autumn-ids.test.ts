@@ -29,6 +29,7 @@ describe("autumn identifiers", () => {
     expect(usageFeatureIds).toEqual({
       translationJobs: "translation_jobs",
       agentRuns: "agent_runs",
+      aiTokens: "ai_tokens",
     });
 
     expect(billingBalanceFeatureIds).toEqual([

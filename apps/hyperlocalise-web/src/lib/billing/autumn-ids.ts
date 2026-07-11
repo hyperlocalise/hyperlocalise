@@ -39,6 +39,7 @@ export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatu
 export const usageFeatureIds = {
   translationJobs: autumnFeatureIds.translationJobs,
   agentRuns: autumnFeatureIds.agentRuns,
+  aiTokens: autumnFeatureIds.aiTokens,
 } as const;
 
 export type UsageFeatureId = (typeof usageFeatureIds)[keyof typeof usageFeatureIds];

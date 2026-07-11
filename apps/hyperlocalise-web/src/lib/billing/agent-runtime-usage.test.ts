@@ -1,20 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  markUsageEventSucceededByOperationKeyMock,
-  reserveUsageEventMock,
-  trackUsageEventInAutumnByOperationKeyMock,
-} = vi.hoisted(() => ({
-  markUsageEventSucceededByOperationKeyMock: vi.fn(),
+const { completeAndTrackBillableUsageMock, reserveUsageEventMock } = vi.hoisted(() => ({
+  completeAndTrackBillableUsageMock: vi.fn(),
   reserveUsageEventMock: vi.fn(),
-  trackUsageEventInAutumnByOperationKeyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/usage-control", () => ({
+  completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
   formatUsageControlError: (error: { code: string }) => error.code,
-  markUsageEventSucceededByOperationKey: markUsageEventSucceededByOperationKeyMock,
   reserveUsageEvent: reserveUsageEventMock,
-  trackUsageEventInAutumnByOperationKey: trackUsageEventInAutumnByOperationKeyMock,
   usageFeatureIds: {
     agentRuns: "agent-runs",
   },
@@ -56,7 +50,7 @@ describe("agent-runtime-usage", () => {
 
   it("fails open when marking usage succeeded throws", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    markUsageEventSucceededByOperationKeyMock.mockRejectedValue(new Error("database unavailable"));
+    completeAndTrackBillableUsageMock.mockRejectedValue(new Error("database unavailable"));
 
     await expect(
       trackSucceededAgentRuntimeUsage({
@@ -65,7 +59,6 @@ describe("agent-runtime-usage", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(trackUsageEventInAutumnByOperationKeyMock).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
       "[agent-runtime-usage] usage event completion threw",
       expect.objectContaining({
@@ -77,8 +70,7 @@ describe("agent-runtime-usage", () => {
 
   it("fails open when Autumn usage tracking throws", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    markUsageEventSucceededByOperationKeyMock.mockResolvedValue(ok(undefined));
-    trackUsageEventInAutumnByOperationKeyMock.mockRejectedValue(new Error("network unavailable"));
+    completeAndTrackBillableUsageMock.mockRejectedValue(new Error("network unavailable"));
 
     await expect(
       trackSucceededAgentRuntimeUsage({
@@ -94,5 +86,24 @@ describe("agent-runtime-usage", () => {
         operationKey: "agent-run:test",
       }),
     );
+  });
+
+  it("completes billable agent runtime usage through the shared helper", async () => {
+    completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await trackSucceededAgentRuntimeUsage({
+      organizationId: "org_123",
+      operationKey: "agent-run:test",
+      dimensions: { surface: "web" },
+    });
+
+    expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      operationKey: "agent-run:test",
+      autumnEventName: "agent_run.completed",
+      unit: "run",
+      dimensions: { surface: "web" },
+      aiCreditSource: "agent_runtime_complete",
+    });
   });
 });

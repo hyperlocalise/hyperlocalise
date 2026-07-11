@@ -5,9 +5,8 @@ import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { persistStringJobTranslations } from "@/lib/projects/translations/project-translation-service";
 import {
+  completeAndTrackBillableUsage,
   formatUsageControlError,
-  markUsageEventSucceededByOperationKey,
-  trackUsageEventInAutumnByOperationKey,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -371,24 +370,29 @@ class TranslationJobCompletionService {
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
     const tokenUsage = input.result.tokenUsage;
-    const usageQuantity =
-      tokenUsage?.totalTokens && tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : 1;
-    const markUsageResult = await markUsageEventSucceededByOperationKey({
-      operationKey,
-      quantity: usageQuantity,
-      dimensions: {
-        autumn_event_name: "translation_job.completed",
-        unit: tokenUsage ? "model_tokens" : "job",
-        input_tokens: tokenUsage?.inputTokens ?? null,
-        output_tokens: tokenUsage?.outputTokens ?? null,
-      },
-    });
-    if (isErr(markUsageResult)) {
-      throw new Error(formatUsageControlError(markUsageResult.error));
+    const [projectForUsage] = await db
+      .select({ organizationId: schema.projects.organizationId })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, input.projectId))
+      .limit(1);
+    const organizationId = projectForUsage?.organizationId;
+    if (!organizationId) {
+      throw new Error(`translation job ${input.jobId} has no organization for usage tracking`);
     }
 
-    const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+    const trackUsageResult = await completeAndTrackBillableUsage({
+      organizationId,
+      operationKey,
+      autumnEventName: "translation_job.completed",
+      unit: "job",
+      tokenUsage: tokenUsage ?? null,
+      jobId: input.jobId,
+      aiCreditSource: "translation_job_complete",
+    });
     if (isErr(trackUsageResult)) {
+      if (trackUsageResult.error.code === "usage_event_not_found") {
+        throw new Error(formatUsageControlError(trackUsageResult.error));
+      }
       console.error("[translation-job] Autumn usage tracking failed after job succeeded", {
         jobId: input.jobId,
         operationKey,

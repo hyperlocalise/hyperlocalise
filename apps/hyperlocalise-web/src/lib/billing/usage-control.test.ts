@@ -11,6 +11,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import {
   markUsageEventSucceededByOperationKey,
   reserveUsageEvent,
+  trackAiCreditUsageInAutumn,
   trackUsageEventInAutumnByOperationKey,
   usageFeatureIds,
 } from "./usage-control";
@@ -155,11 +156,11 @@ describe("usage-control", () => {
     });
   });
 
-  it("tracks usage events by Autumn event name when configured", async () => {
+  it("tracks reserved feature balances by feature_id and keeps event names in properties", async () => {
     const { operationKey, organization } = await reservedUsageEvent();
     const markResult = await markUsageEventSucceededByOperationKey({
       operationKey,
-      quantity: 123,
+      quantity: 1,
       dimensions: { autumn_event_name: "translation_job.completed" },
     });
     expect(isErr(markResult)).toBe(false);
@@ -186,11 +187,47 @@ describe("usage-control", () => {
     const parsedBody = JSON.parse(requestBody);
     expect(parsedBody).toMatchObject({
       customer_id: organization.id,
-      event_name: "translation_job.completed",
-      value: 123,
+      feature_id: "translation_jobs",
+      value: 1,
       idempotency_key: operationKey,
+      properties: {
+        event_name: "translation_job.completed",
+      },
     });
-    expect(parsedBody).not.toHaveProperty("feature_id");
+    expect(parsedBody).not.toHaveProperty("event_name");
+  });
+
+  it("tracks AI credit usage against ai_tokens with a derived operation key", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const fetchFn = vi.fn(
+      async () => new Response("{}", { status: 200 }),
+    ) as unknown as typeof fetch;
+
+    const trackResult = await trackAiCreditUsageInAutumn({
+      organizationId: organization.id,
+      parentOperationKey: operationKey,
+      tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
+      source: "translation_job_complete",
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: true,
+      value: { status: "tracking_succeeded" },
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
+    const [, requestInit] = vi.mocked(fetchFn).mock.calls[0] ?? [];
+    const requestBody = requestInit?.body;
+    if (typeof requestBody !== "string") {
+      throw new Error("Expected JSON string request body");
+    }
+    expect(JSON.parse(requestBody)).toMatchObject({
+      customer_id: organization.id,
+      feature_id: "ai_tokens",
+      value: 100,
+      idempotency_key: `${operationKey}:ai_tokens`,
+    });
   });
 
   it("marks tracking failed when Autumn rejects the usage event", async () => {
