@@ -8,6 +8,7 @@ import {
   localizeImageAttachment,
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
 import { env } from "@/lib/env";
 
 import {
@@ -55,7 +56,7 @@ function getSlackImageIntentModel() {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
-  return openai("gpt-5.4-mini");
+  return openai(hyperlocaliseAgentModelId);
 }
 
 function normalizeLocale(locale: string) {

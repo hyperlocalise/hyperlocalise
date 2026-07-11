@@ -15,7 +15,7 @@ export const llmProviderSchema = z.enum(curatedLlmProviders);
 export const llmProviderCatalog = {
   openai: {
     label: "OpenAI",
-    models: ["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"],
+    models: ["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.6-luna", "gpt-5.4-nano"],
   },
   anthropic: {
     label: "Anthropic",

@@ -111,7 +111,7 @@ llm:
   # When set, this provider/model pair is used only for context-memory building.
   context_memory:
     provider: openai
-    model: "gpt-5.4-mini"
+    model: "gpt-5.6-luna"
   # Profiles define provider/model and optional prompt behavior.
   # A default profile is required.
   # Supported providers: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, ollama.
@@ -120,7 +120,7 @@ llm:
     default:
       # Provider: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, or ollama.
       provider: openai
-      model: gpt-5.4-mini
+      model: gpt-5.6-luna
       # Optional explicit system message template.
       # system_prompt: You are a senior localization expert.
       # Optional explicit user message template.

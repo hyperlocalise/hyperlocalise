@@ -1,5 +1,6 @@
 import { Sandbox, StreamError } from "@vercel/sandbox";
 
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
 import { env } from "@/lib/env";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import {
@@ -443,7 +444,7 @@ export class HyperlocaliseCliConfigBuilder {
       "  profiles:",
       "    default:",
       "      provider: openai",
-      "      model: gpt-5.4-mini",
+      `      model: ${hyperlocaliseAgentModelId}`,
       `      system_prompt: ${yamlString(systemPrompt)}`,
       `      user_prompt: ${yamlString(userPrompt)}`,
     ].join("\n");

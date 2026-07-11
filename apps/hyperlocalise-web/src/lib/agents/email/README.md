@@ -12,7 +12,7 @@ The code is split by integration boundary so the workflow stays testable.
 2. `users.ts` verifies that the sender is a registered Hyperlocalise user.
 3. `organizations.ts` resolves the addressed inbound alias to an enabled
    organization where the sender is a member.
-4. `intent.ts` asks `gpt-5.4-mini` to classify the subject and body as a
+4. `intent.ts` asks `gpt-5.6-luna` to classify the subject and body as a
    translation, check, keyword research, or unknown request.
 5. `image-attachments.ts` sends image attachments and the interpreted request
    directly to the image model, then replies with the generated image.
