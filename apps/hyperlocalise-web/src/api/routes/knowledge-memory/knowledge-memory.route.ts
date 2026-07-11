@@ -5,13 +5,10 @@ import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse, validationErrorResponse } from "@/api/errors";
 import {
-  resolveWorkspaceKnowledgeEnabled,
-  type WorkspaceKnowledgeFlagResolver,
-} from "@/api/workspace-feature-flags";
-import {
   getKnowledgeMemoryForOrganization,
   upsertKnowledgeMemoryForOrganization,
 } from "@/lib/knowledge-memory/knowledge-memory";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 
 import {
@@ -49,18 +46,18 @@ function canUpdateKnowledgeMemory(role: AuthVariables["auth"]["membership"]["rol
   return hasCapability(role, "workspace:update");
 }
 
-type CreateKnowledgeMemoryRoutesOptions = {
-  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
-};
+async function isKnowledgeMemoryFeatureEnabled(auth: AuthVariables["auth"]) {
+  return resolveWorkspaceKnowledgeFlag({
+    organizationId: auth.organization.localOrganizationId,
+    localUserId: auth.user.localUserId,
+  });
+}
 
-export function createKnowledgeMemoryRoutes(options: CreateKnowledgeMemoryRoutesOptions = {}) {
+export function createKnowledgeMemoryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {
-      const enabled = await resolveWorkspaceKnowledgeEnabled(
-        options.workspaceKnowledgeFlagResolver,
-        c.var.auth,
-      );
+      const enabled = await isKnowledgeMemoryFeatureEnabled(c.var.auth);
       if (!enabled) {
         return forbiddenResponse(
           c,

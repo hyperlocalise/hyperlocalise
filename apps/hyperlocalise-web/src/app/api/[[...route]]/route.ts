@@ -1,13 +1,7 @@
 import { handle } from "hono/vercel";
 
-import { createApp } from "@/api/app";
-import { createWorkosIdentify } from "@/lib/flags/identify-workos-context";
-import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { app } from "@/api/app";
 
-const app = createApp({
-  workspaceKnowledgeFlagResolver: (auth) =>
-    workspaceKnowledgeFlag.run({ identify: () => createWorkosIdentify(auth) }),
-});
 const handler = handle(app);
 
 export const GET = handler;

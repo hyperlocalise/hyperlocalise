@@ -570,7 +570,6 @@ async function enqueueTranslationJob(input: {
       jobId: input.job.id,
       projectId,
       type: input.type,
-      knowledgeMemoryEnabled: input.ctx.knowledgeMemoryEnabled ?? false,
     });
 
     await input.ctx.db

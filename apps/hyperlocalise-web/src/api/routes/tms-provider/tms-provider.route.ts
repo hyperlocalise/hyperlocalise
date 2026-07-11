@@ -7,10 +7,6 @@ import { hasCapability } from "@/api/auth/policy";
 import { ownedProjectWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
-  resolveWorkspaceKnowledgeEnabled,
-  type WorkspaceKnowledgeFlagResolver,
-} from "@/api/workspace-feature-flags";
-import {
   badRequestResponse,
   conflictResponse,
   notFoundResponse,
@@ -156,7 +152,6 @@ function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
 
 type CreateTmsProviderRoutesOptions = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
-  workspaceKnowledgeFlagResolver?: WorkspaceKnowledgeFlagResolver;
 };
 
 export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions = {}) {
@@ -535,14 +530,9 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       }
 
       try {
-        const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeEnabled(
-          options.workspaceKnowledgeFlagResolver,
-          c.var.auth,
-        );
         await options.providerAgentTranslationQueue.enqueue({
           agentRunId: agentRun.id,
           organizationId,
-          knowledgeMemoryEnabled,
         });
       } catch (error) {
         await failAgentRun({

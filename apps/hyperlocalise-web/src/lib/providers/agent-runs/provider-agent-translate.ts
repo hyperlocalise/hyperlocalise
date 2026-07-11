@@ -150,7 +150,6 @@ async function translateProviderUnits(input: {
   translateStringJob: StringTranslationGenerator;
   projectName: string;
   projectTranslationContext: string;
-  knowledgeMemoryEnabled: boolean;
 }) {
   const sourceLocale = input.content.sourceLocale ?? defaultSourceLocale;
   const changedItems: ProviderAgentTranslationChangedItem[] = [];
@@ -217,7 +216,6 @@ async function translateProviderUnits(input: {
         externalJobUid: input.content.externalTaskId,
         translationMemoryMatchResolution: defaultTranslationMemoryMatchResolution,
         glossaryMatchResolution: defaultGlossaryMatchResolution,
-        knowledgeMemoryEnabled: input.knowledgeMemoryEnabled,
       },
     );
     if (!contextSnapshot.ok) {
@@ -369,7 +367,6 @@ async function translateProviderUnits(input: {
 export async function executeProviderAgentTranslation(input: {
   agentRunId: string;
   organizationId: string;
-  knowledgeMemoryEnabled?: boolean;
   translateStringJobOverride?: StringTranslationGenerator;
 }): Promise<ProviderAgentTranslationResult> {
   const run = await getAgentRun({
@@ -740,7 +737,6 @@ export async function executeProviderAgentTranslation(input: {
     projectTranslationContext: organizationGenerator.ok
       ? organizationGenerator.project.translationContext
       : "",
-    knowledgeMemoryEnabled: input.knowledgeMemoryEnabled ?? false,
   });
 
   if (translationResult.projectNotFound) {

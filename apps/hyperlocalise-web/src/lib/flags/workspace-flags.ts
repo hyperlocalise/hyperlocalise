@@ -97,6 +97,50 @@ export async function resolveWorkspaceVisualMockFlag(input: {
   }
 }
 
+export async function resolveWorkspaceKnowledgeFlag(input: {
+  organizationId: string;
+  localUserId?: string;
+  dbClient?: Pick<typeof db, "select">;
+}) {
+  const dbClient = input.dbClient ?? db;
+  if (typeof dbClient.select !== "function") {
+    return false;
+  }
+
+  try {
+    const [organization] = await dbClient
+      .select({
+        workosOrganizationId: schema.organizations.workosOrganizationId,
+      })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, input.organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return false;
+    }
+
+    let workosUserId: string | undefined;
+    if (input.localUserId) {
+      const [user] = await dbClient
+        .select({ workosUserId: schema.users.workosUserId })
+        .from(schema.users)
+        .where(eq(schema.users.id, input.localUserId))
+        .limit(1);
+      workosUserId = user?.workosUserId;
+    }
+
+    return workspaceKnowledgeFlag.run({
+      identify: () => ({
+        organization: { id: organization.workosOrganizationId },
+        user: workosUserId ? { id: workosUserId } : undefined,
+      }),
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function requireWorkspaceFeatureFlag(
   workspaceFlag: Flag<boolean, WorkosFlagEntities>,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,

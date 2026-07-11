@@ -1,6 +1,14 @@
 import "dotenv/config";
 
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(() => ({
+  resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
+}));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
@@ -37,72 +45,16 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
+});
+
 afterEach(async () => {
   await fixture.cleanup();
 });
 
 describe("assembleStringTranslationContextSnapshot", () => {
   it("includes saved workspace knowledge memory in the translation context", async () => {
-    const { organization, user, project } = await fixture.createStoredProjectFixture();
-    await db.insert(schema.knowledgeMemories).values({
-      organizationId: organization.id,
-      updatedByUserId: user.id,
-      content: "Always refer to Hyperlocalise as the product name.",
-    });
-
-    const result = await assembleStringTranslationContextSnapshot(
-      project.id,
-      {
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-        sourceText: "Welcome to Hyperlocalise",
-        context: "",
-        metadata: {},
-      },
-      undefined,
-      { knowledgeMemoryEnabled: true },
-    );
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.snapshot.knowledgeMemory).toBe(
-        "Always refer to Hyperlocalise as the product name.",
-      );
-    }
-  });
-
-  it("selects relevant workspace knowledge memory for large markdown notes", async () => {
-    const { organization, user, project } = await fixture.createStoredProjectFixture();
-    await db.insert(schema.knowledgeMemories).values({
-      organizationId: organization.id,
-      updatedByUserId: user.id,
-      content: longKnowledgeMemory,
-    });
-
-    const result = await assembleStringTranslationContextSnapshot(
-      project.id,
-      {
-        sourceLocale: "en-US",
-        targetLocales: ["en-AU"],
-        sourceText: "Customize your color settings",
-        context: "",
-        metadata: {},
-      },
-      undefined,
-      { knowledgeMemoryEnabled: true },
-    );
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.snapshot.knowledgeMemory).toContain("Australian English");
-      expect(result.snapshot.knowledgeMemory).toContain("colour");
-      expect(result.snapshot.knowledgeMemory).toContain("customise");
-      expect(result.snapshot.knowledgeMemory).not.toContain("fr-FR");
-      expect(result.snapshot.knowledgeMemory?.length).toBeLessThan(longKnowledgeMemory.length);
-    }
-  });
-
-  it("omits saved workspace knowledge memory when the caller has not enabled it", async () => {
     const { organization, user, project } = await fixture.createStoredProjectFixture();
     await db.insert(schema.knowledgeMemories).values({
       organizationId: organization.id,
@@ -120,7 +72,58 @@ describe("assembleStringTranslationContextSnapshot", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.snapshot.knowledgeMemory).toBeUndefined();
+      expect(result.snapshot.knowledgeMemory).toBe(
+        "Always refer to Hyperlocalise as the product name.",
+      );
+    }
+  });
+
+  it("selects relevant workspace knowledge memory for large markdown notes", async () => {
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: longKnowledgeMemory,
+    });
+
+    const result = await assembleStringTranslationContextSnapshot(project.id, {
+      sourceLocale: "en-US",
+      targetLocales: ["en-AU"],
+      sourceText: "Customize your color settings",
+      context: "",
+      metadata: {},
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.knowledgeMemory).toContain("Australian English");
+      expect(result.snapshot.knowledgeMemory).toContain("colour");
+      expect(result.snapshot.knowledgeMemory).toContain("customise");
+      expect(result.snapshot.knowledgeMemory).not.toContain("fr-FR");
+      expect(result.snapshot.knowledgeMemory?.length).toBeLessThan(longKnowledgeMemory.length);
+    }
+  });
+
+  it("omits saved workspace knowledge memory when the feature flag is disabled", async () => {
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Always refer to Hyperlocalise as the product name.",
+    });
+
+    const result = await assembleStringTranslationContextSnapshot(project.id, {
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      sourceText: "Welcome to Hyperlocalise",
+      context: "",
+      metadata: {},
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.knowledgeMemory).toBeNull();
     }
   });
 });

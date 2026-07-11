@@ -38,7 +38,6 @@ export type ToolContext = {
   localUserId: string;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
-  knowledgeMemoryEnabled?: boolean;
   db: typeof db;
   /** Repository agent context (optional, populated for repository workflows). */
   workMode?: RepositoryAgentWorkMode;

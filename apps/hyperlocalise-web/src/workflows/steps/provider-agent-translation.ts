@@ -5,7 +5,6 @@ const logger = createLogger("provider-agent-translation-step");
 export async function executeProviderAgentTranslationStep(input: {
   agentRunId: string;
   organizationId: string;
-  knowledgeMemoryEnabled?: boolean;
 }) {
   "use step";
 
