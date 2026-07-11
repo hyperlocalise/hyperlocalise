@@ -69,26 +69,25 @@ export const ChatDockBridge = observer(function ChatDockBridge({
   }, [chatDock.chromeHeightPx]);
 
   useEffect(() => {
-    if (!chatDock.hydrated) {
+    if (!chatDock.hydrated || !organizationSlug) {
       return;
     }
 
-    for (const tab of chatDock.tabs) {
-      if (!tab.isStreaming || tab.isPending) {
-        continue;
-      }
+    const interruptedIds = chatDock.tabs
+      .filter((tab) => tab.isStreaming && !tab.isPending)
+      .map((tab) => tab.id);
 
-      if (tab.streamSnapshot) {
-        chatDock.setStreamSnapshot(tab.id, {
-          ...tab.streamSnapshot,
-          status:
-            tab.streamSnapshot.status === "streaming" ? "complete" : tab.streamSnapshot.status,
-        });
-      } else {
-        chatDock.markStreaming(tab.id, false);
-      }
+    if (interruptedIds.length === 0) {
+      return;
     }
-  }, [chatDock, chatDock.hydrated]);
+
+    for (const conversationId of interruptedIds) {
+      chatDock.clearStreamSnapshot(conversationId);
+      void queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+    }
+
+    void queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
+  }, [chatDock, chatDock.hydrated, organizationSlug, queryClient]);
 
   return null;
 });
