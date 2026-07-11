@@ -370,6 +370,13 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		}
 
 		switch {
+		case segment[idx] == '[' && startsMarkdownLinkLabel(segment, idx):
+			// Keep the opening delimiter marshal-owned just like the closing
+			// delimiter and destination below. Otherwise a translator can omit
+			// this byte while preserving the closing placeholder, producing
+			// syntactically invalid Markdown during expansion.
+			appendPlaceholder(segment[idx : idx+1])
+			idx++
 		case segment[idx] == '`':
 			run := 0
 			for idx+run < len(segment) && segment[idx+run] == '`' {
@@ -439,6 +446,36 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		return segment, nil, segment, false
 	}
 	return rendered.String(), placeholders, plain.String(), false
+}
+
+func startsMarkdownLinkLabel(segment string, start int) bool {
+	if start < 0 || start >= len(segment) || segment[start] != '[' {
+		return false
+	}
+	backslashes := 0
+	for idx := start - 1; idx >= 0 && segment[idx] == '\\'; idx-- {
+		backslashes++
+	}
+	if backslashes%2 != 0 {
+		return false
+	}
+
+	depth := 1
+	for idx := start + 1; idx < len(segment); idx++ {
+		switch segment[idx] {
+		case '\\':
+			idx++
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth != 0 {
+				continue
+			}
+			return idx+1 < len(segment) && (segment[idx+1] == '(' || segment[idx+1] == '[')
+		}
+	}
+	return false
 }
 
 func findMarkdownReferenceDefinitionDestination(segment string) (int, int, bool) {
@@ -730,6 +767,22 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 	if len(part.placeholders) == 0 {
 		return rendered
 	}
+	if !trustedFallback {
+		// Detect omitted sentinels before expansion makes their absence
+		// indistinguishable from ordinary translated text. A single placeholder
+		// may still use the existing recognizable-token recovery below; multiple
+		// placeholders must match exactly so duplicates or swaps cannot expand
+		// into malformed Markdown without leaving a sentinel behind.
+		placeholderErr := ValidateMarkdownInternalPlaceholders(part.source, rendered)
+		canRecoverSingle := len(part.placeholders) == 1 && len(MarkdownInternalPlaceholderTokens(rendered)) == 1
+		linkOrderValid := markdownLinkPlaceholderOrderValid(rendered, part.placeholders)
+		if (placeholderErr != nil || !linkOrderValid) && !canRecoverSingle {
+			if diags != nil && part.key != "" {
+				diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+			}
+			return expandMarkdownPlaceholders(part.source, part.placeholders)
+		}
+	}
 	rendered = expandMarkdownPlaceholders(rendered, part.placeholders)
 	rendered = normalizeMarkdownPlaceholders(rendered, part.placeholders)
 	rendered = normalizeUnexpectedMarkdownLinkClosers(part, rendered)
@@ -743,6 +796,26 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		return expandMarkdownPlaceholders(part.source, part.placeholders)
 	}
 	return rendered
+}
+
+func markdownLinkPlaceholderOrderValid(rendered string, placeholders map[string]string) bool {
+	depth := 0
+	for _, token := range markdownPlaceholderPattern.FindAllString(rendered, -1) {
+		original, ok := placeholders[token]
+		if !ok {
+			continue
+		}
+		switch {
+		case original == "[":
+			depth++
+		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
+			if depth == 0 {
+				return false
+			}
+			depth--
+		}
+	}
+	return depth == 0
 }
 
 func yamlPlainScalarNeedsQuotes(value string) bool {

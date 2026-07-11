@@ -184,6 +184,148 @@ func TestMarshalMarkdownPreservesLinkDestinationsWithParentheses(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownOwnsLinkDelimiters(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		want     string
+	}{
+		{
+			name:     "inline link",
+			template: "Read [the docs](/docs) now.\n",
+			want:     "Lire [la documentation](/docs) maintenant.\n",
+		},
+		{
+			name:     "reference link",
+			template: "Read [the docs][docs] now.\n\n[docs]: /docs\n",
+			want:     "Lire [la documentation][docs] maintenant.\n\n[docs]: /docs\n",
+		},
+		{
+			name:     "image",
+			template: "View ![the diagram](/diagram.png) now.\n",
+			want:     "Voir ![le diagramme](/diagram.png) maintenant.\n",
+		},
+		{
+			name:     "nested label brackets",
+			template: "Read [the [draft] docs](/docs) now.\n",
+			want:     "Lire [la documentation [brouillon]](/docs) maintenant.\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, err := (MarkdownParser{}).Parse([]byte(tt.template))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				if strings.Contains(value, "Read") {
+					value = strings.Replace(value, "Read ", "Lire ", 1)
+					value = strings.Replace(value, "the [draft] docs", "la documentation [brouillon]", 1)
+					value = strings.Replace(value, "the docs", "la documentation", 1)
+					value = strings.Replace(value, " now", " maintenant", 1)
+				}
+				if strings.Contains(value, "View") {
+					value = strings.Replace(value, "View ", "Voir ", 1)
+					value = strings.Replace(value, "the diagram", "le diagramme", 1)
+					value = strings.Replace(value, " now", " maintenant", 1)
+				}
+				updates[key] = value
+			}
+
+			output := string(MarshalMarkdown([]byte(tt.template), updates, false))
+			if output != tt.want {
+				t.Fatalf("output = %q, want %q", output, tt.want)
+			}
+		})
+	}
+}
+
+func TestMarkdownParserDoesNotProtectEscapedLinkLikeBracket(t *testing.T) {
+	template := []byte("Keep \\[literal](/not-a-link) unchanged.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	for _, value := range entries {
+		if len(markdownPlaceholderPattern.FindAllString(value, -1)) != 1 {
+			t.Fatalf("expected only destination-like closer protected, got %q", value)
+		}
+	}
+	if output := string(MarshalMarkdown(template, entries, false)); output != string(template) {
+		t.Fatalf("output = %q, want %q", output, template)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenOpeningLinkDelimiterPlaceholderIsDropped(t *testing.T) {
+	template := []byte("Read [the docs](/docs) now.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := make(map[string]string, len(entries))
+	for key, value := range entries {
+		placeholders := markdownPlaceholderPattern.FindAllString(value, -1)
+		if len(placeholders) != 2 {
+			t.Fatalf("expected opening link delimiter placeholder in %q", value)
+		}
+		updates[key] = strings.Replace(value, placeholders[0], "", 1)
+	}
+
+	output, diags := MarshalMarkdownWithDiagnostics(template, updates, false)
+	if string(output) != string(template) {
+		t.Fatalf("expected valid source fallback, got %q", output)
+	}
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenLinkPlaceholdersAreInvalid(t *testing.T) {
+	template := []byte("Read [the docs](/docs) now.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	for name, corrupt := range map[string]func([]string, string) string{
+		"dropped closer": func(tokens []string, value string) string {
+			return strings.Replace(value, tokens[1], "", 1)
+		},
+		"duplicated opener": func(tokens []string, value string) string {
+			return strings.Replace(value, tokens[1], tokens[0], 1)
+		},
+		"swapped tokens": func(tokens []string, value string) string {
+			value = strings.Replace(value, tokens[0], "SWAP_TOKEN", 1)
+			value = strings.Replace(value, tokens[1], tokens[0], 1)
+			return strings.Replace(value, "SWAP_TOKEN", tokens[1], 1)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				tokens := markdownPlaceholderPattern.FindAllString(value, -1)
+				if len(tokens) != 2 {
+					t.Fatalf("expected two link placeholders in %q", value)
+				}
+				updates[key] = corrupt(tokens, value)
+			}
+
+			output, diags := MarshalMarkdownWithDiagnostics(template, updates, false)
+			if string(output) != string(template) {
+				t.Fatalf("expected valid source fallback, got %q", output)
+			}
+			if len(diags.SourceFallbackKeys) != 1 {
+				t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+			}
+		})
+	}
+}
+
 func TestMarshalMarkdownPreservesLinkTitleWithParenthesis(t *testing.T) {
 	template := []byte("[link](/url \"title with ) paren\")\n")
 
