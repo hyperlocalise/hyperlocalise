@@ -57,22 +57,38 @@ function normalizeInputLocale(locale: string | null | undefined) {
   return locale?.trim().toLowerCase().replace(/_/g, "-") || null;
 }
 
-function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
-  const requestedLocaleCount = new Set(
+function requestedTargetLocaleCount(input: SelectKnowledgeMemoryContextInput) {
+  return new Set(
     [input.targetLocale, ...(input.targetLocales ?? [])]
       .map(normalizeInputLocale)
       .filter((locale): locale is string => Boolean(locale)),
   ).size;
-
-  return Math.max(KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS, requestedLocaleCount);
 }
 
-function maxCharsPerSelectedSegment(maxChars: number, segmentCount: number) {
-  if (segmentCount <= KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS) {
+function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
+  return Math.max(KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS, requestedTargetLocaleCount(input));
+}
+
+function maxCharsPerSelectedSegment(input: {
+  maxChars: number;
+  selectedSegmentCount: number;
+  requestedLocaleCount: number;
+}) {
+  if (input.requestedLocaleCount <= 1) {
     return undefined;
   }
 
-  return Math.max(80, Math.floor((maxChars - Math.max(0, segmentCount - 1)) / segmentCount));
+  if (input.selectedSegmentCount <= 1) {
+    return undefined;
+  }
+
+  return Math.max(
+    80,
+    Math.floor(
+      (input.maxChars - Math.max(0, input.selectedSegmentCount - 1)) /
+        input.selectedSegmentCount,
+    ),
+  );
 }
 
 function buildSelectedContext(input: {
@@ -326,6 +342,7 @@ export function selectKnowledgeMemoryContext(
   });
 
   if (rankedSegments.length > 0) {
+    const requestedLocaleCount = requestedTargetLocaleCount(input);
     const selectedSegments = rankedSegments
       .slice(0, selectiveSegmentLimit(input))
       .map((item) => item.segment);
@@ -335,7 +352,11 @@ export function selectKnowledgeMemoryContext(
       selectedSegments,
       fallbackMode: "selective",
       maxChars,
-      maxSegmentChars: maxCharsPerSelectedSegment(maxChars, selectedSegments.length),
+      maxSegmentChars: maxCharsPerSelectedSegment({
+        maxChars,
+        selectedSegmentCount: selectedSegments.length,
+        requestedLocaleCount,
+      }),
     });
   }
 

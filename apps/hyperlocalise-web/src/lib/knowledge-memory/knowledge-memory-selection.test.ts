@@ -134,12 +134,27 @@ function multiSubtagLocaleMemoryWithDistractors() {
 }
 
 function sixLocaleMemoryWithMatchingSections() {
+  return longLocaleMemoryWithMatchingSections([
+    "en-AU",
+    "fr-FR",
+    "de-DE",
+    "es-ES",
+    "ja-JP",
+    "pt-BR",
+  ]);
+}
+
+function fiveLocaleMemoryWithMatchingSections() {
+  return longLocaleMemoryWithMatchingSections(["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP"]);
+}
+
+function longLocaleMemoryWithMatchingSections(locales: string[]) {
   return [
     "# Memory.md",
     "",
     "## Locale guidance",
     "",
-    ...["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP", "pt-BR"].flatMap((locale) => [
+    ...locales.flatMap((locale) => [
       `### ${locale}`,
       "",
       [
@@ -152,6 +167,34 @@ function sixLocaleMemoryWithMatchingSections() {
       ].join(" "),
       "",
     ]),
+    ...Array.from(
+      { length: 70 },
+      (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+    ),
+  ].join("\n");
+}
+
+function extensionLocaleMemoryWithDistractors() {
+  return [
+    "# Memory.md",
+    "",
+    "## Calendar preference",
+    "",
+    "### en-US-u-hc-h12",
+    "",
+    "Use twelve-hour clock wording for checkout confirmations.",
+    "",
+    "## Formal German",
+    "",
+    "### de-DE-x-formal",
+    "",
+    "Use formal German address for checkout confirmations.",
+    "",
+    ...Array.from(
+      { length: 10 },
+      (_, index) =>
+        `## Generic payment note ${index + 1}\n\nPayment confirmation copy should stay short.`,
+    ),
     ...Array.from(
       { length: 70 },
       (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
@@ -614,6 +657,41 @@ describe("selectKnowledgeMemoryContext", () => {
     }
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("balances long snippets when exactly five target locales match", () => {
+    const targetLocales = ["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP"];
+    const selected = selectKnowledgeMemoryContext({
+      content: fiveLocaleMemoryWithMatchingSections(),
+      targetLocales,
+      sourceText: "Payment confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    for (const locale of targetLocales) {
+      expect(selected.metrics.matchedHeadingPaths).toContain(
+        `Memory.md > Locale guidance > ${locale}`,
+      );
+    }
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("boosts locale tags with extension and private-use subtags", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: extensionLocaleMemoryWithDistractors(),
+      targetLocales: ["en_US_u_hc_h12", "de_DE_x_formal"],
+      sourceText: "Checkout confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Calendar preference > en-US-u-hc-h12",
+    );
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Formal German > de-DE-x-formal",
     );
   });
 
