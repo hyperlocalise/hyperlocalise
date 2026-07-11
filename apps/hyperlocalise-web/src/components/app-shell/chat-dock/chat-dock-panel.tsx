@@ -72,6 +72,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   const queryClient = useQueryClient();
   const streamManager = getChatStreamManager(organizationSlug, store);
   const autoTriggeredRef = useRef<string | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
 
   const conversationId = tab && !tab.isPending ? tab.id : "";
 
@@ -279,9 +280,9 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
   return (
     <section
+      ref={panelRef}
       className="fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[30rem]"
       aria-label={tab.title}
-      data-chat-dock-panel={tab.id}
     >
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
         <div className="min-w-0 flex-1">
@@ -335,9 +336,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             onSelectSuggestion={(prompt) => {
               store.setDraft(tab.id, prompt);
               requestAnimationFrame(() => {
-                const textarea = document.querySelector<HTMLTextAreaElement>(
-                  `[data-chat-dock-panel="${tab.id}"] textarea`,
-                );
+                const textarea = panelRef.current?.querySelector("textarea");
                 if (!textarea) {
                   return;
                 }
