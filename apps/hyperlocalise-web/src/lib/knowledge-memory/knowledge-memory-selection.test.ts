@@ -142,7 +142,14 @@ function sixLocaleMemoryWithMatchingSections() {
     ...["en-AU", "fr-FR", "de-DE", "es-ES", "ja-JP", "pt-BR"].flatMap((locale) => [
       `### ${locale}`,
       "",
-      `Use ${locale} payment confirmation guidance for checkout copy.`,
+      [
+        `Use ${locale} payment confirmation guidance for checkout copy.`,
+        ...Array.from(
+          { length: 18 },
+          (_, index) =>
+            `${locale} checkout note ${index + 1}: keep payment timing, card wording, and confirmation copy precise.`,
+        ),
+      ].join(" "),
       "",
     ]),
     ...Array.from(

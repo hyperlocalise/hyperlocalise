@@ -67,12 +67,21 @@ function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
   return Math.max(KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS, requestedLocaleCount);
 }
 
+function maxCharsPerSelectedSegment(maxChars: number, segmentCount: number) {
+  if (segmentCount <= KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS) {
+    return undefined;
+  }
+
+  return Math.max(80, Math.floor((maxChars - Math.max(0, segmentCount - 1)) / segmentCount));
+}
+
 function buildSelectedContext(input: {
   wholeMemoryChars: number;
   selectedSegments: KnowledgeMemorySegment[];
   fallbackMode: KnowledgeMemoryFallbackMode;
   maxChars: number;
   headingFallbackText?: string;
+  maxSegmentChars?: number;
 }) {
   const lines: string[] = [];
   const segments: SelectedKnowledgeMemorySegment[] = [];
@@ -86,7 +95,11 @@ function buildSelectedContext(input: {
   }
 
   for (const segment of input.selectedSegments) {
-    if (!appendWithinBudget(lines, segment.compactPromptText, input.maxChars)) {
+    const preview = input.maxSegmentChars
+      ? truncateFallbackText(segment.compactPromptText, input.maxSegmentChars)
+      : segment.compactPromptText;
+
+    if (!appendWithinBudget(lines, preview, input.maxChars)) {
       break;
     }
     segments.push({
@@ -94,7 +107,7 @@ function buildSelectedContext(input: {
       headingPath: segment.headingPath,
       startLine: segment.startLine,
       endLine: segment.endLine,
-      preview: segment.compactPromptText,
+      preview,
     });
   }
 
@@ -313,13 +326,16 @@ export function selectKnowledgeMemoryContext(
   });
 
   if (rankedSegments.length > 0) {
+    const selectedSegments = rankedSegments
+      .slice(0, selectiveSegmentLimit(input))
+      .map((item) => item.segment);
+
     return buildSelectedContext({
       wholeMemoryChars: content.length,
-      selectedSegments: rankedSegments
-        .slice(0, selectiveSegmentLimit(input))
-        .map((item) => item.segment),
+      selectedSegments,
       fallbackMode: "selective",
       maxChars,
+      maxSegmentChars: maxCharsPerSelectedSegment(maxChars, selectedSegments.length),
     });
   }
 
