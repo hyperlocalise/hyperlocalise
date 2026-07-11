@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
@@ -18,6 +19,14 @@ import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockPanel } from "./chat-dock-panel";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
 
+function messagesQueryKey(conversationId: string) {
+  return ["conversation-messages", conversationId] as const;
+}
+
+function conversationsQueryKey(organizationSlug: string) {
+  return ["conversations", organizationSlug] as const;
+}
+
 /** Shell-lifetime setup: hydrate, CSS height var, stream manager. Mount once in the footer. */
 export const ChatDockBridge = observer(function ChatDockBridge({
   organizationSlug,
@@ -26,6 +35,7 @@ export const ChatDockBridge = observer(function ChatDockBridge({
 }) {
   const store = useAppShellStore();
   const { chatDock } = store;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!organizationSlug) {
@@ -38,8 +48,17 @@ export const ChatDockBridge = observer(function ChatDockBridge({
     }
 
     chatDock.setOrganizationSlug(organizationSlug);
-    getChatStreamManager(organizationSlug, chatDock);
-  }, [chatDock, organizationSlug]);
+    const streamManager = getChatStreamManager(organizationSlug, chatDock);
+    streamManager.setOnStreamFinished(async (conversationId) => {
+      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
+      chatDock.clearStreamSnapshot(conversationId);
+    });
+
+    return () => {
+      streamManager.setOnStreamFinished(null);
+    };
+  }, [chatDock, organizationSlug, queryClient]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -93,7 +112,7 @@ export const ChatDockPanelHost = observer(function ChatDockPanelHost({
   );
 });
 
-/** Left-side footer controls: New chat icon, or open conversation tabs. */
+/** Right-side footer controls: New chat icon, or open conversation tabs. */
 export const ChatDockFooterControls = observer(function ChatDockFooterControls({
   organizationSlug,
 }: {

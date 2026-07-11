@@ -75,18 +75,6 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   const streamManager = getChatStreamManager(organizationSlug, store);
   const autoTriggeredRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    streamManager.setOnStreamFinished(async (conversationId) => {
-      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
-      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
-      store.clearStreamSnapshot(conversationId);
-    });
-
-    return () => {
-      streamManager.setOnStreamFinished(null);
-    };
-  }, [organizationSlug, queryClient, store, streamManager]);
-
   const conversationId = tab && !tab.isPending ? tab.id : "";
 
   const conversationsQuery = useQuery({
@@ -248,6 +236,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       try {
         store.setLastError(tab.id, null);
         await sendMessageMutation.mutateAsync({ text, files, ...options });
+        store.setDraft(tab.id, "");
         await queryClient.invalidateQueries({ queryKey: messagesQueryKey(tab.id) });
         await queryClient.invalidateQueries({
           queryKey: conversationsQueryKey(organizationSlug),
@@ -345,8 +334,11 @@ export const ChatDockPanel = observer(function ChatDockPanel({
         )}
 
         <ReplyComposer
+          key={tab.id}
           disabled={isBusy}
+          draft={tab.draft}
           isStreaming={tab.isStreaming}
+          onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}
         />
