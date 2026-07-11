@@ -13,11 +13,6 @@ export const inboxPanelErrorBoundaryMessages = defineMessages({
     id: "hMQhlW9yb7",
     description: "Error boundary title when the inbox messages panel crashes",
   },
-  detailsTitle: {
-    defaultMessage: "Conversation details failed to load",
-    id: "yYnhoQZl4b",
-    description: "Error boundary title when the inbox details panel crashes",
-  },
   composerTitle: {
     defaultMessage: "Reply composer failed to load",
     id: "OROpfMaGFB",
