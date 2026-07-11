@@ -2,7 +2,7 @@ import { openai } from "@ai-sdk/openai";
 
 import { env } from "@/lib/env";
 
-export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
+export const hyperlocaliseAgentModelId = "gpt-5.6-luna";
 
 export function getHyperlocaliseAgentModel() {
   if (!env.OPENAI_API_KEY) {
