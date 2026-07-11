@@ -1,4 +1,4 @@
-import { ChatPageContent } from "./_components/chat-page-content";
+import { redirect } from "next/navigation";
 
 export default async function ChatPage({
   params,
@@ -6,6 +6,5 @@ export default async function ChatPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-
-  return <ChatPageContent organizationSlug={organizationSlug} />;
+  redirect(`/org/${organizationSlug}/dashboard?newRequest=1`);
 }

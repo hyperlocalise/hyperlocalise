@@ -62,12 +62,19 @@ export type DashboardHeroState =
       ctaHref: string;
     }
   | {
-      mode: "attention" | "caught-up";
+      mode: "attention";
       pendingCount: number;
       title: string;
       description: string;
       ctaLabel: string;
       ctaHref: string;
+    }
+  | {
+      mode: "caught-up";
+      pendingCount: 0;
+      title: string;
+      description: string;
+      ctaLabel: string;
     };
 
 const JOB_STATUS_PRIORITY: Record<ApiJob["status"], number> = {
@@ -187,7 +194,6 @@ export function resolveDashboardHero(
     pendingCount: number;
     integrationsHref: string;
     myJobsHref: string;
-    newRequestHref: string;
   },
 ): DashboardHeroState {
   const connectedCount = input.integrations.filter((item) => item.connected).length;
@@ -213,7 +219,6 @@ export function resolveDashboardHero(
       title: intl.formatMessage(dashboardPageViewModelMessages.caughtUpHeroTitle),
       description: intl.formatMessage(dashboardPageViewModelMessages.caughtUpHeroDescription),
       ctaLabel: intl.formatMessage(dashboardPageViewModelMessages.newRequestCta),
-      ctaHref: input.newRequestHref,
     };
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { observer } from "mobx-react-lite";
-import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Chat01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -86,7 +86,7 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
         aria-label={intl.formatMessage(chatDockMessages.newChat)}
         onClick={onNewTab}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
+        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
         <FormattedMessage {...chatDockMessages.newChat} />
       </Button>
     </div>

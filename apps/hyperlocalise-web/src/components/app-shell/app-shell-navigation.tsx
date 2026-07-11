@@ -228,15 +228,19 @@ function NavigationGroupItems({
   projectId?: string;
 }) {
   const intl = useIntl();
+  const { chatDock } = useAppShellStore();
 
   return (
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
         {group.items.map((item) => {
-          const isActive = isNavigationItemActive(pathname, item.href, {
-            projectId,
-            organizationSlug,
-          });
+          const isActionItem = item.action === "open-chat-dock";
+          const isActive = isActionItem
+            ? false
+            : isNavigationItemActive(pathname, item.href, {
+                projectId,
+                organizationSlug,
+              });
           const tooltip = item.badge
             ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
                 label: item.label,
@@ -247,10 +251,11 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<Link href={item.href} />}
+                render={isActionItem ? undefined : <Link href={item.href} />}
                 isActive={isActive}
                 tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
+                onClick={isActionItem ? () => chatDock.openNewTab() : undefined}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
