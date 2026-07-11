@@ -1,7 +1,5 @@
 const CHAT_DOCK_STORAGE_VERSION = 1;
 export const CHAT_DOCK_MAX_CONCURRENT_STREAMS = 3;
-export const CHAT_DOCK_TAB_BAR_HEIGHT_PX = 40;
-export const CHAT_DOCK_PANEL_HEIGHT_PX = 420;
 
 export type ChatDockStreamStatus = "idle" | "streaming" | "complete" | "error";
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
-import { ArrowDown01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -24,10 +24,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { chatDockMessages } from "./chat-dock.messages";
-import {
-  CHAT_DOCK_MAX_CONCURRENT_STREAMS,
-  CHAT_DOCK_PANEL_HEIGHT_PX,
-} from "./chat-dock-persistence";
+import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore } from "./chat-dock-store";
 import { getChatStreamManager } from "./chat-stream-manager";
 
@@ -281,11 +278,10 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
   return (
     <section
-      className="flex flex-col overflow-hidden bg-background"
-      style={{ height: CHAT_DOCK_PANEL_HEIGHT_PX }}
+      className="fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[30rem]"
       aria-label={tab.title}
     >
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{tab.title}</p>
         </div>
@@ -307,7 +303,21 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           aria-label={intl.formatMessage(chatDockMessages.collapsePanel)}
           onClick={() => store.setPanelOpen(false)}
         >
-          <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3.5" />
+          <span aria-hidden className="text-base leading-none">
+            −
+          </span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={intl.formatMessage(chatDockMessages.closeTab)}
+          onClick={() => {
+            streamManager.stop(tab.id);
+            store.closeTab(tab.id);
+          }}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
         </Button>
       </header>
 
@@ -343,6 +353,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}
+          variant="compact"
         />
       </div>
     </section>

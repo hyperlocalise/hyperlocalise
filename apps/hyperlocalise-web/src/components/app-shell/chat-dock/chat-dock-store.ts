@@ -3,7 +3,6 @@ import type { UIMessage } from "ai";
 
 import {
   CHAT_DOCK_MAX_CONCURRENT_STREAMS,
-  CHAT_DOCK_PANEL_HEIGHT_PX,
   createEmptyChatDockState,
   readChatDockState,
   writeChatDockState,
@@ -128,14 +127,6 @@ export class ChatDockStore {
 
   get tabBarVisible() {
     return this.hasTabs;
-  }
-
-  get chromeHeightPx() {
-    if (!this.hasTabs || !this.panelOpen) {
-      return 0;
-    }
-
-    return CHAT_DOCK_PANEL_HEIGHT_PX;
   }
 
   setOrganizationSlug(organizationSlug: string) {

@@ -5,7 +5,7 @@ import { observer } from "mobx-react-lite";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ function conversationsQueryKey(organizationSlug: string) {
   return ["conversations", organizationSlug] as const;
 }
 
-/** Shell-lifetime setup: hydrate, CSS height var, stream manager. Mount once in the footer. */
+/** Shell-lifetime setup: hydrate and stream manager. Mount once in the footer. */
 export const ChatDockBridge = observer(function ChatDockBridge({
   organizationSlug,
 }: {
@@ -59,14 +59,6 @@ export const ChatDockBridge = observer(function ChatDockBridge({
       streamManager.setOnStreamFinished(null);
     };
   }, [chatDock, organizationSlug, queryClient]);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--app-shell-dock-height", `${chatDock.chromeHeightPx}px`);
-    return () => {
-      root.style.setProperty("--app-shell-dock-height", "0px");
-    };
-  }, [chatDock.chromeHeightPx]);
 
   useEffect(() => {
     if (!chatDock.hydrated || !organizationSlug) {
@@ -129,11 +121,13 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
       <Button
         type="button"
         variant="ghost"
-        size="icon-xs"
+        size="xs"
+        className="gap-1.5 px-2"
         aria-label={intl.formatMessage(chatDockMessages.newChat)}
         onClick={() => chatDock.openNewTab()}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
+        <FormattedMessage {...chatDockMessages.newChat} />
       </Button>
     );
   }

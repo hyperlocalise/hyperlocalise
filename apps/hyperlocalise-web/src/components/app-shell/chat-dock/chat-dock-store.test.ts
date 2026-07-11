@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  CHAT_DOCK_MAX_CONCURRENT_STREAMS,
-  CHAT_DOCK_PANEL_HEIGHT_PX,
-} from "./chat-dock-persistence";
+import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import { ChatDockStore } from "./chat-dock-store";
 
 function createMemoryStorage() {
@@ -30,7 +27,6 @@ describe("ChatDockStore", () => {
     expect(store.tabs).toHaveLength(1);
     expect(store.activeTabId).toBe(pendingId);
     expect(store.panelOpen).toBe(true);
-    expect(store.chromeHeightPx).toBe(CHAT_DOCK_PANEL_HEIGHT_PX);
 
     store.openTab({ id: "conv_1", title: "Checkout" });
     expect(store.tabs).toHaveLength(2);
@@ -38,7 +34,6 @@ describe("ChatDockStore", () => {
 
     store.selectTab("conv_1");
     expect(store.panelOpen).toBe(false);
-    expect(store.chromeHeightPx).toBe(0);
 
     store.closeTab(pendingId);
     expect(store.tabs.map((tab) => tab.id)).toEqual(["conv_1"]);
@@ -46,7 +41,6 @@ describe("ChatDockStore", () => {
     store.closeTab("conv_1");
     expect(store.hasTabs).toBe(false);
     expect(store.panelOpen).toBe(false);
-    expect(store.chromeHeightPx).toBe(0);
   });
 
   it("persists and hydrates org-scoped state", () => {
