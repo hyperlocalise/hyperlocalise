@@ -164,7 +164,7 @@ export function ReplyComposerView({
           <PromptInputFooter
             className={
               variant === "compact"
-                ? "min-h-10 flex-nowrap gap-2 border-0 bg-transparent px-2 pb-2"
+                ? "min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap"
                 : "flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5"
             }
           >
