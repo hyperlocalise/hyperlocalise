@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { readApiResponseError } from "@/lib/api-error";
 import { createApiClient } from "@/lib/api-client";
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { WORKSPACE_FEATURE_UNAVAILABLE_REASON } from "@/lib/flags/workos-flag-entities";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
@@ -214,6 +215,7 @@ export function DashboardPageContent({
 }) {
   const intl = useIntl();
   const searchParams = useSearchParams();
+  const { chatDock } = useAppShellStore();
   const handledFeatureUnavailableRef = useRef(false);
   const [recentProjectVisits, setRecentProjectVisits] = useState<RecentProjectVisit[] | null>(null);
 
@@ -240,7 +242,6 @@ export function DashboardPageContent({
 
   const integrationsHref = `/org/${organizationSlug}/integrations`;
   const myJobsHref = `/org/${organizationSlug}/my-jobs`;
-  const newRequestHref = `/org/${organizationSlug}/chat`;
 
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const activeTmsProvider = activeTmsProviderQuery.data;
@@ -371,17 +372,8 @@ export function DashboardPageContent({
         pendingCount,
         integrationsHref,
         myJobsHref,
-        newRequestHref,
       }),
-    [
-      allProjects.length,
-      integrations,
-      integrationsHref,
-      intl,
-      myJobsHref,
-      newRequestHref,
-      pendingCount,
-    ],
+    [allProjects.length, integrations, integrationsHref, intl, myJobsHref, pendingCount],
   );
 
   const automationStats = useMemo(
@@ -491,6 +483,7 @@ export function DashboardPageContent({
       isTmsProjectsError={tmsProjectsQuery.isError}
       isAutomationsLoading={automationsQuery.isLoading || automationRunsQuery.isLoading}
       isAutomationsError={automationsQuery.isError || automationRunsQuery.isError}
+      onNewRequest={() => chatDock.openNewTab()}
       renderLink={({ href, className, children, onClick }) => (
         <Link href={href} className={className} onClick={onClick}>
           {children}

@@ -224,11 +224,11 @@ function DashboardPanel({
 
 function DashboardSetupHero({
   hero,
-  newRequestHref,
+  onNewRequest,
   renderLink = defaultRenderLink,
 }: {
   hero: Extract<DashboardHeroState, { mode: "setup" }>;
-  newRequestHref: string;
+  onNewRequest: () => void;
   renderLink?: DashboardLinkRenderer;
 }) {
   const progressValue = Math.round((hero.completedCount / hero.totalCount) * 100);
@@ -263,15 +263,15 @@ function DashboardSetupHero({
                   </Button>
                 ),
               })}
-              {renderLink({
-                href: newRequestHref,
-                children: (
-                  <Button variant="outline" className="rounded-full">
-                    <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                    <FormattedMessage {...dashboardPageViewMessages.newRequest} />
-                  </Button>
-                ),
-              })}
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={onNewRequest}
+              >
+                <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
+                <FormattedMessage {...dashboardPageViewMessages.newRequest} />
+              </Button>
             </div>
           </div>
           <div className="grid gap-2">
@@ -799,6 +799,7 @@ export function DashboardPageView({
   isTmsProjectsError = false,
   isAutomationsLoading = false,
   isAutomationsError = false,
+  onNewRequest,
   renderLink = defaultRenderLink,
 }: {
   organizationSlug: string;
@@ -829,6 +830,7 @@ export function DashboardPageView({
   isTmsProjectsError?: boolean;
   isAutomationsLoading?: boolean;
   isAutomationsError?: boolean;
+  onNewRequest: () => void;
   renderLink?: DashboardLinkRenderer;
 }) {
   const intl = useIntl();
@@ -836,7 +838,6 @@ export function DashboardPageView({
   const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const jobsHref = `/org/${organizationSlug}/jobs`;
   const projectsHref = `/org/${organizationSlug}/projects`;
-  const newRequestHref = `/org/${organizationSlug}/chat`;
 
   return (
     <WorkspacePageShell>
@@ -851,16 +852,26 @@ export function DashboardPageView({
         {isHeroLoading ? (
           <DashboardHeroSkeleton />
         ) : hero.mode === "setup" ? (
-          <DashboardSetupHero hero={hero} newRequestHref={newRequestHref} renderLink={renderLink} />
+          <DashboardSetupHero hero={hero} onNewRequest={onNewRequest} renderLink={renderLink} />
         ) : (
           <>
-            <OverviewHeroCard
-              pendingCount={hero.pendingCount}
-              title={hero.title}
-              description={hero.description}
-              ctaLabel={hero.ctaLabel}
-              ctaHref={hero.ctaHref}
-            />
+            {hero.mode === "caught-up" ? (
+              <OverviewHeroCard
+                pendingCount={hero.pendingCount}
+                title={hero.title}
+                description={hero.description}
+                ctaLabel={hero.ctaLabel}
+                onCtaClick={onNewRequest}
+              />
+            ) : (
+              <OverviewHeroCard
+                pendingCount={hero.pendingCount}
+                title={hero.title}
+                description={hero.description}
+                ctaLabel={hero.ctaLabel}
+                ctaHref={hero.ctaHref}
+              />
+            )}
             <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
               <CardContent className="flex h-full flex-col justify-between gap-4 px-6 py-6">
                 <div>
@@ -874,15 +885,10 @@ export function DashboardPageView({
                     <FormattedMessage {...dashboardPageViewMessages.quickStartDescription} />
                   </TypographyP>
                 </div>
-                {renderLink({
-                  href: newRequestHref,
-                  children: (
-                    <Button className="w-fit rounded-full">
-                      <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                      <FormattedMessage {...dashboardPageViewMessages.newRequest} />
-                    </Button>
-                  ),
-                })}
+                <Button type="button" className="w-fit rounded-full" onClick={onNewRequest}>
+                  <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
+                  <FormattedMessage {...dashboardPageViewMessages.newRequest} />
+                </Button>
               </CardContent>
             </Card>
           </>

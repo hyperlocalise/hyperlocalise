@@ -156,6 +156,10 @@ describe("path builders", () => {
 
     expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
+    expect(byLabel.get("New Request")).toMatchObject({
+      href: "#open-chat-dock",
+      action: "open-chat-dock",
+    });
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
   });

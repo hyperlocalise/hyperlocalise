@@ -1,5 +1,5 @@
 import type { Preview } from "@storybook/nextjs-vite";
-import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
+import { Domine, Geist_Mono, Inter, Noto_Serif, Noto_Serif_SC } from "next/font/google";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import "@pierre/trees/web-components";
 
@@ -15,14 +15,41 @@ import { StorybookDecorator, type StorybookTheme } from "./storybook-decorator";
 
 initialize({ onUnhandledRequest: "bypass" });
 
-const opensans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-sans",
+});
 
-const domine = Domine({ subsets: ["latin"], variable: "--font-heading" });
+const domine = Domine({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-heading",
+});
+
+const notoSerif = Noto_Serif({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-heading",
+});
+
+const notoSerifSc = Noto_Serif_SC({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heading",
+});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+function headingFontVariable(locale: string | undefined) {
+  if (locale === "vi-VN") {
+    return notoSerif.variable;
+  }
+  if (locale === "zh-CN") {
+    return notoSerifSc.variable;
+  }
+  return domine.variable;
+}
 
 const preview: Preview = {
   globalTypes: {
@@ -69,8 +96,8 @@ const preview: Preview = {
                 className={cn(
                   "font-sans antialiased",
                   geistMono.variable,
-                  domine.variable,
-                  opensans.variable,
+                  inter.variable,
+                  headingFontVariable(globals.locale),
                 )}
               >
                 <Story />
@@ -94,13 +121,13 @@ const preview: Preview = {
       handlers: mswHandlers,
     },
   },
-  async beforeEach() {
+  async beforeEach({ globals }) {
     document.documentElement.classList.add(
       "font-sans",
       "antialiased",
       geistMono.variable,
-      domine.variable,
-      opensans.variable,
+      inter.variable,
+      headingFontVariable(globals.locale),
     );
   },
 };

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { observer } from "mobx-react-lite";
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Chat01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -19,12 +19,31 @@ import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockPanel } from "./chat-dock-panel";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
 
+/** Query flag used by `/chat` redirects to open a new dock tab once. */
+export const NEW_REQUEST_QUERY_PARAM = "newRequest";
+
 function messagesQueryKey(conversationId: string) {
   return ["conversation-messages", conversationId] as const;
 }
 
 function conversationsQueryKey(organizationSlug: string) {
   return ["conversations", organizationSlug] as const;
+}
+
+function consumeNewRequestQueryParam() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get(NEW_REQUEST_QUERY_PARAM) !== "1") {
+    return false;
+  }
+
+  url.searchParams.delete(NEW_REQUEST_QUERY_PARAM);
+  const search = url.searchParams.toString();
+  window.history.replaceState(null, "", `${url.pathname}${search ? `?${search}` : ""}${url.hash}`);
+  return true;
 }
 
 /** Shell-lifetime setup: hydrate and stream manager. Mount once in the footer. */
@@ -81,6 +100,18 @@ export const ChatDockBridge = observer(function ChatDockBridge({
     void queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
   }, [chatDock, chatDock.hydrated, organizationSlug, queryClient]);
 
+  useEffect(() => {
+    if (!chatDock.hydrated || !organizationSlug) {
+      return;
+    }
+
+    if (!consumeNewRequestQueryParam()) {
+      return;
+    }
+
+    chatDock.openNewTab();
+  }, [chatDock, chatDock.hydrated, organizationSlug]);
+
   return null;
 });
 
@@ -126,7 +157,7 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
         aria-label={intl.formatMessage(chatDockMessages.newChat)}
         onClick={() => chatDock.openNewTab()}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
+        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
         <FormattedMessage {...chatDockMessages.newChat} />
       </Button>
     );

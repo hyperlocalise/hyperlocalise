@@ -118,7 +118,6 @@ describe("dashboard-page-view-model", () => {
       pendingCount: 0,
       integrationsHref: "/org/acme/integrations",
       myJobsHref: "/org/acme/my-jobs",
-      newRequestHref: "/org/acme/chat",
     });
 
     expect(hero.mode).toBe("setup");

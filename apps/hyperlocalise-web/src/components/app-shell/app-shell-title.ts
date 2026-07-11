@@ -11,7 +11,6 @@ type RouteTitleKey =
   | "agent-runs"
   | "api-keys"
   | "billing"
-  | "chat"
   | "dashboard"
   | "files"
   | "glossaries"
@@ -25,7 +24,6 @@ type RouteTitleKey =
   | "members"
   | "my-jobs"
   | "my-work"
-  | "new-request"
   | "projects"
   | "qa"
   | "reviews"
@@ -55,7 +53,6 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "agent-runs" ||
     value === "api-keys" ||
     value === "billing" ||
-    value === "chat" ||
     value === "dashboard" ||
     value === "files" ||
     value === "glossaries" ||
@@ -69,7 +66,6 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "members" ||
     value === "my-jobs" ||
     value === "my-work" ||
-    value === "new-request" ||
     value === "projects" ||
     value === "qa" ||
     value === "reviews" ||
@@ -152,13 +148,6 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Billing",
         id: "Rn6kkInOe/",
         description: "App shell breadcrumb title for the billing settings page",
-      });
-    case "chat":
-    case "new-request":
-      return intl.formatMessage({
-        defaultMessage: "New Request",
-        id: "iC/MBnVVSN",
-        description: "App shell breadcrumb title for the new request page",
       });
     case "dashboard":
       return intl.formatMessage({
