@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -17,22 +19,28 @@ import {
 import { env } from "@/lib/env";
 import Image from "next/image";
 import Link from "next/link";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 
-const navigationLinks: { href: string; label: string; active?: boolean }[] = [
-  { href: "/product/agents-automation", label: "Agents" },
-  { href: "/product/next-gen-cat-tool", label: "CAT Tool" },
-  { href: "/product/self-evolving-knowledge", label: "Knowledge" },
-  { href: "/blog", label: "Blog" },
-];
+import { navbarMessages } from "./navbar.messages";
+
+const navigationLinks = [
+  { href: "/product/agents-automation", labelKey: "navAgents" },
+  { href: "/product/next-gen-cat-tool", labelKey: "navCatTool" },
+  { href: "/product/self-evolving-knowledge", labelKey: "navKnowledge" },
+  { href: "/blog", labelKey: "navBlog" },
+] as const;
+
 const signInHref = "/auth/sign-in";
 
 const mobileNavLinkClassName =
   "flex min-h-11 items-center rounded-3xl px-4 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground";
 
 function Logo() {
+  const intl = useIntl();
+
   return (
     <Link href="/" className="flex items-center gap-2.5">
       <Image
@@ -40,7 +48,7 @@ function Logo() {
         className="size-8"
         width={32}
         height={32}
-        alt="Hyperlocalise logo"
+        alt={intl.formatMessage(navbarMessages.logoAlt)}
       />
       <span className="font-sans text-base font-semibold tracking-tight">Hyperlocalise</span>
     </Link>
@@ -48,6 +56,8 @@ function Logo() {
 }
 
 function MobileNavigation() {
+  const intl = useIntl();
+
   return (
     <Sheet>
       <SheetTrigger
@@ -59,7 +69,9 @@ function MobileNavigation() {
           />
         }
       >
-        <span className="sr-only">Open navigation menu</span>
+        <span className="sr-only">
+          <FormattedMessage {...navbarMessages.openNavigationMenu} />
+        </span>
         <svg
           aria-hidden="true"
           className="pointer-events-none"
@@ -83,24 +95,28 @@ function MobileNavigation() {
         className="w-[min(90vw,22rem)] border-s border-border bg-background/98 px-0"
       >
         <SheetHeader className="gap-4 border-b border-border px-5 pb-5 pt-6 text-left">
-          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <SheetTitle className="sr-only">
+            <FormattedMessage {...navbarMessages.navigationMenuTitle} />
+          </SheetTitle>
           <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            Navigation
+            <FormattedMessage {...navbarMessages.navigationHeading} />
           </div>
           <div className="pr-10">
             <Logo />
           </div>
         </SheetHeader>
         <div className="flex flex-1 flex-col px-3 py-4">
-          <nav aria-label="Mobile" className="flex flex-col gap-1.5">
+          <nav
+            aria-label={intl.formatMessage(navbarMessages.mobileNavAriaLabel)}
+            className="flex flex-col gap-1.5"
+          >
             {navigationLinks.map((link) => (
               <SheetClose
-                key={link.label}
+                key={link.href}
                 render={<a href={link.href} />}
                 className={mobileNavLinkClassName}
-                data-active={link.active}
               >
-                {link.label}
+                <FormattedMessage {...navbarMessages[link.labelKey]} />
               </SheetClose>
             ))}
           </nav>
@@ -114,12 +130,12 @@ function MobileNavigation() {
               nativeButton={false}
               render={<span />}
             >
-              Sign in
+              <FormattedMessage {...navbarMessages.signIn} />
             </Button>
           </SheetClose>
           <SheetClose render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />} className="w-full">
             <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
-              Join waitlist
+              <FormattedMessage {...navbarMessages.joinWaitlist} />
             </Button>
           </SheetClose>
         </SheetFooter>
@@ -137,13 +153,12 @@ export default function Navbar() {
           <NavigationMenu className="mx-auto hidden max-w-none md:flex">
             <NavigationMenuList className="gap-1">
               {navigationLinks.map((link) => (
-                <NavigationMenuItem key={link.label}>
+                <NavigationMenuItem key={link.href}>
                   <NavigationMenuLink
-                    active={link.active}
                     href={link.href}
                     className="px-3 py-2 font-medium text-muted-foreground hover:text-foreground"
                   >
-                    {link.label}
+                    <FormattedMessage {...navbarMessages[link.labelKey]} />
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
@@ -157,10 +172,10 @@ export default function Navbar() {
             nativeButton={false}
             render={<Link href={signInHref} prefetch={false} />}
           >
-            Sign in
+            <FormattedMessage {...navbarMessages.signIn} />
           </Button>
           <Button nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
-            Join waitlist
+            <FormattedMessage {...navbarMessages.joinWaitlist} />
           </Button>
           <LocaleToggle />
           <ThemeToggle />
@@ -172,7 +187,7 @@ export default function Navbar() {
             nativeButton={false}
             render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
           >
-            Join waitlist
+            <FormattedMessage {...navbarMessages.joinWaitlist} />
           </Button>
           <MobileNavigation />
           <LocaleToggle />
