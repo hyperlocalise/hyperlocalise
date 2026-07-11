@@ -25,8 +25,8 @@ AppShellStore
 
 AppShellClient
   └── AppShellFooter
-        ├── ChatDockPanel + ChatDockTabBar
-        └── status row (New chat / plan / support)
+        ├── ChatDockPanel (when open)
+        └── status row (chat tabs left / plan / support right)
 ```
 
 Persistence key: `chat-dock:v1:${organizationSlug}`.
@@ -36,10 +36,9 @@ Persistence key: `chat-dock:v1:${organizationSlug}`.
 The chat dock is part of the fixed app shell footer:
 
 1. Expandable conversation panel (when open)
-2. Conversation tab bar (when tabs exist)
-3. Status row: New chat (when empty), plan usage, support
+2. Status row: chat tabs / New chat on the **left**, plan usage, support on the **right**
 
-Dynamic `--app-shell-dock-height` keeps page padding clear of the full footer chrome.
+Tabs sit in the same footer row as support. Dynamic `--app-shell-dock-height` only grows for the open panel.
 
 ## Data flow
 

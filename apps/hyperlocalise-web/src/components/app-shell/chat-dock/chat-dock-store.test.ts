@@ -3,7 +3,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   CHAT_DOCK_MAX_CONCURRENT_STREAMS,
   CHAT_DOCK_PANEL_HEIGHT_PX,
-  CHAT_DOCK_TAB_BAR_HEIGHT_PX,
 } from "./chat-dock-persistence";
 import { ChatDockStore } from "./chat-dock-store";
 
@@ -31,7 +30,7 @@ describe("ChatDockStore", () => {
     expect(store.tabs).toHaveLength(1);
     expect(store.activeTabId).toBe(pendingId);
     expect(store.panelOpen).toBe(true);
-    expect(store.chromeHeightPx).toBe(CHAT_DOCK_TAB_BAR_HEIGHT_PX + CHAT_DOCK_PANEL_HEIGHT_PX);
+    expect(store.chromeHeightPx).toBe(CHAT_DOCK_PANEL_HEIGHT_PX);
 
     store.openTab({ id: "conv_1", title: "Checkout" });
     expect(store.tabs).toHaveLength(2);
@@ -39,7 +38,7 @@ describe("ChatDockStore", () => {
 
     store.selectTab("conv_1");
     expect(store.panelOpen).toBe(false);
-    expect(store.chromeHeightPx).toBe(CHAT_DOCK_TAB_BAR_HEIGHT_PX);
+    expect(store.chromeHeightPx).toBe(0);
 
     store.closeTab(pendingId);
     expect(store.tabs.map((tab) => tab.id)).toEqual(["conv_1"]);

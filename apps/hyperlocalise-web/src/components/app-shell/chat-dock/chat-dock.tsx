@@ -18,13 +18,11 @@ import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockPanel } from "./chat-dock-panel";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
 
-/** Footer-embedded chat dock: panel + tabs (no fixed positioning of its own). */
-export const ChatDock = observer(function ChatDock({
+/** Shell-lifetime setup: hydrate, CSS height var, stream manager. Mount once in the footer. */
+export const ChatDockBridge = observer(function ChatDockBridge({
   organizationSlug,
-  currentUser,
 }: {
   organizationSlug: string;
-  currentUser: InboxCurrentUser;
 }) {
   const store = useAppShellStore();
   const { chatDock } = store;
@@ -51,7 +49,6 @@ export const ChatDock = observer(function ChatDock({
     };
   }, [chatDock.chromeHeightPx]);
 
-  // Best-effort reconnect after hydrate: keep restored snapshot, clear spinning state.
   useEffect(() => {
     if (!chatDock.hydrated) {
       return;
@@ -74,67 +71,66 @@ export const ChatDock = observer(function ChatDock({
     }
   }, [chatDock, chatDock.hydrated]);
 
-  if (!organizationSlug || !chatDock.hasTabs) {
+  return null;
+});
+
+/** Expandable conversation panel above the footer status row. */
+export const ChatDockPanelHost = observer(function ChatDockPanelHost({
+  organizationSlug,
+  currentUser,
+}: {
+  organizationSlug: string;
+  currentUser: InboxCurrentUser;
+}) {
+  const { chatDock } = useAppShellStore();
+
+  if (!organizationSlug || !chatDock.hasTabs || !chatDock.panelOpen || !chatDock.activeTab) {
     return null;
   }
 
   return (
-    <div className="flex min-h-0 flex-col">
-      {chatDock.panelOpen ? (
-        <ChatDockPanel
-          organizationSlug={organizationSlug}
-          currentUser={currentUser}
-          store={chatDock}
-        />
-      ) : null}
-      <ChatDockTabBar
-        tabs={chatDock.tabs}
-        activeTabId={chatDock.activeTabId}
-        onSelectTab={(tabId) => chatDock.selectTab(tabId)}
-        onCloseTab={(tabId) => {
-          const manager = getChatStreamManager(organizationSlug, chatDock);
-          manager.stop(tabId);
-          chatDock.closeTab(tabId);
-        }}
-        onNewTab={() => chatDock.openNewTab()}
-      />
-    </div>
+    <ChatDockPanel organizationSlug={organizationSlug} currentUser={currentUser} store={chatDock} />
   );
 });
 
-/** Compact New chat control for the footer status row when no tabs are open. */
-export const ChatDockNewChatButton = observer(function ChatDockNewChatButton({
+/** Left-side footer controls: New chat icon, or open conversation tabs. */
+export const ChatDockFooterControls = observer(function ChatDockFooterControls({
   organizationSlug,
 }: {
   organizationSlug: string;
 }) {
   const intl = useIntl();
-  const store = useAppShellStore();
-  const { chatDock } = store;
+  const { chatDock } = useAppShellStore();
 
-  useEffect(() => {
-    if (!organizationSlug) {
-      return;
-    }
-
-    chatDock.setOrganizationSlug(organizationSlug);
-  }, [chatDock, organizationSlug]);
-
-  if (!organizationSlug || chatDock.hasTabs) {
+  if (!organizationSlug) {
     return null;
   }
 
+  if (!chatDock.hasTabs) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label={intl.formatMessage(chatDockMessages.newChat)}
+        onClick={() => chatDock.openNewTab()}
+      >
+        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant="ghost"
-      className="h-7 gap-1.5 px-2 text-xs"
-      aria-label={intl.formatMessage(chatDockMessages.newChat)}
-      onClick={() => chatDock.openNewTab()}
-    >
-      <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
-      {intl.formatMessage(chatDockMessages.newChat)}
-    </Button>
+    <ChatDockTabBar
+      tabs={chatDock.tabs}
+      activeTabId={chatDock.activeTabId}
+      onSelectTab={(tabId) => chatDock.selectTab(tabId)}
+      onCloseTab={(tabId) => {
+        const manager = getChatStreamManager(organizationSlug, chatDock);
+        manager.stop(tabId);
+        chatDock.closeTab(tabId);
+      }}
+      onNewTab={() => chatDock.openNewTab()}
+    />
   );
 });

@@ -3,14 +3,13 @@
 import { observer } from "mobx-react-lite";
 import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
 import { chatDockMessages } from "./chat-dock.messages";
 import type { ChatDockTab } from "./chat-dock-store";
-import { CHAT_DOCK_TAB_BAR_HEIGHT_PX } from "./chat-dock-persistence";
 
 export const ChatDockTabBar = observer(function ChatDockTabBar({
   tabs,
@@ -29,19 +28,18 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
 
   return (
     <div
-      className="flex items-center gap-1 border-b border-border bg-background px-2"
-      style={{ height: CHAT_DOCK_TAB_BAR_HEIGHT_PX }}
+      className="flex min-w-0 max-w-md items-center gap-1"
       role="tablist"
       aria-label="Chat conversations"
     >
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {tabs.map((tab) => {
           const selected = tab.id === activeTabId;
           return (
             <div
               key={tab.id}
               className={cn(
-                "group flex max-w-48 shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs",
+                "group flex max-w-40 shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs",
                 selected
                   ? "border-border bg-muted text-foreground"
                   : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -90,9 +88,6 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-3.5" />
       </Button>
-      <span className="sr-only">
-        <FormattedMessage {...chatDockMessages.newChat} />
-      </span>
     </div>
   );
 });

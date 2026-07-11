@@ -108,7 +108,7 @@ describe("AppShellFooter", () => {
     );
   });
 
-  it("hosts the chat dock new-chat control in the footer status row", async () => {
+  it("hosts chat tabs on the left of the footer status row", async () => {
     const user = userEvent.setup();
     autumnMocks.useCustomer.mockReturnValue({
       data: null,
@@ -124,11 +124,12 @@ describe("AppShellFooter", () => {
     renderFooter({ showPlan: false, withChat: true });
 
     const newChat = screen.getByRole("button", { name: "New chat" });
-    expect(newChat).toBeTruthy();
     expect(newChat.closest("footer")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Email support" })).toBeTruthy();
 
     await user.click(newChat);
-    expect(screen.getByRole("tablist", { name: "Chat conversations" })).toBeTruthy();
+    const tablist = screen.getByRole("tablist", { name: "Chat conversations" });
+    expect(tablist.closest("footer")).toBeTruthy();
     expect(screen.getByRole("tab", { name: /New chat/i })).toBeTruthy();
   });
 });
