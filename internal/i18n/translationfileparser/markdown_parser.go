@@ -370,6 +370,12 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		}
 
 		switch {
+		case segment[idx] == '!' && idx+1 < len(segment) && startsMarkdownLinkLabel(segment, idx+1):
+			// The image marker and opening bracket form one structural opener.
+			// Keeping the marker out of translated text prevents an image from
+			// silently degrading into a normal link.
+			appendPlaceholder(segment[idx : idx+2])
+			idx += 2
 		case segment[idx] == '[' && startsMarkdownLinkLabel(segment, idx):
 			// Keep the opening delimiter marshal-owned just like the closing
 			// delimiter and destination below. Otherwise a translator can omit
@@ -807,7 +813,7 @@ func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map
 			continue
 		}
 		switch {
-		case original == "[":
+		case original == "[" || original == "![":
 			sourceOpeners = append(sourceOpeners, token)
 		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
 			if len(sourceOpeners) == 0 {
@@ -829,7 +835,7 @@ func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map
 			continue
 		}
 		switch {
-		case original == "[":
+		case original == "[" || original == "![":
 			expectedCloser, ok := expectedCloserByOpener[token]
 			if !ok {
 				return false

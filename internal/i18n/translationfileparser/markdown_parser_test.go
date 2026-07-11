@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -282,6 +283,35 @@ func TestMarshalMarkdownFallsBackWhenOpeningLinkDelimiterPlaceholderIsDropped(t 
 	}
 	if len(diags.SourceFallbackKeys) != 1 {
 		t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenImageOpenerPlaceholderIsDropped(t *testing.T) {
+	for _, mdx := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mdx=%t", mdx), func(t *testing.T) {
+			template := []byte("View ![the diagram](/diagram.png) now.\n")
+			entries, err := (MarkdownParser{MDX: mdx}).Parse(template)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				placeholders := markdownPlaceholderPattern.FindAllString(value, -1)
+				if len(placeholders) != 2 {
+					t.Fatalf("expected image opener and closer placeholders in %q", value)
+				}
+				updates[key] = strings.Replace(value, placeholders[0], "", 1)
+			}
+
+			output, diags := MarshalMarkdownWithDiagnostics(template, updates, mdx)
+			if string(output) != string(template) {
+				t.Fatalf("expected valid source fallback, got %q", output)
+			}
+			if len(diags.SourceFallbackKeys) != 1 {
+				t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+			}
+		})
 	}
 }
 
