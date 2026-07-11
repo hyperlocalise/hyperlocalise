@@ -29,6 +29,7 @@ import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { AppShellFooter } from "./app-shell-footer";
+import { ChatDock } from "./chat-dock/chat-dock";
 
 import { appShellClientMessages } from "./app-shell-client.messages";
 
@@ -50,6 +51,7 @@ type AppShellClientProps = {
   showMembersLink?: boolean;
   user: {
     name: string;
+    email: string;
     avatarUrl?: string;
   };
 };
@@ -83,7 +85,9 @@ export function AppShellClient({
           {
             "--app-shell-content-height":
               "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
-            "--app-shell-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
+            "--app-shell-plan-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
+            "--app-shell-footer-height":
+              "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
             "--sidebar-width": "15rem",
           } as CSSProperties
         }
@@ -154,6 +158,18 @@ export function AppShellClient({
 
           <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
         </SidebarInset>
+
+        {organizationSlug ? (
+          <ChatDock
+            organizationSlug={organizationSlug}
+            currentUser={{
+              avatarUrl: user.avatarUrl ?? null,
+              email: user.email,
+              name: user.name,
+            }}
+            planFooterHeightPx={40}
+          />
+        ) : null}
 
         <AppShellFooter
           organizationSlug={organizationSlug}

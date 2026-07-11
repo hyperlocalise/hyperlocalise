@@ -17,7 +17,7 @@ export function AppShellFooter({
   showPlan: boolean;
 }) {
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-40 h-[var(--app-shell-footer-height)] border-t border-border bg-background px-2">
+    <footer className="fixed inset-x-0 bottom-0 z-40 h-[var(--app-shell-plan-footer-height)] border-t border-border bg-background px-2">
       <div className="flex h-10 items-center">
         {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
         <Tooltip>
