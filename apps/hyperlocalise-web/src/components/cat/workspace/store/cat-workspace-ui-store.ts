@@ -13,6 +13,7 @@ export class CatWorkspaceUiStore {
   previewLoadingSegmentId: string | null = null;
   previewTargetLoading = false;
   previewCommentsLoading = false;
+  visibleSideBySideSegmentIds: string[] = [];
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -37,6 +38,17 @@ export class CatWorkspaceUiStore {
 
   clearHoveredSegment() {
     this.hoveredSegmentId = null;
+  }
+
+  setVisibleSideBySideSegmentIds(segmentIds: string[]) {
+    if (
+      this.visibleSideBySideSegmentIds.length === segmentIds.length &&
+      this.visibleSideBySideSegmentIds.every((segmentId, index) => segmentId === segmentIds[index])
+    ) {
+      return;
+    }
+
+    this.visibleSideBySideSegmentIds = segmentIds;
   }
 
   setPreviewLoadingState(

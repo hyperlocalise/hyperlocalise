@@ -256,4 +256,16 @@ describe("CatWorkspaceUiStore", () => {
     expect(ui.hoveredSegmentId).toBeNull();
     expect(ui.previewTargetLoading).toBe(true);
   });
+
+  it("tracks the virtualized side-by-side segment range", () => {
+    const ui = new CatWorkspaceUiStore();
+
+    ui.setVisibleSideBySideSegmentIds(["seg-01", "seg-02"]);
+
+    expect(ui.visibleSideBySideSegmentIds).toEqual(["seg-01", "seg-02"]);
+
+    ui.setVisibleSideBySideSegmentIds([]);
+
+    expect(ui.visibleSideBySideSegmentIds).toEqual([]);
+  });
 });
