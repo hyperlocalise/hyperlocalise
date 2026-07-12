@@ -127,7 +127,7 @@ async function getUsageEvent(operationKey: string) {
 }
 
 function autumnRequestBody(fetchMock: ReturnType<typeof stubAutumnFetch>) {
-  const calls = fetchMock.mock.calls as Array<Parameters<typeof fetch>>;
+  const calls = fetchMock.mock.calls as unknown as Array<Parameters<typeof fetch>>;
   const [, requestInit] = calls[0] ?? [];
   const requestBody = requestInit?.body;
   if (typeof requestBody !== "string") {
