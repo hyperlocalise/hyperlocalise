@@ -1339,6 +1339,10 @@
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
   },
+  "BgfpkbN4Fe": {
+    "defaultMessage": "Knowledge",
+    "description": "Marketing navbar link to the self-evolving knowledge product page"
+  },
   "BjoXu+/Pje": {
     "defaultMessage": "Localization check",
     "description": "Label for the localization validation workflow toggle"
@@ -1595,6 +1599,10 @@
     "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
     "description": "Capability 4 description for the github-release-localisation use case"
   },
+  "EGk/6OwbtI": {
+    "defaultMessage": "Join waitlist",
+    "description": "Marketing navbar call-to-action to join the waitlist"
+  },
   "EGy0DHdyiF": {
     "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale.",
     "description": "CTA section description for the help-center-localisation use case"
@@ -1722,6 +1730,10 @@
   "FcsO6dYpho": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after code is copied to the clipboard"
+  },
+  "FeC29AzS2o": {
+    "defaultMessage": "Hyperlocalise logo",
+    "description": "Alt text for the Hyperlocalise logo image in the marketing navbar"
   },
   "Fhrua/1XPG": {
     "defaultMessage": "Review translations without guessing what the string means",
@@ -1979,6 +1991,10 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the help-center-localisation use case"
   },
+  "IsIHLHu2zb": {
+    "defaultMessage": "Navigation",
+    "description": "Visible heading above links in the mobile navigation sheet"
+  },
   "Iv9Zw2Kz/I": {
     "defaultMessage": "Add comment",
     "description": "Button to submit a new segment comment"
@@ -2070,6 +2086,10 @@
   "JpSMiCgbq5": {
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
+  },
+  "JuVYR2r3yd": {
+    "defaultMessage": "Navigation menu",
+    "description": "Screen-reader title for the mobile navigation sheet"
   },
   "JwDpy6S6NK": {
     "defaultMessage": "Move between the product pillars without leaving the feature-page flow.",
@@ -2614,6 +2634,10 @@
   "QmXtxyLvCd": {
     "defaultMessage": "Connect your OpenAI account",
     "description": "OpenAI BYOK provider description on the integrations page"
+  },
+  "Qmtq3rDIqg": {
+    "defaultMessage": "Blog",
+    "description": "Marketing navbar link to the blog"
   },
   "Qov7AjZh9+": {
     "defaultMessage": "A pricing page refactor opens a pull request on Tuesday",
@@ -3967,6 +3991,10 @@
     "defaultMessage": "The baseline terms that govern use of Hyperlocalise websites, docs, and services.",
     "description": "Open Graph description for the terms of service page"
   },
+  "gvu/VOCeeU": {
+    "defaultMessage": "Open navigation menu",
+    "description": "Screen-reader label for the mobile menu open button"
+  },
   "gyGnNuR5md": {
     "defaultMessage": "Required",
     "description": "Badge label for a required environment variable"
@@ -4082,10 +4110,6 @@
   "i9ZZoI20Cm": {
     "defaultMessage": "Display name",
     "description": "Label for the Contentful connection display name field"
-  },
-  "iC/MBnVVSN": {
-    "defaultMessage": "New Request",
-    "description": "App shell breadcrumb title for the new request page"
   },
   "iIDH8DJhzI": {
     "defaultMessage": "Base URL (optional)",
@@ -4242,6 +4266,10 @@
   "joOR4TGsxW": {
     "defaultMessage": "No posts yet. Check back soon.",
     "description": "Empty state on the blog index when there are no published posts"
+  },
+  "jwTdsyTe54": {
+    "defaultMessage": "CAT Tool",
+    "description": "Marketing navbar link to the next-gen CAT tool product page"
   },
   "jyL5Pnsg0T": {
     "defaultMessage": "Download conversation",
@@ -4447,6 +4475,10 @@
     "defaultMessage": "Push and scheduled triggers are mutually exclusive.",
     "description": "Section description for automation trigger settings"
   },
+  "mGCNboJK+t": {
+    "defaultMessage": "Sign in",
+    "description": "Marketing navbar button to sign in"
+  },
   "mKEoYdlq74": {
     "defaultMessage": "Developers merge string changes daily. Localisation quality depends on someone remembering to check before ship.",
     "description": "Problem section description for the github-release-localisation use case"
@@ -4530,6 +4562,10 @@
   "nDPeOs1MH9": {
     "defaultMessage": "{displayName} settings saved",
     "description": "Toast after saving TMS OAuth or PAT settings"
+  },
+  "nE0iR4v6Zt": {
+    "defaultMessage": "Mobile",
+    "description": "Accessible label for the mobile navigation landmark"
   },
   "nEBGfsZw1I": {
     "defaultMessage": "Running",
@@ -5290,6 +5326,10 @@
   "vq7ib8WdUv": {
     "defaultMessage": "Campaign brief",
     "description": "Workflow step 1 label for the marketing-localisation use case"
+  },
+  "vxPX8Bfa3e": {
+    "defaultMessage": "Agents",
+    "description": "Marketing navbar link to the agents automation product page"
   },
   "vynGfdRurY": {
     "defaultMessage": "View automations",
