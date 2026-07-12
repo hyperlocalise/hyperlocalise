@@ -17,6 +17,7 @@ type Invariant struct {
 type BlockSignature struct {
 	Arg     string
 	Type    string
+	Offset  int
 	Options []string
 	Pounds  []int
 }
@@ -43,6 +44,9 @@ func ParseInvariant(s string) (Invariant, error) {
 		if c := cmp.Compare(a.Type, b.Type); c != 0 {
 			return c
 		}
+		if c := cmp.Compare(a.Offset, b.Offset); c != 0 {
+			return c
+		}
 		if c := slices.Compare(a.Options, b.Options); c != 0 {
 			return c
 		}
@@ -60,7 +64,7 @@ func SameICUBlocks(a, b []BlockSignature) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slicesEqual(a[i].Options, b[i].Options) {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset || !slicesEqual(a[i].Options, b[i].Options) {
 			return false
 		}
 	}
@@ -89,6 +93,12 @@ func FormatICUBlocks(blocks []BlockSignature) string {
 			b.WriteString(", ")
 		}
 		b.WriteString(block.Arg)
+		if block.Offset != 0 {
+			b.WriteByte('(')
+			b.WriteString("offset:")
+			b.WriteString(strconv.Itoa(block.Offset))
+			b.WriteByte(')')
+		}
 		b.WriteByte(':')
 		b.WriteString(block.Type)
 		b.WriteByte('[')
@@ -246,6 +256,7 @@ func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
 		Arg:     v.Value,
 		Type:    blockType,
+		Offset:  v.Offset,
 		Options: sortedOptions,
 		Pounds:  poundCounts,
 	})
