@@ -18,6 +18,72 @@ func TestMarshalTargetFileUnsupportedExtension(t *testing.T) {
 	}
 }
 
+func TestMarshalTargetFileAlternateMarkdownAndHTMLExtensions(t *testing.T) {
+	svc := newTestService()
+	sourceDir := t.TempDir()
+	sourceMarkdown := filepath.Join(sourceDir, "guide.markdown")
+	sourceHTML := filepath.Join(sourceDir, "page.htm")
+	if err := os.WriteFile(sourceMarkdown, []byte("# Title\n\nHello world.\n"), 0o644); err != nil {
+		t.Fatalf("write markdown source: %v", err)
+	}
+	if err := os.WriteFile(sourceHTML, []byte("<p>Hello world.</p>"), 0o644); err != nil {
+		t.Fatalf("write html source: %v", err)
+	}
+
+	targetDir := filepath.Join(sourceDir, "fr")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+
+	svc.readFile = os.ReadFile
+
+	markdownKey := markdownEntryKeyForValue(t, []byte("# Title\n\nHello world.\n"), "Hello world.")
+	markdownContent, _, err := svc.marshalTargetFile(
+		filepath.Join(targetDir, "guide.markdown"),
+		sourceMarkdown,
+		"en",
+		"fr",
+		map[string]string{markdownKey: "Bonjour le monde."},
+		map[string]string{markdownKey: "Bonjour le monde."},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("marshal .markdown target: %v", err)
+	}
+	if !strings.Contains(string(markdownContent), "Bonjour le monde.") {
+		t.Fatalf("expected translated markdown content, got %q", markdownContent)
+	}
+
+	htmlEntries, err := translationfileparser.HTMLParser{}.Parse([]byte("<p>Hello world.</p>"))
+	if err != nil {
+		t.Fatalf("parse html fixture: %v", err)
+	}
+	var htmlKey string
+	for key := range htmlEntries {
+		htmlKey = key
+		break
+	}
+	if htmlKey == "" {
+		t.Fatal("expected html entry key")
+	}
+
+	htmlContent, _, err := svc.marshalTargetFile(
+		filepath.Join(targetDir, "page.htm"),
+		sourceHTML,
+		"en",
+		"fr",
+		map[string]string{htmlKey: "Bonjour le monde."},
+		map[string]string{htmlKey: "Bonjour le monde."},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("marshal .htm target: %v", err)
+	}
+	if !strings.Contains(string(htmlContent), "Bonjour le monde.") {
+		t.Fatalf("expected translated html content, got %q", htmlContent)
+	}
+}
+
 func TestMarshalTemplateBasedTargetUnsupportedExtension(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {
