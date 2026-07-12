@@ -243,3 +243,7 @@
 ## 2026-07-11 - Optimizing ARB marshaling and learning about JSON decoding overhead
 **Learning:** For schema-heavy JSON formats like ARB (where message keys are paired with metadata objects), implementing a custom token-based decoder using `json.RawMessage` can surprisingly be significantly slower (~85%) and more allocation-heavy (3x) than a single `json.Unmarshal` into `map[string]any`. This is likely due to the overhead of multiple unmarshal calls and map insertions for individual fields compared to the optimized internal implementation of `json.Unmarshal`. However, for marshaling, replacing intermediate `[]byte` allocations for keys and values with direct writing to a `bytes.Buffer` using a custom `writeJSONString` helper provides a measurable speedup.
 **Action:** Optimized `MarshalARB` and `marshalJSONString` in `internal/i18n/translationfileparser/arb_parser.go` to use direct buffer writing, resulting in a ~33% improvement in marshaling speed for large files.
+
+## 2026-07-12 - Optimizing YAML parser and marshaler map allocations
+**Learning:** For recursive structure flattening into maps (like YAML or JSON), Go maps start small and grow dynamically, causing expensive re-allocations and re-hashing. Heuristic capacity hints based on input size or AST node content size significantly reduce this overhead.
+**Action:** Use `make(map[string]string, len(content)/64)` for raw byte inputs and `make(map[string]string, len(node.Content)/2)` for AST-based mapping nodes in translation parsers.
