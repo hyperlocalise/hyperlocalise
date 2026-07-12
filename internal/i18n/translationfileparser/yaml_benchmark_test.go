@@ -29,9 +29,9 @@ func BenchmarkYAMLParser_ParseLarge(b *testing.B) {
 	numEntries := 1000
 	var sb strings.Builder
 	for i := 0; i < numEntries; i++ {
-		sb.WriteString(fmt.Sprintf("key_%d: \"value_%d\"\n", i, i))
-		sb.WriteString(fmt.Sprintf("nested_%d:\n  inner: \"val\"\n", i))
-		sb.WriteString(fmt.Sprintf("list_%d:\n  - item1\n  - item2\n", i))
+		fmt.Fprintf(&sb, "key_%d: \"value_%d\"\n", i, i)
+		fmt.Fprintf(&sb, "nested_%d:\n  inner: \"val\"\n", i)
+		fmt.Fprintf(&sb, "list_%d:\n  - item1\n  - item2\n", i)
 	}
 	content := []byte(sb.String())
 	parser := YAMLParser{}
@@ -68,11 +68,11 @@ func BenchmarkMarshalYAML_Large(b *testing.B) {
 	values := make(map[string]string, numEntries*2)
 	for i := 0; i < numEntries; i++ {
 		key := fmt.Sprintf("key_%d", i)
-		sb.WriteString(fmt.Sprintf("%s: \"value_%d\"\n", key, i))
+		fmt.Fprintf(&sb, "%s: \"value_%d\"\n", key, i)
 		values[key] = fmt.Sprintf("translated_%d", i)
 
 		nestedKey := fmt.Sprintf("nested_%d.inner", i)
-		sb.WriteString(fmt.Sprintf("nested_%d:\n  inner: \"val\"\n", i))
+		fmt.Fprintf(&sb, "nested_%d:\n  inner: \"val\"\n", i)
 		values[nestedKey] = "translated_val"
 	}
 	template := []byte(sb.String())
