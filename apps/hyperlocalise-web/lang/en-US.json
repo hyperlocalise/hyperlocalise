@@ -1799,6 +1799,10 @@
     "defaultMessage": "Contentful",
     "description": "Automation run trigger source label for Contentful-triggered runs"
   },
+  "GfQL0NJI1y": {
+    "defaultMessage": "Contact support",
+    "description": "Link from a route error to email customer support"
+  },
   "GhvFdhdrp/": {
     "defaultMessage": "Attach product context",
     "description": "Automation product visual agent task item"
@@ -2106,6 +2110,10 @@
   "K8CwWcU1A8": {
     "defaultMessage": "Translation files drift from source strings between releases.",
     "description": "Problem pain point 3 for the github-release-localisation use case"
+  },
+  "K99IJACIpb": {
+    "defaultMessage": "The rest of your workspace is still available. Try loading this chat again.",
+    "description": "Description shown when the chat dock panel fails to render"
   },
   "KPIIspKW7R": {
     "defaultMessage": "{providerName} projects and translation work are available.",
@@ -2678,6 +2686,10 @@
   "RSN+J7hbqE": {
     "defaultMessage": "Unsaved",
     "description": "Badge shown when the current segment has unsaved target edits"
+  },
+  "RUWijemH62": {
+    "defaultMessage": "The problem may be temporary. Try loading the page again, or return to your dashboard.",
+    "description": "Guidance shown when an application route fails unexpectedly"
   },
   "RWVk6HWH77": {
     "defaultMessage": "Assign translation, review, and QA work based on locale, content type, or expertise.",
@@ -4087,6 +4099,10 @@
     "defaultMessage": "Secret: {secret}",
     "description": "Displays the Contentful webhook signing secret"
   },
+  "hjMbjSqPe8": {
+    "defaultMessage": "Try again",
+    "description": "Button to retry rendering the chat dock panel"
+  },
   "homymlbTZo": {
     "defaultMessage": "Translate the following text:",
     "description": "Prefilled prompt when choosing the translate chip"
@@ -4506,6 +4522,10 @@
   "mV0v+ofKFK": {
     "defaultMessage": "New request",
     "description": "Button to open a new chat dock tab"
+  },
+  "mdDGkHBHvr": {
+    "defaultMessage": "Try again",
+    "description": "Button that retries rendering a failed application route"
   },
   "mhdxPi6b4a": {
     "defaultMessage": "{providerName} jobs",
@@ -5071,6 +5091,10 @@
     "defaultMessage": "Visual Context",
     "description": "Section heading for TMS screenshot context in the CAT intelligence panel"
   },
+  "tLThxyOpTE": {
+    "defaultMessage": "We couldn't load this page",
+    "description": "Heading shown when an application route fails unexpectedly"
+  },
   "tMPM8tkhJg": {
     "defaultMessage": "Account",
     "description": "App shell breadcrumb title for the account settings page"
@@ -5126,6 +5150,10 @@
   "toaWaws2L2": {
     "defaultMessage": "Show token",
     "description": "Accessible label to reveal the personal access token value"
+  },
+  "trM5T+lG0s": {
+    "defaultMessage": "Chat could not be displayed",
+    "description": "Title shown when the chat dock panel fails to render"
   },
   "tsN6wGlUZC": {
     "defaultMessage": "Target ICU structure must match {tokens} from the source string.",
@@ -5355,6 +5383,10 @@
     "defaultMessage": "Contentful Help Center",
     "description": "Default display name for a new Contentful CMS connection"
   },
+  "wANdpDUOzB": {
+    "defaultMessage": "Close chat",
+    "description": "Button to collapse a failed chat dock panel"
+  },
   "wAW00AgfLK": {
     "defaultMessage": "Failed to post comment. Try again.",
     "description": "Error message when posting a segment comment to the TMS fails"
@@ -5470,6 +5502,10 @@
   "xOFZqYtkn0": {
     "defaultMessage": "A few things need your attention",
     "description": "Dashboard hero title when pending actions need review"
+  },
+  "xSPEc7l3cj": {
+    "defaultMessage": "Go to dashboard",
+    "description": "Link from a route error to the workspace dashboard"
   },
   "xX2Nm+qioI": {
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
