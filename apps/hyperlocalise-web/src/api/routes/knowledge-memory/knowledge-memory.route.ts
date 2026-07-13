@@ -8,7 +8,7 @@ import {
   getKnowledgeMemoryForOrganization,
   upsertKnowledgeMemoryForOrganization,
 } from "@/lib/knowledge-memory/knowledge-memory";
-import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 
 import {
@@ -47,10 +47,18 @@ function canUpdateKnowledgeMemory(role: AuthVariables["auth"]["membership"]["rol
 }
 
 async function isKnowledgeMemoryFeatureEnabled(auth: AuthVariables["auth"]) {
-  return resolveWorkspaceKnowledgeFlag({
-    organizationId: auth.organization.localOrganizationId,
-    localUserId: auth.user.localUserId,
-  });
+  try {
+    return (
+      (await workspaceKnowledgeFlag.run({
+        identify: () => ({
+          organization: { id: auth.organization.workosOrganizationId },
+          user: { id: auth.user.workosUserId },
+        }),
+      })) === true
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function createKnowledgeMemoryRoutes() {

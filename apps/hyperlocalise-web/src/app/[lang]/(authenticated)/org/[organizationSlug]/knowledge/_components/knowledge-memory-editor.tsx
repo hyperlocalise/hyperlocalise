@@ -77,6 +77,7 @@ export function KnowledgeMemoryEditor({
 
     setContent(knowledgeMemoryQuery.data.content);
     setSavedContent(knowledgeMemoryQuery.data.content);
+    setMemoryPreview(null);
   }, [knowledgeMemoryQuery.data]);
 
   const saveKnowledgeMemory = useMutation({
@@ -96,6 +97,7 @@ export function KnowledgeMemoryEditor({
     onSuccess: async (knowledgeMemory) => {
       setContent(knowledgeMemory.content);
       setSavedContent(knowledgeMemory.content);
+      setMemoryPreview(null);
       await queryClient.invalidateQueries({ queryKey: knowledgeMemoryQueryKey(organizationSlug) });
       toast.success("Knowledge memory saved");
     },
@@ -216,7 +218,10 @@ export function KnowledgeMemoryEditor({
                 <Input
                   id="knowledge-memory-preview-locale"
                   value={previewTargetLocale}
-                  onChange={(event) => setPreviewTargetLocale(event.target.value)}
+                  onChange={(event) => {
+                    setPreviewTargetLocale(event.target.value);
+                    setMemoryPreview(null);
+                  }}
                   placeholder="en-AU"
                 />
               </Field>
@@ -225,7 +230,10 @@ export function KnowledgeMemoryEditor({
                 <Textarea
                   id="knowledge-memory-preview-source"
                   value={previewSourceText}
-                  onChange={(event) => setPreviewSourceText(event.target.value)}
+                  onChange={(event) => {
+                    setPreviewSourceText(event.target.value);
+                    setMemoryPreview(null);
+                  }}
                   className="min-h-20 resize-y border-border bg-background text-sm leading-6"
                   placeholder="Customize your color settings"
                 />

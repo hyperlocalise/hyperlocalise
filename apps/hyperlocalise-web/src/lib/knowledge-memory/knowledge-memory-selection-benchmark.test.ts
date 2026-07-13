@@ -13,13 +13,16 @@ type BenchmarkFixture = {
   content?: string;
   input: Omit<SelectKnowledgeMemoryContextInput, "content">;
   expectedHeading: string;
+  goldPositiveHeadings?: string[];
   goldNegativeHeadings?: string[];
+  requiredSelectedHeadings?: string[];
 };
 
 type FixtureScore = {
   name: string;
   top1Coverage: 0 | 1;
   top3Coverage: 0 | 1;
+  requiredHeadingCoverage: 0 | 1;
   irrelevantSelectedCount: number;
   top3Count: number;
   reductionPercent: number;
@@ -121,6 +124,30 @@ const structuralRobustnessMemory = [
   ),
 ].join("\n");
 
+const asymmetricMultiLocaleMemory = [
+  "# Memory.md",
+  "",
+  ...Array.from({ length: 6 }, (_, index) =>
+    [
+      `## French payment rule ${index + 1}`,
+      "",
+      "### fr-FR",
+      "",
+      `Use formal French checkout payment wording for case ${index + 1}.`,
+      "",
+    ].join("\n"),
+  ),
+  "## Australian English",
+  "",
+  "### en-AU",
+  "",
+  "Use colour, customise, postcode, and basket.",
+  "",
+  "## Padding",
+  "",
+  "x".repeat(2_500),
+].join("\n");
+
 const benchmarkFixtures: BenchmarkFixture[] = [
   {
     name: "exact locale and domain heading in mixed locale doc",
@@ -130,6 +157,10 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       context: "Checkout domain copy",
     },
     expectedHeading: "Memory.md > Australian English checkout rules > en-AU",
+    goldPositiveHeadings: [
+      "Memory.md > Purchase funnel payment rules",
+      "Memory.md > Retail UI > Labels",
+    ],
     goldNegativeHeadings: ["Legal privacy compliance", "General brand voice"],
   },
   {
@@ -140,6 +171,10 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       context: "Payment page microcopy",
     },
     expectedHeading: "Memory.md > Purchase funnel payment rules",
+    goldPositiveHeadings: [
+      "Memory.md > Australian English checkout rules > en-AU",
+      "Memory.md > General checkout guidance",
+    ],
     goldNegativeHeadings: ["Legal privacy compliance", "General brand voice"],
   },
   {
@@ -149,6 +184,10 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       sourceText: "translate checkout",
     },
     expectedHeading: "Memory.md > General checkout guidance",
+    goldPositiveHeadings: [
+      "Memory.md > Australian English checkout rules > en-AU",
+      "Memory.md > Purchase funnel payment rules",
+    ],
     goldNegativeHeadings: [
       "Legal privacy compliance",
       "General brand voice",
@@ -162,6 +201,11 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       sourceText: "Add to cart checkout copy",
     },
     expectedHeading: "Memory.md > Australian English checkout rules > en-AU",
+    goldPositiveHeadings: [
+      "Memory.md > Retail UI > Labels",
+      "Memory.md > Purchase funnel payment rules",
+      "Memory.md > General checkout guidance",
+    ],
     goldNegativeHeadings: ["Legal privacy compliance"],
   },
   {
@@ -181,6 +225,10 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       context: "Retail UI checkout labels",
     },
     expectedHeading: "Memory.md > Retail UI > Labels",
+    goldPositiveHeadings: [
+      "Memory.md > Australian English checkout rules > en-AU",
+      "Memory.md > Purchase funnel payment rules",
+    ],
     goldNegativeHeadings: ["Legal privacy compliance"],
   },
   {
@@ -190,6 +238,7 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       sourceText: "paiement panier confirmation",
     },
     expectedHeading: "Memory.md > French formal payment voice > fr-FR",
+    goldPositiveHeadings: ["Memory.md > Purchase funnel payment rules"],
     goldNegativeHeadings: ["Australian English checkout rules", "General brand voice"],
   },
   {
@@ -200,6 +249,7 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       context: "French checkout translation",
     },
     expectedHeading: "Memory.md > French formal payment voice > fr-FR",
+    goldPositiveHeadings: ["Memory.md > Purchase funnel payment rules"],
     goldNegativeHeadings: ["Australian English checkout rules", "Legal privacy compliance"],
   },
   {
@@ -211,6 +261,24 @@ const benchmarkFixtures: BenchmarkFixture[] = [
     },
     expectedHeading: "Memory.md > Broken but readable > fr-FR",
     goldNegativeHeadings: ["Legal privacy compliance", "Noisy malformed section"],
+  },
+  {
+    name: "asymmetric multi-target locale coverage",
+    content: asymmetricMultiLocaleMemory,
+    input: {
+      targetLocales: ["fr-FR", "en-AU"],
+      sourceText: "Checkout payment confirmation",
+    },
+    expectedHeading: "Memory.md > French payment rule 1 > fr-FR",
+    goldPositiveHeadings: [
+      "Memory.md > French payment rule",
+      "Memory.md > Australian English > en-AU",
+    ],
+    goldNegativeHeadings: ["Memory.md > Padding"],
+    requiredSelectedHeadings: [
+      "Memory.md > French payment rule",
+      "Memory.md > Australian English > en-AU",
+    ],
   },
 ];
 
@@ -238,16 +306,29 @@ function scoreFixture(fixture: BenchmarkFixture): FixtureScore {
 
   const top1 = topHeadings(firstRun, 1);
   const top3 = topHeadings(firstRun, 3);
+  const positiveHeadings = [fixture.expectedHeading, ...(fixture.goldPositiveHeadings ?? [])];
   const negativeHeadings = fixture.goldNegativeHeadings ?? [];
-  const irrelevantSelectedCount = top3.filter((heading) =>
-    negativeHeadings.some((negativeHeading) => headingMatches(heading, negativeHeading)),
-  ).length;
+  const irrelevantSelectedCount = top3.filter((heading) => {
+    const isPositive = positiveHeadings.some((positiveHeading) =>
+      headingMatches(heading, positiveHeading),
+    );
+    const isNegative = negativeHeadings.some((negativeHeading) =>
+      headingMatches(heading, negativeHeading),
+    );
+    return isNegative || !isPositive;
+  }).length;
   const selectedHeadingPaths = firstRun.metrics.matchedHeadingPaths;
+  const requiredSelectedHeadings = fixture.requiredSelectedHeadings ?? [fixture.expectedHeading];
 
   return {
     name: fixture.name,
     top1Coverage: top1.some((heading) => headingMatches(heading, fixture.expectedHeading)) ? 1 : 0,
     top3Coverage: top3.some((heading) => headingMatches(heading, fixture.expectedHeading)) ? 1 : 0,
+    requiredHeadingCoverage: requiredSelectedHeadings.every((requiredHeading) =>
+      selectedHeadingPaths.some((heading) => headingMatches(heading, requiredHeading)),
+    )
+      ? 1
+      : 0,
     irrelevantSelectedCount,
     top3Count: top3.length,
     reductionPercent: firstRun.metrics.reductionPercent,
@@ -277,6 +358,9 @@ function summarize(scores: FixtureScore[]) {
   return {
     top1Coverage: Number(average(scores.map((score) => score.top1Coverage)).toFixed(2)),
     top3Coverage: Number(average(scores.map((score) => score.top3Coverage)).toFixed(2)),
+    requiredHeadingCoverage: Number(
+      average(scores.map((score) => score.requiredHeadingCoverage)).toFixed(2),
+    ),
     irrelevantHitRate: Number((irrelevantSelectedCount / Math.max(1, top3Count)).toFixed(2)),
     maxSelectedMemoryChars: Math.max(...scores.map((score) => score.selectedMemoryChars)),
     minReductionPercent: Math.min(...scores.map((score) => score.reductionPercent)),
@@ -351,6 +435,7 @@ describe("knowledge memory lexical retrieval benchmark", () => {
 
     expect(summary.top1Coverage).toBeGreaterThanOrEqual(0.75);
     expect(summary.top3Coverage).toBeGreaterThanOrEqual(0.9);
+    expect(summary.requiredHeadingCoverage).toBe(1);
     expect(summary.irrelevantHitRate).toBeLessThanOrEqual(0.1);
     expect(summary.fallbackTriggeredCount).toBe(0);
     expect(summary.maxSelectedMemoryChars).toBeLessThanOrEqual(

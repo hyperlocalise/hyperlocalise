@@ -8,6 +8,17 @@ type LineRecord = {
   lineNumber: number;
   startOffset: number;
   endOffset: number;
+  inFencedCode: boolean;
+};
+
+type FenceMarker = {
+  character: "`" | "~";
+  length: number;
+};
+
+export type MarkdownMemoryHeading = {
+  level: number;
+  text: string;
 };
 
 type SegmentDraft = Omit<
@@ -31,25 +42,59 @@ function headingKey(path: string[]) {
   return path.join("\u001f");
 }
 
+function parseFenceMarker(line: string): FenceMarker | null {
+  const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+  if (!marker) {
+    return null;
+  }
+
+  return {
+    character: marker[0] as FenceMarker["character"],
+    length: marker.length,
+  };
+}
+
+function isClosingFence(line: string, openFence: FenceMarker) {
+  const marker = parseFenceMarker(line);
+  return (
+    marker?.character === openFence.character &&
+    marker.length >= openFence.length &&
+    line.trim() === marker.character.repeat(marker.length)
+  );
+}
+
 function toLineRecords(content: string): LineRecord[] {
   const lines = content.split("\n");
   let offset = 0;
+  let openFence: FenceMarker | null = null;
   return lines.map((text, index) => {
     const startOffset = offset;
     const hasTrailingNewline = index < lines.length - 1;
     const endOffset = startOffset + text.length + (hasTrailingNewline ? 1 : 0);
+    const fenceMarker = parseFenceMarker(text);
+    const inFencedCode = openFence !== null || fenceMarker !== null;
+
+    if (openFence) {
+      if (isClosingFence(text, openFence)) {
+        openFence = null;
+      }
+    } else if (fenceMarker) {
+      openFence = fenceMarker;
+    }
+
     offset = endOffset;
     return {
       text,
       lineNumber: index + 1,
       startOffset,
       endOffset,
+      inFencedCode,
     };
   });
 }
 
-function parseHeading(line: string): { level: number; text: string } | null {
-  const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line.trim());
+function parseHeading(line: string): MarkdownMemoryHeading | null {
+  const match = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
   if (!match) {
     return null;
   }
@@ -60,7 +105,7 @@ function parseHeading(line: string): { level: number; text: string } | null {
   };
 }
 
-function isDocumentRootHeading(heading: { level: number; text: string }, stackLength: number) {
+function isDocumentRootHeading(heading: MarkdownMemoryHeading, stackLength: number) {
   return (
     heading.level === 1 &&
     stackLength === 0 &&
@@ -70,6 +115,20 @@ function isDocumentRootHeading(heading: { level: number; text: string }, stackLe
 
 function isBulletLine(line: string) {
   return /^\s*(?:[-*+]\s+|\d+[.)]\s+)/.test(line);
+}
+
+function parseRecordHeading(line: LineRecord) {
+  return line.inFencedCode ? null : parseHeading(line.text);
+}
+
+function isBulletRecord(line: LineRecord) {
+  return !line.inFencedCode && isBulletLine(line.text);
+}
+
+export function extractMarkdownMemoryHeadings(content: string) {
+  return toLineRecords(content)
+    .map(parseRecordHeading)
+    .filter((heading): heading is MarkdownMemoryHeading => Boolean(heading?.text));
 }
 
 function previewText(text: string, maxChars: number) {
@@ -98,7 +157,7 @@ function buildSectionRanges(content: string, lines: LineRecord[]) {
   const sections = new Map<string, string[]>();
 
   for (const line of lines) {
-    const heading = parseHeading(line.text);
+    const heading = parseRecordHeading(line);
     if (heading) {
       if (isDocumentRootHeading(heading, stack.length)) {
         continue;
@@ -180,7 +239,7 @@ export function parseMarkdownMemory(content: string): KnowledgeMemorySegment[] {
 
   while (index < lines.length) {
     const line = lines[index]!;
-    const heading = parseHeading(line.text);
+    const heading = parseRecordHeading(line);
     if (heading) {
       if (isDocumentRootHeading(heading, stack.length)) {
         index += 1;
@@ -200,20 +259,20 @@ export function parseMarkdownMemory(content: string): KnowledgeMemorySegment[] {
       continue;
     }
 
-    const kind: KnowledgeMemorySegmentKind = isBulletLine(line.text) ? "bullet_group" : "paragraph";
+    const kind: KnowledgeMemorySegmentKind = isBulletRecord(line) ? "bullet_group" : "paragraph";
     const block: LineRecord[] = [];
 
     while (index < lines.length) {
       const current = lines[index]!;
-      if (!current.text.trim() || parseHeading(current.text)) {
+      if (!current.text.trim() || parseRecordHeading(current)) {
         break;
       }
 
-      if (kind === "bullet_group" && !isBulletLine(current.text)) {
+      if (kind === "bullet_group" && !isBulletRecord(current)) {
         break;
       }
 
-      if (kind === "paragraph" && isBulletLine(current.text)) {
+      if (kind === "paragraph" && isBulletRecord(current)) {
         break;
       }
 

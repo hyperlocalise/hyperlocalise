@@ -4,6 +4,7 @@ import {
   KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH,
 } from "./knowledge-memory.shared";
 import {
+  extractMarkdownMemoryHeadings,
   normalizeKnowledgeMemoryForSelection,
   parseMarkdownMemory,
 } from "./knowledge-memory-markdown-parser";
@@ -12,6 +13,7 @@ import type {
   KnowledgeMemoryFallbackMode,
   KnowledgeMemoryRetriever,
   KnowledgeMemorySegment,
+  RankedKnowledgeMemorySegment,
   SelectedKnowledgeMemoryContext,
   SelectedKnowledgeMemorySegment,
   SelectKnowledgeMemoryContextInput,
@@ -57,16 +59,76 @@ function normalizeInputLocale(locale: string | null | undefined) {
   return locale?.trim().toLowerCase().replace(/_/g, "-") || null;
 }
 
+function requestedTargetLocales(input: SelectKnowledgeMemoryContextInput) {
+  return [
+    ...new Set(
+      [input.targetLocale, ...(input.targetLocales ?? [])]
+        .map(normalizeInputLocale)
+        .filter((locale): locale is string => Boolean(locale)),
+    ),
+  ];
+}
+
 function requestedTargetLocaleCount(input: SelectKnowledgeMemoryContextInput) {
-  return new Set(
-    [input.targetLocale, ...(input.targetLocales ?? [])]
-      .map(normalizeInputLocale)
-      .filter((locale): locale is string => Boolean(locale)),
-  ).size;
+  return requestedTargetLocales(input).length;
 }
 
 function selectiveSegmentLimit(input: SelectKnowledgeMemoryContextInput) {
   return Math.max(KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS, requestedTargetLocaleCount(input));
+}
+
+function headingLocaleMarkers(segment: KnowledgeMemorySegment) {
+  return new Set(
+    segment.headingPath.flatMap((heading) =>
+      heading
+        .toLowerCase()
+        .replace(/_/g, "-")
+        .split(/[^a-z0-9-]+/)
+        .filter(Boolean),
+    ),
+  );
+}
+
+function segmentMatchesTargetLocale(segment: KnowledgeMemorySegment, targetLocale: string) {
+  const markers = headingLocaleMarkers(segment);
+  const language = targetLocale.split("-")[0];
+  return markers.has(targetLocale) || Boolean(language && markers.has(language));
+}
+
+function selectRankedSegmentsForTargets(
+  rankedSegments: RankedKnowledgeMemorySegment[],
+  input: SelectKnowledgeMemoryContextInput,
+) {
+  const selectedIds = new Set<string>();
+
+  for (const targetLocale of requestedTargetLocales(input)) {
+    const isCovered = rankedSegments.some(
+      ({ segment }) =>
+        selectedIds.has(segment.id) && segmentMatchesTargetLocale(segment, targetLocale),
+    );
+    if (isCovered) {
+      continue;
+    }
+
+    const localeMatch = rankedSegments.find(({ segment }) =>
+      segmentMatchesTargetLocale(segment, targetLocale),
+    );
+    if (localeMatch) {
+      selectedIds.add(localeMatch.segment.id);
+    }
+  }
+
+  const limit = selectiveSegmentLimit(input);
+  for (const { segment } of rankedSegments) {
+    if (selectedIds.size >= limit) {
+      break;
+    }
+    selectedIds.add(segment.id);
+  }
+
+  return rankedSegments
+    .filter(({ segment }) => selectedIds.has(segment.id))
+    .map(({ segment }) => segment);
 }
 
 function maxCharsPerSelectedSegment(input: {
@@ -204,19 +266,7 @@ function headingFallbackPriority(heading: string) {
 }
 
 function buildHeadingFallbackText(content: string) {
-  const headings = content
-    .split("\n")
-    .map((line) => {
-      const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line.trim());
-      if (!match) {
-        return null;
-      }
-      return {
-        level: match[1]?.length ?? 1,
-        text: match[2]?.trim() ?? "",
-      };
-    })
-    .filter((heading): heading is { level: number; text: string } => Boolean(heading?.text));
+  const headings = extractMarkdownMemoryHeadings(content);
 
   if (headings.length === 0) {
     return content;
@@ -249,33 +299,11 @@ function orderFallbackSegments(segments: KnowledgeMemorySegment[]) {
   });
 }
 
-function buildFallbackText(content: string, maxChars: number, segments: KnowledgeMemorySegment[]) {
-  const headingBudget = Math.min(maxChars, 1_200);
-  const lines = [truncateFallbackText(buildHeadingFallbackText(content), headingBudget)];
-  const fallbackSegments = orderFallbackSegments(segments).slice(
-    0,
-    KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS,
-  );
-
-  for (const segment of fallbackSegments) {
-    if (!appendWithinBudget(lines, segment.compactPromptText, maxChars)) {
-      break;
-    }
-  }
-
-  return lines.join("\n");
-}
-
 function buildRawFallbackContext(
   content: string,
   maxChars: number,
-  segments: KnowledgeMemorySegment[] = [],
 ): SelectedKnowledgeMemoryContext {
-  const fallbackText =
-    segments.length > 0
-      ? buildFallbackText(content, maxChars, segments)
-      : buildHeadingFallbackText(content);
-  const compactText = truncateFallbackText(fallbackText, maxChars);
+  const compactText = truncateFallbackText(buildHeadingFallbackText(content), maxChars);
 
   return {
     compactText,
@@ -305,6 +333,28 @@ function findDefaultFallbackSegments(segments: KnowledgeMemorySegment[]) {
   return orderFallbackSegments(segments)
     .filter(isPreferredFallbackSegment)
     .slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS);
+}
+
+function buildBalancedFallbackContext(input: {
+  content: string;
+  maxChars: number;
+  segments: KnowledgeMemorySegment[];
+}) {
+  const headingFallbackText = buildHeadingFallbackText(input.content);
+
+  return buildSelectedContext({
+    wholeMemoryChars: input.content.length,
+    selectedSegments: input.segments,
+    fallbackMode: "fallback",
+    maxChars: input.maxChars,
+    headingFallbackText,
+    maxSegmentChars: maxCharsPerSelectedSegment({
+      maxChars: input.maxChars,
+      selectedSegmentCount: input.segments.length,
+      shouldBalance: true,
+      reservedChars: headingFallbackReservedChars(headingFallbackText, input.maxChars),
+    }),
+  });
 }
 
 function findGeneralFallbackSegments(
@@ -346,9 +396,7 @@ export function selectKnowledgeMemoryContext(
 
   if (rankedSegments.length > 0) {
     const requestedLocaleCount = requestedTargetLocaleCount(input);
-    const selectedSegments = rankedSegments
-      .slice(0, selectiveSegmentLimit(input))
-      .map((item) => item.segment);
+    const selectedSegments = selectRankedSegmentsForTargets(rankedSegments, input);
 
     return buildSelectedContext({
       wholeMemoryChars: content.length,
@@ -385,22 +433,16 @@ export function selectKnowledgeMemoryContext(
 
   const fallbackSegments = findDefaultFallbackSegments(segments);
   if (fallbackSegments.length > 0) {
-    const headingFallbackText = buildHeadingFallbackText(content);
-
-    return buildSelectedContext({
-      wholeMemoryChars: content.length,
-      selectedSegments: fallbackSegments,
-      fallbackMode: "fallback",
+    return buildBalancedFallbackContext({
+      content,
       maxChars,
-      headingFallbackText,
-      maxSegmentChars: maxCharsPerSelectedSegment({
-        maxChars,
-        selectedSegmentCount: fallbackSegments.length,
-        shouldBalance: true,
-        reservedChars: headingFallbackReservedChars(headingFallbackText, maxChars),
-      }),
+      segments: fallbackSegments,
     });
   }
 
-  return buildRawFallbackContext(content, maxChars, segments);
+  return buildBalancedFallbackContext({
+    content,
+    maxChars,
+    segments: orderFallbackSegments(segments).slice(0, KNOWLEDGE_MEMORY_MAX_SELECTED_SEGMENTS),
+  });
 }

@@ -417,6 +417,53 @@ function densePreferredFallbackMemory() {
   ].join("\n");
 }
 
+function asymmetricMultiLocaleMemory() {
+  const frenchSections = Array.from({ length: 6 }, (_, index) =>
+    [
+      `## French payment rule ${index + 1}`,
+      "",
+      "### fr-FR",
+      "",
+      `Use formal French checkout payment wording for case ${index + 1}.`,
+    ].join("\n"),
+  );
+
+  return [
+    "# Memory.md",
+    "",
+    ...frenchSections,
+    "",
+    "## Australian English",
+    "",
+    "### en-AU",
+    "",
+    "Use colour, customise, postcode, and basket.",
+    "",
+    "## Padding",
+    "",
+    "x".repeat(2_500),
+  ].join("\n");
+}
+
+function denseUnprioritizedFallbackMemory() {
+  const denseSection = (heading: string) =>
+    [`## ${heading}`, "", `${heading} marker ${"detail ".repeat(180)}`].join("\n");
+
+  return [
+    "# Memory.md",
+    "",
+    denseSection("Architecture"),
+    "",
+    denseSection("Operations"),
+    "",
+    denseSection("Accessibility"),
+    "",
+    denseSection("Security"),
+    "",
+    denseSection("Support"),
+  ].join("\n");
+}
+
 describe("parseMarkdownMemory", () => {
   it("creates heading-aware segments with parent and neighbour context", () => {
     const segments = parseMarkdownMemory(representativeMemory);
@@ -437,6 +484,34 @@ describe("parseMarkdownMemory", () => {
     expect(enAuBulletSegment?.nextNeighbourText).toBeNull();
     expect(enAuBulletSegment?.compactPromptText).toContain(
       "Memory.md > Locale notes > en-AU -> Use Australian English",
+    );
+  });
+
+  it("keeps fenced-code comments inside their parent section", () => {
+    const segments = parseMarkdownMemory(
+      [
+        "# Memory.md",
+        "",
+        "## Protected tokens",
+        "",
+        "```sh",
+        "# Shell example",
+        "echo SKU-ALPHA",
+        "```",
+        "",
+        "    # Indented example",
+        "    echo SKU-BETA",
+        "",
+        "Never translate SKU-ALPHA.",
+      ].join("\n"),
+    );
+
+    expect(segments.some((segment) => segment.headingPath.includes("Shell example"))).toBe(false);
+    expect(segments.some((segment) => segment.headingPath.includes("Indented example"))).toBe(
+      false,
+    );
+    expect(segments.every((segment) => segment.headingPath.includes("Protected tokens"))).toBe(
+      true,
     );
   });
 });
@@ -694,6 +769,60 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.compactText).toContain("Tone must stay available");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("omits fenced-code comments from the fallback heading outline", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: [
+        "# Memory.md",
+        "",
+        "## Protected tokens",
+        "",
+        "```sh",
+        "# Shell example",
+        "echo SKU-ALPHA",
+        "```",
+        "",
+        `Never translate SKU-ALPHA. ${"detail ".repeat(700)}`,
+      ].join("\n"),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated query",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.compactText).toContain("Protected tokens");
+    expect(selected.compactText).not.toContain("- Shell example");
+  });
+
+  it("balances dense bodies in the final unprioritized fallback", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: denseUnprioritizedFallbackMemory(),
+      targetLocale: "es-ES",
+      sourceText: "Unrelated query",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("fallback");
+    expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Support");
+    expect(selected.compactText).toContain("Support marker");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    );
+  });
+
+  it("reserves guidance for every target locale before filling remaining slots", () => {
+    const selected = selectKnowledgeMemoryContext({
+      content: asymmetricMultiLocaleMemory(),
+      targetLocales: ["fr-FR", "en-AU"],
+      sourceText: "Checkout payment confirmation",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Australian English > en-AU",
+    );
+    expect(selected.metrics.matchedHeadingPaths.some((heading) => heading.endsWith("fr-FR"))).toBe(
+      true,
     );
   });
 

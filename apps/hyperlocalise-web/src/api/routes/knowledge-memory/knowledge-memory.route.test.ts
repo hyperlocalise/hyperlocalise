@@ -4,17 +4,15 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(
-  () => ({
-    resolveApiAuthContextFromSessionMock: vi.fn(
-      (options) =>
-        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-        globalThis.__testApiAuthContext ??
-        null,
-    ),
-    resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
-  }),
-);
+const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -28,7 +26,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
   return {
     ...actual,
-    resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
+    workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
   };
 });
 
@@ -74,7 +72,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
+  workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -84,7 +82,7 @@ afterEach(async () => {
 
 describe("knowledgeMemoryRoutes", () => {
   it("denies workspace memory access when the feature flag is disabled", async () => {
-    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
 
