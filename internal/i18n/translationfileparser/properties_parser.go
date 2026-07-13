@@ -95,7 +95,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		first := firstPropertiesNonWhitespace(rawLine)
 		if first >= len(rawLine) {
 			pendingComments = nil
-			currentLine += strings.Count(text[pos:next], "\n")
+			currentLine += countPropertiesLines(text[pos:next])
 			pos = next
 			continue
 		}
@@ -107,7 +107,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 				comment = comment[1:]
 			}
 			pendingComments = append(pendingComments, comment)
-			currentLine += strings.Count(text[pos:next], "\n")
+			currentLine += countPropertiesLines(text[pos:next])
 			pos = next
 			continue
 		}
@@ -127,7 +127,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		}
 		seen[entry.key] = entry.line
 		doc.entries = append(doc.entries, entry)
-		currentLine += strings.Count(text[pos:nextPos], "\n")
+		currentLine += countPropertiesLines(text[pos:nextPos])
 		pos = nextPos
 	}
 
@@ -313,7 +313,7 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 
 		if pNext >= len(text) {
 			// Accurately report the line where the dangling continuation was found.
-			errLine := lineNumber + strings.Count(text[start:pEnd], "\n")
+			errLine := lineNumber + countPropertiesLines(text[start:pEnd])
 			return propertiesLogicalLine{}, pNext, fmt.Errorf("line %d: continuation escape at end of file", errLine)
 		}
 
@@ -385,6 +385,12 @@ func skipPropertiesPhysicalWhitespace(s string, start, end int) int {
 
 func isPropertiesWhitespace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\f'
+}
+
+func countPropertiesLines(s string) int {
+	// Java properties lines can be terminated by \n, \r, or \r\n.
+	// We count all \n and all \r, then subtract \r\n to avoid double-counting.
+	return strings.Count(s, "\n") + strings.Count(s, "\r") - strings.Count(s, "\r\n")
 }
 
 func decodeJavaPropertiesEscapes(raw string) (string, error) {
