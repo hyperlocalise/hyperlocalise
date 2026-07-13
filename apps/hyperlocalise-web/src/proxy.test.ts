@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import proxy, { isUnsupportedLocalePath } from "./proxy";
+import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
+import proxy, { ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
 
 const { authkitProxyMock } = vi.hoisted(() => ({
   authkitProxyMock: vi.fn(),
@@ -52,6 +53,32 @@ describe("isUnsupportedLocalePath", () => {
   });
 });
 
+describe("ensureRequestUrlHeader", () => {
+  it("adds x-url request overrides when AuthKit did not set them", () => {
+    const request = createRequest("/en-US/org/acme/projects/proj_1");
+    const response = ensureRequestUrlHeader(request, NextResponse.next());
+
+    expect(response.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(request.url);
+    expect(response.headers.get("x-middleware-override-headers")?.split(",")).toContain(
+      REQUEST_URL_HEADER,
+    );
+  });
+
+  it("preserves existing AuthKit overrides and still sets x-url", () => {
+    const request = createRequest("/en-US/org/acme/projects/proj_1");
+    const response = NextResponse.next();
+    response.headers.set("x-middleware-override-headers", "x-workos-middleware,x-workos-session");
+    response.headers.set("x-middleware-request-x-workos-middleware", "true");
+    response.headers.set("x-middleware-request-x-workos-session", "sealed");
+
+    const next = ensureRequestUrlHeader(request, response);
+
+    expect(next.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(request.url);
+    expect(next.headers.get("x-middleware-override-headers")).toContain(REQUEST_URL_HEADER);
+    expect(next.headers.get("x-middleware-request-x-workos-session")).toBe("sealed");
+  });
+});
+
 describe("proxy", () => {
   it("returns 404 for unsupported locale paths before AuthKit runs", async () => {
     authkitProxyMock.mockReset();
@@ -61,14 +88,16 @@ describe("proxy", () => {
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 
-  it("still delegates supported locale paths to AuthKit", async () => {
+  it("still delegates supported locale paths to AuthKit and forwards x-url", async () => {
     authkitProxyMock.mockReset();
-    authkitProxyMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
 
-    const response = await proxy(createRequest("/en/blog"), {} as never);
+    const request = createRequest("/en/org/acme/projects/proj_1");
+    const response = await proxy(request, {} as never);
 
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
+    expect(response?.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(request.url);
   });
 
   it("redirects localized marketing paths without a locale prefix", async () => {
@@ -95,7 +124,7 @@ describe("proxy", () => {
 
   it("delegates /api paths to AuthKit instead of returning 404", async () => {
     authkitProxyMock.mockReset();
-    authkitProxyMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
 
     const response = await proxy(createRequest("/api/auth/callback"), {} as never);
 
