@@ -420,7 +420,11 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 			total++
 		}
 		for _, block := range inv.ICUBlocks {
-			tokens[fmt.Sprintf("icu-block:%s:%s:%s", block.Arg, block.Type, strings.Join(block.Options, ","))]++
+			offsetPart := ""
+			if block.Offset != 0 {
+				offsetPart = fmt.Sprintf("(offset:%d)", block.Offset)
+			}
+			tokens[fmt.Sprintf("icu-block:%s%s:%s:%s", block.Arg, offsetPart, block.Type, strings.Join(block.Options, ","))]++
 			total++
 		}
 	}
@@ -436,15 +440,7 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 }
 
 func sameBlocks(a, b []icuparser.BlockSignature) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || strings.Join(a[i].Options, "|") != strings.Join(b[i].Options, "|") {
-			return false
-		}
-	}
-	return true
+	return icuparser.SameICUBlocks(a, b)
 }
 
 func tokenF1(reference, candidate string) float64 {
