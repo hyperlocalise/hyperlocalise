@@ -231,3 +231,7 @@
 ## 2026-11-21 - Optimize JoinSlice for task-related enums
 **Learning:** The `model.JoinSlice` utility used for encoding query parameters was using reflection-based `fmt.Fprintf` for any slice type other than `[]int` and `[]string`. This included task-related enums like `TaskStatus` and `TaskType`, which are frequently joined into comma-separated strings for filtering. Specialized type switch cases using `strings.Builder` and direct string/integer conversion are significantly more efficient.
 **Action:** Added specialized type switch cases for `[]TaskStatus` and `[]TaskType` to `JoinSlice` and updated the test suite to use concrete typed slices to ensure these optimized paths are exercised and verified.
+
+## 2026-11-28 - Improve Workflows ListSteps parity and pagination
+**Learning:** The `Workflows.ListSteps` endpoint in the Crowdin API v2 uses an integer for the project ID and supports pagination via `limit` and `offset`. The Go SDK was incorrectly using a string for the project ID and was missing pagination support for both the request and response models.
+**Action:** Updated `WorkflowsService.ListSteps` to accept `projectID` as an `int` and added `WorkflowStepsListOptions` for pagination. Added the `Pagination` field to `WorkflowStepsResponse`. Note that `WorkflowStep.Languages` at the project level uses string identifiers (e.g., "de"), which differs from the numeric IDs used at the workflow template level. Verified with updated contract tests in `workflows_test.go`.
