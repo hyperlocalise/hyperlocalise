@@ -108,4 +108,24 @@ export const chatDockMessages = defineMessages({
     defaultMessage: "This conversation is no longer available.",
     description: "Toast when a docked conversation returns 404",
   },
+  panelErrorTitle: {
+    id: "trM5T+lG0s",
+    defaultMessage: "Chat could not be displayed",
+    description: "Title shown when the chat dock panel fails to render",
+  },
+  panelErrorDescription: {
+    id: "K99IJACIpb",
+    defaultMessage: "The rest of your workspace is still available. Try loading this chat again.",
+    description: "Description shown when the chat dock panel fails to render",
+  },
+  tryAgain: {
+    id: "hjMbjSqPe8",
+    defaultMessage: "Try again",
+    description: "Button to retry rendering the chat dock panel",
+  },
+  closeChat: {
+    id: "wANdpDUOzB",
+    defaultMessage: "Close chat",
+    description: "Button to collapse a failed chat dock panel",
+  },
 });
