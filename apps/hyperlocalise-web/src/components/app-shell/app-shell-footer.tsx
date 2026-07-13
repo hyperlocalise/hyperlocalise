@@ -13,8 +13,7 @@ import { ChatDockErrorBoundary } from "@/components/app-shell/chat-dock/chat-doc
 import { PlanUsageFooterControl } from "@/components/billing/plan-usage-summary";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-const SUPPORT_EMAIL = "minh@hyperlocalise.com";
+import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 export function AppShellFooter({
   organizationSlug,

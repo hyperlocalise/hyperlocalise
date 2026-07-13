@@ -1,0 +1,37 @@
+// @vitest-environment happy-dom
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vite-plus/test";
+
+import { ErrorRecovery } from "@/components/error-recovery/error-recovery";
+import { SUPPORT_EMAIL } from "@/lib/support-contact";
+
+describe("ErrorRecovery", () => {
+  it("offers retry, dashboard, and support actions", () => {
+    const retry = vi.fn();
+
+    render(
+      <ErrorRecovery
+        title="We couldn't load this page"
+        description="Try loading the page again."
+        tryAgainLabel="Try again"
+        dashboardLabel="Go to dashboard"
+        supportLabel="Contact support"
+        dashboardHref="/fr-FR/org/acme/dashboard"
+        retry={retry}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(retry).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Go to dashboard" })).toHaveAttribute(
+      "href",
+      "/fr-FR/org/acme/dashboard",
+    );
+    expect(screen.getByRole("button", { name: "Contact support" })).toHaveAttribute(
+      "href",
+      `mailto:${SUPPORT_EMAIL}`,
+    );
+  });
+});
