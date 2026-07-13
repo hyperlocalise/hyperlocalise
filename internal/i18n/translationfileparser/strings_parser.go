@@ -76,7 +76,7 @@ func (d stringsDocument) render(values map[string]string) ([]byte, error) {
 			// BOLT OPTIMIZATION: Write quoted strings directly to the buffer to avoid
 			// intermediate string allocations and concatenations.
 			b.WriteByte('"')
-			appleStringsEscaper.WriteString(&b, translated)
+			_, _ = appleStringsEscaper.WriteString(&b, translated)
 			b.WriteByte('"')
 		} else {
 			b.WriteString(entry.valueLiteral)
