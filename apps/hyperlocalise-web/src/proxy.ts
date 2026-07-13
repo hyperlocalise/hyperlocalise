@@ -9,6 +9,7 @@ import {
 } from "@/lib/app-i18n/locales";
 import { isFixtureAuthEnabled } from "@/lib/e2e/config";
 import { hasFixtureSessionCookie } from "@/lib/e2e/fixture-auth";
+import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 
 const workosProxy = authkitProxy();
 type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
@@ -25,12 +26,68 @@ function shouldBypassWorkosProxy(request: NextRequest) {
   return hasFixtureSessionCookie(request.headers.get("cookie") ?? undefined);
 }
 
-async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
-  if (shouldBypassWorkosProxy(request)) {
-    return NextResponse.next();
+function nextWithRequestUrl(request: NextRequest): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_URL_HEADER, request.url);
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+}
+
+/**
+ * Guarantee `x-url` is forwarded as a request header so Server Components can
+ * recover the original path for post-login returnTo. AuthKit usually sets this;
+ * fixture-auth bypass and other bare `NextResponse.next()` paths do not.
+ */
+export function ensureRequestUrlHeader(request: NextRequest, response: NextResponse): NextResponse {
+  if (response.headers.has("location")) {
+    return response;
   }
 
-  return workosProxy(request, event);
+  const requestHeaderName = `x-middleware-request-${REQUEST_URL_HEADER}`;
+  response.headers.set(requestHeaderName, request.url);
+
+  const override = response.headers.get("x-middleware-override-headers");
+  if (override == null || override === "") {
+    const next = nextWithRequestUrl(request);
+    response.headers.forEach((value, key) => {
+      const lower = key.toLowerCase();
+      if (lower.startsWith("x-middleware-")) {
+        return;
+      }
+      if (lower === "set-cookie") {
+        next.headers.append(key, value);
+        return;
+      }
+      next.headers.set(key, value);
+    });
+    return next;
+  }
+
+  const names = override
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (!names.includes(REQUEST_URL_HEADER)) {
+    response.headers.set("x-middleware-override-headers", [...names, REQUEST_URL_HEADER].join(","));
+  }
+
+  return response;
+}
+
+async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
+  if (shouldBypassWorkosProxy(request)) {
+    return nextWithRequestUrl(request);
+  }
+
+  const response = await workosProxy(request, event);
+  if (!(response instanceof NextResponse)) {
+    return response;
+  }
+
+  return ensureRequestUrlHeader(request, response);
 }
 
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];

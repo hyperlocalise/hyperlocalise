@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { resolveFixtureAuthSession } from "@/lib/e2e/fixture-auth";
+import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import { sanitizeReturnTo } from "@/lib/workos/return-to";
 
 type WithAuthOptions = Parameters<typeof workosWithAuth>[0];
@@ -21,10 +22,13 @@ type WithAuthOptions = Parameters<typeof workosWithAuth>[0];
  *
  * WorkOS guidance: set PKCE cookies only from a Server Action or Route Handler
  * (see workos/skills authkit-nextjs hardening for Server Component cookie violations).
+ *
+ * `REQUEST_URL_HEADER` (`x-url`) is set by `proxy.ts` on every continued request
+ * so returnTo can recover the protected org/project URL after sign-in.
  */
 async function redirectToAppSignIn(): Promise<never> {
   const headersList = await headers();
-  const requestUrl = headersList.get("x-url");
+  const requestUrl = headersList.get(REQUEST_URL_HEADER);
   const returnPathname = requestUrl
     ? (() => {
         try {

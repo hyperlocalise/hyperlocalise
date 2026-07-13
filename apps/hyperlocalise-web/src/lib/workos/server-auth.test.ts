@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
+
 const { workosWithAuthMock, resolveFixtureAuthSessionMock, headersMock, redirectMock } = vi.hoisted(
   () => ({
     workosWithAuthMock: vi.fn(),
@@ -36,7 +38,7 @@ describe("withAuth", () => {
     resolveFixtureAuthSessionMock.mockResolvedValue(null);
     headersMock.mockResolvedValue(
       new Headers({
-        "x-url": "http://localhost:3000/en-US/org/acme/projects/proj_1",
+        [REQUEST_URL_HEADER]: "http://localhost:3000/en-US/org/acme/projects/proj_1",
       }),
     );
   });
@@ -63,6 +65,17 @@ describe("withAuth", () => {
     expect(workosWithAuthMock).toHaveBeenCalledWith();
     expect(redirectMock).toHaveBeenCalledWith(
       "/auth/sign-in?returnTo=%2Fen-US%2Forg%2Facme%2Fprojects%2Fproj_1",
+    );
+  });
+
+  it("falls back to /dashboard when the request URL header is missing", async () => {
+    workosWithAuthMock.mockResolvedValue({ user: null });
+    headersMock.mockResolvedValue(new Headers());
+
+    const { withAuth } = await import("./server-auth");
+
+    await expect(withAuth({ ensureSignedIn: true })).rejects.toThrow(
+      "redirect:/auth/sign-in?returnTo=%2Fdashboard",
     );
   });
 
