@@ -40,6 +40,7 @@
     "@pierre/trees": "1.0.0-beta.5",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@rive-app/react-webgl2": "^4.29.4",
+    "@shadcn/react": "^0.2.1",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",

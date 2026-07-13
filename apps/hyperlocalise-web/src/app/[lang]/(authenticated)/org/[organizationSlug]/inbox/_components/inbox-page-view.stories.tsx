@@ -115,9 +115,7 @@ export const EmailConversation: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
-    await expect(
-      canvas.queryByPlaceholderText("Paste text or describe what to translate..."),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByPlaceholderText("Ask Hyperlocalise…")).not.toBeInTheDocument();
   },
 };
 

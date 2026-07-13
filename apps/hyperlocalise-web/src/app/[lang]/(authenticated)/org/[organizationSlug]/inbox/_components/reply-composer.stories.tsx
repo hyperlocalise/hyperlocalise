@@ -36,9 +36,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByPlaceholderText("Paste text or describe what to translate..."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
     await expect(canvas.getByText("GitHub repo")).toBeInTheDocument();
   },

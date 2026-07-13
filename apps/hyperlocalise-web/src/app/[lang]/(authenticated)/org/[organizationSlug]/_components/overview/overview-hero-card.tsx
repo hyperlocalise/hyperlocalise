@@ -15,13 +15,15 @@ export function OverviewHeroCard({
   description,
   ctaLabel,
   ctaHref,
+  onCtaClick,
   className,
 }: {
   pendingCount: number;
   title: string;
   description: string;
   ctaLabel: string;
-  ctaHref: string;
+  ctaHref?: string;
+  onCtaClick?: () => void;
   className?: string;
 }) {
   const isCaughtUp = pendingCount === 0;
@@ -51,15 +53,27 @@ export function OverviewHeroCard({
           </TypographyP>
         </div>
 
-        <Button
-          nativeButton={false}
-          render={<Link href={ctaHref} />}
-          variant="default"
-          className="w-fit rounded-full"
-        >
-          {ctaLabel}
-          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
-        </Button>
+        {onCtaClick ? (
+          <Button
+            type="button"
+            variant="default"
+            className="w-fit rounded-full"
+            onClick={onCtaClick}
+          >
+            {ctaLabel}
+            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+          </Button>
+        ) : (
+          <Button
+            nativeButton={false}
+            render={<Link href={ctaHref ?? "#"} />}
+            variant="default"
+            className="w-fit rounded-full"
+          >
+            {ctaLabel}
+            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

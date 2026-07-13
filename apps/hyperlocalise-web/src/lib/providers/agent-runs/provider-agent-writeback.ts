@@ -249,6 +249,11 @@ export async function executeProviderAgentWriteback(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,

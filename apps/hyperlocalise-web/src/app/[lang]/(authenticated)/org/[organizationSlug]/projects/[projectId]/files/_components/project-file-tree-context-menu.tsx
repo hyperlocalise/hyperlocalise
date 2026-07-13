@@ -151,8 +151,8 @@ export function ProjectFileTreeContextMenu({
             disabled={!capabilities.canTranslateWithAgent}
             title={capabilities.translateDisabledTitle}
             onClick={() => {
-              fileActions.onTranslateFile?.(file);
               closeMenu();
+              fileActions.onTranslateFile?.(file);
             }}
           >
             <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
@@ -164,8 +164,8 @@ export function ProjectFileTreeContextMenu({
             variant="outline"
             className="w-full justify-start"
             onClick={() => {
-              fileActions.onImportFile?.(file);
               closeMenu();
+              fileActions.onImportFile?.(file);
             }}
           >
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
@@ -177,8 +177,8 @@ export function ProjectFileTreeContextMenu({
             variant="outline"
             className="w-full justify-start"
             onClick={() => {
-              fileActions.onDownloadFile?.(file);
               closeMenu();
+              fileActions.onDownloadFile?.(file);
             }}
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />

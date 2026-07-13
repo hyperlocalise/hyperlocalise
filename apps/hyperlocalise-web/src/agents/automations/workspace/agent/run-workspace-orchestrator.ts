@@ -1,6 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -219,17 +223,29 @@ export async function runWorkspaceOrchestrator(input: {
 
   try {
     const agent = createWorkspaceOrchestratorAgent(session);
-    await agent.generate({
-      messages: [
-        {
-          role: "user",
-          content: buildWorkspaceOrchestratorUserMessage({
-            automationName: automation.name,
-            triggerSource: run.triggerSource,
-            inputSnapshot: run.inputSnapshot,
-          }),
-        },
-      ],
+    await withAgentRuntimeUsageMetering({
+      organizationId: input.organizationId,
+      operationKey: `workspace-automation:${run.id}:agent_runs`,
+      source: "workspace_orchestrator",
+      dimensions: {
+        surface: "automation",
+        agent_surface: "workspace_orchestrator",
+        automation_id: automation.id,
+      },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: () =>
+        agent.generate({
+          messages: [
+            {
+              role: "user",
+              content: buildWorkspaceOrchestratorUserMessage({
+                automationName: automation.name,
+                triggerSource: run.triggerSource,
+                inputSnapshot: run.inputSnapshot,
+              }),
+            },
+          ],
+        }),
     });
 
     const terminalStatus = deriveTerminalStatus(session);

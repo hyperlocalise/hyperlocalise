@@ -3,6 +3,10 @@ import { stepCountIs, ToolLoopAgent } from "ai";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automation-executor";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
@@ -136,18 +140,30 @@ export async function runContentfulAgent(
       },
     });
 
-    await agent.generate({
-      messages: [
-        {
-          role: "user",
-          content: [
-            `Translate Contentful entry ${run.entryId}.`,
-            `Source locale: ${run.sourceLocale}.`,
-            `Target locales: ${run.targetLocales.join(", ")}.`,
-            "Call run_translation to execute the translation pipeline.",
-          ].join("\n"),
-        },
-      ],
+    await withAgentRuntimeUsageMetering({
+      organizationId: input.organizationId,
+      operationKey: `contentful-agent:${run.id}:agent_runs`,
+      source: "contentful_agent",
+      dimensions: {
+        surface: "automation",
+        agent_surface: "contentful",
+        entry_id: run.entryId,
+      },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: () =>
+        agent.generate({
+          messages: [
+            {
+              role: "user",
+              content: [
+                `Translate Contentful entry ${run.entryId}.`,
+                `Source locale: ${run.sourceLocale}.`,
+                `Target locales: ${run.targetLocales.join(", ")}.`,
+                "Call run_translation to execute the translation pipeline.",
+              ].join("\n"),
+            },
+          ],
+        }),
     });
 
     if (!session.executionResult) {

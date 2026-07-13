@@ -205,7 +205,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType,
   catFile,
   enabled,
-  queueSegmentIds = [],
 }: {
   organizationSlug: string;
   projectId: string;
@@ -215,7 +214,6 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
   resourceType?: "file" | "key";
   catFile: ProjectFileCatQueueFile | null | undefined;
   enabled: boolean;
-  queueSegmentIds?: string[];
 }) {
   const store = useCatWorkspace();
   const selectedSegmentId = store.selectedSegmentId;
@@ -224,6 +222,7 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
       ? store.ui.hoveredSegmentId
       : null;
   const isSideBySideView = store.ui.isSideBySideView;
+  const visibleSideBySideSegmentIds = store.ui.visibleSideBySideSegmentIds;
 
   useCatLoadedQueueTargetsSync({
     organizationSlug,
@@ -234,7 +233,7 @@ export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySeg
     resourceType,
     catFile,
     enabled: enabled && isSideBySideView,
-    segmentIds: queueSegmentIds,
+    segmentIds: visibleSideBySideSegmentIds,
   });
 
   const _selectedSync = useCatSegmentLazySync({

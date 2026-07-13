@@ -5,9 +5,15 @@ import { and, eq } from "drizzle-orm";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
+import { isErr } from "@/lib/primitives/result/results";
 import { createResendAdapter } from "@/lib/resend/adapter";
 import type { EmailAgentTask, EmailAgentTaskQueue } from "@/lib/workflow/types";
 import { createEmailAgentTaskQueue } from "@/workflows/adapters";
@@ -111,6 +117,20 @@ async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) 
       jobId,
       type: "file",
     });
+
+    const usageEventResult = await reserveUsageEvent({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey: `job:${jobId}:translation_jobs`,
+      source: "email_translation_job_create",
+      jobId,
+      interactionId: input.conversationId ?? undefined,
+      quantity: 1,
+    });
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
 
     return [createdJob];
   });
@@ -327,6 +347,21 @@ async function enqueuePendingTranslation(input: {
     "enqueueing pending translation",
   );
 
+  if (!organizationId) {
+    log.error("missing organization for pending translation");
+    await thread.post(
+      [
+        "This inbound email address isn't active for one of your organizations.",
+        "",
+        "Please use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+        "",
+        "—Hyperlocalise Agent",
+        `Request ID: ${pending.requestId}`,
+      ].join("\n"),
+    );
+    return;
+  }
+
   if (!pending.targetLocale) {
     log.info("missing target locale, requesting clarification");
     await thread.post(buildClarificationMessage(pending));
@@ -359,6 +394,10 @@ async function enqueuePendingTranslation(input: {
           imageAttachment,
           rawForImage,
           imageIntent,
+          {
+            organizationId,
+            interactionId: conversationId,
+          },
         );
       }
     } else {
@@ -411,24 +450,22 @@ async function enqueuePendingTranslation(input: {
 
     processedKeys.add(key);
     nextProcessedKeys.push(key);
-    const { jobId } = organizationId
-      ? await createTranslationJob({
-          organizationId,
-          conversationId,
-          requestId: pending.requestId,
-          subject: pending.subject,
-          senderEmail: pending.senderEmail,
-          attachment: {
-            id: att.id,
-            filename: att.filename,
-            contentType: att.contentType,
-            downloadUrl: att.downloadUrl,
-          },
-          sourceLocale: pending.sourceLocale,
-          targetLocale: pending.targetLocale,
-          instructions: pending.instructions,
-        })
-      : { jobId: `job_${randomUUID()}` };
+    const { jobId } = await createTranslationJob({
+      organizationId,
+      conversationId,
+      requestId: pending.requestId,
+      subject: pending.subject,
+      senderEmail: pending.senderEmail,
+      attachment: {
+        id: att.id,
+        filename: att.filename,
+        contentType: att.contentType,
+        downloadUrl: att.downloadUrl,
+      },
+      sourceLocale: pending.sourceLocale,
+      targetLocale: pending.targetLocale,
+      instructions: pending.instructions,
+    });
 
     queuedTasks.push({
       jobId,
@@ -485,16 +522,14 @@ async function enqueuePendingTranslation(input: {
     try {
       result = await queue.enqueue(task);
     } catch (error) {
-      if (organizationId) {
-        await failTranslationJobBeforeRun({
-          organizationId,
-          jobId,
-          reason: error instanceof Error ? error.message : "email translation queue unavailable",
-        });
-      }
+      await failTranslationJobBeforeRun({
+        organizationId,
+        jobId,
+        reason: error instanceof Error ? error.message : "email translation queue unavailable",
+      });
       throw error;
     }
-    if (organizationId && result.ids.length > 0) {
+    if (result.ids.length > 0) {
       await setTranslationJobWorkflowRun({
         organizationId,
         jobId,
@@ -704,29 +739,37 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         // Conversation tracking for pending clarification
         let conversationId: string | undefined;
         let conversationOrganizationId: string | undefined;
+        try {
+          const organization = await dependencies.resolveInboundEmailOrganization({
+            senderUserId: user.id,
+            recipientAddresses: raw.to ?? [],
+          });
+          if (organization) {
+            conversationOrganizationId = organization.id;
+          }
+        } catch (resolveError) {
+          log.error(
+            { error: resolveError instanceof Error ? resolveError.message : String(resolveError) },
+            "failed to resolve organization for pending clarification",
+          );
+        }
+
         const track = dependencies.trackConversation;
-        if (track) {
+        if (track && conversationOrganizationId) {
           try {
-            const organization = await dependencies.resolveInboundEmailOrganization({
-              senderUserId: user.id,
-              recipientAddresses: raw.to ?? [],
+            const existing = await track.findBySourceThreadId({
+              organizationId: conversationOrganizationId,
+              source: "email_agent",
+              sourceThreadId: thread.id,
             });
-            if (organization) {
-              conversationOrganizationId = organization.id;
-              const existing = await track.findBySourceThreadId({
-                organizationId: organization.id,
-                source: "email_agent",
-                sourceThreadId: thread.id,
+            if (existing) {
+              conversationId = existing.id;
+              await track.addMessage({
+                interactionId: conversationId,
+                senderType: "user",
+                text: message.text,
+                senderEmail,
               });
-              if (existing) {
-                conversationId = existing.id;
-                await track.addMessage({
-                  interactionId: conversationId,
-                  senderType: "user",
-                  text: message.text,
-                  senderEmail,
-                });
-              }
             }
           } catch (trackError) {
             log.error(
@@ -738,6 +781,20 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
 
         if (track && conversationId) {
           wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+        }
+
+        if (!conversationOrganizationId) {
+          log.warn("no organization found for pending clarification");
+          await thread.post(
+            [
+              "This inbound email address isn't active for one of your organizations.",
+              "",
+              "Please use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+              "",
+              "—Hyperlocalise Agent",
+            ].join("\n"),
+          );
+          return;
         }
 
         log.info("resuming pending clarification");
@@ -906,7 +963,14 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         } else {
           log.info({ count: imageAttachments.length }, "handling image attachments");
           for (const imageAttachment of imageAttachments) {
-            await dependencies.handleImageAttachment(thread, message, imageAttachment, raw, intent);
+            await dependencies.handleImageAttachment(
+              thread,
+              message,
+              imageAttachment,
+              raw,
+              intent,
+              { organizationId: organization.id, interactionId: conversationId },
+            );
           }
         }
       }

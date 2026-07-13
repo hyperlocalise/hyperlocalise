@@ -11,8 +11,6 @@ describe("getAppShellTitle", () => {
   it.each([
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
-    ["/org/acme/new-request", "New Request"],
-    ["/org/acme/chat", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],

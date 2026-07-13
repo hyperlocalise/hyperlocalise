@@ -166,6 +166,11 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
+  let tokenUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+  };
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -177,6 +182,7 @@ async function translateProviderUnits(input: {
       skippedExistingLocales: 0,
       translationMemoryUsageByUnit: [],
       glossaryUsageByUnit: [],
+      tokenUsage: null,
     };
   }
 
@@ -270,6 +276,14 @@ async function translateProviderUnits(input: {
         contextSnapshot: contextSnapshot.snapshot,
       });
 
+      if (result.tokenUsage) {
+        tokenUsage = {
+          inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
+          outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
+          totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
+        };
+      }
+
       for (const translation of result.translations) {
         const existing = existingTranslationForLocale(unit, translation.locale);
         const from = existing?.text ?? "";
@@ -361,6 +375,7 @@ async function translateProviderUnits(input: {
     skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
+    tokenUsage: tokenUsage.totalTokens > 0 ? tokenUsage : null,
   };
 }
 
@@ -393,6 +408,11 @@ export async function executeProviderAgentTranslation(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,
@@ -774,6 +794,7 @@ export async function executeProviderAgentTranslation(input: {
       sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
       glossaryUsage: translationResult.glossaryUsageByUnit,
+      ...(translationResult.tokenUsage ? { tokenUsage: translationResult.tokenUsage } : {}),
       ...pullDiagnosticsSummary,
     },
     changedItems: translationResult.changedItems,

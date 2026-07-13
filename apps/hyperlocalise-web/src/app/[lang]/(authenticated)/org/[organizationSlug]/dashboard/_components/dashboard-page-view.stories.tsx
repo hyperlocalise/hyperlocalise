@@ -33,7 +33,6 @@ const activeHero = resolveDashboardHero(intl, {
   }),
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
 const setupHero = resolveDashboardHero(intl, {
@@ -42,7 +41,6 @@ const setupHero = resolveDashboardHero(intl, {
   pendingCount: 0,
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
 const caughtUpHero = resolveDashboardHero(intl, {
@@ -51,7 +49,6 @@ const caughtUpHero = resolveDashboardHero(intl, {
   pendingCount: 0,
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
 const tmsJobsFixture = dashboardJobsFixture.slice(0, 2).map((job) => ({
@@ -93,6 +90,7 @@ const meta = {
     isProjectsError: false,
     isAutomationsLoading: false,
     isAutomationsError: false,
+    onNewRequest: () => undefined,
   },
 } satisfies Meta<typeof DashboardPageView>;
 

@@ -74,6 +74,7 @@ export async function AppShell({
       showMembersLink={hasCapability(auth.membership.role, "workspace:read")}
       user={{
         name: displayName,
+        email: auth.sessionUser.email,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
       navigationGroups={navigationGroups}

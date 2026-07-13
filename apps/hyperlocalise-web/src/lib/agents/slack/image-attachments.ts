@@ -8,6 +8,7 @@ import {
   localizeImageAttachment,
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
 import { env } from "@/lib/env";
 
 import {
@@ -55,7 +56,7 @@ function getSlackImageIntentModel() {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
-  return openai("gpt-5.4-mini");
+  return openai(hyperlocaliseAgentModelId);
 }
 
 function normalizeLocale(locale: string) {
@@ -201,6 +202,13 @@ async function localizeSlackImageSource(input: LocalizeSlackImageSourceInput) {
     targetLocale: input.targetLocale,
     instructions: input.instructions,
     contextLines: [input.message.text ? `Slack request: ${input.message.text}` : null],
+    billing: {
+      organizationId: input.storage.organizationId,
+      operationKey: `image-localization:slack:${input.source.sourceFileId}:${input.targetLocale}`,
+      source: "slack_image_localization",
+      interactionId: input.storage.interactionId,
+      dimensions: { channel: "slack", target_locale: input.targetLocale },
+    },
   });
 
   const storedOutput = await storeSlackImageOutput({

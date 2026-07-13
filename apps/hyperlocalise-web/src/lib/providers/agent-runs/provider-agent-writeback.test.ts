@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -39,7 +39,15 @@ async function createTestJob(input: { organizationId: string; projectId: string 
 }
 
 describe("provider-agent-writeback", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+    );
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     pushExternalTmsTranslationsMock.mockReset();
   });
 

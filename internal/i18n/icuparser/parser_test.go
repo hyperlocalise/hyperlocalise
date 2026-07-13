@@ -55,6 +55,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 			wantICU: []BlockSignature{{
 				Arg:     "count",
 				Type:    "plural",
+				Offset:  1,
 				Options: []string{"=0", "one", "other"},
 				Pounds:  []int{0, 0, 1},
 			}},

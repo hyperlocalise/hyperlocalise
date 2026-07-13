@@ -21,6 +21,7 @@ export function CatSideBySideVirtualList({
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
+  onVisibleSegmentIdsChange,
   onTargetChange,
   hasMore = false,
   isLoadingMore = false,
@@ -36,6 +37,7 @@ export function CatSideBySideVirtualList({
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
+  onVisibleSegmentIdsChange: (segmentIds: string[]) => void;
   onTargetChange: (segmentId: string, value: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -66,13 +68,27 @@ export function CatSideBySideVirtualList({
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
 
+  const publishVisibleSegmentIds = useCallback(
+    (items: Array<{ index: number }>) => {
+      onVisibleSegmentIdsChange(
+        items.flatMap((item) => {
+          const segment = segments[item.index];
+          return segment ? [segment.id] : [];
+        }),
+      );
+    },
+    [onVisibleSegmentIdsChange, segments],
+  );
+
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 6,
     onChange: (instance) => {
-      checkForNearEnd(instance.getVirtualItems());
+      const virtualItems = instance.getVirtualItems();
+      checkForNearEnd(virtualItems);
+      publishVisibleSegmentIds(virtualItems);
     },
   });
 
@@ -83,8 +99,17 @@ export function CatSideBySideVirtualList({
   }, [isLoadingMore]);
 
   useEffect(() => {
-    checkForNearEnd(virtualizer.getVirtualItems());
-  }, [checkForNearEnd, virtualizer]);
+    const virtualItems = virtualizer.getVirtualItems();
+    checkForNearEnd(virtualItems);
+    publishVisibleSegmentIds(virtualItems);
+  }, [checkForNearEnd, publishVisibleSegmentIds, virtualizer]);
+
+  useEffect(
+    () => () => {
+      onVisibleSegmentIdsChange([]);
+    },
+    [onVisibleSegmentIdsChange],
+  );
 
   return (
     <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto", className)}>

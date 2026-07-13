@@ -26,14 +26,21 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 
 export type NavigationIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
+export type NavigationItemAction = "open-chat-dock";
+
 export type NavigationItem = {
   label: string;
   href: string;
   icon: NavigationIcon;
   description?: string;
   badge?: string;
+  /** Non-route action; when set, the sidebar renders a button instead of a link. */
+  action?: NavigationItemAction;
   featureFlagKey?: typeof WORKSPACE_AUTOMATIONS_FLAG | typeof WORKSPACE_KNOWLEDGE_FLAG;
 };
+
+/** Sentinel href for the New Request sidebar action (never navigated). */
+export const OPEN_CHAT_DOCK_HREF = "#open-chat-dock";
 
 export type NavigationGroup = {
   label?: string;
@@ -64,7 +71,8 @@ export function buildGlobalNavigationGroups(
             id: "VtO24sqmBM",
             description: "Sidebar navigation item to start a new localisation request",
           }),
-          href: org("chat"),
+          href: OPEN_CHAT_DOCK_HREF,
+          action: "open-chat-dock",
           icon: Chat01Icon,
           description: intl.formatMessage({
             defaultMessage: "Ask the localisation agent to prepare work",

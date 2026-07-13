@@ -77,11 +77,12 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			errContains: "raw HTML",
 		},
 		{
-			name:       "markdown_skips_icu_even_if_invalid_message_shape",
-			path:       "/en/a.md",
-			source:     "{not, valid icu",
-			translated: "{still bad",
-			wantErr:    false,
+			name:        "markdown_icu_placeholder_mismatch",
+			path:        "/en/a.md",
+			source:      "Hello {name}",
+			translated:  "Bonjour {user}",
+			wantErr:     true,
+			errContains: "placeholder parity",
 		},
 		{
 			name:       "html_tags_ok_then_icu_ok",
