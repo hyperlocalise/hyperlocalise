@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -40,7 +40,9 @@ describe("LocaleError", () => {
 
     const { error, unstableRetry } = renderLocaleError();
 
-    expect(consoleError).toHaveBeenCalledWith(error);
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(error);
+    });
     expect(screen.getByRole("button", { name: "Go to dashboard" })).toHaveAttribute(
       "href",
       "/fr-FR/dashboard",
