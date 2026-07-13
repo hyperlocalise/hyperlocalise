@@ -23,7 +23,24 @@ type WorkflowStepResponse struct {
 // WorkflowStepsResponse defines the structure of the response when
 // getting a list of workflow steps.
 type WorkflowStepsResponse struct {
-	Data []*WorkflowStepResponse `json:"data"`
+	Data       []*WorkflowStepResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
+}
+
+// WorkflowStepsListOptions specifies the optional parameters to the
+// WorkflowsService.ListSteps method.
+type WorkflowStepsListOptions struct {
+	ListOptions
+}
+
+// Values returns the url.Values representation of the options.
+// It implements the crowdin.ListOptionsProvider interface.
+func (o *WorkflowStepsListOptions) Values() (url.Values, bool) {
+	if o == nil {
+		return nil, false
+	}
+
+	return o.ListOptions.Values()
 }
 
 type (

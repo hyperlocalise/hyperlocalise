@@ -22,9 +22,11 @@ type WorkflowsService struct {
 // ListSteps returns a list of workflow steps available in the project.
 //
 // https://developer.crowdin.com/enterprise/api/v2/#operation/api.projects.workflow-steps.getMany
-func (s *WorkflowsService) ListSteps(ctx context.Context, projectID string) ([]*model.WorkflowStep, *Response, error) {
+func (s *WorkflowsService) ListSteps(ctx context.Context, projectID int, opts *model.WorkflowStepsListOptions) (
+	[]*model.WorkflowStep, *Response, error,
+) {
 	res := new(model.WorkflowStepsResponse)
-	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/projects/%s/workflow-steps", projectID), nil, res)
+	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/projects/%d/workflow-steps", projectID), opts, res)
 	if err != nil {
 		return nil, resp, err
 	}
