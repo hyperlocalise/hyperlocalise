@@ -7,6 +7,12 @@ import {
 } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
 const localeSchema = z.string().trim().min(1).max(32);
+const maxPreviewMetadataEntries = 50;
+const previewMetadataSchema = z
+  .record(z.string().max(100), z.string().max(1000))
+  .refine((metadata) => Object.keys(metadata).length <= maxPreviewMetadataEntries, {
+    message: `metadata must contain at most ${maxPreviewMetadataEntries} entries`,
+  });
 
 export const updateKnowledgeMemoryBodySchema = z.object({
   content: z
@@ -23,7 +29,7 @@ export const previewKnowledgeMemoryBodySchema = z.object({
   context: z.string().max(20_000).optional(),
   key: z.string().trim().max(256).optional(),
   path: z.string().trim().max(1024).optional(),
-  metadata: z.record(z.string().max(100), z.string().max(1000)).optional(),
+  metadata: previewMetadataSchema.optional(),
   maxChars: z.coerce
     .number()
     .int()

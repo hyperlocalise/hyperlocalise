@@ -253,6 +253,29 @@ describe("knowledgeMemoryRoutes", () => {
     });
   });
 
+  it("rejects preview metadata with too many entries", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].preview.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: {
+          targetLocale: "en-AU",
+          metadata: Object.fromEntries(
+            Array.from({ length: 51 }, (_, index) => [`key-${index}`, `value-${index}`]),
+          ),
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_knowledge_memory_preview_payload",
+    });
+  });
+
   it("denies workspace memory updates for members", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const headers = await fixture.authHeadersFor(identity);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FloppyDiskIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,7 @@ export function KnowledgeMemoryEditor({
   const [previewTargetLocale, setPreviewTargetLocale] = useState("");
   const [previewSourceText, setPreviewSourceText] = useState("");
   const [memoryPreview, setMemoryPreview] = useState<MemoryPreview | null>(null);
+  const previewGeneration = useRef(0);
 
   const knowledgeMemoryQuery = useQuery({
     queryKey: knowledgeMemoryQueryKey(organizationSlug),
@@ -77,6 +78,7 @@ export function KnowledgeMemoryEditor({
 
     setContent(knowledgeMemoryQuery.data.content);
     setSavedContent(knowledgeMemoryQuery.data.content);
+    previewGeneration.current += 1;
     setMemoryPreview(null);
   }, [knowledgeMemoryQuery.data]);
 
@@ -97,6 +99,7 @@ export function KnowledgeMemoryEditor({
     onSuccess: async (knowledgeMemory) => {
       setContent(knowledgeMemory.content);
       setSavedContent(knowledgeMemory.content);
+      previewGeneration.current += 1;
       setMemoryPreview(null);
       await queryClient.invalidateQueries({ queryKey: knowledgeMemoryQueryKey(organizationSlug) });
       toast.success("Knowledge memory saved");
@@ -108,6 +111,7 @@ export function KnowledgeMemoryEditor({
 
   const previewKnowledgeMemory = useMutation({
     mutationFn: async () => {
+      const generation = previewGeneration.current;
       const response = await apiClient.api.orgs[":organizationSlug"][
         "knowledge-memory"
       ].preview.$post({
@@ -123,10 +127,12 @@ export function KnowledgeMemoryEditor({
       }
 
       const body = await response.json();
-      return body.memoryPreview;
+      return { generation, preview: body.memoryPreview };
     },
-    onSuccess: (preview) => {
-      setMemoryPreview(preview);
+    onSuccess: ({ generation, preview }) => {
+      if (generation === previewGeneration.current) {
+        setMemoryPreview(preview);
+      }
     },
     onError: (error) => {
       toast.error(error.message);
@@ -220,6 +226,7 @@ export function KnowledgeMemoryEditor({
                   value={previewTargetLocale}
                   onChange={(event) => {
                     setPreviewTargetLocale(event.target.value);
+                    previewGeneration.current += 1;
                     setMemoryPreview(null);
                   }}
                   placeholder="en-AU"
@@ -232,6 +239,7 @@ export function KnowledgeMemoryEditor({
                   value={previewSourceText}
                   onChange={(event) => {
                     setPreviewSourceText(event.target.value);
+                    previewGeneration.current += 1;
                     setMemoryPreview(null);
                   }}
                   className="min-h-20 resize-y border-border bg-background text-sm leading-6"

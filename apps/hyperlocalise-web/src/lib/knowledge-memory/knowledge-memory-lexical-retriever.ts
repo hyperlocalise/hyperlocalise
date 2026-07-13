@@ -153,12 +153,11 @@ function inputLocalesFromParts(queryParts: string[]) {
   );
 }
 
-function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
-  const queryTokens = expandTokens(tokenize(queryParts.join(" ")));
-  if (queryTokens.size === 0) {
-    return 0;
-  }
-
+function scoreSegment(
+  segment: KnowledgeMemorySegment,
+  queryTokens: Set<string>,
+  inputLocales: string[],
+) {
   const headingTokens = expandTokens(tokenize(segment.headingPath.join(" ")));
   const searchTokens = expandTokens(tokenize(segment.searchText));
   let score = 0;
@@ -175,7 +174,7 @@ function scoreSegment(segment: KnowledgeMemorySegment, queryParts: string[]) {
     }
   }
 
-  for (const normalizedLocale of inputLocalesFromParts(queryParts)) {
+  for (const normalizedLocale of inputLocales) {
     const headingText = normalizeLocaleForSearch(segment.headingPath.join(" "));
     const searchText = normalizeLocaleForSearch(segment.searchText);
     if (includesAnyLocaleMarker(headingText, normalizedLocale)) {
@@ -193,11 +192,16 @@ export const retrieveKnowledgeMemorySegmentsLexically: KnowledgeMemoryRetriever 
   query,
 }) => {
   const queryParts = buildQueryParts(query);
+  const queryTokens = expandTokens(tokenize(queryParts.join(" ")));
+  if (queryTokens.size === 0) {
+    return [];
+  }
+  const inputLocales = inputLocalesFromParts(queryParts);
 
   return segments
     .map((segment) => ({
       segment,
-      score: scoreSegment(segment, queryParts),
+      score: scoreSegment(segment, queryTokens, inputLocales),
     }))
     .filter((item) => item.score >= minSelectiveScore)
     .sort((a, b) => {

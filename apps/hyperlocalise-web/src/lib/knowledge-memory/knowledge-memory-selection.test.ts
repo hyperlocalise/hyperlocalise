@@ -597,6 +597,58 @@ describe("selectKnowledgeMemoryContext", () => {
     });
   });
 
+  it("honours an explicit context cap for small memory", () => {
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout guidance",
+      "",
+      "Use concise checkout and payment labels.",
+      "",
+      "## Reference",
+      "",
+      "Reference details. ".repeat(70),
+    ].join("\n");
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Checkout payment",
+      maxChars: 256,
+    });
+
+    expect(content.length).toBeLessThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(256);
+  });
+
+  it("never expands selected context beyond the source memory", () => {
+    const checkoutParagraphs = Array.from(
+      { length: 5 },
+      (_, index) => `Checkout payment guidance ${index + 1}: ${"detail ".repeat(38)}`,
+    );
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout",
+      "",
+      ...checkoutParagraphs.flatMap((paragraph) => [paragraph, ""]),
+      "## Reference",
+      "",
+      "Unrelated reference. ".repeat(40),
+    ].join("\n");
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Checkout payment",
+    });
+
+    expect(content.length).toBeGreaterThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
+    expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(
+      selected.metrics.wholeMemoryChars,
+    );
+    expect(selected.metrics.reductionPercent).toBeGreaterThanOrEqual(0);
+  });
+
   it("returns empty selected context for empty memory", () => {
     const selected = selectKnowledgeMemoryContext({
       content: "",

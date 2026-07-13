@@ -378,11 +378,15 @@ export function selectKnowledgeMemoryContext(
     return buildEmptyContext(0, "empty");
   }
 
-  if (content.length <= KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH) {
+  const maxChars = Math.min(
+    input.maxChars ?? KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    content.length,
+  );
+
+  if (content.length <= KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH && maxChars === content.length) {
     return buildWholeSmallContext(content);
   }
 
-  const maxChars = input.maxChars ?? KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH;
   const segments = parseMarkdownMemory(content);
   if (segments.length === 0) {
     return buildRawFallbackContext(content, maxChars);
