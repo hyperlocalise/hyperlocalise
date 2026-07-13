@@ -274,6 +274,57 @@ func TestParseInvariantSorting(t *testing.T) {
 	}
 }
 
+func TestSameICUBlocksOffsetParity(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		tgt  string
+		want bool
+	}{
+		{
+			name: "different offsets",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, offset:2 one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "offset vs no offset",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "same offset",
+			src:  "{n, plural, offset:5 one {item} other {items}}",
+			tgt:  "{n, plural, offset:5 one {item} other {items}}",
+			want: true,
+		},
+		{
+			name: "selectordinal different offsets",
+			src:  "{n, selectordinal, offset:1 one {#st} other {#th}}",
+			tgt:  "{n, selectordinal, offset:0 one {#st} other {#th}}",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srcInv, err := ParseInvariant(tt.src)
+			if err != nil {
+				t.Fatalf("failed to parse src: %v", err)
+			}
+			tgtInv, err := ParseInvariant(tt.tgt)
+			if err != nil {
+				t.Fatalf("failed to parse tgt: %v", err)
+			}
+
+			if got := SameICUBlocks(srcInv.ICUBlocks, tgtInv.ICUBlocks); got != tt.want {
+				t.Errorf("SameICUBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseInvariantSortingWithOffset(t *testing.T) {
 	msg := "{n, plural, offset:2 other {#}} {n, plural, offset:1 other {#}}"
 	inv, err := ParseInvariant(msg)
