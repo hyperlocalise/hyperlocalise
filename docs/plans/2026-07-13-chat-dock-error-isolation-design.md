@@ -10,16 +10,23 @@ the boundary so they remain usable when the panel fails to render.
 
 The fallback appears in the dock's normal panel area and offers two local actions:
 
-- **Try again** clears the active tab's transient stream error, invalidates its
+- **Try again** clears the failed tab's transient stream error, invalidates its
   conversation data, and rerenders the panel.
 - **Close chat** collapses the failed panel without deleting the tab or its draft.
 
-Changing organizations resets the boundary. Unexpected errors are logged with the
-chat-dock scope and React component stack, consistent with the app's existing panel
-boundaries.
+Changing organizations, switching tabs, or closing the panel resets the boundary
+through `resetKeys`. Reset always runs the same recovery cleanup against the tab
+that originally failed, so switching away while the fallback is visible does not
+leave that tab's stream snapshot, last error, or message cache stale.
+
+Unexpected errors are logged with the chat-dock scope, error name, and React
+component stack. Message and stack text are omitted so conversation content or
+API bodies cannot leak into logs.
 
 ## Testing
 
 Render a failing child inside the boundary and verify that the local fallback appears
 while content outside the boundary remains available. Verify that retry rerenders the
-child and that closing the fallback collapses the dock without deleting its tab.
+child, that closing the fallback collapses the dock without deleting its tab, and that
+switching tabs while the fallback is visible clears the failed tab's transient stream
+state so returning to it does not revive the same failure.

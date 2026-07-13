@@ -1,9 +1,9 @@
 "use client";
 
 import { AlertCircleIcon } from "lucide-react";
-import { type ErrorInfo, type ReactNode } from "react";
+import { type ErrorInfo, type ReactNode, useRef } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
@@ -12,39 +12,38 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 import { chatDockMessages } from "./chat-dock.messages";
+import { ChatDockStore } from "./chat-dock-store";
 import { getChatStreamManager } from "./chat-stream-manager";
 
 function logChatDockError(error: Error, info: ErrorInfo) {
+  // Omit message/stack — render errors can include conversation text or API bodies.
   console.error("[chat-dock:panel]", {
     name: error.name,
-    message: error.message,
-    stack: error.stack,
     componentStack: info.componentStack,
   });
 }
 
-function ChatDockErrorFallback({
-  resetErrorBoundary,
-  organizationSlug,
-}: FallbackProps & { organizationSlug: string }) {
-  const { chatDock } = useAppShellStore();
-  const queryClient = useQueryClient();
-
-  function retry() {
-    const activeTab = chatDock.activeTab;
-    if (activeTab) {
-      getChatStreamManager(organizationSlug, chatDock).stop(activeTab.id);
-      chatDock.clearStreamSnapshot(activeTab.id);
-      chatDock.setLastError(activeTab.id, null);
-      void queryClient.invalidateQueries({
-        queryKey: ["conversation-messages", activeTab.id],
-      });
-    }
+function recoverFailedTab(
+  organizationSlug: string,
+  chatDock: ChatDockStore,
+  tabId: string | null,
+  queryClient: QueryClient,
+) {
+  if (tabId) {
+    getChatStreamManager(organizationSlug, chatDock).stop(tabId);
+    chatDock.clearStreamSnapshot(tabId);
+    chatDock.setLastError(tabId, null);
     void queryClient.invalidateQueries({
-      queryKey: ["conversations", organizationSlug],
+      queryKey: ["conversation-messages", tabId],
     });
-    resetErrorBoundary();
   }
+  void queryClient.invalidateQueries({
+    queryKey: ["conversations", organizationSlug],
+  });
+}
+
+function ChatDockErrorFallback({ resetErrorBoundary }: FallbackProps) {
+  const { chatDock } = useAppShellStore();
 
   return (
     <div className="flex min-h-48 items-center justify-center border-b border-border p-4">
@@ -58,7 +57,7 @@ function ChatDockErrorFallback({
             <FormattedMessage {...chatDockMessages.panelErrorDescription} />
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={retry}>
+            <Button type="button" variant="outline" size="sm" onClick={resetErrorBoundary}>
               <FormattedMessage {...chatDockMessages.tryAgain} />
             </Button>
             <Button
@@ -84,16 +83,22 @@ export const ChatDockErrorBoundary = observer(function ChatDockErrorBoundary({
   organizationSlug: string;
 }) {
   const { chatDock } = useAppShellStore();
+  const queryClient = useQueryClient();
+  const failedTabIdRef = useRef<string | null>(null);
 
   return (
     <ErrorBoundary
-      fallbackRender={(fallbackProps) => (
-        <ChatDockErrorFallback {...fallbackProps} organizationSlug={organizationSlug} />
-      )}
+      fallbackRender={(fallbackProps) => <ChatDockErrorFallback {...fallbackProps} />}
       onError={(error, info) => {
+        failedTabIdRef.current = chatDock.activeTabId;
         if (error instanceof Error) {
           logChatDockError(error, info);
         }
+      }}
+      onReset={() => {
+        const failedTabId = failedTabIdRef.current;
+        failedTabIdRef.current = null;
+        recoverFailedTab(organizationSlug, chatDock, failedTabId, queryClient);
       }}
       resetKeys={[organizationSlug, chatDock.activeTabId, chatDock.panelOpen]}
     >
