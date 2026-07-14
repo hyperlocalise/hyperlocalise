@@ -251,3 +251,11 @@
 ## 2026-07-13 - Optimizing Apple .strings parser and renderer via fused scanning and buffer writing
 **Learning:** For sequential parsers that track line numbers, calling `strings.Count` on each segment after scanning is redundant. Fusing newline counting into the primary byte-scanning loops (whitespace, trivia, and tokens) makes line tracking essentially "free" and avoids multiple (N)$ passes over the input string. For renderers producing `[]byte`, using `bytes.Buffer` and returning `b.Bytes()` directly avoids a redundant string allocation and copy. Furthermore, using `Replacer.WriteString` directly into the buffer eliminates intermediate allocations for escaped strings.
 **Action:** Refactored `parseStringsDocument`, `render`, and scanning helpers in `internal/i18n/translationfileparser/strings_parser.go`, resulting in ~9% faster parsing and ~15% faster marshaling with reduced allocations.
+
+## 2026-07-14 - Optimizing extra placeholder extraction
+**Learning:** Combining multiple independent regex patterns into a single alternation regex () significantly reduces the number of scanning passes over the input string (from N passes to 1). Furthermore, simple `strings.ContainsAny` checks for signal characters (like '%' or '$') serve as highly effective fast-paths to avoid regex execution overhead entirely for non-placeholder text.
+**Action:** Use combined regexes and `ContainsAny` fast-paths in high-frequency validation or parsing logic.
+
+## 2025-05-15 - Optimizing extra placeholder extraction
+**Learning:** Combining multiple independent regex patterns into a single alternation regex (`a|b|c`) significantly reduces the number of scanning passes over the input string (from N passes to 1). Furthermore, simple `strings.ContainsAny` checks for signal characters (like '%' or '$') serve as highly effective fast-paths to avoid regex execution overhead entirely for non-placeholder text.
+**Action:** Use combined regexes and `ContainsAny` fast-paths in high-frequency validation or parsing logic.
