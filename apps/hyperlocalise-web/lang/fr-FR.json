@@ -105,7 +105,7 @@
     "defaultMessage": "Analyse du contenu"
   },
   "/Q3+a6FMED": {
-    "defaultMessage": "You can run up to {count} chats at once."
+    "defaultMessage": "Vous pouvez exécuter jusqu’à {count} chats à la fois."
   },
   "/TZx8A/JWk": {
     "defaultMessage": "Activez au moins un workflow et choisissez quand l’automatisation doit s’exécuter."
@@ -264,7 +264,7 @@
     "defaultMessage": "Connecter {provider}"
   },
   "1fxDZQx14T": {
-    "defaultMessage": "Close chat"
+    "defaultMessage": "Fermer le chat"
   },
   "1ggu9Tm0ub": {
     "defaultMessage": "Échec du chargement de la liste des conversations"
@@ -1005,7 +1005,7 @@
     "defaultMessage": "Connectez {provider} pour afficher {resource} du fournisseur."
   },
   "BgfpkbN4Fe": {
-    "defaultMessage": "Knowledge"
+    "defaultMessage": "Connaissances"
   },
   "BjoXu+/Pje": {
     "defaultMessage": "Vérification de la localisation"
@@ -1035,10 +1035,10 @@
     "defaultMessage": "{displayName} enregistré. Connectez votre compte Crowdin pour continuer."
   },
   "C0+hlj1Es4": {
-    "defaultMessage": "Could not start this chat. Try again."
+    "defaultMessage": "Impossible de démarrer cette conversation. Réessayez."
   },
   "C1FbXuFTUH": {
-    "defaultMessage": "Start a translation"
+    "defaultMessage": "Commencer une traduction"
   },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} enregistré. Connectez votre compte Phrase pour continuer."
@@ -1194,13 +1194,13 @@
     "defaultMessage": "Contenu Markdown"
   },
   "EChSkkf+KW": {
-    "defaultMessage": "What changed recently"
+    "defaultMessage": "Qu’est-ce qui a changé récemment"
   },
   "ECw5CTvkCi": {
     "defaultMessage": "Donnez aux relecteurs une vue claire de la couverture des paramètres régionaux, des indicateurs de qualité et des éléments non résolus avant la fusion."
   },
   "EGk/6OwbtI": {
-    "defaultMessage": "Join waitlist"
+    "defaultMessage": "Rejoindre la liste d’attente"
   },
   "EGy0DHdyiF": {
     "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et découvrez comment votre équipe peut maintenir le contenu d’assistance à jour dans chaque langue."
@@ -1299,7 +1299,7 @@
     "defaultMessage": "Copié !"
   },
   "FeC29AzS2o": {
-    "defaultMessage": "Hyperlocalise logo"
+    "defaultMessage": "Logo Hyperlocalise"
   },
   "Fhrua/1XPG": {
     "defaultMessage": "Révisez les traductions sans deviner ce que signifie la chaîne"
@@ -1346,11 +1346,14 @@
   "GZgOkkX0hj": {
     "defaultMessage": "Japonais (Japon)"
   },
+  "Ga0sjgCRoD": {
+    "defaultMessage": "Click to localize image"
+  },
   "GdufIv1RQV": {
     "defaultMessage": "Contentful"
   },
   "GfQL0NJI1y": {
-    "defaultMessage": "Contact support"
+    "defaultMessage": "Contacter l’assistance"
   },
   "GhvFdhdrp/": {
     "defaultMessage": "Joindre le contexte du produit"
@@ -1359,7 +1362,7 @@
     "defaultMessage": "Voir tous les projets"
   },
   "GmObeT3Tn1": {
-    "defaultMessage": "Expand chat"
+    "defaultMessage": "Développer le chat"
   },
   "GpQTuQOUij": {
     "defaultMessage": "Chargement de {title}"
@@ -1574,6 +1577,9 @@
   "JwDpy6S6NK": {
     "defaultMessage": "Passez d’un pilier du produit à l’autre sans quitter le parcours de la page de fonctionnalité."
   },
+  "K+AvrhTOJl": {
+    "defaultMessage": "Copied"
+  },
   "K4A2HqIbMM": {
     "defaultMessage": "Le contenu d’assistance devient obsolète dès sa publication en anglais"
   },
@@ -1749,7 +1755,7 @@
     "defaultMessage": "Installée sur {workspace}"
   },
   "N83FNjAdU2": {
-    "defaultMessage": "What localisation strings changed recently?"
+    "defaultMessage": "Quelles chaînes de localisation ont changé récemment ?"
   },
   "NBLnrSCLwC": {
     "defaultMessage": "Enregistrer le fournisseur"
@@ -1788,7 +1794,7 @@
     "defaultMessage": "Nom de l’espace de travail"
   },
   "NuylnhUe8K": {
-    "defaultMessage": "Ask Hyperlocalise…"
+    "defaultMessage": "Demandez à Hyperlocalise…"
   },
   "NxMkWJ+eS3": {
     "defaultMessage": "Choisissez un projet Hyperlocalise pour extraire les traductions."
@@ -1989,7 +1995,7 @@
     "defaultMessage": "Une refonte de la page des tarifs ouvre une pull request mardi"
   },
   "QpIX9JaUhS": {
-    "defaultMessage": "Check localisation progress"
+    "defaultMessage": "Vérifier la progression de la localisation"
   },
   "Qy1pnimpzM": {
     "defaultMessage": "Bloquer la fusion lorsque les locales ne sont pas résolues"
@@ -2016,7 +2022,7 @@
     "defaultMessage": "Non enregistré"
   },
   "RUWijemH62": {
-    "defaultMessage": "The problem may be temporary. Try loading the page again, or return to your dashboard."
+    "defaultMessage": "Le problème est peut-être temporaire. Essayez de recharger la page ou retournez à votre tableau de bord."
   },
   "RWVk6HWH77": {
     "defaultMessage": "Attribuer les tâches de traduction, de relecture et d'assurance qualité en fonction de la langue, du type de contenu ou de l'expertise."
@@ -2053,6 +2059,9 @@
   },
   "RuN49xBd1k": {
     "defaultMessage": "La cible inclut {tokens} qui ne figure pas dans la chaîne source."
+  },
+  "Rw5WXF50Q2": {
+    "defaultMessage": "Copy"
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chaîne de pensée"
@@ -2104,6 +2113,9 @@
   },
   "SmMQDr7bGf": {
     "defaultMessage": "Les corrections, les choix terminologiques et le contexte produit cessent de disparaître dans les anciens commentaires."
+  },
+  "StSqQpNlpj": {
+    "defaultMessage": "Checking format & QA"
   },
   "Sz9XRZR4Jy": {
     "defaultMessage": "Ouvrez les tâches de relecture dans votre TMS"
@@ -2253,7 +2265,7 @@
     "defaultMessage": "Segment précédent ({shortcut})"
   },
   "VKjWHU/QDH": {
-    "defaultMessage": "What does this string mean, and where is it used?"
+    "defaultMessage": "Que signifie cette chaîne et où est-elle utilisée ?"
   },
   "VMLVh0fGup": {
     "defaultMessage": "Espace de travail"
@@ -2313,7 +2325,7 @@
     "defaultMessage": "Le panneau d’intelligence n’a pas pu se charger"
   },
   "W8paQ6RjZy": {
-    "defaultMessage": "How is localisation progress looking across linked TMS projects?"
+    "defaultMessage": "À quoi ressemble l’avancement de la localisation dans les projets TMS associés ?"
   },
   "WA49vhY6w5": {
     "defaultMessage": "Actualiser la liste des dépôts et les métadonnées depuis GitHub. Cela n’envoie ni ne récupère de traductions."
@@ -2459,6 +2471,9 @@
   "YUeo87Wdbn": {
     "defaultMessage": "Projets récents"
   },
+  "Ya0t4KyDVG": {
+    "defaultMessage": "Copy failed"
+  },
   "YaKRAqJTYd": {
     "defaultMessage": "Arrêtez de relire des chaînes dans le noir."
   },
@@ -2529,7 +2544,7 @@
     "defaultMessage": "Les traductions approuvées retournent dans le TMS, le dépôt ou le flux de publication au lieu de rester bloquées dans le chat."
   },
   "ZeUNHM/VrO": {
-    "defaultMessage": "Could not send your message. Try again."
+    "defaultMessage": "Impossible d’envoyer votre message. Veuillez réessayer."
   },
   "Zgi1lh5USb": {
     "defaultMessage": "Secret client de l’application OAuth {providerName}"
@@ -2754,7 +2769,7 @@
     "defaultMessage": "L’IA aide à expliquer les compromis, mais le réviseur humain garde le contrôle de la décision finale."
   },
   "d8Vs3k3UER": {
-    "defaultMessage": "This conversation is no longer available."
+    "defaultMessage": "Cette conversation n’est plus disponible."
   },
   "dCGRsZA2+G": {
     "defaultMessage": "suédois (Suède)"
@@ -3003,7 +3018,7 @@
     "defaultMessage": "Les conditions de base qui régissent l’utilisation des sites web, des documents et des services de Hyperlocalise."
   },
   "gvu/VOCeeU": {
-    "defaultMessage": "Open navigation menu"
+    "defaultMessage": "Ouvrir le menu de navigation"
   },
   "gyGnNuR5md": {
     "defaultMessage": "Obligatoire"
@@ -3075,10 +3090,10 @@
     "defaultMessage": "Secret : {secret}"
   },
   "hjMbjSqPe8": {
-    "defaultMessage": "Try again"
+    "defaultMessage": "Réessayer"
   },
   "homymlbTZo": {
-    "defaultMessage": "Translate the following text:"
+    "defaultMessage": "Invite préremplie lors de la sélection de la puce de traduction"
   },
   "huDfeEPmkj": {
     "defaultMessage": "Agnostique vis-à-vis du TMS"
@@ -3216,7 +3231,7 @@
     "defaultMessage": "Aucun article pour le moment. Revenez bientôt."
   },
   "jwTdsyTe54": {
-    "defaultMessage": "CAT Tool"
+    "defaultMessage": "Outil de TAO"
   },
   "jyL5Pnsg0T": {
     "defaultMessage": "Télécharger la conversation"
@@ -3306,7 +3321,7 @@
     "defaultMessage": "Google Gemini"
   },
   "l2MbFKxoMr": {
-    "defaultMessage": "Ask about strings, context, progress, or translations"
+    "defaultMessage": "Posez des questions sur les chaînes, le contexte, la progression ou les traductions"
   },
   "l5r0xPEJDX": {
     "defaultMessage": "Ajoutez au moins un motif de branche pour les déclencheurs de push."
@@ -3372,7 +3387,7 @@
     "defaultMessage": "Les déclencheurs push et planifiés s’excluent mutuellement."
   },
   "mGCNboJK+t": {
-    "defaultMessage": "Sign in"
+    "defaultMessage": "Se connecter"
   },
   "mKEoYdlq74": {
     "defaultMessage": "Les développeurs fusionnent des modifications de chaînes quotidiennement. La qualité de la localisation dépend de quelqu’un qui se souvient de vérifier avant la mise en production."
@@ -3393,10 +3408,10 @@
     "defaultMessage": "Zoom arrière"
   },
   "mV0v+ofKFK": {
-    "defaultMessage": "New request"
+    "defaultMessage": "Nouvelle demande"
   },
   "mdDGkHBHvr": {
-    "defaultMessage": "Try again"
+    "defaultMessage": "Réessayer"
   },
   "mhdxPi6b4a": {
     "defaultMessage": "{providerName} jobs"
@@ -3822,7 +3837,7 @@
     "defaultMessage": "Contexte visuel"
   },
   "tLThxyOpTE": {
-    "defaultMessage": "We couldn't load this page"
+    "defaultMessage": "Nous n’avons pas pu charger cette page"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Compte"
@@ -3867,7 +3882,7 @@
     "defaultMessage": "Afficher le jeton"
   },
   "trM5T+lG0s": {
-    "defaultMessage": "Chat could not be displayed"
+    "defaultMessage": "Impossible d’afficher le chat"
   },
   "tsN6wGlUZC": {
     "defaultMessage": "La structure ICU cible doit correspondre à {tokens} de la chaîne source."
@@ -3990,7 +4005,7 @@
     "defaultMessage": "Échec"
   },
   "vVbXCgpKIh": {
-    "defaultMessage": "Open in Inbox"
+    "defaultMessage": "Ouvrir dans la boîte de réception"
   },
   "vWISliHekQ": {
     "defaultMessage": "ID client de l’application OAuth {providerName}"
@@ -4015,6 +4030,9 @@
   },
   "vfXyrNNj+X": {
     "defaultMessage": "Copier le nom"
+  },
+  "vp6YtfmYlV": {
+    "defaultMessage": "Format & QA warning ({count, plural, one {# issue} other {# issues}})"
   },
   "vq7ib8WdUv": {
     "defaultMessage": "Bref de campagne"
@@ -4041,7 +4059,7 @@
     "defaultMessage": "Centre d’aide Contentful"
   },
   "wANdpDUOzB": {
-    "defaultMessage": "Close chat"
+    "defaultMessage": "Fermer le chat"
   },
   "wAW00AgfLK": {
     "defaultMessage": "Échec de la publication du commentaire. Réessayez."
@@ -4068,7 +4086,7 @@
     "defaultMessage": "par défaut"
   },
   "wUNlUdJpD/": {
-    "defaultMessage": "Welcome to Hyperlocalise"
+    "defaultMessage": "Bienvenue sur Hyperlocalise"
   },
   "wYUzxhVyTO": {
     "defaultMessage": "p. ex. Crowdin Production"
@@ -4130,8 +4148,11 @@
   "xOFZqYtkn0": {
     "defaultMessage": "Quelques éléments nécessitent votre attention"
   },
+  "xQCn9y4Cu3": {
+    "defaultMessage": "Format & QA failed ({count, plural, one {# issue} other {# issues}})"
+  },
   "xSPEc7l3cj": {
-    "defaultMessage": "Go to dashboard"
+    "defaultMessage": "Accéder au tableau de bord"
   },
   "xX2Nm+qioI": {
     "defaultMessage": "Nous avons créé l’espace de travail, mais nous n’avons pas pu préparer son URL. Veuillez réessayer."
@@ -4200,7 +4221,7 @@
     "defaultMessage": "Exécute <command>hl check</command> sur les fichiers de traduction du dépôt."
   },
   "yZhpu31YiJ": {
-    "defaultMessage": "Collapse chat"
+    "defaultMessage": "Réduire le chat"
   },
   "yh5N07rqk9": {
     "defaultMessage": "Conçu pour des workflows de publication pilotés par les développeurs"
