@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
@@ -293,6 +293,8 @@ export function CatTargetEditor({
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -314,7 +316,13 @@ export function CatTargetEditor({
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      onChange(editorText(activeEditor));
+      const nextValue = editorText(activeEditor);
+      // Ignore no-op updates (e.g. mount/focus round-trips) so focusing a loaded
+      // translation does not mark the segment as an unsaved draft.
+      if (nextValue === valueRef.current) {
+        return;
+      }
+      onChange(nextValue);
     },
     editorProps: {
       attributes: {

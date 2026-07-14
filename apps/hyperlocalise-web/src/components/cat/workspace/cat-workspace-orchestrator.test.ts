@@ -352,6 +352,35 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
   });
 
+  it("prefers the first server translation over a speculative TM auto-fill draft", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
+        segments: [],
+      }),
+    );
+
+    store.setTargetText("seg-01", "Bonjour depuis la MT");
+    store.autoFilledSegmentIds.add("seg-01");
+    expect(store.hasHydratedTarget("seg-01")).toBe(false);
+    expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour",
+      status: "needs_review",
+    });
+    expect(store.hasHydratedTarget("seg-01")).toBe(true);
+    expect(store.dirtySegmentIds.has("seg-01")).toBe(false);
+    expect(store.autoFilledSegmentIds.has("seg-01")).toBe(false);
+  });
+
   it("keeps lazy-loaded comments when queue snapshots omit comment bodies", () => {
     const queueState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",

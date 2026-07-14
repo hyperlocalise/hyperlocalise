@@ -1,3 +1,4 @@
+import { reaction, type IReactionDisposer } from "mobx";
 import type { IntlShape } from "react-intl";
 
 import {
@@ -37,6 +38,8 @@ export class CatIntelligenceController {
       promise: Promise<CatSegmentConcordanceResult | undefined>;
     }
   >();
+  private pendingAutoFill = new Map<string, CatSegmentConcordanceResult>();
+  private pendingAutoFillDisposer?: IReactionDisposer;
   private visualContextLoadingSegmentId: string | null = null;
   private disposed = false;
 
@@ -54,6 +57,7 @@ export class CatIntelligenceController {
       this.loadedSegmentIds.clear();
       this.concordanceAttempts.clear();
       this.inFlight.clear();
+      this.pendingAutoFill.clear();
     }
     if (previousServices?.lookupSegmentContext !== ports.services?.lookupSegmentContext) {
       this.invalidateContextLookupGeneration();
@@ -68,11 +72,33 @@ export class CatIntelligenceController {
 
   start() {
     this.disposed = false;
+    this.pendingAutoFillDisposer?.();
+    // Depend on the hydrated-target set (not pendingAutoFill) so lazy target
+    // arrival retriggers a flush of any concordance that resolved too early.
+    this.pendingAutoFillDisposer = reaction(
+      () => [...this.workspace.hydratedTargetSegmentIds],
+      (hydratedIds) => {
+        if (this.pendingAutoFill.size === 0) {
+          return;
+        }
+        const hydrated = new Set(hydratedIds);
+        for (const [segmentId, concordance] of [...this.pendingAutoFill.entries()]) {
+          if (!hydrated.has(segmentId)) {
+            continue;
+          }
+          this.pendingAutoFill.delete(segmentId);
+          this.applyAutoFill(segmentId, concordance);
+        }
+      },
+    );
   }
 
   dispose() {
     this.disposed = true;
     this.inFlight.clear();
+    this.pendingAutoFill.clear();
+    this.pendingAutoFillDisposer?.();
+    this.pendingAutoFillDisposer = undefined;
   }
 
   async loadConcordance(
@@ -288,6 +314,15 @@ export class CatIntelligenceController {
   }
 
   private applyAutoFill(segmentId: string, concordance: CatSegmentConcordanceResult) {
+    if (!this.workspace.hasHydratedTarget(segmentId)) {
+      // Wait for the lazy target fetch so an existing translation is not replaced
+      // by TM auto-fill (which would mark the segment dirty without a user edit).
+      this.pendingAutoFill.set(segmentId, concordance);
+      return;
+    }
+
+    this.pendingAutoFill.delete(segmentId);
+
     const segment = this.workspace.getSegmentView(segmentId);
     const bestMatch = selectBestTmMatchForAutoFill(
       concordance.translationMemoryMatches,

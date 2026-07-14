@@ -170,6 +170,8 @@ export class CatWorkspaceOrchestrator {
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
   private initialSegmentJumpApplied = false;
   autoFilledSegmentIds = new Set<string>();
+  /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
+  hydratedTargetSegmentIds = new Set<string>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -590,7 +592,12 @@ export class CatWorkspaceOrchestrator {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
     this.autoFilledSegmentIds = new Set();
+    this.hydratedTargetSegmentIds = new Set();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
+  }
+
+  hasHydratedTarget(segmentId: string) {
+    return this.hydratedTargetSegmentIds.has(segmentId);
   }
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
@@ -702,23 +709,39 @@ export class CatWorkspaceOrchestrator {
     }
 
     const existingDraft = this.drafts.get(segmentId);
+    const wasHydrated = this.hydratedTargetSegmentIds.has(segmentId);
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
-        existingDraft.applyServerStatus(status);
+        // TM auto-fill can race ahead of the first lazy target fetch. Prefer the
+        // authoritative server translation over that speculative draft.
+        if (
+          !wasHydrated &&
+          this.autoFilledSegmentIds.has(segmentId) &&
+          targetText.trim().length > 0
+        ) {
+          existingDraft.applyServerTarget(targetText, status);
+          this.autoFilledSegmentIds.delete(segmentId);
+        } else {
+          existingDraft.applyServerStatus(status);
+        }
+        this.hydratedTargetSegmentIds.add(segmentId);
         return;
       }
 
       if (existingDraft.targetText.trim() && !targetText.trim()) {
         existingDraft.applyServerStatus(status);
+        this.hydratedTargetSegmentIds.add(segmentId);
         return;
       }
 
       existingDraft.applyServerTarget(targetText, status);
+      this.hydratedTargetSegmentIds.add(segmentId);
       return;
     }
 
     this.drafts.set(segmentId, new CatSegmentDraft(segmentId, targetText, status));
+    this.hydratedTargetSegmentIds.add(segmentId);
   }
 
   applySegmentComments(segmentId: string, comments: ProjectFileCatComment[]) {
@@ -757,6 +780,7 @@ export class CatWorkspaceOrchestrator {
     this.segmentMeta.clear();
     this.segmentComments.clear();
     this.drafts.clear();
+    this.hydratedTargetSegmentIds = new Set();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const meta of queueSegments) {
@@ -771,10 +795,12 @@ export class CatWorkspaceOrchestrator {
     this.segmentMeta.clear();
     this.segmentComments.clear();
     this.drafts.clear();
+    this.hydratedTargetSegmentIds = new Set();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
       this.segmentMeta.set(segment.id, toQueueSegment(segment));
+      this.hydratedTargetSegmentIds.add(segment.id);
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
       }
@@ -808,6 +834,8 @@ export class CatWorkspaceOrchestrator {
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
+          this.hydratedTargetSegmentIds.delete(segmentId);
+          this.autoFilledSegmentIds.delete(segmentId);
         }
       }
     }
