@@ -79,14 +79,17 @@ export function ReplyComposerView({
   const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
   const promptInputController = usePromptInputController();
+  // Stable across keystrokes; the controller object itself is recreated whenever
+  // textInput changes, so it must not be an effect dependency.
+  const setInput = promptInputController.textInput.setInput;
 
+  // Sync only when the external draft prop changes (e.g. suggestion chips).
+  // Depending on the controller identity or local replyText re-ran this on every
+  // keystroke and reset the textarea when draft lagged one render behind.
   useEffect(() => {
-    if (draft === replyText) {
-      return;
-    }
     setReplyText(draft);
-    promptInputController.textInput.setInput(draft);
-  }, [draft, promptInputController, replyText]);
+    setInput(draft);
+  }, [draft, setInput]);
 
   useEffect(() => {
     if (
