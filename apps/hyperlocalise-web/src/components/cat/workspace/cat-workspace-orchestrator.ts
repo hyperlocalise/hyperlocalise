@@ -170,6 +170,10 @@ export class CatWorkspaceOrchestrator {
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
   private initialSegmentJumpApplied = false;
   autoFilledSegmentIds = new Set<string>();
+  /** Target text written by TM auto-fill; used to detect untouched speculative drafts. */
+  autoFilledTargetTexts = new Map<string, string>();
+  /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
+  hydratedTargetSegmentIds = new Set<string>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -590,7 +594,30 @@ export class CatWorkspaceOrchestrator {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
     this.autoFilledSegmentIds = new Set();
+    this.autoFilledTargetTexts = new Map();
+    this.hydratedTargetSegmentIds = new Set();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
+  }
+
+  hasHydratedTarget(segmentId: string) {
+    return this.hydratedTargetSegmentIds.has(segmentId);
+  }
+
+  markAutoFilledTarget(segmentId: string, targetText: string) {
+    this.autoFilledSegmentIds.add(segmentId);
+    this.autoFilledTargetTexts.set(segmentId, targetText);
+  }
+
+  clearAutoFilledTarget(segmentId: string) {
+    this.autoFilledSegmentIds.delete(segmentId);
+    this.autoFilledTargetTexts.delete(segmentId);
+  }
+
+  private isUntouchedAutoFilledDraft(segmentId: string, draft: CatSegmentDraft) {
+    return (
+      this.autoFilledSegmentIds.has(segmentId) &&
+      draft.targetText === this.autoFilledTargetTexts.get(segmentId)
+    );
   }
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
@@ -705,20 +732,34 @@ export class CatWorkspaceOrchestrator {
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
-        existingDraft.applyServerStatus(status);
+        // Prefer authoritative server text over an untouched TM auto-fill draft,
+        // including when an empty first hydrate was later followed by a real translation.
+        if (
+          targetText.trim().length > 0 &&
+          this.isUntouchedAutoFilledDraft(segmentId, existingDraft)
+        ) {
+          existingDraft.applyServerTarget(targetText, status);
+          this.clearAutoFilledTarget(segmentId);
+        } else {
+          existingDraft.applyServerStatus(status);
+        }
+        this.hydratedTargetSegmentIds.add(segmentId);
         return;
       }
 
       if (existingDraft.targetText.trim() && !targetText.trim()) {
         existingDraft.applyServerStatus(status);
+        this.hydratedTargetSegmentIds.add(segmentId);
         return;
       }
 
       existingDraft.applyServerTarget(targetText, status);
+      this.hydratedTargetSegmentIds.add(segmentId);
       return;
     }
 
     this.drafts.set(segmentId, new CatSegmentDraft(segmentId, targetText, status));
+    this.hydratedTargetSegmentIds.add(segmentId);
   }
 
   applySegmentComments(segmentId: string, comments: ProjectFileCatComment[]) {
@@ -757,6 +798,7 @@ export class CatWorkspaceOrchestrator {
     this.segmentMeta.clear();
     this.segmentComments.clear();
     this.drafts.clear();
+    this.hydratedTargetSegmentIds = new Set();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const meta of queueSegments) {
@@ -771,10 +813,12 @@ export class CatWorkspaceOrchestrator {
     this.segmentMeta.clear();
     this.segmentComments.clear();
     this.drafts.clear();
+    this.hydratedTargetSegmentIds = new Set();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
       this.segmentMeta.set(segment.id, toQueueSegment(segment));
+      this.hydratedTargetSegmentIds.add(segment.id);
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
       }
@@ -808,6 +852,8 @@ export class CatWorkspaceOrchestrator {
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
+          this.hydratedTargetSegmentIds.delete(segmentId);
+          this.clearAutoFilledTarget(segmentId);
         }
       }
     }

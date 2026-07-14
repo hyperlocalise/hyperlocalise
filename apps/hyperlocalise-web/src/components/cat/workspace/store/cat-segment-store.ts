@@ -60,6 +60,9 @@ export class CatSegmentStore {
   setTargetText(segmentId: string, value: string, existsInQueue: boolean) {
     const draft = this.drafts.get(segmentId);
     if (draft) {
+      if (draft.targetText === value) {
+        return;
+      }
       draft.setTargetText(value);
     } else if (existsInQueue) {
       const nextDraft = new CatSegmentDraft(segmentId, "", "pending");
