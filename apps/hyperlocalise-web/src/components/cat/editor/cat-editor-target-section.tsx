@@ -43,12 +43,12 @@ export function CatEditorTargetSection({
         </h3>
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onCopySource} disabled={isLoading}>
+            <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>
               <FormattedMessage {...catEditorPanelMessages.copySource} />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={onClearTarget}
               disabled={isLoading || segment.targetText.length === 0}
             >

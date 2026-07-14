@@ -5,7 +5,11 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { cn } from "@/lib/primitives/cn";
 
-import type { CatSegment } from "@/components/cat/shared/types";
+import type {
+  CatFormatCheck,
+  CatSegment,
+  CatSegmentIntelligence,
+} from "@/components/cat/shared/types";
 
 import { CatSideBySideRow } from "./cat-side-by-side-row";
 
@@ -25,6 +29,10 @@ export function CatSideBySideVirtualList({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  canUseAiRecommendation = false,
+  focusedIntelligence = null,
+  aiRecommendationError,
+  formatChecks = [],
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
@@ -32,6 +40,9 @@ export function CatSideBySideVirtualList({
   onTargetChange,
   onApprove,
   onSaveDraft,
+  onAddToIssueSheet,
+  onUseAiSuggestion,
+  onGenerateAiRecommendation,
   onTreatAsImage,
   onRegenerateImage,
   onUploadImage,
@@ -53,6 +64,10 @@ export function CatSideBySideVirtualList({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  canUseAiRecommendation?: boolean;
+  focusedIntelligence?: CatSegmentIntelligence | null;
+  aiRecommendationError?: string;
+  formatChecks?: CatFormatCheck[];
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
@@ -60,6 +75,9 @@ export function CatSideBySideVirtualList({
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
   onSaveDraft?: (segmentId: string) => void;
+  onAddToIssueSheet?: (segmentId: string) => void;
+  onUseAiSuggestion?: (segmentId: string) => void;
+  onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
@@ -163,15 +181,32 @@ export function CatSideBySideVirtualList({
                 isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
                 isPostingComment={isPostingComment}
                 isLookingUpContext={isLookingUpContext}
-                isAiSuggestionLoading={isAiSuggestionLoading}
-                isFormatChecksLoading={isFormatChecksLoading}
+                isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
+                isFormatChecksLoading={isFormatChecksLoading && segment.id === focusedSegmentId}
                 isImageBusy={isImageBusy && segment.id === focusedSegmentId}
+                canUseAiRecommendation={canUseAiRecommendation}
+                intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
+                aiRecommendationError={
+                  segment.id === focusedSegmentId ? aiRecommendationError : undefined
+                }
+                formatChecks={segment.id === focusedSegmentId ? formatChecks : []}
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}
                 onTargetChange={(value) => onTargetChange(segment.id, value)}
                 onApprove={onApprove ? () => onApprove(segment.id) : undefined}
                 onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
+                onAddToIssueSheet={
+                  onAddToIssueSheet ? () => onAddToIssueSheet(segment.id) : undefined
+                }
+                onUseAiSuggestion={
+                  onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
+                }
+                onGenerateAiRecommendation={
+                  onGenerateAiRecommendation
+                    ? () => onGenerateAiRecommendation(segment.id)
+                    : undefined
+                }
                 onTreatAsImage={
                   onTreatAsImage
                     ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)

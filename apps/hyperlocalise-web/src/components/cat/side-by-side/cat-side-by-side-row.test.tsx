@@ -95,6 +95,151 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
 
+  it("shows copy source and clear for focused text rows", async () => {
+    const user = userEvent.setup();
+    const onTargetChange = vi.fn();
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = state.segments!.find((item) => item.id === "seg-02")!;
+
+    renderRow({ segment, onTargetChange });
+
+    expect(screen.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Clear target/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Copy source/i }));
+    expect(onTargetChange).toHaveBeenCalledWith(segment.sourceText);
+
+    await user.click(screen.getByRole("button", { name: /Clear target/i }));
+    expect(onTargetChange).toHaveBeenCalledWith("");
+  });
+
+  it("shows AI recommendation when enabled for focused text rows", async () => {
+    const user = userEvent.setup();
+    const onUseAiSuggestion = vi.fn();
+    const onGenerateAiRecommendation = vi.fn();
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const intelligence = state.intelligence!;
+
+    renderRow({
+      canUseAiRecommendation: true,
+      intelligence,
+      onUseAiSuggestion,
+      onGenerateAiRecommendation,
+    });
+
+    expect(screen.getByText(/AI recommendation/i)).toBeInTheDocument();
+    expect(screen.getByText(intelligence.aiSuggestion!)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Use$/i }));
+    expect(onUseAiSuggestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides copy source, clear, and AI recommendation when not focused", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+
+    renderRow({
+      isFocused: false,
+      canUseAiRecommendation: true,
+      intelligence: state.intelligence!,
+      onUseAiSuggestion: vi.fn(),
+    });
+
+    expect(screen.queryByRole("button", { name: /Copy source/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
+  });
+
+  it("shows character count for focused text rows", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      maxLength: 80,
+      targetText: "Hello",
+    };
+
+    renderRow({ segment });
+
+    expect(screen.getByText("5/80 characters")).toBeInTheDocument();
+  });
+
+  it("shows format and QA checks when available for focused text rows", () => {
+    renderRow({
+      formatChecks: [
+        {
+          id: "check-placeholders",
+          label: "Placeholders & markup",
+          status: "pass",
+          message: "No placeholders required.",
+          category: "placeholder",
+        },
+        {
+          id: "check-terminology",
+          label: "Terminology consistency",
+          status: "warn",
+          message: "Ambiguous noun: review",
+          category: "terminology",
+        },
+      ],
+    });
+
+    expect(screen.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    expect(screen.getByText("Terminology consistency")).toBeInTheDocument();
+    expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
+  });
+
+  it("hides format and QA checks when there are none", () => {
+    renderRow({ formatChecks: [] });
+
+    expect(screen.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
+  });
+
+  it("hides format and QA checks when every check passed", () => {
+    renderRow({
+      formatChecks: [
+        {
+          id: "check-placeholders",
+          label: "Placeholders & markup",
+          status: "pass",
+          message: "No placeholders required.",
+          category: "placeholder",
+        },
+      ],
+    });
+
+    expect(screen.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
+  });
+
+  it("hides ICU structure summary when the source has no ICU blocks", () => {
+    renderRow();
+
+    expect(screen.queryByText(/ICU structure/i)).not.toBeInTheDocument();
+  });
+
+  it("shows required tokens and ICU structure for focused ICU rows", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      sourceText: "Hello {name}, you have {count, plural, one {# review} other {# reviews}}.",
+      targetText: "Xin chào {name}.",
+    };
+
+    renderRow({ segment });
+
+    expect(screen.getByText(/Required tokens/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "{name}" })).toBeInTheDocument();
+    expect(screen.getByText(/ICU structure/i)).toBeInTheDocument();
+  });
+
+  it("shows add to issue sheet when provided for focused text rows", async () => {
+    const user = userEvent.setup();
+    const onAddToIssueSheet = vi.fn();
+
+    renderRow({ isDirty: false, onAddToIssueSheet });
+
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Add to issue sheet/i }));
+    expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
+  });
+
   it("renders image upload controls for image segments", () => {
     const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
     const segment = {

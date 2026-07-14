@@ -27,6 +27,7 @@ import {
   catWorkspaceMessages,
 } from "@/components/cat/shared/cat.messages";
 import type {
+  CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
   CatSegmentCommentInput,
@@ -72,6 +73,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  canUseAiRecommendation = false,
+  focusedIntelligence = null,
+  aiRecommendationError,
+  formatChecks = [],
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -92,6 +97,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onTargetChange,
   onApprove,
   onSaveDraft,
+  onAddToIssueSheet,
+  onUseAiSuggestion,
+  onGenerateAiRecommendation,
   onTreatAsImage,
   onRegenerateImage,
   onUploadImage,
@@ -123,6 +131,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  canUseAiRecommendation?: boolean;
+  focusedIntelligence?: CatSegmentIntelligence | null;
+  aiRecommendationError?: string;
+  formatChecks?: CatFormatCheck[];
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -143,6 +155,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
   onSaveDraft?: (segmentId: string) => void;
+  onAddToIssueSheet?: (segmentId: string) => void;
+  onUseAiSuggestion?: (segmentId: string) => void;
+  onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
@@ -293,6 +308,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               isAiSuggestionLoading={isAiSuggestionLoading}
               isFormatChecksLoading={isFormatChecksLoading}
               isImageBusy={isImageBusy}
+              canUseAiRecommendation={canUseAiRecommendation}
+              focusedIntelligence={focusedIntelligence}
+              aiRecommendationError={aiRecommendationError}
+              formatChecks={formatChecks}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
@@ -300,6 +319,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               onTargetChange={onTargetChange}
               onApprove={onApprove}
               onSaveDraft={onSaveDraft}
+              onAddToIssueSheet={onAddToIssueSheet}
+              onUseAiSuggestion={onUseAiSuggestion}
+              onGenerateAiRecommendation={onGenerateAiRecommendation}
               onTreatAsImage={onTreatAsImage}
               onRegenerateImage={onRegenerateImage}
               onUploadImage={onUploadImage}

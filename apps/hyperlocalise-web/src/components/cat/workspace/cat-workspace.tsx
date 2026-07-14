@@ -276,6 +276,10 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isImageBusy={isImageBusy}
+          canUseAiRecommendation={canUseAiRecommendation}
+          focusedIntelligence={selectedSegmentIntelligence}
+          aiRecommendationError={aiRecommendationError}
+          formatChecks={selectedSegmentFormatChecks}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={
@@ -312,6 +316,17 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
                   }
                   void review.onSaveDraft?.(segmentId, targetText);
                 }
+              : undefined
+          }
+          onAddToIssueSheet={
+            review.onAddToIssueSheet
+              ? (segmentId) => void review.onAddToIssueSheet?.(segmentId)
+              : undefined
+          }
+          onUseAiSuggestion={(segmentId) => editing.onUseAiSuggestion(segmentId)}
+          onGenerateAiRecommendation={
+            canUseAiRecommendation
+              ? (segmentId) => void review.onReviewWithAi(segmentId)
               : undefined
           }
           onTreatAsImage={
