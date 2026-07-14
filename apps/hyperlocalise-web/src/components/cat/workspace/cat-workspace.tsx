@@ -355,13 +355,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               : undefined
           }
           onUseTmMatch={(segmentId, match) => editing.onUseTmMatch(segmentId, match)}
-          onUseGlossaryTerm={(segmentId, term) =>
-            editing.onUseGlossaryTerm(
-              segmentId,
-              term,
-              queueSegments.find((segment) => segment.id === segmentId)?.sourceText ?? "",
-            )
-          }
           onAddComment={
             review.onAddComment
               ? (segmentId, input) => review.onAddComment?.(segmentId, input)
@@ -521,9 +514,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
-          onUseGlossaryTerm={(term) =>
-            editing.onUseGlossaryTerm(editorSegment.id, term, editorSegment.sourceText)
-          }
         />
       </CatPanelErrorBoundary>
     );

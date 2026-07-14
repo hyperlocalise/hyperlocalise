@@ -254,7 +254,6 @@ export function CatIntelligencePanel({
   canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
-  onUseGlossaryTerm: _onUseGlossaryTerm,
 }: {
   intelligence: CatSegmentIntelligence;
   targetText?: string;
@@ -267,7 +266,6 @@ export function CatIntelligencePanel({
   canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);

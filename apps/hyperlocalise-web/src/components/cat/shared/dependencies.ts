@@ -35,7 +35,6 @@ export interface CatWorkspaceEditing {
   onTargetChange: (segmentId: string, value: string) => void;
   onUseAiSuggestion: (segmentId: string) => void;
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
   onRegenerateImage?: (segmentId: string) => void | Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
@@ -163,7 +162,6 @@ export const noopCatDependencies: CatWorkspaceDependencies = {
     onTargetChange: () => undefined,
     onUseAiSuggestion: () => undefined,
     onUseTmMatch: () => undefined,
-    onUseGlossaryTerm: () => undefined,
   },
   review: {
     onApprove: () => undefined,

@@ -664,8 +664,12 @@ export class CatWorkspaceOrchestrator {
       }
 
       if (currentShell.selectedSegmentId !== this.selectedSegmentId) {
+        // Snapshot formatChecks are authoritative for the snapshot's selected segment.
+        // Prefer them over segmentFormatChecks, which may still hold defaults for that id.
         this.formatChecks =
-          this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks;
+          this.selectedSegmentId === normalizedNext.selectedSegmentId
+            ? normalizedNext.formatChecks
+            : (this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks);
       }
 
       this.revealedAgentContextSegmentIds = new Set([

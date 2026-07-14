@@ -28,7 +28,6 @@ import {
 } from "@/components/cat/shared/cat.messages";
 import type {
   CatFormatCheck,
-  CatGlossaryTerm,
   CatSegment,
   CatSegmentCommentInput,
   CatSegmentIntelligence,
@@ -108,7 +107,6 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
-  onUseGlossaryTerm,
   onAddComment,
   onResolveComment,
   primaryActionLabel,
@@ -170,7 +168,6 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm?: (segmentId: string, term: CatGlossaryTerm) => void;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   primaryActionLabel?: string;
@@ -407,11 +404,6 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           onUseTmMatch={
             onUseTmMatch && intelligenceSegment
               ? (match) => onUseTmMatch(intelligenceSegmentId, match)
-              : undefined
-          }
-          onUseGlossaryTerm={
-            onUseGlossaryTerm && intelligenceSegment
-              ? (term) => onUseGlossaryTerm(intelligenceSegmentId, term)
               : undefined
           }
           onAddComment={

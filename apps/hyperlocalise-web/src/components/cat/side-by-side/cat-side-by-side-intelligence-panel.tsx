@@ -17,7 +17,6 @@ import {
   catSideBySidePanelMessages,
 } from "@/components/cat/shared/cat.messages";
 import type {
-  CatGlossaryTerm,
   CatSegment,
   CatSegmentCommentInput,
   CatSegmentIntelligence,
@@ -48,7 +47,6 @@ export function CatSideBySideIntelligencePanel({
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
-  onUseGlossaryTerm,
   onAddComment,
   onResolveComment,
   placement = "bottom",
@@ -77,7 +75,6 @@ export function CatSideBySideIntelligencePanel({
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
   placement?: "bottom" | "right";
@@ -137,7 +134,6 @@ export function CatSideBySideIntelligencePanel({
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
-      onUseGlossaryTerm={onUseGlossaryTerm}
     />
   );
   const commentsPanel = (
