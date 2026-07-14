@@ -341,7 +341,7 @@ export class CatIntelligenceController {
       return;
     }
 
-    this.workspace.autoFilledSegmentIds.add(segmentId);
+    this.workspace.markAutoFilledTarget(segmentId, bestMatch.targetText);
     this.workspace.setTargetText(segmentId, bestMatch.targetText);
     this.ports.editing?.onTargetChange?.(segmentId, bestMatch.targetText);
   }

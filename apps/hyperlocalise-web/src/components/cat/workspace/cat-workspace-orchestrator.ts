@@ -170,6 +170,8 @@ export class CatWorkspaceOrchestrator {
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
   private initialSegmentJumpApplied = false;
   autoFilledSegmentIds = new Set<string>();
+  /** Target text written by TM auto-fill; used to detect untouched speculative drafts. */
+  autoFilledTargetTexts = new Map<string, string>();
   /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
   hydratedTargetSegmentIds = new Set<string>();
 
@@ -592,12 +594,30 @@ export class CatWorkspaceOrchestrator {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
     this.autoFilledSegmentIds = new Set();
+    this.autoFilledTargetTexts = new Map();
     this.hydratedTargetSegmentIds = new Set();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
   hasHydratedTarget(segmentId: string) {
     return this.hydratedTargetSegmentIds.has(segmentId);
+  }
+
+  markAutoFilledTarget(segmentId: string, targetText: string) {
+    this.autoFilledSegmentIds.add(segmentId);
+    this.autoFilledTargetTexts.set(segmentId, targetText);
+  }
+
+  clearAutoFilledTarget(segmentId: string) {
+    this.autoFilledSegmentIds.delete(segmentId);
+    this.autoFilledTargetTexts.delete(segmentId);
+  }
+
+  private isUntouchedAutoFilledDraft(segmentId: string, draft: CatSegmentDraft) {
+    return (
+      this.autoFilledSegmentIds.has(segmentId) &&
+      draft.targetText === this.autoFilledTargetTexts.get(segmentId)
+    );
   }
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
@@ -709,19 +729,17 @@ export class CatWorkspaceOrchestrator {
     }
 
     const existingDraft = this.drafts.get(segmentId);
-    const wasHydrated = this.hydratedTargetSegmentIds.has(segmentId);
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
-        // TM auto-fill can race ahead of the first lazy target fetch. Prefer the
-        // authoritative server translation over that speculative draft.
+        // Prefer authoritative server text over an untouched TM auto-fill draft,
+        // including when an empty first hydrate was later followed by a real translation.
         if (
-          !wasHydrated &&
-          this.autoFilledSegmentIds.has(segmentId) &&
-          targetText.trim().length > 0
+          targetText.trim().length > 0 &&
+          this.isUntouchedAutoFilledDraft(segmentId, existingDraft)
         ) {
           existingDraft.applyServerTarget(targetText, status);
-          this.autoFilledSegmentIds.delete(segmentId);
+          this.clearAutoFilledTarget(segmentId);
         } else {
           existingDraft.applyServerStatus(status);
         }
@@ -835,7 +853,7 @@ export class CatWorkspaceOrchestrator {
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
-          this.autoFilledSegmentIds.delete(segmentId);
+          this.clearAutoFilledTarget(segmentId);
         }
       }
     }
