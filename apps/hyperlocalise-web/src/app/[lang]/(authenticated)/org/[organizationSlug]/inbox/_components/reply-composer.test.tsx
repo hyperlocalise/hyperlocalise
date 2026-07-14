@@ -62,6 +62,45 @@ describe("ReplyComposerView draft sync", () => {
     expect(onDraftChange).toHaveBeenLastCalledWith("Translate the checkout page");
   });
 
+  it("keeps typed characters when a stale parent draft rerenders the composer", async () => {
+    const user = userEvent.setup();
+    const onDraftChange = vi.fn();
+
+    function StaleDraftHarness() {
+      const [rerenderCount, setRerenderCount] = useState(0);
+
+      return (
+        <>
+          <div data-testid="rerender-count">{rerenderCount}</div>
+          <PromptInputProvider initialInput="">
+            <ReplyComposerView
+              disabled={false}
+              draft=""
+              isStreaming={false}
+              onDraftChange={(next) => {
+                onDraftChange(next);
+                setRerenderCount((count) => count + 1);
+              }}
+              onSend={vi.fn()}
+              repositories={repositoriesFixture}
+              repositoriesIsError={false}
+              repositoriesIsLoading={false}
+            />
+          </PromptInputProvider>
+        </>
+      );
+    }
+
+    renderComposer(<StaleDraftHarness />);
+
+    const textarea = screen.getByRole("textbox");
+    await user.type(textarea, "Hello dock");
+
+    expect(screen.getByTestId("rerender-count")).toHaveTextContent("10");
+    expect(textarea).toHaveValue("Hello dock");
+    expect(onDraftChange).toHaveBeenLastCalledWith("Hello dock");
+  });
+
   it("keeps typed characters when draft is not controlled by a parent", async () => {
     const user = userEvent.setup();
 
