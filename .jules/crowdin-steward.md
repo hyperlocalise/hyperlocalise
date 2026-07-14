@@ -235,3 +235,9 @@
 ## 2026-11-28 - Improve Workflows ListSteps parity and pagination
 **Learning:** The `Workflows.ListSteps` endpoint in the Crowdin API v2 uses an integer for the project ID and supports pagination via `limit` and `offset`. The Go SDK was incorrectly using a string for the project ID and was missing pagination support for both the request and response models.
 **Action:** Updated `WorkflowsService.ListSteps` to accept `projectID` as an `int` and added `WorkflowStepsListOptions` for pagination. Added the `Pagination` field to `WorkflowStepsResponse`. Note that `WorkflowStep.Languages` at the project level uses string identifiers (e.g., "de"), which differs from the numeric IDs used at the workflow template level. Verified with updated contract tests in `workflows_test.go`.
+
+## 2026-12-05 - Improve Webhook model parity for Branch events and documentation
+
+**Learning:** Crowdin API v2 supports branch-level webhooks (`branch.translated`, `branch.approved`) which were missing from the SDK's `Event` type. Additionally, the service documentation was missing many modern events like file lifecycle, tasks, and groups, which can lead to confusion about supported capabilities.
+
+**Action:** Added `BranchTranslated` and `BranchApproved` constants to the `Event` model in `model/webhooks.go`. Comprehensively updated the docstrings for `WebhooksService` and `OrganizationWebhooksService` to list all supported events confirmed by documentation. Verified correct serialization of the new branch events with `TestWebhooksService_Add_BranchEvents`.

@@ -23,6 +23,10 @@ const (
 	FileTranslated Event = "file.translated"
 	// Project file is fully reviewed.
 	FileApproved Event = "file.approved"
+	// Project branch is fully translated.
+	BranchTranslated Event = "branch.translated"
+	// Project branch is fully reviewed.
+	BranchApproved Event = "branch.approved"
 	// File QA check is finished.
 	FileQAFinished Event = "file.qa.finished"
 	// All strings in project are translated.

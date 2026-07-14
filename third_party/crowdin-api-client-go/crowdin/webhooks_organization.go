@@ -14,6 +14,8 @@ import (
 // Webhooks can be configured for the following events:
 //   - Project is created
 //   - Project is deleted
+//   - Group is created
+//   - Group is deleted
 //
 // Use API to create, modify, and delete specific webhooks.
 //
