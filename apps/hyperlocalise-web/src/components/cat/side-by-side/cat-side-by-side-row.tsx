@@ -24,6 +24,9 @@ import {
   CatTargetEditor,
 } from "@/components/cat/editor/cat-target-editor";
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
+import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatSegmentTags } from "@/components/cat/segment/cat-segment-tags";
+import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
 import {
   catEditorPanelMessages,
   catSideBySidePanelMessages,
@@ -63,6 +66,8 @@ export function CatSideBySideRow({
   intelligence = null,
   aiRecommendationError,
   formatChecks = [],
+  primaryActionLabel,
+  segmentShareUrl = null,
   onFocus,
   onHover,
   onLeave,
@@ -93,6 +98,8 @@ export function CatSideBySideRow({
   intelligence?: CatSegmentIntelligence | null;
   aiRecommendationError?: string;
   formatChecks?: CatFormatCheck[];
+  primaryActionLabel?: string;
+  segmentShareUrl?: string | null;
   onFocus: () => void;
   onHover: () => void;
   onLeave: () => void;
@@ -108,6 +115,8 @@ export function CatSideBySideRow({
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
+  const resolvedPrimaryActionLabel =
+    primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const isActive = isFocused || isHovered;
   const isImageSegment = isImageEditorSegment(segment);
   const showImageSource = isImageSegment || Boolean(segment.looksLikeImageUrl);
@@ -164,6 +173,32 @@ export function CatSideBySideRow({
   const showActionBar = showReviewActions || showIssueSheetAction;
   const copySourceLabel = intl.formatMessage(catEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(catEditorPanelMessages.clearTarget);
+  const segmentTags = segment.tags ?? [];
+  const showShareButton = isFocused && Boolean(segmentShareUrl);
+  const shareButton =
+    showShareButton && segmentShareUrl ? (
+      <CatShareSegmentButton segmentShareUrl={segmentShareUrl} size="icon-xs" />
+    ) : null;
+  const statusAndTags = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {isTargetLoading ? null : <SegmentStatusBadge status={segment.status} />}
+      {segmentTags.length > 0 ? <CatSegmentTags tags={segmentTags} /> : null}
+    </div>
+  );
+  const sourceKeyMeta = (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-w-0 items-center gap-1">
+        <p
+          className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground"
+          title={segment.key}
+        >
+          {segment.key}
+        </p>
+        {shareButton}
+      </div>
+      {statusAndTags}
+    </div>
+  );
   const copyClearActions = showCopyClearActions ? (
     <div className="flex items-center gap-0.5">
       <Button
@@ -226,7 +261,7 @@ export function CatSideBySideRow({
             disabled={!canTriggerApprove}
           >
             {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
-            <FormattedMessage {...catEditorPanelMessages.approve} />
+            {resolvedPrimaryActionLabel}
             <CatEditorShortcutKbd
               shortcut="approve"
               isMac={isMac}
@@ -284,6 +319,10 @@ export function CatSideBySideRow({
               onTreatAsImage={onTreatAsImage}
               onRegenerate={onRegenerateImage}
             />
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              {statusAndTags}
+              {shareButton}
+            </div>
             {copyClearActions}
           </div>
         ) : isImageSegment ? (
@@ -299,12 +338,7 @@ export function CatSideBySideRow({
                 emptyLabel={intl.formatMessage(catEditorPanelMessages.imageSourceEmpty)}
                 className="min-h-24"
               />
-              <p
-                className="truncate font-mono text-[11px] text-muted-foreground"
-                title={segment.key}
-              >
-                {segment.key}
-              </p>
+              {sourceKeyMeta}
             </button>
             {showTreatAsImageAction ? (
               <div className="flex flex-wrap items-center gap-1.5">
@@ -331,9 +365,7 @@ export function CatSideBySideRow({
             <p className="text-sm leading-relaxed text-foreground">
               <CatMessagePreview message={segment.sourceText} />
             </p>
-            <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
-              {segment.key}
-            </p>
+            {sourceKeyMeta}
             {copyClearActions || showTreatAsImageAction ? (
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 {copyClearActions}
@@ -357,7 +389,7 @@ export function CatSideBySideRow({
               </div>
             ) : null}
           </div>
-        )}
+        )}{" "}
       </div>
 
       <div className={cn("min-w-0 px-4", isFocused ? "py-4" : "py-2.5")}>

@@ -35,6 +35,8 @@ export function CatSideBySideVirtualList({
   formatChecks = [],
   segmentFormatChecks,
   formatCheckLoadingSegmentIds,
+  primaryActionLabel,
+  segmentShareUrl = null,
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
@@ -72,6 +74,8 @@ export function CatSideBySideVirtualList({
   formatChecks?: CatFormatCheck[];
   segmentFormatChecks?: Record<string, CatFormatCheck[]>;
   formatCheckLoadingSegmentIds?: ReadonlySet<string>;
+  primaryActionLabel?: string;
+  segmentShareUrl?: string | null;
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
@@ -200,6 +204,8 @@ export function CatSideBySideVirtualList({
                   segmentFormatChecks?.[segment.id] ??
                   (segment.id === focusedSegmentId ? formatChecks : [])
                 }
+                primaryActionLabel={primaryActionLabel}
+                segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}

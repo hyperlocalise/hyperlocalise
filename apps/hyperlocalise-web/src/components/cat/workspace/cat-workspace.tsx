@@ -372,6 +372,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (segmentId, commentId) => review.onResolveComment?.(segmentId, commentId)
               : undefined
           }
+          primaryActionLabel={shell.primaryActionLabel}
+          segmentShareUrl={segmentShareUrl}
         />
       </CatPanelErrorBoundary>
     );

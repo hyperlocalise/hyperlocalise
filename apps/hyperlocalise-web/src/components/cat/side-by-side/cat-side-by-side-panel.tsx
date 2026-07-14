@@ -111,6 +111,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseGlossaryTerm,
   onAddComment,
   onResolveComment,
+  primaryActionLabel,
+  segmentShareUrl = null,
   className,
 }: {
   segments: CatSegment[];
@@ -171,6 +173,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseGlossaryTerm?: (segmentId: string, term: CatGlossaryTerm) => void;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
+  primaryActionLabel?: string;
+  segmentShareUrl?: string | null;
   className?: string;
 }) {
   const intl = useIntl();
@@ -318,6 +322,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               formatChecks={formatChecks}
               segmentFormatChecks={segmentFormatChecks}
               formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
+              primaryActionLabel={primaryActionLabel}
+              segmentShareUrl={segmentShareUrl}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}

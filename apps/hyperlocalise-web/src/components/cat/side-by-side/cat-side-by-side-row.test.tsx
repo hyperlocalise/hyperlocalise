@@ -43,6 +43,64 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByRole("button", { name: /Save as draft/i })).toBeInTheDocument();
   });
 
+  it("uses the provider primary action label when provided", () => {
+    renderRow({ primaryActionLabel: "Save to provider" });
+
+    expect(screen.getByRole("button", { name: /Save to provider/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/i })).not.toBeInTheDocument();
+  });
+
+  it("shows status badge and segment tags in the row chrome", () => {
+    renderRow({ isDirty: false });
+
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("dashboard")).toBeInTheDocument();
+    expect(screen.getByText("card")).toBeInTheDocument();
+    expect(screen.getByText("high impact")).toBeInTheDocument();
+  });
+
+  it("hides the status badge while the target is loading", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      status: "pending" as const,
+      targetText: "",
+    };
+
+    renderRow({ segment, isDirty: false, isTargetLoading: true });
+
+    expect(screen.queryByText("Untranslated")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs review")).not.toBeInTheDocument();
+  });
+
+  it("shows the share link button when focused with a share url", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderRow({ segmentShareUrl: "https://example.com/segments/seg-02" });
+
+    const shareButton = screen.getByRole("button", { name: /Copy link to this segment/i });
+    expect(shareButton).toBeInTheDocument();
+
+    await user.click(shareButton);
+    expect(writeText).toHaveBeenCalledWith("https://example.com/segments/seg-02");
+  });
+
+  it("hides the share link button when the row is not focused", () => {
+    renderRow({
+      isFocused: false,
+      segmentShareUrl: "https://example.com/segments/seg-02",
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /Copy link to this segment/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("hides approve actions when the focused row is clean", () => {
     renderRow({ isDirty: false });
 
