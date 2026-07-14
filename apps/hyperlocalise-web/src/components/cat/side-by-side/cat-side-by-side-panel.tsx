@@ -89,6 +89,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue,
   onFocusSegment,
   onTargetChange,
+  onApprove,
+  onSaveDraft,
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
@@ -134,6 +136,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue?: () => void;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
+  onApprove?: (segmentId: string) => void;
+  onSaveDraft?: (segmentId: string) => void;
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
@@ -274,11 +278,15 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               dirtySegmentIds={dirtySegmentIds}
               canEdit={canEditTranslations}
               loadingSegmentIds={loadingSegmentIds}
+              isApproving={isApproving}
+              isSavingDraft={isSavingDraft}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
               onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
               onTargetChange={onTargetChange}
+              onApprove={onApprove}
+              onSaveDraft={onSaveDraft}
               hasMore={hasMoreQueue}
               isLoadingMore={isFetchingPage}
               onNearEnd={onLoadMoreQueue}

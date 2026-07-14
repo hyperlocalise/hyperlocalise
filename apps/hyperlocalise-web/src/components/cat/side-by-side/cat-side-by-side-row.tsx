@@ -1,11 +1,17 @@
 "use client";
 
+import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage } from "react-intl";
 
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
+import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcut-kbd";
 import { CatMessagePreview, CatTargetEditor } from "@/components/cat/editor/cat-target-editor";
+import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 export function CatSideBySideRow({
@@ -15,10 +21,14 @@ export function CatSideBySideRow({
   isDirty,
   canEdit,
   isTargetLoading,
+  isApproving = false,
+  isSavingDraft = false,
   onFocus,
   onHover,
   onLeave,
   onTargetChange,
+  onApprove,
+  onSaveDraft,
 }: {
   segment: CatSegment;
   isFocused: boolean;
@@ -26,12 +36,44 @@ export function CatSideBySideRow({
   isDirty: boolean;
   canEdit: boolean;
   isTargetLoading: boolean;
+  isApproving?: boolean;
+  isSavingDraft?: boolean;
   onFocus: () => void;
   onHover: () => void;
   onLeave: () => void;
   onTargetChange: (value: string) => void;
+  onApprove?: () => void;
+  onSaveDraft?: () => void;
 }) {
+  const isMac = useIsMac();
   const isActive = isFocused || isHovered;
+  const hasTargetText = segment.targetText.trim().length > 0;
+  const isActionBlocked = isApproving || isSavingDraft;
+  const canTriggerApprove =
+    Boolean(onApprove) && canEdit && isDirty && hasTargetText && !isActionBlocked;
+  const showDirtyActions = isFocused && isDirty && canEdit && Boolean(onApprove);
+
+  useHotkeys(
+    "mod+enter",
+    (event) => {
+      const activeElement = document.activeElement;
+      if (
+        activeElement instanceof HTMLElement &&
+        activeElement.dataset.catCommentInput === "true"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      onApprove?.();
+    },
+    {
+      enabled: isFocused && canTriggerApprove,
+      enableOnFormTags: true,
+      preventDefault: true,
+    },
+    [canTriggerApprove, isFocused, onApprove],
+  );
 
   return (
     <div
@@ -58,13 +100,48 @@ export function CatSideBySideRow({
           isTargetLoading && !segment.targetText.trim() ? (
             <Skeleton className="h-10 w-full rounded-lg" />
           ) : (
-            <CatTargetEditor
-              sourceText={segment.sourceText}
-              value={segment.targetText}
-              maxLength={segment.maxLength}
-              compact
-              onChange={onTargetChange}
-            />
+            <div className="space-y-2">
+              <CatTargetEditor
+                sourceText={segment.sourceText}
+                value={segment.targetText}
+                maxLength={segment.maxLength}
+                compact
+                onChange={onTargetChange}
+              />
+              {showDirtyActions ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2.5"
+                    onClick={onApprove}
+                    disabled={!canTriggerApprove}
+                  >
+                    {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
+                    <FormattedMessage {...catEditorPanelMessages.approve} />
+                    <CatEditorShortcutKbd
+                      shortcut="approve"
+                      isMac={isMac}
+                      className="bg-primary-foreground/15 text-primary-foreground"
+                    />
+                  </Button>
+                  {onSaveDraft ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2.5"
+                      onClick={onSaveDraft}
+                      disabled={!canTriggerApprove}
+                    >
+                      {isSavingDraft ? <Spinner className="size-3.5" /> : null}
+                      <FormattedMessage {...catEditorPanelMessages.saveAsDraft} />
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           )
         ) : (
           <button type="button" className="w-full text-left" onClick={onFocus}>

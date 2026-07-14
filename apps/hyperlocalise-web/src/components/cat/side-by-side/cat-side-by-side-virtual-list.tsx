@@ -18,11 +18,15 @@ export function CatSideBySideVirtualList({
   dirtySegmentIds,
   canEdit,
   loadingSegmentIds,
+  isApproving = false,
+  isSavingDraft = false,
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
   onVisibleSegmentIdsChange,
   onTargetChange,
+  onApprove,
+  onSaveDraft,
   hasMore = false,
   isLoadingMore = false,
   onNearEnd,
@@ -34,11 +38,15 @@ export function CatSideBySideVirtualList({
   dirtySegmentIds?: ReadonlySet<string>;
   canEdit: boolean;
   loadingSegmentIds?: ReadonlySet<string>;
+  isApproving?: boolean;
+  isSavingDraft?: boolean;
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
   onVisibleSegmentIdsChange: (segmentIds: string[]) => void;
   onTargetChange: (segmentId: string, value: string) => void;
+  onApprove?: (segmentId: string) => void;
+  onSaveDraft?: (segmentId: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
@@ -135,10 +143,14 @@ export function CatSideBySideVirtualList({
                 isDirty={dirtySegmentIds?.has(segment.id) ?? false}
                 canEdit={canEdit}
                 isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
+                isApproving={isApproving && segment.id === focusedSegmentId}
+                isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}
                 onTargetChange={(value) => onTargetChange(segment.id, value)}
+                onApprove={onApprove ? () => onApprove(segment.id) : undefined}
+                onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
               />
             </div>
           );

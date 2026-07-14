@@ -295,6 +295,24 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onLoadMoreQueue={onLoadMoreQueue}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
+          onApprove={(segmentId) => {
+            const segment = queueSegments.find((item) => item.id === segmentId);
+            if (!segment) {
+              return;
+            }
+            void review.onApprove(segmentId, segment.targetText);
+          }}
+          onSaveDraft={
+            review.onSaveDraft
+              ? (segmentId) => {
+                  const segment = queueSegments.find((item) => item.id === segmentId);
+                  if (!segment) {
+                    return;
+                  }
+                  void review.onSaveDraft?.(segmentId, segment.targetText);
+                }
+              : undefined
+          }
           onAskQuestion={
             intelligenceSegment ? () => review.onAskQuestion(intelligenceSegment.id) : undefined
           }
