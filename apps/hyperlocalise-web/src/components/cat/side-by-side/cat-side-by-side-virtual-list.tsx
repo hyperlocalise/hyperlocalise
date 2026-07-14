@@ -24,6 +24,7 @@ export function CatSideBySideVirtualList({
   isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
+  isImageBusy = false,
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
@@ -31,6 +32,9 @@ export function CatSideBySideVirtualList({
   onTargetChange,
   onApprove,
   onSaveDraft,
+  onTreatAsImage,
+  onRegenerateImage,
+  onUploadImage,
   hasMore = false,
   isLoadingMore = false,
   onNearEnd,
@@ -48,6 +52,7 @@ export function CatSideBySideVirtualList({
   isLookingUpContext?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
+  isImageBusy?: boolean;
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
@@ -55,6 +60,9 @@ export function CatSideBySideVirtualList({
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
   onSaveDraft?: (segmentId: string) => void;
+  onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onRegenerateImage?: (segmentId: string) => void;
+  onUploadImage?: (segmentId: string, file: File) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
@@ -157,12 +165,24 @@ export function CatSideBySideVirtualList({
                 isLookingUpContext={isLookingUpContext}
                 isAiSuggestionLoading={isAiSuggestionLoading}
                 isFormatChecksLoading={isFormatChecksLoading}
+                isImageBusy={isImageBusy && segment.id === focusedSegmentId}
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}
                 onTargetChange={(value) => onTargetChange(segment.id, value)}
                 onApprove={onApprove ? () => onApprove(segment.id) : undefined}
                 onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
+                onTreatAsImage={
+                  onTreatAsImage
+                    ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
+                    : undefined
+                }
+                onRegenerateImage={
+                  onRegenerateImage ? () => onRegenerateImage(segment.id) : undefined
+                }
+                onUploadImage={
+                  onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
+                }
               />
             </div>
           );

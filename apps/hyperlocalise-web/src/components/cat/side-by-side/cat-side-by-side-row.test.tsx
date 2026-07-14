@@ -95,6 +95,44 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
 
+  it("renders image upload controls for image segments", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "image_url" as const,
+      sourceText: "https://example.com/source.png",
+      sourceAssetUrl: "https://example.com/source.png",
+      targetText: "",
+      targetAssetUrl: undefined,
+    };
+
+    renderRow({
+      segment,
+      isDirty: false,
+      onUploadImage: vi.fn(),
+      onTreatAsImage: vi.fn(),
+    });
+
+    expect(screen.getByText(/Upload/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+  });
+
+  it("enables approve for image segments with a target asset", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "image_file" as const,
+      sourceAssetUrl: "https://example.com/source.png",
+      targetAssetUrl: "https://example.com/target.png",
+      targetText: "",
+    };
+
+    renderRow({ segment, isDirty: false, onUploadImage: vi.fn() });
+
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeEnabled();
+  });
+
   it.each([
     { isApproving: true },
     { isSavingDraft: true },
@@ -103,6 +141,7 @@ describe("CatSideBySideRow", () => {
     { isAiSuggestionLoading: true },
     { isFormatChecksLoading: true },
     { isTargetLoading: true },
+    { isImageBusy: true },
   ] as const)("disables approve during busy state %j", (busyState) => {
     renderRow(busyState);
 

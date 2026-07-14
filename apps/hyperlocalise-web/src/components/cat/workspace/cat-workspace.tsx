@@ -275,6 +275,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isSavingDraft={isSavingDraft}
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
+          isImageBusy={isImageBusy}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={
@@ -311,6 +312,21 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
                   }
                   void review.onSaveDraft?.(segmentId, targetText);
                 }
+              : undefined
+          }
+          onTreatAsImage={
+            editing.onTreatAsImage
+              ? (segmentId, treatAsImage) => void editing.onTreatAsImage?.(segmentId, treatAsImage)
+              : undefined
+          }
+          onRegenerateImage={
+            editing.onRegenerateImage
+              ? (segmentId) => void editing.onRegenerateImage?.(segmentId)
+              : undefined
+          }
+          onUploadImage={
+            editing.onUploadImage
+              ? (segmentId, file) => void editing.onUploadImage?.(segmentId, file)
               : undefined
           }
           onAskQuestion={

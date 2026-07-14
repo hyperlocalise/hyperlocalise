@@ -71,6 +71,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isSavingDraft = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
+  isImageBusy = false,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -91,6 +92,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onTargetChange,
   onApprove,
   onSaveDraft,
+  onTreatAsImage,
+  onRegenerateImage,
+  onUploadImage,
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
@@ -118,6 +122,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isSavingDraft?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
+  isImageBusy?: boolean;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -138,6 +143,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
   onSaveDraft?: (segmentId: string) => void;
+  onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onRegenerateImage?: (segmentId: string) => void;
+  onUploadImage?: (segmentId: string, file: File) => void;
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
@@ -284,6 +292,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               isLookingUpContext={isLookingUpContext}
               isAiSuggestionLoading={isAiSuggestionLoading}
               isFormatChecksLoading={isFormatChecksLoading}
+              isImageBusy={isImageBusy}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
@@ -291,6 +300,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               onTargetChange={onTargetChange}
               onApprove={onApprove}
               onSaveDraft={onSaveDraft}
+              onTreatAsImage={onTreatAsImage}
+              onRegenerateImage={onRegenerateImage}
+              onUploadImage={onUploadImage}
               hasMore={hasMoreQueue}
               isLoadingMore={isFetchingPage}
               onNearEnd={onLoadMoreQueue}
