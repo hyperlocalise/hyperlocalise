@@ -1,19 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FloppyDiskIcon } from "@hugeicons/core-free-icons";
+import { useEffect, useRef, useState } from "react";
+import { FloppyDiskIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import type { KnowledgeMemoryPreviewResponse } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { getKnowledgeMemoryEditorState } from "./knowledge-memory-editor-state";
+import {
+  formatMemoryReductionPercent,
+  getKnowledgeMemoryPreviewState,
+} from "./knowledge-memory-preview-state";
 
 const knowledgeMemoryQueryKey = (organizationSlug: string) => [
   "knowledge-memory",
@@ -31,6 +38,8 @@ function formatUpdatedAt(value: string | null) {
   }).format(new Date(value));
 }
 
+type MemoryPreview = KnowledgeMemoryPreviewResponse["memoryPreview"];
+
 export function KnowledgeMemoryEditor({
   organizationSlug,
   canUpdateKnowledgeMemory,
@@ -41,6 +50,10 @@ export function KnowledgeMemoryEditor({
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
+  const [previewTargetLocale, setPreviewTargetLocale] = useState("");
+  const [previewSourceText, setPreviewSourceText] = useState("");
+  const [memoryPreview, setMemoryPreview] = useState<MemoryPreview | null>(null);
+  const previewGeneration = useRef(0);
 
   const knowledgeMemoryQuery = useQuery({
     queryKey: knowledgeMemoryQueryKey(organizationSlug),
@@ -65,6 +78,8 @@ export function KnowledgeMemoryEditor({
 
     setContent(knowledgeMemoryQuery.data.content);
     setSavedContent(knowledgeMemoryQuery.data.content);
+    previewGeneration.current += 1;
+    setMemoryPreview(null);
   }, [knowledgeMemoryQuery.data]);
 
   const saveKnowledgeMemory = useMutation({
@@ -84,8 +99,40 @@ export function KnowledgeMemoryEditor({
     onSuccess: async (knowledgeMemory) => {
       setContent(knowledgeMemory.content);
       setSavedContent(knowledgeMemory.content);
+      previewGeneration.current += 1;
+      setMemoryPreview(null);
       await queryClient.invalidateQueries({ queryKey: knowledgeMemoryQueryKey(organizationSlug) });
       toast.success("Knowledge memory saved");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const previewKnowledgeMemory = useMutation({
+    mutationFn: async () => {
+      const generation = previewGeneration.current;
+      const response = await apiClient.api.orgs[":organizationSlug"][
+        "knowledge-memory"
+      ].preview.$post({
+        param: { organizationSlug },
+        json: {
+          targetLocale: previewTargetLocale.trim() || undefined,
+          sourceText: previewSourceText.trim() || undefined,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Unable to preview knowledge memory"));
+      }
+
+      const body = await response.json();
+      return { generation, preview: body.memoryPreview };
+    },
+    onSuccess: ({ generation, preview }) => {
+      if (generation === previewGeneration.current) {
+        setMemoryPreview(preview);
+      }
     },
     onError: (error) => {
       toast.error(error.message);
@@ -98,14 +145,20 @@ export function KnowledgeMemoryEditor({
     canUpdateKnowledgeMemory,
     isSaving: saveKnowledgeMemory.isPending,
   });
+  const previewState = getKnowledgeMemoryPreviewState({
+    targetLocale: previewTargetLocale,
+    sourceText: previewSourceText,
+    isPreviewing: previewKnowledgeMemory.isPending,
+  });
 
   return (
     <section className="space-y-5 rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-sm font-medium text-foreground">Workspace memory</h2>
+          <h2 className="text-sm font-medium text-foreground">Organization memory</h2>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            A short shared note agents read during translation and review.
+            One markdown document for localization rules, glossary notes, brand guidance, and things
+            to avoid.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -136,7 +189,7 @@ export function KnowledgeMemoryEditor({
               aria-invalid={currentEditorState.isOverLimit}
               onChange={(event) => setContent(event.target.value)}
               className="min-h-64 resize-y border-border bg-background font-mono text-sm leading-6"
-              placeholder="Example: Use a concise product tone. Keep feature names in English unless a locale-specific glossary says otherwise."
+              placeholder="Example: ## Tone&#10;- Keep product copy practical and direct.&#10;- Keep Hyperlocalise untranslated."
             />
             {currentEditorState.isOverLimit ? (
               <FieldError>
@@ -154,6 +207,95 @@ export function KnowledgeMemoryEditor({
                 <HugeiconsIcon icon={FloppyDiskIcon} strokeWidth={1.8} />
                 {saveKnowledgeMemory.isPending ? "Saving" : "Save"}
               </Button>
+            ) : null}
+          </div>
+
+          <div className="space-y-4 border-t border-border pt-5">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium text-foreground">Retrieval preview</h3>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                Test what saved Memory.md guidance would be loaded for a translation query.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
+              <Field>
+                <FieldLabel htmlFor="knowledge-memory-preview-locale">Target locale</FieldLabel>
+                <Input
+                  id="knowledge-memory-preview-locale"
+                  value={previewTargetLocale}
+                  onChange={(event) => {
+                    setPreviewTargetLocale(event.target.value);
+                    previewGeneration.current += 1;
+                    setMemoryPreview(null);
+                  }}
+                  placeholder="en-AU"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="knowledge-memory-preview-source">Source text</FieldLabel>
+                <Textarea
+                  id="knowledge-memory-preview-source"
+                  value={previewSourceText}
+                  onChange={(event) => {
+                    setPreviewSourceText(event.target.value);
+                    previewGeneration.current += 1;
+                    setMemoryPreview(null);
+                  }}
+                  className="min-h-20 resize-y border-border bg-background text-sm leading-6"
+                  placeholder="Customize your color settings"
+                />
+              </Field>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {currentEditorState.hasChanges
+                  ? "Save changes before previewing updated memory."
+                  : "Preview uses the saved markdown memory."}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!previewState.canPreview}
+                onClick={() => previewKnowledgeMemory.mutate()}
+              >
+                <HugeiconsIcon icon={SearchIcon} strokeWidth={1.8} />
+                {previewKnowledgeMemory.isPending ? "Previewing" : "Preview"}
+              </Button>
+            </div>
+
+            {memoryPreview ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">
+                    {memoryPreview.metrics.selectedMemoryCount} selected
+                  </Badge>
+                  <Badge variant="outline">
+                    {memoryPreview.metrics.selectedMemoryChars}/
+                    {memoryPreview.metrics.wholeMemoryChars} chars
+                  </Badge>
+                  <Badge variant="outline">
+                    {formatMemoryReductionPercent(memoryPreview.metrics.reductionPercent)}
+                  </Badge>
+                  <Badge variant="outline">{memoryPreview.metrics.fallbackMode}</Badge>
+                </div>
+
+                <pre className="max-h-64 overflow-auto rounded-md border border-border bg-background p-3 text-sm leading-6 whitespace-pre-wrap text-foreground">
+                  {memoryPreview.compactText || "(no memory selected)"}
+                </pre>
+
+                {memoryPreview.metrics.matchedHeadingPaths.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Matched headings</p>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {memoryPreview.metrics.matchedHeadingPaths.map((headingPath) => (
+                        <li key={headingPath}>{headingPath}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </form>

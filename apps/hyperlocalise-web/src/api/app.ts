@@ -13,6 +13,7 @@ import type {
   TranslationFileImportQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
+import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
@@ -59,7 +60,6 @@ import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.ro
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createE2eAuthRoutes } from "./routes/e2e/e2e-auth.route";
 import {
-  createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
@@ -79,7 +79,7 @@ type CreateAppOptions = {
 };
 
 export function createApp(options: CreateAppOptions = {}) {
-  const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
+  const jobQueue = options.jobQueue ?? createApiTranslationJobQueue();
   const providerAgentTranslationQueue =
     options.providerAgentTranslationQueue ?? createProviderAgentTranslationQueue();
   const providerAgentQaQueue = options.providerAgentQaQueue ?? createProviderAgentQaQueue();

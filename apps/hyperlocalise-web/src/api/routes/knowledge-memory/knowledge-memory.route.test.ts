@@ -2,15 +2,16 @@ import "dotenv/config";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -18,6 +19,14 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
   };
 });
 
@@ -29,8 +38,41 @@ import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/know
 const client = testClient(createApp());
 const fixture = createAuthTestFixture();
 
+const previewMemory = [
+  "# Memory.md",
+  "",
+  "## Locale notes",
+  "",
+  "### en-AU",
+  "",
+  "Use Australian English for customer-facing copy.",
+  "",
+  "- Prefer colour, customise, localise, organise.",
+  "- Avoid US spelling.",
+  "",
+  "### fr-FR",
+  "",
+  "French marketing and pricing copy should sound natural, not directly translated.",
+  "",
+  "- Avoid literal launch slogans.",
+  "- Prefer idiomatic French marketing phrasing.",
+  "",
+  "## Brand voice",
+  "",
+  "- Avoid hype-heavy words like revolutionary and game-changing.",
+  "",
+  ...Array.from(
+    { length: 80 },
+    (_, index) => `- General filler ${index + 1}: keep unrelated support text concise.`,
+  ),
+].join("\n");
+
 beforeAll(async () => {
   await db.$client.query("select 1");
+});
+
+beforeEach(() => {
+  workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -39,6 +81,24 @@ afterEach(async () => {
 });
 
 describe("knowledgeMemoryRoutes", () => {
+  it("denies workspace memory access when the feature flag is disabled", async () => {
+    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "feature_unavailable",
+    });
+  });
+
   it("loads an empty workspace memory before one is saved", async () => {
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
@@ -96,7 +156,7 @@ describe("knowledgeMemoryRoutes", () => {
     expect(rows).toEqual([{ content: "Prefer short button labels." }]);
   });
 
-  it("rejects workspace memory over 2048 characters", async () => {
+  it("rejects workspace memory over the configured limit", async () => {
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
 
@@ -111,6 +171,108 @@ describe("knowledgeMemoryRoutes", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       error: "invalid_knowledge_memory_payload",
+    });
+  });
+
+  it("previews selected workspace memory with retrieval metrics", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId ?? "";
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId,
+      updatedByUserId: globalThis.__testApiAuthContext?.user.localUserId,
+      content: previewMemory,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].preview.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: {
+          targetLocale: "en-AU",
+          sourceText: "Customize your color settings",
+          maxChars: 1200,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.memoryPreview.compactText).toContain("Australian English");
+    expect(body.memoryPreview.compactText).toContain("colour");
+    expect(body.memoryPreview.compactText).not.toContain("fr-FR");
+    expect(body.memoryPreview.metrics).toMatchObject({
+      fallbackMode: "selective",
+      wholeMemoryChars: previewMemory.length,
+    });
+    expect(body.memoryPreview.metrics.selectedMemoryCount).toBeGreaterThan(0);
+    expect(body.memoryPreview.metrics.selectedMemoryChars).toBeLessThan(
+      body.memoryPreview.metrics.wholeMemoryChars,
+    );
+    expect(body.memoryPreview.metrics.matchedHeadingPaths).toContain(
+      "Memory.md > Locale notes > en-AU",
+    );
+  });
+
+  it("allows members to preview workspace memory without update permission", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].preview.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: { targetLocale: "en-AU", sourceText: "Hello" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      memoryPreview: {
+        compactText: "",
+        metrics: { fallbackMode: "empty" },
+      },
+    });
+  });
+
+  it("rejects invalid preview payloads", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].preview.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: { maxChars: 64 },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_knowledge_memory_preview_payload",
+    });
+  });
+
+  it("rejects preview metadata with too many entries", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["knowledge-memory"].preview.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: {
+          targetLocale: "en-AU",
+          metadata: Object.fromEntries(
+            Array.from({ length: 51 }, (_, index) => [`key-${index}`, `value-${index}`]),
+          ),
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_knowledge_memory_preview_payload",
     });
   });
 

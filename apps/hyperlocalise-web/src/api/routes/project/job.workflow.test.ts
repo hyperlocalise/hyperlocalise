@@ -210,6 +210,50 @@ describe("translation job workflow helpers", () => {
     expect(storedJob?.completedAt).toBeTruthy();
   });
 
+  it("carries the knowledge memory capability from the event into translation context", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Always refer to Hyperlocalise as the product name.",
+    });
+    const job = await insertJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Welcome to Hyperlocalise",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    const translateStringJob = vi.fn(async () => ({
+      translations: [{ locale: "fr-FR", text: "Bienvenue sur Hyperlocalise" }],
+    }));
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+        knowledgeMemoryEnabled: true,
+      },
+      translateStringJob,
+    });
+
+    expect(translateStringJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextSnapshot: expect.objectContaining({
+          knowledgeMemory: "Always refer to Hyperlocalise as the product name.",
+        }),
+      }),
+    );
+  });
+
   it("does not overwrite an existing workflow run id on replay", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({

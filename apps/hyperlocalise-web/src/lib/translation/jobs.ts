@@ -26,6 +26,7 @@ export type ClaimedTranslationJob = {
   type: "string" | "file";
   inputPayload: unknown;
   workflowRunId: string;
+  knowledgeMemoryEnabled: boolean;
 };
 
 export type ClaimTranslationJobResult =
@@ -201,6 +202,7 @@ class TranslationJobRepository {
         type: attachedJob.type,
         inputPayload: claimedJob.inputPayload,
         workflowRunId: attachedJob.runId,
+        knowledgeMemoryEnabled: input.event.knowledgeMemoryEnabled === true,
       },
     };
   }
@@ -238,6 +240,7 @@ class TranslationJobExecutor {
       parsedInput.data,
       undefined,
       {
+        knowledgeMemoryEnabled: claimedJob.knowledgeMemoryEnabled,
         translationMemoryMatchResolution: defaultTranslationMemoryMatchResolution,
         glossaryMatchResolution: defaultGlossaryMatchResolution,
       },
