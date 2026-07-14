@@ -551,12 +551,16 @@ export function createCatWorkspaceState(
     canAddComments: true,
   };
   const { fileContext: fileContextOverride, ...restOverrides } = overrides;
+  const selectedSegmentId = overrides.selectedSegmentId ?? "seg-02";
 
   return {
     queueSegments,
     segments,
-    selectedSegmentId: overrides.selectedSegmentId ?? "seg-02",
+    selectedSegmentId,
     formatChecks: catFormatChecksFixture,
+    segmentFormatChecks: {
+      [selectedSegmentId]: catFormatChecksFixture,
+    },
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],
     ...restOverrides,

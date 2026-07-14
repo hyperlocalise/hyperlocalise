@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useIntl } from "react-intl";
 
-import { applyGlossaryTermToTarget } from "@/components/cat/intelligence/cat-glossary-utils";
 import { TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT } from "@/components/cat/intelligence/tm-match-quality";
 import {
   findSegmentIdByKeyOrIdInQueue,
@@ -18,11 +17,7 @@ import type {
   CatWorkspaceServices,
   PartialCatWorkspaceDependencies,
 } from "@/components/cat/shared/dependencies";
-import type {
-  CatGlossaryTerm,
-  CatSegment,
-  CatTranslationMemoryMatch,
-} from "@/components/cat/shared/types";
+import type { CatSegment, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
 
 import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
 import {
@@ -182,14 +177,6 @@ export function useCatWorkspaceRuntime({
       },
       onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => {
         editing.onTargetChange(segmentId, match.targetText);
-      },
-      onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => {
-        const segment = store.getSegmentView(segmentId);
-        const currentTarget = segment?.targetText ?? "";
-        editing.onTargetChange(
-          segmentId,
-          applyGlossaryTermToTarget(sourceText, currentTarget, term),
-        );
       },
       ...(editingOverrides?.onTreatAsImage
         ? { onTreatAsImage: editingOverrides.onTreatAsImage }

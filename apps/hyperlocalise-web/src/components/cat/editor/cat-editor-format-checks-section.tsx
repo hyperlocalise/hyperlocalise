@@ -34,30 +34,29 @@ function FormatChecksSkeleton() {
 export function CatEditorFormatChecksSection({
   formatChecks,
   isLoading,
+  showHeading = true,
 }: {
   formatChecks: CatFormatCheck[];
   isLoading: boolean;
+  showHeading?: boolean;
 }) {
   const showInitialSkeleton = isLoading && formatChecks.length === 0;
+  const showLoadingSpinner = isLoading && formatChecks.length > 0;
 
   return (
-    <section className="space-y-3" aria-busy={isLoading}>
-      <div className="flex items-center gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          <FormattedMessage {...catEditorPanelMessages.formatQaChecks} />
-        </h3>
-        {isLoading && formatChecks.length > 0 ? (
-          <Spinner className="size-3 text-muted-foreground" />
-        ) : null}
-      </div>
+    <section className={showHeading ? "space-y-3" : undefined} aria-busy={isLoading}>
+      {showHeading ? (
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-medium text-muted-foreground">
+            <FormattedMessage {...catEditorPanelMessages.formatQaChecks} />
+          </h3>
+          {showLoadingSpinner ? <Spinner className="size-3 text-muted-foreground" /> : null}
+        </div>
+      ) : null}
       {showInitialSkeleton ? (
         <FormatChecksSkeleton />
       ) : (
-        <div
-          className={
-            isLoading && formatChecks.length > 0 ? "opacity-80 transition-opacity" : undefined
-          }
-        >
+        <div className={showLoadingSpinner ? "opacity-80 transition-opacity" : undefined}>
           <CatFormatChecks checks={formatChecks} />
         </div>
       )}

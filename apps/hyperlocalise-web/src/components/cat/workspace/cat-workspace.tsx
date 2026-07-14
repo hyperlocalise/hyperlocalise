@@ -276,6 +276,12 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isImageBusy={isImageBusy}
+          canUseAiRecommendation={canUseAiRecommendation}
+          focusedIntelligence={selectedSegmentIntelligence}
+          aiRecommendationError={aiRecommendationError}
+          formatChecks={selectedSegmentFormatChecks}
+          segmentFormatChecks={shell.segmentFormatChecks}
+          formatCheckLoadingSegmentIds={store.formatCheckLoadingSegmentIds}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={
@@ -314,6 +320,17 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
                 }
               : undefined
           }
+          onAddToIssueSheet={
+            review.onAddToIssueSheet
+              ? (segmentId) => void review.onAddToIssueSheet?.(segmentId)
+              : undefined
+          }
+          onUseAiSuggestion={(segmentId) => editing.onUseAiSuggestion(segmentId)}
+          onGenerateAiRecommendation={
+            canUseAiRecommendation
+              ? (segmentId) => void review.onReviewWithAi(segmentId)
+              : undefined
+          }
           onTreatAsImage={
             editing.onTreatAsImage
               ? (segmentId, treatAsImage) => void editing.onTreatAsImage?.(segmentId, treatAsImage)
@@ -338,13 +355,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               : undefined
           }
           onUseTmMatch={(segmentId, match) => editing.onUseTmMatch(segmentId, match)}
-          onUseGlossaryTerm={(segmentId, term) =>
-            editing.onUseGlossaryTerm(
-              segmentId,
-              term,
-              queueSegments.find((segment) => segment.id === segmentId)?.sourceText ?? "",
-            )
-          }
           onAddComment={
             review.onAddComment
               ? (segmentId, input) => review.onAddComment?.(segmentId, input)
@@ -355,6 +365,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (segmentId, commentId) => review.onResolveComment?.(segmentId, commentId)
               : undefined
           }
+          primaryActionLabel={shell.primaryActionLabel}
+          segmentShareUrl={segmentShareUrl}
         />
       </CatPanelErrorBoundary>
     );
@@ -502,9 +514,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
-          onUseGlossaryTerm={(term) =>
-            editing.onUseGlossaryTerm(editorSegment.id, term, editorSegment.sourceText)
-          }
         />
       </CatPanelErrorBoundary>
     );

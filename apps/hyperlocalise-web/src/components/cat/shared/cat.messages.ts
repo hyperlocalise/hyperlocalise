@@ -445,10 +445,20 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
   },
-  useGlossaryTerm: {
-    defaultMessage: "Use",
-    id: "/qvZ8TPpqw",
-    description: "Button to apply an approved glossary term to the target field",
+  copyGlossaryTerm: {
+    defaultMessage: "Copy",
+    id: "Rw5WXF50Q2",
+    description: "Button to copy an approved glossary target term to the clipboard",
+  },
+  glossaryTermCopied: {
+    defaultMessage: "Copied",
+    id: "K+AvrhTOJl",
+    description: "Button label after a glossary target term was copied to the clipboard",
+  },
+  glossaryTermCopyFailed: {
+    defaultMessage: "Copy failed",
+    id: "Ya0t4KyDVG",
+    description: "Button label when copying a glossary target term fails",
   },
   lowMatchConfirmTitle: {
     defaultMessage: "Apply low-quality TM match?",
@@ -876,5 +886,20 @@ export const catSideBySidePanelMessages = defineMessages({
     defaultMessage: "Click to localize image",
     id: "Ga0sjgCRoD",
     description: "Placeholder when a side-by-side image row has no localized image yet",
+  },
+  formatCheckFail: {
+    defaultMessage: "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
+    id: "xQCn9y4Cu3",
+    description: "Accessible label for side-by-side format check failure icon",
+  },
+  formatCheckWarn: {
+    defaultMessage: "Format & QA warning ({count, plural, one {# issue} other {# issues}})",
+    id: "vp6YtfmYlV",
+    description: "Accessible label for side-by-side format check warning icon",
+  },
+  formatCheckLoading: {
+    defaultMessage: "Checking format & QA",
+    id: "StSqQpNlpj",
+    description: "Accessible label while side-by-side format checks are loading",
   },
 });

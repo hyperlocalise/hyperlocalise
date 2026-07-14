@@ -7,6 +7,8 @@ import {
   createCatWorkspaceState,
   mockValidateFormat,
 } from "@/components/cat/shared/cat.fixture";
+import type { CatSegment } from "@/components/cat/shared/types";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 import {
   CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY,
   writeCatWorkspaceViewMode,
@@ -33,8 +35,22 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const sideBySideArgs = {
-  initialState: createCatWorkspaceState({
+const treatAsImageSegment: CatSegment = {
+  id: "seg-image-url",
+  index: 3,
+  key: "assets.dashboard.hero",
+  sourceText: "https://placehold.co/640x360/png",
+  targetText: "",
+  sourceLocale: "en-US",
+  targetLocale: "vi",
+  status: "pending",
+  contextLabel: "Hero image URL",
+  tags: ["image", "url"],
+  looksLikeImageUrl: true,
+};
+
+function createSideBySideState() {
+  const base = createCatWorkspaceState({
     segmentIntelligence: {
       "seg-02": {
         ...catIntelligenceFixture,
@@ -42,7 +58,36 @@ const sideBySideArgs = {
           "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
       },
     },
-  }),
+  });
+  const segments = [...(base.segments ?? [])];
+  const insertAt = Math.max(segments.findIndex((segment) => segment.id === "seg-02") + 1, 0);
+  segments.splice(insertAt, 0, treatAsImageSegment);
+  const indexedSegments = segments.map((segment, index) => ({
+    ...segment,
+    index: index + 1,
+  }));
+
+  return {
+    ...base,
+    segments: indexedSegments,
+    queueSegments: indexedSegments.map(toQueueSegment),
+    formatChecks: [],
+    segmentFormatChecks: {},
+  };
+}
+
+async function delayedMockValidateFormat(
+  ...args: Parameters<typeof mockValidateFormat>
+): ReturnType<typeof mockValidateFormat> {
+  const delayMs = 350 + Math.floor(Math.random() * 650);
+  await new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+  return mockValidateFormat(...args);
+}
+
+const sideBySideArgs = {
+  initialState: createSideBySideState(),
   navigation: {
     onSelectSegment: fn(),
     onPreviousSegment: fn(),
@@ -52,16 +97,22 @@ const sideBySideArgs = {
   editing: {
     onTargetChange: fn(),
     onUseAiSuggestion: fn(),
+    onTreatAsImage: fn(),
   },
   review: {
     onApprove: fn(),
     onSaveDraft: fn(),
     onAskQuestion: fn(),
+    onAddToIssueSheet: fn(),
   },
   services: {
-    validateFormat: mockValidateFormat,
+    validateFormat: delayedMockValidateFormat,
     lookupSegmentContext: async () =>
       "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
+    generateAiRecommendation: async () => ({
+      aiSuggestion: "Thẻ trên bảng điều khiển hiển thị số lượng đánh giá cần phê duyệt.",
+      aiReasoning: "Matches the source meaning and dashboard tone.",
+    }),
   },
 } satisfies Story["args"];
 
@@ -74,8 +125,29 @@ export const Default: Story = {
     await expect(canvas.getByText("Translation")).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Clear target/i })).toBeInTheDocument();
+    await expect(canvas.getByText(/AI recommendation/i)).toBeInTheDocument();
+    await waitFor(
+      () => expect(canvas.getByRole("img", { name: /Format & QA warning/i })).toBeInTheDocument(),
+      { timeout: 3000 },
+    );
+    await expect(canvas.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Add to Issue Sheet/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/ICU structure/i)).not.toBeInTheDocument();
+
+    const imageKey = canvas.getByText("assets.dashboard.hero");
+    const imageRow = imageKey.closest(".grid.grid-cols-2");
+    await expect(imageRow).not.toBeNull();
+    await userEvent.click(
+      within(imageRow as HTMLElement).getByRole("button", { name: /Click to translate/i }),
+    );
+    await waitFor(() =>
+      expect(canvas.getByRole("button", { name: /Treat as image/i })).toBeInTheDocument(),
+    );
+    await expect(canvas.getByText("https://placehold.co/640x360/png")).toBeInTheDocument();
   },
 };
 

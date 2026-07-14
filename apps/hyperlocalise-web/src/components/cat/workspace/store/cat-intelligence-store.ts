@@ -15,9 +15,35 @@ export class CatIntelligenceStore {
   isGeneratingAiRecommendation = false;
   isRunningFormatChecks = false;
   isValidating = false;
+  formatCheckLoadingSegmentIds = new Set<string>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
+  }
+
+  setFormatCheckLoading(segmentId: string, loading: boolean) {
+    if (loading) {
+      if (this.formatCheckLoadingSegmentIds.has(segmentId)) {
+        return;
+      }
+      this.formatCheckLoadingSegmentIds = new Set(this.formatCheckLoadingSegmentIds).add(segmentId);
+      return;
+    }
+
+    if (!this.formatCheckLoadingSegmentIds.has(segmentId)) {
+      return;
+    }
+
+    const next = new Set(this.formatCheckLoadingSegmentIds);
+    next.delete(segmentId);
+    this.formatCheckLoadingSegmentIds = next;
+  }
+
+  clearFormatCheckLoading() {
+    if (this.formatCheckLoadingSegmentIds.size === 0) {
+      return;
+    }
+    this.formatCheckLoadingSegmentIds = new Set();
   }
 
   setChecks(segmentId: string, checks: CatFormatCheck[], isSelected: boolean) {

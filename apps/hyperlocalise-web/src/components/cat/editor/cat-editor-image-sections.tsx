@@ -74,12 +74,12 @@ export function CatEditorImageSourceSection({
           <Button
             type="button"
             variant={treatAsImage ? "secondary" : "outline"}
-            size="sm"
+            size="xs"
             disabled={!canEdit || isBusy}
             onClick={() => onTreatAsImage?.(!treatAsImage)}
             title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
           >
-            <ImageIcon className="size-4" aria-hidden />
+            <ImageIcon className="size-3" aria-hidden />
             <FormattedMessage
               {...(treatAsImage
                 ? catEditorPanelMessages.treatAsText
@@ -92,14 +92,14 @@ export function CatEditorImageSourceSection({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!canEdit || isBusy}
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-4" aria-hidden />
+              <RefreshCw className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateImage} />
           </Button>
@@ -157,14 +157,14 @@ export function CatEditorImageTargetSection({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!canEdit || isBusy}
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-4" aria-hidden />
+              <RefreshCw className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateImage} />
           </Button>
@@ -172,11 +172,11 @@ export function CatEditorImageTargetSection({
 
         {onUpload ? (
           <label
-            className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground ${
+            className={`inline-flex h-6 cursor-pointer items-center gap-1 rounded border border-input bg-background px-2.5 text-xs font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground ${
               !canEdit || isBusy ? "pointer-events-none opacity-50" : ""
             }`}
           >
-            <Upload className="size-4" aria-hidden />
+            <Upload className="size-3" aria-hidden />
             <FormattedMessage {...catEditorPanelMessages.uploadImage} />
             <input
               type="file"

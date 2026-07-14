@@ -389,6 +389,18 @@ export class CatWorkspaceOrchestrator {
     this.intelligenceState.isRunningFormatChecks = value;
   }
 
+  get formatCheckLoadingSegmentIds(): ReadonlySet<string> {
+    return this.intelligenceState.formatCheckLoadingSegmentIds;
+  }
+
+  setFormatCheckLoading(segmentId: string, loading: boolean) {
+    this.intelligenceState.setFormatCheckLoading(segmentId, loading);
+  }
+
+  clearFormatCheckLoading() {
+    this.intelligenceState.clearFormatCheckLoading();
+  }
+
   get isSegmentTargetLoading() {
     return this.segments.isTargetLoading;
   }
@@ -652,8 +664,12 @@ export class CatWorkspaceOrchestrator {
       }
 
       if (currentShell.selectedSegmentId !== this.selectedSegmentId) {
+        // Snapshot formatChecks are authoritative for the snapshot's selected segment.
+        // Prefer them over segmentFormatChecks, which may still hold defaults for that id.
         this.formatChecks =
-          this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks;
+          this.selectedSegmentId === normalizedNext.selectedSegmentId
+            ? normalizedNext.formatChecks
+            : (this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks);
       }
 
       this.revealedAgentContextSegmentIds = new Set([

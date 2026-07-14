@@ -367,7 +367,7 @@ export function CatTargetEditor({
   }
 
   return (
-    <div className={cn("space-y-2", compact && "space-y-1")}>
+    <div className={cn("space-y-2", compact && "space-y-1.5")}>
       <div
         className={cn(
           compact
@@ -396,41 +396,39 @@ export function CatTargetEditor({
         )}
       </div>
 
-      {!compact ? (
-        <div className="flex justify-end px-1">
-          <p
-            className={cn(
-              "text-xs tabular-nums",
-              isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
-            )}
-            aria-live="polite"
-            aria-label={
-              maxLength !== undefined
-                ? intl.formatMessage(catTargetEditorMessages.characterCountAria, {
-                    count: characterCount,
-                    maxLength,
-                  })
-                : intl.formatMessage(catTargetEditorMessages.characterCountOnlyAria, {
-                    count: characterCount,
-                  })
-            }
-          >
-            {maxLength !== undefined ? (
-              <FormattedMessage
-                {...catTargetEditorMessages.characterCount}
-                values={{ count: characterCount, maxLength }}
-              />
-            ) : (
-              <FormattedMessage
-                {...catTargetEditorMessages.characterCountOnly}
-                values={{ count: characterCount }}
-              />
-            )}
-          </p>
-        </div>
-      ) : null}
+      <div className="flex justify-end px-1">
+        <p
+          className={cn(
+            "text-xs tabular-nums",
+            isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
+          )}
+          aria-live="polite"
+          aria-label={
+            maxLength !== undefined
+              ? intl.formatMessage(catTargetEditorMessages.characterCountAria, {
+                  count: characterCount,
+                  maxLength,
+                })
+              : intl.formatMessage(catTargetEditorMessages.characterCountOnlyAria, {
+                  count: characterCount,
+                })
+          }
+        >
+          {maxLength !== undefined ? (
+            <FormattedMessage
+              {...catTargetEditorMessages.characterCount}
+              values={{ count: characterCount, maxLength }}
+            />
+          ) : (
+            <FormattedMessage
+              {...catTargetEditorMessages.characterCountOnly}
+              values={{ count: characterCount }}
+            />
+          )}
+        </p>
+      </div>
 
-      {!compact && sourceTokens.length > 0 ? (
+      {sourceTokens.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...catTargetEditorMessages.requiredTokens} />
@@ -447,11 +445,11 @@ export function CatTargetEditor({
               <Button
                 key={token.id}
                 variant="outline"
-                size="sm"
+                size="xs"
                 onClick={() => insertToken(token)}
                 disabled={disabled}
                 className={cn(
-                  "h-7 rounded-full px-2 font-mono text-xs",
+                  "rounded-full font-mono",
                   isMissing && catMessageTokenMissingClass,
                   isPresent && !isMissing && "text-muted-foreground",
                 )}
