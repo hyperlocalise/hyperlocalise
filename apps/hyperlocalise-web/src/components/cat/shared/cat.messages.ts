@@ -872,4 +872,9 @@ export const catSideBySidePanelMessages = defineMessages({
     id: "gLK1qAKU2c",
     description: "Current segment position in side-by-side CAT view footer",
   },
+  clickToLocalizeImage: {
+    defaultMessage: "Click to localize image",
+    id: "Ga0sjgCRoD",
+    description: "Placeholder when a side-by-side image row has no localized image yet",
+  },
 });

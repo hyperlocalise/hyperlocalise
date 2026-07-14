@@ -71,6 +71,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isSavingDraft = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
+  isImageBusy = false,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -89,6 +90,11 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue,
   onFocusSegment,
   onTargetChange,
+  onApprove,
+  onSaveDraft,
+  onTreatAsImage,
+  onRegenerateImage,
+  onUploadImage,
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
@@ -116,6 +122,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   isSavingDraft?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
+  isImageBusy?: boolean;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -134,6 +141,11 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onLoadMoreQueue?: () => void;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
+  onApprove?: (segmentId: string) => void;
+  onSaveDraft?: (segmentId: string) => void;
+  onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onRegenerateImage?: (segmentId: string) => void;
+  onUploadImage?: (segmentId: string, file: File) => void;
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
@@ -274,11 +286,23 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               dirtySegmentIds={dirtySegmentIds}
               canEdit={canEditTranslations}
               loadingSegmentIds={loadingSegmentIds}
+              isApproving={isApproving}
+              isSavingDraft={isSavingDraft}
+              isPostingComment={isPostingComment}
+              isLookingUpContext={isLookingUpContext}
+              isAiSuggestionLoading={isAiSuggestionLoading}
+              isFormatChecksLoading={isFormatChecksLoading}
+              isImageBusy={isImageBusy}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
               onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
               onTargetChange={onTargetChange}
+              onApprove={onApprove}
+              onSaveDraft={onSaveDraft}
+              onTreatAsImage={onTreatAsImage}
+              onRegenerateImage={onRegenerateImage}
+              onUploadImage={onUploadImage}
               hasMore={hasMoreQueue}
               isLoadingMore={isFetchingPage}
               onNearEnd={onLoadMoreQueue}
