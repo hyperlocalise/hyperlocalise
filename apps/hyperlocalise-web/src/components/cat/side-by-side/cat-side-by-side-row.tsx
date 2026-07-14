@@ -23,6 +23,10 @@ export function CatSideBySideRow({
   isTargetLoading,
   isApproving = false,
   isSavingDraft = false,
+  isPostingComment = false,
+  isLookingUpContext = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   onFocus,
   onHover,
   onLeave,
@@ -38,6 +42,10 @@ export function CatSideBySideRow({
   isTargetLoading: boolean;
   isApproving?: boolean;
   isSavingDraft?: boolean;
+  isPostingComment?: boolean;
+  isLookingUpContext?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   onFocus: () => void;
   onHover: () => void;
   onLeave: () => void;
@@ -48,7 +56,14 @@ export function CatSideBySideRow({
   const isMac = useIsMac();
   const isActive = isFocused || isHovered;
   const hasTargetText = segment.targetText.trim().length > 0;
-  const isActionBlocked = isApproving || isSavingDraft;
+  const isActionBlocked =
+    isApproving ||
+    isSavingDraft ||
+    isPostingComment ||
+    isLookingUpContext ||
+    isAiSuggestionLoading ||
+    isFormatChecksLoading ||
+    isTargetLoading;
   const canTriggerApprove =
     Boolean(onApprove) && canEdit && isDirty && hasTargetText && !isActionBlocked;
   const showDirtyActions = isFocused && isDirty && canEdit && Boolean(onApprove);

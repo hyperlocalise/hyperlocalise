@@ -94,4 +94,18 @@ describe("CatSideBySideRow", () => {
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
+
+  it.each([
+    { isApproving: true },
+    { isSavingDraft: true },
+    { isPostingComment: true },
+    { isLookingUpContext: true },
+    { isAiSuggestionLoading: true },
+    { isFormatChecksLoading: true },
+    { isTargetLoading: true },
+  ] as const)("disables approve during busy state %j", (busyState) => {
+    renderRow(busyState);
+
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+  });
 });

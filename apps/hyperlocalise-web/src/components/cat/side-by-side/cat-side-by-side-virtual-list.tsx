@@ -20,6 +20,10 @@ export function CatSideBySideVirtualList({
   loadingSegmentIds,
   isApproving = false,
   isSavingDraft = false,
+  isPostingComment = false,
+  isLookingUpContext = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
@@ -40,6 +44,10 @@ export function CatSideBySideVirtualList({
   loadingSegmentIds?: ReadonlySet<string>;
   isApproving?: boolean;
   isSavingDraft?: boolean;
+  isPostingComment?: boolean;
+  isLookingUpContext?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
@@ -145,6 +153,10 @@ export function CatSideBySideVirtualList({
                 isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
                 isApproving={isApproving && segment.id === focusedSegmentId}
                 isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
+                isPostingComment={isPostingComment}
+                isLookingUpContext={isLookingUpContext}
+                isAiSuggestionLoading={isAiSuggestionLoading}
+                isFormatChecksLoading={isFormatChecksLoading}
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}

@@ -296,20 +296,20 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onApprove={(segmentId) => {
-            const segment = queueSegments.find((item) => item.id === segmentId);
-            if (!segment) {
+            const targetText = store.getSegmentView(segmentId)?.targetText;
+            if (targetText === undefined) {
               return;
             }
-            void review.onApprove(segmentId, segment.targetText);
+            void review.onApprove(segmentId, targetText);
           }}
           onSaveDraft={
             review.onSaveDraft
               ? (segmentId) => {
-                  const segment = queueSegments.find((item) => item.id === segmentId);
-                  if (!segment) {
+                  const targetText = store.getSegmentView(segmentId)?.targetText;
+                  if (targetText === undefined) {
                     return;
                   }
-                  void review.onSaveDraft?.(segmentId, segment.targetText);
+                  void review.onSaveDraft?.(segmentId, targetText);
                 }
               : undefined
           }

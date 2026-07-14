@@ -280,6 +280,10 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               loadingSegmentIds={loadingSegmentIds}
               isApproving={isApproving}
               isSavingDraft={isSavingDraft}
+              isPostingComment={isPostingComment}
+              isLookingUpContext={isLookingUpContext}
+              isAiSuggestionLoading={isAiSuggestionLoading}
+              isFormatChecksLoading={isFormatChecksLoading}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}
