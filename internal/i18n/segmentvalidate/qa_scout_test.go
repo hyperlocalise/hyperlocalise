@@ -6,10 +6,10 @@ import (
 
 func TestQAModesEdgeCases(t *testing.T) {
 	tests := []struct {
-		name       string
-		req        Request
-		wantIDs    []string
-		wantMsg    string // Optional: check message for specific cases
+		name    string
+		req     Request
+		wantIDs []string
+		wantMsg string // Optional: check message for specific cases
 	}{
 		{
 			name: "same_as_source with NBSP",
