@@ -82,8 +82,12 @@ export class CatIntelligenceController {
           return;
         }
         const hydrated = new Set(hydratedIds);
-        for (const [segmentId, concordance] of [...this.pendingAutoFill.entries()]) {
+        for (const segmentId of Array.from(this.pendingAutoFill.keys())) {
           if (!hydrated.has(segmentId)) {
+            continue;
+          }
+          const concordance = this.pendingAutoFill.get(segmentId);
+          if (!concordance) {
             continue;
           }
           this.pendingAutoFill.delete(segmentId);
