@@ -68,7 +68,6 @@ export interface CatWorkspaceContainerProps {
   onLoadMoreQueue?: () => void;
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
-  tmAutoFillMinMatchPercent?: number;
   canLookupFreshContext?: boolean;
   onPageLimitChange?: (pageLimit: number) => void;
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
@@ -98,7 +97,6 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   hasMoreQueue,
   onLoadMoreQueue,
   buildSegmentShareUrl,
-  tmAutoFillMinMatchPercent,
   canLookupFreshContext,
   onPageLimitChange,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
@@ -112,7 +110,6 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     queueFilter,
     onQueueFilterChange,
     buildSegmentShareUrl,
-    tmAutoFillMinMatchPercent,
     canLookupFreshContext,
   });
 

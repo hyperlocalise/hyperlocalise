@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useIntl } from "react-intl";
 
-import { TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT } from "@/components/cat/intelligence/tm-match-quality";
 import {
   findSegmentIdByKeyOrIdInQueue,
   type CatQueueFilter,
@@ -63,7 +62,6 @@ export interface UseCatWorkspaceRuntimeInput {
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
-  tmAutoFillMinMatchPercent?: number;
   canLookupFreshContext?: boolean;
 }
 
@@ -77,7 +75,6 @@ export function useCatWorkspaceRuntime({
   queueFilter: queueFilterProp,
   onQueueFilterChange,
   buildSegmentShareUrl,
-  tmAutoFillMinMatchPercent = TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
   canLookupFreshContext = true,
 }: UseCatWorkspaceRuntimeInput) {
   const intl = useIntl();
@@ -110,10 +107,8 @@ export function useCatWorkspaceRuntime({
     () => ({
       intl,
       services: serviceOverrides,
-      editing: editingOverrides,
-      tmAutoFillMinMatchPercent,
     }),
-    [editingOverrides, intl, serviceOverrides, tmAutoFillMinMatchPercent],
+    [intl, serviceOverrides],
   );
   const intelligenceController = useMemo(
     () => new CatIntelligenceController(store, intelligencePorts),

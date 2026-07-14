@@ -181,7 +181,7 @@ describe("useCatWorkspaceRuntime", () => {
     expect(lookupSegmentConcordance).not.toHaveBeenCalled();
   });
 
-  it("auto-fills empty targets from high-confidence TM matches after intelligence loads", async () => {
+  it("loads TM matches into intelligence without prefilling the target", async () => {
     const concordance: CatSegmentConcordanceResult = {
       glossaryTerms: [],
       translationMemoryMatches: [
@@ -205,8 +205,13 @@ describe("useCatWorkspaceRuntime", () => {
       result.current.handleIntelligencePanelVisible("seg-02");
     });
 
-    await waitFor(() => expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième"));
-    expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
+    await waitFor(() =>
+      expect(store.segmentIntelligence["seg-02"]?.translationMemoryMatches).toEqual([
+        expect.objectContaining({ id: "tm-1", targetText: "Deuxième" }),
+      ]),
+    );
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(false);
     expect(store.isLoadingConcordance).toBe(false);
   });
 
@@ -302,7 +307,7 @@ describe("useCatWorkspaceRuntime", () => {
     );
   });
 
-  it("auto-fills when intelligence panel joins an in-flight AI review concordance lookup", async () => {
+  it("does not prefill the target when intelligence panel joins an in-flight AI review concordance lookup", async () => {
     let resolveConcordance: ((value: CatSegmentConcordanceResult) => void) | undefined;
     const concordancePromise = new Promise<CatSegmentConcordanceResult>((resolve) => {
       resolveConcordance = resolve;
@@ -342,8 +347,11 @@ describe("useCatWorkspaceRuntime", () => {
     });
 
     expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
-    expect(store.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
-    expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(false);
+    expect(store.segmentIntelligence["seg-02"]?.translationMemoryMatches).toEqual([
+      expect.objectContaining({ id: "tm-1", targetText: "Deuxième" }),
+    ]);
   });
 
   it("does not start a duplicate concordance lookup when AI review runs during an in-flight lookup", async () => {

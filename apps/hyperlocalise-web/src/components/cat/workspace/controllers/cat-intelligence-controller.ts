@@ -1,17 +1,11 @@
-import { reaction, type IReactionDisposer } from "mobx";
 import type { IntlShape } from "react-intl";
 
-import {
-  selectBestTmMatchForAutoFill,
-  TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
-} from "@/components/cat/intelligence/tm-match-quality";
 import {
   catIntelligencePanelMessages,
   catWorkspaceContainerMessages,
 } from "@/components/cat/shared/cat.messages";
 import type {
   CatSegmentConcordanceResult,
-  CatWorkspaceEditing,
   CatWorkspaceServices,
 } from "@/components/cat/shared/dependencies";
 
@@ -20,8 +14,6 @@ import type { CatWorkspaceOrchestrator } from "../cat-workspace-orchestrator";
 export interface CatIntelligenceControllerPorts {
   intl: IntlShape;
   services?: CatWorkspaceServices;
-  editing?: Partial<CatWorkspaceEditing>;
-  tmAutoFillMinMatchPercent?: number;
 }
 
 export class CatIntelligenceController {
@@ -31,15 +23,7 @@ export class CatIntelligenceController {
   private contextAttempts = new Set<string>();
   private contextGeneration = 0;
   private visualContextAttempts = new Set<string>();
-  private inFlight = new Map<
-    string,
-    {
-      autoFill: boolean;
-      promise: Promise<CatSegmentConcordanceResult | undefined>;
-    }
-  >();
-  private pendingAutoFill = new Map<string, CatSegmentConcordanceResult>();
-  private pendingAutoFillDisposer?: IReactionDisposer;
+  private inFlight = new Map<string, Promise<CatSegmentConcordanceResult | undefined>>();
   private visualContextLoadingSegmentId: string | null = null;
   private disposed = false;
 
@@ -57,7 +41,6 @@ export class CatIntelligenceController {
       this.loadedSegmentIds.clear();
       this.concordanceAttempts.clear();
       this.inFlight.clear();
-      this.pendingAutoFill.clear();
     }
     if (previousServices?.lookupSegmentContext !== ports.services?.lookupSegmentContext) {
       this.invalidateContextLookupGeneration();
@@ -72,43 +55,14 @@ export class CatIntelligenceController {
 
   start() {
     this.disposed = false;
-    this.pendingAutoFillDisposer?.();
-    // Depend on the hydrated-target set (not pendingAutoFill) so lazy target
-    // arrival retriggers a flush of any concordance that resolved too early.
-    this.pendingAutoFillDisposer = reaction(
-      () => [...this.workspace.hydratedTargetSegmentIds],
-      (hydratedIds) => {
-        if (this.pendingAutoFill.size === 0) {
-          return;
-        }
-        const hydrated = new Set(hydratedIds);
-        for (const segmentId of Array.from(this.pendingAutoFill.keys())) {
-          if (!hydrated.has(segmentId)) {
-            continue;
-          }
-          const concordance = this.pendingAutoFill.get(segmentId);
-          if (!concordance) {
-            continue;
-          }
-          this.pendingAutoFill.delete(segmentId);
-          this.applyAutoFill(segmentId, concordance);
-        }
-      },
-    );
   }
 
   dispose() {
     this.disposed = true;
     this.inFlight.clear();
-    this.pendingAutoFill.clear();
-    this.pendingAutoFillDisposer?.();
-    this.pendingAutoFillDisposer = undefined;
   }
 
-  async loadConcordance(
-    segmentId: string,
-    options?: { autoFill?: boolean },
-  ): Promise<CatSegmentConcordanceResult | undefined> {
+  async loadConcordance(segmentId: string): Promise<CatSegmentConcordanceResult | undefined> {
     const lookup = this.ports.services?.lookupSegmentConcordance;
     if (!lookup) {
       return undefined;
@@ -124,10 +78,7 @@ export class CatIntelligenceController {
 
     const existing = this.inFlight.get(segmentId);
     if (existing) {
-      if (options?.autoFill !== false) {
-        existing.autoFill = true;
-      }
-      return existing.promise;
+      return existing;
     }
 
     const segment = this.workspace.getSegmentView(segmentId);
@@ -135,11 +86,7 @@ export class CatIntelligenceController {
       return undefined;
     }
 
-    const entry = {
-      autoFill: options?.autoFill !== false,
-      promise: Promise.resolve(undefined) as Promise<CatSegmentConcordanceResult | undefined>,
-    };
-    entry.promise = (async () => {
+    const promise = (async () => {
       this.workspace.beginConcordanceLoad(segmentId);
       try {
         const concordance = await lookup(segment);
@@ -148,9 +95,6 @@ export class CatIntelligenceController {
         }
         this.loadedSegmentIds.add(segmentId);
         this.workspace.mergeSegmentIntelligence(segmentId, concordance);
-        if (this.inFlight.get(segmentId)?.autoFill) {
-          this.applyAutoFill(segmentId, concordance);
-        }
         return concordance;
       } catch (error) {
         if (!this.disposed) {
@@ -175,8 +119,8 @@ export class CatIntelligenceController {
         this.inFlight.delete(segmentId);
       }
     })();
-    this.inFlight.set(segmentId, entry);
-    return entry.promise;
+    this.inFlight.set(segmentId, promise);
+    return promise;
   }
 
   panelVisible(segmentId: string) {
@@ -315,34 +259,5 @@ export class CatIntelligenceController {
     // askQuestion handlers whose finally blocks skip endContextLookup on stale generations.
     this.workspace.clearAgentContexts();
     this.contextGeneration += 1;
-  }
-
-  private applyAutoFill(segmentId: string, concordance: CatSegmentConcordanceResult) {
-    if (!this.workspace.hasHydratedTarget(segmentId)) {
-      // Wait for the lazy target fetch so an existing translation is not replaced
-      // by TM auto-fill (which would mark the segment dirty without a user edit).
-      this.pendingAutoFill.set(segmentId, concordance);
-      return;
-    }
-
-    this.pendingAutoFill.delete(segmentId);
-
-    const segment = this.workspace.getSegmentView(segmentId);
-    const bestMatch = selectBestTmMatchForAutoFill(
-      concordance.translationMemoryMatches,
-      this.ports.tmAutoFillMinMatchPercent ?? TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
-    );
-    if (
-      !segment ||
-      segment.targetText.trim() ||
-      !bestMatch ||
-      this.workspace.autoFilledSegmentIds.has(segmentId)
-    ) {
-      return;
-    }
-
-    this.workspace.markAutoFilledTarget(segmentId, bestMatch.targetText);
-    this.workspace.setTargetText(segmentId, bestMatch.targetText);
-    this.ports.editing?.onTargetChange?.(segmentId, bestMatch.targetText);
   }
 }

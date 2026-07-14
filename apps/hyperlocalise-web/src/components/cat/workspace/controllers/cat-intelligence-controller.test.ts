@@ -131,8 +131,7 @@ describe("CatIntelligenceController", () => {
       expect(cached).toEqual(concordance);
     });
 
-    it("auto-fills empty targets from high-confidence TM matches", async () => {
-      const onTargetChange = vi.fn();
+    it("does not prefill empty targets from TM matches", async () => {
       const lookup = vi.fn().mockResolvedValue({
         glossaryTerms: [],
         translationMemoryMatches: [
@@ -146,42 +145,19 @@ describe("CatIntelligenceController", () => {
       } satisfies CatSegmentConcordanceResult);
       const { controller, workspace } = createController(undefined, {
         intl,
-        editing: { onTargetChange },
         services: { lookupSegmentConcordance: lookup },
       });
 
       await controller.loadConcordance("seg-02");
 
-      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
-      expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(true);
-      expect(workspace.dirtySegmentIds.has("seg-02")).toBe(true);
-      expect(onTargetChange).toHaveBeenCalledWith("seg-02", "Deuxième");
-    });
-
-    it("does not auto-fill when autoFill is false", async () => {
-      const lookup = vi.fn().mockResolvedValue({
-        glossaryTerms: [],
-        translationMemoryMatches: [
-          {
-            id: "tm-1",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            matchPercent: 100,
-          },
-        ],
-      } satisfies CatSegmentConcordanceResult);
-      const { controller, workspace } = createController(undefined, {
-        intl,
-        services: { lookupSegmentConcordance: lookup },
-      });
-
-      await controller.loadConcordance("seg-02", { autoFill: false });
-
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("");
-      expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(false);
+      expect(workspace.dirtySegmentIds.has("seg-02")).toBe(false);
+      expect(workspace.segmentIntelligence["seg-02"]?.translationMemoryMatches).toEqual([
+        expect.objectContaining({ id: "tm-1", targetText: "Deuxième" }),
+      ]);
     });
 
-    it("does not auto-fill when the target already has text", async () => {
+    it("does not overwrite an existing fetched translation with TM matches", async () => {
       const lookup = vi.fn().mockResolvedValue({
         glossaryTerms: [],
         translationMemoryMatches: [
@@ -201,65 +177,17 @@ describe("CatIntelligenceController", () => {
       await controller.loadConcordance("seg-03");
 
       expect(workspace.getSegmentView("seg-03")?.targetText).toBe("Troisième");
+      expect(workspace.dirtySegmentIds.has("seg-03")).toBe(false);
     });
 
-    it("does not auto-fill when the best match is below the threshold", async () => {
-      const lookup = vi.fn().mockResolvedValue({
-        glossaryTerms: [],
-        translationMemoryMatches: [
-          {
-            id: "tm-1",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            matchPercent: 85,
-          },
-        ],
-      } satisfies CatSegmentConcordanceResult);
-      const { controller, workspace } = createController(undefined, {
-        intl,
-        services: { lookupSegmentConcordance: lookup },
-      });
-
-      await controller.loadConcordance("seg-02");
-
-      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("");
-    });
-
-    it("does not auto-fill the same segment twice", async () => {
-      const lookup = vi.fn().mockResolvedValue({
-        glossaryTerms: [],
-        translationMemoryMatches: [
-          {
-            id: "tm-1",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            matchPercent: 100,
-          },
-        ],
-      } satisfies CatSegmentConcordanceResult);
-      const { controller, workspace } = createController(undefined, {
-        intl,
-        services: { lookupSegmentConcordance: lookup },
-      });
-
-      workspace.autoFilledSegmentIds.add("seg-02");
-      await controller.loadConcordance("seg-02");
-
-      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("");
-    });
-
-    it("does not auto-fill before the lazy target has hydrated", async () => {
-      const lookup = vi.fn().mockResolvedValue({
-        glossaryTerms: [],
-        translationMemoryMatches: [
-          {
-            id: "tm-1",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            matchPercent: 100,
-          },
-        ],
-      } satisfies CatSegmentConcordanceResult);
+    it("keeps an empty target empty after lazy hydration when only TM matches exist", async () => {
+      let resolveLookup: ((value: CatSegmentConcordanceResult) => void) | undefined;
+      const lookup = vi.fn(
+        () =>
+          new Promise<CatSegmentConcordanceResult>((resolve) => {
+            resolveLookup = resolve;
+          }),
+      );
       const workspace = createCatWorkspace(
         createCatWorkspaceState({
           selectedSegmentId: "seg-02",
@@ -275,15 +203,33 @@ describe("CatIntelligenceController", () => {
         services: { lookupSegmentConcordance: lookup },
       });
 
-      await controller.loadConcordance("seg-02");
+      const pending = controller.loadConcordance("seg-02");
+      resolveLookup?.({
+        glossaryTerms: [],
+        translationMemoryMatches: [
+          {
+            id: "tm-1",
+            sourceText: "Second",
+            targetText: "Deuxième",
+            matchPercent: 100,
+          },
+        ],
+      });
+      await pending;
 
-      expect(workspace.hasHydratedTarget("seg-02")).toBe(false);
+      workspace.applySegmentTarget("seg-02", {
+        text: "",
+        externalTranslationId: null,
+        isApproved: false,
+      });
+
+      await vi.waitFor(() => expect(workspace.hasHydratedTarget("seg-02")).toBe(true));
+
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("");
       expect(workspace.dirtySegmentIds.has("seg-02")).toBe(false);
-      expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(false);
     });
 
-    it("does not mark a loaded translation dirty when concordance races ahead of target hydration", async () => {
+    it("keeps a fetched translation when concordance resolves before target hydration", async () => {
       let resolveLookup: ((value: CatSegmentConcordanceResult) => void) | undefined;
       const lookup = vi.fn(
         () =>
@@ -332,61 +278,6 @@ describe("CatIntelligenceController", () => {
 
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Traduction existante");
       expect(workspace.dirtySegmentIds.has("seg-02")).toBe(false);
-      expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(false);
-    });
-
-    it("auto-fills after an empty lazy target hydrates", async () => {
-      const onTargetChange = vi.fn();
-      let resolveLookup: ((value: CatSegmentConcordanceResult) => void) | undefined;
-      const lookup = vi.fn(
-        () =>
-          new Promise<CatSegmentConcordanceResult>((resolve) => {
-            resolveLookup = resolve;
-          }),
-      );
-      const workspace = createCatWorkspace(
-        createCatWorkspaceState({
-          selectedSegmentId: "seg-02",
-          queueSegments: [
-            { id: "seg-01", index: 1, key: "first", sourceText: "First" },
-            { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
-          ],
-          segments: [],
-        }),
-      );
-      const { controller } = createController(workspace, {
-        intl,
-        editing: { onTargetChange },
-        services: { lookupSegmentConcordance: lookup },
-      });
-
-      const pending = controller.loadConcordance("seg-02");
-      resolveLookup?.({
-        glossaryTerms: [],
-        translationMemoryMatches: [
-          {
-            id: "tm-1",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            matchPercent: 100,
-          },
-        ],
-      });
-      await pending;
-
-      workspace.applySegmentTarget("seg-02", {
-        text: "",
-        externalTranslationId: null,
-        isApproved: false,
-      });
-
-      await vi.waitFor(() =>
-        expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième"),
-      );
-
-      expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(true);
-      expect(workspace.dirtySegmentIds.has("seg-02")).toBe(true);
-      expect(onTargetChange).toHaveBeenCalledWith("seg-02", "Deuxième");
     });
 
     it("records concordance lookup failures as format checks", async () => {

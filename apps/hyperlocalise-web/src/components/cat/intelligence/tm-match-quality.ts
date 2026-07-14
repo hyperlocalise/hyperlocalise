@@ -1,7 +1,6 @@
-import type { CatTmMatchKind, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
+import type { CatTmMatchKind } from "@/components/cat/shared/types";
 
 export const TM_LOW_MATCH_CONFIRM_THRESHOLD = 70;
-export const TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT = 100;
 
 export function inferTmMatchKind(
   matchPercent: number,
@@ -21,20 +20,4 @@ export function inferTmMatchKind(
 
 export function requiresLowMatchConfirmation(matchPercent: number): boolean {
   return matchPercent < TM_LOW_MATCH_CONFIRM_THRESHOLD;
-}
-
-export function selectBestTmMatchForAutoFill(
-  matches: CatTranslationMemoryMatch[] | undefined,
-  minMatchPercent: number,
-): CatTranslationMemoryMatch | undefined {
-  if (!matches?.length) {
-    return undefined;
-  }
-
-  const best = matches.toSorted((left, right) => right.matchPercent - left.matchPercent)[0];
-  if (best.matchPercent >= minMatchPercent) {
-    return best;
-  }
-
-  return undefined;
 }
