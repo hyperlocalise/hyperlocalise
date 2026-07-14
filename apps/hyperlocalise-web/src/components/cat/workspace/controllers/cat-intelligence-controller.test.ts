@@ -380,7 +380,9 @@ describe("CatIntelligenceController", () => {
         isApproved: false,
       });
 
-      await vi.waitFor(() => expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième"));
+      await vi.waitFor(() =>
+        expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième"),
+      );
 
       expect(workspace.autoFilledSegmentIds.has("seg-02")).toBe(true);
       expect(workspace.dirtySegmentIds.has("seg-02")).toBe(true);
