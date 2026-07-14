@@ -8,6 +8,7 @@ import {
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownContent } from "@/components/markdown-description-editor/markdown-description-editor";
@@ -93,18 +94,32 @@ function AgentContextSkeleton() {
   );
 }
 
-function GlossaryTermRow({
-  term,
-  targetText,
-  onUse,
-}: {
-  term: CatGlossaryTerm;
-  targetText: string;
-  onUse?: (term: CatGlossaryTerm) => void;
-}) {
+function GlossaryTermRow({ term, targetText }: { term: CatGlossaryTerm; targetText: string }) {
   const intl = useIntl();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const forbiddenInTarget = term.forbidden && containsGlossaryTerm(targetText, term.source);
-  const canUse = Boolean(onUse && term.approved && !term.forbidden);
+  const copyValue = term.target.trim();
+
+  async function handleCopy() {
+    if (!copyValue) {
+      return;
+    }
+
+    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(copyValue);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }
 
   return (
     <li className="px-3 py-2.5">
@@ -129,14 +144,30 @@ function GlossaryTermRow({
             aria-label={intl.formatMessage(catIntelligencePanelMessages.approvedAria)}
           />
         ) : null}
-      </div>
-      {canUse ? (
-        <div className="mt-2 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => onUse?.(term)}>
-            <FormattedMessage {...catIntelligencePanelMessages.useGlossaryTerm} />
+        {copyValue ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="shrink-0"
+            onClick={() => void handleCopy()}
+          >
+            {copyState === "copied" ? (
+              <>
+                <CheckIcon className="size-3" aria-hidden />
+                <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopied} />
+              </>
+            ) : copyState === "error" ? (
+              <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopyFailed} />
+            ) : (
+              <>
+                <CopyIcon className="size-3" aria-hidden />
+                <FormattedMessage {...catIntelligencePanelMessages.copyGlossaryTerm} />
+              </>
+            )}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -223,7 +254,7 @@ export function CatIntelligencePanel({
   canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
-  onUseGlossaryTerm,
+  onUseGlossaryTerm: _onUseGlossaryTerm,
 }: {
   intelligence: CatSegmentIntelligence;
   targetText?: string;
@@ -403,14 +434,7 @@ export function CatIntelligencePanel({
               <div className="overflow-hidden rounded-2xl bg-muted">
                 <ul className="divide-y divide-border">
                   {intelligence.glossaryTerms.map((term) => (
-                    <GlossaryTermRow
-                      key={term.id}
-                      term={term}
-                      targetText={targetText}
-                      onUse={
-                        canEditTranslations && onUseGlossaryTerm ? onUseGlossaryTerm : undefined
-                      }
-                    />
+                    <GlossaryTermRow key={term.id} term={term} targetText={targetText} />
                   ))}
                 </ul>
               </div>

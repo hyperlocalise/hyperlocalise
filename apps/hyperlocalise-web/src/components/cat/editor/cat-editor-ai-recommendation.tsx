@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -37,12 +38,14 @@ export function CatEditorAiRecommendation({
       aria-busy={isLoading}
     >
       <div className="mb-2.5 flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <SparklesIcon className="size-3.5 shrink-0" aria-hidden />
           <FormattedMessage {...catEditorPanelMessages.aiRecommendation} />
         </p>
         <div className="flex items-center gap-1.5">
           {hasSuggestion ? (
             <Button variant="ghost" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
+              <CheckIcon className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.use} />
             </Button>
           ) : null}
@@ -53,7 +56,11 @@ export function CatEditorAiRecommendation({
               onClick={onGenerateAiRecommendation}
               disabled={isLoading}
             >
-              {isLoading ? <Spinner className="size-3" /> : null}
+              {isLoading ? (
+                <Spinner className="size-3" />
+              ) : (
+                <RefreshCwIcon className="size-3" aria-hidden />
+              )}
               {hasSuggestion ? (
                 <FormattedMessage {...catEditorPanelMessages.regenerate} />
               ) : (

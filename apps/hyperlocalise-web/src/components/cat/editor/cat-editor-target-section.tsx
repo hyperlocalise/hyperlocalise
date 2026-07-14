@@ -1,5 +1,6 @@
 "use client";
 
+import { CopyIcon, EraserIcon } from "lucide-react";
 import { useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -44,6 +45,7 @@ export function CatEditorTargetSection({
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
             <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>
+              <CopyIcon className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.copySource} />
             </Button>
             <Button
@@ -52,6 +54,7 @@ export function CatEditorTargetSection({
               onClick={onClearTarget}
               disabled={isLoading || segment.targetText.length === 0}
             >
+              <EraserIcon className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.clearTarget} />
             </Button>
           </div>

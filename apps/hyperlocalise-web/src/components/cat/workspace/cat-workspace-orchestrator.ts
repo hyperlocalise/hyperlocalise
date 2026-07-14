@@ -389,6 +389,18 @@ export class CatWorkspaceOrchestrator {
     this.intelligenceState.isRunningFormatChecks = value;
   }
 
+  get formatCheckLoadingSegmentIds(): ReadonlySet<string> {
+    return this.intelligenceState.formatCheckLoadingSegmentIds;
+  }
+
+  setFormatCheckLoading(segmentId: string, loading: boolean) {
+    this.intelligenceState.setFormatCheckLoading(segmentId, loading);
+  }
+
+  clearFormatCheckLoading() {
+    this.intelligenceState.clearFormatCheckLoading();
+  }
+
   get isSegmentTargetLoading() {
     return this.segments.isTargetLoading;
   }

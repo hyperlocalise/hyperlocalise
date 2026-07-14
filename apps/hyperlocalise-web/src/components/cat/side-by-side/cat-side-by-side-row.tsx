@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon } from "lucide-react";
+import { CopyIcon, EraserIcon, ImageIcon, LanguagesIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -12,7 +12,6 @@ import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatEditorAiRecommendation } from "@/components/cat/editor/cat-editor-ai-recommendation";
-import { CatEditorFormatChecksSection } from "@/components/cat/editor/cat-editor-format-checks-section";
 import {
   CatEditorImageSourceSection,
   CatEditorImageTargetSection,
@@ -34,6 +33,9 @@ import type {
   CatSegment,
   CatSegmentIntelligence,
 } from "@/components/cat/shared/types";
+
+import { CatSideBySideFormatCheckIcon } from "./cat-side-by-side-format-check-icon";
+import { CatSideBySideFormatChecksReveal } from "./cat-side-by-side-format-checks-reveal";
 
 function isImageEditorSegment(segment: CatSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -137,9 +139,18 @@ export function CatSideBySideRow({
   const showIssueSheetAction =
     isFocused && canEdit && !isImageSegment && Boolean(onAddToIssueSheet);
   const canEditTarget = canEdit && !isImageBusy;
-  const showTargetUtilities = isFocused && canEditTarget && !isImageSegment;
+  const showCopyClearActions = canEditTarget && !isImageSegment;
+  const showTreatAsImageAction = Boolean(
+    canEditTarget &&
+    onTreatAsImage &&
+    segment.contentKind !== "image_file" &&
+    (segment.contentKind === "image_url" || segment.looksLikeImageUrl),
+  );
+  const treatAsImage = segment.contentKind === "image_url";
   const showAiRecommendation =
-    showTargetUtilities &&
+    isFocused &&
+    canEditTarget &&
+    !isImageSegment &&
     canUseAiRecommendation &&
     Boolean(intelligence) &&
     Boolean(onUseAiSuggestion);
@@ -147,9 +158,38 @@ export function CatSideBySideRow({
     () => formatChecks.filter((check) => check.status !== "pass"),
     [formatChecks],
   );
-  const showFormatChecks =
-    showTargetUtilities && (actionableFormatChecks.length > 0 || isFormatChecksLoading);
+  const showFormatCheckIcon =
+    !isImageSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
+  const revealFormatChecks = showFormatCheckIcon && isActive;
   const showActionBar = showReviewActions || showIssueSheetAction;
+  const copySourceLabel = intl.formatMessage(catEditorPanelMessages.copySource);
+  const clearTargetLabel = intl.formatMessage(catEditorPanelMessages.clearTarget);
+  const copyClearActions = showCopyClearActions ? (
+    <div className="flex items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onTargetChange(segment.sourceText)}
+        disabled={isTargetLoading}
+        aria-label={copySourceLabel}
+        title={copySourceLabel}
+      >
+        <CopyIcon aria-hidden />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onTargetChange("")}
+        disabled={isTargetLoading || segment.targetText.length === 0}
+        aria-label={clearTargetLabel}
+        title={clearTargetLabel}
+      >
+        <EraserIcon aria-hidden />
+      </Button>
+    </div>
+  ) : null;
 
   useHotkeys(
     "mod+enter",
@@ -236,29 +276,56 @@ export function CatSideBySideRow({
     >
       <div className={cn("min-w-0 border-r border-border px-4", isFocused ? "py-4" : "py-3")}>
         {isFocused && showImageSource ? (
-          <CatEditorImageSourceSection
-            segment={segment}
-            canEdit={canEditTarget}
-            isBusy={isImageBusy}
-            onTreatAsImage={onTreatAsImage}
-            onRegenerate={onRegenerateImage}
-          />
-        ) : isImageSegment ? (
-          <button type="button" className="w-full space-y-2.5 text-left" onClick={onFocus}>
-            <CatImagePreview
-              src={
-                segment.contentKind === "image_file"
-                  ? segment.sourceAssetUrl
-                  : (segment.sourceAssetUrl ?? segment.sourceText)
-              }
-              alt={intl.formatMessage(catEditorPanelMessages.imageSourceAlt)}
-              emptyLabel={intl.formatMessage(catEditorPanelMessages.imageSourceEmpty)}
-              className="min-h-24"
+          <div className="space-y-2.5">
+            <CatEditorImageSourceSection
+              segment={segment}
+              canEdit={canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsImage={onTreatAsImage}
+              onRegenerate={onRegenerateImage}
             />
-            <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
-              {segment.key}
-            </p>
-          </button>
+            {copyClearActions}
+          </div>
+        ) : isImageSegment ? (
+          <div className="space-y-2.5">
+            <button type="button" className="w-full space-y-2.5 text-left" onClick={onFocus}>
+              <CatImagePreview
+                src={
+                  segment.contentKind === "image_file"
+                    ? segment.sourceAssetUrl
+                    : (segment.sourceAssetUrl ?? segment.sourceText)
+                }
+                alt={intl.formatMessage(catEditorPanelMessages.imageSourceAlt)}
+                emptyLabel={intl.formatMessage(catEditorPanelMessages.imageSourceEmpty)}
+                className="min-h-24"
+              />
+              <p
+                className="truncate font-mono text-[11px] text-muted-foreground"
+                title={segment.key}
+              >
+                {segment.key}
+              </p>
+            </button>
+            {showTreatAsImageAction ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant={treatAsImage ? "secondary" : "outline"}
+                  size="xs"
+                  disabled={!canEditTarget || isImageBusy}
+                  onClick={() => onTreatAsImage?.(!treatAsImage)}
+                  title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
+                >
+                  <ImageIcon className="size-3" aria-hidden />
+                  <FormattedMessage
+                    {...(treatAsImage
+                      ? catEditorPanelMessages.treatAsText
+                      : catEditorPanelMessages.treatAsImage)}
+                  />
+                </Button>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div className="flex min-w-0 flex-col gap-2">
             <p className="text-sm leading-relaxed text-foreground">
@@ -267,26 +334,26 @@ export function CatSideBySideRow({
             <p className="truncate font-mono text-[11px] text-muted-foreground" title={segment.key}>
               {segment.key}
             </p>
-            {showTargetUtilities ? (
+            {copyClearActions || showTreatAsImageAction ? (
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => onTargetChange(segment.sourceText)}
-                  disabled={isTargetLoading}
-                >
-                  <FormattedMessage {...catEditorPanelMessages.copySource} />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => onTargetChange("")}
-                  disabled={isTargetLoading || segment.targetText.length === 0}
-                >
-                  <FormattedMessage {...catEditorPanelMessages.clearTarget} />
-                </Button>
+                {copyClearActions}
+                {showTreatAsImageAction ? (
+                  <Button
+                    type="button"
+                    variant={treatAsImage ? "secondary" : "outline"}
+                    size="xs"
+                    disabled={!canEditTarget || isImageBusy}
+                    onClick={() => onTreatAsImage?.(!treatAsImage)}
+                    title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
+                  >
+                    <ImageIcon className="size-3" aria-hidden />
+                    <FormattedMessage
+                      {...(treatAsImage
+                        ? catEditorPanelMessages.treatAsText
+                        : catEditorPanelMessages.treatAsImage)}
+                    />
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -294,91 +361,105 @@ export function CatSideBySideRow({
       </div>
 
       <div className={cn("min-w-0 px-4", isFocused ? "py-4" : "py-2.5")}>
-        {isFocused && canEdit ? (
-          isImageSegment ? (
-            <div className="space-y-3.5">
-              <CatEditorImageTargetSection
-                segment={segment}
-                canEdit={canEditTarget}
-                isBusy={isImageBusy}
-                isLoading={isTargetLoading}
-                onUpload={onUploadImage}
-                onRegenerate={onRegenerateImage}
-              />
-              {reviewActions}
-            </div>
-          ) : isTargetLoading && !segment.targetText.trim() ? (
-            <Skeleton className="h-10 w-full rounded-lg" />
-          ) : (
-            <div className="space-y-3.5">
-              <CatTargetEditor
-                sourceText={segment.sourceText}
-                value={segment.targetText}
-                maxLength={segment.maxLength}
-                compact
-                onChange={onTargetChange}
-              />
-              {sourceMessageAnalysis ? (
-                <CatIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
-              ) : null}
-              {showFormatChecks ? (
-                <CatEditorFormatChecksSection
-                  formatChecks={actionableFormatChecks}
-                  isLoading={isFormatChecksLoading}
-                />
-              ) : null}
-              {showAiRecommendation && intelligence && onUseAiSuggestion ? (
-                <CatEditorAiRecommendation
-                  intelligence={intelligence}
-                  isLoading={isAiSuggestionLoading}
-                  error={aiRecommendationError}
-                  onUseAiSuggestion={onUseAiSuggestion}
-                  onGenerateAiRecommendation={onGenerateAiRecommendation}
-                />
-              ) : null}
-              {reviewActions}
-            </div>
-          )
-        ) : (
-          <button type="button" className="w-full text-left" onClick={onFocus}>
-            {isImageSegment ? (
-              isTargetLoading && !hasImageTarget(segment) ? (
-                <Skeleton className="h-24 w-full rounded-lg" />
-              ) : hasImageTarget(segment) ? (
-                <CatImagePreview
-                  src={
-                    segment.targetAssetUrl ??
-                    (segment.contentKind === "image_url" && /^https?:\/\//i.test(segment.targetText)
-                      ? segment.targetText
-                      : null)
-                  }
-                  alt={intl.formatMessage(catEditorPanelMessages.imageTargetAlt)}
-                  emptyLabel={intl.formatMessage(catEditorPanelMessages.imageTargetEmpty)}
-                  className="min-h-24"
-                />
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            {isFocused && canEdit ? (
+              isImageSegment ? (
+                <div className="space-y-3.5">
+                  <CatEditorImageTargetSection
+                    segment={segment}
+                    canEdit={canEditTarget}
+                    isBusy={isImageBusy}
+                    isLoading={isTargetLoading}
+                    onUpload={onUploadImage}
+                    onRegenerate={onRegenerateImage}
+                  />
+                  {reviewActions}
+                </div>
+              ) : isTargetLoading && !segment.targetText.trim() ? (
+                <Skeleton className="h-10 w-full rounded-lg" />
               ) : (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                  <ImageIcon className="size-4" aria-hidden />
-                  <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeImage} />
-                </p>
+                <div className="space-y-3.5">
+                  <CatTargetEditor
+                    sourceText={segment.sourceText}
+                    value={segment.targetText}
+                    maxLength={segment.maxLength}
+                    compact
+                    onChange={onTargetChange}
+                  />
+                  {sourceMessageAnalysis ? (
+                    <CatIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
+                  ) : null}
+                  {showAiRecommendation && intelligence && onUseAiSuggestion ? (
+                    <CatEditorAiRecommendation
+                      intelligence={intelligence}
+                      isLoading={isAiSuggestionLoading}
+                      error={aiRecommendationError}
+                      onUseAiSuggestion={onUseAiSuggestion}
+                      onGenerateAiRecommendation={onGenerateAiRecommendation}
+                    />
+                  ) : null}
+                  {reviewActions}
+                </div>
               )
-            ) : isTargetLoading && !segment.targetText.trim() ? (
-              <Skeleton className="h-6 w-3/4 rounded-full" />
-            ) : segment.targetText.trim() ? (
-              <p className="text-sm leading-relaxed text-foreground">
-                <CatMessagePreview message={segment.targetText} />
-              </p>
             ) : (
-              <p className="text-sm text-muted-foreground italic">
-                <FormattedMessage
-                  defaultMessage="Click to translate"
-                  id="G3IbmWT2r1"
-                  description="Placeholder when a side-by-side row has no translation yet"
-                />
-              </p>
+              <button type="button" className="w-full bg-transparent text-left" onClick={onFocus}>
+                {isImageSegment ? (
+                  isTargetLoading && !hasImageTarget(segment) ? (
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  ) : hasImageTarget(segment) ? (
+                    <CatImagePreview
+                      src={
+                        segment.targetAssetUrl ??
+                        (segment.contentKind === "image_url" &&
+                        /^https?:\/\//i.test(segment.targetText)
+                          ? segment.targetText
+                          : null)
+                      }
+                      alt={intl.formatMessage(catEditorPanelMessages.imageTargetAlt)}
+                      emptyLabel={intl.formatMessage(catEditorPanelMessages.imageTargetEmpty)}
+                      className="min-h-24"
+                    />
+                  ) : (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
+                      <ImageIcon className="size-4" aria-hidden />
+                      <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeImage} />
+                    </p>
+                  )
+                ) : isTargetLoading && !segment.targetText.trim() ? (
+                  <Skeleton className="h-6 w-3/4 rounded-full" />
+                ) : segment.targetText.trim() ? (
+                  <p className="text-sm leading-relaxed text-foreground">
+                    <CatMessagePreview message={segment.targetText} />
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
+                    <LanguagesIcon className="size-4" aria-hidden />
+                    <FormattedMessage
+                      defaultMessage="Click to translate"
+                      id="G3IbmWT2r1"
+                      description="Placeholder when a side-by-side row has no translation yet"
+                    />
+                  </p>
+                )}
+              </button>
             )}
-          </button>
-        )}
+          </div>
+          {showFormatCheckIcon ? (
+            <CatSideBySideFormatCheckIcon
+              formatChecks={formatChecks}
+              isLoading={isFormatChecksLoading}
+              className="mt-0.5"
+            />
+          ) : null}
+        </div>
+        {showFormatCheckIcon ? (
+          <CatSideBySideFormatChecksReveal
+            open={revealFormatChecks}
+            formatChecks={actionableFormatChecks}
+            isLoading={isFormatChecksLoading}
+          />
+        ) : null}
         {isDirty ? (
           <span className="mt-2 inline-block size-1.5 rounded-full bg-bud-400" aria-hidden />
         ) : null}

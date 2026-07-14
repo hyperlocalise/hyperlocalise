@@ -71,7 +71,19 @@ function createSideBySideState() {
     ...base,
     segments: indexedSegments,
     queueSegments: indexedSegments.map(toQueueSegment),
+    formatChecks: [],
+    segmentFormatChecks: {},
   };
+}
+
+async function delayedMockValidateFormat(
+  ...args: Parameters<typeof mockValidateFormat>
+): ReturnType<typeof mockValidateFormat> {
+  const delayMs = 350 + Math.floor(Math.random() * 650);
+  await new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+  return mockValidateFormat(...args);
 }
 
 const sideBySideArgs = {
@@ -94,7 +106,7 @@ const sideBySideArgs = {
     onAddToIssueSheet: fn(),
   },
   services: {
-    validateFormat: mockValidateFormat,
+    validateFormat: delayedMockValidateFormat,
     lookupSegmentContext: async () =>
       "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
     generateAiRecommendation: async () => ({
@@ -116,7 +128,11 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Clear target/i })).toBeInTheDocument();
     await expect(canvas.getByText(/AI recommendation/i)).toBeInTheDocument();
-    await expect(canvas.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    await waitFor(
+      () => expect(canvas.getByRole("img", { name: /Format & QA warning/i })).toBeInTheDocument(),
+      { timeout: 3000 },
+    );
+    await expect(canvas.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Add to Issue Sheet/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();

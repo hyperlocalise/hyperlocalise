@@ -113,6 +113,34 @@ describe("CatSideBySideRow", () => {
     expect(onTargetChange).toHaveBeenCalledWith("");
   });
 
+  it("keeps copy source and clear visible when a text row is not focused", () => {
+    renderRow({ isFocused: false });
+
+    expect(screen.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Clear target/i })).toBeInTheDocument();
+  });
+
+  it("shows treat as image for image-url rows even when not focused", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "image_url" as const,
+      sourceText: "https://placehold.co/640x360/png",
+      sourceAssetUrl: "https://placehold.co/640x360/png",
+      targetText: "",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      onTreatAsImage: vi.fn(),
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Treat as image|Treat as text/i }),
+    ).toBeInTheDocument();
+  });
+
   it("shows AI recommendation when enabled for focused text rows", async () => {
     const user = userEvent.setup();
     const onUseAiSuggestion = vi.fn();
@@ -134,7 +162,7 @@ describe("CatSideBySideRow", () => {
     expect(onUseAiSuggestion).toHaveBeenCalledTimes(1);
   });
 
-  it("hides copy source, clear, and AI recommendation when not focused", () => {
+  it("hides AI recommendation when not focused", () => {
     const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
 
     renderRow({
@@ -144,7 +172,7 @@ describe("CatSideBySideRow", () => {
       onUseAiSuggestion: vi.fn(),
     });
 
-    expect(screen.queryByRole("button", { name: /Copy source/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
     expect(screen.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
   });
 
@@ -161,7 +189,13 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByText("5/80 characters")).toBeInTheDocument();
   });
 
-  it("shows format and QA checks when available for focused text rows", () => {
+  it("shows a loading icon while format checks are loading", () => {
+    renderRow({ isFormatChecksLoading: true, formatChecks: [] });
+
+    expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
+  });
+
+  it("shows a format check warning icon and details for focused text rows", () => {
     renderRow({
       formatChecks: [
         {
@@ -181,18 +215,80 @@ describe("CatSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    const icon = screen.getByRole("img", { name: /Format & QA warning/i });
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("data-status", "warn");
     expect(screen.getByText("Terminology consistency")).toBeInTheDocument();
+    expect(screen.getByText("Ambiguous noun: review")).toBeInTheDocument();
     expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
-  });
-
-  it("hides format and QA checks when there are none", () => {
-    renderRow({ formatChecks: [] });
-
     expect(screen.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
   });
 
-  it("hides format and QA checks when every check passed", () => {
+  it("shows a format check icon without details on inactive text rows", () => {
+    renderRow({
+      isFocused: false,
+      isHovered: false,
+      formatChecks: [
+        {
+          id: "check-terminology",
+          label: "Terminology consistency",
+          status: "fail",
+          message: "Ambiguous noun: review",
+          category: "terminology",
+        },
+      ],
+    });
+
+    const icon = screen.getByRole("img", { name: /Format & QA failed/i });
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("data-status", "fail");
+    expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
+  });
+
+  it("reveals format check details when an inactive row is hovered", async () => {
+    renderRow({
+      isFocused: false,
+      isHovered: true,
+      formatChecks: [
+        {
+          id: "check-terminology",
+          label: "Terminology consistency",
+          status: "warn",
+          message: "Ambiguous noun: review",
+          category: "terminology",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("img", { name: /Format & QA warning/i })).toBeInTheDocument();
+    expect(await screen.findByText("Terminology consistency")).toBeInTheDocument();
+  });
+
+  it("prefers the loading icon over a stale format check result", () => {
+    renderRow({
+      isFormatChecksLoading: true,
+      formatChecks: [
+        {
+          id: "check-terminology",
+          label: "Terminology consistency",
+          status: "warn",
+          message: "Ambiguous noun: review",
+          category: "terminology",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Format & QA warning/i })).not.toBeInTheDocument();
+  });
+
+  it("hides format check icons when there are no issues", () => {
+    renderRow({ formatChecks: [] });
+
+    expect(screen.queryByRole("img", { name: /Format & QA/i })).not.toBeInTheDocument();
+  });
+
+  it("hides format check icons when every check passed", () => {
     renderRow({
       formatChecks: [
         {
@@ -205,7 +301,7 @@ describe("CatSideBySideRow", () => {
       ],
     });
 
-    expect(screen.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Format & QA/i })).not.toBeInTheDocument();
   });
 
   it("hides ICU structure summary when the source has no ICU blocks", () => {

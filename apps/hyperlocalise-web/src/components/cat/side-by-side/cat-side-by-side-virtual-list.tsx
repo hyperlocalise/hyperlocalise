@@ -33,6 +33,8 @@ export function CatSideBySideVirtualList({
   focusedIntelligence = null,
   aiRecommendationError,
   formatChecks = [],
+  segmentFormatChecks,
+  formatCheckLoadingSegmentIds,
   onFocusSegment,
   onHoverSegment,
   onLeaveSegment,
@@ -68,6 +70,8 @@ export function CatSideBySideVirtualList({
   focusedIntelligence?: CatSegmentIntelligence | null;
   aiRecommendationError?: string;
   formatChecks?: CatFormatCheck[];
+  segmentFormatChecks?: Record<string, CatFormatCheck[]>;
+  formatCheckLoadingSegmentIds?: ReadonlySet<string>;
   onFocusSegment: (segmentId: string) => void;
   onHoverSegment: (segmentId: string) => void;
   onLeaveSegment: () => void;
@@ -182,14 +186,20 @@ export function CatSideBySideVirtualList({
                 isPostingComment={isPostingComment}
                 isLookingUpContext={isLookingUpContext}
                 isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
-                isFormatChecksLoading={isFormatChecksLoading && segment.id === focusedSegmentId}
+                isFormatChecksLoading={
+                  (formatCheckLoadingSegmentIds?.has(segment.id) ?? false) ||
+                  (isFormatChecksLoading && segment.id === focusedSegmentId)
+                }
                 isImageBusy={isImageBusy && segment.id === focusedSegmentId}
                 canUseAiRecommendation={canUseAiRecommendation}
                 intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
                 aiRecommendationError={
                   segment.id === focusedSegmentId ? aiRecommendationError : undefined
                 }
-                formatChecks={segment.id === focusedSegmentId ? formatChecks : []}
+                formatChecks={
+                  segmentFormatChecks?.[segment.id] ??
+                  (segment.id === focusedSegmentId ? formatChecks : [])
+                }
                 onFocus={() => onFocusSegment(segment.id)}
                 onHover={() => onHoverSegment(segment.id)}
                 onLeave={onLeaveSegment}

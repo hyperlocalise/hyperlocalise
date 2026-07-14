@@ -77,6 +77,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   focusedIntelligence = null,
   aiRecommendationError,
   formatChecks = [],
+  segmentFormatChecks,
+  formatCheckLoadingSegmentIds,
   isConcordanceLoading,
   isVisualContextLoading,
   showAgentContext,
@@ -135,6 +137,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   focusedIntelligence?: CatSegmentIntelligence | null;
   aiRecommendationError?: string;
   formatChecks?: CatFormatCheck[];
+  segmentFormatChecks?: Record<string, CatFormatCheck[]>;
+  formatCheckLoadingSegmentIds?: ReadonlySet<string>;
   isConcordanceLoading: boolean;
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
@@ -312,6 +316,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               focusedIntelligence={focusedIntelligence}
               aiRecommendationError={aiRecommendationError}
               formatChecks={formatChecks}
+              segmentFormatChecks={segmentFormatChecks}
+              formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
               onFocusSegment={onFocusSegment}
               onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
               onLeaveSegment={() => store.ui.clearHoveredSegment()}

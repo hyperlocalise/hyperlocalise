@@ -40,9 +40,12 @@ export interface CatReviewControllerPorts {
 export class CatReviewController {
   private ports: CatReviewControllerPorts;
   private selectedSegmentDisposer?: IReactionDisposer;
+  private visibleSegmentsDisposer?: IReactionDisposer;
   private disposed = false;
   private validationTimeout: ReturnType<typeof setTimeout> | null = null;
   private validationAbortController: AbortController | null = null;
+  private segmentValidationControllers = new Map<string, AbortController>();
+  private lastVisibleCheckFingerprint = new Map<string, string>();
 
   constructor(
     private readonly workspace: CatWorkspaceOrchestrator,
@@ -70,6 +73,46 @@ export class CatReviewController {
       },
       { fireImmediately: true },
     );
+
+    this.visibleSegmentsDisposer?.();
+    this.visibleSegmentsDisposer = reaction(
+      () => {
+        if (!this.workspace.ui.isSideBySideView || !this.canRunChecks) {
+          return [] as Array<{ id: string; fingerprint: string }>;
+        }
+
+        return this.workspace.ui.visibleSideBySideSegmentIds.flatMap((segmentId) => {
+          if (segmentId === this.workspace.selectedSegmentId) {
+            return [];
+          }
+          if (this.workspace.loadingSegmentIds.has(segmentId)) {
+            return [];
+          }
+          const segment = this.workspace.getSegmentView(segmentId);
+          if (
+            !segment ||
+            segment.contentKind === "image_file" ||
+            segment.contentKind === "image_url"
+          ) {
+            return [];
+          }
+          return [{ id: segmentId, fingerprint: `${segmentId}:${segment.targetText}` }];
+        });
+      },
+      (segments) => {
+        for (const entry of segments) {
+          if (this.lastVisibleCheckFingerprint.get(entry.id) === entry.fingerprint) {
+            continue;
+          }
+          this.lastVisibleCheckFingerprint.set(entry.id, entry.fingerprint);
+          const segment = this.workspace.getSegmentView(entry.id);
+          if (segment) {
+            void this.runChecks(segment, segment.targetText, undefined, { quiet: true });
+          }
+        }
+      },
+      { fireImmediately: true },
+    );
   }
 
   dispose() {
@@ -80,16 +123,29 @@ export class CatReviewController {
     }
     this.validationAbortController?.abort();
     this.validationAbortController = null;
+    for (const controller of this.segmentValidationControllers.values()) {
+      controller.abort();
+    }
+    this.segmentValidationControllers.clear();
+    this.lastVisibleCheckFingerprint.clear();
+    this.workspace.clearFormatCheckLoading();
     this.selectedSegmentDisposer?.();
     this.selectedSegmentDisposer = undefined;
+    this.visibleSegmentsDisposer?.();
+    this.visibleSegmentsDisposer = undefined;
   }
 
   get canRunChecks() {
     return Boolean(this.ports.services?.validateFormat || this.ports.services?.runQaChecks);
   }
 
-  async runChecks(segment: CatSegment, value: string, glossaryTermsOverride?: CatGlossaryTerm[]) {
-    if (this.validationTimeout) {
+  async runChecks(
+    segment: CatSegment,
+    value: string,
+    glossaryTermsOverride?: CatGlossaryTerm[],
+    options?: { quiet?: boolean },
+  ) {
+    if (!options?.quiet && this.validationTimeout) {
       clearTimeout(this.validationTimeout);
       this.validationTimeout = null;
     }
@@ -99,10 +155,20 @@ export class CatReviewController {
       return;
     }
 
-    this.validationAbortController?.abort();
+    const quiet = options?.quiet === true;
+    if (!quiet) {
+      this.validationAbortController?.abort();
+    }
+    this.segmentValidationControllers.get(segment.id)?.abort();
     const abortController = new AbortController();
-    this.validationAbortController = abortController;
-    const sequence = this.workspace.beginValidation();
+    this.segmentValidationControllers.set(segment.id, abortController);
+    if (!quiet) {
+      this.validationAbortController = abortController;
+    }
+
+    const isSelected = this.workspace.selectedSegmentId === segment.id;
+    const sequence = quiet || !isSelected ? null : this.workspace.beginValidation();
+    this.workspace.setFormatCheckLoading(segment.id, true);
     try {
       const glossaryTerms =
         glossaryTermsOverride ?? glossaryTermsForSegment(this.workspace.shellState, segment.id);
@@ -115,7 +181,7 @@ export class CatReviewController {
       if (
         this.disposed ||
         abortController.signal.aborted ||
-        !this.workspace.isValidationCurrent(sequence)
+        (sequence !== null && !this.workspace.isValidationCurrent(sequence))
       ) {
         return;
       }
@@ -129,10 +195,18 @@ export class CatReviewController {
         throw error;
       }
     } finally {
-      if (this.validationAbortController === abortController) {
+      if (this.segmentValidationControllers.get(segment.id) === abortController) {
+        this.segmentValidationControllers.delete(segment.id);
+      }
+      if (!quiet && this.validationAbortController === abortController) {
         this.validationAbortController = null;
       }
-      this.workspace.completeValidation(sequence);
+      if (sequence !== null) {
+        this.workspace.completeValidation(sequence);
+      }
+      if (this.segmentValidationControllers.get(segment.id) === undefined) {
+        this.workspace.setFormatCheckLoading(segment.id, false);
+      }
     }
   }
 
