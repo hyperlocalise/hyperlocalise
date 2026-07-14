@@ -29,10 +29,7 @@ export interface CatReviewControllerPorts {
   intl: IntlShape;
   services?: CatWorkspaceServices;
   review?: Partial<CatWorkspaceReview>;
-  loadConcordance?: (
-    segmentId: string,
-    options?: { autoFill?: boolean },
-  ) => Promise<CatSegmentConcordanceResult | undefined>;
+  loadConcordance?: (segmentId: string) => Promise<CatSegmentConcordanceResult | undefined>;
   queueFilter: CatQueueFilter;
   usesServerQueueFilter: boolean;
 }
@@ -251,7 +248,7 @@ export class CatReviewController {
 
     try {
       if (includeAi && lookupSegmentConcordance) {
-        await this.ports.loadConcordance?.(segmentId, { autoFill: false });
+        await this.ports.loadConcordance?.(segmentId);
         if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
           return;
         }

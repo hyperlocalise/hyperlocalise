@@ -169,9 +169,6 @@ export class CatWorkspaceOrchestrator {
 
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
   private initialSegmentJumpApplied = false;
-  autoFilledSegmentIds = new Set<string>();
-  /** Target text written by TM auto-fill; used to detect untouched speculative drafts. */
-  autoFilledTargetTexts = new Map<string, string>();
   /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
   hydratedTargetSegmentIds = new Set<string>();
 
@@ -593,31 +590,12 @@ export class CatWorkspaceOrchestrator {
   reset(initialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
-    this.autoFilledSegmentIds = new Set();
-    this.autoFilledTargetTexts = new Map();
     this.hydratedTargetSegmentIds = new Set();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
   hasHydratedTarget(segmentId: string) {
     return this.hydratedTargetSegmentIds.has(segmentId);
-  }
-
-  markAutoFilledTarget(segmentId: string, targetText: string) {
-    this.autoFilledSegmentIds.add(segmentId);
-    this.autoFilledTargetTexts.set(segmentId, targetText);
-  }
-
-  clearAutoFilledTarget(segmentId: string) {
-    this.autoFilledSegmentIds.delete(segmentId);
-    this.autoFilledTargetTexts.delete(segmentId);
-  }
-
-  private isUntouchedAutoFilledDraft(segmentId: string, draft: CatSegmentDraft) {
-    return (
-      this.autoFilledSegmentIds.has(segmentId) &&
-      draft.targetText === this.autoFilledTargetTexts.get(segmentId)
-    );
   }
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
@@ -732,17 +710,7 @@ export class CatWorkspaceOrchestrator {
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
-        // Prefer authoritative server text over an untouched TM auto-fill draft,
-        // including when an empty first hydrate was later followed by a real translation.
-        if (
-          targetText.trim().length > 0 &&
-          this.isUntouchedAutoFilledDraft(segmentId, existingDraft)
-        ) {
-          existingDraft.applyServerTarget(targetText, status);
-          this.clearAutoFilledTarget(segmentId);
-        } else {
-          existingDraft.applyServerStatus(status);
-        }
+        existingDraft.applyServerStatus(status);
         this.hydratedTargetSegmentIds.add(segmentId);
         return;
       }
@@ -853,7 +821,6 @@ export class CatWorkspaceOrchestrator {
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
-          this.clearAutoFilledTarget(segmentId);
         }
       }
     }

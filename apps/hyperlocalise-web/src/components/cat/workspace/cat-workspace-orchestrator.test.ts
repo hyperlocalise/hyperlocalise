@@ -325,7 +325,7 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
   });
 
-  it("does not clear TM autofill when lazy target sync returns an empty server target", () => {
+  it("keeps dirty draft text when lazy target sync returns an empty server target", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
@@ -338,7 +338,7 @@ describe("CatWorkspaceOrchestrator hydration", () => {
       externalTranslationId: null,
       isApproved: false,
     });
-    store.setTargetText("seg-01", "Bonjour depuis la MT");
+    store.setTargetText("seg-01", "Bonjour modifié");
 
     store.applySegmentTarget("seg-01", {
       text: "",
@@ -347,41 +347,12 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     });
 
     expect(store.getSegmentView("seg-01")).toMatchObject({
-      targetText: "Bonjour depuis la MT",
+      targetText: "Bonjour modifié",
     });
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
   });
 
-  it("prefers the first server translation over a speculative TM auto-fill draft", () => {
-    const store = createCatWorkspace(
-      createCatWorkspaceState({
-        selectedSegmentId: "seg-01",
-        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
-        segments: [],
-      }),
-    );
-
-    store.markAutoFilledTarget("seg-01", "Bonjour depuis la MT");
-    store.setTargetText("seg-01", "Bonjour depuis la MT");
-    expect(store.hasHydratedTarget("seg-01")).toBe(false);
-    expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
-
-    store.applySegmentTarget("seg-01", {
-      text: "Bonjour",
-      externalTranslationId: "translation-1",
-      isApproved: false,
-    });
-
-    expect(store.getSegmentView("seg-01")).toMatchObject({
-      targetText: "Bonjour",
-      status: "needs_review",
-    });
-    expect(store.hasHydratedTarget("seg-01")).toBe(true);
-    expect(store.dirtySegmentIds.has("seg-01")).toBe(false);
-    expect(store.autoFilledSegmentIds.has("seg-01")).toBe(false);
-  });
-
-  it("replaces untouched TM auto-fill when a later lazy target refetch returns text", () => {
+  it("keeps dirty user edits when a later server refetch arrives", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-01",
@@ -395,41 +366,6 @@ describe("CatWorkspaceOrchestrator hydration", () => {
       externalTranslationId: null,
       isApproved: false,
     });
-    store.markAutoFilledTarget("seg-01", "Bonjour depuis la MT");
-    store.setTargetText("seg-01", "Bonjour depuis la MT");
-    expect(store.hasHydratedTarget("seg-01")).toBe(true);
-    expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
-
-    store.applySegmentTarget("seg-01", {
-      text: "Bonjour",
-      externalTranslationId: "translation-1",
-      isApproved: false,
-    });
-
-    expect(store.getSegmentView("seg-01")).toMatchObject({
-      targetText: "Bonjour",
-      status: "needs_review",
-    });
-    expect(store.dirtySegmentIds.has("seg-01")).toBe(false);
-    expect(store.autoFilledSegmentIds.has("seg-01")).toBe(false);
-  });
-
-  it("keeps user edits after TM auto-fill when a later server refetch arrives", () => {
-    const store = createCatWorkspace(
-      createCatWorkspaceState({
-        selectedSegmentId: "seg-01",
-        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
-        segments: [],
-      }),
-    );
-
-    store.applySegmentTarget("seg-01", {
-      text: "",
-      externalTranslationId: null,
-      isApproved: false,
-    });
-    store.markAutoFilledTarget("seg-01", "Bonjour depuis la MT");
-    store.setTargetText("seg-01", "Bonjour depuis la MT");
     store.setTargetText("seg-01", "Bonjour modifié");
 
     store.applySegmentTarget("seg-01", {
