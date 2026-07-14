@@ -120,8 +120,7 @@ export function useCatWorkspaceRuntime({
       intl,
       services: serviceOverrides,
       review: reviewOverrides,
-      loadConcordance: (segmentId, options) =>
-        intelligenceController.loadConcordance(segmentId, options),
+      loadConcordance: (segmentId) => intelligenceController.loadConcordance(segmentId),
       queueFilter,
       usesServerQueueFilter,
     }),
