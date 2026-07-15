@@ -1933,7 +1933,8 @@ export async function listTmsProviderLiveFilesForProject(
   organizationId: string,
   externalProjectId: string,
   options?: {
-    limit?: number;
+    /** Cap returned files. Pass `null` to keep the full provider list (All Files CAT). */
+    limit?: number | null;
     branch?: string | null;
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
@@ -1995,6 +1996,10 @@ export async function listTmsProviderLiveFilesForProject(
       project: projectMetadata,
     }),
   );
+
+  if (options?.limit === null) {
+    return mapped;
+  }
 
   return mapped.slice(0, options?.limit ?? 500);
 }
@@ -2222,7 +2227,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
     {
       actorUserId: input.actorUserId,
       context: input.context,
-      limit: 1000,
+      limit: null,
     },
   );
 
