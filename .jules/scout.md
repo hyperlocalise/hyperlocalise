@@ -139,3 +139,7 @@
 ## 2025-07-15 - [Broadening Format Detection]
 **Learning:** `KindForSourcePath` determines which validation rules (Markdown, HTML, ICU) apply to a segment. Previously, it only recognized a narrow set of extensions (e.g., `.md`, `.html`), causing common variations like `.markdown` or `.htm` to default to generic ICU validation, potentially missing format-specific structural checks.
 **Action:** Ensure `KindForSourcePath` includes all common format variations (e.g., `.mdown`, `.mdwn`, `.htm`) in its extension-to-kind mapping to guarantee consistent validation across projects with different naming conventions.
+
+## 2025-07-20 - [QA Mode and Profile Parity Interaction]
+**Learning:** In `ValidateSegment`, QA checks (like `whitespace_only`) are executed after core format and profile parity checks. If a target string contains only whitespace while the source contains text, `validateWhitespaceProfile` will trigger a `format-whitespace-profile` failure (StatusFail) before the `qa-whitespace-only` warning (StatusWarn) is even evaluated.
+**Action:** When testing QA modes via the top-level `ValidateSegment` entry point, ensure the source and target strings are chosen to either specifically trigger or specifically avoid overlapping profile parity violations to maintain test determinism.
