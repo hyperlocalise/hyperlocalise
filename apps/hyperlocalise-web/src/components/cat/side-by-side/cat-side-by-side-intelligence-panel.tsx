@@ -12,6 +12,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorCommentsSection } from "@/components/cat/editor/cat-editor-comments-section";
 import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcut-kbd";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
+import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import {
   catEditorPanelMessages,
   catSideBySidePanelMessages,
@@ -160,12 +161,11 @@ export function CatSideBySideIntelligencePanel({
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <p
-          className="min-w-0 truncate font-mono text-[11px] text-muted-foreground"
-          title={segment.key}
-        >
-          {segment.key}
-        </p>
+        <CatSegmentKeyMeta
+          className="min-w-0 flex-1"
+          segmentKey={segment.key}
+          sourcePath={segment.sourcePath}
+        />
         {onAskQuestion ? (
           <Button
             type="button"

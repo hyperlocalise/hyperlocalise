@@ -11,6 +11,11 @@ import { db, schema } from "@/lib/database";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { NativeCatCommentService } from "@/lib/projects/cat/native-cat-comment-service";
 import {
+  CAT_ALL_FILES_FILENAME,
+  CAT_ALL_FILES_SOURCE_PATH,
+  isCatAllFilesSourcePath,
+} from "@/lib/projects/cat-all-files";
+import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
@@ -53,15 +58,19 @@ function toCatTranslation(row: {
   };
 }
 
-function mapTextSegment(key: {
-  id: string;
-  key: string;
-  sourceText: string;
-  context: string | null;
-  type: string | null;
-  maxLength: number | null;
-  metadata: Record<string, unknown> | null;
-}): ProjectFileCatSegment {
+function mapTextSegment(
+  key: {
+    id: string;
+    key: string;
+    sourceText: string;
+    context: string | null;
+    type: string | null;
+    maxLength: number | null;
+    metadata: Record<string, unknown> | null;
+    sourcePath?: string;
+  },
+  options?: { includeSourcePath?: boolean },
+): ProjectFileCatSegment {
   const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
   const looksLikeUrl = looksLikeImageUrl(key.sourceText);
 
@@ -77,6 +86,7 @@ function mapTextSegment(key: {
     ...(looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND
       ? { looksLikeImageUrl: looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND }
       : {}),
+    ...(options?.includeSourcePath && key.sourcePath ? { sourcePath: key.sourcePath } : {}),
   };
 }
 
@@ -102,7 +112,12 @@ export class NativeCatService extends ProjectServiceBase {
     canEditTranslations: boolean;
     organizationSlug: string;
     pagination?: ProjectFileCatPaginationInput;
+    sourcePaths?: readonly string[] | null;
   }): Promise<ProjectFileCatQueueFile | null> {
+    if (isCatAllFilesSourcePath(input.sourcePath)) {
+      return this.getAllFilesCatQueue(input);
+    }
+
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -247,6 +262,76 @@ export class NativeCatService extends ProjectServiceBase {
           imageVariantId: variant?.id ?? null,
         },
       ],
+    };
+  }
+
+  private async getAllFilesCatQueue(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale: string;
+    canEditTranslations: boolean;
+    pagination?: ProjectFileCatPaginationInput;
+    sourcePaths?: readonly string[] | null;
+  }): Promise<ProjectFileCatQueueFile> {
+    const paginationInput = input.pagination ?? {
+      offset: 0,
+      limit: legacyNativeCatSegmentLimit,
+      search: undefined,
+      queueFilter: "all",
+      paginated: true,
+    };
+
+    const limit = paginationInput.paginated
+      ? paginationInput.limit
+      : legacyNativeCatSegmentLimit + 1;
+    const offset = paginationInput.paginated ? paginationInput.offset : 0;
+
+    const [totalCount, keys] = await Promise.all([
+      this.translations.countKeysForProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        targetLocale: input.targetLocale,
+        search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
+        sourcePaths: input.sourcePaths,
+      }),
+      this.translations.listKeysForProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        targetLocale: input.targetLocale,
+        limit,
+        offset,
+        search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
+        sourcePaths: input.sourcePaths,
+      }),
+    ]);
+
+    const visibleKeys = paginationInput.paginated
+      ? keys
+      : keys.slice(0, legacyNativeCatSegmentLimit);
+    const truncated = paginationInput.paginated
+      ? offset + visibleKeys.length < totalCount
+      : keys.length > legacyNativeCatSegmentLimit;
+
+    const pagination = paginationInput.paginated
+      ? buildCatFilePagination({
+          offset,
+          limit: paginationInput.limit,
+          returnedCount: visibleKeys.length,
+          totalCount,
+        })
+      : undefined;
+
+    return {
+      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      filename: CAT_ALL_FILES_FILENAME,
+      provider: null,
+      targetLocale: input.targetLocale,
+      canEditTranslations: input.canEditTranslations,
+      truncated,
+      pagination,
+      segments: visibleKeys.map((key) => mapTextSegment(key, { includeSourcePath: true })),
     };
   }
 

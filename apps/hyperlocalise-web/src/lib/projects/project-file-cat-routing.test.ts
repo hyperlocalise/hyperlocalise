@@ -3,8 +3,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { createProjectFileRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
 
 import {
+  buildProjectFileCatAllFilesHref,
   buildProjectFileCatHref,
+  buildProjectStringsHref,
   canOpenProjectFileCat,
+  parseProjectFileCatSearchParams,
+  resolveProjectCatTargetLocale,
   resolveProjectFileCatTargetLocale,
   resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
@@ -207,5 +211,47 @@ describe("resolveProjectFileCatTargetLocales", () => {
     });
 
     expect(resolveProjectFileCatTargetLocales(file, ["vi"])).toEqual(["fr-FR"]);
+  });
+});
+
+describe("buildProjectFileCatAllFilesHref", () => {
+  it("builds an all-files CAT href with locale", () => {
+    expect(buildProjectFileCatAllFilesHref("acme", "proj_1", "fr-FR")).toBe(
+      "/org/acme/projects/proj_1/files/cat?sourcePath=*&locale=fr-FR",
+    );
+  });
+
+  it("builds the project Strings sidebar href", () => {
+    expect(buildProjectStringsHref("acme", "proj_1", "de-DE")).toBe(
+      "/org/acme/projects/proj_1/strings?sourcePath=*&locale=de-DE",
+    );
+  });
+});
+
+describe("parseProjectFileCatSearchParams", () => {
+  it("treats sourcePath=* as all-files mode", () => {
+    expect(
+      parseProjectFileCatSearchParams({
+        sourcePath: "*",
+        locale: "fr-FR",
+      }),
+    ).toEqual({
+      sourcePath: null,
+      allFiles: true,
+      highlightLocale: "fr-FR",
+      initialSegmentKey: null,
+      externalResourceId: null,
+      resourceType: null,
+      branch: null,
+      sourcePaths: null,
+    });
+  });
+});
+
+describe("resolveProjectCatTargetLocale", () => {
+  it("prefers an exact match then falls back to the first locale", () => {
+    expect(resolveProjectCatTargetLocale(["fr-FR", "de-DE"], "de-DE")).toBe("de-DE");
+    expect(resolveProjectCatTargetLocale(["fr-FR", "de-DE"], "it-IT")).toBe("fr-FR");
+    expect(resolveProjectCatTargetLocale([], null)).toBeNull();
   });
 });

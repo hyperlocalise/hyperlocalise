@@ -33,17 +33,23 @@ function useCatSegmentLazySync(input: {
     ? (store.findSegmentIdByKeyOrId(input.segmentId) ?? input.segmentId)
     : null;
 
+  const queueSegment = segmentId
+    ? input.catFile?.segments.find((segment) => segment.externalStringId === segmentId)
+    : null;
+
   const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
     resolveCatFileIdentity({
-      externalResourceId: input.externalResourceId,
-      resourceType: input.resourceType,
+      externalResourceId: queueSegment?.externalResourceId ?? input.externalResourceId,
+      resourceType: queueSegment?.resourceType ?? input.resourceType,
       catFile: input.catFile,
     });
+
+  const resolvedSourcePath = queueSegment?.sourcePath?.trim() || input.sourcePath;
 
   const segmentTargetQuery = useCatSegmentTarget({
     organizationSlug: input.organizationSlug,
     projectId: input.projectId,
-    sourcePath: input.sourcePath,
+    sourcePath: resolvedSourcePath,
     externalResourceId: resolvedExternalResourceId,
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,
@@ -54,7 +60,7 @@ function useCatSegmentLazySync(input: {
   const segmentCommentsQuery = useCatSegmentComments({
     organizationSlug: input.organizationSlug,
     projectId: input.projectId,
-    sourcePath: input.sourcePath,
+    sourcePath: resolvedSourcePath,
     externalResourceId: resolvedExternalResourceId,
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,

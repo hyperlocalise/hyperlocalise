@@ -142,6 +142,56 @@ describe("projectFileCatToWorkspaceState", () => {
 
     expect(state.segmentIntelligence?.["limited-string"]?.maxLength).toBeUndefined();
   });
+
+  it("prefers per-segment format over the top-level provider format for All Files", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        sourcePath: "*",
+        filename: "All Files",
+        provider: {
+          kind: "crowdin",
+          resourceType: "file",
+          externalProjectId: "crowdin-project",
+          externalResourceId: "first-file",
+          externalUrl: null,
+          syncState: "ready",
+          sourceLocale: "en-US",
+          targetLocales: ["vi"],
+          localeReadiness: {},
+          revision: null,
+          format: "android",
+          lastSyncedAt: null,
+        },
+        segments: [
+          {
+            externalStringId: "json-string",
+            key: "auth.title",
+            sourceText: "Sign in",
+            context: null,
+            type: null,
+            sourcePath: "locales/en.json",
+            format: "json",
+          },
+          {
+            externalStringId: "xml-string",
+            key: "home.title",
+            sourceText: "Home",
+            context: null,
+            type: null,
+            sourcePath: "res/values/strings.xml",
+            format: "android",
+          },
+        ],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.segmentIntelligence?.["json-string"]?.componentName).toBe("json");
+    expect(state.segmentIntelligence?.["json-string"]?.filePath).toBe("locales/en.json");
+    expect(state.segmentIntelligence?.["xml-string"]?.componentName).toBe("android");
+    expect(state.segmentIntelligence?.["xml-string"]?.filePath).toBe("res/values/strings.xml");
+  });
 });
 
 describe("CatWorkspaceOrchestrator lazy segment ingest", () => {

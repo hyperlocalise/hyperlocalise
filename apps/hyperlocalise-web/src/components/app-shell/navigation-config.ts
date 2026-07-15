@@ -14,6 +14,7 @@ import {
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
+  LanguageCircleIcon,
   FolderKanbanIcon,
   InboxIcon,
   LinkSquare02Icon,
@@ -249,6 +250,15 @@ export function buildProjectNavigationItems(
       }),
       href: project("files"),
       icon: File01Icon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Strings",
+        id: "CWdGpW4jOj",
+        description: "Project sidebar navigation item for the CAT strings workspace",
+      }),
+      href: project("strings"),
+      icon: LanguageCircleIcon,
     },
     {
       label: intl.formatMessage({

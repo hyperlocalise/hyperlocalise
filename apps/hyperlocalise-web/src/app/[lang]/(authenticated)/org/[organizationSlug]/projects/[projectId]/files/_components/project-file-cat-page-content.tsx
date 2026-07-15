@@ -18,9 +18,16 @@ import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-s
 import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 import {
+  CAT_ALL_FILES_SOURCE_PATH,
+  supportsCatAllFilesProvider,
+} from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  buildProjectFileCatAllFilesHref,
   buildProjectFileCatHref,
   canOpenProjectFileCat,
   hasProjectFileCatIdentityFromUrl,
+  resolveProjectCatTargetLocale,
   resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
@@ -62,25 +69,31 @@ export function ProjectFileCatPageContent({
   organizationSlug,
   projectId,
   sourcePath,
+  allFiles = false,
+  catAllFilesEnabled = false,
   highlightLocale,
   initialSegmentKey = null,
   externalResourceId = null,
   resourceType = null,
   branch = null,
+  sourcePaths = null,
 }: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string | null;
+  allFiles?: boolean;
+  catAllFilesEnabled?: boolean;
   highlightLocale: string | null;
   initialSegmentKey?: string | null;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
   branch?: string | null;
+  sourcePaths?: string | null;
 }) {
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
-  const hasFileReference = Boolean(sourcePath);
+  const hasFileReference = Boolean(sourcePath) || allFiles;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
   });
@@ -138,6 +151,49 @@ export function ProjectFileCatPageContent({
     [filesQuery.data],
   );
 
+  const canUseAllFiles =
+    catAllFilesEnabled &&
+    supportsCatAllFilesProvider(
+      projectQuery.data?.externalProviderKind ??
+        parseProviderProjectId(projectId)?.providerKind ??
+        null,
+    );
+
+  useEffect(() => {
+    if (!allFiles || canUseAllFiles || !projectQuery.data) {
+      return;
+    }
+
+    const fallbackFile = catFiles[0];
+    if (!fallbackFile) {
+      router.replace(filesHref);
+      return;
+    }
+
+    const href = buildProjectFileCatHref(
+      organizationSlug,
+      projectId,
+      fallbackFile,
+      highlightLocale,
+      branch,
+      projectQuery.data.targetLocales,
+    );
+    if (href) {
+      router.replace(href);
+    }
+  }, [
+    allFiles,
+    branch,
+    canUseAllFiles,
+    catFiles,
+    filesHref,
+    highlightLocale,
+    organizationSlug,
+    projectId,
+    projectQuery.data,
+    router,
+  ]);
+
   const enabledRepositoryFullNames = useMemo(
     () =>
       (repositoriesQuery.data ?? [])
@@ -173,7 +229,35 @@ export function ProjectFileCatPageContent({
     preferredOpen: hasFileReference ? false : null,
   });
 
-  if (!sourcePath) {
+  useEffect(() => {
+    if (!allFiles || highlightLocale || !projectQuery.data) {
+      return;
+    }
+
+    const resolved = resolveProjectCatTargetLocale(projectQuery.data.targetLocales, null);
+    if (!resolved) {
+      return;
+    }
+
+    router.replace(
+      buildProjectFileCatAllFilesHref(organizationSlug, projectId, resolved, {
+        branch,
+        sourcePaths: sourcePaths ? sourcePaths.split(",") : null,
+        basePath: "strings",
+      }),
+    );
+  }, [
+    allFiles,
+    branch,
+    highlightLocale,
+    organizationSlug,
+    projectId,
+    projectQuery.data,
+    router,
+    sourcePaths,
+  ]);
+
+  if (!sourcePath && !allFiles) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -232,7 +316,7 @@ export function ProjectFileCatPageContent({
     externalResourceId ?? file?.provider?.externalResourceId ?? null;
   const resolvedResourceType = resourceType ?? file?.provider?.resourceType;
 
-  if (!canOpenFromUrlIdentity && !file) {
+  if (!allFiles && !canOpenFromUrlIdentity && !file) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -249,7 +333,7 @@ export function ProjectFileCatPageContent({
     );
   }
 
-  if (file?.provider && !supportsProviderCatFile(file)) {
+  if (!allFiles && file?.provider && !supportsProviderCatFile(file)) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -266,17 +350,30 @@ export function ProjectFileCatPageContent({
   }
 
   const projectTargetLocales = projectQuery.data?.targetLocales;
-  const workspaceTargetLocales = file
-    ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
-    : [];
-  const targetLocaleResolution = file
-    ? resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
-    : {
+  const workspaceTargetLocales = allFiles
+    ? [...(projectTargetLocales ?? [])]
+    : file
+      ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
+      : [];
+  const targetLocaleResolution = allFiles
+    ? {
         requestedLocale: highlightLocale,
-        status: highlightLocale ? ("exact" as const) : ("none" as const),
-        targetLocale: highlightLocale,
-        targetLocales: [],
-      };
+        status: (highlightLocale && workspaceTargetLocales.includes(highlightLocale)
+          ? "exact"
+          : workspaceTargetLocales[0]
+            ? "fallback"
+            : "none") as "exact" | "fallback" | "none",
+        targetLocale: resolveProjectCatTargetLocale(projectTargetLocales, highlightLocale),
+        targetLocales: workspaceTargetLocales,
+      }
+    : file
+      ? resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+      : {
+          requestedLocale: highlightLocale,
+          status: highlightLocale ? ("exact" as const) : ("none" as const),
+          targetLocale: highlightLocale,
+          targetLocales: [],
+        };
   const targetLocale = targetLocaleResolution.targetLocale;
   const localeFallbackMessage =
     targetLocaleResolution.status === "fallback" &&
@@ -339,13 +436,23 @@ export function ProjectFileCatPageContent({
       organizationSlug,
       projectId,
       nextFile,
-      highlightLocale,
+      targetLocale ?? highlightLocale,
       branch,
       projectTargetLocales,
     );
     if (href) {
       router.push(href);
     }
+  };
+
+  const handleSelectAllFiles = () => {
+    const href = buildProjectFileCatAllFilesHref(
+      organizationSlug,
+      projectId,
+      targetLocale ?? highlightLocale,
+      { branch, basePath: "strings" },
+    );
+    router.push(href);
   };
 
   const handleRepositoryChange = (nextRepositoryFullName: string) => {
@@ -358,11 +465,26 @@ export function ProjectFileCatPageContent({
   };
 
   const handleLocaleChange = (nextLocale: string) => {
-    if (!sourcePath || nextLocale === targetLocale) {
+    if (nextLocale === targetLocale) {
       return;
     }
 
     const navigate = () => {
+      if (allFiles) {
+        router.push(
+          buildProjectFileCatAllFilesHref(organizationSlug, projectId, nextLocale, {
+            branch,
+            sourcePaths: sourcePaths ? sourcePaths.split(",") : null,
+            basePath: "strings",
+          }),
+        );
+        return;
+      }
+
+      if (!sourcePath) {
+        return;
+      }
+
       const params = new URLSearchParams({
         sourcePath,
         locale: nextLocale,
@@ -400,11 +522,13 @@ export function ProjectFileCatPageContent({
           <ArrowLeftIcon className="size-4" />
         </Button>
 
-        {catFiles.length > 0 ? (
+        {catFiles.length > 0 || allFiles ? (
           <CatFileTreePicker
             files={catFiles}
             selectedSourcePath={sourcePath ?? ""}
             onSelectFile={handleFileChange}
+            allFilesSelected={allFiles}
+            onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
           />
         ) : (
           <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">
@@ -460,13 +584,13 @@ export function ProjectFileCatPageContent({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={`${sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
+          key={`${allFiles ? CAT_ALL_FILES_SOURCE_PATH : sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}
-          sourcePath={sourcePath}
-          externalResourceId={resolvedExternalResourceId}
-          resourceType={resolvedResourceType}
+          sourcePath={allFiles ? CAT_ALL_FILES_SOURCE_PATH : (sourcePath as string)}
+          externalResourceId={allFiles ? null : resolvedExternalResourceId}
+          resourceType={allFiles ? undefined : resolvedResourceType}
           targetLocale={targetLocale}
           targetLocales={workspaceTargetLocales}
           highlightLocale={highlightLocale}
@@ -476,6 +600,7 @@ export function ProjectFileCatPageContent({
             selectedRepositoryFullName,
           )}
           initialSegmentKey={initialSegmentKey}
+          sourcePathsFilter={sourcePaths}
           layout="fullscreen"
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}

@@ -25,6 +25,7 @@ import {
 } from "@/components/cat/editor/cat-target-editor";
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
 import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSegmentTags } from "@/components/cat/segment/cat-segment-tags";
 import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
 import {
@@ -187,15 +188,11 @@ export function CatSideBySideRow({
   );
   const sourceKeyMeta = (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex min-w-0 items-center gap-1">
-        <p
-          className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground"
-          title={segment.key}
-        >
-          {segment.key}
-        </p>
-        {shareButton}
-      </div>
+      <CatSegmentKeyMeta
+        segmentKey={segment.key}
+        sourcePath={segment.sourcePath}
+        trailing={shareButton}
+      />
       {statusAndTags}
     </div>
   );

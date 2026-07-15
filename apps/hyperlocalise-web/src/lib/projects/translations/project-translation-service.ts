@@ -9,6 +9,12 @@ import { db, schema } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
+type ProjectKeysScopeInput = {
+  organizationId: string;
+  projectId: string;
+  sourcePaths?: readonly string[] | null;
+};
+
 const maxKeysPerImport = 5_000;
 const prefillKeysPageSize = maxKeysPerImport;
 
@@ -26,6 +32,21 @@ function translationKeysFileConditions(input: {
     eq(schema.projectTranslationKeys.projectId, input.projectId),
     eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
   );
+}
+
+function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
+  return and(
+    eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+    eq(schema.projectTranslationKeys.projectId, input.projectId),
+  );
+}
+
+function translationKeysSourcePathFilter(sourcePaths: readonly string[] | null | undefined) {
+  if (!sourcePaths || sourcePaths.length === 0) {
+    return undefined;
+  }
+
+  return inArray(schema.repositorySourceFiles.sourcePath, [...sourcePaths]);
 }
 
 function translationKeysSearchCondition(search: string | undefined) {
@@ -289,6 +310,93 @@ export class ProjectTranslationService extends ProjectServiceBase {
         ),
       )
       .orderBy(asc(schema.projectTranslationKeys.key), asc(schema.projectTranslationKeys.id))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async countKeysForProject(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale?: string;
+    search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
+    sourcePaths?: readonly string[] | null;
+  }) {
+    const [row] = await this.database
+      .select({ total: count() })
+      .from(schema.projectTranslationKeys)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+      )
+      .where(
+        and(
+          translationKeysProjectConditions(input),
+          translationKeysSourcePathFilter(input.sourcePaths),
+          translationKeysSearchCondition(input.search),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
+      );
+
+    return Number(row?.total ?? 0);
+  }
+
+  async listKeysForProject(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale?: string;
+    limit?: number;
+    offset?: number;
+    search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
+    sourcePaths?: readonly string[] | null;
+  }) {
+    const limit = input.limit ?? 2_000;
+    const offset = input.offset ?? 0;
+
+    return this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        context: schema.projectTranslationKeys.context,
+        type: schema.projectTranslationKeys.type,
+        maxLength: schema.projectTranslationKeys.maxLength,
+        metadata: schema.projectTranslationKeys.metadata,
+        sourcePath: schema.repositorySourceFiles.sourcePath,
+      })
+      .from(schema.projectTranslationKeys)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+      )
+      .where(
+        and(
+          translationKeysProjectConditions(input),
+          translationKeysSourcePathFilter(input.sourcePaths),
+          translationKeysSearchCondition(input.search),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
+      )
+      .orderBy(
+        asc(schema.repositorySourceFiles.sourcePath),
+        asc(schema.projectTranslationKeys.key),
+        asc(schema.projectTranslationKeys.id),
+      )
       .limit(limit)
       .offset(offset);
   }
@@ -868,6 +976,14 @@ export const countProjectTranslationKeysForFile = (
 export const listProjectTranslationKeysForFile = (
   input: Parameters<ProjectTranslationService["listKeysForFile"]>[0],
 ) => projectTranslationService.listKeysForFile(input);
+
+export const countProjectTranslationKeysForProject = (
+  input: Parameters<ProjectTranslationService["countKeysForProject"]>[0],
+) => projectTranslationService.countKeysForProject(input);
+
+export const listProjectTranslationKeysForProject = (
+  input: Parameters<ProjectTranslationService["listKeysForProject"]>[0],
+) => projectTranslationService.listKeysForProject(input);
 
 export const getProjectTranslationsByKeyIds = (
   input: Parameters<ProjectTranslationService["getTranslationsByKeyIds"]>[0],

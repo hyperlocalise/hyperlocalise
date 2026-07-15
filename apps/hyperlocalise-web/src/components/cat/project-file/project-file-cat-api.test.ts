@@ -248,6 +248,7 @@ describe("projectFileCatQueryKey", () => {
       "needs_review",
       50,
       50,
+      null,
     ]);
   });
 
@@ -266,7 +267,7 @@ describe("projectFileCatQueryKey", () => {
     const page1 = projectFileCatQueryKey({ ...base, offset: 50 });
 
     expect(page0).not.toEqual(page1);
-    expect(page1.at(-1)).toBe(50);
+    expect(page1.at(-2)).toBe(50);
   });
 });
 
@@ -290,6 +291,7 @@ describe("projectFileCatBaseQueryKey", () => {
       "",
       "all",
       50,
+      null,
     ]);
     expect(key).not.toContain(0);
   });

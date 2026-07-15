@@ -1,4 +1,8 @@
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  CAT_ALL_FILES_SOURCE_PATH,
+  serializeCatSourcePathsFilter,
+} from "@/lib/projects/cat-all-files";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 
 export function canOpenProjectFileCat(file: ProjectFileRecord) {
@@ -121,21 +125,27 @@ export function parseProjectFileCatSearchParams(searchParams: {
   externalResourceId?: string;
   resourceType?: string;
   branch?: string;
+  sourcePaths?: string;
 }): {
   sourcePath: string | null;
+  allFiles: boolean;
   highlightLocale: string | null;
   initialSegmentKey: string | null;
   externalResourceId: string | null;
   resourceType: "file" | "key" | null;
   branch: string | null;
+  sourcePaths: string | null;
 } {
   const resourceType =
     searchParams.resourceType === "file" || searchParams.resourceType === "key"
       ? searchParams.resourceType
       : null;
+  const rawSourcePath = searchParams.sourcePath?.trim() ? searchParams.sourcePath.trim() : null;
+  const allFiles = rawSourcePath === CAT_ALL_FILES_SOURCE_PATH;
 
   return {
-    sourcePath: searchParams.sourcePath?.trim() ? searchParams.sourcePath.trim() : null,
+    sourcePath: allFiles ? null : rawSourcePath,
+    allFiles,
     highlightLocale: searchParams.locale?.trim() ? searchParams.locale.trim() : null,
     initialSegmentKey: searchParams.segment?.trim() ? searchParams.segment.trim() : null,
     externalResourceId: searchParams.externalResourceId?.trim()
@@ -143,6 +153,7 @@ export function parseProjectFileCatSearchParams(searchParams: {
       : null,
     resourceType,
     branch: searchParams.branch?.trim() ? searchParams.branch.trim() : null,
+    sourcePaths: searchParams.sourcePaths?.trim() ? searchParams.sourcePaths.trim() : null,
   };
 }
 
@@ -189,4 +200,66 @@ export function buildProjectFileCatHref(
 
   const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat`;
   return `${base}?${params.toString()}`;
+}
+
+export function buildProjectFileCatAllFilesHref(
+  organizationSlug: string,
+  projectId: string,
+  locale: string | null = null,
+  options?: {
+    branch?: string | null;
+    sourcePaths?: readonly string[] | null;
+    basePath?: "files/cat" | "strings";
+  },
+) {
+  const params = new URLSearchParams({
+    sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+  });
+
+  if (locale?.trim()) {
+    params.set("locale", locale.trim());
+  }
+
+  const trimmedBranch = options?.branch?.trim();
+  if (trimmedBranch) {
+    params.set("branch", trimmedBranch);
+  }
+
+  if (options?.sourcePaths && options.sourcePaths.length > 0) {
+    params.set("sourcePaths", serializeCatSourcePathsFilter(options.sourcePaths));
+  }
+
+  const section = options?.basePath ?? "files/cat";
+  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/${section}`;
+  return `${base}?${params.toString()}`;
+}
+
+export function buildProjectStringsHref(
+  organizationSlug: string,
+  projectId: string,
+  locale: string | null = null,
+) {
+  return buildProjectFileCatAllFilesHref(organizationSlug, projectId, locale, {
+    basePath: "strings",
+  });
+}
+
+export function resolveProjectCatTargetLocale(
+  projectTargetLocales: readonly string[] | null | undefined,
+  highlightLocale: string | null,
+) {
+  const locales = (projectTargetLocales ?? []).map((locale) => locale.trim()).filter(Boolean);
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const locale of locales) {
+    if (seen.has(locale)) continue;
+    seen.add(locale);
+    unique.push(locale);
+  }
+
+  if (highlightLocale?.trim() && unique.includes(highlightLocale.trim())) {
+    return highlightLocale.trim();
+  }
+
+  return unique[0] ?? null;
 }

@@ -13,11 +13,40 @@ import { apiClient } from "@/lib/api-client-instance";
 import type { CrowdinIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
+import { isCatAllFilesSourcePath } from "@/lib/projects/cat-all-files";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
 import {
   useInvalidateCatSegmentTarget,
   useSyncCatSegmentTargetAfterSave,
 } from "./use-cat-segment-target";
+
+function resolveCatMutationFileIdentity(
+  input: {
+    sourcePath: string;
+    catFile: ProjectFileCatQueueFile | null | undefined;
+  },
+  externalStringId: string,
+) {
+  const segment = input.catFile?.segments.find(
+    (entry) => entry.externalStringId === externalStringId,
+  );
+  const sourcePath =
+    segment?.sourcePath?.trim() ||
+    (isCatAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
+
+  if (!sourcePath) {
+    throw new Error("Cannot save because the segment source file is missing.");
+  }
+
+  const externalResourceId = segment?.externalResourceId
+    ? segment.externalResourceId
+    : input.catFile?.provider
+      ? requireProviderExternalResourceId(input.catFile)
+      : undefined;
+  const resourceType = segment?.resourceType ?? input.catFile?.provider?.resourceType;
+
+  return { sourcePath, externalResourceId, resourceType };
+}
 
 export function useCatMutations(input: {
   organizationSlug: string;
@@ -38,9 +67,10 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -50,7 +80,7 @@ export function useCatMutations(input: {
           projectId: input.projectId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,
@@ -72,15 +102,15 @@ export function useCatMutations(input: {
         variables.text,
         translation.isApproved,
       );
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+      );
 
       const segmentTargetInput = {
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
-        sourcePath: input.sourcePath,
+        sourcePath,
         externalResourceId,
         resourceType,
         targetLocale: input.targetLocale,
@@ -101,9 +131,10 @@ export function useCatMutations(input: {
       type?: "comment" | "issue";
       issueType?: CrowdinIssueType;
     }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -113,7 +144,7 @@ export function useCatMutations(input: {
           projectId: input.projectId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,
@@ -131,17 +162,17 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+      );
 
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
@@ -150,7 +181,7 @@ export function useCatMutations(input: {
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
@@ -162,9 +193,10 @@ export function useCatMutations(input: {
 
   const resolveCommentMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringId: string; externalCommentId: string }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -175,7 +207,7 @@ export function useCatMutations(input: {
           commentId: mutationInput.externalCommentId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
         },
       });
@@ -188,17 +220,17 @@ export function useCatMutations(input: {
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+      );
 
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
@@ -207,7 +239,7 @@ export function useCatMutations(input: {
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
@@ -218,17 +250,17 @@ export function useCatMutations(input: {
   });
 
   async function invalidateAfterImageChange(externalStringId: string) {
-    const externalResourceId = input.catFile?.provider
-      ? requireProviderExternalResourceId(input.catFile)
-      : undefined;
-    const resourceType = input.catFile?.provider?.resourceType;
+    const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+      input,
+      externalStringId,
+    );
 
     await Promise.all([
       input.invalidateQueue(),
       invalidateSegmentTarget({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
-        sourcePath: input.sourcePath,
+        sourcePath,
         externalResourceId,
         resourceType,
         targetLocale: input.targetLocale,
@@ -243,6 +275,7 @@ export function useCatMutations(input: {
       instructions?: string;
       force?: boolean;
     }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(input, mutationInput.externalStringId);
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.images.regenerate.$post({
@@ -251,7 +284,7 @@ export function useCatMutations(input: {
           projectId: input.projectId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           instructions: mutationInput.instructions,
@@ -276,8 +309,9 @@ export function useCatMutations(input: {
       file: File;
       force?: boolean;
     }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(input, mutationInput.externalStringId);
       const formData = new FormData();
-      formData.set("sourcePath", input.sourcePath);
+      formData.set("sourcePath", sourcePath);
       formData.set("targetLocale", input.targetLocale);
       formData.set("externalStringId", mutationInput.externalStringId);
       if (mutationInput.force) {
@@ -309,9 +343,10 @@ export function useCatMutations(input: {
 
   const treatAsImageMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringId: string; treatAsImage: boolean }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -322,7 +357,7 @@ export function useCatMutations(input: {
           externalStringId: mutationInput.externalStringId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,

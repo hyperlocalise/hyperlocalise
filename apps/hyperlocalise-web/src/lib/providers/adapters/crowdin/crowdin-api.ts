@@ -50,12 +50,26 @@ export function escapeCrowdinCroqlString(value: string) {
 }
 
 export function buildCrowdinFileQueueCroql(input: {
-  fileId: number;
+  fileId?: number;
+  fileIds?: readonly number[];
   targetLocale: string;
   queueFilter?: ProjectFileCatQueueFilter;
   search?: string;
 }) {
-  const parts: string[] = [`id of file = ${input.fileId}`];
+  const parts: string[] = [];
+
+  const fileIds =
+    input.fileIds && input.fileIds.length > 0
+      ? input.fileIds
+      : input.fileId !== undefined
+        ? [input.fileId]
+        : [];
+
+  if (fileIds.length === 1) {
+    parts.push(`id of file = ${fileIds[0]}`);
+  } else if (fileIds.length > 1) {
+    parts.push(`(${fileIds.map((fileId) => `id of file = ${fileId}`).join(" or ")})`);
+  }
 
   if (input.search?.trim()) {
     const escaped = escapeCrowdinCroqlString(input.search.trim());
@@ -86,7 +100,7 @@ export function buildCrowdinFileQueueCroql(input: {
       break;
   }
 
-  return parts.join(" and ");
+  return parts.length > 0 ? parts.join(" and ") : undefined;
 }
 
 export function buildCrowdinFileSearchCroql(fileId: number, search: string) {

@@ -6,6 +6,7 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
@@ -136,11 +137,11 @@ export function CatQueueVirtualList({
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="line-clamp-2 text-sm text-foreground">{segment.sourceText}</p>
-                    <div className="flex min-w-0 items-center">
-                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-                        {segment.key}
-                      </span>
-                    </div>
+                    <CatSegmentKeyMeta
+                      segmentKey={segment.key}
+                      sourcePath={segment.sourcePath}
+                      keyClassName="text-xs"
+                    />
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
                     {isDirty ? (

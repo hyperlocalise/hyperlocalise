@@ -10,6 +10,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorPanel } from "@/components/cat/editor/cat-editor-panel";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { CatQueuePanel } from "@/components/cat/queue/cat-queue-panel";
+import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSideBySidePanel } from "@/components/cat/side-by-side/cat-side-by-side-panel";
 import type { CatWorkspaceViewProps } from "@/components/cat/shared/dependencies";
 import { catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
@@ -534,9 +535,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
                 {String(segmentPosition).padStart(2, "0")}
                 {totalSegments != null ? ` / ${String(totalSegments).padStart(2, "0")}` : "+"}
               </p>
-              <p className="truncate font-mono text-sm font-medium text-foreground">
-                {editorSegment.key}
-              </p>
+              <CatSegmentKeyMeta
+                segmentKey={editorSegment.key}
+                sourcePath={editorSegment.sourcePath}
+                keyClassName="text-sm font-medium text-foreground"
+              />
             </div>
           </div>
 

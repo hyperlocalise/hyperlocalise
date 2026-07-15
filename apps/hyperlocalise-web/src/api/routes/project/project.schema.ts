@@ -243,11 +243,17 @@ export const projectFileCatQueueFilterSchema = z.enum([
 ]);
 
 export const projectFileCatQuerySchema = z.object({
+  /** Use `"*"` to load strings across every file in scope. */
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
+  /**
+   * Optional comma-separated source paths that narrow all-files (`sourcePath=*`)
+   * requests — used by job CAT to scope to the job's files.
+   */
+  sourcePaths: z.string().trim().max(32_768).optional(),
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
@@ -596,6 +602,12 @@ export const projectFileCatSegmentSchema = z.object({
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
+  /** Present when the queue spans multiple files (`sourcePath=*`). */
+  sourcePath: z.string().optional(),
+  /** Provider file format for this segment's file (All Files mode). */
+  format: z.string().nullable().optional(),
+  externalResourceId: z.string().optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
 });
 
 export const projectFileCatSegmentParamsSchema = z.object({

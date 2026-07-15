@@ -10,6 +10,7 @@ import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@
 import {
   badRequestResponse,
   conflictResponse,
+  forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
@@ -23,6 +24,7 @@ import {
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
 import {
   createRepositorySourceFileVersion,
@@ -31,7 +33,15 @@ import {
 } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
+  isCatAllFilesSourcePath,
+  parseCatSourcePathsFilter,
+  supportsCatAllFilesProvider,
+} from "@/lib/projects/cat-all-files";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+
+import {
   countTmsProviderLiveOpenJobsForProject,
+  getTmsProviderLiveCatAllFiles,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
@@ -633,6 +643,25 @@ async function loadProjectFileCatQueue(
   const pagination = resolveProjectFileCatPagination(query);
   const target = await resolveProjectResourceTarget(auth, projectId);
   const organizationSlug = auth.organization.slug ?? auth.organization.localOrganizationId;
+  const allFiles = isCatAllFilesSourcePath(query.sourcePath);
+  const sourcePathsFilter = allFiles ? parseCatSourcePathsFilter(query.sourcePaths) : null;
+
+  if (allFiles) {
+    if (!(await isReleaseCatAllFilesEnabled())) {
+      return { kind: "feature_unavailable" as const };
+    }
+
+    const providerKind = target.kind === "provider" ? target.providerKind : null;
+    if (!supportsCatAllFilesProvider(providerKind)) {
+      return {
+        kind: "provider_error" as const,
+        error: new TmsProviderLiveError(
+          "provider_cat_all_files_unsupported",
+          "All Files CAT is not available for this provider yet.",
+        ),
+      };
+    }
+  }
 
   if (target.kind === "provider_unavailable") {
     return { kind: "provider_unavailable" as const, target };
@@ -652,6 +681,7 @@ async function loadProjectFileCatQueue(
       canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
       organizationSlug,
       pagination,
+      sourcePaths: sourcePathsFilter,
     });
 
     if (!catQueue) {
@@ -662,19 +692,31 @@ async function loadProjectFileCatQueue(
   }
 
   try {
-    const catQueue = await getTmsProviderLiveCatFile(
-      auth.organization.localOrganizationId,
-      target.externalProjectId,
-      query.sourcePath,
-      query.targetLocale,
-      {
-        actorUserId: auth.user.localUserId,
-        canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
-        externalResourceId: query.externalResourceId,
-        resourceType: query.resourceType,
-        pagination,
-      },
-    );
+    const catQueue = allFiles
+      ? await getTmsProviderLiveCatAllFiles(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            pagination,
+            sourcePaths: sourcePathsFilter,
+          },
+        )
+      : await getTmsProviderLiveCatFile(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.sourcePath,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            externalResourceId: query.externalResourceId,
+            resourceType: query.resourceType,
+            pagination,
+          },
+        );
 
     if (!catQueue) {
       return { kind: "project_not_found" as const };
@@ -760,6 +802,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const query = c.req.valid("query");
         const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
+        if (result.kind === "feature_unavailable") {
+          return sharedForbiddenResponse(
+            c,
+            "feature_unavailable",
+            "All Files CAT is not enabled for this organization",
+          );
+        }
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
         }
@@ -789,6 +838,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const query = c.req.valid("query");
         const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
+        if (result.kind === "feature_unavailable") {
+          return sharedForbiddenResponse(
+            c,
+            "feature_unavailable",
+            "All Files CAT is not enabled for this organization",
+          );
+        }
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
         }

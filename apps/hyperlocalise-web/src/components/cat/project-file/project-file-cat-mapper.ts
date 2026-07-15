@@ -158,11 +158,14 @@ function segmentIntelligenceFor(
   const maxLength =
     segment.maxLength != null && segment.maxLength > 0 ? segment.maxLength : undefined;
 
+  const segmentFormat = segment.format?.trim() || undefined;
+
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
     locationBreadcrumb: segment.key,
-    filePath: catFile.sourcePath,
-    componentName: segmentType ?? catFile.provider?.format ?? providerKind ?? undefined,
+    filePath: segment.sourcePath ?? catFile.sourcePath,
+    componentName:
+      segmentType ?? segmentFormat ?? catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning: context || undefined,
     ...(segmentType ? { segmentType } : {}),
     ...(maxLength != null ? { maxLength } : {}),
@@ -211,6 +214,9 @@ export function projectFileCatToWorkspaceState(
     ...(segment.looksLikeImageUrl !== undefined
       ? { looksLikeImageUrl: segment.looksLikeImageUrl }
       : {}),
+    ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
+    ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
   }));
 
   return {
