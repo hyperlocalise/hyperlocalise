@@ -281,7 +281,7 @@ export const catWorkspaceContainerMessages = defineMessages({
   },
   unsavedPageNavigationTitle: {
     defaultMessage: "Leave page with unsaved changes?",
-    id: "oeD72ehQB/",
+    id: "mctwKXU94p",
     description: "Title when leaving the CAT workspace with unsaved target text",
   },
   unsavedPageNavigationDescription: {
@@ -341,6 +341,11 @@ export const catTargetEditorMessages = defineMessages({
     defaultMessage: "{count} characters used",
     id: "8eFLCTVPnq",
     description: "Accessible label for the CAT target character counter without a max length",
+  },
+  icuBlockSummary: {
+    defaultMessage: "{arg} · {type}",
+    id: "iXddAxYfyx",
+    description: "ICU plural/select block argument and type summary in the CAT target editor",
   },
 });
 
@@ -544,6 +549,16 @@ export const catEditorPanelMessages = defineMessages({
     id: "V04dsqCSZQ",
     description: "Empty state when the CAT target image has not been created",
   },
+  imageEmpty: {
+    defaultMessage: "No image yet",
+    id: "aMf9NbDyem",
+    description: "Fallback empty state when a CAT image preview has no source URL",
+  },
+  segmentPosition: {
+    defaultMessage: "{position} / {total}",
+    id: "uadZLjPGYZ",
+    description: "Current segment index and total count in the CAT editor header",
+  },
   targetHeading: {
     defaultMessage: "Target ({locale})",
     id: "1PcszZ/Z93",
@@ -619,10 +634,10 @@ export const catEditorPanelMessages = defineMessages({
     id: "MN2GW5Szxo",
     description: "Button to request an AI translation recommendation",
   },
-  reasoningPrefix: {
-    defaultMessage: "Reasoning:",
-    id: "0zYUPddzdy",
-    description: "Label prefix before AI recommendation reasoning text",
+  aiReasoning: {
+    defaultMessage: "<b>Reasoning:</b> {reasoning}",
+    id: "TE3bLZyBSZ",
+    description: "AI recommendation reasoning with bold label prefix; b wraps the label",
   },
   aiSuggestionEmpty: {
     defaultMessage: "Generate a translation suggestion for this string.",

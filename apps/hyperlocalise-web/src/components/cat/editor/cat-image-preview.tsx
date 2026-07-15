@@ -1,9 +1,12 @@
 "use client";
 
 import { ImageIcon } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { cn } from "@/lib/primitives/cn";
+
+import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
 
 export function CatImagePreview({
   src,
@@ -26,7 +29,7 @@ export function CatImagePreview({
       >
         <div className="flex flex-col items-center gap-2 px-4 text-center">
           <ImageIcon className="size-6 opacity-60" aria-hidden />
-          <span>{emptyLabel ?? "No image yet"}</span>
+          <span>{emptyLabel ?? <FormattedMessage {...catEditorPanelMessages.imageEmpty} />}</span>
         </div>
       </div>
     );
