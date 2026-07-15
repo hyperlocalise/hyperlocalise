@@ -203,7 +203,6 @@ describe("Organization issues routes", () => {
       query: {
         view: "all_open",
         sort: "priority",
-        sortDir: "asc",
         limit: "2",
         offset: "0",
       },
@@ -219,7 +218,6 @@ describe("Organization issues routes", () => {
       query: {
         view: "all_open",
         sort: "priority",
-        sortDir: "asc",
         limit: "2",
         offset: "2",
       },
@@ -229,5 +227,19 @@ describe("Organization issues routes", () => {
     expect(
       new Set([...sortedBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size,
     ).toBe(3);
+
+    const statusSorted = await requestJson(organizationIssuesUrl(organizationSlug), {
+      headers,
+      query: {
+        view: "all_open",
+        sort: "status",
+      },
+    });
+    const statusSortedBody = (await statusSorted.json()) as ListBody;
+    expect(statusSortedBody.issues.map((issue) => issue.status)).toEqual([
+      "open",
+      "open",
+      "in_progress",
+    ]);
   });
 });

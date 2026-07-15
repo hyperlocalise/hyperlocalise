@@ -424,7 +424,6 @@ Second import issue,Done,EXT-2,P2`;
       query: {
         view: "all_open",
         sort: "priority",
-        sortDir: "asc",
         limit: "2",
         offset: "0",
       },
@@ -434,7 +433,6 @@ Second import issue,Done,EXT-2,P2`;
       query: {
         view: "all_open",
         sort: "priority",
-        sortDir: "asc",
         limit: "2",
         offset: "2",
       },
