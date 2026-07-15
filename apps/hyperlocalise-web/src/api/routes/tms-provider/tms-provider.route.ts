@@ -464,7 +464,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           return c.json({ error: "job_not_found" }, 404);
         }
 
-        return c.json({ deleted: true }, 200);
+        return c.body(null, 204);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

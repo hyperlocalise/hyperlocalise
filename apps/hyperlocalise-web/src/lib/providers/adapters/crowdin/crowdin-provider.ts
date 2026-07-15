@@ -57,6 +57,7 @@ import { normalizeProviderTranslationMemoryMatch } from "@/lib/providers/contrac
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import type {
   ExternalTmsJobTaskMetadata,
+  ExternalTmsProjectMemberMetadata,
   ExternalTmsProjectMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
@@ -374,6 +375,36 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     return true;
+  }
+
+  /**
+   * Lists Crowdin project members and maps them to shared assignee metadata.
+   */
+  async listProjectMembers(scope: TmsProviderProjectScope): Promise<ExternalTmsProjectMemberMetadata[]> {
+    const client = this.createClient(scope);
+    const projectId = this.parseProjectId(scope.externalProjectId);
+
+    let members: Awaited<ReturnType<CrowdinApiClient["listProjectMembers"]>>;
+    try {
+      members = await client.listProjectMembers(projectId);
+    } catch (error) {
+      this.rethrowAuthError(error);
+      throw error;
+    }
+
+    return members.map((member) => {
+      const displayName =
+        member.fullName?.trim() ||
+        [member.firstName, member.lastName].filter(Boolean).join(" ").trim() ||
+        member.username;
+      return {
+        externalUserId: String(member.id),
+        username: member.username,
+        displayName,
+        avatarUrl: member.avatarUrl ?? null,
+        role: member.role ?? null,
+      };
+    });
   }
 
   /**

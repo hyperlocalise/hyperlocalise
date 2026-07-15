@@ -19,6 +19,7 @@ import type {
   ExternalTmsJobTaskDeleter,
   ExternalTmsJobTaskFetcher,
   ExternalTmsProjectFetcher,
+  ExternalTmsProjectMemberFetcher,
   ExternalTmsReviewPuller,
   ExternalTmsTranslationMemoryFetcher,
   ExternalTmsTranslationPusher,
@@ -42,6 +43,7 @@ function hasProviderMethodOverride(
     | "pushComments"
     | "createJobTask"
     | "deleteJobTask"
+    | "listProjectMembers"
     | "searchGlossaryMatches"
     | "searchTranslationMemoryMatches",
 ): boolean {
@@ -134,6 +136,19 @@ function asJobTaskDeleter(provider: TmsProvider): ExternalTmsJobTaskDeleter {
       project: input.project,
       secretMaterial: input.secretMaterial,
       externalJobId: input.externalJobId,
+    });
+}
+
+function asProjectMemberFetcher(provider: TmsProvider): ExternalTmsProjectMemberFetcher {
+  const bound = provider.listProjectMembers.bind(provider);
+  return async (input) =>
+    bound({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      externalProjectId: input.externalProjectId,
+      credential: input.credential,
+      project: input.project,
+      secretMaterial: input.secretMaterial,
     });
 }
 
@@ -315,6 +330,10 @@ export function providerSupportsTaskDelete(providerKind: ExternalTmsProviderKind
   return hasProviderMethodOverride(tmsProviders[providerKind], "deleteJobTask");
 }
 
+export function providerSupportsProjectMemberList(providerKind: ExternalTmsProviderKind): boolean {
+  return hasProviderMethodOverride(tmsProviders[providerKind], "listProjectMembers");
+}
+
 export function providerSupportsGlossaryMatch(providerKind: ExternalTmsProviderKind): boolean {
   return (
     providerSupportsFeature(providerKind, "glossary.search") &&
@@ -365,6 +384,15 @@ export function getProviderJobTaskDeleter(
     return null;
   }
   return asJobTaskDeleter(tmsProviders[providerKind]);
+}
+
+export function getProviderProjectMemberFetcher(
+  providerKind: ExternalTmsProviderKind,
+): ExternalTmsProjectMemberFetcher | null {
+  if (!providerSupportsProjectMemberList(providerKind)) {
+    return null;
+  }
+  return asProjectMemberFetcher(tmsProviders[providerKind]);
 }
 
 export function getProviderGlossaryMatcher(

@@ -170,6 +170,16 @@ export type ExternalTmsProjectMemberMetadata = {
   role?: string | null;
 };
 
+export type ExternalTmsProjectMemberFetcher = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+}) => Promise<ExternalTmsProjectMemberMetadata[]>;
+
 export type ExternalTmsJobTaskFetcher = (input: {
   organizationId: string;
   projectId: string;

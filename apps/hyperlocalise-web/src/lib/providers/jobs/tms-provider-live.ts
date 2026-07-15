@@ -71,6 +71,7 @@ import {
 import {
   getProviderJobTaskCreator,
   getProviderJobTaskDeleter,
+  getProviderProjectMemberFetcher,
   tmsProviderGlossaryFetchers,
   tmsProviderFileKeyFetchers,
   tmsProviderJobTaskFetchers,
@@ -3453,45 +3454,42 @@ export async function listTmsProviderLiveProjectMembers(
     actorUserId: options?.actorUserId,
   });
 
-  if (context.providerKind !== "crowdin") {
+  const fetcher = getProviderProjectMemberFetcher(context.providerKind);
+  if (!fetcher) {
     throw new TmsProviderLiveError(
       "provider_members_unsupported",
       `Listing project members is not supported for ${context.providerKind}.`,
     );
   }
 
-  const projectId = Number(externalProjectId);
-  if (!Number.isInteger(projectId) || projectId <= 0) {
-    throw new TmsProviderLiveError(
-      "invalid_crowdin_project_id",
-      "Crowdin project identifier is invalid.",
-    );
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  if (!projectMetadata) {
+    throw new TmsProviderLiveError("project_not_found", "Provider project was not found.");
   }
 
-  const client = new CrowdinApiClient({
-    token: context.secretMaterial,
-    baseUrl: context.credential.baseUrl ?? undefined,
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
   });
 
   try {
-    const members = await client.listProjectMembers(projectId);
-    return members.map((member) => {
-      const displayName =
-        member.fullName?.trim() ||
-        [member.firstName, member.lastName].filter(Boolean).join(" ").trim() ||
-        member.username;
-      return {
-        externalUserId: String(member.id),
-        username: member.username,
-        displayName,
-        avatarUrl: member.avatarUrl ?? null,
-        role: member.role ?? null,
-      };
+    return await fetcher({
+      organizationId: context.organizationId,
+      projectId: liveProject.id,
+      providerKind: context.providerKind,
+      externalProjectId,
+      credential: context.credential,
+      project: liveProject,
+      secretMaterial: context.secretMaterial,
     });
   } catch (error) {
-    if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
-    }
     rethrowProviderFetcherError(error);
     throw error;
   }

@@ -35,6 +35,16 @@ import {
 } from "@/lib/translation/file-formats";
 import { cn } from "@/lib/primitives/cn";
 
+class PartialCreateJobsError extends Error {
+  readonly createdCount: number;
+
+  constructor(message: string, createdCount: number) {
+    super(message);
+    this.name = "PartialCreateJobsError";
+    this.createdCount = createdCount;
+  }
+}
+
 type CreateJobDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -339,13 +349,13 @@ export function CreateJobDialog({
       }
 
       const selectedFiles = fileOptions.filter((file) => selectedFileIds.includes(file.id));
+      const eligibleFiles = selectedFiles.filter(
+        (file) => Boolean(file.storedFileId) && Boolean(file.fileFormat),
+      );
       const ownerWorkosUserId = selectedAssignees[0];
       const createdIds: string[] = [];
 
-      for (const file of selectedFiles) {
-        if (!file.storedFileId || !file.fileFormat) {
-          continue;
-        }
+      for (const file of eligibleFiles) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"
         ].jobs.$post({
@@ -355,15 +365,25 @@ export function CreateJobDialog({
             title: title.trim(),
             ...(ownerWorkosUserId ? { ownerWorkosUserId } : {}),
             fileInput: {
-              sourceFileId: file.storedFileId,
-              fileFormat: file.fileFormat,
+              sourceFileId: file.storedFileId!,
+              fileFormat: file.fileFormat!,
               sourceLocale,
               targetLocales: selectedLocales,
             },
           },
         });
         if (!response.ok) {
-          throw await readApiResponseError(response, "Failed to create translation job");
+          const failure = await readApiResponseError(
+            response,
+            "Failed to create translation job",
+          );
+          if (createdIds.length > 0) {
+            throw new PartialCreateJobsError(
+              `Created ${createdIds.length} of ${eligibleFiles.length} jobs, then failed: ${failure.message}`,
+              createdIds.length,
+            );
+          }
+          throw failure;
         }
         const body = (await response.json()) as { job: { id: string } };
         createdIds.push(body.job.id);
@@ -387,7 +407,21 @@ export function CreateJobDialog({
       onCreated?.();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: async (error) => {
+      if (error instanceof PartialCreateJobsError && error.createdCount > 0) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
+          queryClient.invalidateQueries({
+            queryKey: ["project-overview-jobs", organizationSlug, projectId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["project-files", organizationSlug, projectId],
+          }),
+        ]);
+        toast.warning(
+          `${error.createdCount} job${error.createdCount === 1 ? "" : "s"} created before the error. Refresh the jobs list before retrying to avoid duplicates.`,
+        );
+      }
       toast.error(error instanceof Error ? error.message : "Failed to create job");
     },
   });

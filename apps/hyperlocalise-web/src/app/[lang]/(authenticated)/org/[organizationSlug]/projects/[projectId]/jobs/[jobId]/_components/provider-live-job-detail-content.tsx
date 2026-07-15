@@ -72,7 +72,7 @@ export function ProviderLiveJobDetailContent({
       ].$delete({
         param: { organizationSlug, encodedJobId: jobId },
       });
-      if (!response.ok) {
+      if (response.status !== 204 && !response.ok) {
         throw new Error(`Failed to delete job (${response.status})`);
       }
     },
