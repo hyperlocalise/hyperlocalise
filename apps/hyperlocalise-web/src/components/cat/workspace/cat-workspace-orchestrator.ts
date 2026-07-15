@@ -698,12 +698,23 @@ export class CatWorkspaceOrchestrator {
     );
     const existingMeta = this.segmentMeta.get(segmentId);
     if (existingMeta) {
-      this.segmentMeta.set(segmentId, {
-        ...existingMeta,
-        ...(target?.contentKind ? { contentKind: target.contentKind } : {}),
-        ...(target?.targetAssetUrl !== undefined ? { targetAssetUrl: target.targetAssetUrl } : {}),
-        ...(target?.imageVariantId !== undefined ? { imageVariantId: target.imageVariantId } : {}),
-      });
+      const nextContentKind = target?.contentKind ?? existingMeta.contentKind;
+      const nextTargetAssetUrl =
+        target?.targetAssetUrl !== undefined ? target.targetAssetUrl : existingMeta.targetAssetUrl;
+      const nextImageVariantId =
+        target?.imageVariantId !== undefined ? target.imageVariantId : existingMeta.imageVariantId;
+      if (
+        existingMeta.contentKind !== nextContentKind ||
+        existingMeta.targetAssetUrl !== nextTargetAssetUrl ||
+        existingMeta.imageVariantId !== nextImageVariantId
+      ) {
+        this.segmentMeta.set(segmentId, {
+          ...existingMeta,
+          ...(nextContentKind ? { contentKind: nextContentKind } : {}),
+          ...(nextTargetAssetUrl !== undefined ? { targetAssetUrl: nextTargetAssetUrl } : {}),
+          ...(nextImageVariantId !== undefined ? { imageVariantId: nextImageVariantId } : {}),
+        });
+      }
     }
 
     const existingDraft = this.drafts.get(segmentId);
