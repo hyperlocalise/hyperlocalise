@@ -11,6 +11,10 @@ export type ChatStreamStartInput = {
   text: string;
 };
 
+export type ChatStreamStartResult =
+  | { started: true }
+  | { started: false; reason: "already_streaming" | "max_streams" };
+
 type ActiveStream = {
   conversationId: string;
   controller: AbortController;
@@ -47,11 +51,21 @@ export class ChatStreamManager {
     return this.activeStreams.has(conversationId);
   }
 
+  getSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
+    return this.store.getStreamSnapshot(conversationId);
+  }
+
   stop(conversationId: string) {
     const active = this.activeStreams.get(conversationId);
     active?.controller.abort();
     this.activeStreams.delete(conversationId);
-    this.store.markStreaming(conversationId, false);
+    // Abort skips onStreamFinished; clear so inbox/dock do not keep a stale "complete" snapshot.
+    this.store.clearStreamSnapshot(conversationId);
+  }
+
+  /** True when this manager was created with the given store instance. */
+  isBoundToStore(store: ChatDockStore) {
+    return this.store === store;
   }
 
   stopAll() {
@@ -61,18 +75,15 @@ export class ChatStreamManager {
     }
   }
 
-  async start(input: ChatStreamStartInput): Promise<{ started: boolean; reason?: string }> {
+  async start(input: ChatStreamStartInput): Promise<ChatStreamStartResult> {
     const { conversationId, responseToMessageId, text } = input;
 
     if (this.activeStreams.has(conversationId)) {
-      this.stop(conversationId);
+      return { started: false, reason: "already_streaming" };
     }
 
     if (this.activeStreams.size >= CHAT_DOCK_MAX_CONCURRENT_STREAMS) {
-      return {
-        started: false,
-        reason: `You can run up to ${CHAT_DOCK_MAX_CONCURRENT_STREAMS} chats at once.`,
-      };
+      return { started: false, reason: "max_streams" };
     }
 
     const controller = new AbortController();
@@ -137,7 +148,7 @@ export class ChatStreamManager {
         return { started: true };
       }
 
-      console.error("Chat dock streaming error:", error);
+      console.error("Chat stream error:", error);
       this.store.setStreamSnapshot(conversationId, {
         conversationId,
         responseToMessageId,
@@ -150,7 +161,10 @@ export class ChatStreamManager {
         this.activeStreams.delete(conversationId);
       }
 
-      if (finishedSuccessfully) {
+      // Success and error both need query invalidation + snapshot clear. Abort is handled by
+      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here.
+      const snapshot = this.store.getStreamSnapshot(conversationId);
+      if (finishedSuccessfully || snapshot?.status === "error") {
         await this.onStreamFinished?.(conversationId);
       }
     }
@@ -164,7 +178,15 @@ const managers = new Map<string, ChatStreamManager>();
 export function getChatStreamManager(organizationSlug: string, store: ChatDockStore) {
   const existing = managers.get(organizationSlug);
   if (existing) {
-    return existing;
+    if (existing.isBoundToStore(store)) {
+      return existing;
+    }
+    // Remounts / test isolation can pass a fresh store for the same slug. Never return a
+    // manager still wired to the previous store — dispose and recreate instead.
+    console.warn(
+      `getChatStreamManager("${organizationSlug}"): replacing manager bound to a different ChatDockStore`,
+    );
+    disposeChatStreamManager(organizationSlug);
   }
 
   const manager = new ChatStreamManager(organizationSlug, store);

@@ -117,7 +117,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   const startStreamForMessage = useCallback(
     async (input: { conversationId: string; responseToMessageId: string; text: string }) => {
       const result = await streamManager.start(input);
-      if (!result.started && result.reason) {
+      if (!result.started && result.reason === "max_streams") {
         toast.error(
           intl.formatMessage(chatDockMessages.maxStreams, {
             count: CHAT_DOCK_MAX_CONCURRENT_STREAMS,
@@ -263,20 +263,24 @@ export const ChatDockPanel = observer(function ChatDockPanel({
     return null;
   }
 
-  const streamedAssistant: StreamedAssistantMessage | null = tab.streamSnapshot
-    ? {
-        conversationId: tab.streamSnapshot.conversationId,
-        responseToMessageId: tab.streamSnapshot.responseToMessageId,
-        message: tab.streamSnapshot.message,
-        status: tab.streamSnapshot.status,
-      }
-    : null;
+  const streamedAssistant: StreamedAssistantMessage | null = (() => {
+    const snapshot = store.getStreamSnapshot(tab.id);
+    if (!snapshot) {
+      return null;
+    }
 
+    return {
+      conversationId: snapshot.conversationId,
+      responseToMessageId: snapshot.responseToMessageId,
+      message: snapshot.message,
+      status: snapshot.status,
+    };
+  })();
+
+  const isTabStreaming =
+    streamManager.isStreaming(tab.id) || store.getStreamSnapshot(tab.id)?.status === "streaming";
   const isBusy =
-    createConversationMutation.isPending ||
-    sendMessageMutation.isPending ||
-    tab.isStreaming ||
-    streamManager.isStreaming(tab.id);
+    createConversationMutation.isPending || sendMessageMutation.isPending || isTabStreaming;
 
   return (
     <section
@@ -316,7 +320,6 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           size="icon-xs"
           aria-label={intl.formatMessage(chatDockMessages.closeTab)}
           onClick={() => {
-            streamManager.stop(tab.id);
             store.closeTab(tab.id);
           }}
         >
@@ -352,7 +355,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             conversationId={tab.id}
             currentUser={currentUser}
             isLoading={messagesQuery.isLoading}
-            isStreaming={tab.isStreaming}
+            isStreaming={isTabStreaming}
             messages={messages as ConversationMessage[]}
             streamedAssistant={streamedAssistant}
           />
@@ -362,7 +365,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           key={tab.id}
           disabled={isBusy}
           draft={tab.draft}
-          isStreaming={tab.isStreaming}
+          isStreaming={isTabStreaming}
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}

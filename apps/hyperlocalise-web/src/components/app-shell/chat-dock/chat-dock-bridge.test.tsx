@@ -11,6 +11,7 @@ import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-c
 
 import { ChatDockBridge, NEW_REQUEST_QUERY_PARAM } from "./chat-dock";
 import { clearChatDockState } from "./chat-dock-persistence";
+import { disposeChatStreamManager } from "./chat-stream-manager";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/dashboard",
@@ -24,6 +25,7 @@ const TabCount = observer(function TabCount() {
 describe("ChatDockBridge newRequest bootstrap", () => {
   afterEach(() => {
     clearChatDockState("acme");
+    disposeChatStreamManager("acme");
     window.history.replaceState(null, "", "/org/acme/dashboard");
   });
 

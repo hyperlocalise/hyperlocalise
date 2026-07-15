@@ -40,6 +40,19 @@ export type ChatDockPageContext = {
   sourcePath?: string;
 };
 
+const STREAM_ERROR_MESSAGE = "Sorry, I encountered an error while generating a response.";
+
+/** Mirror a live stream snapshot onto tab fields, including error banner state. */
+function applyStreamSnapshotToTab(tab: ChatDockTab, snapshot: ChatDockStreamSnapshot | null) {
+  tab.streamSnapshot = snapshot;
+  tab.isStreaming = snapshot?.status === "streaming";
+  if (snapshot?.status === "error") {
+    tab.lastError = STREAM_ERROR_MESSAGE;
+  } else if (snapshot?.status === "complete") {
+    tab.lastError = null;
+  }
+}
+
 function createPendingTabId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `pending-${crypto.randomUUID()}`;
@@ -105,6 +118,11 @@ export class ChatDockStore {
   panelOpen = false;
   hydrated = false;
   pageContext: ChatDockPageContext | null = null;
+  /**
+   * Live stream snapshots keyed by conversation id. Ephemeral — not persisted.
+   * Dock tabs mirror these when open; inbox reads them without creating tabs.
+   */
+  streamsByConversationId: Record<string, ChatDockStreamSnapshot> = {};
 
   private storage: ChatDockStorage | undefined;
   private persistEnabled = true;
@@ -116,6 +134,7 @@ export class ChatDockStore {
       {
         tabs: observable.shallow,
         pageContext: observable.ref,
+        streamsByConversationId: observable.ref,
       },
       { autoBind: true },
     );
@@ -130,11 +149,17 @@ export class ChatDockStore {
   }
 
   get streamingCount() {
-    return this.tabs.filter((tab) => tab.isStreaming).length;
+    return Object.values(this.streamsByConversationId).filter(
+      (snapshot) => snapshot.status === "streaming",
+    ).length;
   }
 
   get canStartStream() {
     return this.streamingCount < CHAT_DOCK_MAX_CONCURRENT_STREAMS;
+  }
+
+  getStreamSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
+    return this.streamsByConversationId[conversationId] ?? null;
   }
 
   get tabBarVisible() {
@@ -153,6 +178,7 @@ export class ChatDockStore {
   hydrate() {
     const state = readChatDockState(this.organizationSlug, this.storage);
     this.applyPersistedState(state);
+    this.streamsByConversationId = {};
     this.hydrated = true;
   }
 
@@ -180,10 +206,12 @@ export class ChatDockStore {
     if (existing) {
       this.activeTabId = existing.id;
       this.panelOpen = true;
+      this.mirrorStreamToTab(existing.id);
       this.persist();
       return existing.id;
     }
 
+    const liveStream = this.getStreamSnapshot(input.id);
     const tab: ChatDockTab = {
       id: input.id,
       title: input.title?.trim() || "Chat",
@@ -193,6 +221,7 @@ export class ChatDockStore {
       streamSnapshot: null,
       lastError: null,
     };
+    applyStreamSnapshotToTab(tab, liveStream);
 
     this.tabs = [...this.tabs, tab];
     this.activeTabId = tab.id;
@@ -304,20 +333,46 @@ export class ChatDockStore {
     this.persist();
   }
 
-  setStreamSnapshot(tabId: string, snapshot: ChatDockStreamSnapshot | null) {
-    this.updateTab(tabId, (tab) => {
-      tab.streamSnapshot = snapshot;
-      tab.isStreaming = snapshot?.status === "streaming";
-      if (snapshot?.status === "error") {
-        tab.lastError = "Sorry, I encountered an error while generating a response.";
-      } else if (snapshot?.status === "complete") {
-        tab.lastError = null;
-      }
+  setStreamSnapshot(conversationId: string, snapshot: ChatDockStreamSnapshot | null) {
+    if (snapshot) {
+      this.streamsByConversationId = {
+        ...this.streamsByConversationId,
+        [conversationId]: snapshot,
+      };
+    } else {
+      this.removeConversationStream(conversationId);
+    }
+
+    this.updateTab(conversationId, (tab) => {
+      applyStreamSnapshotToTab(tab, snapshot);
     });
   }
 
-  markStreaming(tabId: string, isStreaming: boolean) {
-    this.updateTab(tabId, (tab) => {
+  /**
+   * Marks an existing snapshot as streaming or complete.
+   * Prefer `setStreamSnapshot` to start a stream — `markStreaming(true)` is a no-op when no snapshot exists.
+   */
+  markStreaming(conversationId: string, isStreaming: boolean) {
+    const current = this.getStreamSnapshot(conversationId);
+    if (!isStreaming && current?.status === "streaming") {
+      this.streamsByConversationId = {
+        ...this.streamsByConversationId,
+        [conversationId]: {
+          ...current,
+          status: "complete",
+        },
+      };
+    } else if (isStreaming && current) {
+      this.streamsByConversationId = {
+        ...this.streamsByConversationId,
+        [conversationId]: {
+          ...current,
+          status: "streaming",
+        },
+      };
+    }
+
+    this.updateTab(conversationId, (tab) => {
       tab.isStreaming = isStreaming;
       if (!isStreaming && tab.streamSnapshot?.status === "streaming") {
         tab.streamSnapshot = {
@@ -328,8 +383,9 @@ export class ChatDockStore {
     });
   }
 
-  clearStreamSnapshot(tabId: string) {
-    this.updateTab(tabId, (tab) => {
+  clearStreamSnapshot(conversationId: string) {
+    this.removeConversationStream(conversationId);
+    this.updateTab(conversationId, (tab) => {
       tab.streamSnapshot = null;
       tab.isStreaming = false;
     });
@@ -357,6 +413,22 @@ export class ChatDockStore {
     this.tabs = state.tabs.map(fromPersistedTab);
     this.activeTabId = state.activeTabId;
     this.panelOpen = state.panelOpen;
+  }
+
+  private removeConversationStream(conversationId: string) {
+    if (!(conversationId in this.streamsByConversationId)) {
+      return;
+    }
+
+    const { [conversationId]: _removed, ...rest } = this.streamsByConversationId;
+    this.streamsByConversationId = rest;
+  }
+
+  private mirrorStreamToTab(tabId: string) {
+    const liveStream = this.getStreamSnapshot(tabId);
+    this.updateTab(tabId, (tab) => {
+      applyStreamSnapshotToTab(tab, liveStream);
+    });
   }
 
   private updateTab(tabId: string, mutate: (tab: ChatDockTab) => void) {
