@@ -2222,7 +2222,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
     {
       actorUserId: input.actorUserId,
       context: input.context,
-      limit: 500,
+      limit: 1000,
     },
   );
 
