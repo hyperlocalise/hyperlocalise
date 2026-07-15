@@ -8,6 +8,20 @@ import {
   getChatStreamManager,
 } from "./chat-stream-manager";
 
+const sendMessagesMock = vi.hoisted(() => vi.fn());
+
+vi.mock("ai", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("ai")>();
+  return {
+    ...mod,
+    DefaultChatTransport: class {
+      sendMessages(...args: unknown[]) {
+        return sendMessagesMock(...args);
+      }
+    },
+  };
+});
+
 describe("ChatStreamManager", () => {
   it("refuses a fourth concurrent stream before calling the network", async () => {
     const store = new ChatDockStore();
@@ -123,6 +137,34 @@ describe("ChatStreamManager", () => {
     expect(store.tabs[0]?.isStreaming).toBe(false);
     expect(store.getStreamSnapshot("conv_1")).toBeNull();
     expect(store.tabs[0]?.streamSnapshot).toBeNull();
+  });
+
+  it("clears inbox-only error snapshots via onStreamFinished", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+      store.clearStreamSnapshot(conversationId);
+    });
+
+    sendMessagesMock.mockRejectedValueOnce(new Error("network down"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await manager.start({
+      conversationId: "conv_orphan_error",
+      responseToMessageId: "msg_1",
+      text: "hello",
+    });
+
+    expect(result).toEqual({ started: true });
+    expect(finished).toEqual(["conv_orphan_error"]);
+    expect(store.getStreamSnapshot("conv_orphan_error")).toBeNull();
+    expect(manager.isStreaming("conv_orphan_error")).toBe(false);
+    expect(store.hasTabs).toBe(false);
+
+    consoleError.mockRestore();
   });
 
   it("replaces a cached manager when a different store is passed", () => {

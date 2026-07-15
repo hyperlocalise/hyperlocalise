@@ -161,7 +161,10 @@ export class ChatStreamManager {
         this.activeStreams.delete(conversationId);
       }
 
-      if (finishedSuccessfully) {
+      // Success and error both need query invalidation + snapshot clear. Abort is handled by
+      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here.
+      const snapshot = this.store.getStreamSnapshot(conversationId);
+      if (finishedSuccessfully || snapshot?.status === "error") {
         await this.onStreamFinished?.(conversationId);
       }
     }
