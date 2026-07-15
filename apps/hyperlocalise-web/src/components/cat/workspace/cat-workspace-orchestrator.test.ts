@@ -448,6 +448,56 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     });
   });
 
+  it("clears the local commit guard when the server returns normalized saved text", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
+      }),
+    );
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+    store.setTargetText("seg-01", "Bonjour modifié ");
+    store.markSegmentSaved("seg-01", "Bonjour modifié ", "reviewed");
+
+    // Stale pre-save fetch must still be ignored.
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour modifié ",
+      status: "reviewed",
+    });
+
+    // Server-normalized confirmation (trailing space stripped) must clear the guard
+    // and update the draft — otherwise later syncs would be discarded forever.
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour modifié",
+      externalTranslationId: "translation-2",
+      isApproved: true,
+    });
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour modifié",
+      status: "reviewed",
+    });
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-3",
+      isApproved: false,
+    });
+    expect(store.getSegmentView("seg-01")).toMatchObject({
+      targetText: "Bonjour",
+      status: "needs_review",
+    });
+  });
+
   it("keeps lazy-loaded comments when queue snapshots omit comment bodies", () => {
     const queueState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",

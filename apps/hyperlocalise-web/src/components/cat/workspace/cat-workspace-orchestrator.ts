@@ -176,6 +176,12 @@ export class CatWorkspaceOrchestrator {
    * stale lazy fetches that were in flight before the save completed.
    */
   private locallyCommittedTargetTexts = new Map<string, string>();
+  /**
+   * Draft saved text captured just before markSegmentSaved. A post-save lazy sync
+   * whose text equals this value is the in-flight pre-save response and must be
+   * ignored. Any other mismatch (e.g. server-normalized text) clears the guard.
+   */
+  private preSaveTargetTexts = new Map<string, string>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -597,6 +603,7 @@ export class CatWorkspaceOrchestrator {
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
+    this.preSaveTargetTexts = new Map();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
@@ -722,17 +729,19 @@ export class CatWorkspaceOrchestrator {
       }
 
       const committedText = this.locallyCommittedTargetTexts.get(segmentId);
-      if (
-        committedText !== undefined &&
-        committedText === existingDraft.savedTargetText &&
-        targetText !== committedText
-      ) {
-        this.hydratedTargetSegmentIds.add(segmentId);
-        return;
-      }
+      if (committedText !== undefined && committedText === existingDraft.savedTargetText) {
+        if (targetText !== committedText) {
+          const preSaveText = this.preSaveTargetTexts.get(segmentId);
+          if (preSaveText !== undefined && targetText === preSaveText) {
+            // In-flight pre-save fetch — ignore without clearing the guard.
+            this.hydratedTargetSegmentIds.add(segmentId);
+            return;
+          }
+        }
 
-      if (committedText !== undefined && targetText === committedText) {
+        // Exact match or server-normalized confirmation — clear and apply.
         this.locallyCommittedTargetTexts.delete(segmentId);
+        this.preSaveTargetTexts.delete(segmentId);
       }
 
       if (existingDraft.targetText.trim() && !targetText.trim()) {
@@ -788,6 +797,7 @@ export class CatWorkspaceOrchestrator {
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
+    this.preSaveTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const meta of queueSegments) {
@@ -804,6 +814,7 @@ export class CatWorkspaceOrchestrator {
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
+    this.preSaveTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
@@ -844,6 +855,7 @@ export class CatWorkspaceOrchestrator {
           this.segmentComments.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
           this.locallyCommittedTargetTexts.delete(segmentId);
+          this.preSaveTargetTexts.delete(segmentId);
         }
       }
     }
@@ -911,6 +923,10 @@ export class CatWorkspaceOrchestrator {
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {
+    const draft = this.drafts.get(segmentId);
+    if (draft) {
+      this.preSaveTargetTexts.set(segmentId, draft.savedTargetText);
+    }
     this.segments.markSaved(segmentId, targetText, status, this.segmentMeta.has(segmentId));
     this.locallyCommittedTargetTexts.set(segmentId, targetText);
   }
