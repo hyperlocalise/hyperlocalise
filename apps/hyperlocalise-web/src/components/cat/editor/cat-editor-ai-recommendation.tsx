@@ -77,10 +77,15 @@ export function CatEditorAiRecommendation({
           <p className="text-sm leading-relaxed text-foreground">{intelligence.aiSuggestion}</p>
           {intelligence.aiReasoning ? (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-subtle-foreground">
-                <FormattedMessage {...catEditorPanelMessages.reasoningPrefix} />
-              </span>{" "}
-              {intelligence.aiReasoning}
+              <FormattedMessage
+                {...catEditorPanelMessages.aiReasoning}
+                values={{
+                  reasoning: intelligence.aiReasoning,
+                  b: (chunks) => (
+                    <span className="font-medium text-subtle-foreground">{chunks}</span>
+                  ),
+                }}
+              />
             </p>
           ) : null}
         </div>
