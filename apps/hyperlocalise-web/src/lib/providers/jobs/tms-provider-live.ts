@@ -1092,7 +1092,7 @@ async function buildCrowdinLiveCatFile(input: {
           : undefined;
       const page = await client.listSourceStringsPage(projectId, {
         fileId: croql ? undefined : fileId,
-        croql,
+        croql: croql ?? undefined,
         offset: paginationInput.offset,
         limit: paginationInput.limit,
       });
@@ -2180,23 +2180,74 @@ export async function getTmsProviderLiveCatAllFiles(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-    actorUserId: options?.actorUserId,
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_cat_all_files_unsupported",
+      "All Files CAT is not available for this provider yet.",
+    );
+  }
+
+  return buildCrowdinLiveCatAllFiles({
     context,
-    limit: 500,
+    externalProjectId,
+    targetLocale,
+    actorUserId: options?.actorUserId,
+    canEditTranslations: options?.canEditTranslations ?? false,
+    pagination: options?.pagination,
+    sourcePaths: options?.sourcePaths,
   });
+}
+
+async function buildCrowdinLiveCatAllFiles(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  targetLocale: string;
+  actorUserId?: string | null;
+  canEditTranslations: boolean;
+  pagination?: ProjectFileCatPaginationInput;
+  sourcePaths?: readonly string[] | null;
+}): Promise<TmsProviderLiveCatFile> {
+  const projectId = Number(input.externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_file_id",
+      "Crowdin project identifier is invalid.",
+    );
+  }
+
+  const files = await listTmsProviderLiveFilesForProject(
+    input.context.organizationId,
+    input.externalProjectId,
+    {
+      actorUserId: input.actorUserId,
+      context: input.context,
+      limit: 500,
+    },
+  );
 
   const sourcePathFilter =
-    options?.sourcePaths && options.sourcePaths.length > 0 ? new Set(options.sourcePaths) : null;
+    input.sourcePaths && input.sourcePaths.length > 0 ? new Set(input.sourcePaths) : null;
 
   const catFiles = files
-    .filter((file) => supportsLiveProviderCat(context.providerKind, file))
+    .filter((file) => supportsLiveProviderCat(input.context.providerKind, file))
     .filter((file) => (sourcePathFilter ? sourcePathFilter.has(file.sourcePath) : true))
     .toSorted((left, right) =>
       left.sourcePath.localeCompare(right.sourcePath, undefined, { sensitivity: "base" }),
     );
 
-  const paginationInput = options?.pagination ?? {
+  const fileById = new Map<number, TmsProviderLiveFile>();
+  const fileIds: number[] = [];
+  for (const file of catFiles) {
+    const fileId = Number(file.provider?.externalResourceId);
+    if (Number.isNaN(fileId)) {
+      continue;
+    }
+    fileById.set(fileId, file);
+    fileIds.push(fileId);
+  }
+
+  const paginationInput = input.pagination ?? {
     offset: 0,
     limit: legacyProviderCatSegmentLimit,
     search: undefined,
@@ -2207,82 +2258,66 @@ export async function getTmsProviderLiveCatAllFiles(
   const offset = paginationInput.paginated ? paginationInput.offset : 0;
   const limit = paginationInput.paginated ? paginationInput.limit : legacyProviderCatSegmentLimit;
 
-  let remainingToSkip = offset;
-  let totalCount = 0;
-  const segments: TmsProviderLiveCatFile["segments"] = [];
-  let canEditTranslations = options?.canEditTranslations ?? false;
-  let provider: TmsProviderLiveCatFile["provider"] = null;
+  if (fileIds.length === 0) {
+    const pagination = paginationInput.paginated
+      ? buildCatFilePagination({
+          offset,
+          limit,
+          returnedCount: 0,
+          totalCount: 0,
+        })
+      : undefined;
 
-  for (const file of catFiles) {
-    const fileQueue = await getTmsProviderLiveCatFile(
-      organizationId,
-      externalProjectId,
-      file.sourcePath,
-      targetLocale,
-      {
-        actorUserId: options?.actorUserId,
-        canEditTranslations: options?.canEditTranslations,
-        externalResourceId: file.provider?.externalResourceId,
-        resourceType: file.provider?.resourceType,
-        pagination: {
-          ...paginationInput,
-          offset: 0,
-          limit: 1,
-          paginated: true,
-        },
-      },
+    return {
+      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      filename: CAT_ALL_FILES_FILENAME,
+      provider: null,
+      targetLocale: input.targetLocale,
+      canEditTranslations: input.canEditTranslations,
+      truncated: false,
+      pagination,
+      segments: [],
+    };
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  const croql = buildCrowdinFileQueueCroql({
+    fileIds,
+    targetLocale: input.targetLocale,
+    queueFilter: paginationInput.queueFilter,
+    search: paginationInput.search,
+  });
+  if (!croql) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_file_id",
+      "Crowdin All Files CAT requires at least one project file.",
     );
+  }
 
-    if (!fileQueue) {
-      continue;
-    }
+  try {
+    const page = await client.listSourceStringsPage(projectId, {
+      croql,
+      offset,
+      limit,
+    });
 
-    canEditTranslations = fileQueue.canEditTranslations;
-    if (!provider && fileQueue.provider) {
-      provider = fileQueue.provider;
-    }
+    const segments: TmsProviderLiveCatFile["segments"] = [];
+    for (const sourceString of page.strings) {
+      const file = sourceString.fileId != null ? (fileById.get(sourceString.fileId) ?? null) : null;
+      if (!file) {
+        continue;
+      }
 
-    const fileTotal = fileQueue.pagination?.totalCount ?? fileQueue.segments.length;
-    totalCount += fileTotal;
-
-    if (remainingToSkip >= fileTotal) {
-      remainingToSkip -= fileTotal;
-      continue;
-    }
-
-    if (segments.length >= limit) {
-      continue;
-    }
-
-    const fileOffset = remainingToSkip;
-    remainingToSkip = 0;
-    const needed = limit - segments.length;
-    const page = await getTmsProviderLiveCatFile(
-      organizationId,
-      externalProjectId,
-      file.sourcePath,
-      targetLocale,
-      {
-        actorUserId: options?.actorUserId,
-        canEditTranslations: options?.canEditTranslations,
-        externalResourceId: file.provider?.externalResourceId,
-        resourceType: file.provider?.resourceType,
-        pagination: {
-          ...paginationInput,
-          offset: fileOffset,
-          limit: needed,
-          paginated: true,
-        },
-      },
-    );
-
-    if (!page) {
-      continue;
-    }
-
-    for (const segment of page.segments) {
       segments.push({
-        ...segment,
+        externalStringId: String(sourceString.id),
+        key: sourceString.identifier,
+        sourceText: crowdinCatSourceTextValue(sourceString.text),
+        context: sourceString.context,
+        type: sourceString.type ?? null,
         sourcePath: file.sourcePath,
         ...(file.provider?.externalResourceId
           ? { externalResourceId: file.provider.externalResourceId }
@@ -2290,27 +2325,36 @@ export async function getTmsProviderLiveCatAllFiles(
         ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
       });
     }
+
+    const totalCount = page.hasMore ? offset + segments.length + 1 : offset + segments.length;
+
+    const pagination = paginationInput.paginated
+      ? buildCatFilePagination({
+          offset,
+          limit,
+          returnedCount: segments.length,
+          totalCount,
+          hasMore: page.hasMore,
+        })
+      : undefined;
+
+    return {
+      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      filename: CAT_ALL_FILES_FILENAME,
+      provider: catFiles[0]?.provider ?? null,
+      targetLocale: input.targetLocale,
+      canEditTranslations: input.canEditTranslations,
+      truncated: pagination?.hasMore ?? false,
+      pagination,
+      segments,
+    };
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    throw error;
   }
-
-  const pagination = paginationInput.paginated
-    ? buildCatFilePagination({
-        offset,
-        limit,
-        returnedCount: segments.length,
-        totalCount,
-      })
-    : undefined;
-
-  return {
-    sourcePath: CAT_ALL_FILES_SOURCE_PATH,
-    filename: CAT_ALL_FILES_FILENAME,
-    provider,
-    targetLocale,
-    canEditTranslations,
-    truncated: pagination?.hasMore ?? false,
-    pagination,
-    segments,
-  };
 }
 
 export async function getTmsProviderLiveCatSegmentTarget(

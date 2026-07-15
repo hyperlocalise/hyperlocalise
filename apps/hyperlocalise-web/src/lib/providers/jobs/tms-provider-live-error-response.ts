@@ -41,6 +41,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "provider_description_edit_unsupported":
     case "provider_comments_read_unsupported":
     case "provider_cat_unsupported":
+    case "provider_cat_all_files_unsupported":
       return 501;
     default:
       return 500;

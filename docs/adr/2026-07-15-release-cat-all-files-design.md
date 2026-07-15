@@ -2,7 +2,7 @@
 
 ## Decision
 
-Gate CAT **All Files** (`sourcePath=*`) behind the WorkOS release flag `release-cat-all-files` (default off). When the flag is on, support All Files only for **native** projects and **Crowdin** live projects. Other TMS providers stay unavailable until a later release.
+Gate CAT **All Files** (`sourcePath=*`) behind the Flags SDK release flag `release-cat-all-files` (default off via `decide`). Enable with Flags Explorer overrides. When the flag is on, support All Files only for **native** projects and **Crowdin** live projects. Other TMS providers stay unavailable until a later release.
 
 For Crowdin, replace the per-file probe loop with a single project-scoped `GET /projects/{id}/strings` call (optional CroQL for search, queue filters, and optional file-id OR filters).
 
@@ -26,7 +26,7 @@ Deep links and job CAT that default to All Files follow the same rules: when the
 
 ## Surfaces
 
-- Flag: `releaseCatAllFilesFlag` (`release-cat-all-files`)
+- Flag: `releaseCatAllFilesFlag` in `release-flags.ts` (`decide` → `false`; Flags Explorer overrides; not WorkOS)
 - API: `loadProjectFileCatQueue` gates before native / provider All Files loaders
 - UI: CAT file picker and `/strings` / job CAT defaults only expose All Files when the flag is on and the project is native or Crowdin
 - Provider: `getTmsProviderLiveCatAllFiles` is Crowdin-only; other providers throw `provider_cat_all_files_unsupported`

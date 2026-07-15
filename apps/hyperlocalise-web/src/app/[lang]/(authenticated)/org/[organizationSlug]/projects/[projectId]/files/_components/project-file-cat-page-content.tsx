@@ -17,7 +17,11 @@ import {
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
-import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
+import {
+  CAT_ALL_FILES_SOURCE_PATH,
+  supportsCatAllFilesProvider,
+} from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   buildProjectFileCatAllFilesHref,
   buildProjectFileCatHref,
@@ -66,6 +70,7 @@ export function ProjectFileCatPageContent({
   projectId,
   sourcePath,
   allFiles = false,
+  catAllFilesEnabled = false,
   highlightLocale,
   initialSegmentKey = null,
   externalResourceId = null,
@@ -77,6 +82,7 @@ export function ProjectFileCatPageContent({
   projectId: string;
   sourcePath: string | null;
   allFiles?: boolean;
+  catAllFilesEnabled?: boolean;
   highlightLocale: string | null;
   initialSegmentKey?: string | null;
   externalResourceId?: string | null;
@@ -144,6 +150,49 @@ export function ProjectFileCatPageContent({
     () => sortFilesByPath(filesQuery.data ?? []).filter((entry) => canOpenProjectFileCat(entry)),
     [filesQuery.data],
   );
+
+  const canUseAllFiles =
+    catAllFilesEnabled &&
+    supportsCatAllFilesProvider(
+      projectQuery.data?.externalProviderKind ??
+        parseProviderProjectId(projectId)?.providerKind ??
+        null,
+    );
+
+  useEffect(() => {
+    if (!allFiles || canUseAllFiles || !projectQuery.data) {
+      return;
+    }
+
+    const fallbackFile = catFiles[0];
+    if (!fallbackFile) {
+      router.replace(filesHref);
+      return;
+    }
+
+    const href = buildProjectFileCatHref(
+      organizationSlug,
+      projectId,
+      fallbackFile,
+      highlightLocale,
+      branch,
+      projectQuery.data.targetLocales,
+    );
+    if (href) {
+      router.replace(href);
+    }
+  }, [
+    allFiles,
+    branch,
+    canUseAllFiles,
+    catFiles,
+    filesHref,
+    highlightLocale,
+    organizationSlug,
+    projectId,
+    projectQuery.data,
+    router,
+  ]);
 
   const enabledRepositoryFullNames = useMemo(
     () =>
@@ -479,7 +528,7 @@ export function ProjectFileCatPageContent({
             selectedSourcePath={sourcePath ?? ""}
             onSelectFile={handleFileChange}
             allFilesSelected={allFiles}
-            onSelectAllFiles={handleSelectAllFiles}
+            onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
           />
         ) : (
           <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">

@@ -1,3 +1,5 @@
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+
 /** Sentinel `sourcePath` for CAT queue requests that span every file in scope. */
 export const CAT_ALL_FILES_SOURCE_PATH = "*";
 
@@ -5,6 +7,16 @@ export const CAT_ALL_FILES_FILENAME = "All Files";
 
 export function isCatAllFilesSourcePath(sourcePath: string | null | undefined) {
   return !sourcePath?.trim() || sourcePath.trim() === CAT_ALL_FILES_SOURCE_PATH;
+}
+
+/**
+ * All Files is release-gated and currently supported for native projects
+ * (`providerKind` null/undefined) and Crowdin only.
+ */
+export function supportsCatAllFilesProvider(
+  providerKind: ExternalTmsProviderKind | null | undefined,
+) {
+  return providerKind == null || providerKind === "crowdin";
 }
 
 export function normalizeCatSourcePathParam(sourcePath: string | null | undefined) {

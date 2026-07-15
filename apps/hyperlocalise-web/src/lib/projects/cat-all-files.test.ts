@@ -6,6 +6,7 @@ import {
   normalizeCatSourcePathParam,
   parseCatSourcePathsFilter,
   serializeCatSourcePathsFilter,
+  supportsCatAllFilesProvider,
 } from "./cat-all-files";
 
 describe("cat-all-files", () => {
@@ -26,5 +27,14 @@ describe("cat-all-files", () => {
     expect(parseCatSourcePathsFilter("a.json, b.json, a.json")).toEqual(["a.json", "b.json"]);
     expect(parseCatSourcePathsFilter("")).toBeNull();
     expect(serializeCatSourcePathsFilter(["a.json", "b.json"])).toBe("a.json,b.json");
+  });
+
+  it("supports native and Crowdin only for All Files", () => {
+    expect(supportsCatAllFilesProvider(null)).toBe(true);
+    expect(supportsCatAllFilesProvider(undefined)).toBe(true);
+    expect(supportsCatAllFilesProvider("crowdin")).toBe(true);
+    expect(supportsCatAllFilesProvider("phrase")).toBe(false);
+    expect(supportsCatAllFilesProvider("lokalise")).toBe(false);
+    expect(supportsCatAllFilesProvider("smartling")).toBe(false);
   });
 });

@@ -48,7 +48,9 @@ import {
   CAT_ALL_FILES_SOURCE_PATH,
   isCatAllFilesSourcePath,
   serializeCatSourcePathsFilter,
+  supportsCatAllFilesProvider,
 } from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -154,6 +156,7 @@ export function JobCatPageContent({
   targetLocale,
   initialSegmentKey = null,
   initialQueueFilter = "untranslated",
+  catAllFilesEnabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -164,12 +167,17 @@ export function JobCatPageContent({
   targetLocale: string | null;
   initialSegmentKey?: string | null;
   initialQueueFilter?: CatQueueFilter;
+  catAllFilesEnabled?: boolean;
 }) {
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-  const allFiles = isCatAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
-  const hasFileReference = Boolean((sourcePath && !allFiles) || storedFileId) || allFiles;
+  const canUseAllFiles =
+    catAllFilesEnabled &&
+    supportsCatAllFilesProvider(parseProviderProjectId(projectId)?.providerKind ?? null);
+  const requestedAllFiles = isCatAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
+  const allFiles = canUseAllFiles && requestedAllFiles;
+  const hasFileReference = Boolean((sourcePath && !requestedAllFiles) || storedFileId) || allFiles;
   const isNativeJob = Boolean(storedFileId) && !allFiles;
   const didAutoSelectDefaultFileRef = useRef(false);
   const defaultFileQuery = useQuery({
@@ -327,19 +335,38 @@ export function JobCatPageContent({
     const jobSourcePaths = defaultFileQuery.data.files
       .map((file) => file.sourcePath)
       .filter(Boolean);
+    const reference = defaultFileQuery.data.reference;
+
+    if (canUseAllFiles) {
+      router.replace(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+          sourcePaths: jobSourcePaths,
+          targetLocale: reference.targetLocale,
+          segment: initialSegmentKey,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+      return;
+    }
+
     router.replace(
       stringsPageHref({
         organizationSlug,
         projectId,
         jobId,
-        sourcePath: CAT_ALL_FILES_SOURCE_PATH,
-        sourcePaths: jobSourcePaths,
-        targetLocale: defaultFileQuery.data.reference.targetLocale,
+        sourcePath: reference.sourcePath ?? undefined,
+        storedFileId: reference.storedFileId ?? undefined,
+        targetLocale: reference.targetLocale,
         segment: initialSegmentKey,
         queueFilter: initialQueueFilter,
       }),
     );
   }, [
+    canUseAllFiles,
     defaultFileQuery.data,
     hasFileReference,
     initialSegmentKey,
@@ -403,14 +430,6 @@ export function JobCatPageContent({
   }
 
   if (allFiles) {
-    if (
-      projectQuery.isLoading ||
-      defaultFileQuery.isLoading ||
-      (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data)
-    ) {
-      // fall through only when we have files — wait for queries below via reused loading UI
-    }
-
     const defaultJobFiles = defaultFileQuery.data?.files ?? [];
     const jobFiles =
       providerFiles.length > 0
@@ -423,7 +442,12 @@ export function JobCatPageContent({
         .filter(Boolean) ?? jobFiles.map((file) => file.sourcePath);
     const selectedTargetLocale = activeTargetLocale ?? targetLocale;
 
-    if (projectQuery.isLoading || (!selectedTargetLocale && jobLocalesQuery.isLoading)) {
+    if (
+      projectQuery.isLoading ||
+      defaultFileQuery.isLoading ||
+      (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data) ||
+      (!selectedTargetLocale && jobLocalesQuery.isLoading)
+    ) {
       return (
         <ProjectPageShell>
           <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -528,7 +552,7 @@ export function JobCatPageContent({
             selectedSourcePath=""
             onSelectFile={handleJobFileChange}
             allFilesSelected
-            onSelectAllFiles={handleJobSelectAllFiles}
+            onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
           />
 
           {jobTargetLocales.length > 0 ? (
@@ -828,19 +852,23 @@ export function JobCatPageContent({
           selectedSourcePath={selectedFile.sourcePath}
           onSelectFile={handleFileChange}
           allFilesSelected={false}
-          onSelectAllFiles={() => {
-            router.push(
-              stringsPageHref({
-                organizationSlug,
-                projectId,
-                jobId,
-                sourcePath: CAT_ALL_FILES_SOURCE_PATH,
-                sourcePaths: providerFiles.map((file) => file.sourcePath),
-                targetLocale: selectedTargetLocale,
-                queueFilter: initialQueueFilter,
-              }),
-            );
-          }}
+          onSelectAllFiles={
+            canUseAllFiles
+              ? () => {
+                  router.push(
+                    stringsPageHref({
+                      organizationSlug,
+                      projectId,
+                      jobId,
+                      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+                      sourcePaths: providerFiles.map((file) => file.sourcePath),
+                      targetLocale: selectedTargetLocale,
+                      queueFilter: initialQueueFilter,
+                    }),
+                  );
+                }
+              : undefined
+          }
         />
 
         {jobTargetLocales.length > 0 ? (
