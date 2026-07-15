@@ -3,13 +3,15 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { createInboxApi, type InboxApi } from "./inbox-api";
 import { InboxPageView } from "./inbox-page-view";
-import type { InboxCurrentUser } from "./inbox-types";
-import { useConversationStream } from "./use-conversation-stream";
+import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
 
 const inboxApi = createInboxApi(apiClient);
 
@@ -25,7 +27,7 @@ function jobsQueryKey(conversationId: string) {
   return ["conversation-jobs", conversationId] as const;
 }
 
-export function InboxPageContent({
+export const InboxPageContent = observer(function InboxPageContent({
   currentUser,
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
@@ -37,6 +39,8 @@ export function InboxPageContent({
   const router = useRouter();
   const params = useParams();
   const urlConversationId = params?.conversationId as string | undefined;
+  const { chatDock } = useAppShellStore();
+  const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
   const conversationsQuery = useQuery({
     queryKey: conversationsQueryKey(organizationSlug),
@@ -62,17 +66,21 @@ export function InboxPageContent({
     enabled: !!selectedConversationId,
   });
 
-  const refetchConversations = conversationsQuery.refetch;
-  const refetchMessages = messagesQuery.refetch;
-  const onStreamFinished = useCallback(() => {
-    void refetchConversations();
-    void refetchMessages();
-  }, [refetchConversations, refetchMessages]);
-
-  const { isStreaming, startStreaming, streamedAssistant } = useConversationStream({
-    organizationSlug,
-    onStreamFinished,
-  });
+  const streamSnapshot = selectedConversationId
+    ? streamManager.getSnapshot(selectedConversationId)
+    : null;
+  const isStreaming = Boolean(
+    selectedConversationId &&
+    (streamManager.isStreaming(selectedConversationId) || streamSnapshot?.status === "streaming"),
+  );
+  const streamedAssistant: StreamedAssistantMessage | null = streamSnapshot
+    ? {
+        conversationId: streamSnapshot.conversationId,
+        responseToMessageId: streamSnapshot.responseToMessageId,
+        message: streamSnapshot.message,
+        status: streamSnapshot.status,
+      }
+    : null;
 
   const sendMessageMutation = useMutation({
     mutationFn: (input: {
@@ -114,27 +122,28 @@ export function InboxPageContent({
   const autoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
     if (
-      selectedConversationId &&
-      messagesQuery.isSuccess &&
-      lastMessage?.senderType === "user" &&
-      !isStreaming &&
-      autoTriggeredRef.current !== lastMessage.id
+      !selectedConversationId ||
+      !messagesQuery.isSuccess ||
+      lastMessage?.senderType !== "user" ||
+      streamManager.isStreaming(selectedConversationId) ||
+      autoTriggeredRef.current === lastMessage.id
     ) {
-      autoTriggeredRef.current = lastMessage.id;
-      void startStreaming({
-        conversationId: selectedConversationId,
-        responseToMessageId: lastMessage.id,
-        text: lastMessage.text,
-      });
+      return;
     }
+
+    autoTriggeredRef.current = lastMessage.id;
+    void streamManager.start({
+      conversationId: selectedConversationId,
+      responseToMessageId: lastMessage.id,
+      text: lastMessage.text,
+    });
   }, [
-    isStreaming,
     lastMessage?.id,
     lastMessage?.senderType,
     lastMessage?.text,
     messagesQuery.isSuccess,
     selectedConversationId,
-    startStreaming,
+    streamManager,
   ]);
 
   return (
@@ -158,4 +167,4 @@ export function InboxPageContent({
       streamedAssistant={streamedAssistant}
     />
   );
-}
+});

@@ -11,6 +11,10 @@ export type ChatStreamStartInput = {
   text: string;
 };
 
+export type ChatStreamStartResult =
+  | { started: true }
+  | { started: false; reason: "already_streaming" | "max_streams" };
+
 type ActiveStream = {
   conversationId: string;
   controller: AbortController;
@@ -47,6 +51,10 @@ export class ChatStreamManager {
     return this.activeStreams.has(conversationId);
   }
 
+  getSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
+    return this.store.getStreamSnapshot(conversationId);
+  }
+
   stop(conversationId: string) {
     const active = this.activeStreams.get(conversationId);
     active?.controller.abort();
@@ -61,18 +69,15 @@ export class ChatStreamManager {
     }
   }
 
-  async start(input: ChatStreamStartInput): Promise<{ started: boolean; reason?: string }> {
+  async start(input: ChatStreamStartInput): Promise<ChatStreamStartResult> {
     const { conversationId, responseToMessageId, text } = input;
 
     if (this.activeStreams.has(conversationId)) {
-      this.stop(conversationId);
+      return { started: false, reason: "already_streaming" };
     }
 
     if (this.activeStreams.size >= CHAT_DOCK_MAX_CONCURRENT_STREAMS) {
-      return {
-        started: false,
-        reason: `You can run up to ${CHAT_DOCK_MAX_CONCURRENT_STREAMS} chats at once.`,
-      };
+      return { started: false, reason: "max_streams" };
     }
 
     const controller = new AbortController();
@@ -137,7 +142,7 @@ export class ChatStreamManager {
         return { started: true };
       }
 
-      console.error("Chat dock streaming error:", error);
+      console.error("Chat stream error:", error);
       this.store.setStreamSnapshot(conversationId, {
         conversationId,
         responseToMessageId,

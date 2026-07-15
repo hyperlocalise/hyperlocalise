@@ -66,11 +66,40 @@ describe("ChatDockStore", () => {
 
     for (let index = 0; index < CHAT_DOCK_MAX_CONCURRENT_STREAMS; index += 1) {
       store.openTab({ id: `conv_${index}`, title: `Chat ${index}` });
-      store.markStreaming(`conv_${index}`, true);
+      store.setStreamSnapshot(`conv_${index}`, {
+        conversationId: `conv_${index}`,
+        responseToMessageId: `msg_${index}`,
+        message: { id: `stream-msg_${index}`, role: "assistant", parts: [] },
+        status: "streaming",
+      });
     }
 
     expect(store.streamingCount).toBe(CHAT_DOCK_MAX_CONCURRENT_STREAMS);
     expect(store.canStartStream).toBe(false);
+  });
+
+  it("stores stream snapshots without a dock tab and mirrors when opened", () => {
+    const store = new ChatDockStore(createMemoryStorage());
+    store.setOrganizationSlug("acme");
+
+    store.setStreamSnapshot("conv_1", {
+      conversationId: "conv_1",
+      responseToMessageId: "msg_1",
+      message: { id: "stream-msg_1", role: "assistant", parts: [] },
+      status: "streaming",
+    });
+    expect(store.hasTabs).toBe(false);
+    expect(store.getStreamSnapshot("conv_1")?.status).toBe("streaming");
+    expect(store.streamingCount).toBe(1);
+
+    store.openTab({ id: "conv_1", title: "Chat" });
+    expect(store.tabs[0]?.isStreaming).toBe(true);
+    expect(store.tabs[0]?.streamSnapshot?.responseToMessageId).toBe("msg_1");
+
+    store.clearStreamSnapshot("conv_1");
+    expect(store.getStreamSnapshot("conv_1")).toBeNull();
+    expect(store.tabs[0]?.streamSnapshot).toBeNull();
+    expect(store.tabs[0]?.isStreaming).toBe(false);
   });
 
   it("stores stream snapshots and clears them", () => {
@@ -85,10 +114,12 @@ describe("ChatDockStore", () => {
       status: "streaming",
     });
     expect(store.tabs[0]?.isStreaming).toBe(true);
+    expect(store.getStreamSnapshot("conv_1")?.status).toBe("streaming");
 
     store.clearStreamSnapshot("conv_1");
     expect(store.tabs[0]?.streamSnapshot).toBeNull();
     expect(store.tabs[0]?.isStreaming).toBe(false);
+    expect(store.getStreamSnapshot("conv_1")).toBeNull();
   });
 
   it("tracks ephemeral page context without persisting it", () => {

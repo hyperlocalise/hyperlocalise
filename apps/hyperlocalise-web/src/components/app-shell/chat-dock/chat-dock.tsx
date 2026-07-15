@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { Chat01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -56,7 +56,7 @@ export const ChatDockBridge = observer(function ChatDockBridge({
   const { chatDock } = store;
   const queryClient = useQueryClient();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!organizationSlug) {
       return;
     }
@@ -169,8 +169,6 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
       activeTabId={chatDock.activeTabId}
       onSelectTab={(tabId) => chatDock.selectTab(tabId)}
       onCloseTab={(tabId) => {
-        const manager = getChatStreamManager(organizationSlug, chatDock);
-        manager.stop(tabId);
         chatDock.closeTab(tabId);
       }}
       onNewTab={() => chatDock.openNewTab()}
