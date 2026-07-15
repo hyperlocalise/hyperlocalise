@@ -22,26 +22,29 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-const projectFilesTreeStyle = {
-  width: "100%",
-  minWidth: "100%",
-  height: `${TREE_HEIGHT_PX}px`,
-  backgroundColor: "transparent",
-  color: "var(--foreground)",
-  borderColor: "var(--border)",
-  "--trees-bg-override": "var(--background)",
-  "--trees-bg-muted-override": "var(--muted)",
-  "--trees-border-color-override": "var(--border)",
-  "--trees-fg-override": "var(--foreground)",
-  "--trees-fg-muted-override": "var(--muted-foreground)",
-  "--trees-focus-ring-color-override": "var(--ring)",
-  "--trees-input-bg-override": "var(--background)",
-  "--trees-search-bg-override": "var(--background)",
-  "--trees-search-fg-override": "var(--foreground)",
-  "--trees-selected-bg-override": "var(--muted)",
-  "--trees-selected-fg-override": "var(--foreground)",
-  "--trees-selected-focused-border-color-override": "var(--ring)",
-} as CSSProperties;
+function buildProjectFilesTreeStyle(fillHeight: boolean): CSSProperties {
+  return {
+    width: "100%",
+    minWidth: "100%",
+    height: fillHeight ? "100%" : `${TREE_HEIGHT_PX}px`,
+    minHeight: fillHeight ? 0 : undefined,
+    backgroundColor: "transparent",
+    color: "var(--foreground)",
+    borderColor: "var(--border)",
+    "--trees-bg-override": "var(--background)",
+    "--trees-bg-muted-override": "var(--muted)",
+    "--trees-border-color-override": "var(--border)",
+    "--trees-fg-override": "var(--foreground)",
+    "--trees-fg-muted-override": "var(--muted-foreground)",
+    "--trees-focus-ring-color-override": "var(--ring)",
+    "--trees-input-bg-override": "var(--background)",
+    "--trees-search-bg-override": "var(--background)",
+    "--trees-search-fg-override": "var(--foreground)",
+    "--trees-selected-bg-override": "var(--muted)",
+    "--trees-selected-fg-override": "var(--foreground)",
+    "--trees-selected-focused-border-color-override": "var(--ring)",
+  };
+}
 
 function formatNullableDate(value: string | null | undefined) {
   if (!value) return null;
@@ -72,6 +75,7 @@ export function ProjectFilesTree({
   onActivateFile,
   fileActions,
   ariaLabel = "Project files",
+  fillHeight = false,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -79,6 +83,8 @@ export function ProjectFilesTree({
   onActivateFile?: (sourcePath: string) => void;
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
+  /** Stretch to the parent height instead of the fixed TREE_HEIGHT_PX. */
+  fillHeight?: boolean;
 }) {
   if (fileActions) {
     return (
@@ -89,6 +95,7 @@ export function ProjectFilesTree({
         onActivateFile={onActivateFile}
         fileActions={fileActions}
         ariaLabel={ariaLabel}
+        fillHeight={fillHeight}
       />
     );
   }
@@ -100,6 +107,7 @@ export function ProjectFilesTree({
       onSelectFile={onSelectFile}
       onActivateFile={onActivateFile}
       ariaLabel={ariaLabel}
+      fillHeight={fillHeight}
     />
   );
 }
@@ -111,6 +119,7 @@ function ProjectFilesTreeView({
   onActivateFile,
   fileActions,
   ariaLabel = "Project files",
+  fillHeight = false,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -118,8 +127,10 @@ function ProjectFilesTreeView({
   onActivateFile?: (sourcePath: string) => void;
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
+  fillHeight?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const treeStyle = useMemo(() => buildProjectFilesTreeStyle(fillHeight), [fillHeight]);
   const displayFiles = useMemo(() => dedupeProjectFilesBySourcePath(files), [files]);
   const paths = useMemo(() => displayFiles.map((file) => file.sourcePath), [displayFiles]);
   const fileByPath = useMemo(
@@ -257,7 +268,12 @@ function ProjectFilesTreeView({
   }
 
   return (
-    <div ref={containerRef} className="flex w-full min-w-0 flex-col">
+    <div
+      ref={containerRef}
+      className={
+        fillHeight ? "flex h-full min-h-0 w-full min-w-0 flex-col" : "flex w-full min-w-0 flex-col"
+      }
+    >
       <PierreFileTree
         aria-label={ariaLabel}
         className="w-full min-w-0 border-0 bg-transparent"
@@ -297,7 +313,7 @@ function ProjectFilesTreeView({
               }
             : undefined
         }
-        style={projectFilesTreeStyle}
+        style={treeStyle}
       />
     </div>
   );

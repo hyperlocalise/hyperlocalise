@@ -143,8 +143,8 @@ export function CatFileTreePicker({
         <FilePickerIcon className="size-4 text-muted-foreground" />
         <span className="min-w-0 truncate">{triggerLabel}</span>
       </DialogTrigger>
-      <DialogContent className="max-h-[min(720px,calc(100svh-2rem))] gap-4 overflow-hidden sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(720px,calc(100svh-2rem))] flex-col gap-4 overflow-hidden sm:max-w-3xl">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Choose source file</DialogTitle>
           <DialogDescription>
             Browse the file tree, or choose All Files to view strings across every file.
@@ -155,7 +155,7 @@ export function CatFileTreePicker({
           <Button
             type="button"
             variant={dialogAllFiles ? "default" : "outline"}
-            className="h-9 justify-start"
+            className="h-9 shrink-0 justify-start"
             onClick={() => {
               setDialogAllFiles(true);
               setDialogSourcePath("");
@@ -165,7 +165,7 @@ export function CatFileTreePicker({
           </Button>
         ) : null}
 
-        <div className="min-h-0 rounded-lg border border-border bg-background">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background">
           <ProjectFilesTree
             files={files}
             selectedSourcePath={dialogAllFiles ? "" : dialogSourcePath}
@@ -175,10 +175,11 @@ export function CatFileTreePicker({
             }}
             onActivateFile={handleActivateFile}
             ariaLabel="Source files"
+            fillHeight
           />
         </div>
 
-        <div className="rounded-lg border border-border bg-background px-4 py-3">
+        <div className="shrink-0 rounded-lg border border-border bg-background px-4 py-3">
           <TypographyP className="truncate font-mono text-xs text-foreground">
             {dialogAllFiles ? "All Files" : (selectedFile?.sourcePath ?? "No file selected")}
           </TypographyP>
@@ -187,7 +188,7 @@ export function CatFileTreePicker({
           </TypographyP>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
