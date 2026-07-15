@@ -343,6 +343,7 @@ describe("project file CAT routes", () => {
           sourcePath: "crowdin/home.json",
           sourceLocale: "en",
           targetLocale: "fr",
+          displayLocale: "de-DE",
           key: "hello",
           sourceText: "Hello",
           targetText: "Bonjour",
@@ -370,6 +371,7 @@ describe("project file CAT routes", () => {
         sourcePath: "crowdin/home.json",
         key: "hello",
         sourceText: "Hello",
+        displayLocale: "de-DE",
       }),
     );
   });

@@ -116,6 +116,8 @@ export type CatAiRecommendationInput = {
   filename: string;
   sourceLocale: string;
   targetLocale: string;
+  /** Locale for reviewer-facing reasoning text (UI/display locale), not the translation target. */
+  displayLocale?: string;
   key: string;
   sourceText: string;
   targetText?: string;

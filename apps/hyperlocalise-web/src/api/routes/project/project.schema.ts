@@ -447,6 +447,8 @@ export const projectFileCatRecommendationBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
   sourceLocale: z.string().trim().min(1).max(32),
+  /** Reviewer UI/display locale for AI reasoning text (not the translation target). */
+  displayLocale: z.string().trim().min(1).max(32).optional(),
   key: z.string().trim().min(1).max(2048),
   sourceText: z.string().min(1).max(100_000),
   targetText: z.string().max(100_000).optional(),
