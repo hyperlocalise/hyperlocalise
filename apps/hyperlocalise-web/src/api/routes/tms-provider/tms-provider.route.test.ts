@@ -319,15 +319,19 @@ describe("tmsProviderRoutes", () => {
 
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ jobs: [job] });
-    expect(createJobs).toHaveBeenCalledWith(authContext.organization.localOrganizationId, "902807", {
-      title: "Review homepage",
-      targetLocales: ["fr", "de"],
-      fileIds: ["101"],
-      assigneeExternalUserIds: ["55"],
-      kind: "proofread",
-      description: "Proofread launch strings",
-      actorUserId: authContext.user.localUserId,
-    });
+    expect(createJobs).toHaveBeenCalledWith(
+      authContext.organization.localOrganizationId,
+      "902807",
+      {
+        title: "Review homepage",
+        targetLocales: ["fr", "de"],
+        fileIds: ["101"],
+        assigneeExternalUserIds: ["55"],
+        kind: "proofread",
+        description: "Proofread launch strings",
+        actorUserId: authContext.user.localUserId,
+      },
+    );
   });
 
   it("returns partial create details when some provider jobs were created before failure", async () => {
@@ -354,6 +358,7 @@ describe("tmsProviderRoutes", () => {
           title: "Translate homepage",
           targetLocales: ["fr", "de"],
           fileIds: ["101"],
+          kind: "translation",
         },
       },
       { headers },
@@ -385,6 +390,7 @@ describe("tmsProviderRoutes", () => {
           title: "Translate homepage",
           targetLocales: ["fr"],
           fileIds: ["101"],
+          kind: "translation",
         },
       },
       { headers },
@@ -435,9 +441,13 @@ describe("tmsProviderRoutes", () => {
         },
       ],
     });
-    expect(listMembers).toHaveBeenCalledWith(authContext.organization.localOrganizationId, "902807", {
-      actorUserId: authContext.user.localUserId,
-    });
+    expect(listMembers).toHaveBeenCalledWith(
+      authContext.organization.localOrganizationId,
+      "902807",
+      {
+        actorUserId: authContext.user.localUserId,
+      },
+    );
   });
 
   it("returns live job comments for a provider task", async () => {
@@ -496,9 +506,7 @@ describe("tmsProviderRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
-    const deleteJob = vi
-      .spyOn(tmsProviderLive, "deleteTmsProviderLiveJob")
-      .mockResolvedValue(true);
+    const deleteJob = vi.spyOn(tmsProviderLive, "deleteTmsProviderLiveJob").mockResolvedValue(true);
 
     const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
       ":encodedJobId"
