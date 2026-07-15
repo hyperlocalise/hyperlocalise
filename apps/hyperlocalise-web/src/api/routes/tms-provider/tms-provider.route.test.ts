@@ -13,7 +13,10 @@ import {
   upsertOrganizationExternalTmsProviderCredential,
 } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import * as tmsProviderLive from "@/lib/providers/jobs/tms-provider-live";
-import type { TmsProviderLiveFileDetail } from "@/lib/providers/jobs/tms-provider-live";
+import type {
+  TmsProviderLiveFileDetail,
+  TmsProviderLiveJob,
+} from "@/lib/providers/jobs/tms-provider-live";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -58,6 +61,41 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
+
+function createLiveProviderJob(overrides: Partial<TmsProviderLiveJob> = {}): TmsProviderLiveJob {
+  return {
+    id: "ext:crowdin:902807:5001",
+    projectId: "ext:crowdin:902807",
+    projectName: "Marketing",
+    createdByUserId: null,
+    kind: "translation",
+    type: null,
+    status: "queued",
+    createdAt: "2026-07-15T10:00:00.000Z",
+    updatedAt: "2026-07-15T10:00:00.000Z",
+    completedAt: null,
+    workflowRunId: null,
+    lastError: null,
+    inputPayload: null,
+    outcomeKind: null,
+    outcomePayload: null,
+    reviewCriteria: null,
+    reviewTargetLocale: null,
+    syncConnectorKind: null,
+    syncDirection: null,
+    assetType: null,
+    assetOperation: null,
+    externalProviderKind: "crowdin",
+    externalTaskId: "5001",
+    externalStatus: "todo",
+    externalTitle: "Translate homepage",
+    externalDueDate: null,
+    externalTargetLocales: ["fr"],
+    externalAssignedUsers: ["translator1"],
+    externalSyncState: null,
+    ...overrides,
+  };
+}
 
 describe("tmsProviderRoutes", () => {
   beforeAll(async () => {
@@ -245,6 +283,163 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("creates live provider jobs for a provider project", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const job = createLiveProviderJob({
+      kind: "proofread",
+      externalTitle: "Review homepage",
+      externalTargetLocales: ["fr", "de"],
+      externalAssignedUsers: ["55"],
+    });
+    const createJobs = vi
+      .spyOn(tmsProviderLive, "createTmsProviderLiveJobs")
+      .mockResolvedValue([job]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "902807",
+        },
+        json: {
+          title: "Review homepage",
+          targetLocales: ["fr", "de"],
+          fileIds: ["101"],
+          assigneeExternalUserIds: ["55"],
+          kind: "proofread",
+          description: "Proofread launch strings",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ jobs: [job] });
+    expect(createJobs).toHaveBeenCalledWith(authContext.organization.localOrganizationId, "902807", {
+      title: "Review homepage",
+      targetLocales: ["fr", "de"],
+      fileIds: ["101"],
+      assigneeExternalUserIds: ["55"],
+      kind: "proofread",
+      description: "Proofread launch strings",
+      actorUserId: authContext.user.localUserId,
+    });
+  });
+
+  it("returns partial create details when some provider jobs were created before failure", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const createdJob = createLiveProviderJob();
+    vi.spyOn(tmsProviderLive, "createTmsProviderLiveJobs").mockRejectedValue(
+      new tmsProviderLive.TmsProviderLivePartialCreateError(
+        "Created 1 of 2 jobs, then failed: provider unavailable",
+        1,
+        [createdJob],
+      ),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "902807",
+        },
+        json: {
+          title: "Translate homepage",
+          targetLocales: ["fr", "de"],
+          fileIds: ["101"],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(207);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_task_create_partial",
+      message: "Created 1 of 2 jobs, then failed: provider unavailable",
+      createdCount: 1,
+      jobs: [createdJob],
+    });
+  });
+
+  it("forbids live provider job creation without jobs:create", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+    const createJobs = vi.spyOn(tmsProviderLive, "createTmsProviderLiveJobs");
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "902807",
+        },
+        json: {
+          title: "Translate homepage",
+          targetLocales: ["fr"],
+          fileIds: ["101"],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    expect(createJobs).not.toHaveBeenCalled();
+  });
+
+  it("returns live provider project members", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const listMembers = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveProjectMembers")
+      .mockResolvedValue([
+        {
+          externalUserId: "55",
+          username: "translator1",
+          displayName: "Ada Translator",
+          avatarUrl: "https://example.com/avatar.png",
+          role: "translator",
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].members.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "902807",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      members: [
+        {
+          externalUserId: "55",
+          username: "translator1",
+          displayName: "Ada Translator",
+          avatarUrl: "https://example.com/avatar.png",
+          role: "translator",
+        },
+      ],
+    });
+    expect(listMembers).toHaveBeenCalledWith(authContext.organization.localOrganizationId, "902807", {
+      actorUserId: authContext.user.localUserId,
+    });
+  });
+
   it("returns live job comments for a provider task", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -295,6 +490,78 @@ describe("tmsProviderRoutes", () => {
     expect(listComments).toHaveBeenCalledWith(organizationId, "ext:crowdin:902807:99", {
       actorUserId: expect.any(String),
     });
+  });
+
+  it("deletes live provider jobs", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const deleteJob = vi
+      .spyOn(tmsProviderLive, "deleteTmsProviderLiveJob")
+      .mockResolvedValue(true);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    await expect(response.text()).resolves.toBe("");
+    expect(deleteJob).toHaveBeenCalledWith(
+      authContext.organization.localOrganizationId,
+      "ext:crowdin:902807:99",
+      authContext.user.localUserId,
+    );
+  });
+
+  it("returns 404 when deleting a live provider job that no longer exists", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    vi.spyOn(tmsProviderLive, "deleteTmsProviderLiveJob").mockResolvedValue(false);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:missing",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "job_not_found" });
+  });
+
+  it("forbids live provider job deletion without jobs:write", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+    const deleteJob = vi.spyOn(tmsProviderLive, "deleteTmsProviderLiveJob");
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    expect(deleteJob).not.toHaveBeenCalled();
   });
 
   it("returns live job file detail for a provider task", async () => {
