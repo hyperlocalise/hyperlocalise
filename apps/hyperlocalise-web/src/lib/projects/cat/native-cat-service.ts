@@ -513,6 +513,65 @@ export class NativeCatService extends ProjectServiceBase {
     return updated ? toCatTranslation(updated) : null;
   }
 
+  private async findTranslationKeyForSegment(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    externalStringId: string;
+  }): Promise<{
+    id: string;
+    metadata: Record<string, unknown> | null;
+  } | null> {
+    // All-files CAT uses the sentinel sourcePath `*`. Keys are scoped to the
+    // project only — callers may also send the real per-segment path.
+    if (isCatAllFilesSourcePath(input.sourcePath)) {
+      const [key] = await this.database
+        .select({
+          id: schema.projectTranslationKeys.id,
+          metadata: schema.projectTranslationKeys.metadata,
+        })
+        .from(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.id, input.externalStringId),
+            eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+          ),
+        )
+        .limit(1);
+
+      return key ?? null;
+    }
+
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+    });
+
+    if (!sourceFile) {
+      return null;
+    }
+
+    const [key] = await this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        metadata: schema.projectTranslationKeys.metadata,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.id, input.externalStringId),
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+        ),
+      )
+      .limit(1);
+
+    return key ?? null;
+  }
+
   async getSegmentTarget(input: {
     organizationId: string;
     projectId: string;
@@ -521,17 +580,20 @@ export class NativeCatService extends ProjectServiceBase {
     externalStringId: string;
     organizationSlug: string;
   }): Promise<ProjectFileCatTranslation | null | "not_found"> {
-    const sourceFile = await this.translations.getRepositorySourceFileByPath({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-    });
+    if (
+      !isCatAllFilesSourcePath(input.sourcePath) &&
+      inferSupportedImageTranslationFileFormat(input.sourcePath)
+    ) {
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
 
-    if (!sourceFile) {
-      return "not_found";
-    }
+      if (!sourceFile) {
+        return "not_found";
+      }
 
-    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
       const expectedId = imageFileExternalStringId(sourceFile.id, input.sourcePath);
       if (
         input.externalStringId !== expectedId &&
@@ -579,21 +641,12 @@ export class NativeCatService extends ProjectServiceBase {
       });
     }
 
-    const [key] = await this.database
-      .select({
-        id: schema.projectTranslationKeys.id,
-        metadata: schema.projectTranslationKeys.metadata,
-      })
-      .from(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.id, input.externalStringId),
-          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
-        ),
-      )
-      .limit(1);
+    const key = await this.findTranslationKeyForSegment({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      externalStringId: input.externalStringId,
+    });
 
     if (!key) {
       return "not_found";
@@ -632,32 +685,19 @@ export class NativeCatService extends ProjectServiceBase {
     targetLocale: string;
     externalStringId: string;
   }): Promise<ProjectFileCatComment[]> {
-    const sourceFile = await this.translations.getRepositorySourceFileByPath({
+    if (
+      !isCatAllFilesSourcePath(input.sourcePath) &&
+      inferSupportedImageTranslationFileFormat(input.sourcePath)
+    ) {
+      return [];
+    }
+
+    const key = await this.findTranslationKeyForSegment({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      externalStringId: input.externalStringId,
     });
-
-    if (!sourceFile) {
-      return [];
-    }
-
-    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
-      return [];
-    }
-
-    const [key] = await this.database
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.id, input.externalStringId),
-          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
-        ),
-      )
-      .limit(1);
 
     if (!key) {
       return [];

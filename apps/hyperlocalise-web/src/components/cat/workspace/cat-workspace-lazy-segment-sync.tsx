@@ -162,6 +162,28 @@ function useCatLoadedQueueTargetsSync(input: {
 
   const targetsEnabled = input.enabled && Boolean(input.catFile) && segmentIds.length > 0;
 
+  const targetSegments = useMemo(
+    () =>
+      segmentIds.map((externalStringId) => {
+        const queueSegment = input.catFile?.segments.find(
+          (segment) => segment.externalStringId === externalStringId,
+        );
+        return {
+          externalStringId,
+          sourcePath: queueSegment?.sourcePath?.trim() || input.sourcePath,
+          externalResourceId: queueSegment?.externalResourceId ?? resolvedExternalResourceId,
+          resourceType: queueSegment?.resourceType ?? resolvedResourceType,
+        };
+      }),
+    [
+      input.catFile?.segments,
+      input.sourcePath,
+      resolvedExternalResourceId,
+      resolvedResourceType,
+      segmentIds,
+    ],
+  );
+
   const targetQueries = useCatSegmentTargets({
     organizationSlug: input.organizationSlug,
     projectId: input.projectId,
@@ -169,7 +191,7 @@ function useCatLoadedQueueTargetsSync(input: {
     externalResourceId: resolvedExternalResourceId,
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,
-    externalStringIds: segmentIds,
+    segments: targetSegments,
     enabled: targetsEnabled,
   });
 

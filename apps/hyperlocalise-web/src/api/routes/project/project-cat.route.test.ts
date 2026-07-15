@@ -627,6 +627,98 @@ describe("project file CAT routes", () => {
     expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
   });
 
+  it("loads native segment targets with All Files sourcePath=*", async () => {
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: translationKey!.id,
+      targetLocale: "fr-FR",
+      text: "Bonjour",
+      status: "needs_review",
+      provenance: "manual",
+    });
+
+    const missingFileResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].target.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "missing/file.json", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(missingFileResponse.status).toBe(404);
+
+    const allFilesTargetResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].target.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "*", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(allFilesTargetResponse.status).toBe(200);
+    const allFilesTargetBody =
+      (await allFilesTargetResponse.json()) as ProjectFileCatSegmentTargetResponse;
+    expect(allFilesTargetBody.target).toMatchObject({
+      text: "Bonjour",
+      isApproved: false,
+      status: "needs_review",
+    });
+
+    const allFilesCommentsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "*", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(allFilesCommentsResponse.status).toBe(200);
+    expect(await allFilesCommentsResponse.json()).toMatchObject({ comments: [] });
+  });
+
   it("toggles treat-as-image metadata on a native CAT segment", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
