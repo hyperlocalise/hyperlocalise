@@ -43,7 +43,7 @@ function buildProjectFilesTreeStyle(fillHeight: boolean): CSSProperties {
     "--trees-selected-bg-override": "var(--muted)",
     "--trees-selected-fg-override": "var(--foreground)",
     "--trees-selected-focused-border-color-override": "var(--ring)",
-  };
+  } as CSSProperties;
 }
 
 function formatNullableDate(value: string | null | undefined) {
