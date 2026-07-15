@@ -12,7 +12,7 @@ For Crowdin, replace the per-file probe loop with a single project-scoped `GET /
 |------------------------------------|-----------------|--------------|--------------------|
 | Native (`null`) | Shown | Shown | Existing DB All Files path |
 | Crowdin | Shown | Shown | One project-wide strings page (+ CroQL) |
-| Phrase / Lokalise / Smartling / other | Hidden | Hidden | `provider_cat_all_files_unsupported` (501) or `feature_unavailable` when overridden off |
+| Phrase / Lokalise / Smartling / other | Hidden | Hidden | `feature_unavailable` (403) via `decide`; TMS still throws `provider_cat_all_files_unsupported` (501) if Flags Explorer forces the flag on |
 
 Deep links and job CAT that default to All Files follow the same rules: when `decide` is false for the provider (or Flags Explorer forces off), do not open All Files (pick a single file or require selection).
 
