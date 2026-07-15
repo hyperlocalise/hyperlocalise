@@ -962,7 +962,7 @@ describe("tmsProviderRoutes", () => {
     expect(deleteTmsProviderLiveJobMock).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects Crowdin job description updates for provider projects outside the current team scope", async () => {
+  it("rejects Crowdin job description updates for provider projects outside the current organization scope", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const localizationManager = fixture.createWorkosIdentityForOrganization(
       admin.organization,
@@ -981,56 +981,27 @@ describe("tmsProviderRoutes", () => {
       secretMaterial: "crowdin-secret",
     });
 
-    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
-    expect(teamAlphaResponse.status).toBe(201);
-    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamResponse.status).toBe(201);
+    const teamBody = (await teamResponse.json()) as TeamResponse;
 
-    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
-    expect(teamBetaResponse.status).toBe(201);
-    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: teamAlphaBody.team.id,
-      userId: await fixture.getLocalUserId(localizationManager.user.workosUserId),
-      role: "member",
+    await db.insert(schema.projects).values({
+      id: "ext:crowdin:111",
+      organizationId,
+      teamId: teamBody.team.id,
+      createdByUserId: adminUserId,
+      updatedByUserId: adminUserId,
+      name: "Alpha Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: credential.id,
+      externalProjectId: "111",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      isActive: true,
     });
-
-    await db.insert(schema.projects).values([
-      {
-        id: "ext:crowdin:111",
-        organizationId,
-        teamId: teamAlphaBody.team.id,
-        createdByUserId: adminUserId,
-        updatedByUserId: adminUserId,
-        name: "Alpha Crowdin project",
-        description: "",
-        translationContext: "",
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProviderCredentialId: credential.id,
-        externalProjectId: "111",
-        sourceLocale: "en",
-        targetLocales: ["fr"],
-        isActive: true,
-      },
-      {
-        id: "ext:crowdin:222",
-        organizationId,
-        teamId: teamBetaBody.team.id,
-        createdByUserId: adminUserId,
-        updatedByUserId: adminUserId,
-        name: "Beta Crowdin project",
-        description: "",
-        translationContext: "",
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProviderCredentialId: credential.id,
-        externalProjectId: "222",
-        sourceLocale: "en",
-        targetLocales: ["de"],
-        isActive: true,
-      },
-    ]);
 
     updateTmsProviderLiveJobDescriptionMock.mockResolvedValue({
       id: "ext:crowdin:111:99",
@@ -1073,9 +1044,9 @@ describe("tmsProviderRoutes", () => {
       {
         param: {
           organizationSlug: localizationManager.organization.slug ?? "missing",
-          encodedJobId: "ext:crowdin:222:99",
+          encodedJobId: "ext:crowdin:999:99",
         },
-        json: { description: "Cross-team description" },
+        json: { description: "Unmaterialized project description" },
       },
       { headers: localizationManagerHeaders },
     );
@@ -1095,7 +1066,7 @@ describe("tmsProviderRoutes", () => {
           organizationSlug: localizationManager.organization.slug ?? "missing",
           encodedJobId: "ext:crowdin:111:99",
         },
-        json: { description: "In-team description" },
+        json: { description: "In-scope description" },
       },
       { headers: localizationManagerHeaders },
     );
