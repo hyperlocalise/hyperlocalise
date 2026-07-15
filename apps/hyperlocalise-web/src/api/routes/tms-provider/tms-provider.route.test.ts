@@ -19,11 +19,15 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
+import { createTeamTestFixture } from "../team/team.fixture";
+import type { TeamResponse } from "../team/team.schema";
 
 const {
   resolveApiAuthContextFromSessionMock,
   getTmsProviderLiveJobDetailMock,
   listTmsProviderLiveJobFilesMock,
+  createTmsProviderLiveJobsMock,
+  deleteTmsProviderLiveJobMock,
 } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -33,6 +37,8 @@ const {
   ),
   getTmsProviderLiveJobDetailMock: vi.fn(),
   listTmsProviderLiveJobFilesMock: vi.fn(),
+  createTmsProviderLiveJobsMock: vi.fn(),
+  deleteTmsProviderLiveJobMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -53,11 +59,14 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
     ...actual,
     getTmsProviderLiveJobDetail: (...args: unknown[]) => getTmsProviderLiveJobDetailMock(...args),
     listTmsProviderLiveJobFiles: (...args: unknown[]) => listTmsProviderLiveJobFilesMock(...args),
+    createTmsProviderLiveJobs: (...args: unknown[]) => createTmsProviderLiveJobsMock(...args),
+    deleteTmsProviderLiveJob: (...args: unknown[]) => deleteTmsProviderLiveJobMock(...args),
   };
 });
 
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
+const teamFixture = createTeamTestFixture(client);
 
 describe("tmsProviderRoutes", () => {
   beforeAll(async () => {
@@ -721,5 +730,231 @@ describe("tmsProviderRoutes", () => {
       "9",
       expect.objectContaining({ languageId: "fr" }),
     );
+  });
+
+  it("rejects Crowdin job create for provider projects outside the current team scope", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const adminUserId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: adminUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamAlphaResponse.status).toBe(201);
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
+    expect(teamBetaResponse.status).toBe(201);
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: await fixture.getLocalUserId(translator.user.workosUserId),
+      role: "member",
+    });
+
+    await db.insert(schema.projects).values([
+      {
+        id: "ext:crowdin:111",
+        organizationId,
+        teamId: teamAlphaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Alpha Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "111",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        isActive: true,
+      },
+      {
+        id: "ext:crowdin:222",
+        organizationId,
+        teamId: teamBetaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Beta Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "222",
+        sourceLocale: "en",
+        targetLocales: ["de"],
+        isActive: true,
+      },
+    ]);
+
+    createTmsProviderLiveJobsMock.mockResolvedValue([]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing",
+          externalProjectId: "222",
+        },
+        json: {
+          title: "Beta task",
+          targetLocales: ["de"],
+          fileIds: ["1"],
+          kind: "translation",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "project_not_found",
+      message: "Project not found",
+    });
+    expect(createTmsProviderLiveJobsMock).not.toHaveBeenCalled();
+
+    const allowedResponse = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing",
+          externalProjectId: "111",
+        },
+        json: {
+          title: "Alpha task",
+          targetLocales: ["fr"],
+          fileIds: ["1"],
+          kind: "translation",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(allowedResponse.status).toBe(201);
+    expect(createTmsProviderLiveJobsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects Crowdin job delete for provider projects outside the current team scope", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const adminUserId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: adminUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamAlphaResponse.status).toBe(201);
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
+    expect(teamBetaResponse.status).toBe(201);
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: await fixture.getLocalUserId(translator.user.workosUserId),
+      role: "member",
+    });
+
+    await db.insert(schema.projects).values([
+      {
+        id: "ext:crowdin:111",
+        organizationId,
+        teamId: teamAlphaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Alpha Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "111",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        isActive: true,
+      },
+      {
+        id: "ext:crowdin:222",
+        organizationId,
+        teamId: teamBetaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Beta Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "222",
+        sourceLocale: "en",
+        targetLocales: ["de"],
+        isActive: true,
+      },
+    ]);
+
+    deleteTmsProviderLiveJobMock.mockResolvedValue(true);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:222:99",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "project_not_found",
+      message: "Project not found",
+    });
+    expect(deleteTmsProviderLiveJobMock).not.toHaveBeenCalled();
+
+    const allowedResponse = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:111:99",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(allowedResponse.status).toBe(204);
+    expect(deleteTmsProviderLiveJobMock).toHaveBeenCalledTimes(1);
   });
 });
