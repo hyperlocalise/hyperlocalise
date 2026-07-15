@@ -21,7 +21,7 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["smartling_auth_invalid", 401],
     ["provider_fetcher_unavailable", 501],
     ["provider_description_edit_unsupported", 501],
-    ["provider_task_create_partial", 500],
+    ["provider_task_create_partial", 207],
     ["unknown_code", 500],
   ] as const)("maps %s to %i", (code, status) => {
     expect(getTmsProviderLiveErrorStatus(code)).toBe(status);
@@ -49,7 +49,7 @@ describe("tmsProviderLiveErrorResponse", () => {
     );
 
     expect(captured).toEqual({
-      status: 500,
+      status: 207,
       body: {
         error: "provider_task_create_partial",
         message: "Created 2 of 3 jobs, then failed: boom",

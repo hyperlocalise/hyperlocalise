@@ -13,7 +13,7 @@ type JsonContext = {
   ): Response & TypedResponse<T, U, "json">;
 };
 
-export type TmsProviderLiveErrorStatus = 400 | 401 | 404 | 500 | 501;
+export type TmsProviderLiveErrorStatus = 207 | 400 | 401 | 404 | 500 | 501;
 export type TmsProviderLiveErrorBody = {
   error: string;
   message: string;
@@ -51,6 +51,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "provider_cat_unsupported":
     case "provider_cat_all_files_unsupported":
       return 501;
+    case "provider_task_create_partial":
+      return 207;
     default:
       return 500;
   }

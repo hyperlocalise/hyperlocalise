@@ -341,7 +341,7 @@ export function CreateJobDialog({
             ...(selectedAssignees.length > 0 ? { assigneeExternalUserIds: selectedAssignees } : {}),
           },
         });
-        if (!response.ok) {
+        if (!response.ok || response.status === 207) {
           const body: unknown = await response.json().catch(() => null);
           const createdCount =
             body &&
