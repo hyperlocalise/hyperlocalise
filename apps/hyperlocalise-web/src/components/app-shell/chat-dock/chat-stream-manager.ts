@@ -175,12 +175,15 @@ const managers = new Map<string, ChatStreamManager>();
 export function getChatStreamManager(organizationSlug: string, store: ChatDockStore) {
   const existing = managers.get(organizationSlug);
   if (existing) {
-    if (!existing.isBoundToStore(store)) {
-      throw new Error(
-        `getChatStreamManager("${organizationSlug}"): store does not match the cached manager`,
-      );
+    if (existing.isBoundToStore(store)) {
+      return existing;
     }
-    return existing;
+    // Remounts / test isolation can pass a fresh store for the same slug. Never return a
+    // manager still wired to the previous store — dispose and recreate instead.
+    console.warn(
+      `getChatStreamManager("${organizationSlug}"): replacing manager bound to a different ChatDockStore`,
+    );
+    disposeChatStreamManager(organizationSlug);
   }
 
   const manager = new ChatStreamManager(organizationSlug, store);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import { ChatDockStore } from "./chat-dock-store";
@@ -125,15 +125,23 @@ describe("ChatStreamManager", () => {
     expect(store.tabs[0]?.streamSnapshot).toBeNull();
   });
 
-  it("rejects a different store for a cached organization slug", () => {
+  it("replaces a cached manager when a different store is passed", () => {
     const firstStore = new ChatDockStore();
     const secondStore = new ChatDockStore();
     const slug = `store-identity-${Date.now()}`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     const first = getChatStreamManager(slug, firstStore);
     expect(getChatStreamManager(slug, firstStore)).toBe(first);
-    expect(() => getChatStreamManager(slug, secondStore)).toThrow(/store does not match/);
+
+    const second = getChatStreamManager(slug, secondStore);
+    expect(second).not.toBe(first);
+    expect(second.isBoundToStore(secondStore)).toBe(true);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("replacing manager bound to a different ChatDockStore"),
+    );
 
     disposeChatStreamManager(slug);
+    warn.mockRestore();
   });
 });

@@ -13,6 +13,7 @@ import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-c
 
 import { ChatDockErrorBoundary } from "./chat-dock-error-boundary";
 import { clearChatDockState } from "./chat-dock-persistence";
+import { disposeChatStreamManager } from "./chat-stream-manager";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/dashboard",
@@ -117,10 +118,12 @@ function renderBoundary(throwWhenLastError: boolean, { withProbe = false } = {})
 describe("ChatDockErrorBoundary", () => {
   beforeEach(() => {
     clearChatDockState("acme");
+    disposeChatStreamManager("acme");
   });
 
   afterEach(() => {
     clearChatDockState("acme");
+    disposeChatStreamManager("acme");
     vi.restoreAllMocks();
   });
 
