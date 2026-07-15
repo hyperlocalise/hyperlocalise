@@ -264,7 +264,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   }
 
   const streamedAssistant: StreamedAssistantMessage | null = (() => {
-    const snapshot = store.getStreamSnapshot(tab.id) ?? tab.streamSnapshot;
+    const snapshot = store.getStreamSnapshot(tab.id);
     if (!snapshot) {
       return null;
     }
@@ -277,11 +277,10 @@ export const ChatDockPanel = observer(function ChatDockPanel({
     };
   })();
 
+  const isTabStreaming =
+    streamManager.isStreaming(tab.id) || store.getStreamSnapshot(tab.id)?.status === "streaming";
   const isBusy =
-    createConversationMutation.isPending ||
-    sendMessageMutation.isPending ||
-    tab.isStreaming ||
-    streamManager.isStreaming(tab.id);
+    createConversationMutation.isPending || sendMessageMutation.isPending || isTabStreaming;
 
   return (
     <section
@@ -356,10 +355,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             conversationId={tab.id}
             currentUser={currentUser}
             isLoading={messagesQuery.isLoading}
-            isStreaming={
-              streamManager.isStreaming(tab.id) ||
-              store.getStreamSnapshot(tab.id)?.status === "streaming"
-            }
+            isStreaming={isTabStreaming}
             messages={messages as ConversationMessage[]}
             streamedAssistant={streamedAssistant}
           />
@@ -369,10 +365,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           key={tab.id}
           disabled={isBusy}
           draft={tab.draft}
-          isStreaming={
-            streamManager.isStreaming(tab.id) ||
-            store.getStreamSnapshot(tab.id)?.status === "streaming"
-          }
+          isStreaming={isTabStreaming}
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}

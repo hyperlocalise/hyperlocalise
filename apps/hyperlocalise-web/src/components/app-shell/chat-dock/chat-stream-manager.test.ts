@@ -2,7 +2,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import { ChatDockStore } from "./chat-dock-store";
-import { ChatStreamManager } from "./chat-stream-manager";
+import {
+  ChatStreamManager,
+  disposeChatStreamManager,
+  getChatStreamManager,
+} from "./chat-stream-manager";
 
 describe("ChatStreamManager", () => {
   it("refuses a fourth concurrent stream before calling the network", async () => {
@@ -92,7 +96,7 @@ describe("ChatStreamManager", () => {
     expect(store.streamingCount).toBe(1);
   });
 
-  it("stops an active stream and clears streaming state", () => {
+  it("stops an active stream and clears the snapshot", () => {
     const store = new ChatDockStore();
     store.setOrganizationSlug("acme");
     store.openTab({ id: "conv_1", title: "Chat" });
@@ -117,6 +121,19 @@ describe("ChatStreamManager", () => {
     manager.stop("conv_1");
     expect(manager.isStreaming("conv_1")).toBe(false);
     expect(store.tabs[0]?.isStreaming).toBe(false);
-    expect(store.getStreamSnapshot("conv_1")?.status).toBe("complete");
+    expect(store.getStreamSnapshot("conv_1")).toBeNull();
+    expect(store.tabs[0]?.streamSnapshot).toBeNull();
+  });
+
+  it("rejects a different store for a cached organization slug", () => {
+    const firstStore = new ChatDockStore();
+    const secondStore = new ChatDockStore();
+    const slug = `store-identity-${Date.now()}`;
+
+    const first = getChatStreamManager(slug, firstStore);
+    expect(getChatStreamManager(slug, firstStore)).toBe(first);
+    expect(() => getChatStreamManager(slug, secondStore)).toThrow(/store does not match/);
+
+    disposeChatStreamManager(slug);
   });
 });

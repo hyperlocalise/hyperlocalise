@@ -59,7 +59,13 @@ export class ChatStreamManager {
     const active = this.activeStreams.get(conversationId);
     active?.controller.abort();
     this.activeStreams.delete(conversationId);
-    this.store.markStreaming(conversationId, false);
+    // Abort skips onStreamFinished; clear so inbox/dock do not keep a stale "complete" snapshot.
+    this.store.clearStreamSnapshot(conversationId);
+  }
+
+  /** True when this manager was created with the given store instance. */
+  isBoundToStore(store: ChatDockStore) {
+    return this.store === store;
   }
 
   stopAll() {
@@ -169,6 +175,11 @@ const managers = new Map<string, ChatStreamManager>();
 export function getChatStreamManager(organizationSlug: string, store: ChatDockStore) {
   const existing = managers.get(organizationSlug);
   if (existing) {
+    if (!existing.isBoundToStore(store)) {
+      throw new Error(
+        `getChatStreamManager("${organizationSlug}"): store does not match the cached manager`,
+      );
+    }
     return existing;
   }
 

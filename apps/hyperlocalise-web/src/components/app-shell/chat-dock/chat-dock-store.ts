@@ -340,6 +340,10 @@ export class ChatDockStore {
     });
   }
 
+  /**
+   * Marks an existing snapshot as streaming or complete.
+   * Prefer `setStreamSnapshot` to start a stream — `markStreaming(true)` is a no-op when no snapshot exists.
+   */
   markStreaming(conversationId: string, isStreaming: boolean) {
     const current = this.getStreamSnapshot(conversationId);
     if (!isStreaming && current?.status === "streaming") {
