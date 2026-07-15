@@ -31,6 +31,24 @@ describe("toQueueSegment", () => {
       sourceText: "Hello",
     });
   });
+
+  it("preserves sourcePath when present", () => {
+    expect(
+      toQueueSegment({
+        id: "seg-01",
+        index: 1,
+        key: "hero.title",
+        sourceText: "Hello",
+        sourcePath: "locales/en.json",
+      }),
+    ).toEqual({
+      id: "seg-01",
+      index: 1,
+      key: "hero.title",
+      sourceText: "Hello",
+      sourcePath: "locales/en.json",
+    });
+  });
 });
 
 describe("composeSegmentView", () => {

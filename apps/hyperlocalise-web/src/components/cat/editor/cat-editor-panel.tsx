@@ -165,6 +165,7 @@ export function CatEditorPanel({
               sourceText={segment.sourceText}
               sourceLocale={segment.sourceLocale}
               segmentKey={segment.key}
+              sourcePath={segment.sourcePath}
             />
           )}
 
