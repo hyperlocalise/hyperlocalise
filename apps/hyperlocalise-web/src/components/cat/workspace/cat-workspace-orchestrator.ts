@@ -41,7 +41,6 @@ import {
 } from "./store/cat-workspace-store-utils";
 
 type UnsavedNavigationPrompt = {
-  kind: "segment" | "page";
   proceed: () => void;
 };
 
@@ -1025,33 +1024,16 @@ export class CatWorkspaceOrchestrator {
     const selectionWillChange = !filtered.some(
       (segment) => segment.id === this.selectedSegmentId || segment.key === this.selectedSegmentId,
     );
-    const applyFilter = () => {
-      this.queue.setFilter(filter);
-      if (selectionWillChange) {
-        this.setSelectedSegmentId(filtered[0]?.id ?? "");
-      }
-    };
 
+    this.queue.setFilter(filter);
     if (selectionWillChange) {
-      this.attemptSegmentNavigation(applyFilter);
-      return;
+      this.setSelectedSegmentId(filtered[0]?.id ?? "");
     }
-
-    applyFilter();
-  }
-
-  attemptSegmentNavigation(proceed: () => void) {
-    if (this.selectedDraft?.isDirty) {
-      this.unsavedNavigationPrompt = { kind: "segment", proceed };
-      return;
-    }
-
-    proceed();
   }
 
   attemptPageNavigation(proceed: () => void) {
     if (this.dirtySegmentIds.size > 0) {
-      this.unsavedNavigationPrompt = { kind: "page", proceed };
+      this.unsavedNavigationPrompt = { proceed };
       return;
     }
 

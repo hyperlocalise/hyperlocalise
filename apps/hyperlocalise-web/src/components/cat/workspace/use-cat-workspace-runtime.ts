@@ -183,37 +183,31 @@ export function useCatWorkspaceRuntime({
 
     const navigation: CatWorkspaceNavigation = {
       onSelectSegment: (segmentId: string) => {
-        store.attemptSegmentNavigation(() => {
-          const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
-          store.setSelectedSegmentId(selectedSegmentId);
-          onSelectSegment?.(segmentId);
-        });
+        const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
+        const currentSegmentId =
+          store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
+        if (selectedSegmentId === currentSegmentId) {
+          return;
+        }
+
+        store.setSelectedSegmentId(selectedSegmentId);
+        onSelectSegment?.(segmentId);
       },
       onPreviousSegment: () => {
-        store.attemptSegmentNavigation(() => {
-          const visibleSegments = store.getFilteredQueueSegments(
-            queueFilter,
-            usesServerQueueFilter,
-          );
-          const previousId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, -1);
-          if (previousId) {
-            store.setSelectedSegmentId(previousId);
-          }
-          onPreviousSegment?.();
-        });
+        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+        const previousId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, -1);
+        if (previousId) {
+          store.setSelectedSegmentId(previousId);
+        }
+        onPreviousSegment?.();
       },
       onNextSegment: () => {
-        store.attemptSegmentNavigation(() => {
-          const visibleSegments = store.getFilteredQueueSegments(
-            queueFilter,
-            usesServerQueueFilter,
-          );
-          const nextId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, 1);
-          if (nextId) {
-            store.setSelectedSegmentId(nextId);
-          }
-          onNextSegment?.();
-        });
+        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+        const nextId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, 1);
+        if (nextId) {
+          store.setSelectedSegmentId(nextId);
+        }
+        onNextSegment?.();
       },
       onReviewInSequence: () => {
         onReviewInSequence?.();

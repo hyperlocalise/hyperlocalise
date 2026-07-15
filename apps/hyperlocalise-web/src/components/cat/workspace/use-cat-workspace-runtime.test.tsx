@@ -676,7 +676,7 @@ describe("useCatWorkspaceRuntime", () => {
     expect(store.selectedSegmentId).toBe("seg-02");
   });
 
-  it("prompts before navigating away from a dirty segment", () => {
+  it("switches segments without prompting when the current segment is dirty", () => {
     const onSelectSegment = vi.fn();
     const { result, store } = renderController(undefined, {
       navigation: { onSelectSegment },
@@ -690,16 +690,53 @@ describe("useCatWorkspaceRuntime", () => {
       result.current.dependencies.navigation.onSelectSegment("seg-03");
     });
 
-    expect(store.unsavedNavigationPrompt).toMatchObject({ kind: "segment" });
+    expect(store.unsavedNavigationPrompt).toBeNull();
+    expect(onSelectSegment).toHaveBeenCalledWith("seg-03");
+    expect(store.selectedSegmentId).toBe("seg-03");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(true);
+  });
+
+  it("does not re-select when focusing the current dirty segment", () => {
+    const onSelectSegment = vi.fn();
+    const { result, store } = renderController(undefined, {
+      navigation: { onSelectSegment },
+    });
+
+    act(() => {
+      result.current.dependencies.editing.onTargetChange("seg-02", "Unsaved edit");
+    });
+
+    act(() => {
+      result.current.dependencies.navigation.onSelectSegment("seg-02");
+    });
+
+    expect(store.unsavedNavigationPrompt).toBeNull();
     expect(onSelectSegment).not.toHaveBeenCalled();
     expect(store.selectedSegmentId).toBe("seg-02");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(true);
+  });
+
+  it("prompts before route navigation when any segment is dirty", () => {
+    const { result, store } = renderController();
+    const proceed = vi.fn();
+
+    act(() => {
+      result.current.dependencies.editing.onTargetChange("seg-02", "Unsaved edit");
+    });
+
+    act(() => {
+      store.attemptPageNavigation(proceed);
+    });
+
+    expect(store.unsavedNavigationPrompt).not.toBeNull();
+    expect(proceed).not.toHaveBeenCalled();
 
     act(() => {
       store.confirmUnsavedNavigation();
     });
 
-    expect(onSelectSegment).toHaveBeenCalledWith("seg-03");
-    expect(store.selectedSegmentId).toBe("seg-03");
+    expect(proceed).toHaveBeenCalledTimes(1);
+    expect(store.unsavedNavigationPrompt).toBeNull();
   });
 
   it("bulk approves checked segments through the review handler", async () => {

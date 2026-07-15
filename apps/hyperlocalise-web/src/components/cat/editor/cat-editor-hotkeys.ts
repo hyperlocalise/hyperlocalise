@@ -66,6 +66,8 @@ export function useCatEditorHotkeys({
     {
       enabled: canTriggerApprove,
       enableOnFormTags: true,
+      // TipTap uses contenteditable; without this, ⌘↵ / Ctrl+Enter is ignored while typing.
+      enableOnContentEditable: true,
       preventDefault: true,
     },
     [canTriggerApprove, onApprove],

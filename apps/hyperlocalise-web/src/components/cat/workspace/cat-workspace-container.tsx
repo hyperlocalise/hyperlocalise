@@ -204,24 +204,12 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {store.unsavedNavigationPrompt?.kind === "page" ? (
-                <FormattedMessage {...catWorkspaceContainerMessages.unsavedPageNavigationTitle} />
-              ) : (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationTitle}
-                />
-              )}
+              <FormattedMessage {...catWorkspaceContainerMessages.unsavedPageNavigationTitle} />
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {store.unsavedNavigationPrompt?.kind === "page" ? (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedPageNavigationDescription}
-                />
-              ) : (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationDescription}
-                />
-              )}
+              <FormattedMessage
+                {...catWorkspaceContainerMessages.unsavedPageNavigationDescription}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
