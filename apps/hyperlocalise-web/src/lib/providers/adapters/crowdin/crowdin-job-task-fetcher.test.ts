@@ -419,6 +419,57 @@ describe("fetchCrowdinJobTasks", () => {
     ).rejects.toThrow("crowdin_task_source_scope_ambiguous");
   });
 
+  it("deletes a Crowdin task from provider job scope", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/tasks/5001");
+      expect(init?.method).toBe("DELETE");
+      expect(init?.headers).toEqual(
+        expect.objectContaining({
+          Authorization: "Bearer test-token",
+        }),
+      );
+
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      crowdinTmsProvider.deleteJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        externalJobId: "5001",
+      }),
+    ).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("throws crowdin_auth_invalid when deleting a task with invalid auth", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ error: { code: 401, message: "Unauthorized" } }), {
+        status: 401,
+      });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      crowdinTmsProvider.deleteJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        externalJobId: "5001",
+      }),
+    ).rejects.toThrow("crowdin_auth_invalid");
+  });
+
   it("lists Crowdin project members through the provider adapter", async () => {
     const fetchMock = vi.fn(async (url) => {
       expect(String(url)).toContain("/projects/1/members");
