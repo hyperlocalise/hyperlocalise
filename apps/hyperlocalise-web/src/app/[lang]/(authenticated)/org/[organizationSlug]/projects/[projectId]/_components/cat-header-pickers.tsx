@@ -80,25 +80,38 @@ export function CatFileTreePicker({
   files,
   selectedSourcePath,
   onSelectFile,
+  allFilesSelected = false,
+  onSelectAllFiles,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string;
   onSelectFile: (sourcePath: string) => void;
+  allFilesSelected?: boolean;
+  onSelectAllFiles?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [dialogSourcePath, setDialogSourcePath] = useState(selectedSourcePath);
+  const [dialogAllFiles, setDialogAllFiles] = useState(allFilesSelected);
   const selectedFile = useMemo(
-    () => files.find((file) => file.sourcePath === dialogSourcePath) ?? null,
-    [dialogSourcePath, files],
+    () =>
+      dialogAllFiles ? null : (files.find((file) => file.sourcePath === dialogSourcePath) ?? null),
+    [dialogAllFiles, dialogSourcePath, files],
   );
 
   useEffect(() => {
     if (open) {
       setDialogSourcePath(selectedSourcePath);
+      setDialogAllFiles(allFilesSelected);
     }
-  }, [open, selectedSourcePath]);
+  }, [allFilesSelected, open, selectedSourcePath]);
 
   const handleOpenSelectedFile = () => {
+    if (dialogAllFiles) {
+      onSelectAllFiles?.();
+      setOpen(false);
+      return;
+    }
+
     if (!selectedFile) {
       return;
     }
@@ -108,9 +121,12 @@ export function CatFileTreePicker({
   };
 
   const handleActivateFile = (sourcePath: string) => {
+    setDialogAllFiles(false);
     onSelectFile(sourcePath);
     setOpen(false);
   };
+
+  const triggerLabel = allFilesSelected ? "All Files" : selectedSourcePath;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -125,21 +141,38 @@ export function CatFileTreePicker({
         }
       >
         <FilePickerIcon className="size-4 text-muted-foreground" />
-        <span className="min-w-0 truncate">{selectedSourcePath}</span>
+        <span className="min-w-0 truncate">{triggerLabel}</span>
       </DialogTrigger>
       <DialogContent className="max-h-[min(720px,calc(100svh-2rem))] gap-4 overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Choose source file</DialogTitle>
           <DialogDescription>
-            Browse the project file tree. Select a file, then open it in the CAT workspace.
+            Browse the file tree, or choose All Files to view strings across every file.
           </DialogDescription>
         </DialogHeader>
+
+        {onSelectAllFiles ? (
+          <Button
+            type="button"
+            variant={dialogAllFiles ? "default" : "outline"}
+            className="h-9 justify-start"
+            onClick={() => {
+              setDialogAllFiles(true);
+              setDialogSourcePath("");
+            }}
+          >
+            All Files
+          </Button>
+        ) : null}
 
         <div className="min-h-0 rounded-lg border border-border bg-background">
           <ProjectFilesTree
             files={files}
-            selectedSourcePath={dialogSourcePath}
-            onSelectFile={setDialogSourcePath}
+            selectedSourcePath={dialogAllFiles ? "" : dialogSourcePath}
+            onSelectFile={(sourcePath) => {
+              setDialogAllFiles(false);
+              setDialogSourcePath(sourcePath);
+            }}
             onActivateFile={handleActivateFile}
             ariaLabel="Source files"
           />
@@ -147,7 +180,7 @@ export function CatFileTreePicker({
 
         <div className="rounded-lg border border-border bg-background px-4 py-3">
           <TypographyP className="truncate font-mono text-xs text-foreground">
-            {selectedFile?.sourcePath ?? "No file selected"}
+            {dialogAllFiles ? "All Files" : (selectedFile?.sourcePath ?? "No file selected")}
           </TypographyP>
           <TypographyP className="text-xs text-muted-foreground">
             Double-click a file in the tree, or use Open file.
@@ -158,7 +191,7 @@ export function CatFileTreePicker({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleOpenSelectedFile} disabled={!selectedFile}>
+          <Button onClick={handleOpenSelectedFile} disabled={!dialogAllFiles && !selectedFile}>
             Open file
           </Button>
         </DialogFooter>

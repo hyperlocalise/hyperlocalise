@@ -227,6 +227,14 @@ describe("parseProjectRoute", () => {
   });
 });
 
+describe("buildProjectNavigationItems", () => {
+  it("includes a Strings item that opens the project CAT workspace", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const stringsItem = items.find((item) => item.label === "Strings");
+    expect(stringsItem?.href).toBe("/org/acme/projects/proj_1/strings");
+  });
+});
+
 describe("isNavigationItemActive", () => {
   it("matches exactly when the exact option is set", () => {
     expect(isNavigationItemActive("/org/acme/inbox", "/org/acme/inbox", { exact: true })).toBe(

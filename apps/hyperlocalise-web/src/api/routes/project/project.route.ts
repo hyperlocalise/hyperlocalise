@@ -31,7 +31,13 @@ import {
 } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
+  isCatAllFilesSourcePath,
+  parseCatSourcePathsFilter,
+} from "@/lib/projects/cat-all-files";
+
+import {
   countTmsProviderLiveOpenJobsForProject,
+  getTmsProviderLiveCatAllFiles,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
@@ -633,6 +639,8 @@ async function loadProjectFileCatQueue(
   const pagination = resolveProjectFileCatPagination(query);
   const target = await resolveProjectResourceTarget(auth, projectId);
   const organizationSlug = auth.organization.slug ?? auth.organization.localOrganizationId;
+  const allFiles = isCatAllFilesSourcePath(query.sourcePath);
+  const sourcePathsFilter = allFiles ? parseCatSourcePathsFilter(query.sourcePaths) : null;
 
   if (target.kind === "provider_unavailable") {
     return { kind: "provider_unavailable" as const, target };
@@ -652,6 +660,7 @@ async function loadProjectFileCatQueue(
       canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
       organizationSlug,
       pagination,
+      sourcePaths: sourcePathsFilter,
     });
 
     if (!catQueue) {
@@ -662,19 +671,31 @@ async function loadProjectFileCatQueue(
   }
 
   try {
-    const catQueue = await getTmsProviderLiveCatFile(
-      auth.organization.localOrganizationId,
-      target.externalProjectId,
-      query.sourcePath,
-      query.targetLocale,
-      {
-        actorUserId: auth.user.localUserId,
-        canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
-        externalResourceId: query.externalResourceId,
-        resourceType: query.resourceType,
-        pagination,
-      },
-    );
+    const catQueue = allFiles
+      ? await getTmsProviderLiveCatAllFiles(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            pagination,
+            sourcePaths: sourcePathsFilter,
+          },
+        )
+      : await getTmsProviderLiveCatFile(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.sourcePath,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            externalResourceId: query.externalResourceId,
+            resourceType: query.resourceType,
+            pagination,
+          },
+        );
 
     if (!catQueue) {
       return { kind: "project_not_found" as const };

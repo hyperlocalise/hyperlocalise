@@ -43,6 +43,10 @@ export interface CatQueueSegment {
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
+  /** Set when the queue spans multiple files. */
+  sourcePath?: string;
+  externalResourceId?: string;
+  resourceType?: "file" | "key";
 }
 
 /** File and locale scope for the CAT editor, shared across all segments. */

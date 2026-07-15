@@ -1,9 +1,10 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
 import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
 
-import { ProjectFileCatPageContent } from "../_components/project-file-cat-page-content";
+import { ProjectFileCatPageContent } from "../files/_components/project-file-cat-page-content";
 
-export default async function ProjectFileCatPage({
+export default async function ProjectStringsPage({
   params,
   searchParams,
 }: {
@@ -19,7 +20,13 @@ export default async function ProjectFileCatPage({
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
-  const parsedSearchParams = parseProjectFileCatSearchParams(await searchParams);
+  const rawSearchParams = await searchParams;
+  const parsedSearchParams = parseProjectFileCatSearchParams({
+    ...rawSearchParams,
+    sourcePath: rawSearchParams.sourcePath?.trim()
+      ? rawSearchParams.sourcePath
+      : CAT_ALL_FILES_SOURCE_PATH,
+  });
   await requireAppAuthContext({ organizationSlug });
 
   return (
@@ -27,7 +34,7 @@ export default async function ProjectFileCatPage({
       organizationSlug={organizationSlug}
       projectId={projectId}
       sourcePath={parsedSearchParams.sourcePath}
-      allFiles={parsedSearchParams.allFiles}
+      allFiles={parsedSearchParams.allFiles || !parsedSearchParams.sourcePath}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       externalResourceId={parsedSearchParams.externalResourceId}

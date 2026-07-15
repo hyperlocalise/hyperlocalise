@@ -78,6 +78,7 @@ export function ProjectFileCatWorkspace({
   canLookupFreshContext = true,
   initialSegmentKey = null,
   initialQueueFilter = "all",
+  sourcePathsFilter = null,
   layout = "default",
   className,
   pageNavigationGuardRef,
@@ -95,6 +96,7 @@ export function ProjectFileCatWorkspace({
   canLookupFreshContext?: boolean;
   initialSegmentKey?: string | null;
   initialQueueFilter?: CatQueueFilter;
+  sourcePathsFilter?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
@@ -150,6 +152,7 @@ export function ProjectFileCatWorkspace({
     enabled: Boolean(targetLocale),
     initialQueueFilter,
     pageLimit,
+    sourcePaths: sourcePathsFilter,
   });
 
   const availableQueueFilters = useMemo(

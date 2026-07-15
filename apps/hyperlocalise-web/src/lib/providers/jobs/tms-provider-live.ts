@@ -13,6 +13,10 @@ import {
   normalizeProjectFileContent,
 } from "@/lib/projects/files/project-file-content";
 import {
+  CAT_ALL_FILES_FILENAME,
+  CAT_ALL_FILES_SOURCE_PATH,
+} from "@/lib/projects/cat-all-files";
+import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
@@ -2163,6 +2167,158 @@ export async function getTmsProviderLiveCatFile(
     canEditTranslations: options?.canEditTranslations ?? false,
     pagination: options?.pagination,
   });
+}
+
+
+export async function getTmsProviderLiveCatAllFiles(
+  organizationId: string,
+  externalProjectId: string,
+  targetLocale: string,
+  options?: {
+    actorUserId?: string | null;
+    canEditTranslations?: boolean;
+    pagination?: ProjectFileCatPaginationInput;
+    sourcePaths?: readonly string[] | null;
+  },
+): Promise<TmsProviderLiveCatFile> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+    actorUserId: options?.actorUserId,
+    context,
+    limit: 500,
+  });
+
+  const sourcePathFilter =
+    options?.sourcePaths && options.sourcePaths.length > 0
+      ? new Set(options.sourcePaths)
+      : null;
+
+  const catFiles = files
+    .filter((file) => supportsLiveProviderCat(context.providerKind, file))
+    .filter((file) => (sourcePathFilter ? sourcePathFilter.has(file.sourcePath) : true))
+    .toSorted((left, right) =>
+      left.sourcePath.localeCompare(right.sourcePath, undefined, { sensitivity: "base" }),
+    );
+
+  const paginationInput = options?.pagination ?? {
+    offset: 0,
+    limit: legacyProviderCatSegmentLimit,
+    search: undefined,
+    queueFilter: "all",
+    paginated: true,
+  };
+
+  const offset = paginationInput.paginated ? paginationInput.offset : 0;
+  const limit = paginationInput.paginated
+    ? paginationInput.limit
+    : legacyProviderCatSegmentLimit;
+
+  let remainingToSkip = offset;
+  let totalCount = 0;
+  const segments: TmsProviderLiveCatFile["segments"] = [];
+  let canEditTranslations = options?.canEditTranslations ?? false;
+  let provider: TmsProviderLiveCatFile["provider"] = null;
+
+  for (const file of catFiles) {
+    const fileQueue = await getTmsProviderLiveCatFile(
+      organizationId,
+      externalProjectId,
+      file.sourcePath,
+      targetLocale,
+      {
+        actorUserId: options?.actorUserId,
+        canEditTranslations: options?.canEditTranslations,
+        externalResourceId: file.provider?.externalResourceId,
+        resourceType: file.provider?.resourceType,
+        pagination: {
+          ...paginationInput,
+          offset: 0,
+          limit: 1,
+          paginated: true,
+        },
+      },
+    );
+
+    if (!fileQueue) {
+      continue;
+    }
+
+    canEditTranslations = fileQueue.canEditTranslations;
+    if (!provider && fileQueue.provider) {
+      provider = fileQueue.provider;
+    }
+
+    const fileTotal = fileQueue.pagination?.totalCount ?? fileQueue.segments.length;
+    totalCount += fileTotal;
+
+    if (remainingToSkip >= fileTotal) {
+      remainingToSkip -= fileTotal;
+      continue;
+    }
+
+    if (segments.length >= limit) {
+      continue;
+    }
+
+    const fileOffset = remainingToSkip;
+    remainingToSkip = 0;
+    const needed = limit - segments.length;
+    const page = await getTmsProviderLiveCatFile(
+      organizationId,
+      externalProjectId,
+      file.sourcePath,
+      targetLocale,
+      {
+        actorUserId: options?.actorUserId,
+        canEditTranslations: options?.canEditTranslations,
+        externalResourceId: file.provider?.externalResourceId,
+        resourceType: file.provider?.resourceType,
+        pagination: {
+          ...paginationInput,
+          offset: fileOffset,
+          limit: needed,
+          paginated: true,
+        },
+      },
+    );
+
+    if (!page) {
+      continue;
+    }
+
+    for (const segment of page.segments) {
+      segments.push({
+        ...segment,
+        sourcePath: file.sourcePath,
+        ...(file.provider?.externalResourceId
+          ? { externalResourceId: file.provider.externalResourceId }
+          : {}),
+        ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
+      });
+    }
+  }
+
+  const pagination = paginationInput.paginated
+    ? buildCatFilePagination({
+        offset,
+        limit,
+        returnedCount: segments.length,
+        totalCount,
+      })
+    : undefined;
+
+  return {
+    sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+    filename: CAT_ALL_FILES_FILENAME,
+    provider,
+    targetLocale,
+    canEditTranslations,
+    truncated: pagination?.hasMore ?? false,
+    pagination,
+    segments,
+  };
 }
 
 export async function getTmsProviderLiveCatSegmentTarget(

@@ -28,6 +28,7 @@ type RouteTitleKey =
   | "qa"
   | "reviews"
   | "settings"
+  | "strings"
   | "teams"
   | "translation-memories";
 
@@ -42,6 +43,7 @@ const PROJECT_SECTION_KEYS = {
   qa: true,
   reviews: true,
   settings: true,
+  strings: true,
 } as const;
 
 type ProjectSectionKey = keyof typeof PROJECT_SECTION_KEYS;
@@ -70,6 +72,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "qa" ||
     value === "reviews" ||
     value === "settings" ||
+    value === "strings" ||
     value === "teams" ||
     value === "translation-memories"
   );
@@ -245,6 +248,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Settings",
         id: "5Xs2gSCUMi",
         description: "App shell breadcrumb title for the settings page",
+      });
+    case "strings":
+      return intl.formatMessage({
+        defaultMessage: "Strings",
+        id: "pCatStrTitle",
+        description: "App shell breadcrumb title for the project strings CAT page",
       });
     case "teams":
       return intl.formatMessage({

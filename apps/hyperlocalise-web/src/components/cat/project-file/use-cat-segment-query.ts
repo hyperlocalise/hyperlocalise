@@ -45,6 +45,7 @@ export function useCatSegmentQuery(input: {
   enabled?: boolean;
   initialQueueFilter?: CatQueueFilter;
   pageLimit?: number;
+  sourcePaths?: string | null;
 }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -77,6 +78,7 @@ export function useCatSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         limit,
+        sourcePaths: input.sourcePaths,
       }),
     [
       debouncedSearch,
@@ -86,6 +88,7 @@ export function useCatSegmentQuery(input: {
       input.externalResourceId,
       input.resourceType,
       input.targetLocale,
+      input.sourcePaths,
       limit,
       serverQueueFilter,
     ],
@@ -127,6 +130,7 @@ export function useCatSegmentQuery(input: {
         offset: pageParam.offset,
         phraseScanPage: pageParam.phraseScanPage,
         phraseScanSkip: pageParam.phraseScanSkip,
+        sourcePaths: input.sourcePaths,
       }),
   });
 
@@ -169,6 +173,7 @@ export function useCatSegmentQuery(input: {
         queueFilter: serverQueueFilter,
         limit,
         offset: 0,
+        sourcePaths: input.sourcePaths,
       }),
     [
       debouncedSearch,
@@ -178,6 +183,7 @@ export function useCatSegmentQuery(input: {
       input.externalResourceId,
       input.resourceType,
       input.targetLocale,
+      input.sourcePaths,
       limit,
       serverQueueFilter,
     ],

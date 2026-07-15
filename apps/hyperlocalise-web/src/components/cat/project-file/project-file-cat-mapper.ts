@@ -135,7 +135,7 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
   return {
     intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
     locationBreadcrumb: catFile.sourcePath,
-    filePath: catFile.sourcePath,
+    filePath: segment.sourcePath ?? catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
@@ -161,7 +161,7 @@ function segmentIntelligenceFor(
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
     locationBreadcrumb: segment.key,
-    filePath: catFile.sourcePath,
+    filePath: segment.sourcePath ?? catFile.sourcePath,
     componentName: segmentType ?? catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning: context || undefined,
     ...(segmentType ? { segmentType } : {}),
@@ -211,6 +211,9 @@ export function projectFileCatToWorkspaceState(
     ...(segment.looksLikeImageUrl !== undefined
       ? { looksLikeImageUrl: segment.looksLikeImageUrl }
       : {}),
+    ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
+    ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
   }));
 
   return {

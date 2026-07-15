@@ -19,6 +19,7 @@ export function projectFileCatQueryKey(input: {
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
+  sourcePaths?: string | null;
 }) {
   return [
     "project-file-cat-queue",
@@ -32,6 +33,7 @@ export function projectFileCatQueryKey(input: {
     input.queueFilter,
     input.limit,
     input.offset,
+    input.sourcePaths ?? null,
   ] as const;
 }
 
@@ -45,6 +47,7 @@ export function projectFileCatBaseQueryKey(input: {
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
+  sourcePaths?: string | null;
 }) {
   return [
     "project-file-cat-queue",
@@ -57,6 +60,7 @@ export function projectFileCatBaseQueryKey(input: {
     input.search,
     input.queueFilter,
     input.limit,
+    input.sourcePaths ?? null,
   ] as const;
 }
 
@@ -79,6 +83,7 @@ export async function fetchProjectFileCatQueuePage(input: {
   offset: number;
   phraseScanPage?: number;
   phraseScanSkip?: number;
+  sourcePaths?: string | null;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -88,6 +93,7 @@ export async function fetchProjectFileCatQueuePage(input: {
       sourcePath: input.sourcePath,
       ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
       ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+      ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
       targetLocale: input.targetLocale,
       offset: input.offset,
       limit: input.limit,

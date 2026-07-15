@@ -11,13 +11,15 @@ export default async function ProjectJobStringsPage({
   searchParams: Promise<{
     sourcePath?: string;
     storedFileId?: string;
+    sourcePaths?: string;
     targetLocale?: string;
     segment?: string;
     queueFilter?: string;
   }>;
 }) {
   const { organizationSlug, projectId, jobId } = await params;
-  const { sourcePath, storedFileId, targetLocale, segment, queueFilter } = await searchParams;
+  const { sourcePath, storedFileId, sourcePaths, targetLocale, segment, queueFilter } =
+    await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
 
   const initialQueueFilter = await resolveJobCatInitialQueueFilter({
@@ -33,6 +35,7 @@ export default async function ProjectJobStringsPage({
       jobId={jobId}
       sourcePath={sourcePath ?? null}
       storedFileId={storedFileId ?? null}
+      sourcePaths={sourcePaths ?? null}
       targetLocale={targetLocale ?? null}
       initialSegmentKey={segment ?? null}
       initialQueueFilter={initialQueueFilter}

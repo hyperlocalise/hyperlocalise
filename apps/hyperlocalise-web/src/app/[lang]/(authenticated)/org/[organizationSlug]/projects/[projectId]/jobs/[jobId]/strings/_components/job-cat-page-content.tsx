@@ -44,6 +44,11 @@ import {
 } from "@/components/cat/workspace/cat-page-navigation-guard";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
+import {
+  CAT_ALL_FILES_SOURCE_PATH,
+  isCatAllFilesSourcePath,
+  serializeCatSourcePathsFilter,
+} from "@/lib/projects/cat-all-files";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -107,6 +112,7 @@ function stringsPageHref(input: {
   jobId: string;
   sourcePath?: string;
   storedFileId?: string;
+  sourcePaths?: readonly string[];
   targetLocale: string;
   segment?: string | null;
   queueFilter?: CatQueueFilter;
@@ -121,6 +127,10 @@ function stringsPageHref(input: {
 
   if (input.storedFileId) {
     params.set("storedFileId", input.storedFileId);
+  }
+
+  if (input.sourcePaths && input.sourcePaths.length > 0) {
+    params.set("sourcePaths", serializeCatSourcePathsFilter(input.sourcePaths));
   }
 
   if (input.segment) {
@@ -140,6 +150,7 @@ export function JobCatPageContent({
   jobId,
   sourcePath,
   storedFileId = null,
+  sourcePaths = null,
   targetLocale,
   initialSegmentKey = null,
   initialQueueFilter = "untranslated",
@@ -149,6 +160,7 @@ export function JobCatPageContent({
   jobId: string;
   sourcePath: string | null;
   storedFileId?: string | null;
+  sourcePaths?: string | null;
   targetLocale: string | null;
   initialSegmentKey?: string | null;
   initialQueueFilter?: CatQueueFilter;
@@ -156,12 +168,13 @@ export function JobCatPageContent({
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-  const hasFileReference = Boolean(sourcePath || storedFileId);
-  const isNativeJob = Boolean(storedFileId);
+  const allFiles = isCatAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
+  const hasFileReference = Boolean((sourcePath && !allFiles) || storedFileId) || allFiles;
+  const isNativeJob = Boolean(storedFileId) && !allFiles;
   const didAutoSelectDefaultFileRef = useRef(false);
   const defaultFileQuery = useQuery({
     queryKey: projectJobCatDefaultFileQueryKey(organizationSlug, projectId, jobId, targetLocale),
-    enabled: !hasFileReference,
+    enabled: !hasFileReference || allFiles,
     queryFn: async () => {
       const files = await loadJobCatJobSourceFiles({
         organizationSlug,
@@ -179,6 +192,7 @@ export function JobCatPageContent({
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
   });
+  // allFiles uses projectQuery + job file lists
   useAppShellSidebar({ forceCollapsed: hasFileReference });
   const targetFileQuery = useQuery({
     queryKey: projectJobCatTargetFileQueryKey(
@@ -187,7 +201,7 @@ export function JobCatPageContent({
       sourcePath,
       storedFileId,
     ),
-    enabled: hasFileReference,
+    enabled: hasFileReference && !allFiles,
     queryFn: () =>
       loadJobCatTargetFile({
         organizationSlug,
@@ -199,13 +213,13 @@ export function JobCatPageContent({
 
   const providerFilesQuery = useQuery({
     queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId, jobId),
-    enabled: hasFileReference && !isNativeJob,
+    enabled: (hasFileReference && !isNativeJob) || allFiles,
     queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
   });
 
   const jobLocalesQuery = useQuery({
     queryKey: projectJobCatSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
-    enabled: hasFileReference,
+    enabled: hasFileReference || allFiles,
     queryFn: () => loadJobCatSelectableTargetLocales({ organizationSlug, projectId, jobId }),
   });
 
@@ -310,13 +324,16 @@ export function JobCatPageContent({
     }
 
     didAutoSelectDefaultFileRef.current = true;
+    const jobSourcePaths = defaultFileQuery.data.files
+      .map((file) => file.sourcePath)
+      .filter(Boolean);
     router.replace(
       stringsPageHref({
         organizationSlug,
         projectId,
         jobId,
-        sourcePath: defaultFileQuery.data.reference.sourcePath ?? undefined,
-        storedFileId: defaultFileQuery.data.reference.storedFileId ?? undefined,
+        sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+        sourcePaths: jobSourcePaths,
         targetLocale: defaultFileQuery.data.reference.targetLocale,
         segment: initialSegmentKey,
         queueFilter: initialQueueFilter,
@@ -382,6 +399,160 @@ export function JobCatPageContent({
           <TypographyP className="text-sm text-muted-foreground">Opening workspace…</TypographyP>
         </div>
       </ProjectPageShell>
+    );
+  }
+
+
+  if (allFiles) {
+    if (projectQuery.isLoading || defaultFileQuery.isLoading || (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data)) {
+      // fall through only when we have files — wait for queries below via reused loading UI
+    }
+
+    const defaultJobFiles = defaultFileQuery.data?.files ?? [];
+    const jobFiles =
+      providerFiles.length > 0
+        ? providerFiles
+        : defaultJobFiles.filter((file) => Boolean(file.storedFileId || file.provider));
+    const jobSourcePaths =
+      sourcePaths?.split(",").map((value) => value.trim()).filter(Boolean) ??
+      jobFiles.map((file) => file.sourcePath);
+    const selectedTargetLocale = activeTargetLocale ?? targetLocale;
+
+    if (projectQuery.isLoading || (!selectedTargetLocale && jobLocalesQuery.isLoading)) {
+      return (
+        <ProjectPageShell>
+          <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+            <Spinner />
+            <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    const sourceLocale = projectQuery.data?.sourceLocale;
+    if (projectQuery.isSuccess && !sourceLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-flame-100">
+              This project does not have a source locale.
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (!sourceLocale || !selectedTargetLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">
+              {!sourceLocale
+                ? "Loading workspace…"
+                : "No target locale is available for this task."}
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    const handleAllFilesLocaleChange = (nextLocale: string) => {
+      if (!nextLocale || nextLocale === selectedTargetLocale) {
+        return;
+      }
+      attemptCatPageNavigation(pageNavigationGuardRef, () => {
+        router.push(
+          stringsPageHref({
+            organizationSlug,
+            projectId,
+            jobId,
+            sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+            sourcePaths: jobSourcePaths,
+            targetLocale: nextLocale,
+            segment: initialSegmentKey,
+            queueFilter: initialQueueFilter,
+          }),
+        );
+      });
+    };
+
+    const handleJobFileChange = (nextSourcePath: string | null) => {
+      if (!nextSourcePath) {
+        return;
+      }
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: nextSourcePath,
+          targetLocale: selectedTargetLocale,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    const handleJobSelectAllFiles = () => {
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+          sourcePaths: jobSourcePaths,
+          targetLocale: selectedTargetLocale,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    return (
+      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            render={<Link href={taskHref} />}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+
+          <CatFileTreePicker
+            files={jobFiles}
+            selectedSourcePath=""
+            onSelectFile={handleJobFileChange}
+            allFilesSelected
+            onSelectAllFiles={handleJobSelectAllFiles}
+          />
+
+          {jobTargetLocales.length > 0 ? (
+            <CatLocaleSelect
+              targetLocales={jobTargetLocales}
+              selectedTargetLocale={selectedTargetLocale}
+              onTargetLocaleChange={handleAllFilesLocaleChange}
+            />
+          ) : null}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+          <ProjectFileCatWorkspace
+            key={`${CAT_ALL_FILES_SOURCE_PATH}:${selectedTargetLocale}`}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourceLocale={sourceLocale}
+            sourcePath={CAT_ALL_FILES_SOURCE_PATH}
+            targetLocale={selectedTargetLocale}
+            highlightLocale={selectedTargetLocale}
+            initialSegmentKey={initialSegmentKey}
+            initialQueueFilter={initialQueueFilter}
+            sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
+            layout="fullscreen"
+            className="min-h-0 flex-1"
+            pageNavigationGuardRef={pageNavigationGuardRef}
+          />
+        </div>
+      </main>
     );
   }
 
@@ -651,6 +822,20 @@ export function JobCatPageContent({
           files={providerFiles}
           selectedSourcePath={selectedFile.sourcePath}
           onSelectFile={handleFileChange}
+          allFilesSelected={false}
+          onSelectAllFiles={() => {
+            router.push(
+              stringsPageHref({
+                organizationSlug,
+                projectId,
+                jobId,
+                sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+                sourcePaths: providerFiles.map((file) => file.sourcePath),
+                targetLocale: selectedTargetLocale,
+                queueFilter: initialQueueFilter,
+              }),
+            );
+          }}
         />
 
         {jobTargetLocales.length > 0 ? (

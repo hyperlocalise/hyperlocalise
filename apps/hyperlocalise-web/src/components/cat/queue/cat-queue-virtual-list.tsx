@@ -136,10 +136,15 @@ export function CatQueueVirtualList({
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="line-clamp-2 text-sm text-foreground">{segment.sourceText}</p>
-                    <div className="flex min-w-0 items-center">
+                    <div className="flex min-w-0 flex-col gap-0.5">
                       <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                         {segment.key}
                       </span>
+                      {segment.sourcePath ? (
+                        <span className="min-w-0 truncate font-mono text-[0.6875rem] text-muted-foreground/80">
+                          {segment.sourcePath}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
