@@ -30,6 +30,16 @@ export type ChatDockTab = {
   lastError: string | null;
 };
 
+/** Ephemeral page-scoped context for suggestion pills. Not persisted. */
+export type ChatDockPageContext = {
+  kind: "cat-segment";
+  segmentId: string;
+  key: string;
+  sourceText: string;
+  contextLabel?: string;
+  sourcePath?: string;
+};
+
 function createPendingTabId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `pending-${crypto.randomUUID()}`;
@@ -94,6 +104,7 @@ export class ChatDockStore {
   activeTabId: string | null = null;
   panelOpen = false;
   hydrated = false;
+  pageContext: ChatDockPageContext | null = null;
 
   private storage: ChatDockStorage | undefined;
   private persistEnabled = true;
@@ -104,6 +115,7 @@ export class ChatDockStore {
       this,
       {
         tabs: observable.shallow,
+        pageContext: observable.ref,
       },
       { autoBind: true },
     );
@@ -248,6 +260,14 @@ export class ChatDockStore {
     this.updateTab(tabId, (tab) => {
       tab.draft = draft;
     });
+  }
+
+  setPageContext(context: ChatDockPageContext | null) {
+    this.pageContext = context;
+  }
+
+  clearPageContext() {
+    this.pageContext = null;
   }
 
   setTitle(tabId: string, title: string) {

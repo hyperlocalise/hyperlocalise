@@ -9,50 +9,95 @@ import {
   TranslateIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 
 import { chatDockMessages } from "./chat-dock.messages";
+import type { ChatDockPageContext } from "./chat-dock-store";
 
 type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
-type MessageDescriptor = (typeof chatDockMessages)[keyof typeof chatDockMessages];
 
 type Suggestion = {
+  id: string;
   icon: Icon;
-  label: MessageDescriptor;
-  prompt: MessageDescriptor;
+  label: string;
+  prompt: string;
 };
 
-const suggestions: Suggestion[] = [
-  {
-    icon: FileSearchIcon,
-    label: chatDockMessages.suggestionFindContext,
-    prompt: chatDockMessages.promptFindContext,
-  },
-  {
+type FormatMessage = (descriptor: MessageDescriptor, values?: Record<string, string>) => string;
+
+const KEY_LABEL_MAX_LENGTH = 36;
+
+function truncateLabel(value: string, maxLength: number) {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+export function buildChatDockSuggestions(
+  pageContext: ChatDockPageContext | null,
+  formatMessage: FormatMessage,
+): Suggestion[] {
+  const recentChanges: Suggestion = {
+    id: "recent-changes",
     icon: Clock01Icon,
-    label: chatDockMessages.suggestionRecentChanges,
-    prompt: chatDockMessages.promptRecentChanges,
-  },
-  {
+    label: formatMessage(chatDockMessages.suggestionRecentChanges),
+    prompt: formatMessage(chatDockMessages.promptRecentChanges),
+  };
+  const progress: Suggestion = {
+    id: "progress",
     icon: AnalyticsUpIcon,
-    label: chatDockMessages.suggestionProgress,
-    prompt: chatDockMessages.promptProgress,
-  },
-  {
+    label: formatMessage(chatDockMessages.suggestionProgress),
+    prompt: formatMessage(chatDockMessages.promptProgress),
+  };
+  const translate: Suggestion = {
+    id: "translate",
     icon: TranslateIcon,
-    label: chatDockMessages.suggestionTranslate,
-    prompt: chatDockMessages.promptTranslate,
-  },
-];
+    label: formatMessage(chatDockMessages.suggestionTranslate),
+    prompt: formatMessage(chatDockMessages.promptTranslate),
+  };
+
+  if (pageContext?.kind === "cat-segment") {
+    const keyLabel = truncateLabel(pageContext.key, KEY_LABEL_MAX_LENGTH);
+    return [
+      {
+        id: "segment-context",
+        icon: FileSearchIcon,
+        label: formatMessage(chatDockMessages.suggestionSegmentContext, { key: keyLabel }),
+        prompt: formatMessage(chatDockMessages.promptSegmentContext, { key: pageContext.key }),
+      },
+      recentChanges,
+      progress,
+      translate,
+    ];
+  }
+
+  return [
+    {
+      id: "find-context",
+      icon: FileSearchIcon,
+      label: formatMessage(chatDockMessages.suggestionFindContext),
+      prompt: formatMessage(chatDockMessages.promptFindContext),
+    },
+    recentChanges,
+    progress,
+    translate,
+  ];
+}
 
 export function ChatDockEmptyState({
+  pageContext = null,
   onSelectSuggestion,
 }: {
+  pageContext?: ChatDockPageContext | null;
   onSelectSuggestion: (prompt: string) => void;
 }) {
   const intl = useIntl();
+  const suggestions = buildChatDockSuggestions(pageContext, intl.formatMessage);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 py-8 text-center">
@@ -72,15 +117,15 @@ export function ChatDockEmptyState({
       <div className="flex max-w-sm flex-wrap justify-center gap-2">
         {suggestions.map((suggestion) => (
           <Button
-            key={suggestion.label.id}
+            key={suggestion.id}
             type="button"
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
-            onClick={() => onSelectSuggestion(intl.formatMessage(suggestion.prompt))}
+            onClick={() => onSelectSuggestion(suggestion.prompt)}
           >
             <HugeiconsIcon icon={suggestion.icon} strokeWidth={1.8} className="size-3.5" />
-            <FormattedMessage {...suggestion.label} />
+            {suggestion.label}
           </Button>
         ))}
       </div>

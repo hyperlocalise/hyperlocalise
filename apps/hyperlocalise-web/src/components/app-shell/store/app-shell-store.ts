@@ -37,6 +37,7 @@ export class AppShellStore {
     this.navigation.clearCustomMode();
     this.sidebar.setForceCollapsed(false);
     this.sidebar.setPreferredOpen(null);
+    this.chatDock.clearPageContext();
   }
 }
 

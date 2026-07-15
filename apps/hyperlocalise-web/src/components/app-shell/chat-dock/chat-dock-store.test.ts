@@ -90,4 +90,29 @@ describe("ChatDockStore", () => {
     expect(store.tabs[0]?.streamSnapshot).toBeNull();
     expect(store.tabs[0]?.isStreaming).toBe(false);
   });
+
+  it("tracks ephemeral page context without persisting it", () => {
+    const storage = createMemoryStorage();
+    const store = new ChatDockStore(storage);
+    store.setOrganizationSlug("acme");
+    store.openNewTab();
+    store.setPageContext({
+      kind: "cat-segment",
+      segmentId: "seg-02",
+      key: "checkout.submit",
+      sourceText: "Submit order",
+    });
+
+    expect(store.pageContext).toMatchObject({
+      kind: "cat-segment",
+      key: "checkout.submit",
+    });
+
+    const restored = new ChatDockStore(storage);
+    restored.setOrganizationSlug("acme");
+    expect(restored.pageContext).toBeNull();
+
+    store.clearPageContext();
+    expect(store.pageContext).toBeNull();
+  });
 });
