@@ -254,7 +254,7 @@ export function buildProjectNavigationItems(
     {
       label: intl.formatMessage({
         defaultMessage: "Strings",
-        id: "pCatStrNav1",
+        id: "CWdGpW4jOj",
         description: "Project sidebar navigation item for the CAT strings workspace",
       }),
       href: project("strings"),

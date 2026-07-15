@@ -67,6 +67,8 @@ export interface CatSegment {
   key: string;
   sourceText: string;
   targetText: string;
+  /** Present when the queue spans multiple files. */
+  sourcePath?: string;
   sourceLocale: string;
   targetLocale: string;
   contextLabel?: string;

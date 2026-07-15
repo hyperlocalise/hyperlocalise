@@ -34,7 +34,6 @@ function translationKeysFileConditions(input: {
   );
 }
 
-
 function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
   return and(
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
@@ -314,7 +313,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .limit(limit)
       .offset(offset);
   }
-
 
   async countKeysForProject(input: {
     organizationId: string;

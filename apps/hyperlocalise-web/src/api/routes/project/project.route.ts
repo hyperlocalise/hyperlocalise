@@ -30,10 +30,7 @@ import {
   getLatestRepositorySourceFileVersion,
 } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
-import {
-  isCatAllFilesSourcePath,
-  parseCatSourcePathsFilter,
-} from "@/lib/projects/cat-all-files";
+import { isCatAllFilesSourcePath, parseCatSourcePathsFilter } from "@/lib/projects/cat-all-files";
 
 import {
   countTmsProviderLiveOpenJobsForProject,

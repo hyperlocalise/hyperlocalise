@@ -402,9 +402,12 @@ export function JobCatPageContent({
     );
   }
 
-
   if (allFiles) {
-    if (projectQuery.isLoading || defaultFileQuery.isLoading || (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data)) {
+    if (
+      projectQuery.isLoading ||
+      defaultFileQuery.isLoading ||
+      (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data)
+    ) {
       // fall through only when we have files — wait for queries below via reused loading UI
     }
 
@@ -414,8 +417,10 @@ export function JobCatPageContent({
         ? providerFiles
         : defaultJobFiles.filter((file) => Boolean(file.storedFileId || file.provider));
     const jobSourcePaths =
-      sourcePaths?.split(",").map((value) => value.trim()).filter(Boolean) ??
-      jobFiles.map((file) => file.sourcePath);
+      sourcePaths
+        ?.split(",")
+        .map((value) => value.trim())
+        .filter(Boolean) ?? jobFiles.map((file) => file.sourcePath);
     const selectedTargetLocale = activeTargetLocale ?? targetLocale;
 
     if (projectQuery.isLoading || (!selectedTargetLocale && jobLocalesQuery.isLoading)) {

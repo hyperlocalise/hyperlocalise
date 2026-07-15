@@ -1,7 +1,6 @@
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import {
   CAT_ALL_FILES_SOURCE_PATH,
-  isCatAllFilesSourcePath,
   serializeCatSourcePathsFilter,
 } from "@/lib/projects/cat-all-files";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
@@ -249,9 +248,7 @@ export function resolveProjectCatTargetLocale(
   projectTargetLocales: readonly string[] | null | undefined,
   highlightLocale: string | null,
 ) {
-  const locales = (projectTargetLocales ?? [])
-    .map((locale) => locale.trim())
-    .filter(Boolean);
+  const locales = (projectTargetLocales ?? []).map((locale) => locale.trim()).filter(Boolean);
   const unique: string[] = [];
   const seen = new Set<string>();
   for (const locale of locales) {

@@ -252,7 +252,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "strings":
       return intl.formatMessage({
         defaultMessage: "Strings",
-        id: "pCatStrTitle",
+        id: "RbHK79ne0Y",
         description: "App shell breadcrumb title for the project strings CAT page",
       });
     case "teams":

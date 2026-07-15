@@ -135,7 +135,7 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
   return {
     intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
     locationBreadcrumb: catFile.sourcePath,
-    filePath: segment.sourcePath ?? catFile.sourcePath,
+    filePath: catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
     reviewerPreference: catFile.canEditTranslations
       ? providerKind

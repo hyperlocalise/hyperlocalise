@@ -309,13 +309,11 @@ export function ProjectFileCatPageContent({
   const targetLocaleResolution = allFiles
     ? {
         requestedLocale: highlightLocale,
-        status: (
-          highlightLocale && workspaceTargetLocales.includes(highlightLocale)
-            ? "exact"
-            : workspaceTargetLocales[0]
-              ? "fallback"
-              : "none"
-        ) as "exact" | "fallback" | "none",
+        status: (highlightLocale && workspaceTargetLocales.includes(highlightLocale)
+          ? "exact"
+          : workspaceTargetLocales[0]
+            ? "fallback"
+            : "none") as "exact" | "fallback" | "none",
         targetLocale: resolveProjectCatTargetLocale(projectTargetLocales, highlightLocale),
         targetLocales: workspaceTargetLocales,
       }

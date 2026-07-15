@@ -159,7 +159,7 @@ function mockReadyProjectQuery() {
 }
 
 describe("JobCatPageContent guard ordering", () => {
-  it("pre-selects the first openable file when no file reference is present", async () => {
+  it("pre-selects all job files when no file reference is present", async () => {
     useProjectPageQueryMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -185,7 +185,7 @@ describe("JobCatPageContent guard ordering", () => {
 
     await waitFor(() => {
       expect(routerReplaceMock).toHaveBeenCalledWith(
-        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json&queueFilter=untranslated",
+        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=*&sourcePaths=crowdin%2Fhome.json&queueFilter=untranslated",
       );
     });
     expect(

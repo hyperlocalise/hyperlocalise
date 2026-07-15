@@ -12,10 +12,7 @@ import {
   buildSourceStringsPreviewContent,
   normalizeProjectFileContent,
 } from "@/lib/projects/files/project-file-content";
-import {
-  CAT_ALL_FILES_FILENAME,
-  CAT_ALL_FILES_SOURCE_PATH,
-} from "@/lib/projects/cat-all-files";
+import { CAT_ALL_FILES_FILENAME, CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
 import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
@@ -2169,7 +2166,6 @@ export async function getTmsProviderLiveCatFile(
   });
 }
 
-
 export async function getTmsProviderLiveCatAllFiles(
   organizationId: string,
   externalProjectId: string,
@@ -2191,9 +2187,7 @@ export async function getTmsProviderLiveCatAllFiles(
   });
 
   const sourcePathFilter =
-    options?.sourcePaths && options.sourcePaths.length > 0
-      ? new Set(options.sourcePaths)
-      : null;
+    options?.sourcePaths && options.sourcePaths.length > 0 ? new Set(options.sourcePaths) : null;
 
   const catFiles = files
     .filter((file) => supportsLiveProviderCat(context.providerKind, file))
@@ -2211,9 +2205,7 @@ export async function getTmsProviderLiveCatAllFiles(
   };
 
   const offset = paginationInput.paginated ? paginationInput.offset : 0;
-  const limit = paginationInput.paginated
-    ? paginationInput.limit
-    : legacyProviderCatSegmentLimit;
+  const limit = paginationInput.paginated ? paginationInput.limit : legacyProviderCatSegmentLimit;
 
   let remainingToSkip = offset;
   let totalCount = 0;

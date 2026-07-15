@@ -170,6 +170,7 @@ describe("path builders", () => {
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
       ["Files", "/org/acme/projects/proj_1/files"],
+      ["Strings", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Issue Sheet", "/org/acme/projects/proj_1/issue-sheet"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
