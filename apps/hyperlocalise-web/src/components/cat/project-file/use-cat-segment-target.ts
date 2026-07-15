@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ProjectFileCatTranslation } from "@/api/routes/project/project.schema";
@@ -111,27 +112,44 @@ export function useCatSegmentTarget(input: {
 export function useCatSegmentTargets(input: {
   organizationSlug: string;
   projectId: string;
+  /** Fallback when a segment does not carry its own sourcePath (single-file CAT). */
   sourcePath: string;
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  externalStringIds: string[];
+  segments: Array<{
+    externalStringId: string;
+    sourcePath?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key" | null;
+  }>;
   enabled?: boolean;
 }) {
-  const externalStringIds = Array.from(
-    new Set(input.externalStringIds.filter((id) => id.trim().length > 0)),
-  );
+  const segments = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: typeof input.segments = [];
+    for (const segment of input.segments) {
+      const id = segment.externalStringId.trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      unique.push(segment);
+    }
+    return unique;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- callers memoize input.segments
+  }, [input.segments]);
 
   return useQueries({
-    queries: externalStringIds.map((externalStringId) =>
+    queries: segments.map((segment) =>
       catSegmentTargetQueryOptions({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
-        sourcePath: input.sourcePath,
-        externalResourceId: input.externalResourceId,
-        resourceType: input.resourceType,
+        sourcePath: segment.sourcePath?.trim() || input.sourcePath,
+        externalResourceId: segment.externalResourceId ?? input.externalResourceId,
+        resourceType: segment.resourceType ?? input.resourceType,
         targetLocale: input.targetLocale,
-        externalStringId,
+        externalStringId: segment.externalStringId,
         enabled: input.enabled,
       }),
     ),
