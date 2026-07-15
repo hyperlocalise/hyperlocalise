@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
@@ -167,8 +167,19 @@ function useCatLoadedQueueTargetsSync(input: {
     enabled: targetsEnabled,
   });
 
+  // useQueries() returns a new array every render. Depend on result fingerprints
+  // instead so applying targets / loading ids does not form a MobX update loop.
+  const targetQueriesRef = useRef(targetQueries);
+  targetQueriesRef.current = targetQueries;
+  const targetDataSyncKey = targetQueries
+    .map((query) => `${query.dataUpdatedAt}:${query.status}`)
+    .join("|");
+  const targetLoadingSyncKey = targetQueries
+    .map((query) => `${query.isFetching}:${query.data === undefined}`)
+    .join("|");
+
   useEffect(() => {
-    targetQueries.forEach((query, index) => {
+    targetQueriesRef.current.forEach((query, index) => {
       const segmentId = segmentIds[index];
       if (!segmentId || query.data === undefined) {
         return;
@@ -176,7 +187,7 @@ function useCatLoadedQueueTargetsSync(input: {
 
       store.applySegmentTarget(segmentId, query.data);
     });
-  }, [segmentIds, store, targetQueries]);
+  }, [segmentIds, store, targetDataSyncKey]);
 
   useEffect(() => {
     if (!targetsEnabled) {
@@ -188,12 +199,12 @@ function useCatLoadedQueueTargetsSync(input: {
     // so typing during a fetch clears the skeleton without needing this effect
     // to re-run on draft changes.
     const loadingIds = segmentIds.filter((_segmentId, index) => {
-      const query = targetQueries[index];
+      const query = targetQueriesRef.current[index];
       return Boolean(query?.isFetching && query.data === undefined);
     });
 
     store.setQueueTargetLoadingSegmentIds(loadingIds);
-  }, [segmentIds, store, targetQueries, targetsEnabled]);
+  }, [segmentIds, store, targetLoadingSyncKey, targetsEnabled]);
 }
 
 export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySegmentSync({

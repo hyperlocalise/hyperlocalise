@@ -37,12 +37,22 @@ export class CatSegmentDraft {
   }
 
   applyServerTarget(targetText: string, status: CatSegmentStatus) {
+    if (
+      this.targetText === targetText &&
+      this.savedTargetText === targetText &&
+      this.status === status
+    ) {
+      return;
+    }
     this.targetText = targetText;
     this.savedTargetText = targetText;
     this.status = status;
   }
 
   applyServerStatus(status: CatSegmentStatus) {
+    if (this.status === status) {
+      return;
+    }
     this.status = status;
   }
 }

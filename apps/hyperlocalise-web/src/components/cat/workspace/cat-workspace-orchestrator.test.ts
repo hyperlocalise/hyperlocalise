@@ -1,3 +1,4 @@
+import { autorun } from "mobx";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createCatWorkspaceState } from "@/components/cat/shared/cat.fixture";
@@ -323,6 +324,40 @@ describe("CatWorkspaceOrchestrator hydration", () => {
       status: "reviewed",
     });
     expect(store.dirtySegmentIds.has("seg-01")).toBe(true);
+  });
+
+  it("does not notify observers when applying an identical lazy target again", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" }],
+      }),
+    );
+
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+
+    const metaBefore = store.segmentMeta.get("seg-01");
+    let notifications = 0;
+    const dispose = autorun(() => {
+      void store.getSegmentView("seg-01")?.targetText;
+      void store.segmentMeta.get("seg-01");
+      notifications += 1;
+    });
+
+    notifications = 0;
+    store.applySegmentTarget("seg-01", {
+      text: "Bonjour",
+      externalTranslationId: "translation-1",
+      isApproved: false,
+    });
+
+    expect(notifications).toBe(0);
+    expect(store.segmentMeta.get("seg-01")).toBe(metaBefore);
+    dispose();
   });
 
   it("keeps dirty draft text when lazy target sync returns an empty server target", () => {

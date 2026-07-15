@@ -1,3 +1,4 @@
+import { autorun } from "mobx";
 import { describe, expect, it } from "vite-plus/test";
 
 import { CatIntelligenceStore } from "./cat-intelligence-store";
@@ -100,6 +101,24 @@ describe("CatSegmentDraft", () => {
     expect(draft.targetText).toBe("Server");
     expect(draft.isDirty).toBe(false);
     expect(draft.status).toBe("reviewed");
+  });
+
+  it("ignores no-op server target and status updates", () => {
+    const draft = new CatSegmentDraft("seg-01", "Saved", "reviewed");
+    let notifications = 0;
+    const dispose = autorun(() => {
+      void draft.targetText;
+      void draft.savedTargetText;
+      void draft.status;
+      notifications += 1;
+    });
+
+    notifications = 0;
+    draft.applyServerTarget("Saved", "reviewed");
+    draft.applyServerStatus("reviewed");
+
+    expect(notifications).toBe(0);
+    dispose();
   });
 
   it("updates status from server without changing the target baseline", () => {
