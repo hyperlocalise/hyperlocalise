@@ -11,10 +11,10 @@ import (
 // regex to reduce the number of passes over the input string. The order of
 // alternations is preserved from the original set to maintain priority.
 var combinedPlaceholderPattern = regexp.MustCompile(
-	`%[0-9]+\$[sdf@]|` +
-		`%\([A-Za-z_][\w]*\)[sdf@]|` +
-		`%[sdf]\b|` +
-		`%@|` +
+	`%[0-9]+\$[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgG@]|` +
+		`%\([A-Za-z_][\w]*\)[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgG@]|` +
+		`%[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgG]\b|` +
+		`%[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?@|` +
 		`%\{[ \w.-]+\}|` +
 		`\$\{[A-Za-z_][\w.-]*\}|` +
 		`\$[A-Za-z_][\w.+-]*\$`,

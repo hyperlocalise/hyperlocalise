@@ -143,3 +143,7 @@
 ## 2025-07-20 - [QA Mode and Profile Parity Interaction]
 **Learning:** In `ValidateSegment`, QA checks (like `whitespace_only`) are executed after core format and profile parity checks. If a target string contains only whitespace while the source contains text, `validateWhitespaceProfile` will trigger a `format-whitespace-profile` failure (StatusFail) before the `qa-whitespace-only` warning (StatusWarn) is even evaluated.
 **Action:** When testing QA modes via the top-level `ValidateSegment` entry point, ensure the source and target strings are chosen to either specifically trigger or specifically avoid overlapping profile parity violations to maintain test determinism.
+
+## 2026-07-20 - [Comprehensive Printf Placeholder Detection]
+**Learning:** Naive printf placeholder detection (e.g., matching only %s, %d) misses common specifiers like %i, %x, %u and modifiers like width (%02d), precision (%.2f), or length (%ld). This allows critical placeholders to be omitted from translations without triggering validation failures.
+**Action:** Use a comprehensive regex that supports the full range of standard printf specifiers, flags, width, precision, and length modifiers to ensure structural parity is strictly enforced for all placeholder types.
