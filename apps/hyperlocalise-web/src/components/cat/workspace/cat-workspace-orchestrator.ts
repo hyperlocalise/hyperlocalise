@@ -171,6 +171,11 @@ export class CatWorkspaceOrchestrator {
   private initialSegmentJumpApplied = false;
   /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
   hydratedTargetSegmentIds = new Set<string>();
+  /**
+   * Target text last committed via save/approve. Guards applySegmentTarget against
+   * stale lazy fetches that were in flight before the save completed.
+   */
+  private locallyCommittedTargetTexts = new Map<string, string>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -591,6 +596,7 @@ export class CatWorkspaceOrchestrator {
     this.lastHydratedSnapshot = null;
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
+    this.locallyCommittedTargetTexts = new Map();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
@@ -715,6 +721,20 @@ export class CatWorkspaceOrchestrator {
         return;
       }
 
+      const committedText = this.locallyCommittedTargetTexts.get(segmentId);
+      if (
+        committedText !== undefined &&
+        committedText === existingDraft.savedTargetText &&
+        targetText !== committedText
+      ) {
+        this.hydratedTargetSegmentIds.add(segmentId);
+        return;
+      }
+
+      if (committedText !== undefined && targetText === committedText) {
+        this.locallyCommittedTargetTexts.delete(segmentId);
+      }
+
       if (existingDraft.targetText.trim() && !targetText.trim()) {
         existingDraft.applyServerStatus(status);
         this.hydratedTargetSegmentIds.add(segmentId);
@@ -767,6 +787,7 @@ export class CatWorkspaceOrchestrator {
     this.segmentComments.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
+    this.locallyCommittedTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const meta of queueSegments) {
@@ -782,6 +803,7 @@ export class CatWorkspaceOrchestrator {
     this.segmentComments.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
+    this.locallyCommittedTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
@@ -821,6 +843,7 @@ export class CatWorkspaceOrchestrator {
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
+          this.locallyCommittedTargetTexts.delete(segmentId);
         }
       }
     }
@@ -889,6 +912,7 @@ export class CatWorkspaceOrchestrator {
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {
     this.segments.markSaved(segmentId, targetText, status, this.segmentMeta.has(segmentId));
+    this.locallyCommittedTargetTexts.set(segmentId, targetText);
   }
 
   setFormatChecks(segmentId: string, checks: CatFormatCheck[], isSelected: boolean) {
