@@ -28,6 +28,7 @@ const {
   listTmsProviderLiveJobFilesMock,
   createTmsProviderLiveJobsMock,
   deleteTmsProviderLiveJobMock,
+  updateTmsProviderLiveJobDescriptionMock,
 } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -39,6 +40,7 @@ const {
   listTmsProviderLiveJobFilesMock: vi.fn(),
   createTmsProviderLiveJobsMock: vi.fn(),
   deleteTmsProviderLiveJobMock: vi.fn(),
+  updateTmsProviderLiveJobDescriptionMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -61,6 +63,8 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
     listTmsProviderLiveJobFiles: (...args: unknown[]) => listTmsProviderLiveJobFilesMock(...args),
     createTmsProviderLiveJobs: (...args: unknown[]) => createTmsProviderLiveJobsMock(...args),
     deleteTmsProviderLiveJob: (...args: unknown[]) => deleteTmsProviderLiveJobMock(...args),
+    updateTmsProviderLiveJobDescription: (...args: unknown[]) =>
+      updateTmsProviderLiveJobDescriptionMock(...args),
   };
 });
 
@@ -956,5 +960,147 @@ describe("tmsProviderRoutes", () => {
 
     expect(allowedResponse.status).toBe(204);
     expect(deleteTmsProviderLiveJobMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects Crowdin job description updates for provider projects outside the current team scope", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const localizationManager = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "localization_manager",
+    );
+    const localizationManagerHeaders = await fixture.authHeadersFor(localizationManager);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const adminUserId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: adminUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamAlphaResponse.status).toBe(201);
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
+    expect(teamBetaResponse.status).toBe(201);
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: await fixture.getLocalUserId(localizationManager.user.workosUserId),
+      role: "member",
+    });
+
+    await db.insert(schema.projects).values([
+      {
+        id: "ext:crowdin:111",
+        organizationId,
+        teamId: teamAlphaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Alpha Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "111",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        isActive: true,
+      },
+      {
+        id: "ext:crowdin:222",
+        organizationId,
+        teamId: teamBetaBody.team.id,
+        createdByUserId: adminUserId,
+        updatedByUserId: adminUserId,
+        name: "Beta Crowdin project",
+        description: "",
+        translationContext: "",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProviderCredentialId: credential.id,
+        externalProjectId: "222",
+        sourceLocale: "en",
+        targetLocales: ["de"],
+        isActive: true,
+      },
+    ]);
+
+    updateTmsProviderLiveJobDescriptionMock.mockResolvedValue({
+      id: "ext:crowdin:111:99",
+      projectId: "ext:crowdin:111",
+      projectName: "Alpha Crowdin project",
+      createdByUserId: null,
+      kind: "translation",
+      type: null,
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: null,
+      workflowRunId: null,
+      lastError: null,
+      inputPayload: null,
+      outcomeKind: null,
+      outcomePayload: null,
+      reviewCriteria: null,
+      reviewTargetLocale: null,
+      syncConnectorKind: null,
+      syncDirection: null,
+      assetType: null,
+      assetOperation: null,
+      externalProviderKind: "crowdin",
+      externalTaskId: "99",
+      externalStatus: "in_progress",
+      externalTitle: "Translate homepage",
+      externalDueDate: null,
+      externalTargetLocales: ["fr"],
+      externalAssignedUsers: [],
+      externalSyncState: null,
+      externalJobId: "99",
+      externalUrl: "https://crowdin.com/task/99",
+      externalProviderPayload: { type: 0 },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].description.$patch(
+      {
+        param: {
+          organizationSlug: localizationManager.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:222:99",
+        },
+        json: { description: "Cross-team description" },
+      },
+      { headers: localizationManagerHeaders },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "project_not_found",
+      message: "Project not found",
+    });
+    expect(updateTmsProviderLiveJobDescriptionMock).not.toHaveBeenCalled();
+
+    const allowedResponse = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].description.$patch(
+      {
+        param: {
+          organizationSlug: localizationManager.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:111:99",
+        },
+        json: { description: "In-team description" },
+      },
+      { headers: localizationManagerHeaders },
+    );
+
+    expect(allowedResponse.status).toBe(200);
+    expect(updateTmsProviderLiveJobDescriptionMock).toHaveBeenCalledTimes(1);
   });
 });

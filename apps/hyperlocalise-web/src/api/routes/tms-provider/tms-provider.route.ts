@@ -522,12 +522,27 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return c.json({ error: "forbidden" }, 403);
       }
 
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!parsedJobId) {
+        return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
+      }
+
+      const ownedProject = await getOwnedProviderProjectForExternalId(
+        c.var.auth,
+        parsedJobId.providerKind,
+        parsedJobId.externalProjectId,
+      );
+      if (!ownedProject) {
+        return projectNotFoundResponse(c);
+      }
+
       const body = c.req.valid("json");
 
       try {
         const job = await updateTmsProviderLiveJobDescription(
           c.var.auth.organization.localOrganizationId,
-          c.req.param("encodedJobId"),
+          encodedJobId,
           body.description,
           c.var.auth.user.localUserId,
         );
