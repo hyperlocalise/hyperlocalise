@@ -48,9 +48,7 @@ import {
   CAT_ALL_FILES_SOURCE_PATH,
   isCatAllFilesSourcePath,
   serializeCatSourcePathsFilter,
-  supportsCatAllFilesProvider,
 } from "@/lib/projects/cat-all-files";
-import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -172,9 +170,7 @@ export function JobCatPageContent({
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-  const canUseAllFiles =
-    catAllFilesEnabled &&
-    supportsCatAllFilesProvider(parseProviderProjectId(projectId)?.providerKind ?? null);
+  const canUseAllFiles = catAllFilesEnabled;
   const requestedAllFiles = isCatAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
   const allFiles = canUseAllFiles && requestedAllFiles;
   const hasFileReference = Boolean((sourcePath && !requestedAllFiles) || storedFileId) || allFiles;

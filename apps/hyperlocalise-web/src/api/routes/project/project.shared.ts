@@ -62,7 +62,7 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-type ProjectResourceTarget =
+export type ProjectResourceTarget =
   | { kind: "native"; projectId: string }
   | ({ kind: "provider" } & EncodedProviderProjectId)
   | {
@@ -70,6 +70,11 @@ type ProjectResourceTarget =
       error: "no_active_tms_provider" | "provider_project_not_available";
       message: string;
     };
+
+/** Provider kind for the All Files release flag — matches the API CAT queue gate. */
+export function catAllFilesProviderKindFromTarget(target: ProjectResourceTarget) {
+  return target.kind === "provider" ? target.providerKind : null;
+}
 
 export async function resolveProjectResourceTarget(
   auth: ApiAuthContext,

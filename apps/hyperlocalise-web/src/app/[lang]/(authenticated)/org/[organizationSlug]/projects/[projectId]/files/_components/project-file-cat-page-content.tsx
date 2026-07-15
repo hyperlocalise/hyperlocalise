@@ -17,11 +17,7 @@ import {
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
-import {
-  CAT_ALL_FILES_SOURCE_PATH,
-  supportsCatAllFilesProvider,
-} from "@/lib/projects/cat-all-files";
-import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
 import {
   buildProjectFileCatAllFilesHref,
   buildProjectFileCatHref,
@@ -151,13 +147,7 @@ export function ProjectFileCatPageContent({
     [filesQuery.data],
   );
 
-  const canUseAllFiles =
-    catAllFilesEnabled &&
-    supportsCatAllFilesProvider(
-      projectQuery.data?.externalProviderKind ??
-        parseProviderProjectId(projectId)?.providerKind ??
-        null,
-    );
+  const canUseAllFiles = catAllFilesEnabled;
 
   useEffect(() => {
     if (!allFiles || canUseAllFiles || !projectQuery.data) {

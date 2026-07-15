@@ -240,9 +240,42 @@ describe("project file CAT routes", () => {
         pagination: expect.objectContaining({ paginated: true, limit: 50 }),
       }),
     );
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("crowdin");
   });
 
-  it("rejects All Files CAT for unsupported providers when the flag is on", async () => {
+  it("rejects All Files CAT when decide disables the provider", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "phrase",
+      displayName: "Phrase",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:phrase:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: "feature_unavailable" });
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("phrase");
+    expect(getTmsProviderLiveCatAllFilesMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects All Files CAT at the TMS layer when Flags Explorer overrides the flag on for an unsupported provider", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
       providerKind: "phrase",
@@ -251,6 +284,12 @@ describe("project file CAT routes", () => {
       validationMessage: null,
     });
     isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    getTmsProviderLiveCatAllFilesMock.mockRejectedValue(
+      new TmsProviderLiveError(
+        "provider_cat_all_files_unsupported",
+        "All Files CAT is not available for this provider yet.",
+      ),
+    );
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -272,7 +311,8 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({
       error: "provider_cat_all_files_unsupported",
     });
-    expect(getTmsProviderLiveCatAllFilesMock).not.toHaveBeenCalled();
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("phrase");
+    expect(getTmsProviderLiveCatAllFilesMock).toHaveBeenCalled();
   });
 
   it("returns Crowdin AI recommendations for an encoded provider project", async () => {

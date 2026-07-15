@@ -32,12 +32,7 @@ import {
   getLatestRepositorySourceFileVersion,
 } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
-import {
-  isCatAllFilesSourcePath,
-  parseCatSourcePathsFilter,
-  supportsCatAllFilesProvider,
-} from "@/lib/projects/cat-all-files";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+import { isCatAllFilesSourcePath, parseCatSourcePathsFilter } from "@/lib/projects/cat-all-files";
 
 import {
   countTmsProviderLiveOpenJobsForProject,
@@ -161,6 +156,7 @@ import {
   ownedProjectWhere,
   projectNotFoundResponse,
   providerProjectUnavailableResponse,
+  catAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
   tmsProviderLiveErrorResponse,
@@ -647,19 +643,10 @@ async function loadProjectFileCatQueue(
   const sourcePathsFilter = allFiles ? parseCatSourcePathsFilter(query.sourcePaths) : null;
 
   if (allFiles) {
-    if (!(await isReleaseCatAllFilesEnabled())) {
+    const providerKind = catAllFilesProviderKindFromTarget(target);
+    // Provider support lives in decide(); Flags Explorer overrides still win.
+    if (!(await isReleaseCatAllFilesEnabled(providerKind))) {
       return { kind: "feature_unavailable" as const };
-    }
-
-    const providerKind = target.kind === "provider" ? target.providerKind : null;
-    if (!supportsCatAllFilesProvider(providerKind)) {
-      return {
-        kind: "provider_error" as const,
-        error: new TmsProviderLiveError(
-          "provider_cat_all_files_unsupported",
-          "All Files CAT is not available for this provider yet.",
-        ),
-      };
     }
   }
 

@@ -1,6 +1,10 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { resolveJobCatInitialQueueFilter } from "@/lib/projects/resolve-job-cat-initial-queue-filter";
+import {
+  catAllFilesProviderKindFromTarget,
+  resolveProjectResourceTarget,
+} from "@/api/routes/project/project.shared";
 
 import { JobCatPageContent } from "./_components/job-cat-page-content";
 
@@ -22,7 +26,10 @@ export default async function ProjectJobStringsPage({
   const { sourcePath, storedFileId, sourcePaths, targetLocale, segment, queueFilter } =
     await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled();
+  const target = await resolveProjectResourceTarget(auth, projectId);
+  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(
+    catAllFilesProviderKindFromTarget(target),
+  );
 
   const initialQueueFilter = await resolveJobCatInitialQueueFilter({
     auth,
