@@ -69,6 +69,8 @@ import {
   type ExternalTmsProviderCredentialSummary,
 } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
+  getProviderJobTaskCreator,
+  getProviderJobTaskDeleter,
   tmsProviderGlossaryFetchers,
   tmsProviderFileKeyFetchers,
   tmsProviderJobTaskFetchers,
@@ -87,7 +89,9 @@ import {
   mapProviderStatusToNormalized,
   type ExternalTmsFileKeyMetadata,
   type ExternalTmsGlossaryMetadata,
+  type ExternalTmsJobTaskCreateRequest,
   type ExternalTmsJobTaskMetadata,
+  type ExternalTmsProjectMemberMetadata,
   type ExternalTmsProjectMetadata,
   type ExternalTmsTranslationMemoryMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
@@ -3287,6 +3291,210 @@ export async function listTmsProviderLiveJobComments(
     createdAt: comment.createdAt,
     updatedAt: comment.updatedAt,
   }));
+}
+
+export async function createTmsProviderLiveJobs(
+  organizationId: string,
+  externalProjectId: string,
+  input: {
+    title: string;
+    targetLocales: string[];
+    fileIds: string[];
+    assigneeExternalUserIds?: string[];
+    kind?: Extract<ExternalTmsJobTaskCreateRequest["kind"], "translation" | "proofread" | "review">;
+    description?: string | null;
+    actorUserId: string;
+  },
+): Promise<TmsProviderLiveJob[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: input.actorUserId,
+  });
+  const creator = getProviderJobTaskCreator(context.providerKind);
+  if (!creator) {
+    throw new TmsProviderLiveError(
+      "provider_task_create_unsupported",
+      `Creating jobs is not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const targetLocales = [
+    ...new Set(input.targetLocales.map((locale) => locale.trim()).filter(Boolean)),
+  ];
+  if (targetLocales.length === 0) {
+    throw new TmsProviderLiveError("target_locales_required", "Select at least one target locale.");
+  }
+
+  const fileIds = [...new Set(input.fileIds.map((fileId) => fileId.trim()).filter(Boolean))];
+  if (fileIds.length === 0) {
+    throw new TmsProviderLiveError("file_ids_required", "Select at least one file.");
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  if (!projectMetadata) {
+    throw new TmsProviderLiveError("project_not_found", "Provider project was not found.");
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
+  });
+
+  const assignees =
+    input.assigneeExternalUserIds
+      ?.map((externalUserId) => externalUserId.trim())
+      .filter(Boolean)
+      .map((externalUserId) => ({ externalUserId })) ?? [];
+
+  const createdTasks = await mapWithConcurrency(targetLocales, 3, async (targetLocale) => {
+    try {
+      return await creator({
+        organizationId: context.organizationId,
+        projectId: liveProject.id,
+        providerKind: context.providerKind,
+        externalProjectId,
+        credential: context.credential,
+        project: liveProject,
+        secretMaterial: context.secretMaterial,
+        task: {
+          title: input.title,
+          targetLocale,
+          fileIds,
+          kind: input.kind ?? "translation",
+          description: input.description ?? null,
+          ...(assignees.length > 0 ? { assignees } : {}),
+        },
+      });
+    } catch (error) {
+      rethrowProviderFetcherError(error);
+      throw error;
+    }
+  });
+
+  return createdTasks.map((task) =>
+    mapLiveJob({
+      providerKind: context.providerKind,
+      externalProjectId,
+      projectName: projectMetadata.name,
+      task,
+    }),
+  );
+}
+
+export async function deleteTmsProviderLiveJob(
+  organizationId: string,
+  encodedJobId: string,
+  actorUserId: string,
+): Promise<boolean> {
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, { actorUserId });
+  if (context.providerKind !== parsed.providerKind) {
+    return false;
+  }
+
+  const deleter = getProviderJobTaskDeleter(context.providerKind);
+  if (!deleter) {
+    throw new TmsProviderLiveError(
+      "provider_task_delete_unsupported",
+      `Deleting jobs is not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, parsed.externalProjectId);
+  if (!projectMetadata) {
+    return false;
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
+  });
+
+  try {
+    return await deleter({
+      organizationId: context.organizationId,
+      projectId: liveProject.id,
+      providerKind: context.providerKind,
+      externalProjectId: parsed.externalProjectId,
+      credential: context.credential,
+      project: liveProject,
+      secretMaterial: context.secretMaterial,
+      externalJobId: parsed.externalJobId,
+    });
+  } catch (error) {
+    rethrowProviderFetcherError(error);
+    throw error;
+  }
+}
+
+export async function listTmsProviderLiveProjectMembers(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<ExternalTmsProjectMemberMetadata[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_members_unsupported",
+      `Listing project members is not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const projectId = Number(externalProjectId);
+  if (!Number.isInteger(projectId) || projectId <= 0) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_id",
+      "Crowdin project identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const members = await client.listProjectMembers(projectId);
+    return members.map((member) => {
+      const displayName =
+        member.fullName?.trim() ||
+        [member.firstName, member.lastName].filter(Boolean).join(" ").trim() ||
+        member.username;
+      return {
+        externalUserId: String(member.id),
+        username: member.username,
+        displayName,
+        avatarUrl: member.avatarUrl ?? null,
+        role: member.role ?? null,
+      };
+    });
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    rethrowProviderFetcherError(error);
+    throw error;
+  }
 }
 
 export async function updateTmsProviderLiveJobDescription(

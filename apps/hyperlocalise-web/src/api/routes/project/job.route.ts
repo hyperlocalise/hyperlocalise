@@ -385,13 +385,53 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      const enrichedInputPayload =
+        payload.title && payload.title.trim().length > 0
+          ? {
+              ...inputPayload,
+              metadata: {
+                ...inputPayload.metadata,
+                title: payload.title.trim(),
+              },
+            }
+          : inputPayload;
 
       const localeValidation = validateJobLocalesAgainstProject(project, {
-        sourceLocale: inputPayload.sourceLocale,
-        targetLocales: inputPayload.targetLocales,
+        sourceLocale: enrichedInputPayload.sourceLocale,
+        targetLocales: enrichedInputPayload.targetLocales,
       });
       if (isErr(localeValidation)) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+      }
+
+      let ownerUserId: string | null = null;
+      if (payload.ownerWorkosUserId) {
+        const [owner] = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .innerJoin(
+            schema.organizationMemberships,
+            eq(schema.organizationMemberships.userId, schema.users.id),
+          )
+          .where(
+            and(
+              eq(schema.users.workosUserId, payload.ownerWorkosUserId),
+              eq(
+                schema.organizationMemberships.organizationId,
+                c.var.auth.organization.localOrganizationId,
+              ),
+            ),
+          )
+          .limit(1);
+
+        if (!owner) {
+          return badRequestResponse(
+            c,
+            "owner_not_found",
+            "Assigned owner must be an organization member",
+          );
+        }
+        ownerUserId = owner.id;
       }
 
       if (payload.type === "file") {
@@ -455,9 +495,10 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               createdByUserId: c.var.auth.user.localUserId,
+              ownerUserId,
               kind: "translation",
               status: "queued",
-              inputPayload,
+              inputPayload: enrichedInputPayload,
             })
             .returning();
 
@@ -1340,6 +1381,69 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             .set({ outcomeKind: "error" })
             .where(eq(schema.translationJobDetails.jobId, params.jobId));
         }
+
+        return job;
+      });
+
+      if (!updatedJob) {
+        const [existingJob] = await db
+          .select({ id: schema.jobs.id })
+          .from(schema.jobs)
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+          .limit(1);
+
+        return existingJob
+          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
+          : notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const updatedJob = await db.transaction(async (tx) => {
+        const [job] = await tx
+          .update(schema.jobs)
+          .set({
+            status: "cancelled",
+            workflowRunId: null,
+            lastError: null,
+            outcomePayload: {
+              code: "cancelled_by_user",
+              message: "Cancelled by user",
+            },
+            completedAt: new Date(),
+          })
+          .where(await activeJobWhere(c.var.auth, params.jobId))
+          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
 
         return job;
       });

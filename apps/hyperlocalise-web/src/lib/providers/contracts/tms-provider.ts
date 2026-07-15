@@ -213,6 +213,10 @@ export abstract class TmsProvider {
     return Promise.resolve(null);
   }
 
+  deleteJobTask(_scope: TmsProviderJobScope): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+
   abstract fetchGlossaries(scope: TmsProviderProjectScope): Promise<ExternalTmsGlossaryMetadata[]>;
 
   abstract fetchTranslationMemories(

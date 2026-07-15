@@ -2,7 +2,11 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
-import { isJobProviderActionAllowed } from "@/api/auth/capability-guards";
+import {
+  isJobCreateAllowed,
+  isJobMutationAllowed,
+  isJobProviderActionAllowed,
+} from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
 import { ownedProjectWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -21,6 +25,8 @@ import {
 import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
+  createTmsProviderLiveJobs,
+  deleteTmsProviderLiveJob,
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
   listTmsProviderLiveJobComments,
@@ -33,6 +39,7 @@ import {
   listTmsProviderLiveGlossaries,
   listTmsProviderLiveJobs,
   listTmsProviderLiveJobsForProject,
+  listTmsProviderLiveProjectMembers,
   listTmsProviderLiveProjects,
   listTmsProviderLiveTranslationMemories,
 } from "@/lib/providers/jobs/tms-provider-live";
@@ -66,6 +73,15 @@ const updateJobDescriptionBodySchema = z.object({
 const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
   action: z.literal("translate_with_agent"),
+});
+
+const createTmsProviderJobsBodySchema = z.object({
+  title: z.string().trim().min(1).max(256),
+  targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(20),
+  fileIds: z.array(z.string().trim().min(1).max(128)).min(1).max(100),
+  assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  kind: z.enum(["translation", "proofread", "review"]).optional().default("translation"),
+  description: z.string().trim().max(2_048).optional(),
 });
 
 function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect) {
@@ -140,6 +156,15 @@ const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) =>
   const parsed = createTmsProviderJobAgentRunBodySchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(c, "invalid_request_body", "Invalid provider agent run payload");
+  }
+
+  return parsed.data;
+});
+
+const validateCreateTmsProviderJobsBody = validator("json", (value, c) => {
+  const parsed = createTmsProviderJobsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_request_body", "Invalid create job payload");
   }
 
   return parsed.data;
@@ -231,6 +256,48 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           },
         );
         return c.json({ jobs }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .post("/projects/:externalProjectId/jobs", validateCreateTmsProviderJobsBody, async (c) => {
+      if (!isJobCreateAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const payload = c.req.valid("json");
+
+      try {
+        const jobs = await createTmsProviderLiveJobs(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          {
+            title: payload.title,
+            targetLocales: payload.targetLocales,
+            fileIds: payload.fileIds,
+            assigneeExternalUserIds: payload.assigneeExternalUserIds,
+            kind: payload.kind,
+            description: payload.description,
+            actorUserId: c.var.auth.user.localUserId,
+          },
+        );
+        return c.json({ jobs }, 201);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get("/projects/:externalProjectId/members", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const members = await listTmsProviderLiveProjectMembers(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ members }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
@@ -378,6 +445,26 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         }
 
         return c.json({ comments }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .delete("/jobs/:encodedJobId", async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const deleted = await deleteTmsProviderLiveJob(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          c.var.auth.user.localUserId,
+        );
+        if (!deleted) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ deleted: true }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

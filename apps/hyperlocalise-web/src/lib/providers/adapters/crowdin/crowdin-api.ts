@@ -298,6 +298,16 @@ export interface CrowdinCreateTaskRequest {
   dateTo?: string;
 }
 
+export interface CrowdinProjectMember {
+  id: number;
+  username: string;
+  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
+  role?: string | null;
+}
+
 export interface CrowdinLanguageTranslation {
   stringId: number;
   contentType: string;
@@ -1094,6 +1104,14 @@ export class CrowdinApiClient {
       request,
     );
     return response.data;
+  }
+
+  async deleteTask(projectId: number, taskId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/tasks/${taskId}`);
+  }
+
+  async listProjectMembers(projectId: number): Promise<CrowdinProjectMember[]> {
+    return this.listPaginated<CrowdinProjectMember>(`/projects/${projectId}/members`);
   }
 
   async editTaskDescription(

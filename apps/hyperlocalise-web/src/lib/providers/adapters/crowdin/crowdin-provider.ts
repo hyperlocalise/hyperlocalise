@@ -361,6 +361,21 @@ export class CrowdinTmsProvider extends TmsProvider {
     return this.mapTaskToJobTaskMetadata(created, {});
   }
 
+  async deleteJobTask(scope: TmsProviderJobScope) {
+    const client = this.createClient(scope);
+    const projectId = this.parseProjectId(scope.externalProjectId);
+    const taskId = this.parseCrowdinId(scope.externalJobId, "taskId");
+
+    try {
+      await client.deleteTask(projectId, taskId);
+    } catch (error) {
+      this.rethrowAuthError(error);
+      throw error;
+    }
+
+    return true;
+  }
+
   /**
    * Imports glossaries linked to the Crowdin project, including term rows per target locale.
    *

@@ -161,6 +161,10 @@ export function canMarkJobFailed(job: JobDetailRecord) {
   return job.status === "queued" || job.status === "running";
 }
 
+export function canCancelJob(job: JobDetailRecord) {
+  return !isProviderBackedJob(job) && (job.status === "queued" || job.status === "running");
+}
+
 export function buildJobsListHref(organizationSlug: string, projectId: string) {
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs`;
 }
