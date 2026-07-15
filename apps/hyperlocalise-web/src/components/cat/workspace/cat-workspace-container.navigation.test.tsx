@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 
 import type { ReactElement } from "react";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   catSegmentsFixture,
@@ -13,6 +13,10 @@ import {
 import { renderWithCatProviders } from "@/components/cat/shared/cat-test-utils";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
+import {
+  CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY,
+  writeCatWorkspaceViewMode,
+} from "./cat-workspace-view-mode";
 
 const ROW_HEIGHT = 88;
 
@@ -148,7 +152,7 @@ describe("CatWorkspaceContainer queue navigation", () => {
     expect(getQueueSegmentButton("Reviews awaiting approval")).toBeInTheDocument();
   });
 
-  it("shows the unsaved navigation dialog when leaving a dirty segment", async () => {
+  it("switches queue segments without prompting when the current segment is dirty", async () => {
     const user = userEvent.setup();
     const onSelectSegment = vi.fn();
 
@@ -166,45 +170,11 @@ describe("CatWorkspaceContainer queue navigation", () => {
 
     await user.click(getQueueSegmentButton("Reviews awaiting approval"));
 
-    const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByText("Leave segment with unsaved changes?")).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole("button", { name: "Leave without saving" }));
-
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(onSelectSegment).toHaveBeenCalledWith("seg-01");
   });
 
-  it("stays on the current segment when cancelling unsaved navigation", async () => {
-    const user = userEvent.setup();
-    const onSelectSegment = vi.fn();
-
-    renderCatWorkspace(
-      <CatWorkspaceContainer
-        initialState={createUiCatWorkspaceState()}
-        navigation={{ onSelectSegment }}
-        services={{ validateFormat: mockValidateFormat }}
-      />,
-    );
-
-    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
-    await user.click(targetEditor);
-    await user.keyboard(" unsaved");
-
-    await user.click(getQueueSegmentButton("Reviews awaiting approval"));
-
-    const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Stay" }));
-
-    expect(onSelectSegment).not.toHaveBeenCalled();
-    await waitFor(() => {
-      const targetEditor = document.querySelector(
-        '[aria-label="Target translation"][contenteditable="true"]',
-      );
-      expect(targetEditor?.textContent).toContain(" unsaved");
-    });
-  });
-
-  it("prompts before a local queue filter hides the dirty segment", async () => {
+  it("applies a local queue filter without prompting when it hides the dirty segment", async () => {
     const user = userEvent.setup();
 
     renderCatWorkspace(
@@ -220,16 +190,57 @@ describe("CatWorkspaceContainer queue navigation", () => {
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
     await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
 
-    const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByText("Leave segment with unsaved changes?")).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "Stay" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("Approved");
+  });
+});
 
-    expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("All strings");
-    await waitFor(() => {
-      const targetEditor = document.querySelector(
-        '[aria-label="Target translation"][contenteditable="true"]',
-      );
-      expect(targetEditor?.textContent).toContain(" unsaved");
+describe("CatWorkspaceContainer side-by-side approve", () => {
+  beforeEach(() => {
+    writeCatWorkspaceViewMode("side-by-side");
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
     });
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
+  });
+
+  it("approves a dirty segment without opening the unsaved navigation dialog", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue("reviewed");
+
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        review={{ onApprove }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard(" unsaved");
+
+    const approveButton = await screen.findByRole("button", { name: /Approve/i });
+    await waitFor(() => expect(approveButton).not.toBeDisabled());
+    await user.click(approveButton);
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(onApprove).toHaveBeenCalledWith("seg-02", expect.stringContaining(" unsaved")),
+    );
   });
 });

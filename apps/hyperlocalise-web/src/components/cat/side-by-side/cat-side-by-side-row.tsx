@@ -240,6 +240,8 @@ export function CatSideBySideRow({
     {
       enabled: isFocused && canTriggerApprove,
       enableOnFormTags: true,
+      // TipTap uses contenteditable; without this, ⌘↵ / Ctrl+Enter is ignored while typing.
+      enableOnContentEditable: true,
       preventDefault: true,
     },
     [canTriggerApprove, isFocused, onApprove],

@@ -86,6 +86,29 @@ describe("CatWorkspaceContainer UI", () => {
     await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Updated translation"));
   });
 
+  it("approves with Ctrl+Enter while typing in the comfortable target editor", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue("reviewed");
+
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        review={{ onApprove }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard("{Control>}a{/Control}Saved via shortcut");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled(),
+    );
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Saved via shortcut"));
+  });
+
   it("applies AI suggestions from the editor recommendation panel", async () => {
     const user = userEvent.setup();
     const onUseAiSuggestion = vi.fn();

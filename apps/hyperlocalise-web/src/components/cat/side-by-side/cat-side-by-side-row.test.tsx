@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -121,6 +121,25 @@ describe("CatSideBySideRow", () => {
     renderRow({ onApprove });
 
     await user.click(screen.getByRole("button", { name: /Approve/i }));
+    expect(onApprove).toHaveBeenCalledTimes(1);
+  });
+
+  it("approves with Ctrl+Enter while the target editor is focused", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn();
+
+    renderRow({ onApprove });
+
+    const targetEditor = await waitFor(() => {
+      const editor = document.querySelector(
+        '[aria-label="Target translation"][contenteditable="true"]',
+      );
+      expect(editor).toBeTruthy();
+      return editor as HTMLElement;
+    });
+    await user.click(targetEditor);
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
 

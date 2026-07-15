@@ -279,25 +279,15 @@ export const catWorkspaceContainerMessages = defineMessages({
     id: "pMRZvoJLzS",
     description: "Fallback error when approving or saving a CAT translation fails",
   },
-  unsavedSegmentNavigationTitle: {
-    defaultMessage: "Leave segment with unsaved changes?",
-    id: "2O/RojUz55",
-    description: "Title when navigating away from a segment with unsaved target text",
-  },
-  unsavedSegmentNavigationDescription: {
-    defaultMessage: "Your edits to this segment have not been saved. Leave without saving?",
-    id: "37yFkjafwR",
-    description: "Body when navigating away from a segment with unsaved target text",
-  },
   unsavedPageNavigationTitle: {
     defaultMessage: "Leave page with unsaved changes?",
     id: "oeD72ehQB/",
-    description: "Title when changing CAT queue page with unsaved target text",
+    description: "Title when leaving the CAT workspace with unsaved target text",
   },
   unsavedPageNavigationDescription: {
-    defaultMessage: "Some segments on this page have unsaved edits. Change page without saving?",
-    id: "+pyXMBZm58",
-    description: "Body when changing CAT queue page with unsaved target text",
+    defaultMessage: "Some segments have unsaved edits. Leave without saving?",
+    id: "mmB/r+ohDb",
+    description: "Body when leaving the CAT workspace with unsaved target text",
   },
   unsavedNavigationStay: {
     defaultMessage: "Stay",
