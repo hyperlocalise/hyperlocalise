@@ -1,7 +1,10 @@
 import type { TypedResponse } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+import {
+  TmsProviderLiveError,
+  TmsProviderLivePartialCreateError,
+} from "@/lib/providers/jobs/tms-provider-live-error";
 
 type JsonContext = {
   json<T extends object, U extends ContentfulStatusCode>(
@@ -10,8 +13,13 @@ type JsonContext = {
   ): Response & TypedResponse<T, U, "json">;
 };
 
-export type TmsProviderLiveErrorStatus = 400 | 401 | 404 | 500 | 501;
-export type TmsProviderLiveErrorBody = { error: string; message: string };
+export type TmsProviderLiveErrorStatus = 207 | 400 | 401 | 404 | 500 | 501;
+export type TmsProviderLiveErrorBody = {
+  error: string;
+  message: string;
+  createdCount?: number;
+  jobs?: unknown[];
+};
 
 export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErrorStatus {
   switch (code) {
@@ -43,6 +51,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "provider_cat_unsupported":
     case "provider_cat_all_files_unsupported":
       return 501;
+    case "provider_task_create_partial":
+      return 207;
     default:
       return 500;
   }
@@ -52,6 +62,18 @@ export function tmsProviderLiveErrorResponse(
   c: JsonContext,
   error: unknown,
 ): Response & TypedResponse<TmsProviderLiveErrorBody, TmsProviderLiveErrorStatus, "json"> {
+  if (error instanceof TmsProviderLivePartialCreateError) {
+    return c.json(
+      {
+        error: error.code,
+        message: error.message,
+        createdCount: error.createdCount,
+        jobs: error.jobs,
+      },
+      getTmsProviderLiveErrorStatus(error.code),
+    );
+  }
+
   if (error instanceof TmsProviderLiveError) {
     return c.json(
       { error: error.code, message: error.message },

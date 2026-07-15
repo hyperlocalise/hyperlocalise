@@ -33,7 +33,12 @@ import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
-import { canMarkJobFailed, canRetryJob, isProviderBackedJob } from "./job-detail-types";
+import {
+  canCancelJob,
+  canMarkJobFailed,
+  canRetryJob,
+  isProviderBackedJob,
+} from "./job-detail-types";
 
 async function parseActionError(response: Response, fallback: string) {
   let error: string | undefined;
@@ -58,6 +63,7 @@ export function NativeJobDetailContent({
   projectId: string;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
@@ -129,6 +135,30 @@ export function NativeJobDetailContent({
     },
   });
 
+  const cancelJob = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].cancel.$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseActionError(response, "Failed to cancel job"));
+      }
+
+      const body = (await response.json()) as { job: JobDetailRecord };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      setCancelDialogOpen(false);
+      toast.success("Job cancelled");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to cancel job");
+    },
+  });
+
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job) : null;
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
@@ -161,18 +191,28 @@ export function NativeJobDetailContent({
         <Button
           size="sm"
           variant="outline"
-          disabled={retryJob.isPending || markJobFailed.isPending}
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => retryJob.mutate()}
         >
           <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
           {retryJob.isPending ? "Retrying..." : "Retry job"}
         </Button>
       ) : null}
+      {canCancelJob(job) ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
+          onClick={() => setCancelDialogOpen(true)}
+        >
+          Cancel job
+        </Button>
+      ) : null}
       {canMarkJobFailed(job) ? (
         <Button
           size="sm"
           variant="destructive"
-          disabled={retryJob.isPending || markJobFailed.isPending}
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => setMarkFailedDialogOpen(true)}
         >
           <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
@@ -261,6 +301,35 @@ export function NativeJobDetailContent({
             >
               <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
               {markJobFailed.isPending ? "Marking..." : "Mark failed"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!cancelJob.isPending) {
+            setCancelDialogOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The job will move to cancelled and stop running. You can create a new job if you need
+              the work again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelJob.isPending}>Keep job</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={cancelJob.isPending}
+              onClick={() => cancelJob.mutate()}
+            >
+              {cancelJob.isPending ? "Cancelling..." : "Cancel job"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

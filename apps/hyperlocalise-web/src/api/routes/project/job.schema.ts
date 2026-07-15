@@ -49,10 +49,14 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     stringInput: stringTranslationJobInputSchema,
+    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
+    title: z.string().trim().min(1).max(256).optional(),
   }),
   z.object({
     type: z.literal("file"),
     fileInput: fileTranslationJobInputSchema,
+    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
+    title: z.string().trim().min(1).max(256).optional(),
   }),
 ]);
 

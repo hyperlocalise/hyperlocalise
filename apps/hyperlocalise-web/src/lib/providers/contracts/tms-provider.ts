@@ -7,6 +7,7 @@ import type {
   ExternalTmsGlossaryMetadata,
   ExternalTmsJobTaskCreateRequest,
   ExternalTmsJobTaskMetadata,
+  ExternalTmsProjectMemberMetadata,
   ExternalTmsProjectMetadata,
   ExternalTmsSourceFileUpload,
   ExternalTmsSourceFileUploadError,
@@ -211,6 +212,14 @@ export abstract class TmsProvider {
 
   createJobTask(_scope: TmsProviderCreateJobTaskScope): Promise<ExternalTmsJobTaskMetadata | null> {
     return Promise.resolve(null);
+  }
+
+  deleteJobTask(_scope: TmsProviderJobScope): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+
+  listProjectMembers(_scope: TmsProviderProjectScope): Promise<ExternalTmsProjectMemberMetadata[]> {
+    return Promise.resolve([]);
   }
 
   abstract fetchGlossaries(scope: TmsProviderProjectScope): Promise<ExternalTmsGlossaryMetadata[]>;

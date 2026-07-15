@@ -56,7 +56,10 @@ import {
 } from "@/lib/providers/adapters/smartling/smartling-provider";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+import {
+  TmsProviderLiveError,
+  TmsProviderLivePartialCreateError,
+} from "@/lib/providers/jobs/tms-provider-live-error";
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
@@ -69,6 +72,9 @@ import {
   type ExternalTmsProviderCredentialSummary,
 } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
+  getProviderJobTaskCreator,
+  getProviderJobTaskDeleter,
+  getProviderProjectMemberFetcher,
   tmsProviderGlossaryFetchers,
   tmsProviderFileKeyFetchers,
   tmsProviderJobTaskFetchers,
@@ -87,7 +93,9 @@ import {
   mapProviderStatusToNormalized,
   type ExternalTmsFileKeyMetadata,
   type ExternalTmsGlossaryMetadata,
+  type ExternalTmsJobTaskCreateRequest,
   type ExternalTmsJobTaskMetadata,
+  type ExternalTmsProjectMemberMetadata,
   type ExternalTmsProjectMetadata,
   type ExternalTmsTranslationMemoryMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
@@ -156,7 +164,7 @@ function mapCrowdinLiveProjectToMetadata(project: CrowdinProject): ExternalTmsPr
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
-export { TmsProviderLiveError };
+export { TmsProviderLiveError, TmsProviderLivePartialCreateError };
 
 export type TmsProviderConnection = {
   providerKind: ExternalTmsProviderKind;
@@ -3287,6 +3295,258 @@ export async function listTmsProviderLiveJobComments(
     createdAt: comment.createdAt,
     updatedAt: comment.updatedAt,
   }));
+}
+
+export async function createTmsProviderLiveJobs(
+  organizationId: string,
+  externalProjectId: string,
+  input: {
+    title: string;
+    targetLocales: string[];
+    fileIds: string[];
+    assigneeExternalUserIds?: string[];
+    kind?: Extract<ExternalTmsJobTaskCreateRequest["kind"], "translation" | "proofread" | "review">;
+    description?: string | null;
+    actorUserId: string;
+  },
+): Promise<TmsProviderLiveJob[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: input.actorUserId,
+  });
+  const creator = getProviderJobTaskCreator(context.providerKind);
+  if (!creator) {
+    throw new TmsProviderLiveError(
+      "provider_task_create_unsupported",
+      `Creating jobs is not supported for ${context.providerKind}.`,
+    );
+  }
+  const createJobTask = creator;
+
+  const targetLocales = [
+    ...new Set(input.targetLocales.map((locale) => locale.trim()).filter(Boolean)),
+  ];
+  if (targetLocales.length === 0) {
+    throw new TmsProviderLiveError("target_locales_required", "Select at least one target locale.");
+  }
+
+  const fileIds = [...new Set(input.fileIds.map((fileId) => fileId.trim()).filter(Boolean))];
+  if (fileIds.length === 0) {
+    throw new TmsProviderLiveError("file_ids_required", "Select at least one file.");
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  if (!projectMetadata) {
+    throw new TmsProviderLiveError("project_not_found", "Provider project was not found.");
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
+  });
+
+  const assignees =
+    input.assigneeExternalUserIds
+      ?.map((externalUserId) => externalUserId.trim())
+      .filter(Boolean)
+      .map((externalUserId) => ({ externalUserId })) ?? [];
+
+  // Settle in-flight locale creates instead of aborting via mapWithConcurrency:
+  // already-started Crowdin API calls may still succeed, and discarding those
+  // results leaves the client unaware of tasks that already exist on retry.
+  const createdByLocale: Array<ExternalTmsJobTaskMetadata | null> = Array.from(
+    { length: targetLocales.length },
+    () => null,
+  );
+  const errorsByLocale: Array<Error | null> = Array.from(
+    { length: targetLocales.length },
+    () => null,
+  );
+  let nextIndex = 0;
+  let stopScheduling = false;
+  const concurrency = Math.min(3, targetLocales.length);
+
+  async function createLocaleWorker() {
+    while (true) {
+      if (stopScheduling) {
+        return;
+      }
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      if (currentIndex >= targetLocales.length) {
+        return;
+      }
+
+      const targetLocale = targetLocales[currentIndex]!;
+      try {
+        createdByLocale[currentIndex] = await createJobTask({
+          organizationId: context.organizationId,
+          projectId: liveProject.id,
+          providerKind: context.providerKind,
+          externalProjectId,
+          credential: context.credential,
+          project: liveProject,
+          secretMaterial: context.secretMaterial,
+          task: {
+            title: input.title,
+            targetLocale,
+            fileIds,
+            kind: input.kind ?? "translation",
+            description: input.description ?? null,
+            ...(assignees.length > 0 ? { assignees } : {}),
+          },
+        });
+      } catch (error) {
+        stopScheduling = true;
+        try {
+          rethrowProviderFetcherError(error);
+        } catch (mapped) {
+          errorsByLocale[currentIndex] =
+            mapped instanceof Error ? mapped : new Error("Failed to create provider jobs");
+        }
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => createLocaleWorker()));
+
+  const createdTasks = createdByLocale.flatMap((task) => (task ? [task] : []));
+  const firstError = errorsByLocale.find((error) => error != null) ?? null;
+
+  const jobs = createdTasks.map((task) =>
+    mapLiveJob({
+      providerKind: context.providerKind,
+      externalProjectId,
+      projectName: projectMetadata.name,
+      task,
+    }),
+  );
+
+  if (firstError) {
+    if (jobs.length > 0) {
+      throw new TmsProviderLivePartialCreateError(
+        `Created ${jobs.length} of ${targetLocales.length} jobs, then failed: ${firstError.message}`,
+        jobs.length,
+        jobs,
+      );
+    }
+    throw firstError;
+  }
+
+  return jobs;
+}
+
+export async function deleteTmsProviderLiveJob(
+  organizationId: string,
+  encodedJobId: string,
+  actorUserId: string,
+): Promise<boolean> {
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, { actorUserId });
+  if (context.providerKind !== parsed.providerKind) {
+    return false;
+  }
+
+  const deleter = getProviderJobTaskDeleter(context.providerKind);
+  if (!deleter) {
+    throw new TmsProviderLiveError(
+      "provider_task_delete_unsupported",
+      `Deleting jobs is not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, parsed.externalProjectId);
+  if (!projectMetadata) {
+    return false;
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
+  });
+
+  try {
+    return await deleter({
+      organizationId: context.organizationId,
+      projectId: liveProject.id,
+      providerKind: context.providerKind,
+      externalProjectId: parsed.externalProjectId,
+      credential: context.credential,
+      project: liveProject,
+      secretMaterial: context.secretMaterial,
+      externalJobId: parsed.externalJobId,
+    });
+  } catch (error) {
+    rethrowProviderFetcherError(error);
+    throw error;
+  }
+}
+
+export async function listTmsProviderLiveProjectMembers(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<ExternalTmsProjectMemberMetadata[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  const fetcher = getProviderProjectMemberFetcher(context.providerKind);
+  if (!fetcher) {
+    throw new TmsProviderLiveError(
+      "provider_members_unsupported",
+      `Listing project members is not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  if (!projectMetadata) {
+    throw new TmsProviderLiveError("project_not_found", "Provider project was not found.");
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
+  });
+
+  try {
+    return await fetcher({
+      organizationId: context.organizationId,
+      projectId: liveProject.id,
+      providerKind: context.providerKind,
+      externalProjectId,
+      credential: context.credential,
+      project: liveProject,
+      secretMaterial: context.secretMaterial,
+    });
+  } catch (error) {
+    rethrowProviderFetcherError(error);
+    throw error;
+  }
 }
 
 export async function updateTmsProviderLiveJobDescription(

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getTmsProviderLiveErrorStatus } from "./tms-provider-live-error-response";
+import { TmsProviderLivePartialCreateError } from "./tms-provider-live-error";
+import {
+  getTmsProviderLiveErrorStatus,
+  tmsProviderLiveErrorResponse,
+} from "./tms-provider-live-error-response";
 
 describe("getTmsProviderLiveErrorStatus", () => {
   it.each([
@@ -17,8 +21,41 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["smartling_auth_invalid", 401],
     ["provider_fetcher_unavailable", 501],
     ["provider_description_edit_unsupported", 501],
+    ["provider_task_create_partial", 207],
     ["unknown_code", 500],
   ] as const)("maps %s to %i", (code, status) => {
     expect(getTmsProviderLiveErrorStatus(code)).toBe(status);
+  });
+});
+
+describe("tmsProviderLiveErrorResponse", () => {
+  it("includes created jobs for partial provider create failures", async () => {
+    const jobs = [{ id: "job-1" }, { id: "job-2" }];
+    let captured: { body: unknown; status: number } | null = null;
+    const c = {
+      json(body: object, status: number) {
+        captured = { body, status };
+        return new Response(JSON.stringify(body), { status }) as never;
+      },
+    };
+
+    tmsProviderLiveErrorResponse(
+      c,
+      new TmsProviderLivePartialCreateError(
+        "Created 2 of 3 jobs, then failed: boom",
+        jobs.length,
+        jobs,
+      ),
+    );
+
+    expect(captured).toEqual({
+      status: 207,
+      body: {
+        error: "provider_task_create_partial",
+        message: "Created 2 of 3 jobs, then failed: boom",
+        createdCount: 2,
+        jobs,
+      },
+    });
   });
 });

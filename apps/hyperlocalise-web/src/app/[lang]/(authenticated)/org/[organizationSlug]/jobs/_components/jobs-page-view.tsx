@@ -228,6 +228,16 @@ function getInputPayloadString(job: ApiJob, key: string) {
 
 export function getJobName(job: ApiJob) {
   if (job.externalTitle) return formatJobName(job.externalTitle);
+  const metadataTitle =
+    typeof job.inputPayload === "object" &&
+    job.inputPayload &&
+    "metadata" in job.inputPayload &&
+    typeof (job.inputPayload as { metadata?: unknown }).metadata === "object" &&
+    (job.inputPayload as { metadata?: { title?: unknown } }).metadata &&
+    typeof (job.inputPayload as { metadata: { title?: unknown } }).metadata.title === "string"
+      ? (job.inputPayload as { metadata: { title: string } }).metadata.title
+      : null;
+  if (metadataTitle) return formatJobName(metadataTitle);
   if (job.kind === "review" && job.reviewCriteria)
     return formatJobName(`Review: ${job.reviewCriteria}`);
   if (job.kind === "sync" && job.syncConnectorKind)
@@ -587,6 +597,7 @@ export function JobsPageView({
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   createdNativeJobs = [],
   hasActiveTmsConnection = false,
+  headerActions,
   initialSearch = "",
   initialStatusFilter = "all",
   isNativeLoading,
@@ -609,6 +620,7 @@ export function JobsPageView({
   buildJobDetailHref?: typeof buildJobDetailHref;
   createdNativeJobs?: JobRow[];
   hasActiveTmsConnection?: boolean;
+  headerActions?: ReactNode;
   initialSearch?: string;
   initialStatusFilter?: JobsStatusFilter;
   isNativeLoading: boolean;
@@ -830,6 +842,7 @@ export function JobsPageView({
           icon={Task01Icon}
           section="Jobs"
           description="Translation, review, QA, and sync work from Hyperlocalise and your TMS."
+          actions={headerActions}
         />
         {jobsSection}
       </ProjectPageShell>
@@ -847,6 +860,7 @@ export function JobsPageView({
             ? "Hyperlocalise and live TMS work assigned to you or created by you."
             : "Hyperlocalise jobs and live TMS jobs tracked across the workspace."
         }
+        actions={headerActions}
       />
       {jobsSection}
     </WorkspacePageShell>

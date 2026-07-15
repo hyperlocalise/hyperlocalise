@@ -45,6 +45,8 @@ export function ProviderLiveJobDetailView({
   jobId,
   localeReadinessLoading = false,
   localeReadinessOverride,
+  onDelete,
+  isDeleting = false,
   onRefresh,
   organizationSlug,
   projectId,
@@ -60,10 +62,12 @@ export function ProviderLiveJobDetailView({
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
+  isDeleting?: boolean;
   job?: TmsProviderLiveJobDetail;
   jobId: string;
   localeReadinessLoading?: boolean;
   localeReadinessOverride?: Record<string, unknown> | null;
+  onDelete?: () => void;
   onRefresh?: () => void;
   organizationSlug: string;
   projectId: string;
@@ -112,9 +116,24 @@ export function ProviderLiveJobDetailView({
         )
       ) : null}
       {onRefresh ? (
-        <Button size="sm" variant="outline" disabled={isRefreshing} onClick={onRefresh}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={isRefreshing || isDeleting}
+          onClick={onRefresh}
+        >
           <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
           {isRefreshing ? "Refreshing..." : "Refresh"}
+        </Button>
+      ) : null}
+      {onDelete ? (
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={isRefreshing || isDeleting}
+          onClick={onDelete}
+        >
+          {isDeleting ? "Deleting..." : "Delete task"}
         </Button>
       ) : null}
       {showViewStrings && catHref ? (

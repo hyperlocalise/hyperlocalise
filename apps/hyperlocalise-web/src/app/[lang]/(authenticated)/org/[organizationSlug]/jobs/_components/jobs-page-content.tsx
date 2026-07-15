@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { TranslateIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
@@ -17,7 +17,9 @@ import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-l
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
 
+import { CreateJobDialog } from "./create-job-dialog";
 import {
   JobsPageErrorMessage,
   JobsPageView,
@@ -189,10 +191,14 @@ export function JobsPageContent({
 }) {
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const hasActiveTmsConnection = Boolean(activeTmsProviderQuery.data);
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
+    enabled: Boolean(projectId),
+  });
 
   const nativeJobsQueryKey = [
     "jobs",
@@ -260,27 +266,54 @@ export function JobsPageContent({
       ? assignedNativeJobsQuery.isLoading || createdNativeJobsQuery.isLoading
       : nativeJobsQuery.isLoading;
 
+  const canCreateJob = Boolean(projectId);
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
+
   return (
-    <JobsPageView
-      assignedNativeJobs={assignedNativeJobs}
-      createdNativeJobs={createdNativeJobs}
-      hasActiveTmsConnection={
-        hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
-      }
-      isNativeLoading={isNativeLoading}
-      isProviderProjectScope={isProviderProjectScope}
-      isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
-      nativeError={nativeError}
-      nativeJobs={nativeJobs}
-      onStatusFilterChange={setStatusFilter}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      renderError={renderProductionJobsError}
-      renderJobLink={renderProductionJobLink}
-      scope={scope}
-      statusFilter={statusFilter}
-      tmsError={tmsJobsQuery.error}
-      tmsJobs={tmsJobs}
-    />
+    <>
+      <JobsPageView
+        assignedNativeJobs={assignedNativeJobs}
+        createdNativeJobs={createdNativeJobs}
+        hasActiveTmsConnection={
+          hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
+        }
+        headerActions={
+          canCreateJob ? (
+            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              Create job
+            </Button>
+          ) : null
+        }
+        isNativeLoading={isNativeLoading}
+        isProviderProjectScope={isProviderProjectScope}
+        isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
+        nativeError={nativeError}
+        nativeJobs={nativeJobs}
+        onStatusFilterChange={setStatusFilter}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        renderError={renderProductionJobsError}
+        renderJobLink={renderProductionJobLink}
+        scope={scope}
+        statusFilter={statusFilter}
+        tmsError={tmsJobsQuery.error}
+        tmsJobs={tmsJobs}
+      />
+      {projectId ? (
+        <CreateJobDialog
+          open={createJobOpen}
+          onOpenChange={setCreateJobOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          targetLocales={targetLocales}
+          onCreated={async () => {
+            await Promise.all([nativeJobsQuery.refetch(), tmsJobsQuery.refetch()]);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

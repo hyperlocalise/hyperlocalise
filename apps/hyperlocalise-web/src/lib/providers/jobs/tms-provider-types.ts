@@ -151,6 +151,35 @@ export type ExternalTmsJobTaskCreator = (input: {
   task: ExternalTmsJobTaskCreateRequest;
 }) => Promise<ExternalTmsJobTaskMetadata>;
 
+export type ExternalTmsJobTaskDeleter = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+  externalJobId: string;
+}) => Promise<boolean>;
+
+export type ExternalTmsProjectMemberMetadata = {
+  externalUserId: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  role?: string | null;
+};
+
+export type ExternalTmsProjectMemberFetcher = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  credential: ExternalTmsCredential;
+  project: ExternalTmsProject;
+  secretMaterial: string;
+}) => Promise<ExternalTmsProjectMemberMetadata[]>;
+
 export type ExternalTmsJobTaskFetcher = (input: {
   organizationId: string;
   projectId: string;
