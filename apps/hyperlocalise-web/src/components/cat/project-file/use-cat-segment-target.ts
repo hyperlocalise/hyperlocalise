@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ProjectFileCatTranslation } from "@/api/routes/project/project.schema";
@@ -124,7 +125,7 @@ export function useCatSegmentTargets(input: {
   }>;
   enabled?: boolean;
 }) {
-  const segments = (() => {
+  const segments = useMemo(() => {
     const seen = new Set<string>();
     const unique: typeof input.segments = [];
     for (const segment of input.segments) {
@@ -136,7 +137,8 @@ export function useCatSegmentTargets(input: {
       unique.push(segment);
     }
     return unique;
-  })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- callers memoize input.segments
+  }, [input.segments]);
 
   return useQueries({
     queries: segments.map((segment) =>
