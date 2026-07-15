@@ -22,7 +22,11 @@ import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
 } from "@/lib/providers/jobs/job-provider-actions";
-import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  encodeProviderProjectId,
+  parseProviderJobId,
+} from "@/lib/providers/jobs/tms-provider-resource-id";
+import { getOwnedProject, projectNotFoundResponse } from "@/api/routes/project/project.shared";
 import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
   createTmsProviderLiveJobs,
@@ -74,6 +78,20 @@ const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
   action: z.literal("translate_with_agent"),
 });
+
+async function getOwnedProviderProjectForExternalId(
+  auth: AuthVariables["auth"],
+  providerKind: NonNullable<Awaited<ReturnType<typeof getTmsProviderConnection>>>["providerKind"],
+  externalProjectId: string,
+) {
+  return getOwnedProject(
+    auth,
+    encodeProviderProjectId({
+      providerKind,
+      externalProjectId,
+    }),
+  );
+}
 
 const createTmsProviderJobsBodySchema = z.object({
   title: z.string().trim().min(1).max(256),
@@ -266,6 +284,21 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       }
 
       const payload = c.req.valid("json");
+      const connection = await getTmsProviderConnection(
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (!connection) {
+        return c.json({ error: "no_active_tms_provider" }, 404);
+      }
+
+      const ownedProject = await getOwnedProviderProjectForExternalId(
+        c.var.auth,
+        connection.providerKind,
+        c.req.param("externalProjectId"),
+      );
+      if (!ownedProject) {
+        return projectNotFoundResponse(c);
+      }
 
       try {
         const jobs = await createTmsProviderLiveJobs(
@@ -454,10 +487,25 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return c.json({ error: "forbidden" }, 403);
       }
 
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!parsedJobId) {
+        return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
+      }
+
+      const ownedProject = await getOwnedProviderProjectForExternalId(
+        c.var.auth,
+        parsedJobId.providerKind,
+        parsedJobId.externalProjectId,
+      );
+      if (!ownedProject) {
+        return projectNotFoundResponse(c);
+      }
+
       try {
         const deleted = await deleteTmsProviderLiveJob(
           c.var.auth.organization.localOrganizationId,
-          c.req.param("encodedJobId"),
+          encodedJobId,
           c.var.auth.user.localUserId,
         );
         if (!deleted) {
