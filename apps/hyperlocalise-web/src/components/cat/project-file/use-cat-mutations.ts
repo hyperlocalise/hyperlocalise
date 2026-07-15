@@ -14,7 +14,10 @@ import type { CrowdinIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
-import { useInvalidateCatSegmentTarget } from "./use-cat-segment-target";
+import {
+  useInvalidateCatSegmentTarget,
+  useSyncCatSegmentTargetAfterSave,
+} from "./use-cat-segment-target";
 
 export function useCatMutations(input: {
   organizationSlug: string;
@@ -26,6 +29,7 @@ export function useCatMutations(input: {
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
+  const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
 
   const saveMutation = useMutation({
@@ -73,17 +77,19 @@ export function useCatMutations(input: {
         : undefined;
       const resourceType = input.catFile?.provider?.resourceType;
 
+      const segmentTargetInput = {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      };
+
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentTarget({
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          sourcePath: input.sourcePath,
-          externalResourceId,
-          resourceType,
-          targetLocale: input.targetLocale,
-          externalStringId: variables.externalStringId,
-        }),
+        syncSegmentTargetAfterSave(segmentTargetInput, translation),
       ]);
     },
   });
