@@ -46,9 +46,9 @@ export function parseCatSourcePathsFilter(sourcePaths: string | null | undefined
   return paths.length > 0 ? paths : null;
 }
 
-export function serializeCatSourcePathsFilter(sourcePaths: readonly string[]) {
+export function serializeCatSourcePathsFilter(sourcePaths: readonly (string | null | undefined)[]) {
   return sourcePaths
+    .filter((path): path is string => typeof path === "string" && Boolean(path.trim()))
     .map((path) => path.trim())
-    .filter(Boolean)
     .join(",");
 }

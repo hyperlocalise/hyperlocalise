@@ -477,12 +477,15 @@ export function ProjectFileCatWorkspace({
             )
           : {};
 
+      const recommendationSourcePath =
+        segment.sourcePath?.trim() || intelligence?.filePath?.trim() || sourcePath;
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.recommendation.$post({
         param: { organizationSlug, projectId },
         json: {
-          sourcePath,
+          sourcePath: recommendationSourcePath,
           targetLocale,
           sourceLocale: segment.sourceLocale,
           key: segment.key,

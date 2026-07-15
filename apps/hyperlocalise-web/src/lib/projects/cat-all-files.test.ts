@@ -27,6 +27,9 @@ describe("cat-all-files", () => {
     expect(parseCatSourcePathsFilter("a.json, b.json, a.json")).toEqual(["a.json", "b.json"]);
     expect(parseCatSourcePathsFilter("")).toBeNull();
     expect(serializeCatSourcePathsFilter(["a.json", "b.json"])).toBe("a.json,b.json");
+    expect(serializeCatSourcePathsFilter(["a.json", null, "  ", undefined, "b.json"])).toBe(
+      "a.json,b.json",
+    );
   });
 
   it("supports native and Crowdin only for All Files", () => {

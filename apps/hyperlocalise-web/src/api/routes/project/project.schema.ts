@@ -604,6 +604,8 @@ export const projectFileCatSegmentSchema = z.object({
   looksLikeImageUrl: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
+  /** Provider file format for this segment's file (All Files mode). */
+  format: z.string().nullable().optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
 });

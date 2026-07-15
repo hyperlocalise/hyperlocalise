@@ -2324,6 +2324,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
         context: sourceString.context,
         type: sourceString.type ?? null,
         sourcePath: file.sourcePath,
+        ...(file.provider?.format != null ? { format: file.provider.format } : {}),
         ...(file.provider?.externalResourceId
           ? { externalResourceId: file.provider.externalResourceId }
           : {}),

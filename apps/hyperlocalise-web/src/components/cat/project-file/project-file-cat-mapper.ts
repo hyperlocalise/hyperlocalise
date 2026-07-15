@@ -158,11 +158,14 @@ function segmentIntelligenceFor(
   const maxLength =
     segment.maxLength != null && segment.maxLength > 0 ? segment.maxLength : undefined;
 
+  const segmentFormat = segment.format?.trim() || undefined;
+
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
     locationBreadcrumb: segment.key,
     filePath: segment.sourcePath ?? catFile.sourcePath,
-    componentName: segmentType ?? catFile.provider?.format ?? providerKind ?? undefined,
+    componentName:
+      segmentType ?? segmentFormat ?? catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning: context || undefined,
     ...(segmentType ? { segmentType } : {}),
     ...(maxLength != null ? { maxLength } : {}),

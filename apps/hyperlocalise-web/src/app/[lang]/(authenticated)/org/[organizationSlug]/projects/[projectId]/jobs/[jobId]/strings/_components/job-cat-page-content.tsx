@@ -334,7 +334,7 @@ export function JobCatPageContent({
     didAutoSelectDefaultFileRef.current = true;
     const jobSourcePaths = defaultFileQuery.data.files
       .map((file) => file.sourcePath)
-      .filter(Boolean);
+      .filter((path): path is string => Boolean(path?.trim()));
     const reference = defaultFileQuery.data.reference;
 
     if (canUseAllFiles) {
@@ -439,7 +439,10 @@ export function JobCatPageContent({
       sourcePaths
         ?.split(",")
         .map((value) => value.trim())
-        .filter(Boolean) ?? jobFiles.map((file) => file.sourcePath);
+        .filter(Boolean) ??
+      jobFiles
+        .map((file) => file.sourcePath)
+        .filter((path): path is string => Boolean(path?.trim()));
     const selectedTargetLocale = activeTargetLocale ?? targetLocale;
 
     if (
