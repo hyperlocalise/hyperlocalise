@@ -418,4 +418,46 @@ describe("fetchCrowdinJobTasks", () => {
       }),
     ).rejects.toThrow("crowdin_task_source_scope_ambiguous");
   });
+
+  it("lists Crowdin project members through the provider adapter", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toContain("/projects/1/members");
+      return Response.json({
+        data: [
+          {
+            data: {
+              id: 42,
+              username: "translator1",
+              fullName: "Ada Translator",
+              avatarUrl: "https://example.com/a.png",
+              role: "translator",
+            },
+          },
+        ],
+        pagination: { offset: 0, limit: 1 },
+      });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await crowdinTmsProvider.listProjectMembers({
+      organizationId: "org-1",
+      projectId: "project-1",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+    });
+
+    expect(result).toEqual([
+      {
+        externalUserId: "42",
+        username: "translator1",
+        displayName: "Ada Translator",
+        avatarUrl: "https://example.com/a.png",
+        role: "translator",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });

@@ -373,10 +373,7 @@ export function CreateJobDialog({
           },
         });
         if (!response.ok) {
-          const failure = await readApiResponseError(
-            response,
-            "Failed to create translation job",
-          );
+          const failure = await readApiResponseError(response, "Failed to create translation job");
           if (createdIds.length > 0) {
             throw new PartialCreateJobsError(
               `Created ${createdIds.length} of ${eligibleFiles.length} jobs, then failed: ${failure.message}`,

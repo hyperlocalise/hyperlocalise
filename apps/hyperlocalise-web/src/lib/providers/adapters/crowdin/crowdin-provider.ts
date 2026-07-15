@@ -380,7 +380,9 @@ export class CrowdinTmsProvider extends TmsProvider {
   /**
    * Lists Crowdin project members and maps them to shared assignee metadata.
    */
-  async listProjectMembers(scope: TmsProviderProjectScope): Promise<ExternalTmsProjectMemberMetadata[]> {
+  async listProjectMembers(
+    scope: TmsProviderProjectScope,
+  ): Promise<ExternalTmsProjectMemberMetadata[]> {
     const client = this.createClient(scope);
     const projectId = this.parseProjectId(scope.externalProjectId);
 
