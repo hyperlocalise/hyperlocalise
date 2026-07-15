@@ -333,6 +333,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {tab.isPending ? (
           <ChatDockEmptyState
+            pageContext={store.pageContext}
             onSelectSuggestion={(prompt) => {
               store.setDraft(tab.id, prompt);
               requestAnimationFrame(() => {

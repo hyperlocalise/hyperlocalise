@@ -202,6 +202,12 @@ describe("AppShellStore", () => {
     store.navigation.setCustomNavigation(sampleGroups);
     store.sidebar.setForceCollapsed(true);
     store.sidebar.setPreferredOpen(false);
+    store.chatDock.setPageContext({
+      kind: "cat-segment",
+      segmentId: "seg-02",
+      key: "checkout.submit",
+      sourceText: "Submit",
+    });
 
     store.resetPageScope();
 
@@ -210,6 +216,7 @@ describe("AppShellStore", () => {
     expect(store.navigation.mode).toBe("route");
     expect(store.sidebar.forceCollapsed).toBe(false);
     expect(store.sidebar.preferredOpen).toBeNull();
+    expect(store.chatDock.pageContext).toBeNull();
   });
 
   it("bridges sidebar api and collapses when forced", () => {

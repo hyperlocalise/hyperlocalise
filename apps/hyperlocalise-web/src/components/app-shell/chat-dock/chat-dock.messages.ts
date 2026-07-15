@@ -48,6 +48,11 @@ export const chatDockMessages = defineMessages({
     defaultMessage: "Find context for a string",
     description: "Suggested prompt chip to find localisation context",
   },
+  suggestionSegmentContext: {
+    id: "tToS3qyu6G",
+    defaultMessage: "Context of {key}",
+    description: "Suggested prompt chip for the currently selected CAT segment",
+  },
   suggestionRecentChanges: {
     id: "EChSkkf+KW",
     defaultMessage: "What changed recently",
@@ -67,6 +72,11 @@ export const chatDockMessages = defineMessages({
     id: "VKjWHU/QDH",
     defaultMessage: "What does this string mean, and where is it used?",
     description: "Prefilled prompt when choosing the find-context chip",
+  },
+  promptSegmentContext: {
+    id: "084ETvW6A4",
+    defaultMessage: 'What\'s the context of "{key}"?',
+    description: "Prefilled prompt when asking for context of the selected CAT segment",
   },
   promptRecentChanges: {
     id: "N83FNjAdU2",

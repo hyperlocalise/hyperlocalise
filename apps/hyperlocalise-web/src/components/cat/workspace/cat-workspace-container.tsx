@@ -26,6 +26,7 @@ import type { CatSegment, CatWorkspaceState } from "@/components/cat/shared/type
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 import { CatQueryBridge } from "./bridge/cat-query-bridge";
+import { CatChatDockPageContextBridge } from "./cat-chat-dock-page-context-bridge";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { CatWorkspaceLazySegmentSync } from "./cat-workspace-lazy-segment-sync";
 import { CatWorkspaceView } from "./cat-workspace";
@@ -115,6 +116,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
 
   return (
     <>
+      <CatChatDockPageContextBridge />
       {onPageLimitChange ? (
         <CatWorkspaceViewModeSync onPageLimitChange={onPageLimitChange} />
       ) : null}
