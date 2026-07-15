@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TypographyP } from "@/components/ui/typography";
 import {
   formatLocaleDisplayName,
   formatLocaleOptionLabel,
@@ -143,51 +142,45 @@ export function CatFileTreePicker({
         <FilePickerIcon className="size-4 text-muted-foreground" />
         <span className="min-w-0 truncate">{triggerLabel}</span>
       </DialogTrigger>
-      <DialogContent className="max-h-[min(720px,calc(100svh-2rem))] gap-4 overflow-hidden sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(720px,calc(100svh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 gap-2 px-6 pt-6 pe-12 pb-4">
           <DialogTitle>Choose source file</DialogTitle>
           <DialogDescription>
             Browse the file tree, or choose All Files to view strings across every file.
           </DialogDescription>
         </DialogHeader>
 
-        {onSelectAllFiles ? (
-          <Button
-            type="button"
-            variant={dialogAllFiles ? "default" : "outline"}
-            className="h-9 justify-start"
-            onClick={() => {
-              setDialogAllFiles(true);
-              setDialogSourcePath("");
-            }}
-          >
-            All Files
-          </Button>
-        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-2">
+          {onSelectAllFiles ? (
+            <Button
+              type="button"
+              variant={dialogAllFiles ? "default" : "outline"}
+              className="h-9 shrink-0 justify-start"
+              onClick={() => {
+                setDialogAllFiles(true);
+                setDialogSourcePath("");
+              }}
+            >
+              All Files
+            </Button>
+          ) : null}
 
-        <div className="min-h-0 rounded-lg border border-border bg-background">
-          <ProjectFilesTree
-            files={files}
-            selectedSourcePath={dialogAllFiles ? "" : dialogSourcePath}
-            onSelectFile={(sourcePath) => {
-              setDialogAllFiles(false);
-              setDialogSourcePath(sourcePath);
-            }}
-            onActivateFile={handleActivateFile}
-            ariaLabel="Source files"
-          />
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background">
+            <ProjectFilesTree
+              files={files}
+              selectedSourcePath={dialogAllFiles ? "" : dialogSourcePath}
+              onSelectFile={(sourcePath) => {
+                setDialogAllFiles(false);
+                setDialogSourcePath(sourcePath);
+              }}
+              onActivateFile={handleActivateFile}
+              ariaLabel="Source files"
+              fillHeight
+            />
+          </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-background px-4 py-3">
-          <TypographyP className="truncate font-mono text-xs text-foreground">
-            {dialogAllFiles ? "All Files" : (selectedFile?.sourcePath ?? "No file selected")}
-          </TypographyP>
-          <TypographyP className="text-xs text-muted-foreground">
-            Double-click a file in the tree, or use Open file.
-          </TypographyP>
-        </div>
-
-        <DialogFooter>
+        <DialogFooter className="shrink-0 gap-2 border-t border-border px-6 pt-4 pb-6 sm:justify-end">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
