@@ -56,7 +56,10 @@ import {
 } from "@/lib/providers/adapters/smartling/smartling-provider";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
+import {
+  TmsProviderLiveError,
+  TmsProviderLivePartialCreateError,
+} from "@/lib/providers/jobs/tms-provider-live-error";
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
@@ -161,7 +164,7 @@ function mapCrowdinLiveProjectToMetadata(project: CrowdinProject): ExternalTmsPr
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
-export { TmsProviderLiveError };
+export { TmsProviderLiveError, TmsProviderLivePartialCreateError };
 
 export type TmsProviderConnection = {
   providerKind: ExternalTmsProviderKind;
@@ -3317,6 +3320,7 @@ export async function createTmsProviderLiveJobs(
       `Creating jobs is not supported for ${context.providerKind}.`,
     );
   }
+  const createJobTask = creator;
 
   const targetLocales = [
     ...new Set(input.targetLocales.map((locale) => locale.trim()).filter(Boolean)),
@@ -3353,32 +3357,69 @@ export async function createTmsProviderLiveJobs(
       .filter(Boolean)
       .map((externalUserId) => ({ externalUserId })) ?? [];
 
-  const createdTasks = await mapWithConcurrency(targetLocales, 3, async (targetLocale) => {
-    try {
-      return await creator({
-        organizationId: context.organizationId,
-        projectId: liveProject.id,
-        providerKind: context.providerKind,
-        externalProjectId,
-        credential: context.credential,
-        project: liveProject,
-        secretMaterial: context.secretMaterial,
-        task: {
-          title: input.title,
-          targetLocale,
-          fileIds,
-          kind: input.kind ?? "translation",
-          description: input.description ?? null,
-          ...(assignees.length > 0 ? { assignees } : {}),
-        },
-      });
-    } catch (error) {
-      rethrowProviderFetcherError(error);
-      throw error;
-    }
-  });
+  // Settle in-flight locale creates instead of aborting via mapWithConcurrency:
+  // already-started Crowdin API calls may still succeed, and discarding those
+  // results leaves the client unaware of tasks that already exist on retry.
+  const createdByLocale: Array<ExternalTmsJobTaskMetadata | null> = Array.from(
+    { length: targetLocales.length },
+    () => null,
+  );
+  const errorsByLocale: Array<Error | null> = Array.from(
+    { length: targetLocales.length },
+    () => null,
+  );
+  let nextIndex = 0;
+  let stopScheduling = false;
+  const concurrency = Math.min(3, targetLocales.length);
 
-  return createdTasks.map((task) =>
+  async function createLocaleWorker() {
+    while (true) {
+      if (stopScheduling) {
+        return;
+      }
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      if (currentIndex >= targetLocales.length) {
+        return;
+      }
+
+      const targetLocale = targetLocales[currentIndex]!;
+      try {
+        createdByLocale[currentIndex] = await createJobTask({
+          organizationId: context.organizationId,
+          projectId: liveProject.id,
+          providerKind: context.providerKind,
+          externalProjectId,
+          credential: context.credential,
+          project: liveProject,
+          secretMaterial: context.secretMaterial,
+          task: {
+            title: input.title,
+            targetLocale,
+            fileIds,
+            kind: input.kind ?? "translation",
+            description: input.description ?? null,
+            ...(assignees.length > 0 ? { assignees } : {}),
+          },
+        });
+      } catch (error) {
+        stopScheduling = true;
+        try {
+          rethrowProviderFetcherError(error);
+        } catch (mapped) {
+          errorsByLocale[currentIndex] =
+            mapped instanceof Error ? mapped : new Error("Failed to create provider jobs");
+        }
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => createLocaleWorker()));
+
+  const createdTasks = createdByLocale.flatMap((task) => (task ? [task] : []));
+  const firstError = errorsByLocale.find((error) => error != null) ?? null;
+
+  const jobs = createdTasks.map((task) =>
     mapLiveJob({
       providerKind: context.providerKind,
       externalProjectId,
@@ -3386,6 +3427,19 @@ export async function createTmsProviderLiveJobs(
       task,
     }),
   );
+
+  if (firstError) {
+    if (jobs.length > 0) {
+      throw new TmsProviderLivePartialCreateError(
+        `Created ${jobs.length} of ${targetLocales.length} jobs, then failed: ${firstError.message}`,
+        jobs.length,
+        jobs,
+      );
+    }
+    throw firstError;
+  }
+
+  return jobs;
 }
 
 export async function deleteTmsProviderLiveJob(

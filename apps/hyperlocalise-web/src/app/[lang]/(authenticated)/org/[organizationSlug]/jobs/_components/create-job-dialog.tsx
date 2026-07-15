@@ -342,7 +342,30 @@ export function CreateJobDialog({
           },
         });
         if (!response.ok) {
-          throw await readApiResponseError(response, "Failed to create Crowdin jobs");
+          const body: unknown = await response.json().catch(() => null);
+          const createdCount =
+            body &&
+            typeof body === "object" &&
+            "createdCount" in body &&
+            typeof (body as { createdCount: unknown }).createdCount === "number"
+              ? (body as { createdCount: number }).createdCount
+              : body &&
+                  typeof body === "object" &&
+                  "jobs" in body &&
+                  Array.isArray((body as { jobs: unknown }).jobs)
+                ? (body as { jobs: unknown[] }).jobs.length
+                : 0;
+          const message =
+            body &&
+            typeof body === "object" &&
+            "message" in body &&
+            typeof (body as { message: unknown }).message === "string"
+              ? (body as { message: string }).message
+              : "Failed to create Crowdin jobs";
+          if (createdCount > 0) {
+            throw new PartialCreateJobsError(message, createdCount);
+          }
+          throw new Error(message);
         }
         const body = (await response.json()) as { jobs: unknown[] };
         return { count: body.jobs.length };
