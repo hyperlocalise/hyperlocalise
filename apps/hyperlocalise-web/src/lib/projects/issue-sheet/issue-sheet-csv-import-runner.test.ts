@@ -190,7 +190,7 @@ Check copy,missing-assignee@example.com,Low`,
       organizationId: organization.id,
       projectId: project.id,
       actorUserId: user.id,
-      query: { status: "all", limit: 10, offset: 0 },
+      query: { status: "all", sort: "updated_at", sortDir: "desc", limit: 10, offset: 0 },
     });
 
     const assignedIssue = issues.issues.find((issue) => issue.title === "Fix context");

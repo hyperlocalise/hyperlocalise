@@ -19,14 +19,11 @@ const meta = {
     organizationSlug: issuesOrganizationSlug,
     issues: organizationIssuesFixture,
     summary: issuesSummaryFixture,
-    view: "all_open",
-    search: "",
     isLoading: false,
     isError: false,
     isFetchingMore: false,
     hasMore: false,
-    onViewChange: fn(),
-    onSearchChange: fn(),
+    filterBar: <div data-testid="issue-filters">Filters</div>,
     onLoadMore: fn(),
   },
 } satisfies Meta<typeof IssuesPageView>;
@@ -108,7 +105,6 @@ export const WithActions: Story = {
 
 export const QaTriageView: Story = {
   args: {
-    view: "qa_triage",
     issues: organizationIssuesFixture.filter((issue) => issue.issueType === "qa_failure"),
     summary: {
       total: 1,

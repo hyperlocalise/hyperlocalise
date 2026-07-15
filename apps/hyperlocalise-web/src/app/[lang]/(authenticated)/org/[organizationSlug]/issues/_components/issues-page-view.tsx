@@ -6,29 +6,12 @@ import { ClipboardListIcon } from "@hugeicons/core-free-icons";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 
 export const ISSUES_PAGE_SIZE = 50;
-
-const views = [
-  { value: "all_open", label: "All open" },
-  { value: "my_work", label: "My work" },
-  { value: "qa_triage", label: "QA triage" },
-  { value: "source_context", label: "Source & context" },
-] as const;
-
-type IssueView = (typeof views)[number]["value"];
 
 export type OrganizationIssue = {
   id: string;
@@ -93,15 +76,12 @@ export function IssuesPageView({
   organizationSlug,
   issues,
   summary,
-  view,
-  search,
   isLoading,
   isError,
   isFetchingMore,
   hasMore,
   actions,
-  onViewChange,
-  onSearchChange,
+  filterBar,
   onLoadMore,
 }: {
   organizationSlug: string;
@@ -113,15 +93,12 @@ export function IssuesPageView({
     resolved: number;
     wontFix: number;
   };
-  view: IssueView;
-  search: string;
   isLoading: boolean;
   isError: boolean;
   isFetchingMore: boolean;
   hasMore: boolean;
   actions?: ReactNode;
-  onViewChange: (view: IssueView) => void;
-  onSearchChange: (search: string) => void;
+  filterBar: ReactNode;
   onLoadMore: () => void;
 }) {
   return (
@@ -134,29 +111,7 @@ export function IssuesPageView({
         actions={actions}
       />
 
-      <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[220px_1fr]">
-        <Select
-          value={view}
-          items={views}
-          onValueChange={(value) => onViewChange((value ?? "all_open") as IssueView)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="View" />
-          </SelectTrigger>
-          <SelectContent>
-            {views.map((item) => (
-              <SelectItem key={item.value} value={item.value} label={item.label}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={search}
-          onChange={(event) => onSearchChange(event.currentTarget.value)}
-          placeholder="Search title, description, project, or source path"
-        />
-      </div>
+      {filterBar}
 
       {summary ? (
         <div className="flex flex-wrap gap-2">

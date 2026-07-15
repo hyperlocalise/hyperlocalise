@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { TypographyP } from "@/components/ui/typography";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { IssuesPageContent } from "./_components/issues-page-content";
@@ -10,5 +13,13 @@ export default async function IssuesPage({
   const { organizationSlug } = await params;
   await requireAppAuthContext({ organizationSlug });
 
-  return <IssuesPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense
+      fallback={
+        <TypographyP className="text-sm text-muted-foreground">Loading issues...</TypographyP>
+      }
+    >
+      <IssuesPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }

@@ -164,6 +164,7 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
 export const issueSheetResponseFixture = {
   issues: issueSheetIssuesFixture,
   columns: issueSheetColumnsFixture,
+  total: issueSheetIssuesFixture.length,
   summary: issueSheetSummaryFixture,
 };
 
