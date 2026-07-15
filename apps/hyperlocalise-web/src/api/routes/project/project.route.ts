@@ -1304,6 +1304,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           filename,
           sourceLocale: body.sourceLocale,
           targetLocale: body.targetLocale,
+          displayLocale: body.displayLocale,
           key: body.key,
           sourceText: body.sourceText,
           targetText: body.targetText,

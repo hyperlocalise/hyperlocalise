@@ -4,6 +4,7 @@ import { generateText, Output, type LanguageModel } from "ai";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { db, schema } from "@/lib/database";
 import type { LlmProvider } from "@/lib/database/types";
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
@@ -20,6 +21,15 @@ import type {
   StringTranslationGeneratorInput,
   StringTranslationJobResult,
 } from "@/lib/translation/domain";
+
+function resolveCatRecommendationDisplayLocale(displayLocale?: string): string {
+  const trimmed = displayLocale?.trim();
+  if (!trimmed) {
+    return DEFAULT_APP_LOCALE;
+  }
+
+  return normalizeAppLocale(trimmed) ?? trimmed;
+}
 
 const stringTranslationOutputSchema = z.object({
   translations: z.array(
@@ -77,10 +87,15 @@ export class TranslationPromptPolicy {
     fileContext?: string | null;
     repositoryContext?: string | null;
     includeContextSections?: boolean;
+    displayLocale?: string;
   }): string {
     const glossaryTerms = input.glossaryTerms ?? [];
     const translationMemoryMatches = input.translationMemoryMatches ?? [];
     const knowledgeMemory = input.knowledgeMemory?.trim();
+    const displayLocale =
+      input.mode === "cat-suggest"
+        ? resolveCatRecommendationDisplayLocale(input.displayLocale)
+        : undefined;
 
     const instructions =
       input.mode === "cat-suggest"
@@ -94,6 +109,7 @@ export class TranslationPromptPolicy {
             "Use approved translation memory matches as consistency references when they apply.",
             "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project context, file context, repository context, workspace knowledge memory, then translation memory examples.",
             "When a current target draft is provided, improve it when needed instead of repeating it unchanged.",
+            `Write the suggestion in the target locale. Write the reasoning in the reviewer's display locale (${displayLocale}), not in the target translation locale.`,
             "Return concise reasoning that explains terminology, tone, or product-fit choices.",
           ]
         : input.mode === "sandbox"
@@ -135,6 +151,7 @@ export class TranslationPromptPolicy {
     if (input.mode === "cat-suggest") {
       sections.push(
         `Project name: ${input.projectName ?? "(none)"}`,
+        `Reviewer display locale: ${displayLocale}`,
         `Project translation context: ${input.projectTranslationContext?.trim() || "(none)"}`,
         `Workspace knowledge memory: ${knowledgeMemory || "(none)"}`,
       );
@@ -511,6 +528,7 @@ export class CatRecommendationEngine {
         maxLength: input.maxLength,
         fileContext: input.context,
         repositoryContext: input.agentContext,
+        displayLocale: input.displayLocale,
       }),
       prompt: [
         `Project file: ${input.filename}`,
@@ -518,6 +536,7 @@ export class CatRecommendationEngine {
         `String key: ${input.key}`,
         `Source locale: ${input.sourceLocale}`,
         `Target locale: ${input.targetLocale}`,
+        `Reviewer display locale: ${resolveCatRecommendationDisplayLocale(input.displayLocale)}`,
         input.maxLength ? `Maximum length: ${input.maxLength} characters` : null,
         input.targetText?.trim() ? ["Current target draft:", input.targetText].join("\n") : null,
         "Source text:",

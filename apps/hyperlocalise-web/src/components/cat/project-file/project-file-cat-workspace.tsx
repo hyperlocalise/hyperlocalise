@@ -488,6 +488,7 @@ export function ProjectFileCatWorkspace({
           sourcePath: recommendationSourcePath,
           targetLocale,
           sourceLocale: segment.sourceLocale,
+          displayLocale: intl.locale,
           key: segment.key,
           sourceText: segment.sourceText,
           targetText,
@@ -505,7 +506,7 @@ export function ProjectFileCatWorkspace({
       const body = (await response.json()) as ProjectFileCatRecommendationResponse;
       return body.recommendation;
     },
-    [organizationSlug, projectId, sourcePath, targetLocale],
+    [intl.locale, organizationSlug, projectId, sourcePath, targetLocale],
   );
 
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
