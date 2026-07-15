@@ -10,6 +10,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
 import { TypographyP } from "@/components/ui/typography";
+import { apiKeysPageContentMessages } from "./api-keys-page-content.messages";
 
 type ApiKey = {
   id: string;
@@ -40,25 +42,22 @@ type ApiKey = {
 
 const apiKeysQueryKey = (organizationSlug: string) => ["api-keys", organizationSlug];
 
-/**
- * BOLT OPTIMIZATION: Reuse Intl.DateTimeFormat instance.
- * Creating Intl objects is expensive (~0.18ms per instance).
- * Reusing a single instance reduces overhead by >95%.
- */
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+function formatApiKeyDate(intl: IntlShape, date: string | null) {
+  if (!date) {
+    return intl.formatMessage(apiKeysPageContentMessages.neverUsed);
+  }
 
-function formatDate(date: string | null) {
-  if (!date) return "Never";
-  return DATE_FORMATTER.format(new Date(date));
+  return intl.formatDate(new Date(date), {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
@@ -73,7 +72,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         param: { organizationSlug },
       });
       if (!response.ok) {
-        throw new Error("Failed to load API keys");
+        throw new Error(intl.formatMessage(apiKeysPageContentMessages.loadFailed));
       }
       const body = await response.json();
       return (body.apiKeys ?? []) as ApiKey[];
@@ -91,7 +90,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         if (body && typeof body === "object" && "error" in body) {
           throw new Error(String(body.error));
         }
-        throw new Error("Failed to create API key");
+        throw new Error(intl.formatMessage(apiKeysPageContentMessages.createFailed));
       }
       return response.json() as Promise<{
         apiKey: { id: string; name: string; key: string; keyPrefix: string };
@@ -115,13 +114,13 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         param: { organizationSlug, apiKeyId },
       });
       if (!response.ok) {
-        throw new Error("Failed to revoke API key");
+        throw new Error(intl.formatMessage(apiKeysPageContentMessages.revokeFailed));
       }
     },
     onSuccess: async () => {
       setRevokingKeyId(null);
       await queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(organizationSlug) });
-      toast.success("API key revoked");
+      toast.success(intl.formatMessage(apiKeysPageContentMessages.revokedToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -139,11 +138,11 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       .writeText(key)
       .then(() => {
         setCopied(true);
-        toast.success("API key copied to clipboard");
+        toast.success(intl.formatMessage(apiKeysPageContentMessages.copiedToast));
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
-        toast.error("Failed to copy to clipboard");
+        toast.error(intl.formatMessage(apiKeysPageContentMessages.copyFailedToast));
       });
   }
 
@@ -161,9 +160,9 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={Key01Icon}
-        label="Workspace settings"
-        title="API Keys"
-        description="Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
+        label={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
+        title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
+        description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
         actions={
           <Button
             type="button"
@@ -172,38 +171,37 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
             disabled={createKey.isPending}
           >
             <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-            Create API key
+            <FormattedMessage {...apiKeysPageContentMessages.createButton} />
           </Button>
         }
       />
 
       <section
-        aria-label="API keys"
+        aria-label={intl.formatMessage(apiKeysPageContentMessages.sectionAriaLabel)}
         className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
       >
         {apiKeysQuery.isLoading ? (
           <TypographyP className="px-5 py-8 text-sm text-muted-foreground">
-            Loading API keys...
+            <FormattedMessage {...apiKeysPageContentMessages.loading} />
           </TypographyP>
         ) : apiKeysQuery.isError ? (
           <div className="px-5 py-8">
             <TypographyP className="text-sm font-medium text-destructive">
-              API keys failed to load.
+              <FormattedMessage {...apiKeysPageContentMessages.loadErrorTitle} />
             </TypographyP>
             <TypographyP className="mt-1 text-sm text-muted-foreground">
               {apiKeysQuery.error instanceof Error
                 ? apiKeysQuery.error.message
-                : "Refresh the page to try again."}
+                : intl.formatMessage(apiKeysPageContentMessages.loadErrorFallback)}
             </TypographyP>
           </div>
         ) : activeKeys.length === 0 ? (
           <div className="px-5 py-10">
             <TypographyP className="text-sm font-medium text-foreground">
-              No API keys yet
+              <FormattedMessage {...apiKeysPageContentMessages.emptyTitle} />
             </TypographyP>
             <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Create a key to authenticate scripts, CI jobs, and integrations against this
-              workspace.
+              <FormattedMessage {...apiKeysPageContentMessages.emptyDescription} />
             </TypographyP>
           </div>
         ) : (
@@ -216,13 +214,31 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                       {key.name}
                     </TypographyP>
                     <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                      {key.keyPrefix}••••••••
+                      <FormattedMessage
+                        {...apiKeysPageContentMessages.maskedKeyPrefix}
+                        values={{ prefix: key.keyPrefix }}
+                      />
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>Permissions: {key.permissions.join(", ")}</span>
-                    <span>Created {formatDate(key.createdAt)}</span>
-                    <span>Last used {formatDate(key.lastUsedAt)}</span>
+                    <span>
+                      <FormattedMessage
+                        {...apiKeysPageContentMessages.permissions}
+                        values={{ permissions: key.permissions.join(", ") }}
+                      />
+                    </span>
+                    <span>
+                      <FormattedMessage
+                        {...apiKeysPageContentMessages.createdAt}
+                        values={{ date: formatApiKeyDate(intl, key.createdAt) }}
+                      />
+                    </span>
+                    <span>
+                      <FormattedMessage
+                        {...apiKeysPageContentMessages.lastUsed}
+                        values={{ date: formatApiKeyDate(intl, key.lastUsedAt) }}
+                      />
+                    </span>
                   </div>
                 </div>
                 <Button
@@ -233,7 +249,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   disabled={revokeKey.isPending}
                 >
                   <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} className="size-4" />
-                  Revoke
+                  <FormattedMessage {...apiKeysPageContentMessages.revoke} />
                 </Button>
               </div>
             ))}
@@ -250,11 +266,19 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{createdKey ? "API key created" : "Create API key"}</DialogTitle>
+            <DialogTitle>
+              {createdKey ? (
+                <FormattedMessage {...apiKeysPageContentMessages.createdDialogTitle} />
+              ) : (
+                <FormattedMessage {...apiKeysPageContentMessages.createDialogTitle} />
+              )}
+            </DialogTitle>
             <DialogDescription>
-              {createdKey
-                ? "Copy this key now. You will not be able to see it again."
-                : "Give your key a name so you can identify it later."}
+              {createdKey ? (
+                <FormattedMessage {...apiKeysPageContentMessages.createdDialogDescription} />
+              ) : (
+                <FormattedMessage {...apiKeysPageContentMessages.createDialogDescription} />
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -272,12 +296,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   {copied ? (
                     <>
                       <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} className="size-4" />
-                      Copied
+                      <FormattedMessage {...apiKeysPageContentMessages.copied} />
                     </>
                   ) : (
                     <>
                       <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} className="size-4" />
-                      Copy
+                      <FormattedMessage {...apiKeysPageContentMessages.copy} />
                     </>
                   )}
                 </Button>
@@ -286,12 +310,14 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           ) : (
             <form onSubmit={handleCreateSubmit} className="grid gap-4">
               <Field className="gap-2">
-                <FieldLabel htmlFor="key-name">Key name</FieldLabel>
+                <FieldLabel htmlFor="key-name">
+                  <FormattedMessage {...apiKeysPageContentMessages.keyNameLabel} />
+                </FieldLabel>
                 <Input
                   id="key-name"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  placeholder="e.g. Production CI"
+                  placeholder={intl.formatMessage(apiKeysPageContentMessages.keyNamePlaceholder)}
                 />
               </Field>
             </form>
@@ -300,7 +326,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           <DialogFooter>
             {createdKey ? (
               <Button type="button" onClick={handleCloseCreateDialog} className="w-full sm:w-fit">
-                Done
+                <FormattedMessage {...apiKeysPageContentMessages.done} />
               </Button>
             ) : (
               <>
@@ -310,7 +336,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   onClick={handleCloseCreateDialog}
                   className="w-full sm:w-fit"
                 >
-                  Cancel
+                  <FormattedMessage {...apiKeysPageContentMessages.cancel} />
                 </Button>
                 <Button
                   type="button"
@@ -318,7 +344,11 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   disabled={!newKeyName.trim() || createKey.isPending}
                   className="w-full sm:w-fit"
                 >
-                  {createKey.isPending ? "Creating..." : "Create key"}
+                  {createKey.isPending ? (
+                    <FormattedMessage {...apiKeysPageContentMessages.creating} />
+                  ) : (
+                    <FormattedMessage {...apiKeysPageContentMessages.createKey} />
+                  )}
                 </Button>
               </>
             )}
@@ -332,10 +362,11 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Revoke API key</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...apiKeysPageContentMessages.revokeDialogTitle} />
+            </DialogTitle>
             <DialogDescription>
-              This key will immediately lose access to the workspace API. Any integrations using it
-              will stop working.
+              <FormattedMessage {...apiKeysPageContentMessages.revokeDialogDescription} />
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -345,7 +376,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
               onClick={() => setRevokingKeyId(null)}
               className="w-full sm:w-fit"
             >
-              Cancel
+              <FormattedMessage {...apiKeysPageContentMessages.cancel} />
             </Button>
             <Button
               type="button"
@@ -356,7 +387,11 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
               disabled={revokeKey.isPending}
               className="w-full sm:w-fit"
             >
-              {revokeKey.isPending ? "Revoking..." : "Revoke key"}
+              {revokeKey.isPending ? (
+                <FormattedMessage {...apiKeysPageContentMessages.revoking} />
+              ) : (
+                <FormattedMessage {...apiKeysPageContentMessages.revokeKey} />
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,6 +3,10 @@
     "defaultMessage": "No description",
     "description": "Empty state message when a markdown description preview has no content"
   },
+  "++VvL4EEbo": {
+    "defaultMessage": "Copied",
+    "description": "Copy button label after the API key was copied"
+  },
   "+1iajv5nbm": {
     "defaultMessage": "Filipino (Philippines)",
     "description": "Display name for BCP-47 locale fil-PH"
@@ -54,10 +58,6 @@
   "+ngHznLyUe": {
     "defaultMessage": "Hungarian (Hungary)",
     "description": "Display name for BCP-47 locale hu-HU"
-  },
-  "+pyXMBZm58": {
-    "defaultMessage": "Some segments on this page have unsaved edits. Change page without saving?",
-    "description": "Body when changing CAT queue page with unsaved target text"
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} tests passed",
@@ -171,10 +171,6 @@
     "defaultMessage": "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow.",
     "description": "Capability 5 description for the github-release-localisation use case"
   },
-  "/qvZ8TPpqw": {
-    "defaultMessage": "Use",
-    "description": "Button to apply an approved glossary term to the target field"
-  },
   "/zPj/3x/+q": {
     "defaultMessage": "Slack agent enabled",
     "description": "Toast after enabling the Slack agent"
@@ -183,9 +179,17 @@
     "defaultMessage": "Approve",
     "description": "Primary action to approve the current CAT translation"
   },
+  "0+lekb0oBh": {
+    "defaultMessage": "API key created",
+    "description": "Title of the create API key dialog after the key is generated"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "Product image placeholder",
     "description": "Marketing homepage workflow chapter placeholder title"
+  },
+  "084ETvW6A4": {
+    "defaultMessage": "What's the context of \"{key}\"?",
+    "description": "Prefilled prompt when asking for context of the selected CAT segment"
   },
   "087Hwu4wFp": {
     "defaultMessage": "Built for support content at scale",
@@ -290,10 +294,6 @@
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
-  },
-  "0zYUPddzdy": {
-    "defaultMessage": "Reasoning:",
-    "description": "Label prefix before AI recommendation reasoning text"
   },
   "1/O6U8eZiP": {
     "defaultMessage": "Terminal",
@@ -431,10 +431,6 @@
     "defaultMessage": "Pull product context from where work happens",
     "description": "Capability 1 title for the product-localisation use case"
   },
-  "2O/RojUz55": {
-    "defaultMessage": "Leave segment with unsaved changes?",
-    "description": "Title when navigating away from a segment with unsaved target text"
-  },
   "2Oxmu0zqx8": {
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
     "description": "Capability 1 description for the marketing-localisation use case"
@@ -526,10 +522,6 @@
   "36gU2d3aFl": {
     "defaultMessage": "Billing",
     "description": "Billing settings link in the user menu"
-  },
-  "37yFkjafwR": {
-    "defaultMessage": "Your edits to this segment have not been saved. Leave without saving?",
-    "description": "Body when navigating away from a segment with unsaved target text"
   },
   "38GSO8BtcX": {
     "defaultMessage": "Key capabilities",
@@ -630,6 +622,10 @@
   "4NIhoyP8P+": {
     "defaultMessage": "Draft translations with your preferred LLM",
     "description": "Capability 3 title for the github-release-localisation use case"
+  },
+  "4Nb8hxfYt5": {
+    "defaultMessage": "API key revoked",
+    "description": "Success toast after revoking an API key"
   },
   "4NfxqMMl1K": {
     "defaultMessage": "Detect changed strings",
@@ -755,6 +751,10 @@
     "defaultMessage": "Total cost",
     "description": "Label for total token usage cost in the context hover card footer"
   },
+  "5eoi21fmqC": {
+    "defaultMessage": "Copy",
+    "description": "Button to copy the newly created API key"
+  },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
     "description": "GitHub connect error when installation ID is invalid"
@@ -762,6 +762,10 @@
   "5yXqdk0MWc": {
     "defaultMessage": "From new article to monitored locale coverage",
     "description": "Workflow section title for the help-center-localisation use case"
+  },
+  "60PQQ7C+fN": {
+    "defaultMessage": "Last used {date}",
+    "description": "API key row showing last-used timestamp"
   },
   "63np7ewMDD": {
     "defaultMessage": "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
@@ -794,6 +798,10 @@
   "6QjQu7ZEVO": {
     "defaultMessage": "{triggerSource} · completed {completedAt}",
     "description": "Automation run metadata when the run has completed"
+  },
+  "6RuyJHJCyu": {
+    "defaultMessage": "Revoke",
+    "description": "Button to open the revoke API key confirmation dialog"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "Failed to connect Crowdin",
@@ -1175,6 +1183,10 @@
     "defaultMessage": "Failed to generate GitHub install URL",
     "description": "Toast when GitHub App install URL generation fails"
   },
+  "9uVn8mc+mK": {
+    "defaultMessage": "e.g. Production CI",
+    "description": "Placeholder for the API key name field"
+  },
   "9w0U+WoX/B": {
     "defaultMessage": "Route to marketing and legal reviewers",
     "description": "Workflow step 4 description for the marketing-localisation use case"
@@ -1343,6 +1355,10 @@
     "defaultMessage": "Knowledge",
     "description": "Marketing navbar link to the self-evolving knowledge product page"
   },
+  "Bh7oPsMHrP": {
+    "defaultMessage": "Refresh the page to try again.",
+    "description": "Fallback error guidance when loading API keys fails"
+  },
   "BjoXu+/Pje": {
     "defaultMessage": "Localization check",
     "description": "Label for the localization validation workflow toggle"
@@ -1435,6 +1451,14 @@
     "defaultMessage": "How it works",
     "description": "Use case page workflow section label"
   },
+  "CWXh32oIoB": {
+    "defaultMessage": "{prefix}••••••••",
+    "description": "Masked API key prefix shown in the keys list"
+  },
+  "CWdGpW4jOj": {
+    "defaultMessage": "Strings",
+    "description": "Project sidebar navigation item for the CAT strings workspace"
+  },
   "CfAFoekPz1": {
     "defaultMessage": "{providerName} projects",
     "description": "Dashboard panel title for live TMS projects"
@@ -1518,6 +1542,10 @@
   "DOGd1ZI3w4": {
     "defaultMessage": "Localization PM",
     "description": "Marketing homepage testimonial speaker role"
+  },
+  "DSm/l7fomX": {
+    "defaultMessage": "Revoke API key",
+    "description": "Title of the revoke API key confirmation dialog"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "Route to support and localisation reviewers",
@@ -1795,6 +1823,10 @@
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
   },
+  "Ga0sjgCRoD": {
+    "defaultMessage": "Click to localize image",
+    "description": "Placeholder when a side-by-side image row has no localized image yet"
+  },
   "GdufIv1RQV": {
     "defaultMessage": "Contentful",
     "description": "Automation run trigger source label for Contentful-triggered runs"
@@ -1891,6 +1923,10 @@
     "defaultMessage": "Most review cycles stall because the translator cannot see the screen, the glossary, the intent, or the product nuance. Hyperlocalise puts that context beside the string.",
     "description": "Hero subcopy for the next-gen CAT tool product page"
   },
+  "HZrRUnuo70": {
+    "defaultMessage": "Copy this key now. You will not be able to see it again.",
+    "description": "Warning shown after an API key is created"
+  },
   "HZtAltEBuQ": {
     "defaultMessage": "Context attached in the file",
     "description": "Section heading for developer context attached in the source file"
@@ -1938,6 +1974,10 @@
   "IHNG6SIjSG": {
     "defaultMessage": "Bad translations reach production because there is no automated regression layer.",
     "description": "Problem pain point 5 for the github-release-localisation use case"
+  },
+  "IJDgzVk+ER": {
+    "defaultMessage": "Create API key",
+    "description": "Title of the create API key dialog before the key is generated"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files",
@@ -2098,6 +2138,14 @@
   "JwDpy6S6NK": {
     "defaultMessage": "Move between the product pillars without leaving the feature-page flow.",
     "description": "Product page related links section description"
+  },
+  "K+AvrhTOJl": {
+    "defaultMessage": "Copied",
+    "description": "Button label after a glossary target term was copied to the clipboard"
+  },
+  "K0Maj++lc6": {
+    "defaultMessage": "No API keys yet",
+    "description": "Empty state title when the workspace has no API keys"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Support content goes stale the moment it ships in English",
@@ -2359,9 +2407,17 @@
     "defaultMessage": "Enable check run",
     "description": "Label for enabling GitHub status checks"
   },
+  "NX9i6pdgvw": {
+    "defaultMessage": "Created {date}",
+    "description": "API key row showing creation timestamp"
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2",
     "description": "Example placeholder for the Crowdin API base URL field"
+  },
+  "NisKtP5fCJ": {
+    "defaultMessage": "Failed to revoke API key",
+    "description": "Error when revoking an API key fails"
   },
   "NjO8LhO0p7": {
     "defaultMessage": "Saving…",
@@ -2494,6 +2550,10 @@
   "P7DyqhOghg": {
     "defaultMessage": "No console output",
     "description": "Empty state when the web preview console has no logs"
+  },
+  "P8buB19/yY": {
+    "defaultMessage": "API keys",
+    "description": "Accessible label for the API keys list section"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "Localisation Quality Monitoring | Hyperlocalise",
@@ -2711,6 +2771,14 @@
     "defaultMessage": "Access denied",
     "description": "Default access denied page title"
   },
+  "RbHK79ne0Y": {
+    "defaultMessage": "Strings",
+    "description": "App shell breadcrumb title for the project strings CAT page"
+  },
+  "RcUcWXknuU": {
+    "defaultMessage": "Never",
+    "description": "Shown when an API key has never been used"
+  },
   "ReZgZHvqUS": {
     "defaultMessage": "Fuzzy match",
     "description": "Badge label for a fuzzy translation memory match"
@@ -2739,9 +2807,17 @@
     "defaultMessage": "Target includes {tokens} that is not in the source string.",
     "description": "CAT format check message listing extra placeholders in the target"
   },
+  "Rw5WXF50Q2": {
+    "defaultMessage": "Copy",
+    "description": "Button to copy an approved glossary target term to the clipboard"
+  },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chain of Thought",
     "description": "Default header label for the chain-of-thought collapsible section"
+  },
+  "S2pzZyn+jp": {
+    "defaultMessage": "Revoke key",
+    "description": "Confirm button to revoke an API key"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "Reconnect Slack",
@@ -2791,6 +2867,10 @@
     "defaultMessage": "Hyperlocalise sits between LLM providers and TMS tools, giving teams one workflow even as models, vendors, and review systems change underneath it.",
     "description": "Marketing homepage workflow chapter description"
   },
+  "ScpiJIZOJM": {
+    "defaultMessage": "Give your key a name so you can identify it later.",
+    "description": "Description in the create API key dialog before generation"
+  },
   "SgpR5Qp/zA": {
     "defaultMessage": "GitHub release localisation",
     "description": "Hero eyebrow for the github-release-localisation use case"
@@ -2806,6 +2886,10 @@
   "SmMQDr7bGf": {
     "defaultMessage": "Corrections, terminology choices, and product context stop disappearing into old comments.",
     "description": "Proof point 1 body for the self-evolving knowledge product page"
+  },
+  "StSqQpNlpj": {
+    "defaultMessage": "Checking format & QA",
+    "description": "Accessible label while side-by-side format checks are loading"
   },
   "Sz9XRZR4Jy": {
     "defaultMessage": "Open review tasks in your TMS",
@@ -2834,6 +2918,10 @@
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows",
     "description": "Sidebar description for the Automations navigation item"
+  },
+  "TE3bLZyBSZ": {
+    "defaultMessage": "<b>Reasoning:</b> {reasoning}",
+    "description": "AI recommendation reasoning with bold label prefix; b wraps the label"
   },
   "TEXn81XSVY": {
     "defaultMessage": "Every day at {time} · {timezone}",
@@ -2894,6 +2982,10 @@
   "TpaF4AqL/5": {
     "defaultMessage": "Reset automation settings?",
     "description": "Confirmation dialog title for resetting automation settings"
+  },
+  "TrnH0+MELk": {
+    "defaultMessage": "Failed to copy to clipboard",
+    "description": "Error toast when clipboard copy fails"
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Enforce terminology, character limits, and product voice before drafts reach human reviewers.",
@@ -2971,6 +3063,10 @@
     "defaultMessage": "All strings",
     "description": "CAT queue filter option showing every segment"
   },
+  "V/CBn2NY6n": {
+    "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace.",
+    "description": "Empty state description for the API keys list"
+  },
   "V04dsqCSZQ": {
     "defaultMessage": "No localized image yet",
     "description": "Empty state when the CAT target image has not been created"
@@ -3002,6 +3098,10 @@
   "VGayu+ZFkL": {
     "defaultMessage": "Previous segment ({shortcut})",
     "description": "Tooltip for the previous segment navigation button"
+  },
+  "VH9bOCu5nr": {
+    "defaultMessage": "Create API key",
+    "description": "Button to open the create API key dialog"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "What does this string mean, and where is it used?",
@@ -3035,9 +3135,17 @@
     "defaultMessage": "Open in v0",
     "description": "Menu item to open the prompt in v0"
   },
+  "VUwFgX4OmD": {
+    "defaultMessage": "Permissions: {permissions}",
+    "description": "API key row showing granted permissions"
+  },
   "VWQFJ0pM9H": {
     "defaultMessage": "Market rules, voice preferences, and repeated mistakes stay visible across workflows.",
     "description": "Proof point 3 body for the self-evolving knowledge product page"
+  },
+  "VZ/tPAEVdg": {
+    "defaultMessage": "API Keys",
+    "description": "API keys settings page heading"
   },
   "Vb+OMqzvaE": {
     "defaultMessage": "Push source, pull translations, and publish localization checks for this repository.",
@@ -3279,6 +3387,10 @@
     "defaultMessage": "Recent projects",
     "description": "Dashboard panel title for recently opened projects"
   },
+  "Ya0t4KyDVG": {
+    "defaultMessage": "Copy failed",
+    "description": "Button label when copying a glossary target term fails"
+  },
   "YaKRAqJTYd": {
     "defaultMessage": "Stop reviewing strings in the dark.",
     "description": "Bottom CTA headline for the next-gen CAT tool product page"
@@ -3343,6 +3455,10 @@
     "defaultMessage": "Source",
     "description": "Fallback label for a source document attachment without a title"
   },
+  "ZC65JlwD3i": {
+    "defaultMessage": "Loading API keys...",
+    "description": "Loading state while fetching API keys"
+  },
   "ZF5d+f8aEU": {
     "defaultMessage": "Start a conversation to see messages here",
     "description": "Empty state description prompting the user to send a message"
@@ -3402,6 +3518,10 @@
   "ZtpmqfuRlV": {
     "defaultMessage": "Extract structure, links, and product terms",
     "description": "Workflow step 2 description for the help-center-localisation use case"
+  },
+  "ZuaK6pQTdl": {
+    "defaultMessage": "Key name",
+    "description": "Label for the API key name field"
   },
   "ZurV/2CmHO": {
     "defaultMessage": "Ongoing monitor",
@@ -3466,6 +3586,10 @@
   "aGnEykoMgS": {
     "defaultMessage": "Sync approved translations back to your CMS",
     "description": "Capability 5 title for the help-center-localisation use case"
+  },
+  "aMf9NbDyem": {
+    "defaultMessage": "No image yet",
+    "description": "Fallback empty state when a CAT image preview has no source URL"
   },
   "aWf83qmrdq": {
     "defaultMessage": "Built for localisation operations and release confidence",
@@ -3546,6 +3670,10 @@
   "bW5VkndWCk": {
     "defaultMessage": "Email agent disabled",
     "description": "Toast after disabling the email agent"
+  },
+  "bXM2sr8gtz": {
+    "defaultMessage": "API key copied to clipboard",
+    "description": "Success toast after copying a newly created API key"
   },
   "bYpd314kqN": {
     "defaultMessage": "Localisation memory layer",
@@ -3666,6 +3794,10 @@
   "d2lnyxMtP0": {
     "defaultMessage": "A developer opens a pull request that renames fourteen UI strings and adds six new ones. Hyperlocalise comments on the PR with affected locales, generates translation drafts using glossary context from the linked launch brief, opens review tasks in Lokalise, runs the GitHub Action to verify all target locales are covered, and blocks merge until German and Japanese reviewers approve the updated pricing terminology.",
     "description": "Scenario narrative for the github-release-localisation use case"
+  },
+  "d4ixdVNgC5": {
+    "defaultMessage": "Creating...",
+    "description": "Create API key button label while the request is pending"
   },
   "d6ELhmM7BL": {
     "defaultMessage": "AI helps explain the tradeoffs, but the human reviewer keeps control of the final call.",
@@ -4151,6 +4283,10 @@
     "defaultMessage": "Attachment",
     "description": "Fallback label for a generic file attachment without a filename"
   },
+  "iXddAxYfyx": {
+    "defaultMessage": "{arg} · {type}",
+    "description": "ICU plural/select block argument and type summary in the CAT target editor"
+  },
   "iZaQ7K2itB": {
     "defaultMessage": "Enter URL...",
     "description": "Placeholder for the web preview URL input"
@@ -4271,6 +4407,10 @@
     "defaultMessage": "Failed",
     "description": "Automation run status badge for failed runs"
   },
+  "jh2RfUdWl3": {
+    "defaultMessage": "Done",
+    "description": "Button to close the create API key dialog after copying the key"
+  },
   "jhMzSbK5qz": {
     "defaultMessage": "Try again in a moment. If the problem continues, contact support or choose another organization.",
     "description": "Access denied page guidance when WorkOS membership lookup fails"
@@ -4386,6 +4526,10 @@
   "kod/dgRhlc": {
     "defaultMessage": "Inbound email copied",
     "description": "Toast after copying the email agent inbound address"
+  },
+  "ksrwIvV64s": {
+    "defaultMessage": "Workspace settings",
+    "description": "Breadcrumb-style label above the API keys page title"
   },
   "kuwnF7iUJu": {
     "defaultMessage": "Play preview",
@@ -4523,6 +4667,10 @@
     "defaultMessage": "New request",
     "description": "Button to open a new chat dock tab"
   },
+  "mctwKXU94p": {
+    "defaultMessage": "Leave page with unsaved changes?",
+    "description": "Title when leaving the CAT workspace with unsaved target text"
+  },
   "mdDGkHBHvr": {
     "defaultMessage": "Try again",
     "description": "Button that retries rendering a failed application route"
@@ -4538,6 +4686,10 @@
   "mltE2S4MiK": {
     "defaultMessage": "Instructions",
     "description": "Section label for agent system instructions"
+  },
+  "mmB/r+ohDb": {
+    "defaultMessage": "Some segments have unsaved edits. Leave without saving?",
+    "description": "Body when leaving the CAT workspace with unsaved target text"
   },
   "moonxzY9iq": {
     "defaultMessage": "Work arrives from product, marketing, support, and engineering through different channels with no shared intake.",
@@ -4586,6 +4738,10 @@
   "nE0iR4v6Zt": {
     "defaultMessage": "Mobile",
     "description": "Accessible label for the mobile navigation landmark"
+  },
+  "nE4gAmZP2R": {
+    "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly.",
+    "description": "API keys settings page description"
   },
   "nEBGfsZw1I": {
     "defaultMessage": "Running",
@@ -4699,10 +4855,6 @@
     "defaultMessage": "Context found by agent",
     "description": "Section heading for repository context discovered by an agent"
   },
-  "oeD72ehQB/": {
-    "defaultMessage": "Leave page with unsaved changes?",
-    "description": "Title when changing CAT queue page with unsaved target text"
-  },
   "oghE756t99": {
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate an existing AI translation recommendation"
@@ -4814,6 +4966,10 @@
   "ppXDMSLgyj": {
     "defaultMessage": "Queue panel failed to load",
     "description": "Error boundary title when the CAT queue panel crashes"
+  },
+  "pwrS5bq0q7": {
+    "defaultMessage": "Create key",
+    "description": "Submit button to create an API key"
   },
   "py4sv3RBJU": {
     "defaultMessage": "Enforce brand voice and terminology",
@@ -5023,6 +5179,10 @@
     "defaultMessage": "Try again",
     "description": "Button to retry sign-in after a pending workspace invite may have been accepted"
   },
+  "sCwvAHmqAI": {
+    "defaultMessage": "Failed to load API keys",
+    "description": "Error when the API keys list request fails"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
@@ -5038,6 +5198,10 @@
   "sZFiP5Oe8M": {
     "defaultMessage": "When launch work is scattered, translations become a last-minute scramble.",
     "description": "Details section headline for the agents automation product page"
+  },
+  "sishbO9DCq": {
+    "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working.",
+    "description": "Description in the revoke API key confirmation dialog"
   },
   "sjmGDLHpLL": {
     "defaultMessage": "Brand context",
@@ -5118,6 +5282,10 @@
   "tTTsndxkMz": {
     "defaultMessage": "Previous",
     "description": "Desktop navigation button to the previous segment"
+  },
+  "tToS3qyu6G": {
+    "defaultMessage": "Context of {key}",
+    "description": "Suggested prompt chip for the currently selected CAT segment"
   },
   "tUtjQfuwWO": {
     "defaultMessage": "Members",
@@ -5215,6 +5383,10 @@
     "defaultMessage": "{count} selected",
     "description": "Summary of how many CAT queue segments are selected for bulk actions"
   },
+  "uadZLjPGYZ": {
+    "defaultMessage": "{position} / {total}",
+    "description": "Current segment index and total count in the CAT editor header"
+  },
   "ubk8Jr6n+B": {
     "defaultMessage": "Format & QA checks",
     "description": "Section heading for format and quality assurance checks"
@@ -5283,6 +5455,10 @@
     "defaultMessage": "Built for localisation operations at scale",
     "description": "Differentiator point 5 for the localisation-operations use case"
   },
+  "vHkuFGKp7T": {
+    "defaultMessage": "Failed to create API key",
+    "description": "Error when creating an API key fails"
+  },
   "vHurxfGj2i": {
     "defaultMessage": "Find context for a string",
     "description": "Suggested prompt chip to find localisation context"
@@ -5350,6 +5526,10 @@
   "vfXyrNNj+X": {
     "defaultMessage": "Copy name",
     "description": "Tooltip for copying an environment variable name"
+  },
+  "vp6YtfmYlV": {
+    "defaultMessage": "Format & QA warning ({count, plural, one {# issue} other {# issues}})",
+    "description": "Accessible label for side-by-side format check warning icon"
   },
   "vq7ib8WdUv": {
     "defaultMessage": "Campaign brief",
@@ -5447,6 +5627,10 @@
     "defaultMessage": "Human-in-the-loop approvals",
     "description": "Differentiator point 3 for the marketing-localisation use case"
   },
+  "whnz/Xptx4": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in API key dialogs"
+  },
   "whr/nciIbp": {
     "defaultMessage": "Clear selection",
     "description": "Bulk action to clear the current segment selection"
@@ -5502,6 +5686,10 @@
   "xOFZqYtkn0": {
     "defaultMessage": "A few things need your attention",
     "description": "Dashboard hero title when pending actions need review"
+  },
+  "xQCn9y4Cu3": {
+    "defaultMessage": "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
+    "description": "Accessible label for side-by-side format check failure icon"
   },
   "xSPEc7l3cj": {
     "defaultMessage": "Go to dashboard",
@@ -5647,6 +5835,10 @@
     "defaultMessage": "OAuth callback URL copied",
     "description": "Toast after copying the OAuth callback URL"
   },
+  "z5++P6iegy": {
+    "defaultMessage": "API keys failed to load.",
+    "description": "Error title when the API keys list fails to load"
+  },
   "z6J/H68BKd": {
     "defaultMessage": "Source control",
     "description": "Integrations page section heading for source control providers"
@@ -5674,6 +5866,10 @@
   "zM/fYyJiHY": {
     "defaultMessage": "Enabled repositories updated",
     "description": "Toast after updating enabled GitHub repositories"
+  },
+  "zMB0hQFeRq": {
+    "defaultMessage": "Revoking...",
+    "description": "Revoke API key button label while the request is pending"
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Open account menu for {name}",

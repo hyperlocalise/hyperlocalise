@@ -43,7 +43,13 @@ export function CatEditorHeader({
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {String(segmentPosition).padStart(2, "0")} / {String(totalSegments).padStart(2, "0")}
+          <FormattedMessage
+            {...catEditorPanelMessages.segmentPosition}
+            values={{
+              position: String(segmentPosition).padStart(2, "0"),
+              total: String(totalSegments).padStart(2, "0"),
+            }}
+          />
         </span>
         <SegmentStatusBadge status={segment.status} />
         {isTargetDirty ? (

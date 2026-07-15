@@ -248,17 +248,23 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
       <ul className="space-y-2">
         {blocks.map((block) => (
           <li key={block.id} className="space-y-1">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span
-                className={cn(
-                  "rounded-md border px-1.5 py-0.5 font-mono",
-                  catMessageTokenToneClass("icu"),
-                )}
-              >
-                {block.arg}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="font-mono text-muted-foreground">{block.type}</span>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono text-muted-foreground">
+              <FormattedMessage
+                {...catTargetEditorMessages.icuBlockSummary}
+                values={{
+                  arg: (
+                    <span
+                      className={cn(
+                        "rounded-md border px-1.5 py-0.5 text-foreground",
+                        catMessageTokenToneClass("icu"),
+                      )}
+                    >
+                      {block.arg}
+                    </span>
+                  ),
+                  type: block.type,
+                }}
+              />
             </div>
             <div className="flex flex-wrap gap-1">
               {block.options.map((option) => (
