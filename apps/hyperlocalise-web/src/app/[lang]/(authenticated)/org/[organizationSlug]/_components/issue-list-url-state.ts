@@ -9,12 +9,7 @@ import {
   type IssuePriority,
 } from "@/lib/projects/issue-sheet/issue-list-query";
 
-export const ISSUE_STATUS_FILTERS = [
-  "open",
-  "in_progress",
-  "resolved",
-  "wont_fix",
-] as const;
+export const ISSUE_STATUS_FILTERS = ["open", "in_progress", "resolved", "wont_fix"] as const;
 
 export const ISSUE_TYPE_FILTERS = [
   "general_question",
@@ -70,8 +65,7 @@ export function parseIssueListSearchParams(
   const view = readAllowedValue(searchParams, "view", ISSUE_LIST_VIEWS) ?? DEFAULT_STATE.view;
   const sort = readAllowedValue(searchParams, "sort", ISSUE_LIST_SORT_FIELDS) ?? DEFAULT_STATE.sort;
   const sortDir =
-    readAllowedValue(searchParams, "sortDir", ISSUE_LIST_SORT_DIRECTIONS) ??
-    DEFAULT_STATE.sortDir;
+    readAllowedValue(searchParams, "sortDir", ISSUE_LIST_SORT_DIRECTIONS) ?? DEFAULT_STATE.sortDir;
   const status = readAllowedValue(searchParams, "status", ISSUE_STATUS_FILTERS);
   const issueType = readAllowedValue(searchParams, "issueType", ISSUE_TYPE_FILTERS);
   const priority = readAllowedValue(searchParams, "priority", ISSUE_PRIORITIES);

@@ -152,7 +152,11 @@ export class OrganizationIssueService {
     }
 
     const [rows, totalRow, summary] = await Promise.all([
-      listQuery.where(where).orderBy(...orderBy).limit(query.limit).offset(query.offset),
+      listQuery
+        .where(where)
+        .orderBy(...orderBy)
+        .limit(query.limit)
+        .offset(query.offset),
       countQuery.where(where),
       this.loadSummary(organizationId, accessibleProjectsWhere),
     ]);

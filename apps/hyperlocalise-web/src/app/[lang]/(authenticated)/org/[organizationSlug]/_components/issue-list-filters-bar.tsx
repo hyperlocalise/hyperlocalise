@@ -63,7 +63,9 @@ export function IssueListFiltersBar({
   projects?: ProjectOption[];
   searchPlaceholder?: string;
 }) {
-  const projectNameById = Object.fromEntries((projects ?? []).map((project) => [project.id, project.name]));
+  const projectNameById = Object.fromEntries(
+    (projects ?? []).map((project) => [project.id, project.name]),
+  );
   const chips = getActiveIssueFilterChips(state, {
     includeProject: Boolean(projects),
     projectNameById,

@@ -226,8 +226,8 @@ describe("Organization issues routes", () => {
     });
     const pageTwoBody = (await pageTwo.json()) as ListBody;
     expect(pageTwoBody.issues.map((issue) => issue.title)).toEqual(["My assigned open"]);
-    expect(new Set([...sortedBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size).toBe(
-      3,
-    );
+    expect(
+      new Set([...sortedBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size,
+    ).toBe(3);
   });
 });

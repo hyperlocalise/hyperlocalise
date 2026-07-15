@@ -42,12 +42,14 @@ describe("issue list URL state", () => {
     });
 
     expect(params.toString()).toBe("status=in_progress");
-    expect(buildIssueListHref("/org/acme/issues", {
-      view: "all_open",
-      search: "",
-      sort: "updated_at",
-      sortDir: "desc",
-    })).toBe("/org/acme/issues");
+    expect(
+      buildIssueListHref("/org/acme/issues", {
+        view: "all_open",
+        search: "",
+        sort: "updated_at",
+        sortDir: "desc",
+      }),
+    ).toBe("/org/acme/issues");
   });
 
   it("clears filters while preserving the selected preset and sort", () => {
