@@ -18,6 +18,7 @@ import {
 import {
   buildIssueListFilterConditions,
   buildIssueListOrderBy,
+  issueListNeedsCountPriorityJoin,
   issueListNeedsPriorityJoin,
   priorityColumnJoin,
   priorityColumns,
@@ -641,7 +642,7 @@ export class IssueSheetService {
       .from(schema.issueSheetIssues)
       .$dynamic();
 
-    if (issueListNeedsPriorityJoin(query)) {
+    if (issueListNeedsCountPriorityJoin(query)) {
       countQuery = countQuery
         .leftJoin(priorityColumns, priorityColumnJoin)
         .leftJoin(priorityValues, priorityValueJoin);

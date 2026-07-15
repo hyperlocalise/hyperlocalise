@@ -17,6 +17,7 @@ export function useIssueListUrlState(options?: { includeProject?: boolean }) {
   const searchParams = useSearchParams();
   const includeProject = options?.includeProject ?? false;
   const searchParamsKey = searchParams.toString();
+  const searchParamsKeyRef = useRef(searchParamsKey);
 
   const [state, setState] = useState(() =>
     parseIssueListSearchParams(new URLSearchParams(searchParamsKey), { includeProject }),
@@ -25,6 +26,7 @@ export function useIssueListUrlState(options?: { includeProject?: boolean }) {
   const skipNextUrlSync = useRef(false);
 
   useEffect(() => {
+    searchParamsKeyRef.current = searchParamsKey;
     const next = parseIssueListSearchParams(new URLSearchParams(searchParamsKey), {
       includeProject,
     });
@@ -39,11 +41,12 @@ export function useIssueListUrlState(options?: { includeProject?: boolean }) {
       return;
     }
     const href = buildIssueListHref(pathname, state, { includeProject });
-    const current = searchParamsKey ? `${pathname}?${searchParamsKey}` : pathname;
+    const currentKey = searchParamsKeyRef.current;
+    const current = currentKey ? `${pathname}?${currentKey}` : pathname;
     if (href !== current) {
       router.replace(href, { scroll: false });
     }
-  }, [includeProject, pathname, router, searchParamsKey, state]);
+  }, [includeProject, pathname, router, state]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {

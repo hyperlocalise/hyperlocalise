@@ -7,7 +7,7 @@ import {
   type IssueListSortField,
   type IssueListView,
   type IssuePriority,
-} from "@/lib/projects/issue-sheet/issue-list-query";
+} from "@/lib/projects/issue-sheet/issue-list-constants";
 
 export const ISSUE_STATUS_FILTERS = ["open", "in_progress", "resolved", "wont_fix"] as const;
 

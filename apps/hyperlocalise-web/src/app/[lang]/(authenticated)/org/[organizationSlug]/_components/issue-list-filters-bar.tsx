@@ -23,7 +23,7 @@ import {
   type IssueListUrlState,
 } from "./issue-list-url-state";
 import { WorkspaceFilterField, workspaceFilterTriggerClassName } from "./workspace-resource-shared";
-import { ISSUE_PRIORITIES } from "@/lib/projects/issue-sheet/issue-list-query";
+import { ISSUE_PRIORITIES } from "@/lib/projects/issue-sheet/issue-list-constants";
 
 const viewOptions = [
   { value: "all_open", label: "All open" },

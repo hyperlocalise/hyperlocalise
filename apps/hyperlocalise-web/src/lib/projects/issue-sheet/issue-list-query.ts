@@ -3,15 +3,25 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { schema } from "@/lib/database";
 
-export const ISSUE_LIST_VIEWS = ["my_work", "qa_triage", "source_context", "all_open"] as const;
-export const ISSUE_LIST_SORT_FIELDS = ["updated_at", "created_at", "priority", "status"] as const;
-export const ISSUE_LIST_SORT_DIRECTIONS = ["asc", "desc"] as const;
-export const ISSUE_PRIORITIES = ["P0", "P1", "P2"] as const;
+import {
+  type IssueListSortDirection,
+  type IssueListSortField,
+  type IssueListView,
+  type IssuePriority,
+} from "./issue-list-constants";
 
-export type IssueListView = (typeof ISSUE_LIST_VIEWS)[number];
-export type IssueListSortField = (typeof ISSUE_LIST_SORT_FIELDS)[number];
-export type IssueListSortDirection = (typeof ISSUE_LIST_SORT_DIRECTIONS)[number];
-export type IssuePriority = (typeof ISSUE_PRIORITIES)[number];
+export type {
+  IssueListSortDirection,
+  IssueListSortField,
+  IssueListView,
+  IssuePriority,
+} from "./issue-list-constants";
+export {
+  ISSUE_LIST_SORT_DIRECTIONS,
+  ISSUE_LIST_SORT_FIELDS,
+  ISSUE_LIST_VIEWS,
+  ISSUE_PRIORITIES,
+} from "./issue-list-constants";
 
 export type IssueListFilterQuery = {
   view?: IssueListView;
@@ -136,7 +146,12 @@ export function buildIssueListFilterConditions(input: {
       ilike(schema.issueSheetIssues.description, search),
       ilike(schema.issueSheetIssues.sourcePath, search),
     ];
-    conditions.push(or(...targets)!);
+    if (targets.length > 0) {
+      const searchCondition = or(...targets);
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
+    }
   }
 
   return conditions;
@@ -162,4 +177,9 @@ export function buildIssueListOrderBy(query: Pick<IssueListFilterQuery, "sort" |
 
 export function issueListNeedsPriorityJoin(query: Pick<IssueListFilterQuery, "priority" | "sort">) {
   return Boolean(query.priority) || query.sort === "priority";
+}
+
+/** True only when the priority JOIN is required for WHERE conditions (filtering). */
+export function issueListNeedsCountPriorityJoin(query: Pick<IssueListFilterQuery, "priority">) {
+  return Boolean(query.priority);
 }

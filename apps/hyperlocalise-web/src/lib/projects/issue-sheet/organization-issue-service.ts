@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/database";
 import {
   buildIssueListFilterConditions,
   buildIssueListOrderBy,
+  issueListNeedsCountPriorityJoin,
   issueListNeedsPriorityJoin,
   priorityColumnJoin,
   priorityColumns,
@@ -96,6 +97,7 @@ export class OrganizationIssueService {
     ];
     const where = and(...conditions, issueProjectJoin);
     const needsPriorityJoin = issueListNeedsPriorityJoin(query);
+    const needsCountPriorityJoin = issueListNeedsCountPriorityJoin(query);
     const orderBy = buildIssueListOrderBy(query);
 
     let listQuery = this.database
@@ -146,6 +148,8 @@ export class OrganizationIssueService {
       listQuery = listQuery
         .leftJoin(priorityColumns, priorityColumnJoin)
         .leftJoin(priorityValues, priorityValueJoin);
+    }
+    if (needsCountPriorityJoin) {
       countQuery = countQuery
         .leftJoin(priorityColumns, priorityColumnJoin)
         .leftJoin(priorityValues, priorityValueJoin);
