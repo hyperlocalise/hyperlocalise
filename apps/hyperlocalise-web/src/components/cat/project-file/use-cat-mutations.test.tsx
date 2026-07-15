@@ -19,12 +19,14 @@ const {
   catCommentsPostMock,
   catCommentResolvePatchMock,
   invalidateSegmentTargetMock,
+  syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
 } = vi.hoisted(() => ({
   catTranslationsPostMock: vi.fn(),
   catCommentsPostMock: vi.fn(),
   catCommentResolvePatchMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
+  syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
 }));
 
@@ -62,6 +64,7 @@ vi.mock("@/lib/api-client-instance", () => ({
 
 vi.mock("./use-cat-segment-target", () => ({
   useInvalidateCatSegmentTarget: () => invalidateSegmentTargetMock,
+  useSyncCatSegmentTargetAfterSave: () => syncSegmentTargetAfterSaveMock,
 }));
 
 vi.mock("./use-cat-segment-comments", () => ({
@@ -72,6 +75,8 @@ import { useCatMutations } from "./use-cat-mutations";
 
 const invalidateQueue = vi.fn().mockResolvedValue(undefined);
 const onTranslationSaved = vi.fn();
+
+syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 
 function renderCatMutations(catFile = createCatFileResponse().catFile) {
   return renderHook(
@@ -88,6 +93,7 @@ function renderCatMutations(catFile = createCatFileResponse().catFile) {
 
 afterEach(() => {
   vi.clearAllMocks();
+  syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 });
 
 describe("useCatMutations", () => {
@@ -118,6 +124,13 @@ describe("useCatMutations", () => {
     );
     expect(onTranslationSaved).toHaveBeenCalledWith("segment-1", "Bonjour", true);
     expect(invalidateQueue).toHaveBeenCalled();
+    expect(syncSegmentTargetAfterSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalStringId: "segment-1",
+        targetLocale: "fr",
+      }),
+      translation,
+    );
   });
 
   it("surfaces API errors when saving translations fails", async () => {

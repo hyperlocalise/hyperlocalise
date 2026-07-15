@@ -138,20 +138,34 @@ export function useCatSegmentTargets(input: {
   });
 }
 
+export type CatSegmentTargetQueryInput = {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+  targetLocale: string;
+  externalStringId: string;
+};
+
 export function useInvalidateCatSegmentTarget() {
   const queryClient = useQueryClient();
 
-  return async (input: {
-    organizationSlug: string;
-    projectId: string;
-    sourcePath: string;
-    externalResourceId?: string | null;
-    resourceType?: "file" | "key";
-    targetLocale: string;
-    externalStringId: string;
-  }) => {
+  return async (input: CatSegmentTargetQueryInput) => {
     await queryClient.invalidateQueries({
       queryKey: projectFileCatSegmentTargetQueryKey(input),
     });
+  };
+}
+
+/** Cancel in-flight fetches, seed cache with the saved translation, then refetch. */
+export function useSyncCatSegmentTargetAfterSave() {
+  const queryClient = useQueryClient();
+
+  return async (input: CatSegmentTargetQueryInput, translation: ProjectFileCatTranslation) => {
+    const queryKey = projectFileCatSegmentTargetQueryKey(input);
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, translation);
+    await queryClient.invalidateQueries({ queryKey });
   };
 }
