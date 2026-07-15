@@ -84,6 +84,7 @@ export const issueSheetEmptyMswHandlers = [
     HttpResponse.json({
       issues: [],
       columns: issueSheetResponseFixture.columns,
+      total: 0,
       summary: {
         total: 0,
         open: 0,

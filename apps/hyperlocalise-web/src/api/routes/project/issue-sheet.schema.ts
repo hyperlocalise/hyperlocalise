@@ -39,13 +39,20 @@ export const issueSheetColumnParamsSchema = projectIdParamsSchema.extend({
   columnId: z.string().uuid(),
 });
 
+export const issueSheetSortSchema = z.enum(["updated_at", "created_at", "priority", "status"]);
+export const issueSheetSortDirSchema = z.enum(["asc", "desc"]);
+export const issueSheetPrioritySchema = z.enum(["P0", "P1", "P2"]);
+
 export const issueSheetQuerySchema = z.object({
   view: z.enum(["my_work", "qa_triage", "source_context", "all_open"]).optional(),
   status: issueSheetIssueStatusSchema.or(z.literal("all")).optional(),
   issueType: issueSheetIssueTypeSchema.or(z.literal("all")).optional(),
+  priority: issueSheetPrioritySchema.optional(),
   locale: z.string().trim().min(1).max(32).optional(),
   assignee: z.string().uuid().or(z.literal("me")).or(z.literal("unassigned")).optional(),
   search: z.string().trim().max(200).optional(),
+  sort: issueSheetSortSchema.default("updated_at"),
+  sortDir: issueSheetSortDirSchema.default("desc"),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

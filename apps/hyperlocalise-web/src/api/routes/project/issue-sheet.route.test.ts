@@ -38,8 +38,9 @@ type IssueResponse = {
 };
 
 type IssueSheetListResponse = {
-  issues: { id: string }[];
+  issues: { id: string; title?: string; issueType?: string; status?: string }[];
   columns: { key: string }[];
+  total: number;
   summary: { open: number };
 };
 
@@ -131,7 +132,7 @@ describe("Issue Sheet routes", () => {
 
     expect(viewWithStatusResponse.status).toBe(200);
     const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
-    expect(viewWithStatusBody.issues).toHaveLength(1);
+    expect(viewWithStatusBody.issues).toHaveLength(0);
 
     const issueId = createdBody.issue.id;
     const updateResponse = await requestJson(
@@ -344,6 +345,107 @@ Second import issue,Done,EXT-2,P2`;
     });
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(2);
+  });
+
+  it("filters and sorts built-in views with stable pagination", async () => {
+    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const payloads = [
+      {
+        title: "QA triage candidate",
+        issueType: "qa_failure",
+        status: "open",
+        targetLocale: "de-DE",
+        priority: "P0",
+      },
+      {
+        title: "My work candidate",
+        issueType: "translation_mistake",
+        status: "open",
+        assigneeUserId: user.id,
+        targetLocale: "fr-FR",
+        priority: "P2",
+      },
+      {
+        title: "Source context candidate",
+        issueType: "source_mistake",
+        status: "in_progress",
+        targetLocale: "de-DE",
+        priority: "P1",
+      },
+    ] as const;
+
+    for (const payload of payloads) {
+      const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+      expect(response.status).toBe(201);
+    }
+
+    const qaTriage = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "qa_triage" },
+    });
+    const qaTriageBody = (await qaTriage.json()) as IssueSheetListResponse;
+    expect(qaTriageBody.issues.map((issue) => issue.title)).toEqual(["QA triage candidate"]);
+    expect(qaTriageBody.total).toBe(1);
+
+    const myWork = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "my_work" },
+    });
+    const myWorkBody = (await myWork.json()) as IssueSheetListResponse;
+    expect(myWorkBody.issues.map((issue) => issue.title)).toEqual(["My work candidate"]);
+
+    const filtered = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        locale: "de-DE",
+        assignee: "unassigned",
+        sort: "priority",
+        sortDir: "asc",
+        limit: "10",
+        offset: "0",
+      },
+    });
+    const filteredBody = (await filtered.json()) as IssueSheetListResponse;
+    expect(filteredBody.issues.map((issue) => issue.title)).toEqual([
+      "QA triage candidate",
+      "Source context candidate",
+    ]);
+
+    const pageOne = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        sort: "priority",
+        sortDir: "asc",
+        limit: "2",
+        offset: "0",
+      },
+    });
+    const pageTwo = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        sort: "priority",
+        sortDir: "asc",
+        limit: "2",
+        offset: "2",
+      },
+    });
+    const pageOneBody = (await pageOne.json()) as IssueSheetListResponse;
+    const pageTwoBody = (await pageTwo.json()) as IssueSheetListResponse;
+    expect(pageOneBody.issues).toHaveLength(2);
+    expect(pageTwoBody.issues).toHaveLength(1);
+    expect(
+      new Set([...pageOneBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size,
+    ).toBe(3);
   });
 
   it("rejects duplicate system field mappings", async () => {

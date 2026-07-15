@@ -28,6 +28,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
+import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
+import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
+import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
 import { issueTypes } from "./issue-sheet-constants";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
@@ -71,6 +74,7 @@ type IssueSheetIssue = {
 type IssueSheetResponse = {
   issues: IssueSheetIssue[];
   columns: IssueSheetColumn[];
+  total: number;
   summary: {
     total: number;
     open: number;
@@ -79,13 +83,6 @@ type IssueSheetResponse = {
     wontFix: number;
   };
 };
-
-const views = [
-  { value: "all_open", label: "All open" },
-  { value: "my_work", label: "My work" },
-  { value: "qa_triage", label: "QA triage" },
-  { value: "source_context", label: "Source & context" },
-] as const;
 
 const statuses = [
   { value: "open", label: "Open" },
@@ -180,20 +177,17 @@ export function IssueSheetPageContent({
 }) {
   useProjectPageQuery(organizationSlug, projectId);
   const queryClient = useQueryClient();
-  const [view, setView] = useState<(typeof views)[number]["value"]>("all_open");
-  const [search, setSearch] = useState("");
+  const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
-  const queryKey = ["issue-sheet", organizationSlug, projectId, view, search];
+  const apiQuery = issueListStateToApiQuery(state);
+  const queryKey = ["issue-sheet", organizationSlug, projectId, apiQuery];
   const issueSheetQuery = useQuery({
     queryKey,
     queryFn: async () => {
-      const params = new URLSearchParams({ view });
-      if (search.trim()) {
-        params.set("search", search.trim());
-      }
+      const params = new URLSearchParams(apiQuery);
       const response = await fetch(`${issueSheetPath(organizationSlug, projectId)}?${params}`);
       return readJsonOrThrow<IssueSheetResponse>(response);
     },
@@ -270,29 +264,13 @@ export function IssueSheetPageContent({
           }
         />
 
-        <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[220px_1fr]">
-          <Select
-            value={view}
-            items={views}
-            onValueChange={(value) => setView((value ?? "all_open") as typeof view)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="View" />
-            </SelectTrigger>
-            <SelectContent>
-              {views.map((item) => (
-                <SelectItem key={item.value} value={item.value} label={item.label}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            placeholder="Search title, description, or source path"
-          />
-        </div>
+        <IssueListFiltersBar
+          state={state}
+          searchDraft={searchDraft}
+          onSearchDraftChange={setSearchDraft}
+          onStateChange={updateState}
+          onClearFilters={clearFilters}
+        />
 
         {data ? (
           <div className="flex flex-wrap gap-2">
@@ -300,6 +278,7 @@ export function IssueSheetPageContent({
             <Badge variant="secondary">{data.summary.open} open</Badge>
             <Badge variant="warning">{data.summary.inProgress} in progress</Badge>
             <Badge variant="success">{data.summary.resolved} resolved</Badge>
+            <Badge variant="outline">{data.total} matching</Badge>
           </div>
         ) : null}
 

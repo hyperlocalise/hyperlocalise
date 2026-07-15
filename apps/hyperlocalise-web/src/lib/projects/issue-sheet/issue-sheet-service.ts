@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -15,6 +15,15 @@ import {
   runIssueSheetCsvImport,
   type IssueSheetImportResult,
 } from "./issue-sheet-csv-import-runner";
+import {
+  buildIssueListFilterConditions,
+  buildIssueListOrderBy,
+  issueListNeedsPriorityJoin,
+  priorityColumnJoin,
+  priorityColumns,
+  priorityValueJoin,
+  priorityValues,
+} from "./issue-list-query";
 
 export type IssueSheetColumn = {
   id: string;
@@ -56,6 +65,7 @@ export type IssueSheetIssue = {
 export type IssueSheetListResult = {
   issues: IssueSheetIssue[];
   columns: IssueSheetColumn[];
+  total: number;
   summary: {
     total: number;
     open: number;
@@ -296,10 +306,15 @@ export class IssueSheetService {
   }): Promise<IssueSheetListResult> {
     const columns = await this.listColumns(input);
     const conditions = this.buildIssueConditions(input);
-    const rows = await this.fetchIssueRows(conditions, {
-      limit: input.query.limit,
-      offset: input.query.offset,
-    });
+    const [rows, totalRow, summary] = await Promise.all([
+      this.fetchIssueRows(conditions, {
+        limit: input.query.limit,
+        offset: input.query.offset,
+        query: input.query,
+      }),
+      this.countIssueRows(conditions, input.query),
+      this.loadSummary(input),
+    ]);
     const issueIds = rows.map((row) => row.id);
     const valuesByIssueId = await this.loadValuesByIssueId({
       organizationId: input.organizationId,
@@ -308,10 +323,9 @@ export class IssueSheetService {
       columns,
     });
 
-    const summary = await this.loadSummary(input);
-
     return {
       columns,
+      total: totalRow,
       summary,
       issues: rows.map((row) => mapIssueRow(row, valuesByIssueId.get(row.id) ?? {})),
     };
@@ -596,7 +610,15 @@ export class IssueSheetService {
         eq(schema.issueSheetIssues.projectId, input.projectId),
         eq(schema.issueSheetIssues.id, input.issueId),
       ],
-      { limit: 1 },
+      {
+        limit: 1,
+        query: {
+          sort: "updated_at",
+          sortDir: "desc",
+          limit: 1,
+          offset: 0,
+        },
+      },
     );
     const row = rows[0];
     if (!row) {
@@ -613,11 +635,28 @@ export class IssueSheetService {
     return mapIssueRow(row, valuesByIssueId.get(row.id) ?? {});
   }
 
+  private async countIssueRows(conditions: SQL[], query: IssueSheetQuery): Promise<number> {
+    let countQuery = this.database
+      .select({ value: count() })
+      .from(schema.issueSheetIssues)
+      .$dynamic();
+
+    if (issueListNeedsPriorityJoin(query)) {
+      countQuery = countQuery
+        .leftJoin(priorityColumns, priorityColumnJoin)
+        .leftJoin(priorityValues, priorityValueJoin);
+    }
+
+    const totalRow = await countQuery.where(and(...conditions));
+    return totalRow[0]?.value ?? 0;
+  }
+
   private fetchIssueRows(
     conditions: SQL[],
-    pagination: { limit: number; offset?: number },
+    pagination: { limit: number; offset?: number; query: IssueSheetQuery },
   ): Promise<IssueRow[]> {
-    return this.database
+    const orderBy = buildIssueListOrderBy(pagination.query);
+    let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
         title: schema.issueSheetIssues.title,
@@ -654,8 +693,17 @@ export class IssueSheetService {
         schema.projectTranslationKeys,
         eq(schema.issueSheetIssues.translationKeyId, schema.projectTranslationKeys.id),
       )
+      .$dynamic();
+
+    if (issueListNeedsPriorityJoin(pagination.query)) {
+      listQuery = listQuery
+        .leftJoin(priorityColumns, priorityColumnJoin)
+        .leftJoin(priorityValues, priorityValueJoin);
+    }
+
+    return listQuery
       .where(and(...conditions))
-      .orderBy(desc(schema.issueSheetIssues.createdAt))
+      .orderBy(...orderBy)
       .limit(pagination.limit)
       .offset(pagination.offset ?? 0);
   }
@@ -670,57 +718,13 @@ export class IssueSheetService {
     const conditions: SQL[] = [
       eq(schema.issueSheetIssues.organizationId, input.organizationId),
       eq(schema.issueSheetIssues.projectId, input.projectId),
+      ...buildIssueListFilterConditions({
+        actorUserId: input.actorUserId,
+        query: input.query,
+      }),
     ];
     if ("issueId" in input && input.issueId) {
       conditions.push(eq(schema.issueSheetIssues.id, input.issueId));
-    }
-
-    const view = input.query.view;
-    if (view === "my_work") {
-      conditions.push(eq(schema.issueSheetIssues.assigneeUserId, input.actorUserId));
-      conditions.push(inArray(schema.issueSheetIssues.status, ["open", "in_progress"]));
-    } else if (view === "qa_triage") {
-      conditions.push(eq(schema.issueSheetIssues.issueType, "qa_failure"));
-      conditions.push(isNull(schema.issueSheetIssues.assigneeUserId));
-      conditions.push(inArray(schema.issueSheetIssues.status, ["open", "in_progress"]));
-    } else if (view === "source_context") {
-      conditions.push(
-        inArray(schema.issueSheetIssues.issueType, [
-          "source_mistake",
-          "context_request",
-          "general_question",
-        ]),
-      );
-      conditions.push(inArray(schema.issueSheetIssues.status, ["open", "in_progress"]));
-    } else if (view === "all_open") {
-      conditions.push(inArray(schema.issueSheetIssues.status, ["open", "in_progress"]));
-    }
-
-    if (!view && input.query.status && input.query.status !== "all") {
-      conditions.push(eq(schema.issueSheetIssues.status, input.query.status));
-    }
-    if (input.query.issueType && input.query.issueType !== "all") {
-      conditions.push(eq(schema.issueSheetIssues.issueType, input.query.issueType));
-    }
-    if (input.query.locale) {
-      conditions.push(eq(schema.issueSheetIssues.targetLocale, input.query.locale));
-    }
-    if (input.query.assignee === "me") {
-      conditions.push(eq(schema.issueSheetIssues.assigneeUserId, input.actorUserId));
-    } else if (input.query.assignee === "unassigned") {
-      conditions.push(isNull(schema.issueSheetIssues.assigneeUserId));
-    } else if (input.query.assignee) {
-      conditions.push(eq(schema.issueSheetIssues.assigneeUserId, input.query.assignee));
-    }
-    if (input.query.search) {
-      const search = `%${input.query.search}%`;
-      conditions.push(
-        or(
-          ilike(schema.issueSheetIssues.title, search),
-          ilike(schema.issueSheetIssues.description, search),
-          ilike(schema.issueSheetIssues.sourcePath, search),
-        )!,
-      );
     }
 
     return conditions;
