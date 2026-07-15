@@ -7,6 +7,8 @@ import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
+import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   buildGlobalNavigationGroups,
@@ -229,10 +231,31 @@ describe("parseProjectRoute", () => {
 });
 
 describe("buildProjectNavigationItems", () => {
-  it("includes a Strings item that opens the project CAT workspace", () => {
+  it("includes a Strings item for native projects", () => {
     const items = buildProjectNavigationItems("acme", "proj_1", intl);
     const stringsItem = items.find((item) => item.label === "Strings");
     expect(stringsItem?.href).toBe("/org/acme/projects/proj_1/strings");
+    expect(stringsItem?.featureFlagKey).toBe(RELEASE_CAT_ALL_FILES_FLAG);
+  });
+
+  it("shows Strings for Crowdin projects", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "Strings")?.href).toBe(
+      `/org/acme/projects/${encodeURIComponent(projectId)}/strings`,
+    );
+  });
+
+  it("hides Strings for unsupported TMS providers", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "phrase",
+      externalProjectId: "42",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "Strings")).toBeUndefined();
   });
 });
 

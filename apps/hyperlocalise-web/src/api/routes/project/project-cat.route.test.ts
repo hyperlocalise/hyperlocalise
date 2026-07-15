@@ -240,9 +240,10 @@ describe("project file CAT routes", () => {
         pagination: expect.objectContaining({ paginated: true, limit: 50 }),
       }),
     );
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("crowdin");
   });
 
-  it("rejects All Files CAT for unsupported providers when the flag is on", async () => {
+  it("rejects All Files CAT for unsupported providers", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
       providerKind: "phrase",
@@ -250,7 +251,7 @@ describe("project file CAT routes", () => {
       validationStatus: "valid",
       validationMessage: null,
     });
-    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -272,6 +273,7 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({
       error: "provider_cat_all_files_unsupported",
     });
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("phrase");
     expect(getTmsProviderLiveCatAllFilesMock).not.toHaveBeenCalled();
   });
 

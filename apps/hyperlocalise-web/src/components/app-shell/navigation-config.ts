@@ -2,10 +2,13 @@ import type { ComponentProps } from "react";
 import type { IntlShape } from "react-intl";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
+import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   AiBrain01Icon,
   BookOpenTextIcon,
@@ -37,7 +40,10 @@ export type NavigationItem = {
   badge?: string;
   /** Non-route action; when set, the sidebar renders a button instead of a link. */
   action?: NavigationItemAction;
-  featureFlagKey?: typeof WORKSPACE_AUTOMATIONS_FLAG | typeof WORKSPACE_KNOWLEDGE_FLAG;
+  featureFlagKey?:
+    | typeof WORKSPACE_AUTOMATIONS_FLAG
+    | typeof WORKSPACE_KNOWLEDGE_FLAG
+    | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
 
 /** Sentinel href for the New Request sidebar action (never navigated). */
@@ -231,8 +237,10 @@ export function buildProjectNavigationItems(
   intl: IntlShape,
 ): readonly NavigationItem[] {
   const project = (section: string) => buildProjectPath(organizationSlug, projectId, section);
+  const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
+  const showStrings = supportsCatAllFilesProvider(providerKind);
 
-  return [
+  const items: NavigationItem[] = [
     {
       label: intl.formatMessage({
         defaultMessage: "Overview",
@@ -251,7 +259,10 @@ export function buildProjectNavigationItems(
       href: project("files"),
       icon: File01Icon,
     },
-    {
+  ];
+
+  if (showStrings) {
+    items.push({
       label: intl.formatMessage({
         defaultMessage: "Strings",
         id: "CWdGpW4jOj",
@@ -259,7 +270,11 @@ export function buildProjectNavigationItems(
       }),
       href: project("strings"),
       icon: LanguageCircleIcon,
-    },
+      featureFlagKey: RELEASE_CAT_ALL_FILES_FLAG,
+    });
+  }
+
+  items.push(
     {
       label: intl.formatMessage({
         defaultMessage: "Jobs",
@@ -287,7 +302,9 @@ export function buildProjectNavigationItems(
       href: project("settings"),
       icon: Settings01Icon,
     },
-  ] as const;
+  );
+
+  return items;
 }
 
 export function stripAppLocalePrefix(pathname: string | null | undefined) {

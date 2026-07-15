@@ -647,19 +647,19 @@ async function loadProjectFileCatQueue(
   const sourcePathsFilter = allFiles ? parseCatSourcePathsFilter(query.sourcePaths) : null;
 
   if (allFiles) {
-    if (!(await isReleaseCatAllFilesEnabled())) {
-      return { kind: "feature_unavailable" as const };
-    }
-
     const providerKind = target.kind === "provider" ? target.providerKind : null;
-    if (!supportsCatAllFilesProvider(providerKind)) {
-      return {
-        kind: "provider_error" as const,
-        error: new TmsProviderLiveError(
-          "provider_cat_all_files_unsupported",
-          "All Files CAT is not available for this provider yet.",
-        ),
-      };
+    if (!(await isReleaseCatAllFilesEnabled(providerKind))) {
+      if (!supportsCatAllFilesProvider(providerKind)) {
+        return {
+          kind: "provider_error" as const,
+          error: new TmsProviderLiveError(
+            "provider_cat_all_files_unsupported",
+            "All Files CAT is not available for this provider yet.",
+          ),
+        };
+      }
+
+      return { kind: "feature_unavailable" as const };
     }
   }
 

@@ -1,5 +1,6 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
 
 import { ProjectFileCatPageContent } from "../_components/project-file-cat-page-content";
@@ -22,7 +23,8 @@ export default async function ProjectFileCatPage({
   const { organizationSlug, projectId } = await params;
   const parsedSearchParams = parseProjectFileCatSearchParams(await searchParams);
   await requireAppAuthContext({ organizationSlug });
-  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled();
+  const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
+  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(providerKind);
 
   return (
     <ProjectFileCatPageContent
