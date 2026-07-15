@@ -159,7 +159,7 @@ function mockReadyProjectQuery() {
 }
 
 describe("JobCatPageContent guard ordering", () => {
-  it("pre-selects all job files when no file reference is present", async () => {
+  it("pre-selects the default job file when All Files is disabled", async () => {
     useProjectPageQueryMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -179,6 +179,41 @@ describe("JobCatPageContent guard ordering", () => {
           sourcePath={null}
           storedFileId={null}
           targetLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith(
+        "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&sourcePath=crowdin%2Fhome.json&queueFilter=untranslated",
+      );
+    });
+    expect(
+      screen.queryByText("This project does not have a source locale."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pre-selects all job files when All Files is enabled", async () => {
+    useProjectPageQueryMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: false,
+      data: undefined,
+      error: null,
+    });
+    loadJobCatJobSourceFilesMock.mockResolvedValue([providerFile]);
+    routerReplaceMock.mockClear();
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath={null}
+          storedFileId={null}
+          targetLocale="vi"
+          catAllFilesEnabled
         />
       </CatTestProviders>,
     );
