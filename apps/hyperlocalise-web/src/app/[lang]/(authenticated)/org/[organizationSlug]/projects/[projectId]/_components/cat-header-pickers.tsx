@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TypographyP } from "@/components/ui/typography";
 import {
   formatLocaleDisplayName,
   formatLocaleOptionLabel,
@@ -181,25 +180,14 @@ export function CatFileTreePicker({
           </div>
         </div>
 
-        <div className="shrink-0 space-y-3 border-t border-border px-6 pt-4 pb-6">
-          <div className="rounded-lg border border-border bg-background px-4 py-3">
-            <TypographyP className="truncate font-mono text-xs text-foreground">
-              {dialogAllFiles ? "All Files" : (selectedFile?.sourcePath ?? "No file selected")}
-            </TypographyP>
-            <TypographyP className="text-xs text-muted-foreground">
-              Double-click a file in the tree, or use Open file.
-            </TypographyP>
-          </div>
-
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleOpenSelectedFile} disabled={!dialogAllFiles && !selectedFile}>
-              Open file
-            </Button>
-          </DialogFooter>
-        </div>
+        <DialogFooter className="shrink-0 gap-2 border-t border-border px-6 pt-4 pb-6 sm:justify-end">
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleOpenSelectedFile} disabled={!dialogAllFiles && !selectedFile}>
+            Open file
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
