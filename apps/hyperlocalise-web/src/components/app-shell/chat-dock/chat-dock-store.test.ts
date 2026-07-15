@@ -102,6 +102,32 @@ describe("ChatDockStore", () => {
     expect(store.tabs[0]?.isStreaming).toBe(false);
   });
 
+  it("propagates lastError when opening a tab over an error snapshot", () => {
+    const store = new ChatDockStore(createMemoryStorage());
+    store.setOrganizationSlug("acme");
+
+    store.setStreamSnapshot("conv_err", {
+      conversationId: "conv_err",
+      responseToMessageId: "msg_1",
+      message: {
+        id: "stream-msg_1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "Sorry, I encountered an error while generating a response." },
+        ],
+      },
+      status: "error",
+    });
+    expect(store.hasTabs).toBe(false);
+
+    store.openTab({ id: "conv_err", title: "Chat" });
+    expect(store.tabs[0]?.streamSnapshot?.status).toBe("error");
+    expect(store.tabs[0]?.isStreaming).toBe(false);
+    expect(store.tabs[0]?.lastError).toBe(
+      "Sorry, I encountered an error while generating a response.",
+    );
+  });
+
   it("stores stream snapshots and clears them", () => {
     const store = new ChatDockStore(createMemoryStorage());
     store.setOrganizationSlug("acme");

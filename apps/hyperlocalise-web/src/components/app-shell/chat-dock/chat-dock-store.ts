@@ -40,6 +40,19 @@ export type ChatDockPageContext = {
   sourcePath?: string;
 };
 
+const STREAM_ERROR_MESSAGE = "Sorry, I encountered an error while generating a response.";
+
+/** Mirror a live stream snapshot onto tab fields, including error banner state. */
+function applyStreamSnapshotToTab(tab: ChatDockTab, snapshot: ChatDockStreamSnapshot | null) {
+  tab.streamSnapshot = snapshot;
+  tab.isStreaming = snapshot?.status === "streaming";
+  if (snapshot?.status === "error") {
+    tab.lastError = STREAM_ERROR_MESSAGE;
+  } else if (snapshot?.status === "complete") {
+    tab.lastError = null;
+  }
+}
+
 function createPendingTabId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `pending-${crypto.randomUUID()}`;
@@ -204,10 +217,11 @@ export class ChatDockStore {
       title: input.title?.trim() || "Chat",
       draft: "",
       isPending: false,
-      isStreaming: liveStream?.status === "streaming",
-      streamSnapshot: liveStream,
+      isStreaming: false,
+      streamSnapshot: null,
       lastError: null,
     };
+    applyStreamSnapshotToTab(tab, liveStream);
 
     this.tabs = [...this.tabs, tab];
     this.activeTabId = tab.id;
@@ -330,13 +344,7 @@ export class ChatDockStore {
     }
 
     this.updateTab(conversationId, (tab) => {
-      tab.streamSnapshot = snapshot;
-      tab.isStreaming = snapshot?.status === "streaming";
-      if (snapshot?.status === "error") {
-        tab.lastError = "Sorry, I encountered an error while generating a response.";
-      } else if (snapshot?.status === "complete") {
-        tab.lastError = null;
-      }
+      applyStreamSnapshotToTab(tab, snapshot);
     });
   }
 
@@ -419,8 +427,7 @@ export class ChatDockStore {
   private mirrorStreamToTab(tabId: string) {
     const liveStream = this.getStreamSnapshot(tabId);
     this.updateTab(tabId, (tab) => {
-      tab.streamSnapshot = liveStream;
-      tab.isStreaming = liveStream?.status === "streaming";
+      applyStreamSnapshotToTab(tab, liveStream);
     });
   }
 
