@@ -7,7 +7,7 @@ import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
-import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flags";
+import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 const isEnabled = vi.fn();

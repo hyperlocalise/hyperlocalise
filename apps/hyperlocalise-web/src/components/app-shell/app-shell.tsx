@@ -5,10 +5,8 @@ import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import {
-  evaluateWorkspaceFeatureFlags,
-  filterNavigationByWorkspaceFlags,
-} from "@/lib/flags/workspace-flags";
+import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
   getTmsUserConnectCtaState,

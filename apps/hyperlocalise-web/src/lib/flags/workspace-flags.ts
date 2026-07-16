@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
-import type { NavigationGroup, NavigationItem } from "@/components/app-shell/navigation-config";
 import { db, schema } from "@/lib/database";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
@@ -17,6 +16,11 @@ import {
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
+
+export {
+  filterNavigationByWorkspaceFlags,
+  filterNavigationItemsByWorkspaceFlags,
+} from "./workspace-flag-navigation";
 
 export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_AUTOMATIONS_FLAG,
@@ -45,30 +49,6 @@ export const workspaceIssuesFlag = flag<boolean, WorkosFlagEntities>({
   description: "Workspace issues and project Issue Sheet for localization issue tracking.",
   adapter: workosAdapter(),
 });
-
-function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<string, boolean> {
-  return {
-    [WORKSPACE_AUTOMATIONS_FLAG]: flags.automations,
-    [WORKSPACE_KNOWLEDGE_FLAG]: flags.knowledge,
-    [WORKSPACE_VISUAL_MOCK_FLAG]: flags.visualMock,
-    [WORKSPACE_ISSUES_FLAG]: flags.issues,
-  };
-}
-
-function isNavigationItemEnabledByWorkspaceFlags(
-  item: Pick<NavigationItem, "featureFlagKey">,
-  enabledByKey: Record<string, boolean>,
-) {
-  if (!item.featureFlagKey) {
-    return true;
-  }
-
-  if (!(item.featureFlagKey in enabledByKey)) {
-    return true;
-  }
-
-  return enabledByKey[item.featureFlagKey] ?? false;
-}
 
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
@@ -146,28 +126,4 @@ export async function requireWorkspaceFeatureFlag(
   }
 
   redirect("/auth/select-organization");
-}
-
-export function filterNavigationItemsByWorkspaceFlags(
-  items: readonly NavigationItem[],
-  flags: WorkspaceFeatureFlagState,
-): readonly NavigationItem[] {
-  const enabledByKey = workspaceFlagEnabledByKey(flags);
-  return items.filter((item) => isNavigationItemEnabledByWorkspaceFlags(item, enabledByKey));
-}
-
-export function filterNavigationByWorkspaceFlags(
-  groups: readonly NavigationGroup[],
-  flags: WorkspaceFeatureFlagState,
-): readonly NavigationGroup[] {
-  const enabledByKey = workspaceFlagEnabledByKey(flags);
-
-  return groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) =>
-        isNavigationItemEnabledByWorkspaceFlags(item, enabledByKey),
-      ),
-    }))
-    .filter((group) => group.items.length > 0);
 }

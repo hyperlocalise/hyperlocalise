@@ -22,7 +22,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
-import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flags";
+import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 
 import {
   buildOrganizationPath,
