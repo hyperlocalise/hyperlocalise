@@ -6,6 +6,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { MarkdownDescriptionEditor } from "@/components/markdown-description-editor/markdown-description-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -510,7 +510,7 @@ export function CreateJobDialog({
           </div>
 
           {isProviderProject ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-5">
               <div className="space-y-2">
                 <Label>
                   <FormattedMessage {...createJobDialogMessages.taskTypeLabel} />
@@ -524,28 +524,38 @@ export function CreateJobDialog({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {intl.formatMessage(
+                        kind === "proofread"
+                          ? createJobDialogMessages.taskTypeProofread
+                          : createJobDialogMessages.taskTypeTranslation,
+                      )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="translation">
+                    <SelectItem
+                      value="translation"
+                      label={intl.formatMessage(createJobDialogMessages.taskTypeTranslation)}
+                    >
                       <FormattedMessage {...createJobDialogMessages.taskTypeTranslation} />
                     </SelectItem>
-                    <SelectItem value="proofread">
+                    <SelectItem
+                      value="proofread"
+                      label={intl.formatMessage(createJobDialogMessages.taskTypeProofread)}
+                    >
                       <FormattedMessage {...createJobDialogMessages.taskTypeProofread} />
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="create-job-description">
+                <Label>
                   <FormattedMessage {...createJobDialogMessages.descriptionLabel} />
                 </Label>
-                <Textarea
-                  id="create-job-description"
+                <MarkdownDescriptionEditor
                   value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  rows={2}
-                  maxLength={2048}
+                  onChange={setDescription}
+                  disabled={createJob.isPending}
                   placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
                 />
               </div>
