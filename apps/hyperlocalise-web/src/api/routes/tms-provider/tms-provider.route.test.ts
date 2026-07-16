@@ -21,6 +21,10 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
+import {
+  ensureDefaultWorkspaceTeam,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
@@ -70,6 +74,54 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
+
+async function seedOwnedCrowdinProviderProject(input: {
+  organizationId: string;
+  userId: string;
+  externalProjectId?: string;
+}) {
+  const externalProjectId = input.externalProjectId ?? "902807";
+  const projectId = `ext:crowdin:${externalProjectId}`;
+
+  const credential = await upsertOrganizationExternalTmsProviderCredential({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    role: "admin",
+    providerKind: "crowdin",
+    displayName: "Crowdin",
+    secretMaterial: "crowdin-secret",
+  });
+
+  const team = await ensureDefaultWorkspaceTeam(input.organizationId);
+  await ensureTeamMembership({
+    teamId: team.id,
+    userId: input.userId,
+    role: "member",
+  });
+
+  await db
+    .insert(schema.projects)
+    .values({
+      id: projectId,
+      organizationId: input.organizationId,
+      teamId: team.id,
+      createdByUserId: input.userId,
+      updatedByUserId: input.userId,
+      name: "Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: credential.id,
+      externalProjectId,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      isActive: true,
+    })
+    .onConflictDoNothing();
+
+  return { projectId, credential, team };
+}
 
 function createLiveProviderJob(overrides: Partial<TmsProviderLiveJob> = {}): TmsProviderLiveJob {
   return {
@@ -296,6 +348,10 @@ describe("tmsProviderRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
+    await seedOwnedCrowdinProviderProject({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
     const job = createLiveProviderJob({
       kind: "proofread",
       externalTitle: "Review homepage",
@@ -346,6 +402,11 @@ describe("tmsProviderRoutes", () => {
   it("returns partial create details when some provider jobs were created before failure", async () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    await seedOwnedCrowdinProviderProject({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
     const createdJob = createLiveProviderJob();
     vi.spyOn(tmsProviderLive, "createTmsProviderLiveJobs").mockRejectedValue(
       new tmsProviderLive.TmsProviderLivePartialCreateError(
@@ -515,6 +576,10 @@ describe("tmsProviderRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
+    await seedOwnedCrowdinProviderProject({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
     const deleteJob = vi.spyOn(tmsProviderLive, "deleteTmsProviderLiveJob").mockResolvedValue(true);
 
     const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
@@ -541,6 +606,11 @@ describe("tmsProviderRoutes", () => {
   it("returns 404 when deleting a live provider job that no longer exists", async () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    await seedOwnedCrowdinProviderProject({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
     vi.spyOn(tmsProviderLive, "deleteTmsProviderLiveJob").mockResolvedValue(false);
 
     const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
