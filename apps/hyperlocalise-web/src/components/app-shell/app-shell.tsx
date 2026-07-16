@@ -78,6 +78,7 @@ export async function AppShell({
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
       navigationGroups={navigationGroups}
+      workspaceFeatureFlags={workspaceFeatureFlags}
     >
       <OrgTmsQueryProvider
         organizationSlug={activeOrganizationSlug}

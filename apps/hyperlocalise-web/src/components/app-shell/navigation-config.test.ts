@@ -5,6 +5,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
@@ -164,6 +165,7 @@ describe("path builders", () => {
     });
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+    expect(byLabel.get("Issues")?.featureFlagKey).toBe(WORKSPACE_ISSUES_FLAG);
   });
 
   it("builds project navigation items scoped to the project", () => {
@@ -177,6 +179,9 @@ describe("path builders", () => {
       ["Issue Sheet", "/org/acme/projects/proj_1/issue-sheet"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
+    expect(items.find((item) => item.label === "Issue Sheet")?.featureFlagKey).toBe(
+      WORKSPACE_ISSUES_FLAG,
+    );
   });
 });
 

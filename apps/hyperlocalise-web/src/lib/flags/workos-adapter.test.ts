@@ -139,32 +139,36 @@ describe("workosAdapter", () => {
 const intl = getIntlShape("en") as IntlShape;
 
 describe("filterNavigationByWorkspaceFlags", () => {
-  it("removes Automations and Knowledge when workspace flags are disabled", () => {
+  it("removes Automations, Knowledge, and Issues when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: false,
       knowledge: false,
       visualMock: false,
+      issues: false,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
     expect(itemLabels).not.toContain("Automations");
     expect(itemLabels).not.toContain("Knowledge");
+    expect(itemLabels).not.toContain("Issues");
     expect(itemLabels).toContain("Projects");
   });
 
-  it("keeps Automations and Knowledge when workspace flags are enabled", () => {
+  it("keeps Automations, Knowledge, and Issues when workspace flags are enabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: true,
       knowledge: true,
       visualMock: true,
+      issues: true,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
     expect(itemLabels).toContain("Automations");
     expect(itemLabels).toContain("Knowledge");
+    expect(itemLabels).toContain("Issues");
   });
 });

@@ -23,6 +23,7 @@ import type { NavigationGroup } from "./navigation-config";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
+import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
@@ -36,6 +37,7 @@ type AppShellClientProps = {
   autumnConfigured?: boolean;
   children: ReactNode;
   navigationGroups: readonly NavigationGroup[];
+  workspaceFeatureFlags: WorkspaceFeatureFlagState;
   activeOrganization: {
     name: string;
     slug?: string | null;
@@ -59,6 +61,7 @@ export function AppShellClient({
   autumnConfigured = false,
   children,
   navigationGroups,
+  workspaceFeatureFlags,
   activeOrganization,
   organizations,
   tmsUserConnectCta = { showConnectCta: false },
@@ -76,7 +79,10 @@ export function AppShellClient({
   const resolvedTmsUserConnectCta = tmsUserConnectQuery.data ?? tmsUserConnectCta;
 
   return (
-    <AppShellStoreProvider defaultNavigationGroups={navigationGroups}>
+    <AppShellStoreProvider
+      defaultNavigationGroups={navigationGroups}
+      workspaceFeatureFlags={workspaceFeatureFlags}
+    >
       <TmsUserOAuthErrorToast />
       <SidebarProvider
         defaultOpen

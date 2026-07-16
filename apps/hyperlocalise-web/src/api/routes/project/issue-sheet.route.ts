@@ -6,7 +6,12 @@ import {
   isProjectMutationAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
-import { badRequestResponse, conflictResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse as featureForbiddenResponse,
+} from "@/api/response.schema";
+import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import {
@@ -78,8 +83,35 @@ async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, proje
   return project;
 }
 
+async function isWorkspaceIssuesFeatureEnabled(auth: AuthVariables["auth"]) {
+  try {
+    return (
+      (await workspaceIssuesFlag.run({
+        identify: () => ({
+          organization: { id: auth.organization.workosOrganizationId },
+          user: { id: auth.user.workosUserId },
+        }),
+      })) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function createIssueSheetRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
+    .use("*", async (c, next) => {
+      const enabled = await isWorkspaceIssuesFeatureEnabled(c.var.auth);
+      if (!enabled) {
+        return featureForbiddenResponse(
+          c,
+          "feature_unavailable",
+          "Workspace issues is not enabled for this organization",
+        );
+      }
+
+      await next();
+    })
     .get("/", validateIssueSheetParams, validateIssueSheetQuery, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);

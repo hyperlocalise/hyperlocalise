@@ -51,6 +51,8 @@ import {
   readCatWorkspaceViewMode,
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
+import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
 import { fetchCatSegmentValidation } from "./project-file-cat-validation";
 import { useCatMutations } from "./use-cat-mutations";
@@ -102,6 +104,8 @@ export function ProjectFileCatWorkspace({
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
 }) {
   const intl = useIntl();
+  const appShellStore = useOptionalAppShellStore();
+  const issuesEnabled = appShellStore?.workspaceFeatureFlags.issues ?? false;
   const internalPageNavigationGuardRef = useRef<CatPageNavigationGuard | null>(null);
   const resolvedPageNavigationGuardRef = pageNavigationGuardRef ?? internalPageNavigationGuardRef;
   const [pageLimit, setPageLimit] = useState(() =>
@@ -647,7 +651,7 @@ export function ProjectFileCatWorkspace({
           onApprove: handleApprove,
           onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
           onAddComment: handleAddComment,
-          onAddToIssueSheet: handleAddToIssueSheet,
+          onAddToIssueSheet: issuesEnabled ? handleAddToIssueSheet : undefined,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
         }}
