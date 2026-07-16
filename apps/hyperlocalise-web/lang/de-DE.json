@@ -2,6 +2,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "Keine Beschreibung"
   },
+  "++VvL4EEbo": {
+    "defaultMessage": "Copied"
+  },
   "+1iajv5nbm": {
     "defaultMessage": "Philippinisch (Philippinen)"
   },
@@ -137,6 +140,9 @@
   "0+GXVlndL6": {
     "defaultMessage": "Genehmigen"
   },
+  "0+lekb0oBh": {
+    "defaultMessage": "API key created"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "Produktbild-Platzhalter"
   },
@@ -153,7 +159,7 @@
     "defaultMessage": "Gebietsschema-Anpassung"
   },
   "0GW7ilY3Dj": {
-    "defaultMessage": "This feature is not available for your workspace yet."
+    "defaultMessage": "Diese Funktion ist für Ihren Arbeitsbereich noch nicht verfügbar."
   },
   "0KX3L72Boe": {
     "defaultMessage": "Niederländisch (Niederlande)"
@@ -476,6 +482,9 @@
   "4NIhoyP8P+": {
     "defaultMessage": "Entwürfe von Übersetzungen mit Ihrem bevorzugten LLM"
   },
+  "4Nb8hxfYt5": {
+    "defaultMessage": "API key revoked"
+  },
   "4NfxqMMl1K": {
     "defaultMessage": "Geänderte Zeichenfolgen erkennen"
   },
@@ -569,11 +578,17 @@
   "5dpVYaBmRK": {
     "defaultMessage": "Gesamtkosten"
   },
+  "5eoi21fmqC": {
+    "defaultMessage": "Copy"
+  },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub hat die Installations-ID abgelehnt. Bestätigen Sie, dass die App im erwarteten Konto installiert ist."
   },
   "5yXqdk0MWc": {
     "defaultMessage": "Von neuen Artikeln bis hin zur überwachten Lokaldeckung"
+  },
+  "60PQQ7C+fN": {
+    "defaultMessage": "Last used {date}"
   },
   "63np7ewMDD": {
     "defaultMessage": "Erfassen Sie Quelländerungen, leiten Sie Lokalisierungsaufgaben weiter, sammeln Sie Kontext und behalten Sie die menschliche Überprüfung über Ihre bestehenden Tools hinweg unter Kontrolle."
@@ -598,6 +613,9 @@
   },
   "6QjQu7ZEVO": {
     "defaultMessage": "{triggerSource} · abgeschlossen am {completedAt}"
+  },
+  "6RuyJHJCyu": {
+    "defaultMessage": "Revoke"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "Verbindung mit Crowdin fehlgeschlagen"
@@ -884,6 +902,9 @@
   "9pmdbGAxZ4": {
     "defaultMessage": "Fehler beim Erstellen der GitHub-Installations-URL"
   },
+  "9uVn8mc+mK": {
+    "defaultMessage": "e.g. Production CI"
+  },
   "9w0U+WoX/B": {
     "defaultMessage": "An Marketing- und Rechtsprüfer weiterleiten"
   },
@@ -1010,6 +1031,9 @@
   "BgfpkbN4Fe": {
     "defaultMessage": "Wissen"
   },
+  "Bh7oPsMHrP": {
+    "defaultMessage": "Refresh the page to try again."
+  },
   "BjoXu+/Pje": {
     "defaultMessage": "Lokalisierungsprüfung"
   },
@@ -1079,6 +1103,12 @@
   "CUMVPg+yCv": {
     "defaultMessage": "Wie es funktioniert"
   },
+  "CWXh32oIoB": {
+    "defaultMessage": "{prefix}••••••••"
+  },
+  "CWdGpW4jOj": {
+    "defaultMessage": "Strings"
+  },
   "CfAFoekPz1": {
     "defaultMessage": "{providerName}-Projekte"
   },
@@ -1141,6 +1171,9 @@
   },
   "DOGd1ZI3w4": {
     "defaultMessage": "Lokalisierungs-PM"
+  },
+  "DSm/l7fomX": {
+    "defaultMessage": "Revoke API key"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "Route zu Support- und Lokalisierungsprüfern"
@@ -1424,6 +1457,9 @@
   "HWwdf4dk7T": {
     "defaultMessage": "Die meisten Review-Zyklen kommen ins Stocken, weil der Übersetzer den Bildschirm, das Glossar, die Absicht oder die Produktnuancen nicht sehen kann. Hyperlocalise stellt diesen Kontext direkt neben die Zeichenkette."
   },
+  "HZrRUnuo70": {
+    "defaultMessage": "Copy this key now. You will not be able to see it again."
+  },
   "HZtAltEBuQ": {
     "defaultMessage": "Kontext in der Datei angehängt"
   },
@@ -1459,6 +1495,9 @@
   },
   "IHNG6SIjSG": {
     "defaultMessage": "Schlechte Übersetzungen gelangen in die Produktion, weil es keine automatisierte Regressionsebene gibt."
+  },
+  "IJDgzVk+ER": {
+    "defaultMessage": "Create API key"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Dateien"
@@ -1582,6 +1621,9 @@
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Kopiert"
+  },
+  "K0Maj++lc6": {
+    "defaultMessage": "No API keys yet"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Support-Inhalte veralten in dem Moment, in dem sie auf Englisch veröffentlicht werden"
@@ -1778,8 +1820,14 @@
   "NPcxGbshkv": {
     "defaultMessage": "Checklauf aktivieren"
   },
+  "NX9i6pdgvw": {
+    "defaultMessage": "Created {date}"
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
+  },
+  "NisKtP5fCJ": {
+    "defaultMessage": "Failed to revoke API key"
   },
   "NjO8LhO0p7": {
     "defaultMessage": "Speichern…"
@@ -1879,6 +1927,9 @@
   },
   "P7DyqhOghg": {
     "defaultMessage": "Keine Konsolenausgabe"
+  },
+  "P8buB19/yY": {
+    "defaultMessage": "API keys"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "Lokalisierungsqualitätsüberwachung | Hyperlocalise"
@@ -2042,6 +2093,12 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Zugriff verweigert"
   },
+  "RbHK79ne0Y": {
+    "defaultMessage": "Strings"
+  },
+  "RcUcWXknuU": {
+    "defaultMessage": "Never"
+  },
   "ReZgZHvqUS": {
     "defaultMessage": "Unscharfe Übereinstimmung"
   },
@@ -2068,6 +2125,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Gedankengang"
+  },
+  "S2pzZyn+jp": {
+    "defaultMessage": "Revoke key"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "Slack erneut verbinden"
@@ -2105,6 +2165,9 @@
   "ScESvsRyBk": {
     "defaultMessage": "Hyperlocalise liegt zwischen LLM-Anbietern und TMS-Tools und gibt Teams einen einzigen Workflow, auch wenn sich darunter Modelle, Anbieter und Review-Systeme ändern."
   },
+  "ScpiJIZOJM": {
+    "defaultMessage": "Give your key a name so you can identify it later."
+  },
   "SgpR5Qp/zA": {
     "defaultMessage": "GitHub-Release-Lokalisierung"
   },
@@ -2140,6 +2203,9 @@
   },
   "TBagRGINiT": {
     "defaultMessage": "Geplante und durch GitHub ausgelöste deterministische Workflows"
+  },
+  "TE3bLZyBSZ": {
+    "defaultMessage": "<b>Reasoning:</b> {reasoning}"
   },
   "TEXn81XSVY": {
     "defaultMessage": "Jeden Tag um {time} · {timezone}"
@@ -2185,6 +2251,9 @@
   },
   "TpaF4AqL/5": {
     "defaultMessage": "Automatisierungseinstellungen zurücksetzen?"
+  },
+  "TrnH0+MELk": {
+    "defaultMessage": "Failed to copy to clipboard"
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Terminologie, Zeichenbegrenzungen und die Produktstimme durchsetzen, bevor Entwürfe menschliche Prüfer erreichen."
@@ -2243,6 +2312,9 @@
   "V+8wDWpBnh": {
     "defaultMessage": "Alle Zeichenfolgen"
   },
+  "V/CBn2NY6n": {
+    "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace."
+  },
   "V04dsqCSZQ": {
     "defaultMessage": "Noch kein lokalisiertes Bild"
   },
@@ -2266,6 +2338,9 @@
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Vorheriger Abschnitt ({shortcut})"
+  },
+  "VH9bOCu5nr": {
+    "defaultMessage": "Create API key"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "Was bedeutet diese Zeichenfolge, und wo wird sie verwendet?"
@@ -2291,8 +2366,14 @@
   "VTQVrhBIAm": {
     "defaultMessage": "In v0 öffnen"
   },
+  "VUwFgX4OmD": {
+    "defaultMessage": "Permissions: {permissions}"
+  },
   "VWQFJ0pM9H": {
     "defaultMessage": "Marktregeln, Sprachpräferenzen und wiederholte Fehler bleiben über alle Arbeitsabläufe hinweg sichtbar."
+  },
+  "VZ/tPAEVdg": {
+    "defaultMessage": "API Keys"
   },
   "Vb+OMqzvaE": {
     "defaultMessage": "Quelltext pushen, Übersetzungen ziehen und Lokalisierungsprüfungen für dieses Repository veröffentlichen."
@@ -2525,6 +2606,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Quelle"
   },
+  "ZC65JlwD3i": {
+    "defaultMessage": "Loading API keys..."
+  },
   "ZF5d+f8aEU": {
     "defaultMessage": "Beginne ein Gespräch, um hier Nachrichten zu sehen"
   },
@@ -2569,6 +2653,9 @@
   },
   "ZtpmqfuRlV": {
     "defaultMessage": "Struktur, Links und Produktbegriffe extrahieren"
+  },
+  "ZuaK6pQTdl": {
+    "defaultMessage": "Key name"
   },
   "ZurV/2CmHO": {
     "defaultMessage": "Laufende Überwachung"
@@ -2617,6 +2704,9 @@
   },
   "aGnEykoMgS": {
     "defaultMessage": "Synchronisierte genehmigte Übersetzungen zurück in Ihr CMS"
+  },
+  "aMf9NbDyem": {
+    "defaultMessage": "No image yet"
   },
   "aWf83qmrdq": {
     "defaultMessage": "Für Lokalisierungsprozesse und Release-Sicherheit entwickelt"
@@ -2677,6 +2767,9 @@
   },
   "bW5VkndWCk": {
     "defaultMessage": "E-Mail-Agent deaktiviert"
+  },
+  "bXM2sr8gtz": {
+    "defaultMessage": "API key copied to clipboard"
   },
   "bYpd314kqN": {
     "defaultMessage": "Lokalisierungsspeicherschicht"
@@ -2767,6 +2860,9 @@
   },
   "d2lnyxMtP0": {
     "defaultMessage": "Ein Entwickler öffnet einen Pull Request, der vierzehn UI-Strings umbenennt und sechs neue hinzufügt. Hyperlocalise kommentiert den PR mit den betroffenen Gebietsschemata, erstellt Übersetzungsentwürfe mithilfe des Glossarkontexts aus dem verknüpften Launch-Brief, öffnet Review-Aufgaben in Lokalise, führt die GitHub Action aus, um zu überprüfen, ob alle Ziel-Gebietsschemata abgedeckt sind, und blockiert das Zusammenführen, bis deutsche und japanische Prüfer die aktualisierte Preisgestaltungsterminologie genehmigen."
+  },
+  "d4ixdVNgC5": {
+    "defaultMessage": "Creating..."
   },
   "d6ELhmM7BL": {
     "defaultMessage": "KI hilft, die Kompromisse zu erklären, aber der menschliche Prüfer behält die Kontrolle über die endgültige Entscheidung."
@@ -3134,6 +3230,9 @@
   "iV4M/BRREW": {
     "defaultMessage": "Anhang"
   },
+  "iXddAxYfyx": {
+    "defaultMessage": "{arg} · {type}"
+  },
   "iZaQ7K2itB": {
     "defaultMessage": "URL eingeben..."
   },
@@ -3224,6 +3323,9 @@
   "jgrmHo9SE2": {
     "defaultMessage": "Fehlgeschlagen"
   },
+  "jh2RfUdWl3": {
+    "defaultMessage": "Done"
+  },
   "jhMzSbK5qz": {
     "defaultMessage": "Versuchen Sie es in einem Moment erneut. Wenn das Problem weiterhin besteht, wenden Sie sich an den Support oder wählen Sie eine andere Organisation aus."
   },
@@ -3310,6 +3412,9 @@
   },
   "kod/dgRhlc": {
     "defaultMessage": "Eingehende E-Mail kopiert"
+  },
+  "ksrwIvV64s": {
+    "defaultMessage": "Workspace settings"
   },
   "kuwnF7iUJu": {
     "defaultMessage": "Vorschau abspielen"
@@ -3413,6 +3518,9 @@
   "mV0v+ofKFK": {
     "defaultMessage": "Neue Anfrage"
   },
+  "mctwKXU94p": {
+    "defaultMessage": "Leave page with unsaved changes?"
+  },
   "mdDGkHBHvr": {
     "defaultMessage": "Erneut versuchen"
   },
@@ -3424,6 +3532,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "Anweisungen"
+  },
+  "mmB/r+ohDb": {
+    "defaultMessage": "Some segments have unsaved edits. Leave without saving?"
   },
   "moonxzY9iq": {
     "defaultMessage": "Arbeit kommt aus Produkt, Marketing, Support und Engineering über verschiedene Kanäle ohne gemeinsamen Eingang."
@@ -3460,6 +3571,9 @@
   },
   "nE0iR4v6Zt": {
     "defaultMessage": "Mobil"
+  },
+  "nE4gAmZP2R": {
+    "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
   },
   "nEBGfsZw1I": {
     "defaultMessage": "Läuft"
@@ -3632,6 +3746,9 @@
   "ppXDMSLgyj": {
     "defaultMessage": "Warteschlangenbereich konnte nicht geladen werden"
   },
+  "pwrS5bq0q7": {
+    "defaultMessage": "Create key"
+  },
   "py4sv3RBJU": {
     "defaultMessage": "Markenstimme und Terminologie durchsetzen"
   },
@@ -3788,6 +3905,9 @@
   "sAOynMMuiJ": {
     "defaultMessage": "Erneut versuchen"
   },
+  "sCwvAHmqAI": {
+    "defaultMessage": "Failed to load API keys"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "Mikrofone suchen..."
   },
@@ -3799,6 +3919,9 @@
   },
   "sZFiP5Oe8M": {
     "defaultMessage": "Wenn die Launch-Arbeit verstreut ist, werden Übersetzungen zu einer hektischen Last-Minute-Aktion."
+  },
+  "sishbO9DCq": {
+    "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working."
   },
   "sjmGDLHpLL": {
     "defaultMessage": "Markenkontext"
@@ -3935,6 +4058,9 @@
   "uZnk0UoDEu": {
     "defaultMessage": "{count} ausgewählt"
   },
+  "uadZLjPGYZ": {
+    "defaultMessage": "{position} / {total}"
+  },
   "ubk8Jr6n+B": {
     "defaultMessage": "Format- und QA-Prüfungen"
   },
@@ -3985,6 +4111,9 @@
   },
   "vFJiS8I8Kx": {
     "defaultMessage": "Für Lokalisierungsoperationen in großem Maßstab entwickelt"
+  },
+  "vHkuFGKp7T": {
+    "defaultMessage": "Failed to create API key"
   },
   "vHurxfGj2i": {
     "defaultMessage": "Kontext für einen String finden"
@@ -4111,6 +4240,9 @@
   },
   "wgVc9diqXQ": {
     "defaultMessage": "Human-in-the-loop-Freigaben"
+  },
+  "whnz/Xptx4": {
+    "defaultMessage": "Cancel"
   },
   "whr/nciIbp": {
     "defaultMessage": "Auswahl löschen"
@@ -4265,6 +4397,9 @@
   "z4vfspWg4+": {
     "defaultMessage": "OAuth-Callback-URL kopiert"
   },
+  "z5++P6iegy": {
+    "defaultMessage": "API keys failed to load."
+  },
   "z6J/H68BKd": {
     "defaultMessage": "Quellcodeverwaltung"
   },
@@ -4285,6 +4420,9 @@
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Aktivierte Repositories aktualisiert"
+  },
+  "zMB0hQFeRq": {
+    "defaultMessage": "Revoking..."
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Kontomenü für {name} öffnen"

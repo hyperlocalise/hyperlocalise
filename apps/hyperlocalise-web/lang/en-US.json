@@ -23,6 +23,10 @@
     "defaultMessage": "Run GitHub Actions for localization drift, compare outputs, and keep release checks visible in pull requests before broken sync reaches production.",
     "description": "Marketing homepage workflow chapter description"
   },
+  "+BzVn5MdKT": {
+    "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped.",
+    "description": "Body when Crowdin project is not linked in Hyperlocalise"
+  },
   "+EhuajKQYW": {
     "defaultMessage": "Stay",
     "description": "Cancel button for unsaved changes navigation guard"
@@ -90,6 +94,10 @@
   "/14v/WK67D": {
     "defaultMessage": "Back to site",
     "description": "Button to return to the marketing site from the access denied page"
+  },
+  "/2wzw7IAoz": {
+    "defaultMessage": "Unable to open Hyperlocalise",
+    "description": "Title when Crowdin JWT bootstrap fails"
   },
   "/5pMziffIK": {
     "defaultMessage": "GitHub App connection failed. Try connecting again.",
@@ -931,6 +939,10 @@
     "defaultMessage": "Target translation",
     "description": "Accessible label for the CAT target translation editor"
   },
+  "7rtL+2WjPy": {
+    "defaultMessage": "New request",
+    "description": "Button to start a new project-scoped conversation in Crowdin App inbox"
+  },
   "8+43PQyB4j": {
     "defaultMessage": "Context-aware across all content sources",
     "description": "Differentiator point 4 for the localisation-operations use case"
@@ -1402,6 +1414,10 @@
   "C1FbXuFTUH": {
     "defaultMessage": "Start a translation",
     "description": "Suggested prompt chip to start a translation"
+  },
+  "C1WvaRKpWU": {
+    "defaultMessage": "Connect Crowdin in Hyperlocalise",
+    "description": "Title when no Hyperlocalise org maps to this Crowdin org"
   },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
@@ -2811,6 +2827,10 @@
     "defaultMessage": "Copy",
     "description": "Button to copy an approved glossary target term to the clipboard"
   },
+  "Rx1gsFSIpF": {
+    "defaultMessage": "This Crowdin session could not be verified. Reopen the Hyperlocalise tab.",
+    "description": "Body when Crowdin JWT bootstrap fails"
+  },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chain of Thought",
     "description": "Default header label for the chain-of-thought collapsible section"
@@ -2942,6 +2962,10 @@
   "TR2IFwpfx/": {
     "defaultMessage": "Hourly",
     "description": "Scheduled cadence option for hourly runs"
+  },
+  "TUvTVcL3il": {
+    "defaultMessage": "Open in Hyperlocalise",
+    "description": "Deep link to the same conversation in the main app"
   },
   "TYuiCQUYlI": {
     "defaultMessage": "Choose a supported model for the selected provider.",
@@ -3662,6 +3686,10 @@
   "bHpDk7ICgp": {
     "defaultMessage": "Retry",
     "description": "Button label to retry loading GitHub installation status"
+  },
+  "bL4rc4u2xS": {
+    "defaultMessage": "Link your Crowdin account under Integrations in Hyperlocalise, then reopen this tab.",
+    "description": "Body when Crowdin user is not linked in Hyperlocalise"
   },
   "bMFWHebC1v": {
     "defaultMessage": "Block sync when thresholds fail",
@@ -4859,6 +4887,10 @@
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate an existing AI translation recommendation"
   },
+  "oh6mSziyuU": {
+    "defaultMessage": "Connect Crowdin for your Hyperlocalise workspace, then reopen this tab from Crowdin.",
+    "description": "Body when no Hyperlocalise org maps to this Crowdin org"
+  },
   "okBFUfhlwg": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the product-localisation use case"
@@ -5199,6 +5231,10 @@
     "defaultMessage": "When launch work is scattered, translations become a last-minute scramble.",
     "description": "Details section headline for the agents automation product page"
   },
+  "si5HssHaNU": {
+    "defaultMessage": "Loading Hyperlocalise…",
+    "description": "Loading state while Crowdin App inbox bootstraps"
+  },
   "sishbO9DCq": {
     "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working.",
     "description": "Description in the revoke API key confirmation dialog"
@@ -5370,6 +5406,10 @@
   "uPLvPG1gYg": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after copying the inbound email address"
+  },
+  "uR3HXqLFuY": {
+    "defaultMessage": "Open Hyperlocalise",
+    "description": "CTA to open Hyperlocalise outside Crowdin"
   },
   "uR9VI1Hsnk": {
     "defaultMessage": "Translation Intelligence",
@@ -5579,6 +5619,10 @@
     "defaultMessage": "Route copy through marketing, legal, and localisation reviewers with clear status and audit trails.",
     "description": "Capability 4 description for the marketing-localisation use case"
   },
+  "wGu07dv5qW": {
+    "defaultMessage": "Project: {projectName}",
+    "description": "Crowdin App inbox header showing the linked Hyperlocalise project"
+  },
   "wIG4YNHURU": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the TMS disconnect confirmation dialog"
@@ -5695,6 +5739,10 @@
     "defaultMessage": "Go to dashboard",
     "description": "Link from a route error to the workspace dashboard"
   },
+  "xTpbtPORei": {
+    "defaultMessage": "Link this Crowdin project",
+    "description": "Title when Crowdin project is not linked in Hyperlocalise"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
     "description": "Error when workspace was created without a usable slug"
@@ -5706,6 +5754,10 @@
   "xbAzhdR+Tu": {
     "defaultMessage": "{percent}%",
     "description": "Current zoom percentage shown in the image lightbox toolbar"
+  },
+  "xfunHs6ciZ": {
+    "defaultMessage": "Link your Crowdin account",
+    "description": "Title when Crowdin user is not linked in Hyperlocalise"
   },
   "xg+IeoG5GL": {
     "defaultMessage": "Quick start",
