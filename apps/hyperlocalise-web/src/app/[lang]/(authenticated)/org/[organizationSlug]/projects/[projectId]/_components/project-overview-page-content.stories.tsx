@@ -39,6 +39,11 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Website localization" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "View strings" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_website/strings",
+    );
     await expect(canvas.getByText("A few things need your attention")).toBeInTheDocument();
     await expect(canvas.getByText("Ongoing")).toBeInTheDocument();
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
@@ -68,6 +73,10 @@ export const Loading: Story = {
     openJobCount: 0,
     jobs: [],
     files: [],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole("button", { name: "Create job" })).toBeNull();
+    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
   },
 };
 

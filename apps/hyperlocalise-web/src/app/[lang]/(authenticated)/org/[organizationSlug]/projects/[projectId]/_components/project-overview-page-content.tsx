@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { File01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, File01Icon, LanguageCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   projectFilesResponseSchema,
@@ -38,6 +40,7 @@ import {
   resolveFileLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
 import type { Tone } from "../../../_components/workspace-resource-shared";
+import { CreateJobDialog } from "../../../jobs/_components/create-job-dialog";
 import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
@@ -141,6 +144,7 @@ export type ProjectOverviewPageContentViewProps = {
   files: readonly ProjectFileRecord[];
   isFilesLoading: boolean;
   isFilesError: boolean;
+  onCreateJob?: () => void;
 };
 
 export function ProjectOverviewPageContentView({
@@ -158,6 +162,7 @@ export function ProjectOverviewPageContentView({
   files,
   isFilesLoading,
   isFilesError,
+  onCreateJob,
 }: ProjectOverviewPageContentViewProps) {
   const filesNeedingAttention = countFilesNeedingAttention(files);
   const pendingCount = project ? computeProjectPendingActionCount({ openJobCount }, files) : 0;
@@ -165,6 +170,9 @@ export function ProjectOverviewPageContentView({
   const attentionFiles = selectFilesNeedingAttention(files);
   const ongoingCount = ongoingJobs.length + attentionFiles.length;
   const readyToPullCount = project ? countReadyToPullFiles(files, project.targetLocales.length) : 0;
+  const showViewStrings = supportsCatAllFilesProvider(
+    parseProviderProjectId(projectId)?.providerKind,
+  );
 
   const heroCopy = project
     ? buildHeroCopy(filesNeedingAttention, pendingCount, openJobCount)
@@ -199,33 +207,57 @@ export function ProjectOverviewPageContentView({
       ]
     : [];
 
+  const showHeaderActions = Boolean(project) && !isProjectLoading && !isProjectError;
+
   return (
     <ProjectPageShell className="gap-8">
-      <header className="space-y-2">
-        {isProjectLoading ? (
-          <>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-full max-w-xl" />
-          </>
-        ) : isProjectError ? (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              Project overview
-            </TypographyH1>
-            <TypographyP className="text-sm text-muted-foreground">
-              Unable to load project details. Refresh the page or try again in a moment.
-            </TypographyP>
-          </>
-        ) : (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              {project?.name ?? "Project"}
-            </TypographyH1>
-            <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              {projectDescription}
-            </TypographyP>
-          </>
-        )}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          {isProjectLoading ? (
+            <>
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-full max-w-xl" />
+            </>
+          ) : isProjectError ? (
+            <>
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                Project overview
+              </TypographyH1>
+              <TypographyP className="text-sm text-muted-foreground">
+                Unable to load project details. Refresh the page or try again in a moment.
+              </TypographyP>
+            </>
+          ) : (
+            <>
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                {project?.name ?? "Project"}
+              </TypographyH1>
+              <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                {projectDescription}
+              </TypographyP>
+            </>
+          )}
+        </div>
+
+        {showHeaderActions ? (
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {showViewStrings ? (
+              <Button
+                nativeButton={false}
+                render={<Link href={buildProjectPath(organizationSlug, projectId, "strings")} />}
+                size="sm"
+                variant="outline"
+              >
+                <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
+                View strings
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" onClick={onCreateJob}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              Create job
+            </Button>
+          </div>
+        ) : null}
       </header>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -382,6 +414,7 @@ export function ProjectOverviewPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const isLiveTmsProject = Boolean(parseProviderProjectId(projectId));
   const openJobCountQuery = useProjectOpenJobCountQuery(organizationSlug, projectId, {
@@ -413,22 +446,39 @@ export function ProjectOverviewPageContent({
     },
   });
 
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
+
   return (
-    <ProjectOverviewPageContentView
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      project={projectQuery.data ?? null}
-      isProjectLoading={projectQuery.isLoading}
-      isProjectError={projectQuery.isError}
-      openJobCount={openJobCountQuery.data ?? 0}
-      isOpenJobCountLoading={openJobCountQuery.isLoading}
-      isOpenJobCountError={openJobCountQuery.isError}
-      jobs={jobsQuery.data ?? []}
-      isJobsLoading={jobsQuery.isLoading}
-      isJobsError={jobsQuery.isError}
-      files={filesQuery.data ?? []}
-      isFilesLoading={filesQuery.isLoading}
-      isFilesError={filesQuery.isError}
-    />
+    <>
+      <ProjectOverviewPageContentView
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        project={projectQuery.data ?? null}
+        isProjectLoading={projectQuery.isLoading}
+        isProjectError={projectQuery.isError}
+        openJobCount={openJobCountQuery.data ?? 0}
+        isOpenJobCountLoading={openJobCountQuery.isLoading}
+        isOpenJobCountError={openJobCountQuery.isError}
+        jobs={jobsQuery.data ?? []}
+        isJobsLoading={jobsQuery.isLoading}
+        isJobsError={jobsQuery.isError}
+        files={filesQuery.data ?? []}
+        isFilesLoading={filesQuery.isLoading}
+        isFilesError={filesQuery.isError}
+        onCreateJob={() => setCreateJobOpen(true)}
+      />
+      <CreateJobDialog
+        open={createJobOpen}
+        onOpenChange={setCreateJobOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+        onCreated={async () => {
+          await Promise.all([jobsQuery.refetch(), openJobCountQuery.refetch()]);
+        }}
+      />
+    </>
   );
 }
