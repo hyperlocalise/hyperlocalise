@@ -7,6 +7,10 @@
     "defaultMessage": "Copied",
     "description": "Copy button label after the API key was copied"
   },
+  "+0cpswe8Tj": {
+    "defaultMessage": "Settings",
+    "description": "Tab label for automation settings"
+  },
   "+1iajv5nbm": {
     "defaultMessage": "Filipino (Philippines)",
     "description": "Display name for BCP-47 locale fil-PH"
@@ -14,6 +18,10 @@
   "+3ic9geD5G": {
     "defaultMessage": "Archived",
     "description": "Badge label for an archived GitHub repository"
+  },
+  "+5c87/Ii+m": {
+    "defaultMessage": "Paused",
+    "description": "Badge label when an automation is paused"
   },
   "+8hEYpTb4c": {
     "defaultMessage": "A growth lead shares a launch brief in Slack with positioning, audience segments, and legal disclaimers. Hyperlocalise structures the campaign for localisation, applies brand glossary and tone rules, generates adapted drafts for each locale, routes them through marketing and legal review, syncs approved copy to the CMS and ad platforms, and flags any locale where messaging has drifted from the approved source.",
@@ -39,9 +47,17 @@
     "defaultMessage": "Detect terminology drift and glossary violations",
     "description": "Capability 2 title for the localisation-quality-monitoring use case"
   },
+  "+UD+5d3g3H": {
+    "defaultMessage": "repository required",
+    "description": "Placeholder in GitHub push summary when no repository is selected"
+  },
   "+Ve/t+/sO9": {
     "defaultMessage": "Ask your organization admin to confirm your WorkOS membership, choose another organization, or sign out and retry with another account.",
     "description": "Default access denied page guidance"
+  },
+  "+WPReqq8Dt": {
+    "defaultMessage": "Optional. Native jobs currently support one assignee.",
+    "description": "Hint under the native job assignee picker"
   },
   "+WcpU6CzaH": {
     "defaultMessage": "Shows localization automation status in GitHub Checks.",
@@ -50,6 +66,14 @@
   "+WwLLR9+vz": {
     "defaultMessage": "Beta",
     "description": "Badge shown next to the Automations navigation item"
+  },
+  "+imNjDj2UT": {
+    "defaultMessage": "Create job",
+    "description": "Button to open the create job dialog from the jobs page"
+  },
+  "+ixHu5wBKG": {
+    "defaultMessage": "Day",
+    "description": "Daily schedule cadence option"
   },
   "+j1BDY9hKx": {
     "defaultMessage": "Run multi-stakeholder approval flows",
@@ -83,9 +107,21 @@
     "defaultMessage": "Invitation pending",
     "description": "Access denied page title when the user has not finished accepting an invite"
   },
+  "+zez4H8ovm": {
+    "defaultMessage": "review",
+    "description": "Job kind label for review jobs"
+  },
+  "/+sp7OInTO": {
+    "defaultMessage": "Failed to load project members",
+    "description": "Fallback error when Crowdin project members fail to load"
+  },
   "/0FWG2SoFG": {
     "defaultMessage": "{displayName} saved. Connect your Crowdin token to continue.",
     "description": "Toast after saving Crowdin PAT settings when user token is still required"
+  },
+  "/0aHJPSP9g": {
+    "defaultMessage": "Actions for {projectName}",
+    "description": "Accessible label for the project card actions menu"
   },
   "/0c8E1m0u/": {
     "defaultMessage": "Monitor terminology consistency, locale coverage, and translation quality across product, marketing, and support content — with gates that block bad syncs before they go live.",
@@ -119,6 +155,10 @@
     "defaultMessage": "Blocking",
     "description": "GitHub status check mode that can block pull requests"
   },
+  "/9wc0MhkMd": {
+    "defaultMessage": "No translation context",
+    "description": "Fallback when a project list row has no translation context"
+  },
   "/C52lRfZjE": {
     "defaultMessage": "Join waitlist",
     "description": "Product page hero call-to-action to join the waitlist"
@@ -134,6 +174,10 @@
   "/Kp0jW/NO6": {
     "defaultMessage": "Error",
     "description": "Section heading for tool error output"
+  },
+  "/L2n1hwt0/": {
+    "defaultMessage": "Open files",
+    "description": "Button linking to project files from the ready-to-pull callout"
   },
   "/MBsvL6JVH": {
     "defaultMessage": "Find context",
@@ -151,13 +195,17 @@
     "defaultMessage": "You can run up to {count} chats at once.",
     "description": "Toast when the concurrent stream limit is reached"
   },
+  "/RotSbukS0": {
+    "defaultMessage": "Unable to load projects",
+    "description": "Error item when projects fail to load in the selector"
+  },
+  "/S7W2Oty8S": {
+    "defaultMessage": "Review: {criteria}",
+    "description": "Fallback job name for a review job using its criteria"
+  },
   "/TZx8A/JWk": {
     "defaultMessage": "Enable at least one workflow and choose when automation should run.",
     "description": "API error when automation has workflows but no trigger configuration"
-  },
-  "/UI9Zob6RC": {
-    "defaultMessage": "Cancelled",
-    "description": "Kanban column label for cancelled jobs"
   },
   "/bH75mQmVa": {
     "defaultMessage": "Wednesday",
@@ -171,13 +219,25 @@
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
   },
+  "/fmhRd2i7v": {
+    "defaultMessage": "Remove email notifications",
+    "description": "Accessible label to remove email notifications"
+  },
   "/nzPUPTay3": {
     "defaultMessage": "Environment Variables",
     "description": "Section title for environment variables panel"
   },
+  "/o1j6afCQe": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the project dialog footer"
+  },
   "/q4p5ii/gC": {
     "defaultMessage": "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow.",
     "description": "Capability 5 description for the github-release-localisation use case"
+  },
+  "/s8HFQ46mj": {
+    "defaultMessage": "Hyperlocalise and live TMS work assigned to you or created by you.",
+    "description": "Personal jobs page description under the heading"
   },
   "/zPj/3x/+q": {
     "defaultMessage": "Slack agent enabled",
@@ -207,6 +267,10 @@
     "defaultMessage": "Monitor throughput and locale health",
     "description": "Workflow step 6 description for the localisation-operations use case"
   },
+  "0A/FtMSjnF": {
+    "defaultMessage": "Assignees",
+    "description": "Label for multi-assignee selection on Crowdin jobs"
+  },
   "0DwOCagj+y": {
     "defaultMessage": "Locale adaptation",
     "description": "Workflow step 3 label for the marketing-localisation use case"
@@ -215,13 +279,25 @@
     "defaultMessage": "This feature is not available for your workspace yet.",
     "description": "Toast when a user is redirected because a workspace feature is unavailable"
   },
+  "0JvtLHpNGT": {
+    "defaultMessage": "No Hyperlocalise jobs created by you found.",
+    "description": "Empty state when the user has created no native jobs"
+  },
   "0KX3L72Boe": {
     "defaultMessage": "Dutch (Netherlands)",
     "description": "Display name for BCP-47 locale nl-NL"
   },
+  "0M4iVzJdHy": {
+    "defaultMessage": "Track source content, release ownership, and translation context before work moves into translation jobs.",
+    "description": "Description of the empty state when there are no Hyperlocalise projects"
+  },
   "0MjCwM2JVC": {
     "defaultMessage": "Portuguese (Brazil)",
     "description": "Display name for BCP-47 locale pt-BR"
+  },
+  "0P12MNf4ZM": {
+    "defaultMessage": "Research: {scope}",
+    "description": "Fallback job name for a research job using its scope"
   },
   "0RE4Gn7dt1": {
     "defaultMessage": "Catch bad translations before production",
@@ -299,9 +375,25 @@
     "defaultMessage": "Sources failed to render",
     "description": "Error boundary title when sources UI crashes"
   },
+  "0pVEMuUCAh": {
+    "defaultMessage": "Locales",
+    "description": "Project snapshot row label for source and target locales"
+  },
+  "0wt+Elr1cE": {
+    "defaultMessage": "Automation name",
+    "description": "Accessible label for the automation name field"
+  },
+  "0x11s5ha3b": {
+    "defaultMessage": "{position}+",
+    "description": "Current segment index when more queue pages may exist and total count is unknown"
+  },
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
+  },
+  "1/Eg78Gi+a": {
+    "defaultMessage": "Open jobs",
+    "description": "Project card metadata label for open jobs"
   },
   "1/O6U8eZiP": {
     "defaultMessage": "Terminal",
@@ -319,6 +411,10 @@
     "defaultMessage": "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
     "description": "Bottom CTA description for the self-evolving knowledge product page"
   },
+  "1AN+Q/JkbE": {
+    "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above.",
+    "description": "Description for the translate tool"
+  },
   "1Do2u8ufv7": {
     "defaultMessage": "No native projects yet. Create a project to get started.",
     "description": "Empty state when there are no native projects"
@@ -326,6 +422,10 @@
   "1ESwnn506c": {
     "defaultMessage": "Thursday",
     "description": "Weekday option for scheduled automation"
+  },
+  "1FrqZ8RCIU": {
+    "defaultMessage": "Task details",
+    "description": "Jobs list column header for locales and assignees"
   },
   "1H0hH78poY": {
     "defaultMessage": "Insufficient permissions",
@@ -335,6 +435,10 @@
     "defaultMessage": "Target ({locale})",
     "description": "Section heading for the target translation with locale code"
   },
+  "1QEv3c/AxW": {
+    "defaultMessage": "Runs when a source file is uploaded to the project selected above.",
+    "description": "Description for the source upload trigger"
+  },
   "1RW3XeR+vN": {
     "defaultMessage": "Agents prepare the work, but reviewers still decide what is good enough to ship.",
     "description": "Proof point 2 body for the agents automation product page"
@@ -343,6 +447,10 @@
     "defaultMessage": "Feed locale results into the next cycle",
     "description": "Workflow step 6 description for the marketing-localisation use case"
   },
+  "1ToGNDd6TO": {
+    "defaultMessage": "Files",
+    "description": "Label for the files selection list"
+  },
   "1V22/7VZBT": {
     "defaultMessage": "Daily",
     "description": "Scheduled cadence option for daily runs"
@@ -350,6 +458,14 @@
   "1VNZg9UkcM": {
     "defaultMessage": "Anthropic",
     "description": "Anthropic BYOK provider name on the integrations page"
+  },
+  "1e/ZaE2rH7": {
+    "defaultMessage": "Live jobs fetched from your connected TMS provider.",
+    "description": "Description under the TMS jobs section for workspace scope"
+  },
+  "1eCICarqN0": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the create job dialog footer"
   },
   "1enwJ9gKTA": {
     "defaultMessage": "Operate across Crowdin, Lokalise, Phrase, Smartling, and other TMS tools from one workflow layer.",
@@ -367,6 +483,10 @@
     "defaultMessage": "Conversation list failed to load",
     "description": "Error boundary title when the inbox list panel crashes"
   },
+  "1krX2eFo9o": {
+    "defaultMessage": "Contentful webhook",
+    "description": "Label for the Contentful webhook trigger"
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "Signals captured from approved work",
     "description": "Knowledge product visual mock card subtitle"
@@ -374,6 +494,10 @@
   "1ruEGx9GQx": {
     "defaultMessage": "Product context lives across GitHub, Slack, Notion, Figma, and your TMS — never in one place when translation starts.",
     "description": "Problem pain point 1 for the product-localisation use case"
+  },
+  "1um5cM9poq": {
+    "defaultMessage": "New Automation",
+    "description": "Button to create a new workspace automation"
   },
   "1v2hbAXp/Y": {
     "defaultMessage": "Select all visible",
@@ -395,9 +519,21 @@
     "defaultMessage": "Output Schema",
     "description": "Section label for agent output schema"
   },
+  "2/tGcgvmb8": {
+    "defaultMessage": "No projects match your search. <clear>Clear search</clear>",
+    "description": "Empty state when the project search returns no results, with clear action"
+  },
   "20dqsvqz/x": {
     "defaultMessage": "Locale health",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "21nIG8nStI": {
+    "defaultMessage": "View strings",
+    "description": "Button or link to open the job CAT workspace"
+  },
+  "22cLivfsp0": {
+    "defaultMessage": "Workspace",
+    "description": "Automations page header eyebrow label"
   },
   "27qrEmB3yO": {
     "defaultMessage": "Try again",
@@ -443,13 +579,25 @@
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
     "description": "Capability 1 description for the marketing-localisation use case"
   },
+  "2P3llDCJQ9": {
+    "defaultMessage": "Pick up where you left off",
+    "description": "Project overview hero call-to-action when work needs attention"
+  },
   "2QU4QHjp8c": {
     "defaultMessage": "I",
     "description": "Visible abbreviation on the italic formatting toolbar button"
   },
+  "2QksXdo4Pa": {
+    "defaultMessage": "Running",
+    "description": "Automation run status badge for running"
+  },
   "2Qxq98kpQX": {
     "defaultMessage": "Next-gen CAT Tool",
     "description": "Hero eyebrow for the next-gen CAT tool product page"
+  },
+  "2VWwjqjclF": {
+    "defaultMessage": "Assignee",
+    "description": "Label for single-assignee selection on native jobs"
   },
   "2Wk4xEwU1H": {
     "defaultMessage": "Coming soon",
@@ -462,6 +610,10 @@
   "2f2Oa8dJQI": {
     "defaultMessage": "Inbox",
     "description": "App shell breadcrumb title for the inbox page"
+  },
+  "2ghn1bUXd2": {
+    "defaultMessage": "Translation",
+    "description": "Crowdin task type option for translation"
   },
   "2he28Pg1K2": {
     "defaultMessage": "Agent Runs",
@@ -487,6 +639,10 @@
     "defaultMessage": "GitHub Localisation Workflow | Hyperlocalise",
     "description": "Page title for the github-release-localisation use case"
   },
+  "2lMmWOEFYn": {
+    "defaultMessage": "Project deleted",
+    "description": "Toast after a project is deleted successfully"
+  },
   "2mcGAlQ7te": {
     "defaultMessage": "No pending actions right now. Start a new request or browse projects when you’re ready to continue.",
     "description": "Dashboard hero description when there are no pending actions"
@@ -498,6 +654,10 @@
   "2qzhln+URv": {
     "defaultMessage": "Open in T3 Chat",
     "description": "Menu item to open the prompt in T3 Chat"
+  },
+  "2rqS6tRROV": {
+    "defaultMessage": "{remaining} words left of {total}",
+    "description": "Crowdin words remaining versus total words for a task"
   },
   "2uwHtwT4Tc": {
     "defaultMessage": "Reviews",
@@ -523,6 +683,10 @@
     "defaultMessage": "No repository context was found for this string.",
     "description": "Empty state when agent repository context lookup returns nothing"
   },
+  "33PBu8aQXh": {
+    "defaultMessage": "Enable first",
+    "description": "Badge when email notifications require enabling the email agent first"
+  },
   "33ZcrkXcDM": {
     "defaultMessage": "Opens a pull request with updated translation files when sync succeeds.",
     "description": "Description for the pull translations workflow toggle"
@@ -535,6 +699,10 @@
     "defaultMessage": "Key capabilities",
     "description": "Use case page capabilities section label"
   },
+  "39i3huA7AM": {
+    "defaultMessage": "Proofread",
+    "description": "Crowdin task type option for proofread"
+  },
   "3AEM15DaMz": {
     "defaultMessage": "Use glob patterns such as <mainExample>main</mainExample> or <releaseExample>release/*</releaseExample>. Up to 32 patterns.",
     "description": "Description for branch pattern input in push trigger settings"
@@ -542,6 +710,10 @@
   "3IdHhp9gvF": {
     "defaultMessage": "Why this is different",
     "description": "Use case page differentiator section label"
+  },
+  "3KtrgP1VL6": {
+    "defaultMessage": "View files",
+    "description": "Button linking to the project files page from the empty files card"
   },
   "3M+guxg4Ll": {
     "defaultMessage": "Unable to load GitHub installation status right now.",
@@ -555,6 +727,14 @@
     "defaultMessage": "Copy terminal output",
     "description": "Tooltip and aria label for copying terminal output"
   },
+  "3XNlGxtFuq": {
+    "defaultMessage": "A few things need your attention",
+    "description": "Project overview hero title when pending actions need review"
+  },
+  "3Ze8wX3xRS": {
+    "defaultMessage": "This source file is not linked to the task anymore.",
+    "description": "Empty state when the requested CAT source file is missing from the job"
+  },
   "3bgw2z94hj": {
     "defaultMessage": "Comments",
     "description": "Section heading for reviewer comments on the current segment"
@@ -567,6 +747,10 @@
     "defaultMessage": "Advisory",
     "description": "GitHub status check mode that reports results without blocking"
   },
+  "3kjfANjxLP": {
+    "defaultMessage": "Triggers",
+    "description": "Section heading for automation trigger settings"
+  },
   "3lnMAqI5qB": {
     "defaultMessage": "Advanced settings",
     "description": "Collapsible trigger for optional TMS provider settings"
@@ -574,6 +758,10 @@
   "3ml8Juvu7i": {
     "defaultMessage": "GitHub disconnected",
     "description": "Toast after disconnecting GitHub"
+  },
+  "3n0F65flH2": {
+    "defaultMessage": "Workspace",
+    "description": "Fallback label when a job has no project name"
   },
   "3r10YA/kX+": {
     "defaultMessage": "Config version: <version>{configVersion}</version>",
@@ -587,9 +775,17 @@
     "defaultMessage": "Enter translation...",
     "description": "Placeholder for the CAT target translation editor"
   },
+  "3xhOvPA3lu": {
+    "defaultMessage": "Source upload · {project}",
+    "description": "Header summary for a source upload trigger with a project name"
+  },
   "3yprYTWh+e": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the localisation-operations use case"
+  },
+  "3yxRiqmgnG": {
+    "defaultMessage": "No source file is linked to this task.",
+    "description": "Empty state when the job has no linked source file for CAT"
   },
   "3zJmjtu7XF": {
     "defaultMessage": "Personal access token (per member)",
@@ -599,9 +795,21 @@
     "defaultMessage": "Push approved translations to your help center",
     "description": "Workflow step 5 description for the help-center-localisation use case"
   },
+  "4/ptvuF8gA": {
+    "defaultMessage": "Platform",
+    "description": "Category heading above product links in the marketing navbar mega-menu"
+  },
   "42c6ojjeBO": {
     "defaultMessage": "Future illustration: ecosystem map showing repositories, LLM providers, TMS tools, and release control.",
     "description": "Marketing homepage workflow chapter placeholder description"
+  },
+  "45owmhJRGR": {
+    "defaultMessage": "Create automation",
+    "description": "Button to submit the new automation form"
+  },
+  "45uXWs1VTb": {
+    "defaultMessage": "Target locales",
+    "description": "Label for the target locales picker"
   },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
@@ -622,6 +830,10 @@
   "4HsCO20k/1": {
     "defaultMessage": "Connect enterprise localization programs.",
     "description": "Smartling TMS integration description on the integrations page"
+  },
+  "4Iy9AzpaNC": {
+    "defaultMessage": "Week",
+    "description": "Weekly schedule cadence option"
   },
   "4Jm91tEu1i": {
     "defaultMessage": "Keeping our TMS while adding agent workflows is the difference.",
@@ -667,6 +879,10 @@
     "defaultMessage": "Translation work starts too late in the release cycle, so locales block launches or ship with gaps.",
     "description": "Problem pain point 3 for the product-localisation use case"
   },
+  "4gW2ktRuC/": {
+    "defaultMessage": "{direction} {connector}",
+    "description": "Fallback job name for a sync job"
+  },
   "4lhHg5n2pX": {
     "defaultMessage": "Agent context",
     "description": "Accessible label for agent-discovered context markdown content"
@@ -674,6 +890,10 @@
   "4mrug10+v6": {
     "defaultMessage": "Load more",
     "description": "Button label to load more CAT queue segments"
+  },
+  "4mzmyHsHW0": {
+    "defaultMessage": "Saving...",
+    "description": "Save button label while the automation update request is pending"
   },
   "4tP9x2ODN4": {
     "defaultMessage": "Connect your Anthropic account",
@@ -686,6 +906,14 @@
   "4vXdOuz0pQ": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after snippet text is copied to the clipboard"
+  },
+  "4wrSufGtmm": {
+    "defaultMessage": "proofread",
+    "description": "Job kind label for proofread jobs"
+  },
+  "4x93Ph/+pf": {
+    "defaultMessage": "Projects failed to load.",
+    "description": "Error title when the projects list fails to load"
   },
   "5/QxgxarO+": {
     "defaultMessage": "Asset delivery",
@@ -723,6 +951,10 @@
     "defaultMessage": "System",
     "description": "System color theme option that follows the OS preference"
   },
+  "5G9CHzXNWL": {
+    "defaultMessage": "Privacy",
+    "description": "Marketing navbar link to the privacy policy"
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Context match",
     "description": "Badge label for a context translation memory match"
@@ -730,6 +962,10 @@
   "5KdZWVlAAs": {
     "defaultMessage": "Last delivery: {timestamp}",
     "description": "Shows when the Contentful webhook last delivered an event"
+  },
+  "5OJwSyhCmS": {
+    "defaultMessage": "Projects",
+    "description": "Dropdown label for the project selector"
   },
   "5QymJ2ZjS2": {
     "defaultMessage": "Cache",
@@ -742,6 +978,10 @@
   "5YR1meSOsj": {
     "defaultMessage": "Show reviewers what changed in the source",
     "description": "Capability 3 title for the help-center-localisation use case"
+  },
+  "5Yf/LdtZRn": {
+    "defaultMessage": "Unknown repository",
+    "description": "Label when a selected repository id is not in the loaded list"
   },
   "5atqmuSxdx": {
     "defaultMessage": "Tools",
@@ -766,6 +1006,10 @@
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
     "description": "GitHub connect error when installation ID is invalid"
+  },
+  "5nqOLfQ5J8": {
+    "defaultMessage": "Add a project to track localization work and shared translation guidance.",
+    "description": "Description of the create project dialog"
   },
   "5yXqdk0MWc": {
     "defaultMessage": "From new article to monitored locale coverage",
@@ -799,6 +1043,10 @@
     "defaultMessage": "Support publishes an updated billing FAQ after a pricing change. Hyperlocalise detects the article update, analyzes changed sections and linked product terms, generates translation drafts for each locale, runs terminology checks against the product glossary, routes drafts to support reviewers, syncs approved translations to Zendesk and Contentful, and alerts the team if any locale still shows the pre-change version after forty-eight hours.",
     "description": "Scenario narrative for the help-center-localisation use case"
   },
+  "6Lz1ZPrrNj": {
+    "defaultMessage": "Name",
+    "description": "Label for the project name field"
+  },
   "6PFnjoc6zP": {
     "defaultMessage": "Editor panel failed to load",
     "description": "Error boundary title when the CAT editor panel crashes"
@@ -807,17 +1055,33 @@
     "defaultMessage": "{triggerSource} · completed {completedAt}",
     "description": "Automation run metadata when the run has completed"
   },
+  "6QqDATp4yt": {
+    "defaultMessage": "Email",
+    "description": "Tool badge when an automation uses email"
+  },
   "6RuyJHJCyu": {
     "defaultMessage": "Revoke",
     "description": "Button to open the revoke API key confirmation dialog"
+  },
+  "6YRqpDlcKq": {
+    "defaultMessage": "GitHub push",
+    "description": "Label for the GitHub push trigger"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "Failed to connect Crowdin",
     "description": "Toast error when Crowdin personal access token connection fails"
   },
+  "6fRdYraA0j": {
+    "defaultMessage": "Loading jobs board",
+    "description": "Accessible label while the kanban board skeleton is shown"
+  },
   "6g9RHsjL+m": {
     "defaultMessage": "Reduce review churn",
     "description": "Proof point 3 title for the self-evolving knowledge product page"
+  },
+  "6hZ0OrRvp2": {
+    "defaultMessage": "Inactive",
+    "description": "Badge shown on inactive project cards"
   },
   "6ilKS2sOmJ": {
     "defaultMessage": "Failed to fetch Contentful connections",
@@ -830,6 +1094,14 @@
   "6ubkC6hfDe": {
     "defaultMessage": "Blockquote",
     "description": "Tooltip and accessible label for the blockquote toolbar button"
+  },
+  "6v642AIPEK": {
+    "defaultMessage": "Failed",
+    "description": "Job status label for failed jobs"
+  },
+  "6x6KaRjdJB": {
+    "defaultMessage": "Project scope, release, or ownership notes",
+    "description": "Placeholder for the project description field"
   },
   "6xU6c/eKvO": {
     "defaultMessage": "{hour}:00 UTC",
@@ -846,6 +1118,14 @@
   "6xwxjrmrdy": {
     "defaultMessage": "Source strings are pushed into this project.",
     "description": "Description for the push source project select field"
+  },
+  "6z9r7qs8fj": {
+    "defaultMessage": "{count, plural, one {# tool} other {# tools}}",
+    "description": "Summary of how many tools are configured on the automation"
+  },
+  "6zAmu9E3FT": {
+    "defaultMessage": "Unable to queue a manual run right now",
+    "description": "Toast when queueing a manual automation run fails"
   },
   "7+I/+6Aeqq": {
     "defaultMessage": "Next segment",
@@ -875,6 +1155,10 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after stack trace is copied to the clipboard"
   },
+  "7AiYKudhqp": {
+    "defaultMessage": "Cancelled",
+    "description": "Job status label for cancelled jobs"
+  },
   "7BA/WdUPFq": {
     "defaultMessage": "GitHub App integration is not configured for this environment.",
     "description": "GitHub connect error when GitHub App credentials are not configured"
@@ -883,6 +1167,10 @@
     "defaultMessage": "Approve with confidence",
     "description": "Proof point 3 title for the next-gen CAT tool product page"
   },
+  "7M3ajU1pAe": {
+    "defaultMessage": "Due {due} · Synced {synced}",
+    "description": "Relative due date and last sync time under job task details"
+  },
   "7MaLlZw62e": {
     "defaultMessage": "Your account is signed in, but we could not reach WorkOS to confirm your organization membership.",
     "description": "Access denied page summary when WorkOS membership lookup fails"
@@ -890,6 +1178,10 @@
   "7OEl2Ch1Rv": {
     "defaultMessage": "Updates, product thinking, and lessons from building agent-native localisation workflows.",
     "description": "Meta description for the marketing blog index page"
+  },
+  "7OFNvD/Tg3": {
+    "defaultMessage": "Failed to load files",
+    "description": "Fallback error when native project files fail to load"
   },
   "7QQUiWq0U1": {
     "defaultMessage": "Content Management API token",
@@ -910,6 +1202,10 @@
   "7Vqlo08+3q": {
     "defaultMessage": "Collect localisation requests from GitHub, Slack, CMS platforms, and your TMS into one queue.",
     "description": "Capability 1 description for the localisation-operations use case"
+  },
+  "7WTIzTDLbF": {
+    "defaultMessage": "Create job",
+    "description": "Button on project overview to open the create job dialog"
   },
   "7XDIDUvT19": {
     "defaultMessage": "Use cases",
@@ -935,6 +1231,10 @@
     "defaultMessage": "Smartling",
     "description": "Smartling TMS integration name on the integrations page"
   },
+  "7qHTh1/iSP": {
+    "defaultMessage": "Failed to create translation job",
+    "description": "Fallback error when a native translation job fails to create"
+  },
   "7qpCwZIaq2": {
     "defaultMessage": "Target translation",
     "description": "Accessible label for the CAT target translation editor"
@@ -942,6 +1242,14 @@
   "7rtL+2WjPy": {
     "defaultMessage": "New request",
     "description": "Button to start a new project-scoped conversation in Crowdin App inbox"
+  },
+  "7vHEse/Aa+": {
+    "defaultMessage": "Notify a channel when runs reach a terminal state.",
+    "description": "Description for Slack notifications when Slack is connected"
+  },
+  "7zni895OkR": {
+    "defaultMessage": "Automation created",
+    "description": "Toast when a new workspace automation is created successfully"
   },
   "8+43PQyB4j": {
     "defaultMessage": "Context-aware across all content sources",
@@ -983,6 +1291,10 @@
     "defaultMessage": "Jobs",
     "description": "Project sidebar navigation item for project jobs"
   },
+  "8L0EFFuXJa": {
+    "defaultMessage": "{count} jobs created",
+    "description": "Toast when multiple jobs are created successfully"
+  },
   "8Le6L54Cs/": {
     "defaultMessage": "Localisation Operations Platform | Hyperlocalise",
     "description": "Page title for the localisation-operations use case"
@@ -1019,6 +1331,10 @@
     "defaultMessage": "Search key or text…",
     "description": "Placeholder for CAT queue search input"
   },
+  "8UnBVLcjgq": {
+    "defaultMessage": "{position} / {total}",
+    "description": "Current segment index and total count in the compact CAT workspace header"
+  },
   "8VhTVN2EZZ": {
     "defaultMessage": "GitHub changes",
     "description": "Marketing homepage workflow chapter link label"
@@ -1030,6 +1346,10 @@
   "8bpns6mW0p": {
     "defaultMessage": "Authentication method",
     "description": "Label for the Crowdin authentication method selector"
+  },
+  "8cCnIQ+Lhz": {
+    "defaultMessage": "Unable to update project",
+    "description": "Fallback error when updating a project fails"
   },
   "8d4Iw9Q9DE": {
     "defaultMessage": "Every {weekday} at {time} · {timezone}",
@@ -1055,6 +1375,10 @@
     "defaultMessage": "Disabled",
     "description": "Slack agent status title when connected but disabled"
   },
+  "8pW28B/viJ": {
+    "defaultMessage": "Remove Contentful translate",
+    "description": "Accessible label to remove the Contentful translate tool"
+  },
   "8qa1pUW6eX": {
     "defaultMessage": "Account",
     "description": "Account settings link in the user menu"
@@ -1063,9 +1387,9 @@
     "defaultMessage": "English",
     "description": "Display name for BCP-47 locale en"
   },
-  "8rr2LhuMpW": {
-    "defaultMessage": "Queued",
-    "description": "Kanban column label for queued jobs"
+  "8rom3KX2rX": {
+    "defaultMessage": "Send email",
+    "description": "Menu item and tool title for email notifications"
   },
   "8thlQ//Slc": {
     "defaultMessage": "Human-in-the-loop when review is required",
@@ -1102,6 +1426,10 @@
   "91cpLc7aba": {
     "defaultMessage": "Stay TMS agnostic across platforms",
     "description": "Capability 4 title for the localisation-operations use case"
+  },
+  "91uWukrQcJ": {
+    "defaultMessage": "Source upload",
+    "description": "Label for the source upload trigger"
   },
   "92YYrAXEnO": {
     "defaultMessage": "Check",
@@ -1167,9 +1495,17 @@
     "defaultMessage": "Workspace name must be at least 2 characters.",
     "description": "Validation error when the workspace name is too short"
   },
+  "9actmxeaKu": {
+    "defaultMessage": "No projects found",
+    "description": "Empty state when there are no projects to select"
+  },
   "9bSARO1BLR": {
     "defaultMessage": "Add a comment...",
     "description": "Placeholder for the segment comment input"
+  },
+  "9c0o1d89j+": {
+    "defaultMessage": "GitHub repositories could not be loaded. Repository context lookup is unavailable.",
+    "description": "Banner when GitHub repositories fail to load on the job CAT page"
   },
   "9glYgHRgqB": {
     "defaultMessage": "Integrations",
@@ -1195,6 +1531,10 @@
     "defaultMessage": "Failed to generate GitHub install URL",
     "description": "Toast when GitHub App install URL generation fails"
   },
+  "9u8Sq8abiS": {
+    "defaultMessage": "Delete project?",
+    "description": "Title of the delete project confirmation dialog"
+  },
   "9uVn8mc+mK": {
     "defaultMessage": "e.g. Production CI",
     "description": "Placeholder for the API key name field"
@@ -1207,9 +1547,17 @@
     "defaultMessage": "Regression checks run manually — or not at all — before major releases.",
     "description": "Problem pain point 3 for the localisation-quality-monitoring use case"
   },
+  "9xPbF7DCJr": {
+    "defaultMessage": "Automate repetitive tasks with always-on workflows that respond to schedules and GitHub pushes.",
+    "description": "Automations page description under the heading"
+  },
   "9yja2gkowg": {
     "defaultMessage": "English (United States)",
     "description": "Display name for BCP-47 locale en-US"
+  },
+  "9yljEAQK89": {
+    "defaultMessage": "Jobs view mode",
+    "description": "Accessible label for the row versus board view toggle"
   },
   "A+IsVf0TGL": {
     "defaultMessage": "Contentful Help Center",
@@ -1238,6 +1586,10 @@
   "A4tXh3Cw8D": {
     "defaultMessage": "QA",
     "description": "App shell breadcrumb title for the QA page"
+  },
+  "A4xm05eQSM": {
+    "defaultMessage": "Language",
+    "description": "Detail row label for the Crowdin task language"
   },
   "A6Qd63GgNv": {
     "defaultMessage": "LLM-agnostic",
@@ -1287,6 +1639,10 @@
     "defaultMessage": "Release gate",
     "description": "Workflow step 6 label for the github-release-localisation use case"
   },
+  "AUY6LRuqkn": {
+    "defaultMessage": "Ongoing",
+    "description": "Section heading for ongoing jobs and files on project overview"
+  },
   "AWZymO5ooC": {
     "defaultMessage": "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
     "description": "Page title for the agents automation product page"
@@ -1303,6 +1659,14 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after commit hash is copied to the clipboard"
   },
+  "AeHzXlSphR": {
+    "defaultMessage": "My Jobs",
+    "description": "Personal jobs page heading"
+  },
+  "AiZ8NmX54q": {
+    "defaultMessage": "No channels found",
+    "description": "Empty state when no Slack channels are available"
+  },
   "AkuhSH8rwy": {
     "defaultMessage": "Code block failed to render",
     "description": "Error boundary title when a code block crashes"
@@ -1315,17 +1679,37 @@
     "defaultMessage": "Succeeded",
     "description": "Automation run status badge for succeeded runs"
   },
+  "B49vrN6vd7": {
+    "defaultMessage": "Trigger",
+    "description": "Run history column header for trigger source"
+  },
   "B8cDvM1Ftb": {
     "defaultMessage": "Alert when locales fall behind source",
     "description": "Workflow step 6 description for the help-center-localisation use case"
+  },
+  "B9aG0nitRg": {
+    "defaultMessage": "file",
+    "description": "Fallback label when a provider task file has no format metadata"
   },
   "BCjjJI52jI": {
     "defaultMessage": "Close the loop",
     "description": "Proof point 3 title for the agents automation product page"
   },
+  "BFQt98qExR": {
+    "defaultMessage": "{days}d",
+    "description": "Relative age of an automation created one or more days ago"
+  },
+  "BGQKZth3v0": {
+    "defaultMessage": "String editing is only available for supported provider task files.",
+    "description": "Empty state when the selected provider file cannot open in CAT"
+  },
   "BGfQ06k8Pb": {
     "defaultMessage": "Failed to look up repository context.",
     "description": "Fallback error when repository context lookup fails"
+  },
+  "BHCGhKF/Fb": {
+    "defaultMessage": "Projects created and managed in this workspace.",
+    "description": "Section description for native Hyperlocalise projects"
   },
   "BJ6vl2NzEe": {
     "defaultMessage": "Open in chat",
@@ -1363,10 +1747,6 @@
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
   },
-  "BgfpkbN4Fe": {
-    "defaultMessage": "Knowledge",
-    "description": "Marketing navbar link to the self-evolving knowledge product page"
-  },
   "Bh7oPsMHrP": {
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error guidance when loading API keys fails"
@@ -1378,6 +1758,10 @@
   "BnZ3uPwDP7": {
     "defaultMessage": "Look up where this string appears in the connected repository",
     "description": "Tooltip for the find repository context button when available"
+  },
+  "BntV+FD+ax": {
+    "defaultMessage": "Connection",
+    "description": "Label for the Contentful connection select"
   },
   "BresGxSzFx": {
     "defaultMessage": "ICU structure",
@@ -1419,6 +1803,10 @@
     "defaultMessage": "Connect Crowdin in Hyperlocalise",
     "description": "Title when no Hyperlocalise org maps to this Crowdin org"
   },
+  "C31IoV3z9k": {
+    "defaultMessage": "Load more",
+    "description": "Button to load more projects in the list"
+  },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
     "description": "Toast after saving Phrase OAuth app when user OAuth is still required"
@@ -1435,6 +1823,10 @@
     "defaultMessage": "Apply glossary, tone, and UI constraints before review",
     "description": "Capability 3 title for the product-localisation use case"
   },
+  "CDHpNJeAfK": {
+    "defaultMessage": "All caught up",
+    "description": "Overview hero badge when there are no pending actions"
+  },
   "CGit9CSACq": {
     "defaultMessage": "Files",
     "description": "App shell breadcrumb title for the files page"
@@ -1442,6 +1834,10 @@
   "CHs2ugz7iN": {
     "defaultMessage": "Unsaved changes",
     "description": "Accessible label for queue row indicator when a segment has unsaved edits"
+  },
+  "CHxu7ekWGa": {
+    "defaultMessage": "Loading queue",
+    "description": "Accessible label while the CAT queue panel skeleton is shown"
   },
   "CIM2S3+MYa": {
     "defaultMessage": "Capture goals, audience, and messaging",
@@ -1455,6 +1851,10 @@
     "defaultMessage": "Track locale health, review coverage, and eval history in one place so localization PMs and engineering teams can see what is safe to ship.",
     "description": "Marketing homepage workflow chapter description"
   },
+  "CQAPVFsXtD": {
+    "defaultMessage": "Select project",
+    "description": "Placeholder when no project is selected"
+  },
   "CQCxmYWm3f": {
     "defaultMessage": "Update connection",
     "description": "Save button label when editing an existing Contentful connection"
@@ -1462,6 +1862,10 @@
   "CRRbrB6ehg": {
     "defaultMessage": "Eval gates",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "CTLXW62s69": {
+    "defaultMessage": "Task type",
+    "description": "Label for the Crowdin task type select"
   },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
@@ -1474,6 +1878,10 @@
   "CWdGpW4jOj": {
     "defaultMessage": "Strings",
     "description": "Project sidebar navigation item for the CAT strings workspace"
+  },
+  "CXxeX4tNjR": {
+    "defaultMessage": "Push source",
+    "description": "Toggle label for the push source GitHub sync workflow"
   },
   "CfAFoekPz1": {
     "defaultMessage": "{providerName} projects",
@@ -1495,6 +1903,14 @@
     "defaultMessage": "Attach glossaries, briefs, and history",
     "description": "Workflow step 2 description for the localisation-operations use case"
   },
+  "Ckfjf7HRih": {
+    "defaultMessage": "Description must be 10,000 characters or fewer.",
+    "description": "Validation error when the project description exceeds 10,000 characters"
+  },
+  "Ckw9uq26zb": {
+    "defaultMessage": "{kind} · {taskId}",
+    "description": "Job kind and task identifier shown under the job name"
+  },
   "CmE4SxYlZe": {
     "defaultMessage": "Human review",
     "description": "Workflow step 4 label for the product-localisation use case"
@@ -1507,13 +1923,29 @@
     "defaultMessage": "Copy link to this segment",
     "description": "Accessible label for the CAT segment share link button"
   },
+  "CtXpaStJTy": {
+    "defaultMessage": "Marketing site launch",
+    "description": "Placeholder for the project name field"
+  },
   "Cv5dtJ6iTe": {
     "defaultMessage": "Saturday",
     "description": "Weekday option for scheduled automation"
   },
+  "CvYNnC7KYY": {
+    "defaultMessage": "We could not load jobs for this project.",
+    "description": "Empty-state description when project jobs fail to load"
+  },
+  "CzEPtyNc5S": {
+    "defaultMessage": "{count, plural, one {# pending action} other {# pending actions}}",
+    "description": "Overview hero badge showing how many pending actions remain"
+  },
   "CzW/0u2+bW": {
     "defaultMessage": "OAuth works when your Enterprise OAuth app is configured. Personal access tokens let each member paste a token from Crowdin without OAuth setup.",
     "description": "Description for the Crowdin authentication method selector"
+  },
+  "D0mCtflyKZ": {
+    "defaultMessage": "Loading channels...",
+    "description": "Placeholder while Slack channels are loading"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
@@ -1527,6 +1959,10 @@
     "defaultMessage": "Active",
     "description": "Badge on the workspace’s currently selected model provider card"
   },
+  "D6uFQeF0q1": {
+    "defaultMessage": "No TMS jobs were returned from the live provider API.",
+    "description": "Empty state for TMS jobs in workspace scope"
+  },
   "D7NvZBBM/6": {
     "defaultMessage": "Running",
     "description": "Automation run status badge for running runs"
@@ -1534,6 +1970,14 @@
   "D9igbLAS2O": {
     "defaultMessage": "Admins can connect",
     "description": "Hint shown when the user lacks permission to connect an integration"
+  },
+  "DBBFqQ55km": {
+    "defaultMessage": "Your provider connection is active, but no projects were returned from the live API.",
+    "description": "Description when the TMS projects list is empty"
+  },
+  "DCeid5ejmn": {
+    "defaultMessage": "Select a Contentful connection to choose target locales.",
+    "description": "Empty state when Contentful target locales cannot be chosen yet"
   },
   "DChuKVBoeL": {
     "defaultMessage": "LLM agnostic",
@@ -1547,6 +1991,14 @@
     "defaultMessage": "Color theme",
     "description": "Accessible label for the theme selection radio group"
   },
+  "DFNppqOCak": {
+    "defaultMessage": "Create project",
+    "description": "Title of the create project dialog"
+  },
+  "DI7vTror/h": {
+    "defaultMessage": "Source Content",
+    "description": "Template category filter tab for source content templates"
+  },
   "DJGr6J4yAS": {
     "defaultMessage": "French (France)",
     "description": "Display name for BCP-47 locale fr-FR"
@@ -1559,13 +2011,33 @@
     "defaultMessage": "Localization PM",
     "description": "Marketing homepage testimonial speaker role"
   },
+  "DPE4D8nJkF": {
+    "defaultMessage": "Add Trigger",
+    "description": "Button to open the add-trigger menu"
+  },
+  "DQ07Hv8A9f": {
+    "defaultMessage": "This project does not have a source locale.",
+    "description": "Error when the project has no configured source locale for CAT"
+  },
   "DSm/l7fomX": {
     "defaultMessage": "Revoke API key",
     "description": "Title of the revoke API key confirmation dialog"
   },
+  "DTYOuQdye9": {
+    "defaultMessage": "Untitled automation",
+    "description": "Placeholder for the automation name field"
+  },
   "DUUeZdS8h4": {
     "defaultMessage": "Route to support and localisation reviewers",
     "description": "Capability 4 title for the help-center-localisation use case"
+  },
+  "DWXDNH6bM+": {
+    "defaultMessage": "Tools",
+    "description": "Automations list column header for tools"
+  },
+  "DdTfqNy1em": {
+    "defaultMessage": "Send terminal run summaries to specific recipients.",
+    "description": "Description for email notifications when email is enabled"
   },
   "DeMAC4mdid": {
     "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond to mentions, DMs, and subscribed threads.",
@@ -1591,6 +2063,10 @@
     "defaultMessage": "Catch translation drift before your customers do",
     "description": "Hero headline for the localisation-quality-monitoring use case"
   },
+  "Dwu72TwwL/": {
+    "defaultMessage": "Loading jobs…",
+    "description": "Loading state while the jobs list is fetching"
+  },
   "DxQL85kivW": {
     "defaultMessage": "Turn launch briefs, campaign assets, and regional messaging into reviewed, culturally adapted copy — with approval flows and glossary control built in.",
     "description": "Hero subheadline for the marketing-localisation use case"
@@ -1598,6 +2074,14 @@
   "DxmswO0BaI": {
     "defaultMessage": "Save connection",
     "description": "Save button label when creating a new Contentful connection"
+  },
+  "Dz+BYN4QJV": {
+    "defaultMessage": "Remove GitHub repo tool",
+    "description": "Accessible label to remove the GitHub agent repository tool"
+  },
+  "E0kqf33f8D": {
+    "defaultMessage": "Connect Contentful in <link>Integrations</link> to use this tool.",
+    "description": "Description for Contentful translate when Contentful is not connected"
   },
   "E2040akAix": {
     "defaultMessage": "Project",
@@ -1627,6 +2111,10 @@
     "defaultMessage": "Assign agents to translation, review, and sync tasks while keeping human reviewers in the loop through the TMS your team already uses.",
     "description": "Marketing homepage workflow chapter description"
   },
+  "EBgNz2ZSu6": {
+    "defaultMessage": "View strings",
+    "description": "Button on project overview linking to the project Strings page"
+  },
   "EC/XnP73At": {
     "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
     "description": "Workflow section description for the github-release-localisation use case"
@@ -1643,6 +2131,10 @@
     "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
     "description": "Capability 4 description for the github-release-localisation use case"
   },
+  "EGX8+adWDn": {
+    "defaultMessage": "Templates",
+    "description": "Section heading for automation templates"
+  },
   "EGk/6OwbtI": {
     "defaultMessage": "Join waitlist",
     "description": "Marketing navbar call-to-action to join the waitlist"
@@ -1650,6 +2142,10 @@
   "EGy0DHdyiF": {
     "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale.",
     "description": "CTA section description for the help-center-localisation use case"
+  },
+  "EJdAEUdkMf": {
+    "defaultMessage": "Popular",
+    "description": "Template category filter tab for popular templates"
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Latest jobs",
@@ -1667,6 +2163,10 @@
     "defaultMessage": "Unable to save Contentful connection",
     "description": "Fallback error when saving a Contentful connection fails"
   },
+  "ESaaPFjV43": {
+    "defaultMessage": "Hyperlocalise",
+    "description": "Provider label for native Hyperlocalise projects on project cards"
+  },
   "ETurL1gTEW": {
     "defaultMessage": "Campaign context sits in Notion, Figma, Slack, and agency decks — not in the translation workflow.",
     "description": "Problem pain point 1 for the marketing-localisation use case"
@@ -1679,6 +2179,10 @@
     "defaultMessage": "Queue",
     "description": "Heading for the CAT segment queue panel"
   },
+  "EY7508Falv": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while a job description save is in progress"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "Reset settings",
     "description": "Button label to reset repository automation settings"
@@ -1686,6 +2190,10 @@
   "Eakafmv8Gv": {
     "defaultMessage": "Connect Crowdin, Lokalise, Phrase, or Smartling.",
     "description": "Dashboard integration description when no TMS provider is connected"
+  },
+  "EavgCh3/dm": {
+    "defaultMessage": "Creating...",
+    "description": "Create button label while the automation create request is pending"
   },
   "EbDvs5zM4A": {
     "defaultMessage": "TMS sync",
@@ -1703,6 +2211,10 @@
     "defaultMessage": "Works across GitHub, TMS, and release tooling",
     "description": "Differentiator point 6 for the github-release-localisation use case"
   },
+  "Ej5U0a0604": {
+    "defaultMessage": "Agent Instructions",
+    "description": "Section heading for automation agent instructions"
+  },
   "EkIRMNMq59": {
     "defaultMessage": "Side by side",
     "description": "CAT workspace view mode with source and translation columns"
@@ -1714,6 +2226,10 @@
   "Euo1Muino3": {
     "defaultMessage": "Orchestrate localisation across TMS platforms, LLM providers, vendors, and reviewers. One workflow layer for localisation managers without replacing your stack.",
     "description": "Meta description for the localisation-operations use case"
+  },
+  "EvF3cGlK0a": {
+    "defaultMessage": "Release Readiness",
+    "description": "Template category filter tab for release readiness templates"
   },
   "EwntDoEOdH": {
     "defaultMessage": "Release gate",
@@ -1731,9 +2247,17 @@
     "defaultMessage": "Connect Slack",
     "description": "Primary action label to start Slack OAuth"
   },
+  "F/BtD1KZKq": {
+    "defaultMessage": "{hours}h",
+    "description": "Relative age of an automation created less than a day ago"
+  },
   "F1KUlqpyf6": {
     "defaultMessage": "Error",
     "description": "Tool status badge when the tool returned an error"
+  },
+  "F25y8G/ydQ": {
+    "defaultMessage": "All",
+    "description": "Tab to show all project sources"
   },
   "F5DQ5DD59e": {
     "defaultMessage": "Attach article diffs and product context so reviewers approve updates with full visibility.",
@@ -1750,6 +2274,22 @@
   "F6X8Sh27Q0": {
     "defaultMessage": "Approved",
     "description": "CAT queue filter option for approved segments"
+  },
+  "F6jskX12It": {
+    "defaultMessage": "Save changes",
+    "description": "Button to save automation detail changes"
+  },
+  "FCdijMuIQ9": {
+    "defaultMessage": "Add Tool",
+    "description": "Button to open the add-tool menu"
+  },
+  "FHizcUfYk8": {
+    "defaultMessage": "Terms",
+    "description": "Marketing navbar link to the terms of service"
+  },
+  "FHqHBUJ88J": {
+    "defaultMessage": "Jobs failed to load.",
+    "description": "Error title when the jobs list request fails"
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Quality issues surface after launch, not before",
@@ -1771,6 +2311,10 @@
     "defaultMessage": "Branch patterns may only use letters, numbers, ., _, -, /, *, and ?.",
     "description": "Validation error when a branch pattern contains invalid characters"
   },
+  "FcadZC4Ojx": {
+    "defaultMessage": "Succeeded",
+    "description": "Job status label for succeeded jobs"
+  },
   "FcsO6dYpho": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after code is copied to the clipboard"
@@ -1787,6 +2331,14 @@
     "defaultMessage": "Context",
     "description": "App shell breadcrumb title for a project context section"
   },
+  "Fkgfxe1y6x": {
+    "defaultMessage": "translation",
+    "description": "Job kind label for translation jobs"
+  },
+  "FlXBmFercA": {
+    "defaultMessage": "Remove GitHub sync workflows",
+    "description": "Accessible label to remove GitHub sync workflows"
+  },
   "FlwYDfCvTq": {
     "defaultMessage": "{count} passed",
     "description": "Badge label for the number of passed tests"
@@ -1794,6 +2346,10 @@
   "Fu+Wp27gS1": {
     "defaultMessage": "Hyperlocalise connects product change signals to the review and sync workflow your team already runs.",
     "description": "Workflow section description for the product-localisation use case"
+  },
+  "FuoKPzKv08": {
+    "defaultMessage": "Description",
+    "description": "Detail row label for the Crowdin task description"
   },
   "G+Z7c9Efva": {
     "defaultMessage": "Built for localisation operations at release speed",
@@ -1815,9 +2371,17 @@
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the help-center-localisation use case"
   },
+  "GERghL+Meu": {
+    "defaultMessage": "Run History",
+    "description": "Tab label for automation run history"
+  },
   "GM92+KcSLv": {
     "defaultMessage": "Email agent settings unavailable",
     "description": "Placeholder when email agent settings failed to load"
+  },
+  "GOImV2QS+V": {
+    "defaultMessage": "Unable to delete project",
+    "description": "Fallback error when deleting a project fails"
   },
   "GRJxQXl5PH": {
     "defaultMessage": "Registered in Contentful",
@@ -1843,9 +2407,21 @@
     "defaultMessage": "Click to localize image",
     "description": "Placeholder when a side-by-side image row has no localized image yet"
   },
+  "Gb5iBYRxAb": {
+    "defaultMessage": "{current} / {max}",
+    "description": "Character count indicator for project form fields"
+  },
+  "GdV4Jl3WMg": {
+    "defaultMessage": "Runs when Contentful sends a matching entry create or update webhook.",
+    "description": "Description for Contentful webhook trigger when Contentful is connected"
+  },
   "GdufIv1RQV": {
     "defaultMessage": "Contentful",
     "description": "Automation run trigger source label for Contentful-triggered runs"
+  },
+  "GeD3IIa8Fg": {
+    "defaultMessage": "Update the metadata stored with this project.",
+    "description": "Description of the edit project dialog"
   },
   "GfQL0NJI1y": {
     "defaultMessage": "Contact support",
@@ -1863,6 +2439,10 @@
     "defaultMessage": "Expand chat",
     "description": "Accessible label for expanding the chat dock panel"
   },
+  "GnhXacyqeM": {
+    "defaultMessage": "Select a GitHub repository to look up string context.",
+    "description": "Banner prompting the user to pick a repository for CAT context lookup"
+  },
   "GpQTuQOUij": {
     "defaultMessage": "Loading {title}",
     "description": "Accessible label while a dashboard panel is loading"
@@ -1875,9 +2455,17 @@
     "defaultMessage": "Stop repeating the same localisation feedback",
     "description": "Hero headline for the self-evolving knowledge product page"
   },
+  "GuEU+qQCHt": {
+    "defaultMessage": "Overwrite targets",
+    "description": "Toggle label for overwriting Contentful target locales"
+  },
   "H+lh3KkeVK": {
     "defaultMessage": "Switching LLM providers or TMS platforms disrupts established workflows.",
     "description": "Problem pain point 2 for the localisation-operations use case"
+  },
+  "H/CmKBQumj": {
+    "defaultMessage": "Marketing",
+    "description": "Template category filter tab for marketing templates"
   },
   "H/M3brO8Jk": {
     "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can launch global product content faster without replacing your existing tools.",
@@ -1891,6 +2479,10 @@
     "defaultMessage": "Adapt for regional nuance, not word-for-word translation",
     "description": "Capability 3 title for the marketing-localisation use case"
   },
+  "H0Rnoert6W": {
+    "defaultMessage": "{kind} · {taskId}",
+    "description": "Job kind and task identifier shown under the kanban card title"
+  },
   "H0k47esZhc": {
     "defaultMessage": "Message syntax could not be parsed.",
     "description": "Fallback error when ICU message syntax parsing fails"
@@ -1903,6 +2495,10 @@
     "defaultMessage": "No context is attached to this string in the source file.",
     "description": "Empty state when no developer context is attached in the source file"
   },
+  "H5oPOOVIIl": {
+    "defaultMessage": "GitHub",
+    "description": "Marketing navbar link to the Hyperlocalise GitHub repository"
+  },
   "H7+t0VoSpu": {
     "defaultMessage": "Copy link",
     "description": "Button to copy a shareable link to the current CAT segment"
@@ -1910,6 +2506,10 @@
   "H7MZFgXFSw": {
     "defaultMessage": "Copied!",
     "description": "Aria label after copying the inbound email address"
+  },
+  "HCHtNgw+mH": {
+    "defaultMessage": "—",
+    "description": "Placeholder shown when a job detail field has no value"
   },
   "HDJPwmFPXK": {
     "defaultMessage": "Product strings change faster than localisation can follow",
@@ -1935,6 +2535,14 @@
     "defaultMessage": "Privacy policy",
     "description": "Open Graph heading for the privacy policy page"
   },
+  "HS6xLp94fT": {
+    "defaultMessage": "Source upload",
+    "description": "Run history trigger source for source upload runs"
+  },
+  "HTsdqd2HP4": {
+    "defaultMessage": "Start from a curated workflow. Templates prefill the creation form with instructions, triggers, and tools.",
+    "description": "Section description for automation templates"
+  },
   "HWwdf4dk7T": {
     "defaultMessage": "Most review cycles stall because the translator cannot see the screen, the glossary, the intent, or the product nuance. Hyperlocalise puts that context beside the string.",
     "description": "Hero subcopy for the next-gen CAT tool product page"
@@ -1947,9 +2555,17 @@
     "defaultMessage": "Context attached in the file",
     "description": "Section heading for developer context attached in the source file"
   },
+  "HbZmRDMHs3": {
+    "defaultMessage": "Opening workspace…",
+    "description": "Loading state while navigating into the job CAT workspace"
+  },
   "Hmzt+zT6qT": {
     "defaultMessage": "Persian (Iran)",
     "description": "Display name for BCP-47 locale fa-IR"
+  },
+  "Ho5CjjaEBq": {
+    "defaultMessage": "Add target locales in project settings before creating jobs.",
+    "description": "Hint when the project has no target locales configured"
   },
   "HrB9mIwARt": {
     "defaultMessage": "Edit",
@@ -1958,6 +2574,10 @@
   "HrKmOaq57x": {
     "defaultMessage": "Knowledge",
     "description": "Sidebar navigation item for workspace knowledge"
+  },
+  "HrQO2GGbYJ": {
+    "defaultMessage": "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
+    "description": "Projects page description when no TMS provider is connected"
   },
   "HsI1Rbh6Cp": {
     "defaultMessage": "Connect to browse Phrase projects and jobs with user OAuth.",
@@ -1971,9 +2591,17 @@
     "defaultMessage": "Context-aware from briefs and brand guides",
     "description": "Differentiator point 4 for the marketing-localisation use case"
   },
+  "HxcjgjcAgw": {
+    "defaultMessage": "Status",
+    "description": "Label above the jobs status filter"
+  },
   "I/DICv+jfP": {
     "defaultMessage": "The localization platform to launch globally in days",
     "description": "Marketing homepage hero headline"
+  },
+  "I6/kYi4M/3": {
+    "defaultMessage": "Loading workspace…",
+    "description": "Loading state while the job CAT workspace is preparing"
   },
   "I7LI9gWPKv": {
     "defaultMessage": "Enable email agent to generate inbox address",
@@ -2023,6 +2651,10 @@
     "defaultMessage": "Copy value",
     "description": "Tooltip for copying an environment variable value"
   },
+  "Ic0GDPpTRm": {
+    "defaultMessage": "Translation context must be 20,000 characters or fewer.",
+    "description": "Validation error when translation context exceeds 20,000 characters"
+  },
   "Icd4dfBmnK": {
     "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
     "description": "Bottom CTA description for the next-gen CAT tool product page"
@@ -2043,6 +2675,14 @@
     "defaultMessage": "Hyperlocalise Native",
     "description": "Built-in TMS integration name on the integrations page"
   },
+  "ImJlsQdxZz": {
+    "defaultMessage": "Failed",
+    "description": "Automation run status badge for failed"
+  },
+  "In9Z4CgwLT": {
+    "defaultMessage": "{count, plural, one {# job} other {# jobs}} created before the error. Refresh the jobs list before retrying to avoid duplicates.",
+    "description": "Warning toast when some jobs were created before an error"
+  },
   "IncbWjPIeF": {
     "defaultMessage": "Engineering manager",
     "description": "Marketing homepage testimonial speaker role"
@@ -2054,6 +2694,10 @@
   "IsIHLHu2zb": {
     "defaultMessage": "Navigation",
     "description": "Visible heading above links in the mobile navigation sheet"
+  },
+  "ItrnRpF69X": {
+    "defaultMessage": "Failed to load projects",
+    "description": "Fallback error when native projects fail to load"
   },
   "Iv9Zw2Kz/I": {
     "defaultMessage": "Add comment",
@@ -2087,6 +2731,10 @@
     "defaultMessage": "ICU structure",
     "description": "Heading for ICU plural/select structure summary below the CAT target editor"
   },
+  "J7Yta0PrqK": {
+    "defaultMessage": "Select channel",
+    "description": "Placeholder when no Slack channel is selected"
+  },
   "J9fubdt+ER": {
     "defaultMessage": "Review PR illustration",
     "description": "Marketing homepage workflow chapter placeholder title"
@@ -2111,6 +2759,10 @@
     "defaultMessage": "Up to date",
     "description": "Badge when a project has no open actions"
   },
+  "JKFwC5ViAc": {
+    "defaultMessage": "{projectName} will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.",
+    "description": "Delete project confirmation when the project name is known"
+  },
   "JMPR7Ba6ot": {
     "defaultMessage": "Heading 3",
     "description": "Tooltip and accessible label for the level-3 heading toolbar button"
@@ -2123,9 +2775,17 @@
     "defaultMessage": "GitHub",
     "description": "Marketing footer resource link label"
   },
+  "JRvnN6Kkq8": {
+    "defaultMessage": "Hyperlocalise projects",
+    "description": "Section title for native Hyperlocalise projects"
+  },
   "JUWqOD5PWj": {
     "defaultMessage": "Enable this repository to configure translation automation.",
     "description": "Hint shown when repository automation cannot be configured because repo is disabled"
+  },
+  "JUfajjODRg": {
+    "defaultMessage": "Selected",
+    "description": "Shortcut hint for the currently selected project"
   },
   "JYTpmBUkk7": {
     "defaultMessage": "Integrations",
@@ -2143,9 +2803,21 @@
     "defaultMessage": "Save failed",
     "description": "CAT format check label when saving a translation fails"
   },
+  "JnBi/qJh07": {
+    "defaultMessage": "Jobs, providers, locales, assignees...",
+    "description": "Placeholder text in the jobs search field"
+  },
+  "JpCXnGpMeh": {
+    "defaultMessage": "Project",
+    "description": "Detail row label for the job project name"
+  },
   "JpSMiCgbq5": {
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
+  },
+  "JqELr8GP9s": {
+    "defaultMessage": "Project",
+    "description": "Label for the project select in Contentful settings"
   },
   "JuVYR2r3yd": {
     "defaultMessage": "Navigation menu",
@@ -2154,6 +2826,10 @@
   "JwDpy6S6NK": {
     "defaultMessage": "Move between the product pillars without leaving the feature-page flow.",
     "description": "Product page related links section description"
+  },
+  "Jwoqn7hfPq": {
+    "defaultMessage": "Needs attention",
+    "description": "Fallback status line when a file needs attention but has no readiness summary"
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Copied",
@@ -2178,6 +2854,14 @@
   "K99IJACIpb": {
     "defaultMessage": "The rest of your workspace is still available. Try loading this chat again.",
     "description": "Description shown when the chat dock panel fails to render"
+  },
+  "KG5OUSGbKU": {
+    "defaultMessage": "Board",
+    "description": "Button label to show jobs as a kanban board"
+  },
+  "KOI3KSEDDk": {
+    "defaultMessage": "Hyperlocalise jobs",
+    "description": "Section title for native Hyperlocalise jobs"
   },
   "KPIIspKW7R": {
     "defaultMessage": "{providerName} projects and translation work are available.",
@@ -2211,6 +2895,10 @@
     "defaultMessage": "Queued",
     "description": "Automation run status badge for queued runs"
   },
+  "KjJZbmRFki": {
+    "defaultMessage": "Unable to load project details. Refresh the page or try again in a moment.",
+    "description": "Error message when project overview details fail to load"
+  },
   "KmYHpxsapg": {
     "defaultMessage": "Map diffs to locales and glossary impact",
     "description": "Workflow step 2 description for the github-release-localisation use case"
@@ -2231,6 +2919,10 @@
     "defaultMessage": "Self-evolving Knowledge",
     "description": "Navigation label for the self-evolving knowledge product page"
   },
+  "Kx/HoZ+1yJ": {
+    "defaultMessage": "Enter a job title.",
+    "description": "Validation error when creating a job without a title"
+  },
   "L1RgoMJkc1": {
     "defaultMessage": "Intake illustration",
     "description": "Marketing homepage workflow chapter placeholder title"
@@ -2242,6 +2934,10 @@
   "L3ycwnosUv": {
     "defaultMessage": "• List",
     "description": "Visible label for the bullet list toolbar button"
+  },
+  "L402PDLeoZ": {
+    "defaultMessage": "No target locale is specified for this task.",
+    "description": "Empty state when the job has files but no target locale query param"
   },
   "L7iavACo3u": {
     "defaultMessage": "Next scheduled run: <time>{nextRunAt}</time>",
@@ -2259,6 +2955,10 @@
     "defaultMessage": "Teams",
     "description": "App shell breadcrumb title for the teams page"
   },
+  "LDFu1kaYeg": {
+    "defaultMessage": "Remove",
+    "description": "Shortcut hint to remove a branch pattern"
+  },
   "LEiYIE9PIq": {
     "defaultMessage": "Built for marketing and localisation operations",
     "description": "Differentiator point 5 for the marketing-localisation use case"
@@ -2266,6 +2966,22 @@
   "LFieXgTe0M": {
     "defaultMessage": "Works across product, marketing, support, and engineering",
     "description": "Differentiator point 6 for the localisation-quality-monitoring use case"
+  },
+  "LHjP+HTMcQ": {
+    "defaultMessage": "Locales",
+    "description": "Project card metadata label for locales"
+  },
+  "LJSVMM6T2P": {
+    "defaultMessage": "{name} (disabled)",
+    "description": "Repository option label when the repository is disabled"
+  },
+  "LKQXtMkDON": {
+    "defaultMessage": "GitHub",
+    "description": "Tool badge when an automation uses GitHub"
+  },
+  "LKmO3hc5Vz": {
+    "defaultMessage": "Release notes · JP + KO",
+    "description": "Placeholder for the job title field"
   },
   "LMW/LqnbFb": {
     "defaultMessage": "Source mistake",
@@ -2278,6 +2994,14 @@
   "LURuzj5+No": {
     "defaultMessage": "Failed to load provider data.",
     "description": "Generic error heading when TMS provider data fails to load"
+  },
+  "LWbZAQ/S/H": {
+    "defaultMessage": "Total automations",
+    "description": "Stat card label for total automation count"
+  },
+  "LWxfVFhHEJ": {
+    "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list.",
+    "description": "Error when the project file list was truncated before the CAT source file could be found"
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack",
@@ -2295,6 +3019,10 @@
     "defaultMessage": "Enable {count}",
     "description": "Button label to enable the selected GitHub repositories"
   },
+  "LskMKNMd3j": {
+    "defaultMessage": "No TMS projects found",
+    "description": "Title when the TMS projects list is empty"
+  },
   "LwpJvfb74D": {
     "defaultMessage": "Surface added, modified, and removed keys with context from the pull request description and linked issues.",
     "description": "Capability 2 description for the github-release-localisation use case"
@@ -2302,6 +3030,14 @@
   "Ly3jSjXVvC": {
     "defaultMessage": "Settings",
     "description": "Project sidebar navigation item for project settings"
+  },
+  "Lzjyu+8nDt": {
+    "defaultMessage": "No locales available",
+    "description": "Empty state when the locale selection list has no items"
+  },
+  "M09MwVsnwY": {
+    "defaultMessage": "Search",
+    "description": "Label for the projects search field"
   },
   "M1OWEzMawd": {
     "defaultMessage": "Loading automation runs",
@@ -2323,9 +3059,17 @@
     "defaultMessage": "Parameters",
     "description": "Section heading for tool input parameters"
   },
+  "M4sYVolrI+": {
+    "defaultMessage": "Jobs unavailable",
+    "description": "Empty-state title when project jobs fail to load"
+  },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
     "description": "Live character count for the CAT target translation against a max length limit"
+  },
+  "MDFHda6r2V": {
+    "defaultMessage": "Description saved",
+    "description": "Toast after a job description is saved successfully"
   },
   "MFbCLmGBYA": {
     "defaultMessage": "Operations report",
@@ -2347,9 +3091,21 @@
     "defaultMessage": "Add photos or files",
     "description": "Menu item label for attaching photos or files to a prompt"
   },
+  "MOJri1ONT9": {
+    "defaultMessage": "Browse live {providerName} projects and manage Hyperlocalise workspace projects.",
+    "description": "Projects page description when a TMS provider is connected"
+  },
+  "MR3nUfsG07": {
+    "defaultMessage": "manage",
+    "description": "Fallback asset operation word in an asset job name"
+  },
   "MR4r0hcWXP": {
     "defaultMessage": "Automation settings reset",
     "description": "Toast after repository automation settings are reset"
+  },
+  "MXyOWGXSz8": {
+    "defaultMessage": "Scheduled",
+    "description": "Trigger label for a scheduled automation in the list"
   },
   "MZotM1J5qc": {
     "defaultMessage": "{enabledCount} of {totalCount} repositories enabled.",
@@ -2371,6 +3127,10 @@
     "defaultMessage": "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance.",
     "description": "Hero subheadline for the help-center-localisation use case"
   },
+  "Mo34UnIccj": {
+    "defaultMessage": "Branch pattern",
+    "description": "Accessible label for the branch pattern input"
+  },
   "Mo3KUqU9mk": {
     "defaultMessage": "Not connected",
     "description": "Badge when an integration is not connected"
@@ -2379,6 +3139,14 @@
     "defaultMessage": "Manual",
     "description": "Automation run trigger source label for manual runs"
   },
+  "Mq9r073tq8": {
+    "defaultMessage": "Proofread by vendor",
+    "description": "Crowdin task type label for vendor proofreading"
+  },
+  "MtSPbgepa5": {
+    "defaultMessage": "We could not load project files.",
+    "description": "Empty-state description when project files fail to load"
+  },
   "MusBGgLgZ1": {
     "defaultMessage": "Pull request",
     "description": "Workflow step 1 label for the github-release-localisation use case"
@@ -2386,6 +3154,14 @@
   "MwOEdmQegm": {
     "defaultMessage": "Localization begins in the tools teams already use",
     "description": "Marketing homepage workflow chapter title"
+  },
+  "MyhfQjH0sE": {
+    "defaultMessage": "Active",
+    "description": "Badge label when an automation is active"
+  },
+  "N1gb0F1ogJ": {
+    "defaultMessage": "Pull translations",
+    "description": "Toggle label for the pull translations GitHub sync workflow"
   },
   "N2xYep+Crq": {
     "defaultMessage": "CLI docs",
@@ -2398,6 +3174,10 @@
   "N83FNjAdU2": {
     "defaultMessage": "What localisation strings changed recently?",
     "description": "Prefilled prompt when choosing the recent-changes chip"
+  },
+  "N9BYBbfFW0": {
+    "defaultMessage": "Succeeded",
+    "description": "Automation run status badge for succeeded"
   },
   "NBLnrSCLwC": {
     "defaultMessage": "Save provider",
@@ -2419,6 +3199,10 @@
     "defaultMessage": "Leave blank to keep existing client secret",
     "description": "Placeholder when updating OAuth credentials without changing client secret"
   },
+  "NP2wAmeM1j": {
+    "defaultMessage": "Due date",
+    "description": "Detail row label for the job due date"
+  },
   "NPcxGbshkv": {
     "defaultMessage": "Enable check run",
     "description": "Label for enabling GitHub status checks"
@@ -2430,6 +3214,10 @@
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2",
     "description": "Example placeholder for the Crowdin API base URL field"
+  },
+  "NhoTfXzaHI": {
+    "defaultMessage": "Project",
+    "description": "Fallback project name when the project title is missing"
   },
   "NisKtP5fCJ": {
     "defaultMessage": "Failed to revoke API key",
@@ -2471,6 +3259,10 @@
     "defaultMessage": "B",
     "description": "Visible abbreviation on the bold formatting toolbar button"
   },
+  "O3GC76fqH9": {
+    "defaultMessage": "No jobs",
+    "description": "Empty state inside a kanban column with no jobs"
+  },
   "O49fIaNAUN": {
     "defaultMessage": "Product Localisation Platform | Hyperlocalise",
     "description": "Page title for the product-localisation use case"
@@ -2498,6 +3290,14 @@
   "OHKDUsYT8n": {
     "defaultMessage": "Keep the decision",
     "description": "Proof point 1 title for the self-evolving knowledge product page"
+  },
+  "OJm01EvxZW": {
+    "defaultMessage": "Failed to create Crowdin jobs",
+    "description": "Fallback error when Crowdin job creation fails without a server message"
+  },
+  "OLljhH3V9D": {
+    "defaultMessage": "Hyperlocalise jobs and live TMS jobs tracked across the workspace.",
+    "description": "Workspace jobs page description under the heading"
   },
   "OMX/+8Bbcv": {
     "defaultMessage": "Indonesian (Indonesia)",
@@ -2539,6 +3339,14 @@
     "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration.",
     "description": "Toast description when an existing Contentful webhook is updated"
   },
+  "Omhk26keD1": {
+    "defaultMessage": "Repository",
+    "description": "Label for the GitHub repository select"
+  },
+  "Onn6EwAIjq": {
+    "defaultMessage": "No description",
+    "description": "Fallback when a project list row has no description"
+  },
   "OnnGrPT4U5": {
     "defaultMessage": "Code",
     "description": "Visible label for the inline code toolbar button"
@@ -2550,6 +3358,10 @@
   "Ov7k7O9mR3": {
     "defaultMessage": "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
     "description": "Page title for the self-evolving knowledge product page"
+  },
+  "Oyb9LX/sl2": {
+    "defaultMessage": "Coming soon",
+    "description": "Disabled button when a template is not yet activatable"
   },
   "P+9nP38ODj": {
     "defaultMessage": "Connecting...",
@@ -2563,6 +3375,10 @@
     "defaultMessage": "The organization for this install request could not be found.",
     "description": "GitHub connect error when organization cannot be resolved"
   },
+  "P5eC/nlEOZ": {
+    "defaultMessage": "Run now",
+    "description": "Button to queue a manual automation run"
+  },
   "P7DyqhOghg": {
     "defaultMessage": "No console output",
     "description": "Empty state when the web preview console has no logs"
@@ -2570,6 +3386,14 @@
   "P8buB19/yY": {
     "defaultMessage": "API keys",
     "description": "Accessible label for the API keys list section"
+  },
+  "PACHUU2LVi": {
+    "defaultMessage": "CLI docs",
+    "description": "Marketing navbar link to CLI documentation"
+  },
+  "PATshCyE6V": {
+    "defaultMessage": "View",
+    "description": "Label above the jobs view mode toggle"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "Localisation Quality Monitoring | Hyperlocalise",
@@ -2591,6 +3415,10 @@
     "defaultMessage": "View only",
     "description": "Badge shown when the user can view but not manage a connected integration"
   },
+  "PMhWQU9+xq": {
+    "defaultMessage": "Ready to pull",
+    "description": "Title of the ready-to-pull callout on project overview"
+  },
   "PNO4OxgFDU": {
     "defaultMessage": "Join waitlist",
     "description": "Primary call-to-action button on the marketing homepage hero"
@@ -2611,13 +3439,29 @@
     "defaultMessage": "Prefer market-specific idioms for onboarding CTAs, but keep product terms literal.",
     "description": "Knowledge product visual decision panel example text"
   },
+  "PYB6jMwARG": {
+    "defaultMessage": "#{name} (private)",
+    "description": "Slack channel option label for a private channel"
+  },
   "PZP/M3m1NM": {
     "defaultMessage": "My jobs",
     "description": "Dashboard panel title for jobs assigned to the current user"
   },
+  "PapSWiA4OI": {
+    "defaultMessage": "Loading progress...",
+    "description": "Placeholder while Crowdin locale readiness is loading"
+  },
   "Pele5LgqUl": {
     "defaultMessage": "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches.",
     "description": "Meta description for the marketing-localisation use case"
+  },
+  "Pgxv//ij4N": {
+    "defaultMessage": "Workspace",
+    "description": "Projects page header eyebrow label"
+  },
+  "PhiMU1WefX": {
+    "defaultMessage": "Failed to load TMS jobs",
+    "description": "Fallback error when TMS jobs fail to load"
   },
   "PkIg+QXJ+0": {
     "defaultMessage": "Human-in-the-loop review",
@@ -2627,9 +3471,21 @@
     "defaultMessage": "Built for localization teams. Available soon.",
     "description": "Marketing homepage final call-to-action section headline"
   },
+  "PqqKKd0E77": {
+    "defaultMessage": "Unable to create project",
+    "description": "Fallback error when creating a project fails"
+  },
+  "PsCe6RXT6P": {
+    "defaultMessage": "Connect Contentful in Integrations before this trigger can run.",
+    "description": "Description for Contentful webhook trigger when Contentful is not connected"
+  },
   "Pso/sy4WEl": {
     "defaultMessage": "Next",
     "description": "Accessible label for navigating to the next citation in a carousel"
+  },
+  "Pu5h/suwW5": {
+    "defaultMessage": "Files with missing or changed translations will appear here.",
+    "description": "Empty-state description when no project files need attention"
   },
   "PvWb6LSHFM": {
     "defaultMessage": "Available",
@@ -2638,6 +3494,10 @@
   "PzDClqsKFJ": {
     "defaultMessage": "Support localisation that stays connected to the product",
     "description": "Differentiator section title for the help-center-localisation use case"
+  },
+  "Q+H5CN9hp3": {
+    "defaultMessage": "Jobs",
+    "description": "Workspace jobs page heading"
   },
   "Q+M9EQ+Bf2": {
     "defaultMessage": "Orchestrate agents, vendors, and internal reviewers",
@@ -2655,6 +3515,10 @@
     "defaultMessage": "No jobs assigned to you yet.",
     "description": "Empty state when the user has no assigned jobs"
   },
+  "Q3hdQblIYe": {
+    "defaultMessage": "Browse files",
+    "description": "Project overview hero call-to-action when the project is caught up"
+  },
   "Q3t28/Dvr6": {
     "defaultMessage": "Detect new and updated articles from the CMS and support platforms your team already maintains.",
     "description": "Capability 1 description for the help-center-localisation use case"
@@ -2667,9 +3531,17 @@
     "defaultMessage": "No files match the accepted types.",
     "description": "Error when dropped or selected files do not match accepted MIME types"
   },
+  "QIcAmkRq1i": {
+    "defaultMessage": "Product",
+    "description": "Marketing navbar trigger for the product mega-menu"
+  },
   "QJw7pPDuxB": {
     "defaultMessage": "Translate Task",
     "description": "Marketing homepage workflow chapter label"
+  },
+  "QL/gA8x5xr": {
+    "defaultMessage": "Add at least one supported tool to activate this automation.",
+    "description": "Hint when the automation cannot be activated without a tool"
   },
   "QTY8pCBi2f": {
     "defaultMessage": "Make every review improve the next one.",
@@ -2687,9 +3559,21 @@
     "defaultMessage": "Failed to generate AI translation recommendation.",
     "description": "Fallback error when AI translation recommendation generation fails"
   },
+  "QZITZRdJzR": {
+    "defaultMessage": "Quality",
+    "description": "Template category filter tab for quality templates"
+  },
+  "Qao/O64dbg": {
+    "defaultMessage": "No Crowdin project members found.",
+    "description": "Empty state when Crowdin project members cannot be listed"
+  },
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaries",
     "description": "App shell breadcrumb title for the glossaries page"
+  },
+  "QdvsoHtp53": {
+    "defaultMessage": "sync",
+    "description": "Job kind label for sync jobs"
   },
   "Qe6R9CCAC7": {
     "defaultMessage": "Bold",
@@ -2699,9 +3583,17 @@
     "defaultMessage": "Bring your LLMs. Keep your TMS.",
     "description": "Marketing homepage principle card title"
   },
+  "Qf1y2qH7lj": {
+    "defaultMessage": "Company",
+    "description": "Category heading above company links in the marketing navbar mega-menu"
+  },
   "QfmZdcP/TR": {
     "defaultMessage": "Each workspace member connects their own {providerName} account. Projects, jobs, glossaries, and translation memories load live from {providerName} when you open those pages.",
     "description": "Status description when a TMS provider is connected with OAuth"
+  },
+  "QhAcz8vXW1": {
+    "defaultMessage": "Select a valid source locale.",
+    "description": "Validation error when the source locale is invalid"
   },
   "QhgL5ysg0T": {
     "defaultMessage": "Hyperlocalise logo",
@@ -2714,6 +3606,14 @@
   "Qkra2VNwUo": {
     "defaultMessage": "Hyperlocalise GO",
     "description": "Managed Hyperlocalise model provider name"
+  },
+  "QkxwQQPimv": {
+    "defaultMessage": "No assigned TMS jobs found.",
+    "description": "Empty state when the user has no assigned TMS jobs"
+  },
+  "QlWnr3uEAw": {
+    "defaultMessage": "Enable the email agent in <link>Integrations</link> to use email notifications.",
+    "description": "Description for email notifications when email is not enabled"
   },
   "QmXtxyLvCd": {
     "defaultMessage": "Connect your OpenAI account",
@@ -2731,6 +3631,10 @@
     "defaultMessage": "Check localisation progress",
     "description": "Suggested prompt chip for TMS localisation progress"
   },
+  "Qr6HIhIqfm": {
+    "defaultMessage": "Sync only",
+    "description": "Shortcut hint when GitHub push is unavailable because agent mode is enabled"
+  },
   "Qy1pnimpzM": {
     "defaultMessage": "Block merge when locales are unresolved",
     "description": "Workflow step 6 description for the github-release-localisation use case"
@@ -2743,13 +3647,25 @@
     "defaultMessage": "Connect your Gemini account",
     "description": "Google Gemini BYOK provider description on the integrations page"
   },
+  "R1inHgae6i": {
+    "defaultMessage": "Source",
+    "description": "Project snapshot row label for project source type"
+  },
   "R40rhBTb/1": {
     "defaultMessage": "Documentation",
     "description": "Marketing footer resource link label"
   },
+  "R7vhxRuwOx": {
+    "defaultMessage": "Scheduled",
+    "description": "Run history trigger source for scheduled runs"
+  },
   "RBvXfLqDOK": {
     "defaultMessage": "Disable",
     "description": "Button label to disable the Slack agent"
+  },
+  "RDYoEaU2oe": {
+    "defaultMessage": "Contentful",
+    "description": "Run history trigger source for Contentful runs"
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "Automation runs could not be loaded.",
@@ -2758,6 +3674,14 @@
   "RKI1ij45Ie": {
     "defaultMessage": "No messages yet",
     "description": "Empty state title when a conversation has no messages"
+  },
+  "RQv/LERmVL": {
+    "defaultMessage": "Create job",
+    "description": "Create job dialog title"
+  },
+  "RSCu8OSDph": {
+    "defaultMessage": "No description yet",
+    "description": "Fallback text when a project card has no description"
   },
   "RSN+J7hbqE": {
     "defaultMessage": "Unsaved",
@@ -2839,6 +3763,10 @@
     "defaultMessage": "Revoke key",
     "description": "Confirm button to revoke an API key"
   },
+  "S7JuKVNtvx": {
+    "defaultMessage": "Recipients",
+    "description": "Label for the email recipients field"
+  },
   "SAjiqcjzOx": {
     "defaultMessage": "Reconnect Slack",
     "description": "Primary action label when Slack is already connected"
@@ -2859,6 +3787,14 @@
     "defaultMessage": "Collect work from GitHub, Slack, CMS, and TMS",
     "description": "Workflow step 1 description for the localisation-operations use case"
   },
+  "SKW9qV8rtN": {
+    "defaultMessage": "No TMS jobs found for this project.",
+    "description": "Empty state for TMS jobs in a project"
+  },
+  "SKhTQyZkDY": {
+    "defaultMessage": "Completed",
+    "description": "Run history column header for completion time"
+  },
   "SQRLgyMjtO": {
     "defaultMessage": "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token.",
     "description": "Intro text for Phrase OAuth scope requirements"
@@ -2874,6 +3810,10 @@
   "SUoQN+pj+e": {
     "defaultMessage": "Upload image",
     "description": "Button to upload a replacement localized image"
+  },
+  "SUwoew7bqk": {
+    "defaultMessage": "Open project",
+    "description": "Menu item to open a project"
   },
   "SYEyQ9llcS": {
     "defaultMessage": "GitHub",
@@ -2899,6 +3839,10 @@
     "defaultMessage": "Every hour · {timezone}",
     "description": "Summary for a scheduled automation that runs every hour"
   },
+  "SluNUViHRX": {
+    "defaultMessage": "Active",
+    "description": "Stat card label for active automation count"
+  },
   "SmCgybn22Q": {
     "defaultMessage": "Launch request",
     "description": "Automation product visual mock card title"
@@ -2907,9 +3851,25 @@
     "defaultMessage": "Corrections, terminology choices, and product context stop disappearing into old comments.",
     "description": "Proof point 1 body for the self-evolving knowledge product page"
   },
+  "SrLx97k5Qr": {
+    "defaultMessage": "Saving...",
+    "description": "Submit button label while a project is being saved"
+  },
   "StSqQpNlpj": {
     "defaultMessage": "Checking format & QA",
     "description": "Accessible label while side-by-side format checks are loading"
+  },
+  "StXIOq7nWw": {
+    "defaultMessage": "Connect GitHub to choose a repository",
+    "description": "Placeholder when GitHub is not connected so repositories cannot be chosen"
+  },
+  "SusA/f3CfU": {
+    "defaultMessage": "No Hyperlocalise jobs found for this project yet.",
+    "description": "Empty state for native jobs in a project"
+  },
+  "SyMDAHRe17": {
+    "defaultMessage": "{count, plural, one {# open job} other {# open jobs}}",
+    "description": "Fragment listing open job count in the project overview hero"
   },
   "Sz9XRZR4Jy": {
     "defaultMessage": "Open review tasks in your TMS",
@@ -2918,6 +3878,10 @@
   "T+6C7vk33X": {
     "defaultMessage": "Toggle plan",
     "description": "Accessible label for expanding or collapsing the plan card"
+  },
+  "T+85xLIwTA": {
+    "defaultMessage": "{translatedPercent}% translated · {approvedPercent}% approved",
+    "description": "Crowdin readiness with both translation and approval progress"
   },
   "T+wQxH/IG1": {
     "defaultMessage": "Knowledge",
@@ -2935,9 +3899,17 @@
     "defaultMessage": "Last delivery: No deliveries yet",
     "description": "Shown when the Contentful webhook has not delivered events"
   },
+  "T8F8lD+KK1": {
+    "defaultMessage": "Channel",
+    "description": "Label for the Slack channel select"
+  },
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows",
     "description": "Sidebar description for the Automations navigation item"
+  },
+  "TDQxQUihFM": {
+    "defaultMessage": "No supported files were selected.",
+    "description": "Validation error when selected files are not supported for translation"
   },
   "TE3bLZyBSZ": {
     "defaultMessage": "<b>Reasoning:</b> {reasoning}",
@@ -2947,6 +3919,14 @@
     "defaultMessage": "Every day at {time} · {timezone}",
     "description": "Summary for a scheduled automation that runs daily at a specific hour"
   },
+  "TEhuWyiC97": {
+    "defaultMessage": "None",
+    "description": "Shown when a project has no open jobs"
+  },
+  "TFnG73Az5B": {
+    "defaultMessage": "Live jobs assigned to you in the connected provider.",
+    "description": "Description under the TMS jobs section for personal assigned scope"
+  },
   "TG1FpMpW2X": {
     "defaultMessage": "Switch workspace",
     "description": "Submenu trigger to switch between workspaces"
@@ -2954,6 +3934,10 @@
   "TIsb5WlP88": {
     "defaultMessage": "Something went wrong in this panel. You can retry or keep working in the other panels.",
     "description": "Error boundary description when an inbox panel crashes"
+  },
+  "TKzoXsQ+7N": {
+    "defaultMessage": "{count, plural, one {# job} other {# jobs}}",
+    "description": "Count of open jobs on a project card"
   },
   "TOuqvBUuy6": {
     "defaultMessage": "OAuth app (recommended)",
@@ -2983,17 +3967,33 @@
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
     "description": "Workflow section description for the help-center-localisation use case"
   },
+  "Th3qMjLdD4": {
+    "defaultMessage": "Select at least one file.",
+    "description": "Validation error when creating a job without files"
+  },
   "TiPe1DO4xa": {
     "defaultMessage": "Paste your Crowdin token",
     "description": "Placeholder for the Crowdin personal access token input"
+  },
+  "Tm/8Q9uIIU": {
+    "defaultMessage": "No branches added",
+    "description": "Empty state when no branch patterns are configured"
   },
   "TmvQ63+NJ8": {
     "defaultMessage": "Acme localisation",
     "description": "Placeholder example for the workspace name input on onboarding"
   },
+  "Tmw2QL/c7u": {
+    "defaultMessage": "Select repository",
+    "description": "Placeholder when no GitHub repository is selected"
+  },
   "TnzQT7gNHf": {
     "defaultMessage": "Copy code",
     "description": "Tooltip and aria label for the copy code button"
+  },
+  "TotmChYda4": {
+    "defaultMessage": "Details",
+    "description": "Button or link to open the job detail page"
   },
   "Tp/KX38QSn": {
     "defaultMessage": "Pause preview",
@@ -3007,13 +4007,25 @@
     "defaultMessage": "Reset automation settings?",
     "description": "Confirmation dialog title for resetting automation settings"
   },
+  "TqKPfOkj7i": {
+    "defaultMessage": "Automation updated",
+    "description": "Toast when a workspace automation is saved successfully"
+  },
   "TrnH0+MELk": {
     "defaultMessage": "Failed to copy to clipboard",
     "description": "Error toast when clipboard copy fails"
   },
+  "TtcvnbdV7R": {
+    "defaultMessage": "No Hyperlocalise work items found for your account.",
+    "description": "Empty state for native jobs in personal workspace scope"
+  },
   "TvKxxMeDL1": {
     "defaultMessage": "Enforce terminology, character limits, and product voice before drafts reach human reviewers.",
     "description": "Capability 3 description for the product-localisation use case"
+  },
+  "Ty0GwUvHBg": {
+    "defaultMessage": "Progress",
+    "description": "Detail row label for translation and approval progress"
   },
   "U+tI5HA1qo": {
     "defaultMessage": "Has issues",
@@ -3030,6 +4042,10 @@
   "U7qjKZzoBx": {
     "defaultMessage": "Save settings",
     "description": "Button label to save repository automation settings"
+  },
+  "UASZI6ojDa": {
+    "defaultMessage": "Create native translation jobs with files, locales, and an assignee.",
+    "description": "Create job dialog description for native Hyperlocalise projects"
   },
   "UAby6HY7Nw": {
     "defaultMessage": "No format or QA checks for this segment yet.",
@@ -3051,13 +4067,29 @@
     "defaultMessage": "Archived repositories cannot use translation automation.",
     "description": "Hint shown when repository automation cannot be configured because repo is archived"
   },
+  "UQM29Qy4Ux": {
+    "defaultMessage": "Added",
+    "description": "Shortcut hint when a trigger or tool is already added"
+  },
   "URUWnka6yb": {
     "defaultMessage": "Product lead",
     "description": "Marketing homepage testimonial speaker role"
   },
+  "US//RTOcgM": {
+    "defaultMessage": "Job created",
+    "description": "Toast when a single job is created successfully"
+  },
+  "USEpvu/QYB": {
+    "defaultMessage": "GitHub",
+    "description": "Run history trigger source for GitHub runs"
+  },
   "UU5/+HYaD2": {
     "defaultMessage": "Task description",
     "description": "Accessible label for the markdown description editor field"
+  },
+  "UZWbgJ+bye": {
+    "defaultMessage": "Source locale",
+    "description": "Label for the project source locale picker"
   },
   "Ubm7I3eMos": {
     "defaultMessage": "Enable email agent",
@@ -3067,9 +4099,17 @@
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the localisation-operations use case"
   },
+  "UkpQmLO4C5": {
+    "defaultMessage": "Support",
+    "description": "Tooltip label for the support email button in the app shell footer"
+  },
   "UnPQUzFk+U": {
     "defaultMessage": "A billing FAQ update needs to reach twelve locales",
     "description": "Scenario section title for the help-center-localisation use case"
+  },
+  "Up5yLUnVpF": {
+    "defaultMessage": "No locales configured",
+    "description": "Summary when a project has no source or target locales"
   },
   "Up6UMTbrGA": {
     "defaultMessage": "Scheduled",
@@ -3091,6 +4131,10 @@
     "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace.",
     "description": "Empty state description for the API keys list"
   },
+  "V/nJMxzENN": {
+    "defaultMessage": "No Hyperlocalise jobs found for this workspace.",
+    "description": "Empty state for native jobs in workspace scope"
+  },
   "V04dsqCSZQ": {
     "defaultMessage": "No localized image yet",
     "description": "Empty state when the CAT target image has not been created"
@@ -3098,6 +4142,10 @@
   "V07ogo2dQf": {
     "defaultMessage": "Create reviewer tasks",
     "description": "Automation product visual agent task item"
+  },
+  "V0ZxKR31oY": {
+    "defaultMessage": "Open in {providerName}",
+    "description": "Tooltip for opening a project in its external TMS provider"
   },
   "V1BIkH6W+O": {
     "defaultMessage": "{displayName} connected",
@@ -3118,6 +4166,10 @@
   "VEHKmr6W1d": {
     "defaultMessage": "Release",
     "description": "Automation product visual workflow destination name"
+  },
+  "VFS/q4p0GR": {
+    "defaultMessage": "Schedule timezone",
+    "description": "Accessible label for the schedule timezone input"
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Previous segment ({shortcut})",
@@ -3171,9 +4223,17 @@
     "defaultMessage": "API Keys",
     "description": "API keys settings page heading"
   },
+  "VZSf2k42GF": {
+    "defaultMessage": "No pending actions right now. Upload source files or review completed jobs when you’re ready to continue.",
+    "description": "Project overview hero description when there are no pending actions"
+  },
   "Vb+OMqzvaE": {
     "defaultMessage": "Push source, pull translations, and publish localization checks for this repository.",
     "description": "Sheet description for repository automation settings"
+  },
+  "Vd2zLJN2br": {
+    "defaultMessage": "Description",
+    "description": "Label for the project description field"
   },
   "VdjibQd9gV": {
     "defaultMessage": "Open full-page editor",
@@ -3183,6 +4243,10 @@
     "defaultMessage": "Enable {repositoryFullName}",
     "description": "Aria label for a repository enable checkbox"
   },
+  "VreTPRoxTI": {
+    "defaultMessage": "Queued, running, and review jobs will appear here.",
+    "description": "Empty-state description when the project has no active jobs"
+  },
   "VtO24sqmBM": {
     "defaultMessage": "New Request",
     "description": "Sidebar navigation item to start a new localisation request"
@@ -3191,9 +4255,17 @@
     "defaultMessage": "GitHub",
     "description": "Automation product visual integration source name"
   },
+  "VwQyWH3M7V": {
+    "defaultMessage": "Open in {provider}",
+    "description": "Link text to open the job in the external TMS provider"
+  },
   "Vx1sNgGF7n": {
     "defaultMessage": "Detect changed strings and gather PR context",
     "description": "Workflow step 1 description for the product-localisation use case"
+  },
+  "VylAO2QrNw": {
+    "defaultMessage": "Translate by own translators",
+    "description": "Crowdin task type label for in-house translation"
   },
   "W/3juG8Ln3": {
     "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
@@ -3215,6 +4287,10 @@
     "defaultMessage": "Intelligence panel failed to load",
     "description": "Error boundary title when the CAT intelligence panel crashes"
   },
+  "W87BMcVF5T": {
+    "defaultMessage": "Optional notes for translators",
+    "description": "Placeholder for the optional job description field"
+  },
   "W8paQ6RjZy": {
     "defaultMessage": "How is localisation progress looking across linked TMS projects?",
     "description": "Prefilled prompt when choosing the progress chip"
@@ -3231,6 +4307,18 @@
     "defaultMessage": "Support content that stays current in every language",
     "description": "Hero headline for the help-center-localisation use case"
   },
+  "WE7a6RlfNZ": {
+    "defaultMessage": "Projects",
+    "description": "Projects page heading"
+  },
+  "WKx3yZHQjo": {
+    "defaultMessage": "Loading intelligence",
+    "description": "Accessible label while the CAT intelligence panel skeleton is shown"
+  },
+  "WL/j4jcqMB": {
+    "defaultMessage": "Due {due} · Synced {synced}",
+    "description": "Relative due date and last sync time on a kanban job card"
+  },
   "WPbNdWbmRX": {
     "defaultMessage": "Vietnamese (Vietnam)",
     "description": "Display name for BCP-47 locale vi-VN"
@@ -3238,6 +4326,14 @@
   "WSbyg2v11q": {
     "defaultMessage": "Native",
     "description": "Source label for Hyperlocalise-native projects on the dashboard"
+  },
+  "WX/L/z1wMm": {
+    "defaultMessage": "{percent}% translated",
+    "description": "Crowdin readiness when only translation progress is available"
+  },
+  "WXIoLiZoe5": {
+    "defaultMessage": "Project name is required.",
+    "description": "Validation error when the project name is empty"
   },
   "WXz3UNteSC": {
     "defaultMessage": "Projects",
@@ -3247,6 +4343,10 @@
     "defaultMessage": "GitHub status check",
     "description": "Section heading for GitHub status check settings"
   },
+  "WeOiVualPW": {
+    "defaultMessage": "Cancel",
+    "description": "Button to cancel editing a job description"
+  },
   "Wi6a5o/Mm+": {
     "defaultMessage": "Human-in-the-loop orchestration",
     "description": "Differentiator point 3 for the localisation-operations use case"
@@ -3254,6 +4354,10 @@
   "Wk16E7zAqa": {
     "defaultMessage": "Search segments by key or source text",
     "description": "Accessible label for CAT queue search input"
+  },
+  "WkiVAJgo82": {
+    "defaultMessage": "Proofread by own proofreaders",
+    "description": "Crowdin task type label for in-house proofreading"
   },
   "WlD8xoujO6": {
     "defaultMessage": "TMS agnostic",
@@ -3271,6 +4375,14 @@
     "defaultMessage": "No segments in queue.",
     "description": "Empty state when the CAT translation queue has no segments"
   },
+  "WsiwWcs52J": {
+    "defaultMessage": "Supported tools",
+    "description": "Dropdown section label for available automation tools"
+  },
+  "Wtnws5pYza": {
+    "defaultMessage": "Failed to load provider files",
+    "description": "Fallback error when provider project files fail to load"
+  },
   "WuN0lCA6yk": {
     "defaultMessage": "Trigger",
     "description": "Section heading for automation trigger settings"
@@ -3279,13 +4391,25 @@
     "defaultMessage": "Jobs",
     "description": "App shell breadcrumb title for the jobs page"
   },
+  "WzUqM2nTU8": {
+    "defaultMessage": "Running",
+    "description": "Job status label for running jobs"
+  },
   "X2BIkwFIux": {
     "defaultMessage": "Glossary",
     "description": "Knowledge product visual memory node label"
   },
+  "X4qUUPKAse": {
+    "defaultMessage": "Cancel",
+    "description": "Button to cancel creating a new automation"
+  },
   "X9FvsfXTfJ": {
     "defaultMessage": "AI",
     "description": "Compact CAT workspace tab for translation intelligence"
+  },
+  "X9X74tk3Lj": {
+    "defaultMessage": "Select at least one valid target locale.",
+    "description": "Validation error when no valid target locales are selected"
   },
   "XEC4R2CUep": {
     "defaultMessage": "Copy export command",
@@ -3306,6 +4430,10 @@
   "XMHsfUaoDt": {
     "defaultMessage": "Timezone",
     "description": "Label for scheduled automation timezone input"
+  },
+  "XMW6IBe3PH": {
+    "defaultMessage": "Refresh the page to try again.",
+    "description": "Fallback error description when no API message is available"
   },
   "XOLvGAW68Q": {
     "defaultMessage": "Integrations",
@@ -3339,6 +4467,10 @@
     "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably.",
     "description": "Problem pain point 4 for the github-release-localisation use case"
   },
+  "XlCqTK9P8L": {
+    "defaultMessage": "File",
+    "description": "Category badge for a file card on project overview"
+  },
   "XlVRjq3zhp": {
     "defaultMessage": "Self-evolving Knowledge",
     "description": "Hero eyebrow for the self-evolving knowledge product page"
@@ -3347,9 +4479,21 @@
     "defaultMessage": "Carry shared context, evals, and regression checks through every sync so quality does not quietly drift.",
     "description": "Marketing homepage principle card description"
   },
+  "XpdC3tQD4o": {
+    "defaultMessage": "Other",
+    "description": "Kanban column label for jobs with an unrecognized status"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Push approved translations back",
     "description": "Workflow step 5 description for the product-localisation use case"
+  },
+  "XuLNOM8/60": {
+    "defaultMessage": "Updated date unavailable",
+    "description": "Fallback when a project updated date cannot be formatted"
+  },
+  "XuiVUmGIu9": {
+    "defaultMessage": "Queued",
+    "description": "Job status label for queued jobs"
   },
   "XvDMBQHSkA": {
     "defaultMessage": "Teams lose time explaining the same product terms, tone rules, and market preferences on every launch. Hyperlocalise turns those decisions into reusable context.",
@@ -3379,13 +4523,29 @@
     "defaultMessage": "Quality problems are discovered by customers, support tickets, or app store reviews.",
     "description": "Problem pain point 5 for the localisation-quality-monitoring use case"
   },
+  "Y89oWQA4Iq": {
+    "defaultMessage": "Run QA",
+    "description": "Toggle label for running QA on Contentful translations"
+  },
   "Y9q11GovtH": {
     "defaultMessage": "Marketing teams move fast. Localisation becomes a bottleneck when brand nuance and regional intent never reach the translator.",
     "description": "Problem section description for the marketing-localisation use case"
   },
+  "YDQwelYneJ": {
+    "defaultMessage": "Contentful entry ID",
+    "description": "Placeholder for the Contentful entry ID input"
+  },
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise logo in the app shell sidebar"
+  },
+  "YGyu9mb0BB": {
+    "defaultMessage": "Loading automation...",
+    "description": "Loading state while an automation detail page is fetching"
+  },
+  "YJJ6zC95OW": {
+    "defaultMessage": "Push source, pull translations, and validation checks.",
+    "description": "Description for GitHub sync workflows"
   },
   "YM1jd5PwaY": {
     "defaultMessage": "My Jobs",
@@ -3403,21 +4563,45 @@
     "defaultMessage": "Save credentials to connect {providerName}. The secret is encrypted at rest and used to sync projects, files, and jobs into the workspace.",
     "description": "Intro text before saving API token credentials for a TMS provider"
   },
+  "YPT/4ux3Z/": {
+    "defaultMessage": "Manual only",
+    "description": "Title when the automation only supports manual runs"
+  },
   "YPUY3Uik30": {
     "defaultMessage": "Retry",
     "description": "Button label to retry loading automation settings"
+  },
+  "YQqA4dnF4n": {
+    "defaultMessage": "Select at least one target locale.",
+    "description": "Validation error when creating a job without target locales"
+  },
+  "YTRbiRB1qL": {
+    "defaultMessage": "No assigned Hyperlocalise jobs found.",
+    "description": "Empty state when the user has no assigned native jobs"
   },
   "YUeo87Wdbn": {
     "defaultMessage": "Recent projects",
     "description": "Dashboard panel title for recently opened projects"
   },
+  "YUmBaBzXHy": {
+    "defaultMessage": "External job ID",
+    "description": "Detail row label for the provider job identifier"
+  },
   "Ya0t4KyDVG": {
     "defaultMessage": "Copy failed",
     "description": "Button label when copying a glossary target term fails"
   },
+  "Ya1gnhy/x1": {
+    "defaultMessage": "Manual run",
+    "description": "Menu item to select a manual trigger"
+  },
   "YaKRAqJTYd": {
     "defaultMessage": "Stop reviewing strings in the dark.",
     "description": "Bottom CTA headline for the next-gen CAT tool product page"
+  },
+  "YcomzE3n8l": {
+    "defaultMessage": "branches required",
+    "description": "Placeholder in GitHub push summary when no branch patterns are set"
   },
   "YdeVnuUNms": {
     "defaultMessage": "Save as draft",
@@ -3438,6 +4622,10 @@
   "YkALJEyJhF": {
     "defaultMessage": "Change analysis",
     "description": "Workflow step 2 label for the github-release-localisation use case"
+  },
+  "YkxvISUXc3": {
+    "defaultMessage": "translation · {type}",
+    "description": "Translation job kind label including string or file type"
   },
   "YlLKVRUEmO": {
     "defaultMessage": "Context Auto-discovery",
@@ -3463,9 +4651,17 @@
     "defaultMessage": "{providerName} is connected via OAuth",
     "description": "Status heading when a TMS provider is connected with OAuth"
   },
+  "YzNLnailQi": {
+    "defaultMessage": "Unable to save automation right now",
+    "description": "Toast when saving a workspace automation fails"
+  },
   "YzvAxP4rX/": {
     "defaultMessage": "Move translation work across agents, reviewers and systems",
     "description": "Marketing homepage workflow chapter title"
+  },
+  "Z39eNFe81L": {
+    "defaultMessage": "Tools",
+    "description": "Section heading for automation tool settings"
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Email agent enabled",
@@ -3475,9 +4671,21 @@
     "defaultMessage": "View all jobs",
     "description": "Footer link to open the full jobs list from a dashboard panel"
   },
+  "Z6XcD4K+oU": {
+    "defaultMessage": "sync",
+    "description": "Fallback sync direction word in a sync job name"
+  },
+  "Z7EtcHtkyS": {
+    "defaultMessage": "No automations yet. Start from a template below or create a new automation.",
+    "description": "Empty state when the workspace has no automations"
+  },
   "Z8vLB9dxFv": {
     "defaultMessage": "Source",
     "description": "Fallback label for a source document attachment without a title"
+  },
+  "Z9kckxHp8S": {
+    "defaultMessage": "Unavailable",
+    "description": "Shown in project snapshot when open job count fails to load"
   },
   "ZC65JlwD3i": {
     "defaultMessage": "Loading API keys...",
@@ -3491,6 +4699,10 @@
     "defaultMessage": "Workspace memory for agents and teams",
     "description": "Sidebar description for the Knowledge navigation item"
   },
+  "ZH8KR1tpOB": {
+    "defaultMessage": "#{name}",
+    "description": "Slack channel option label for a public channel"
+  },
   "ZK/+GGmA14": {
     "defaultMessage": "Close",
     "description": "Accessible label and tooltip for closing an artifact panel"
@@ -3499,13 +4711,25 @@
     "defaultMessage": "AI translation misses product terminology, UI labels, and support-specific phrasing.",
     "description": "Problem pain point 2 for the help-center-localisation use case"
   },
+  "ZLaHigyIGc": {
+    "defaultMessage": "Unable to load task files.",
+    "description": "Fallback error when job CAT task files fail to load"
+  },
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually.",
     "description": "Toast description when a Contentful webhook is created"
   },
+  "ZQbvwhJWXn": {
+    "defaultMessage": "Enable first",
+    "description": "Shortcut hint when email must be enabled first"
+  },
   "ZSpIiSP+sp": {
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed AI element"
+  },
+  "Ze+mVOXG0h": {
+    "defaultMessage": "TMS jobs",
+    "description": "Section title for live TMS provider jobs"
   },
   "ZeIIMmL97I": {
     "defaultMessage": "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
@@ -3526,6 +4750,10 @@
   "ZktP8OmKzB": {
     "defaultMessage": "Dependencies",
     "description": "Section label for package dependencies list"
+  },
+  "Zm6E60imOZ": {
+    "defaultMessage": "Paused",
+    "description": "Status toggle label when the automation is paused"
   },
   "ZmMPE/eod1": {
     "defaultMessage": "Connected",
@@ -3575,6 +4803,10 @@
     "defaultMessage": "Monitor",
     "description": "Marketing homepage workflow chapter label"
   },
+  "a0yFgx40Tg": {
+    "defaultMessage": "Translate by vendor",
+    "description": "Crowdin task type label for vendor translation"
+  },
   "a5J/Q0J1lX": {
     "defaultMessage": "Malay (Malaysia)",
     "description": "Display name for BCP-47 locale ms-MY"
@@ -3599,9 +4831,17 @@
     "defaultMessage": "Freshness monitoring",
     "description": "Workflow step 6 label for the help-center-localisation use case"
   },
+  "aEJ2kyKHZN": {
+    "defaultMessage": "Back to automations",
+    "description": "Link back to the workspace automations list"
+  },
   "aFSdZ6B2XX": {
     "defaultMessage": "{sourceLabel} · {localeRoute} · updated {updatedAt}",
     "description": "Secondary metadata line for a project row with a last-updated time"
+  },
+  "aFsemv4CDb": {
+    "defaultMessage": "View",
+    "description": "Button on an overview action card to open the related job or file"
   },
   "aGXP2V6FOj": {
     "defaultMessage": "https://api.smartling.com/auth-api/v2",
@@ -3610,6 +4850,14 @@
   "aGnEykoMgS": {
     "defaultMessage": "Sync approved translations back to your CMS",
     "description": "Capability 5 title for the help-center-localisation use case"
+  },
+  "aI9OdzlmW1": {
+    "defaultMessage": "Delete",
+    "description": "Confirm button to delete a project"
+  },
+  "aKIe8yWjB3": {
+    "defaultMessage": "TMS",
+    "description": "Fallback label when no TMS provider name is available"
   },
   "aMf9NbDyem": {
     "defaultMessage": "No image yet",
@@ -3627,6 +4875,10 @@
     "defaultMessage": "Latest posts",
     "description": "Marketing homepage recent blog posts section title"
   },
+  "ah1fHcY0dZ": {
+    "defaultMessage": "View jobs",
+    "description": "Button linking to the project jobs page from the empty jobs card"
+  },
   "ahBTXzQA9r": {
     "defaultMessage": "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack.",
     "description": "Details section summary for the agents automation product page"
@@ -3643,9 +4895,17 @@
     "defaultMessage": "Leave blank for the standard Smartling API. For a custom host, include the auth API path, for example https://api.smartling.com/auth-api/v2.",
     "description": "Guidance for the Smartling API base URL field"
   },
+  "auMBZJ74kN": {
+    "defaultMessage": "Entry ID",
+    "description": "Label for the Contentful entry ID field"
+  },
   "avZRK+TyEd": {
     "defaultMessage": "Approval chains span marketing, legal, and localisation with no shared view of what changed.",
     "description": "Problem pain point 3 for the marketing-localisation use case"
+  },
+  "avoSAOCHz4": {
+    "defaultMessage": "Unknown project",
+    "description": "Label when a selected project id is not in the loaded list"
   },
   "ayMjHyvmox": {
     "defaultMessage": "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
@@ -3654,6 +4914,10 @@
   "b+pVg94kFI": {
     "defaultMessage": "Email",
     "description": "Email agent integration name on the integrations page"
+  },
+  "b/Vd04dNDW": {
+    "defaultMessage": "Hyperlocalise",
+    "description": "Tab to show only Hyperlocalise-native projects"
   },
   "b1aqjjuIqX": {
     "defaultMessage": "Crowdin",
@@ -3674,6 +4938,10 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise",
     "description": "Product name shown next to the logo in the app shell sidebar"
+  },
+  "bCXvSTPFsb": {
+    "defaultMessage": "Scheduled",
+    "description": "Menu item to select a scheduled trigger"
   },
   "bCzZNsSN41": {
     "defaultMessage": "Hyperlocalise registers a Contentful webhook for entry publish events when you save or validate this connection. Automations with a Contentful trigger use it to start translation runs.",
@@ -3723,6 +4991,10 @@
     "defaultMessage": "Completed",
     "description": "Tool status badge when the tool completed successfully"
   },
+  "bgBgMVkDdH": {
+    "defaultMessage": "Other target locale",
+    "description": "Placeholder for adding a custom target locale"
+  },
   "bgORmzhoWV": {
     "defaultMessage": "Future suggestions can start from what the team already approved instead of asking again.",
     "description": "Proof point 2 body for the self-evolving knowledge product page"
@@ -3750,6 +5022,18 @@
   "bzdmXkD3a+": {
     "defaultMessage": "Context and terminology for this string.",
     "description": "Supporting copy below the CAT translation intelligence panel heading"
+  },
+  "c0YVbiffzK": {
+    "defaultMessage": "No target locale is available for this task file.",
+    "description": "Empty state when a native job CAT file has no target locale"
+  },
+  "c3ROZAXotz": {
+    "defaultMessage": "{providerName} projects",
+    "description": "Section title for live TMS provider projects"
+  },
+  "c4wtcYLzS0": {
+    "defaultMessage": "No locales or assignees",
+    "description": "Task details fallback when a job has neither locales nor assignees"
   },
   "c7ggsCcxGl": {
     "defaultMessage": "AI translation draft",
@@ -3799,6 +5083,10 @@
     "defaultMessage": "Spanish (Mexico)",
     "description": "Display name for BCP-47 locale es-MX"
   },
+  "cgByBDP5Dl": {
+    "defaultMessage": "Project updated",
+    "description": "Toast after a project is updated successfully"
+  },
   "cgWE890bnd": {
     "defaultMessage": "Providers",
     "description": "Marketing homepage workflow chapter label"
@@ -3818,6 +5106,10 @@
   "clCEjJTPxC": {
     "defaultMessage": "A new onboarding flow ships in Friday's release",
     "description": "Scenario section title for the product-localisation use case"
+  },
+  "cndt0P/SRd": {
+    "defaultMessage": "{percent}% approved",
+    "description": "Crowdin readiness when only approval progress is available"
   },
   "d2lnyxMtP0": {
     "defaultMessage": "A developer opens a pull request that renames fourteen UI strings and adds six new ones. Hyperlocalise comments on the PR with affected locales, generates translation drafts using glossary context from the linked launch brief, opens review tasks in Lokalise, runs the GitHub Action to verify all target locales are covered, and blocks merge until German and Japanese reviewers approve the updated pricing terminology.",
@@ -3842,6 +5134,10 @@
   "dCPFe2ny4S": {
     "defaultMessage": "Unable to update email agent right now",
     "description": "Toast when enabling or disabling the email agent fails"
+  },
+  "dCR6D4Achx": {
+    "defaultMessage": "{name} (disabled)",
+    "description": "Contentful connection option label when the connection is disabled"
   },
   "dFDzTr1DKC": {
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
@@ -3875,6 +5171,10 @@
     "defaultMessage": "Built for engineering and localisation operations",
     "description": "Differentiator point 5 for the github-release-localisation use case"
   },
+  "dTKdfkqH71": {
+    "defaultMessage": "Create job",
+    "description": "Submit button in the create job dialog footer"
+  },
   "dUDJJ0Gfka": {
     "defaultMessage": "Hyperlocalise carries brand context through adaptation, review, and delivery so every locale ships with intent intact.",
     "description": "Workflow section description for the marketing-localisation use case"
@@ -3887,6 +5187,10 @@
     "defaultMessage": "Content Management System",
     "description": "Integrations page section heading for CMS connectors"
   },
+  "dWtFeDmgHv": {
+    "defaultMessage": "Failed to save description",
+    "description": "Fallback toast when saving a job description fails without a message"
+  },
   "dY8L59VF27": {
     "defaultMessage": "TMS provider",
     "description": "Fallback provider name in the TMS disconnect dialog title"
@@ -3895,9 +5199,17 @@
     "defaultMessage": "Failed to load automation settings",
     "description": "Error when repository automation settings fail to load"
   },
+  "dYlXc1BTpY": {
+    "defaultMessage": "Connect first",
+    "description": "Shortcut hint when an integration must be connected first"
+  },
   "dZcHfTdmF2": {
     "defaultMessage": "Numbered list",
     "description": "Tooltip and accessible label for the numbered list toolbar button"
+  },
+  "dcbWLpn6f2": {
+    "defaultMessage": "Updated date unavailable",
+    "description": "Fallback when a project has no usable updated timestamp"
   },
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainian (Ukraine)",
@@ -3919,9 +5231,17 @@
     "defaultMessage": "Choose push or scheduled triggers when workflows are enabled.",
     "description": "Validation error when workflows are enabled but no trigger mode is selected"
   },
+  "dn9Ff93vY2": {
+    "defaultMessage": "Choose a project above to pick target locales.",
+    "description": "Empty state when translation target locales need a project first"
+  },
   "do0p3JfCkF": {
     "defaultMessage": "View all workspaces",
     "description": "Link to the organization selection page from the user menu"
+  },
+  "dsAsLnB2MG": {
+    "defaultMessage": "Row",
+    "description": "Button label to show jobs as a list"
   },
   "dv6HEp4mGP": {
     "defaultMessage": "Target image",
@@ -3943,6 +5263,18 @@
     "defaultMessage": "Target is missing {tokens} from the source string.",
     "description": "CAT format check message listing placeholders missing from the target"
   },
+  "e+qzXq1bUT": {
+    "defaultMessage": "Project",
+    "description": "Jobs list column header for project name"
+  },
+  "e2GH/61cB8": {
+    "defaultMessage": "Target locale cannot match the source locale.",
+    "description": "Validation error when a target locale matches the source locale"
+  },
+  "e3B7xw2yS4": {
+    "defaultMessage": "{count, plural, one {# file needing attention} other {# files needing attention}}",
+    "description": "Fragment listing files needing attention in the project overview hero"
+  },
   "e6YBGi9Md6": {
     "defaultMessage": "Default model is required.",
     "description": "Validation error when default model is missing during onboarding"
@@ -3954,6 +5286,10 @@
   "e7p8bFrcw5": {
     "defaultMessage": "Something went wrong in this part of the tool. You can retry or keep working in the other panels.",
     "description": "Error boundary description shown when a CAT panel crashes"
+  },
+  "e9TsGisohb": {
+    "defaultMessage": "Connect first",
+    "description": "Badge when a tool requires connecting an integration first"
   },
   "eBW5K6494F": {
     "defaultMessage": "Stop",
@@ -3967,6 +5303,10 @@
     "defaultMessage": "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step.",
     "description": "Differentiator section description for the localisation-quality-monitoring use case"
   },
+  "eEy5UfpPzO": {
+    "defaultMessage": "Delete project...",
+    "description": "Menu item to delete a project"
+  },
   "eNvHcnzBfE": {
     "defaultMessage": "Track drift across live campaigns",
     "description": "Capability 6 title for the marketing-localisation use case"
@@ -3974,6 +5314,10 @@
   "eTD+rMG/sE": {
     "defaultMessage": "Works across CMS, creative, and campaign workflows",
     "description": "Differentiator point 6 for the marketing-localisation use case"
+  },
+  "eXEsN78hyb": {
+    "defaultMessage": "Loading CAT workspace",
+    "description": "Accessible label while the full CAT workspace skeleton is shown"
   },
   "ebI/JnzL7S": {
     "defaultMessage": "Automation",
@@ -3983,6 +5327,10 @@
     "defaultMessage": "Status: {status}",
     "description": "Accessible label for segment status indicator dot in the CAT queue"
   },
+  "ecG+jsddyC": {
+    "defaultMessage": "Email support",
+    "description": "Accessible label for the support email button in the app shell footer"
+  },
   "ee60kiAN7Z": {
     "defaultMessage": "Glossary guidance",
     "description": "Section heading for glossary term guidance in the intelligence panel"
@@ -3991,9 +5339,25 @@
     "defaultMessage": "Hyperlocalise is not a replacement for your TMS or i18n library. It adds an AI-native layer that connects GitHub change signals, translation drafting, and release gates.",
     "description": "Differentiator section description for the github-release-localisation use case"
   },
+  "enjVtZumks": {
+    "defaultMessage": "No target locale is available for this task.",
+    "description": "Empty state when all-files CAT mode has no selectable target locale"
+  },
+  "eq+MOWqVs2": {
+    "defaultMessage": "Create your first localization project",
+    "description": "Title of the empty state when there are no Hyperlocalise projects"
+  },
+  "esZVdLzFOW": {
+    "defaultMessage": "You’re all caught up",
+    "description": "Project overview hero title when there are no pending actions"
+  },
   "etNARyGJup": {
     "defaultMessage": "Markets",
     "description": "Knowledge product visual memory node label"
+  },
+  "evmQYH9X0j": {
+    "defaultMessage": "Description",
+    "description": "Label for the optional job description field"
   },
   "ezhaX1jR0b": {
     "defaultMessage": "Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes.",
@@ -4019,6 +5383,10 @@
     "defaultMessage": "Search repositories",
     "description": "Placeholder for the GitHub repository search input"
   },
+  "fBOGoQ4jb4": {
+    "defaultMessage": "Source upload · project required",
+    "description": "Header summary for a source upload trigger when no project is selected"
+  },
   "fDDlPiv7w9": {
     "defaultMessage": "A glossary update needs to propagate across three content types",
     "description": "Scenario section title for the localisation-quality-monitoring use case"
@@ -4027,13 +5395,41 @@
     "defaultMessage": "Queue actions",
     "description": "Accessible label for the queue overflow actions button"
   },
+  "fIXR+y8rly": {
+    "defaultMessage": "Failed to load project files",
+    "description": "Error when the project overview files query fails"
+  },
+  "fIcVSh09FH": {
+    "defaultMessage": "Words to do",
+    "description": "Detail row label for remaining words to translate"
+  },
+  "fK68dbaITk": {
+    "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>",
+    "description": "Marketing homepage principles section headline; muted wraps the supporting sentence"
+  },
+  "fNe2j52ZZs": {
+    "defaultMessage": "Save description",
+    "description": "Button label to save an edited job description"
+  },
   "fXIJvHCrL6": {
     "defaultMessage": "Previous segment",
     "description": "Accessible label for the previous segment navigation button"
   },
+  "fbtbMSQ/2I": {
+    "defaultMessage": "Project hub for localization work.",
+    "description": "Fallback project description on the project overview page"
+  },
+  "fdNYFpldO1": {
+    "defaultMessage": "All status",
+    "description": "Jobs status filter option to show all statuses"
+  },
   "fdVXMcsjuq": {
     "defaultMessage": "Give reviewers the source, target, product context, glossary guidance, AI notes, comments, and quality checks in one translation workspace.",
     "description": "Meta description for the next-gen CAT tool product page"
+  },
+  "feBDOpIUbJ": {
+    "defaultMessage": "GitHub push · {repository} · {branches}",
+    "description": "Header summary for a GitHub push trigger"
   },
   "fj5dhgmhYc": {
     "defaultMessage": "Unable to validate the credential.",
@@ -4055,17 +5451,33 @@
     "defaultMessage": "Choose organization",
     "description": "Button to open organization selection on the access denied page"
   },
+  "g/SyG0phTI": {
+    "defaultMessage": "Status",
+    "description": "Automations list column header for status"
+  },
   "g2W3opbod8": {
     "defaultMessage": "Choose a Hyperlocalise project for push source.",
     "description": "Validation error when push source workflow has no project selected"
+  },
+  "g2vXuLe4hc": {
+    "defaultMessage": "Remove the source locale from target locales.",
+    "description": "Validation error when the source locale is also selected as a target"
   },
   "g5YfEeVlsF": {
     "defaultMessage": "Remove {branch}",
     "description": "Aria label for removing a branch pattern badge"
   },
+  "g7kCok/oT0": {
+    "defaultMessage": "Edit project...",
+    "description": "Menu item to edit a project"
+  },
   "g9BGh+CmB5": {
     "defaultMessage": "Heading 2",
     "description": "Tooltip and accessible label for the level-2 heading toolbar button"
+  },
+  "gApOTEuTv4": {
+    "defaultMessage": "Name",
+    "description": "Jobs list column header for job name"
   },
   "gAtWW1Oa92": {
     "defaultMessage": "Bring translation intelligence into your localisation workflow",
@@ -4074,6 +5486,10 @@
   "gCa7pVmRNg": {
     "defaultMessage": "Monitor when published marketing copy falls out of sync with source messaging or glossary rules.",
     "description": "Capability 6 description for the marketing-localisation use case"
+  },
+  "gDkh3u6Ds/": {
+    "defaultMessage": "Use project target locales",
+    "description": "Toggle label to use the project’s configured target locales"
   },
   "gEtNXv9OoK": {
     "defaultMessage": "Forbidden term used in translation",
@@ -4107,6 +5523,10 @@
     "defaultMessage": "Works across product, marketing, support, and engineering",
     "description": "Differentiator point 6 for the localisation-operations use case"
   },
+  "gLjdVIWCoD": {
+    "defaultMessage": "Deleting...",
+    "description": "Delete button label while a project is being deleted"
+  },
   "gOG3lApYkM": {
     "defaultMessage": "Resolve",
     "description": "Button to mark a Crowdin issue comment as resolved"
@@ -4123,9 +5543,17 @@
     "defaultMessage": "We could not determine which organization to open.",
     "description": "Access denied page summary when the organization slug is missing"
   },
+  "gXZ1TC7mZA": {
+    "defaultMessage": "Hour",
+    "description": "Hourly schedule cadence option"
+  },
   "gYPVPf6Rwy": {
     "defaultMessage": "Connect to Zendesk, Intercom, Contentful, and more",
     "description": "Capability 1 title for the help-center-localisation use case"
+  },
+  "gfTpniOS4y": {
+    "defaultMessage": "Summary",
+    "description": "Run history column header for output summary"
   },
   "gg+xut28LR": {
     "defaultMessage": "Refreshing…",
@@ -4171,6 +5599,10 @@
     "defaultMessage": "Required",
     "description": "Badge label for a required environment variable"
   },
+  "gzw597zx6d": {
+    "defaultMessage": "Updated",
+    "description": "Project card metadata label for last updated time"
+  },
   "h0dd/MaO2f": {
     "defaultMessage": "Gather string changes, PR descriptions, Slack threads, and launch briefs so translators see why copy changed — not just the diff.",
     "description": "Capability 1 description for the product-localisation use case"
@@ -4183,9 +5615,17 @@
     "defaultMessage": "Source upload",
     "description": "Automation run trigger source label for source-upload-triggered runs"
   },
+  "h3qjecOeg8": {
+    "defaultMessage": "Open {projectName} in provider",
+    "description": "Screen-reader label for opening a project in its external TMS provider"
+  },
   "hAsKdmnl43": {
     "defaultMessage": "Sources",
     "description": "Marketing homepage workflow chapter label"
+  },
+  "hCivyG+QTC": {
+    "defaultMessage": "No target locale is available for this provider task file.",
+    "description": "Empty state when a provider job CAT file has no target locale"
   },
   "hCvBHiYeFU": {
     "defaultMessage": "No description",
@@ -4195,13 +5635,13 @@
     "defaultMessage": "Request early access to Hyperlocalise.",
     "description": "CTA section description for the localisation-quality-monitoring use case"
   },
+  "hElFzW5+gy": {
+    "defaultMessage": "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).",
+    "description": "Validation error for an invalid custom target locale"
+  },
   "hHvGLkVSzz": {
     "defaultMessage": "From pull request to release-ready locales",
     "description": "Workflow section title for the product-localisation use case"
-  },
-  "hKQGjL6KUM": {
-    "defaultMessage": "Succeeded",
-    "description": "Kanban column label for succeeded jobs"
   },
   "hMQhlW9yb7": {
     "defaultMessage": "Messages failed to load",
@@ -4215,9 +5655,17 @@
     "defaultMessage": "Used {count} sources",
     "description": "Collapsible trigger label showing how many sources were cited"
   },
+  "hScQeR54rc": {
+    "defaultMessage": "Automations",
+    "description": "Automations page heading"
+  },
   "hSh2lnNLxs": {
     "defaultMessage": "Configure how Hyperlocalise syncs source strings and translations for <repositoryName>{repositoryFullName}</repositoryName>.",
     "description": "Introduction text for repository automation settings"
+  },
+  "hTbl8aKMIU": {
+    "defaultMessage": "{operation} {assetType}",
+    "description": "Fallback job name for an asset management job"
   },
   "hWOWX4SSYH": {
     "defaultMessage": "Your workspace holds projects, team access, and settings. Choose a name to get started.",
@@ -4243,6 +5691,10 @@
     "defaultMessage": "Select a project",
     "description": "Placeholder for Hyperlocalise project select fields"
   },
+  "hfzLE9ZrP4": {
+    "defaultMessage": "Connect a provider",
+    "description": "Button linking to integrations to connect a TMS provider"
+  },
   "hgHlEGxrrX": {
     "defaultMessage": "Upload files",
     "description": "Accessible label for the hidden file upload input"
@@ -4267,6 +5719,10 @@
     "defaultMessage": "Translate the following text:",
     "description": "Prefilled prompt when choosing the translate chip"
   },
+  "hpOVndgWkJ": {
+    "defaultMessage": "Read the repository and follow your instructions. GitHub skills apply automatically.",
+    "description": "Description for the GitHub agent repository tool"
+  },
   "huDfeEPmkj": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the github-release-localisation use case"
@@ -4274,6 +5730,10 @@
   "hvxzMXw+ek": {
     "defaultMessage": "Leave blank for the standard Lokalise API. For a custom host, include the /api2 path, for example https://api.lokalise.com/api2.",
     "description": "Guidance for the Lokalise API base URL field"
+  },
+  "hx+ozGK2uu": {
+    "defaultMessage": "Pick up where you left off — {details}.",
+    "description": "Project overview hero description listing open jobs and files needing attention"
   },
   "i6pikAmZg6": {
     "defaultMessage": "CMS sync",
@@ -4283,13 +5743,25 @@
     "defaultMessage": "Failed to resolve issue. Try again.",
     "description": "Error message when resolving a Crowdin issue comment fails"
   },
+  "i6ut53Z7X2": {
+    "defaultMessage": "Use cases",
+    "description": "Category heading above use-case links in the marketing navbar mega-menu"
+  },
   "i9ZZoI20Cm": {
     "defaultMessage": "Display name",
     "description": "Label for the Contentful connection display name field"
   },
+  "iGnaQ/kXrJ": {
+    "defaultMessage": "Waiting for review",
+    "description": "Job status label for jobs waiting for review"
+  },
   "iIDH8DJhzI": {
     "defaultMessage": "Base URL (optional)",
     "description": "Label for the optional API base URL field"
+  },
+  "iL0uh6nGuj": {
+    "defaultMessage": "Branch patterns",
+    "description": "Dropdown label for branch pattern management"
   },
   "iNt/60shfS": {
     "defaultMessage": "Make missed localisation work harder to miss.",
@@ -4311,6 +5783,10 @@
     "defaultMessage": "Attachment",
     "description": "Fallback label for a generic file attachment without a filename"
   },
+  "iVNWaz9pgs": {
+    "defaultMessage": "Created date unavailable",
+    "description": "Fallback when a project created date cannot be formatted"
+  },
   "iXddAxYfyx": {
     "defaultMessage": "{arg} · {type}",
     "description": "ICU plural/select block argument and type summary in the CAT target editor"
@@ -4318,6 +5794,14 @@
   "iZaQ7K2itB": {
     "defaultMessage": "Enter URL...",
     "description": "Placeholder for the web preview URL input"
+  },
+  "ibTu9Z1u2B": {
+    "defaultMessage": "Active",
+    "description": "Status toggle label when the automation is active"
+  },
+  "iczDvJ3VLc": {
+    "defaultMessage": "{count, plural, one {# file has} other {# files have}} completed translations you can download or sync with <code>sync pull</code>.",
+    "description": "Description of files ready to pull, with the sync pull command highlighted in monospace"
   },
   "igB297V19V": {
     "defaultMessage": "Review routing",
@@ -4330,6 +5814,10 @@
   "ilPzVb1cY6": {
     "defaultMessage": "Image",
     "description": "Fallback label and alt text for an image attachment without a filename"
+  },
+  "intwkVhq+i": {
+    "defaultMessage": "{status} · updated {updated}",
+    "description": "Status line for an ongoing job card showing status and relative update time"
   },
   "io50TjMItx": {
     "defaultMessage": "Release check",
@@ -4363,6 +5851,10 @@
     "defaultMessage": "Forbidden term \"{term}\" appears in the target translation.",
     "description": "CAT format check message when a forbidden glossary term appears in the target"
   },
+  "izy21loiHb": {
+    "defaultMessage": "No files available in this project.",
+    "description": "Empty state when the project has no selectable files"
+  },
   "j+ggKPYEzH": {
     "defaultMessage": "Posting…",
     "description": "Button label while a segment comment is being posted to the TMS"
@@ -4371,9 +5863,17 @@
     "defaultMessage": "CMS",
     "description": "Automation product visual integration source name"
   },
+  "j7qlYfJ6Qt": {
+    "defaultMessage": "{kind} · {format}",
+    "description": "Provider kind and file format shown in the job CAT header"
+  },
   "j8hWmEtYkf": {
     "defaultMessage": "Join early access",
     "description": "Primary call-to-action button on the marketing homepage final section"
+  },
+  "jASVM8wdeJ": {
+    "defaultMessage": "Failed to save description ({status})",
+    "description": "Error when saving a job description fails with an HTTP status"
   },
   "jBITE1qEv6": {
     "defaultMessage": "Managed",
@@ -4382,6 +5882,14 @@
   "jCBwr9gFgn": {
     "defaultMessage": "Connecting...",
     "description": "Pending label while Crowdin personal access token connection is in progress"
+  },
+  "jCORO6tbhT": {
+    "defaultMessage": "Translation Delivery",
+    "description": "Template category filter tab for translation delivery templates"
+  },
+  "jCbFiXpIeD": {
+    "defaultMessage": "Validation",
+    "description": "Toggle label for the validation GitHub sync workflow"
   },
   "jD0JyNe4EF": {
     "defaultMessage": "From campaign brief to market-ready assets",
@@ -4395,6 +5903,10 @@
     "defaultMessage": "Copy stack trace",
     "description": "Tooltip and aria label for copying a stack trace"
   },
+  "jFmVURLI4A": {
+    "defaultMessage": "Status",
+    "description": "Jobs list column header for job status"
+  },
   "jGuaDovXli": {
     "defaultMessage": "Approved",
     "description": "Accessible label for an approved glossary term"
@@ -4402,6 +5914,10 @@
   "jLjTPaf/u5": {
     "defaultMessage": "Connect",
     "description": "Button label to start connecting an integration"
+  },
+  "jNNp9OLKEA": {
+    "defaultMessage": "TMS projects",
+    "description": "Section title prompting the user to connect a TMS provider"
   },
   "jORzWMtK+S": {
     "defaultMessage": "Screenshot context for this string",
@@ -4427,9 +5943,17 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button that closes the Crowdin PAT connect dialog"
   },
+  "jbZqr4hs7O": {
+    "defaultMessage": "Cancelled",
+    "description": "Automation run status badge for cancelled"
+  },
   "jeSX+Yj7ku": {
     "defaultMessage": "Hide token",
     "description": "Accessible label to hide the personal access token value"
+  },
+  "jfJtnvEq80": {
+    "defaultMessage": "Loading editor",
+    "description": "Accessible label while the CAT editor panel skeleton is shown"
   },
   "jgrmHo9SE2": {
     "defaultMessage": "Failed",
@@ -4451,9 +5975,13 @@
     "defaultMessage": "No posts yet. Check back soon.",
     "description": "Empty state on the blog index when there are no published posts"
   },
-  "jwTdsyTe54": {
-    "defaultMessage": "CAT Tool",
-    "description": "Marketing navbar link to the next-gen CAT tool product page"
+  "jvDZaWTAOJ": {
+    "defaultMessage": "Source locale: {locale}",
+    "description": "Shows the project source locale in the create job dialog"
+  },
+  "jyIUsQefkI": {
+    "defaultMessage": "Edit description",
+    "description": "Accessible label for the button that edits a job description"
   },
   "jyL5Pnsg0T": {
     "defaultMessage": "Download conversation",
@@ -4475,6 +6003,14 @@
     "defaultMessage": "Settings unavailable",
     "description": "Slack agent panel title when settings failed to load"
   },
+  "k3TrZpmKkB": {
+    "defaultMessage": "Jobs created and tracked in this workspace.",
+    "description": "Description under the native jobs section title"
+  },
+  "k8AGhyD7g4": {
+    "defaultMessage": "Actions",
+    "description": "Jobs list column header for row actions"
+  },
   "k8bxVI/FQf": {
     "defaultMessage": "Slack connected",
     "description": "Toast after returning from successful Slack OAuth"
@@ -4494,6 +6030,10 @@
   "kBjfpWlIHs": {
     "defaultMessage": "Running",
     "description": "Tool status badge when the tool is running"
+  },
+  "kC3PfwuLdP": {
+    "defaultMessage": "Search",
+    "description": "Label above the jobs search field"
   },
   "kDfywMCo7J": {
     "defaultMessage": "LLM provider disconnected",
@@ -4523,6 +6063,10 @@
     "defaultMessage": "Connect",
     "description": "Link label to connect an integration"
   },
+  "kSA5sHlbN9": {
+    "defaultMessage": "No runs yet.",
+    "description": "Empty state when an automation has no run history"
+  },
   "kUmtRmvwMN": {
     "defaultMessage": "Review PRs and translation regressions before merge",
     "description": "Marketing homepage workflow chapter title"
@@ -4539,6 +6083,10 @@
     "defaultMessage": "Agents",
     "description": "Knowledge product visual memory node label"
   },
+  "kgAiiSB4O6": {
+    "defaultMessage": "Invalid project files response",
+    "description": "Error when the project overview files API returns an unexpected payload"
+  },
   "kn/uJAgJBn": {
     "defaultMessage": "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
     "description": "Bottom CTA description for the agents automation product page"
@@ -4551,9 +6099,21 @@
     "defaultMessage": "Output",
     "description": "Label for output token usage in the context hover card"
   },
+  "knhexLkbYQ": {
+    "defaultMessage": "research",
+    "description": "Job kind label for research jobs"
+  },
   "kod/dgRhlc": {
     "defaultMessage": "Inbound email copied",
     "description": "Toast after copying the email agent inbound address"
+  },
+  "kp53zYBeIw": {
+    "defaultMessage": "Target locales",
+    "description": "Detail row label for target locales"
+  },
+  "kpZpdwbYk2": {
+    "defaultMessage": "Native project",
+    "description": "Project snapshot source value for Hyperlocalise-native projects"
   },
   "ksrwIvV64s": {
     "defaultMessage": "Workspace settings",
@@ -4582,6 +6142,10 @@
   "l5r0xPEJDX": {
     "defaultMessage": "Add at least one branch pattern for push triggers.",
     "description": "API error when push trigger has no branch patterns"
+  },
+  "l9fbW9HiTx": {
+    "defaultMessage": "Use GitHub repo",
+    "description": "Menu item and tool title for the GitHub agent repository tool"
   },
   "l9kJjTi7RV": {
     "defaultMessage": "Context-aware from CMS and product docs",
@@ -4631,6 +6195,10 @@
     "defaultMessage": "Publish a check run so teams can see localization results on commits and pull requests.",
     "description": "Section description for GitHub status check settings"
   },
+  "lnENdnqB3K": {
+    "defaultMessage": "Files unavailable",
+    "description": "Empty-state title when project files fail to load"
+  },
   "lq1y6qqiDK": {
     "defaultMessage": "Integrations",
     "description": "Sidebar navigation item for integrations"
@@ -4643,6 +6211,14 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the localisation-quality-monitoring use case"
   },
+  "lvwFhMaVAT": {
+    "defaultMessage": "Coming soon",
+    "description": "Dropdown section label for tools that are not yet available"
+  },
+  "lySN7MFYwz": {
+    "defaultMessage": "Edit project",
+    "description": "Title of the edit project dialog"
+  },
   "m/UWxMsKQI": {
     "defaultMessage": "Agents Automation",
     "description": "Navigation label for the agents automation product page"
@@ -4651,9 +6227,17 @@
     "defaultMessage": "Comment on pull requests with localisation status",
     "description": "Capability 4 title for the github-release-localisation use case"
   },
+  "mAyP67aqS8": {
+    "defaultMessage": "Clear",
+    "description": "Button to clear all selected target locales"
+  },
   "mBKFh3zYqD": {
     "defaultMessage": "Resources",
     "description": "Marketing footer column title"
+  },
+  "mC64PC89AZ": {
+    "defaultMessage": "Task type",
+    "description": "Detail row label for the job or Crowdin task type"
   },
   "mDYRJWtk3P": {
     "defaultMessage": "Connect {providerName} with an OAuth App. Each member links their own account before using {providerName} data in Hyperlocalise.",
@@ -4662,6 +6246,14 @@
   "mE9BVZ+4OT": {
     "defaultMessage": "Push and scheduled triggers are mutually exclusive.",
     "description": "Section description for automation trigger settings"
+  },
+  "mF3XaS/Oxa": {
+    "defaultMessage": "Failed to create job",
+    "description": "Fallback toast when job creation fails without an error message"
+  },
+  "mFfweL99wM": {
+    "defaultMessage": "Dashboard",
+    "description": "Marketing navbar button to open the app dashboard when signed in"
   },
   "mGCNboJK+t": {
     "defaultMessage": "Sign in",
@@ -4695,6 +6287,10 @@
     "defaultMessage": "New request",
     "description": "Button to open a new chat dock tab"
   },
+  "mYcDqMLO3I": {
+    "defaultMessage": "Workspace",
+    "description": "Fallback project badge when a kanban job has no project name"
+  },
   "mctwKXU94p": {
     "defaultMessage": "Leave page with unsaved changes?",
     "description": "Title when leaving the CAT workspace with unsaved target text"
@@ -4703,6 +6299,10 @@
     "defaultMessage": "Try again",
     "description": "Button that retries rendering a failed application route"
   },
+  "mehTxJuesM": {
+    "defaultMessage": "Project overview",
+    "description": "Fallback project overview heading when project details fail to load"
+  },
   "mhdxPi6b4a": {
     "defaultMessage": "{providerName} jobs",
     "description": "Dashboard panel title for live TMS jobs"
@@ -4710,6 +6310,10 @@
   "mi29vosn6Y": {
     "defaultMessage": "Select a supported provider.",
     "description": "Validation error when onboarding provider selection is invalid"
+  },
+  "mjXFArSK6C": {
+    "defaultMessage": "Create project",
+    "description": "Primary button to create a project"
   },
   "mltE2S4MiK": {
     "defaultMessage": "Instructions",
@@ -4738,6 +6342,10 @@
   "muwnlAh1Hy": {
     "defaultMessage": "Enter a valid IANA timezone such as UTC or America/New_York.",
     "description": "API error when scheduled automation timezone is invalid"
+  },
+  "mwCo4y1n7b": {
+    "defaultMessage": "Learn more",
+    "description": "Link from a principles card to the related homepage chapter"
   },
   "mz8uQYwH0G": {
     "defaultMessage": "Agent assignment",
@@ -4771,10 +6379,6 @@
     "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly.",
     "description": "API keys settings page description"
   },
-  "nEBGfsZw1I": {
-    "defaultMessage": "Running",
-    "description": "Kanban column label for running jobs"
-  },
   "nEmus6iEdf": {
     "defaultMessage": "Previous branch",
     "description": "Accessible label and tooltip for navigating to the previous message branch"
@@ -4791,6 +6395,10 @@
     "defaultMessage": "Access token expires {expiresAt}",
     "description": "Shows when the stored OAuth access token expires"
   },
+  "nK49UEgaqE": {
+    "defaultMessage": "Settings",
+    "description": "Collapsible section trigger for optional project settings"
+  },
   "nQSI1fGvRy": {
     "defaultMessage": "GitHub",
     "description": "GitHub integration label on the dashboard"
@@ -4799,6 +6407,10 @@
     "defaultMessage": "Quality monitoring across your stack — not a point-in-time QA tool",
     "description": "Differentiator section title for the localisation-quality-monitoring use case"
   },
+  "nSqpG2XwMB": {
+    "defaultMessage": "Search by name...",
+    "description": "Placeholder for the projects search field"
+  },
   "nZIGjKiA+J": {
     "defaultMessage": "Early design partner",
     "description": "Marketing homepage testimonial company label"
@@ -4806,6 +6418,10 @@
   "naWIsHiFkQ": {
     "defaultMessage": "Copied OAuth callback URL",
     "description": "Aria label after copying the OAuth callback URL"
+  },
+  "ng2kCyPWWf": {
+    "defaultMessage": "No files need attention",
+    "description": "Empty-state title when no project files need attention"
   },
   "nkGjzQ/mgp": {
     "defaultMessage": "GitHub Action for localisation checks",
@@ -4830,6 +6446,10 @@
   "nqMa1yML6t": {
     "defaultMessage": "Live jobs fetched from {providerName}.",
     "description": "Dashboard panel description for live TMS jobs"
+  },
+  "nqQ9RngvcW": {
+    "defaultMessage": "Create Crowdin tasks with files, locales, and assignees.",
+    "description": "Create job dialog description for Crowdin provider projects"
   },
   "ntvyMHkHZg": {
     "defaultMessage": "Disconnecting…",
@@ -4859,6 +6479,10 @@
     "defaultMessage": "Thai (Thailand)",
     "description": "Display name for BCP-47 locale th-TH"
   },
+  "o1Kg4Vat6I": {
+    "defaultMessage": "Loading automations",
+    "description": "Accessible label while the automations list is loading"
+  },
   "o2H4QOFat9": {
     "defaultMessage": "Run glossary, drift, and coverage checks",
     "description": "Workflow step 2 description for the localisation-quality-monitoring use case"
@@ -4875,6 +6499,10 @@
     "defaultMessage": "Sunday",
     "description": "Weekday option for scheduled automation"
   },
+  "oU0PK0wDMT": {
+    "defaultMessage": "Connect a TMS provider to browse live provider projects here.",
+    "description": "Section description prompting the user to connect a TMS provider"
+  },
   "oY/dfpDvR7": {
     "defaultMessage": "No segments match this filter.",
     "description": "Empty state when CAT queue status filter returns no segments"
@@ -4890,6 +6518,10 @@
   "oh6mSziyuU": {
     "defaultMessage": "Connect Crowdin for your Hyperlocalise workspace, then reopen this tab from Crowdin.",
     "description": "Body when no Hyperlocalise org maps to this Crowdin org"
+  },
+  "oj7kgOJK5f": {
+    "defaultMessage": "Trust Center",
+    "description": "Marketing navbar link to the trust center"
   },
   "okBFUfhlwg": {
     "defaultMessage": "TMS agnostic",
@@ -4947,9 +6579,17 @@
     "defaultMessage": "Choose a day of the week for weekly schedules.",
     "description": "API error when weekly schedule has an invalid day of week"
   },
+  "pFpARtxHD8": {
+    "defaultMessage": "Save project",
+    "description": "Submit button to save a project"
+  },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
     "description": "Description for the external TMS disconnect confirmation dialog"
+  },
+  "pMNkzc+47V": {
+    "defaultMessage": "Manual run queued",
+    "description": "Toast when a manual automation run is queued successfully"
   },
   "pMRZvoJLzS": {
     "defaultMessage": "Failed to save translation.",
@@ -4967,6 +6607,10 @@
     "defaultMessage": "Generating response",
     "description": "Accessible label for a streaming chat tab indicator"
   },
+  "pckObbKjS/": {
+    "defaultMessage": "{count, plural, one {# file selected} other {# files selected}}",
+    "description": "Count of files selected for the new job"
+  },
   "pdHOl1weOs": {
     "defaultMessage": "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
     "description": "GitHub connect error when installation awaits org owner approval"
@@ -4974,6 +6618,10 @@
   "pe+Qja+3CC": {
     "defaultMessage": "Regression Evals",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "peYw3ULGLY": {
+    "defaultMessage": "Supported triggers",
+    "description": "Dropdown section label for available automation triggers"
   },
   "pfwX+wkDSM": {
     "defaultMessage": "Connecting…",
@@ -4987,6 +6635,10 @@
     "defaultMessage": "Run drift detection, coverage checks, and regression evals on every pull request.",
     "description": "Capability 1 description for the github-release-localisation use case"
   },
+  "phMXmlQCix": {
+    "defaultMessage": "Automation",
+    "description": "Automations list column header for name"
+  },
   "pj6HuYI/BY": {
     "defaultMessage": "GitHub connected",
     "description": "Toast after returning from successful GitHub App installation"
@@ -4999,6 +6651,10 @@
     "defaultMessage": "Queue panel failed to load",
     "description": "Error boundary title when the CAT queue panel crashes"
   },
+  "prJEYrujJH": {
+    "defaultMessage": "Live projects fetched from your connected TMS provider, ordered by recent activity.",
+    "description": "Section description for live TMS provider projects"
+  },
   "pwrS5bq0q7": {
     "defaultMessage": "Create key",
     "description": "Submit button to create an API key"
@@ -5006,6 +6662,10 @@
   "py4sv3RBJU": {
     "defaultMessage": "Enforce brand voice and terminology",
     "description": "Capability 2 title for the marketing-localisation use case"
+  },
+  "q4g35VNiZ5": {
+    "defaultMessage": "Jobs",
+    "description": "Project page section label for the jobs view"
   },
   "q89JS2cAvL": {
     "defaultMessage": "Stop chasing localisation work across tools",
@@ -5043,6 +6703,10 @@
     "defaultMessage": "Filter queue",
     "description": "Accessible label for the queue filter button"
   },
+  "qVzcsOoWpu": {
+    "defaultMessage": "This project will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.",
+    "description": "Delete project confirmation when the project name is unavailable"
+  },
   "qYH/VTnW7r": {
     "defaultMessage": "Inbox",
     "description": "Sidebar navigation item for the workspace inbox"
@@ -5050,6 +6714,10 @@
   "qaa1Bmj1zG": {
     "defaultMessage": "Choose another organization or sign out and retry with another account.",
     "description": "Access denied page guidance when the workspace is archived"
+  },
+  "qcbg+R1kQS": {
+    "defaultMessage": "Failed to load jobs.",
+    "description": "Fallback error description when no API message is available"
   },
   "qd8sDGeNiM": {
     "defaultMessage": "Failed to load in-context preview from the provider.",
@@ -5063,6 +6731,18 @@
     "defaultMessage": "Human-in-the-loop by design",
     "description": "Differentiator point 3 for the product-localisation use case"
   },
+  "qdoDJ+aaOm": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the delete project dialog"
+  },
+  "qeeSJl75WM": {
+    "defaultMessage": "Assigned to me",
+    "description": "Section heading for jobs assigned to the current user"
+  },
+  "qfAtSAXlkS": {
+    "defaultMessage": "Automations failed to load.",
+    "description": "Error title when the automations list request fails"
+  },
   "qh1KvSzeYI": {
     "defaultMessage": "This part of the reply hit an error. Retry it, or continue with the rest of the conversation.",
     "description": "Error boundary description when an AI element crashes"
@@ -5071,6 +6751,10 @@
     "defaultMessage": "Context signal",
     "description": "Knowledge product visual memory node description"
   },
+  "qoKaksFa9x": {
+    "defaultMessage": "Open jobs",
+    "description": "Project snapshot row label for open job count"
+  },
   "qqo0mtljp2": {
     "defaultMessage": "From intake to orchestrated delivery",
     "description": "Workflow section title for the localisation-operations use case"
@@ -5078,6 +6762,10 @@
   "qsBhdpvLET": {
     "defaultMessage": "Stay flexible across model providers and existing TMS platforms without redesigning your operating model.",
     "description": "Marketing homepage principle card description"
+  },
+  "qsiC3fEv6E": {
+    "defaultMessage": "No active jobs",
+    "description": "Empty-state title when the project has no active jobs"
   },
   "qtTx0ZhgLU": {
     "defaultMessage": "Polish (Poland)",
@@ -5103,6 +6791,10 @@
     "defaultMessage": "required",
     "description": "Badge label for a required schema property"
   },
+  "r8GjXoDLd7": {
+    "defaultMessage": "Remove Slack notifications",
+    "description": "Accessible label to remove Slack notifications"
+  },
   "r8LOTLUhh1": {
     "defaultMessage": "Product",
     "description": "Marketing footer column title"
@@ -5115,6 +6807,14 @@
     "defaultMessage": "Issue Sheet",
     "description": "Project sidebar navigation item for the project issue sheet"
   },
+  "rDkQbK1OIB": {
+    "defaultMessage": "Skipped",
+    "description": "Automation run status badge for skipped"
+  },
+  "rGfiaZLTZ0": {
+    "defaultMessage": "Select all",
+    "description": "Button to select all target locales"
+  },
   "rHDcSl4Kt4": {
     "defaultMessage": "Use",
     "description": "Button to apply a translation memory match to the target field"
@@ -5122,6 +6822,10 @@
   "rIotJfHv/2": {
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the help-center-localisation use case"
+  },
+  "rIuVU6iths": {
+    "defaultMessage": "Add",
+    "description": "Button to create an automation from a template"
   },
   "rO3KPnsZEO": {
     "defaultMessage": "Provider disconnected",
@@ -5135,6 +6839,10 @@
     "defaultMessage": "{count} failed",
     "description": "Badge label for the number of failed tests"
   },
+  "rVbcl0T6/F": {
+    "defaultMessage": "Translate",
+    "description": "Menu item and tool title for translation jobs"
+  },
   "rW0O4vxb9w": {
     "defaultMessage": "Activity",
     "description": "App shell breadcrumb title for the activity page"
@@ -5146,6 +6854,10 @@
   "rZ8kVxd7JR": {
     "defaultMessage": "Hyperlocalise is not here to replace your TMS. It adds a workflow layer that connects engineering change signals, LLM-assisted drafting, human review, and release confidence.",
     "description": "Differentiator section description for the product-localisation use case"
+  },
+  "ra0EyftjV0": {
+    "defaultMessage": "Recently opened",
+    "description": "Heading above the recently opened projects strip"
   },
   "ree/WWv9H5": {
     "defaultMessage": "Get your workspace ready",
@@ -5162,6 +6874,10 @@
   "rjJJmHDMJh": {
     "defaultMessage": "Finding context…",
     "description": "Loading label while repository context is being looked up"
+  },
+  "rkQ7AmKMrt": {
+    "defaultMessage": "Tell the automation what to do, what to inspect, and what to ignore.",
+    "description": "Placeholder for the automation instructions textarea"
   },
   "rponYzKMZ3": {
     "defaultMessage": "Create issues from translation blockers and keep launch tasks in sync.",
@@ -5183,9 +6899,17 @@
     "defaultMessage": "TMS sync",
     "description": "Workflow step 5 label for the localisation-operations use case"
   },
+  "rxbmdOIAMH": {
+    "defaultMessage": "Send to Slack",
+    "description": "Menu item and tool title for Slack notifications"
+  },
   "rywDd6XWpM": {
     "defaultMessage": "Workspace level",
     "description": "Badge indicating integrations apply to the whole workspace"
+  },
+  "rzRd9sk8q6": {
+    "defaultMessage": "Project created",
+    "description": "Toast after a project is created successfully"
   },
   "s+WyHO3V5f": {
     "defaultMessage": "Locales",
@@ -5227,13 +6951,29 @@
     "defaultMessage": "Approve selected",
     "description": "Bulk action to approve all selected CAT segments"
   },
+  "sUjt/GKyKZ": {
+    "defaultMessage": "Unable to create automation right now",
+    "description": "Toast when creating a workspace automation fails"
+  },
   "sZFiP5Oe8M": {
     "defaultMessage": "When launch work is scattered, translations become a last-minute scramble.",
     "description": "Details section headline for the agents automation product page"
   },
+  "sbr8qd8WgZ": {
+    "defaultMessage": "Manual",
+    "description": "Trigger label for a manual automation in the list"
+  },
+  "secVzHMFB2": {
+    "defaultMessage": "Reset",
+    "description": "Button to reset an edited job description to the saved value"
+  },
   "si5HssHaNU": {
     "defaultMessage": "Loading Hyperlocalise…",
     "description": "Loading state while Crowdin App inbox bootstraps"
+  },
+  "siHRtHWO8x": {
+    "defaultMessage": "GitHub Action",
+    "description": "Marketing navbar link to the Hyperlocalise GitHub Action"
   },
   "sishbO9DCq": {
     "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working.",
@@ -5243,9 +6983,17 @@
     "defaultMessage": "Brand context",
     "description": "Workflow step 2 label for the marketing-localisation use case"
   },
+  "so9cmZxAcw": {
+    "defaultMessage": "Connect Slack in <link>Integrations</link> to use this tool.",
+    "description": "Description for Slack notifications when Slack is not connected"
+  },
   "sp82GiYbAh": {
     "defaultMessage": "Off",
     "description": "Trigger mode option when automation triggers are disabled"
+  },
+  "spGomVccm5": {
+    "defaultMessage": "No description",
+    "description": "Empty state when a provider job has no description"
   },
   "ssMiRZyu1M": {
     "defaultMessage": "Block releases when quality gates fail",
@@ -5267,13 +7015,25 @@
     "defaultMessage": "Issue type",
     "description": "Label for the Crowdin issue type selector"
   },
+  "t11/mMIbiZ": {
+    "defaultMessage": "Translate detected Contentful fields, run QA, and write drafts back for review.",
+    "description": "Description for Contentful translate when Contentful is connected"
+  },
   "t1gNC2Fo+D": {
     "defaultMessage": "Your account does not have permission to open this page.",
     "description": "Access denied page summary when the user lacks required permissions"
   },
+  "t3RhAFC8NZ": {
+    "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API.",
+    "description": "Empty state for TMS jobs in personal workspace scope"
+  },
   "t6Jk21Xb6m": {
     "defaultMessage": "Copy OAuth callback URL",
     "description": "Aria label for the copy OAuth callback URL button"
+  },
+  "t7l1acivlq": {
+    "defaultMessage": "Failed to load members",
+    "description": "Fallback error when organization members fail to load"
   },
   "t9IIjKdbNq": {
     "defaultMessage": "Engineering and localisation coordinate over Slack instead of inside CI/CD.",
@@ -5283,13 +7043,25 @@
     "defaultMessage": "Product docs",
     "description": "Knowledge product visual memory node label"
   },
+  "tFwg80J8SU": {
+    "defaultMessage": "No Hyperlocalise projects yet. <action>Create one</action> to add translation context and job tracking.",
+    "description": "Compact empty state for Hyperlocalise projects with a create action link"
+  },
   "tHJT8VDfIn": {
     "defaultMessage": "Managed by Hyperlocalise",
     "description": "Managed Hyperlocalise model provider description"
   },
+  "tHTaRJpN/S": {
+    "defaultMessage": "Write drafts",
+    "description": "Toggle label for writing Contentful drafts"
+  },
   "tJeeSJ6Rq1": {
     "defaultMessage": "Visual Context",
     "description": "Section heading for TMS screenshot context in the CAT intelligence panel"
+  },
+  "tK7acLhoUb": {
+    "defaultMessage": "Status",
+    "description": "Run history column header for status"
   },
   "tLThxyOpTE": {
     "defaultMessage": "We couldn't load this page",
@@ -5302,6 +7074,10 @@
   "tQNKmwbVHc": {
     "defaultMessage": "Reconnect with a different OAuth app",
     "description": "Collapsible trigger to replace OAuth app credentials"
+  },
+  "tQnsj9c8zW": {
+    "defaultMessage": "Project snapshot",
+    "description": "Title of the project snapshot card on project overview"
   },
   "tR/DKqfN1a": {
     "defaultMessage": "See the risk",
@@ -5343,6 +7119,14 @@
     "defaultMessage": "Agent-native workflows",
     "description": "Marketing homepage principle card title"
   },
+  "tg/aV3KaU6": {
+    "defaultMessage": "Source",
+    "description": "Jobs list column header for job source provider"
+  },
+  "thAleOBSL6": {
+    "defaultMessage": "Provider link",
+    "description": "Detail row label for the external provider URL"
+  },
   "tj9LSxTmXM": {
     "defaultMessage": "Console",
     "description": "Label for the web preview console collapsible section"
@@ -5355,6 +7139,10 @@
     "defaultMessage": "Show token",
     "description": "Accessible label to reveal the personal access token value"
   },
+  "tr/WtfszIz": {
+    "defaultMessage": "Every",
+    "description": "Prefix label before the schedule cadence select"
+  },
   "trM5T+lG0s": {
     "defaultMessage": "Chat could not be displayed",
     "description": "Title shown when the chat dock panel fails to render"
@@ -5362,6 +7150,10 @@
   "tsN6wGlUZC": {
     "defaultMessage": "Target ICU structure must match {tokens} from the source string.",
     "description": "CAT format check message listing ICU blocks missing from the target"
+  },
+  "tuH9VcQWRE": {
+    "defaultMessage": "Failed to load jobs",
+    "description": "Fallback error when native jobs fail to load"
   },
   "tuvZlDHxtM": {
     "defaultMessage": "Greek (Greece)",
@@ -5459,6 +7251,10 @@
     "defaultMessage": "Explore the rest",
     "description": "Product page related links section title"
   },
+  "uqGZNAVfVF": {
+    "defaultMessage": "Add",
+    "description": "Button to add a branch pattern"
+  },
   "usZU30knmw": {
     "defaultMessage": "Cadence",
     "description": "Label for scheduled automation cadence select"
@@ -5479,9 +7275,25 @@
     "defaultMessage": "Apply voice, glossary, and legal guardrails",
     "description": "Workflow step 2 description for the marketing-localisation use case"
   },
+  "uycq9iF49K": {
+    "defaultMessage": "GitHub push",
+    "description": "Trigger label for a GitHub push automation in the list"
+  },
   "v/bExbFK7z": {
     "defaultMessage": "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
     "description": "Problem section description for the product-localisation use case"
+  },
+  "v/lSaCxqUY": {
+    "defaultMessage": "Failed to create automation",
+    "description": "Error when creating a workspace automation fails without an API message"
+  },
+  "v0xJPzewtL": {
+    "defaultMessage": "Translation, review, QA, and sync work from Hyperlocalise and your TMS.",
+    "description": "Project page section description for the jobs view"
+  },
+  "v9kMcegF3r": {
+    "defaultMessage": "Select locale",
+    "description": "Placeholder for the source locale select"
   },
   "v9ol+HRqV1": {
     "defaultMessage": "Leave blank to keep existing client ID",
@@ -5494,6 +7306,14 @@
   "vFJiS8I8Kx": {
     "defaultMessage": "Built for localisation operations at scale",
     "description": "Differentiator point 5 for the localisation-operations use case"
+  },
+  "vGGfZ3wAHV": {
+    "defaultMessage": "Loading projects",
+    "description": "Accessible label while project cards are loading"
+  },
+  "vGwY2igpU6": {
+    "defaultMessage": "Title",
+    "description": "Label for the job title field"
   },
   "vHkuFGKp7T": {
     "defaultMessage": "Failed to create API key",
@@ -5526,10 +7346,6 @@
   "vTmDsNkKes": {
     "defaultMessage": "Support tickets spike in non-English locales when guidance is outdated or missing.",
     "description": "Problem pain point 5 for the help-center-localisation use case"
-  },
-  "vUMdCurROo": {
-    "defaultMessage": "Failed",
-    "description": "Kanban column label for failed jobs"
   },
   "vVbXCgpKIh": {
     "defaultMessage": "Open in Inbox",
@@ -5567,6 +7383,10 @@
     "defaultMessage": "Copy name",
     "description": "Tooltip for copying an environment variable name"
   },
+  "vjXHRG767Q": {
+    "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
+    "description": "Error after some native jobs were created before a later failure"
+  },
   "vp6YtfmYlV": {
     "defaultMessage": "Format & QA warning ({count, plural, one {# issue} other {# issues}})",
     "description": "Accessible label for side-by-side format check warning icon"
@@ -5575,13 +7395,21 @@
     "defaultMessage": "Campaign brief",
     "description": "Workflow step 1 label for the marketing-localisation use case"
   },
-  "vxPX8Bfa3e": {
-    "defaultMessage": "Agents",
-    "description": "Marketing navbar link to the agents automation product page"
+  "vv8/iiR38E": {
+    "defaultMessage": "Target locales",
+    "description": "Label for the project target locales picker"
+  },
+  "vvT35LUoRE": {
+    "defaultMessage": "No organization members available.",
+    "description": "Empty state when organization members cannot be listed"
   },
   "vynGfdRurY": {
     "defaultMessage": "View automations",
     "description": "Button to open the automations page from the dashboard"
+  },
+  "vytBTgUTFc": {
+    "defaultMessage": "Add",
+    "description": "Button to add a custom target locale"
   },
   "w1P9m9KNH8": {
     "defaultMessage": "{sourceLabel} · {localeRoute}",
@@ -5594,6 +7422,10 @@
   "w6stmLL+C3": {
     "defaultMessage": "Overview",
     "description": "Project sidebar navigation item for the project overview"
+  },
+  "w7sk9jcVLD": {
+    "defaultMessage": "asset management",
+    "description": "Job kind label for asset management jobs"
   },
   "w7xHsz2cR9": {
     "defaultMessage": "Apply glossaries and in-product string references so help content matches what users see in the app.",
@@ -5667,6 +7499,10 @@
     "defaultMessage": "Glossary notes, format warnings, and comments surface before approval, not after release.",
     "description": "Proof point 2 body for the next-gen CAT tool product page"
   },
+  "wewNVYT5+w": {
+    "defaultMessage": "GitHub sync workflows",
+    "description": "Menu item and tool title for GitHub sync workflows"
+  },
   "wgVc9diqXQ": {
     "defaultMessage": "Human-in-the-loop approvals",
     "description": "Differentiator point 3 for the marketing-localisation use case"
@@ -5707,6 +7543,10 @@
     "defaultMessage": "Chinese (Hong Kong SAR China)",
     "description": "Display name for BCP-47 locale zh-HK"
   },
+  "x6H592pqcv": {
+    "defaultMessage": "Select connection",
+    "description": "Placeholder when no Contentful connection is selected"
+  },
   "x6PqOisw0g": {
     "defaultMessage": "Translation Memories",
     "description": "Sidebar navigation item for translation memories"
@@ -5714,6 +7554,10 @@
   "x86tb6Gc1r": {
     "defaultMessage": "Open in Claude",
     "description": "Menu item to open the prompt in Claude"
+  },
+  "x8HYMdg8Zs": {
+    "defaultMessage": "Queued",
+    "description": "Automation run status badge for queued"
   },
   "xCfBoLh9Rp": {
     "defaultMessage": "Automation runs",
@@ -5727,6 +7571,14 @@
     "defaultMessage": "The CAT workspace keeps the source, target, AI recommendation, product meaning, glossary rules, comments, warnings, and approval state in one place so reviewers can make a decision.",
     "description": "Details section summary for the next-gen CAT tool product page"
   },
+  "xEVW32kNCM": {
+    "defaultMessage": "Resources",
+    "description": "Category heading above resource links in the marketing navbar mega-menu"
+  },
+  "xKI0yR66AU": {
+    "defaultMessage": "Remove Translate",
+    "description": "Accessible label to remove the translate tool"
+  },
   "xOFZqYtkn0": {
     "defaultMessage": "A few things need your attention",
     "description": "Dashboard hero title when pending actions need review"
@@ -5738,6 +7590,10 @@
   "xSPEc7l3cj": {
     "defaultMessage": "Go to dashboard",
     "description": "Link from a route error to the workspace dashboard"
+  },
+  "xSmzy2H6ua": {
+    "defaultMessage": "Workspace",
+    "description": "Workspace page header eyebrow label for jobs"
   },
   "xTpbtPORei": {
     "defaultMessage": "Link this Crowdin project",
@@ -5755,6 +7611,10 @@
     "defaultMessage": "{percent}%",
     "description": "Current zoom percentage shown in the image lightbox toolbar"
   },
+  "xePdJUPla7": {
+    "defaultMessage": "Add other target locale",
+    "description": "Accessible label for the button that reveals the custom locale input"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "Link your Crowdin account",
     "description": "Title when Crowdin user is not linked in Hyperlocalise"
@@ -5763,9 +7623,17 @@
     "defaultMessage": "Quick start",
     "description": "Label above the dashboard quick-start card"
   },
+  "xi4ZQRm848": {
+    "defaultMessage": "Resources",
+    "description": "Marketing navbar trigger for the resources mega-menu"
+  },
   "xkkgs3AOHS": {
     "defaultMessage": "Import source strings from GitHub into your TMS project.",
     "description": "Description for the push source workflow toggle"
+  },
+  "xkthiVH+yt": {
+    "defaultMessage": "Manual",
+    "description": "Run history trigger source for manual runs"
   },
   "xovEZE5T2r": {
     "defaultMessage": "Add",
@@ -5775,9 +7643,13 @@
     "defaultMessage": "New articles and updates live in Zendesk, Intercom, Contentful, or Notion — disconnected from localisation queues.",
     "description": "Problem pain point 1 for the help-center-localisation use case"
   },
-  "xsAaVb0T8m": {
-    "defaultMessage": "Waiting for review",
-    "description": "Kanban column label for jobs waiting for review"
+  "xx4TyhA9Af": {
+    "defaultMessage": "Branches",
+    "description": "Branch pattern selector label when no branches are added"
+  },
+  "xy0kgWsXSb": {
+    "defaultMessage": "Refresh the page to try again.",
+    "description": "Fallback error detail when projects fail to load without a message"
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL: {url}",
@@ -5786,6 +7658,14 @@
   "y/0rjxqRwk": {
     "defaultMessage": "Apply anyway",
     "description": "Confirm button for applying a low-quality TM match"
+  },
+  "y0gXcEiYv6": {
+    "defaultMessage": "{source} → {targets}",
+    "description": "Summary of a project’s source locale and target locales"
+  },
+  "y5oeiThV/6": {
+    "defaultMessage": "Slack",
+    "description": "Tool badge when an automation uses Slack"
   },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2",
@@ -5798,6 +7678,14 @@
   "y9JvEqkv+d": {
     "defaultMessage": "An AI-native layer across your product stack — not another TMS",
     "description": "Differentiator section title for the product-localisation use case"
+  },
+  "yC7UjRaWKX": {
+    "defaultMessage": "at",
+    "description": "Preposition between cadence and time in the schedule row"
+  },
+  "yDkVK1WUtt": {
+    "defaultMessage": "Project name must be 200 characters or fewer.",
+    "description": "Validation error when the project name exceeds 200 characters"
   },
   "yF+d/IbGFc": {
     "defaultMessage": "No automation runs yet.",
@@ -5839,6 +7727,10 @@
     "defaultMessage": "Collapse chat",
     "description": "Accessible label for collapsing the chat dock panel"
   },
+  "yc2ziR1Owc": {
+    "defaultMessage": "Runs only start when a teammate queues one from this automation.",
+    "description": "Description for the manual-only trigger"
+  },
   "yh5N07rqk9": {
     "defaultMessage": "Built for developer-led release workflows",
     "description": "Capabilities section title for the github-release-localisation use case"
@@ -5862,6 +7754,10 @@
   "ypyJIGOXrt": {
     "defaultMessage": "No segments match your search.",
     "description": "Empty state when CAT queue search returns no segments"
+  },
+  "ywFNKJfKqp": {
+    "defaultMessage": "Contentful translate",
+    "description": "Menu item and tool title for Contentful translation"
   },
   "ywfU0eBAqj": {
     "defaultMessage": "Signal",
@@ -5891,6 +7787,10 @@
     "defaultMessage": "API keys failed to load.",
     "description": "Error title when the API keys list fails to load"
   },
+  "z5k8iKEIXN": {
+    "defaultMessage": "Created",
+    "description": "Automations list column header for created date"
+  },
   "z6J/H68BKd": {
     "defaultMessage": "Source control",
     "description": "Integrations page section heading for source control providers"
@@ -5903,13 +7803,25 @@
     "defaultMessage": "Regenerate image",
     "description": "Button to regenerate a localized image with the agent"
   },
+  "zANk4lJfGw": {
+    "defaultMessage": "Opens in a new tab",
+    "description": "Screen-reader hint for external navbar links"
+  },
   "zCn3UqvqWI": {
     "defaultMessage": "Skip selected",
     "description": "Bulk action to skip all selected CAT segments"
   },
+  "zIinCypcXs": {
+    "defaultMessage": "View settings",
+    "description": "Call-to-action on the project snapshot card linking to project settings"
+  },
   "zIyXVsMpay": {
     "defaultMessage": "Generic AI translation flattens brand voice, cultural references, and regional nuance.",
     "description": "Problem pain point 2 for the marketing-localisation use case"
+  },
+  "zKYGdX/fFA": {
+    "defaultMessage": "Create native project",
+    "description": "Secondary button to create a Hyperlocalise-native project"
   },
   "zL0C07+8z3": {
     "defaultMessage": "Overview",
@@ -5939,6 +7851,14 @@
     "defaultMessage": "Required tokens",
     "description": "Label for required ICU and placeholder tokens below the CAT target editor"
   },
+  "zedkthWR8N": {
+    "defaultMessage": "Target locales",
+    "description": "Label for the target locales selection list"
+  },
+  "zirutH7PO0": {
+    "defaultMessage": "Created by me",
+    "description": "Section heading for jobs created by the current user"
+  },
   "zizlseLf1J": {
     "defaultMessage": "Terms of service",
     "description": "Open Graph heading for the terms of service page"
@@ -5947,9 +7867,21 @@
     "defaultMessage": "Replace token",
     "description": "Button to start replacing a stored Contentful token"
   },
+  "zliOrjr0oj": {
+    "defaultMessage": "Job",
+    "description": "Category badge for a job card on project overview"
+  },
   "znjMm102W+": {
     "defaultMessage": "API key",
     "description": "Label for the provider API key input"
+  },
+  "zstI+O20TZ": {
+    "defaultMessage": "Contact",
+    "description": "Marketing navbar link to contact email"
+  },
+  "zuCO/3GiEh": {
+    "defaultMessage": "Documentation",
+    "description": "Marketing navbar link to product documentation"
   },
   "zv0V1pch8C": {
     "defaultMessage": "Reviewers see what the copy is trying to do before they choose the wording.",
@@ -5962,6 +7894,10 @@
   "zwRYJHfFfL": {
     "defaultMessage": "Review Translations With the Context Next to the String | Hyperlocalise",
     "description": "Page title for the next-gen CAT tool product page"
+  },
+  "zxNwuNh3O4": {
+    "defaultMessage": "Paused",
+    "description": "Stat card label for paused automation count"
   },
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
