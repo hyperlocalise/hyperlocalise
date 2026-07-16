@@ -114,7 +114,7 @@ async function fetchNativeProjects(organizationSlug: string) {
   }
 
   const body = await response.json();
-  return body.projects.map((project) => mapProjectToListRow(project));
+  return body.projects;
 }
 
 async function fetchSlackConnected(organizationSlug: string) {
@@ -250,6 +250,7 @@ export function DashboardPageContent({
   const nativeProjectsQuery = useQuery({
     queryKey: ["dashboard-projects", organizationSlug],
     queryFn: () => fetchNativeProjects(organizationSlug),
+    select: (projects) => projects.map((project) => mapProjectToListRow(project, intl)),
   });
 
   const assignedJobsQuery = useQuery({

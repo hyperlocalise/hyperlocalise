@@ -89,8 +89,8 @@ export const createJobDialogMessages = defineMessages({
     description: "Label for the files selection list",
   },
   filesSelectedCount: {
-    defaultMessage: "{count, plural, one {# selected} other {# selected}}",
-    id: "AeHmzaIHst",
+    defaultMessage: "{count, plural, one {# file selected} other {# files selected}}",
+    id: "pckObbKjS/",
     description: "Count of files selected for the new job",
   },
   noFilesAvailable: {

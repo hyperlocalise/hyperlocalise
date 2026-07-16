@@ -209,8 +209,8 @@ export function ProjectDialog({
                       className="ml-auto tabular-nums text-[10px] font-medium text-muted-foreground"
                     >
                       {intl.formatMessage(projectDialogMessages.characterCount, {
-                        current: values.description.length.toLocaleString(),
-                        max: "10,000",
+                        current: values.description.length,
+                        max: 10_000,
                       })}
                     </span>
                   </div>
