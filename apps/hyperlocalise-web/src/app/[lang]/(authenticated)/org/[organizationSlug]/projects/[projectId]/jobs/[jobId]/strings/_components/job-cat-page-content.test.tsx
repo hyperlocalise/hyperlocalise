@@ -429,4 +429,32 @@ describe("JobCatPageContent CAT shell", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("shows the saved GitHub repository when viewing All Files", async () => {
+    localStorage.setItem("job-cat-repository:acme:proj_1:*", "acme/docs");
+    loadJobCatJobSourceFilesMock.mockResolvedValue([providerFile]);
+    loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
+    loadJobCatSelectableTargetLocalesMock.mockResolvedValue(["vi", "de-DE"]);
+
+    render(
+      <CatTestProviders>
+        <JobCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="*"
+          storedFileId={null}
+          targetLocale="vi"
+          catAllFilesEnabled
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "*");
+    });
+    expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
+  });
 });

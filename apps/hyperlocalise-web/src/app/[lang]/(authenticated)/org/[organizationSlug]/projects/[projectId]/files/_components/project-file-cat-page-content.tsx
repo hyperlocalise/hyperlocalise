@@ -192,8 +192,9 @@ export function ProjectFileCatPageContent({
     [repositoriesQuery.data],
   );
 
-  const repositoryPreferenceKey = sourcePath
-    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, sourcePath)
+  const repositoryPreferencePath = allFiles ? CAT_ALL_FILES_SOURCE_PATH : sourcePath;
+  const repositoryPreferenceKey = repositoryPreferencePath
+    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, repositoryPreferencePath)
     : null;
 
   const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
