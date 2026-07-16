@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+
+import { overviewHeroCardMessages } from "./overview-hero-card.messages";
 
 export function OverviewHeroCard({
   pendingCount,
@@ -41,9 +44,14 @@ export function OverviewHeroCard({
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div>
           <TypographyP className="text-sm font-medium text-subtle-foreground">
-            {isCaughtUp
-              ? "All caught up"
-              : `${pendingCount} pending ${pendingCount === 1 ? "action" : "actions"}`}
+            {isCaughtUp ? (
+              <FormattedMessage {...overviewHeroCardMessages.allCaughtUp} />
+            ) : (
+              <FormattedMessage
+                {...overviewHeroCardMessages.pendingActions}
+                values={{ count: pendingCount }}
+              />
+            )}
           </TypographyP>
           <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
             {title}

@@ -58,7 +58,7 @@ export const CaughtUp: Story = {
     files: [projectOverviewFilesFixture[1]!],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("You're all caught up")).toBeInTheDocument();
+    await expect(canvas.getByText("You’re all caught up")).toBeInTheDocument();
     await expect(canvas.getByText("Browse files")).toBeInTheDocument();
   },
 };

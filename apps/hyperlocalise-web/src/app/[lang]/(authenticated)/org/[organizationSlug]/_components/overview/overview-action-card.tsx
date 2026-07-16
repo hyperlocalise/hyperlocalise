@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FormattedMessage } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass, type Tone } from "../workspace-resource-shared";
+import { overviewActionCardMessages } from "./overview-action-card.messages";
 
 export function OverviewActionCard({
   category,
@@ -58,7 +60,7 @@ export function OverviewActionCard({
           size="sm"
           className="w-fit rounded-full"
         >
-          View
+          <FormattedMessage {...overviewActionCardMessages.view} />
         </Button>
       </CardContent>
     </Card>
