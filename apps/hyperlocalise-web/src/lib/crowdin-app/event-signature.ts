@@ -8,7 +8,10 @@ export type CrowdinAppEventSignatureError =
   | "crowdin_event_signature_invalid";
 
 function normalizeSignature(value: string) {
-  return value.trim().toLowerCase().replace(/^sha256=/, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^sha256=/, "");
 }
 
 function signaturesMatch(provided: string, expectedHex: string) {

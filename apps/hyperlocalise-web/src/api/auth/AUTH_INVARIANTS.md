@@ -40,15 +40,15 @@ full WorkOS identity model.
 9. **WorkOS session cookie is the primary API auth channel for org routes.**
    Forged `x-hyperlocalise-auth` headers or other client-supplied identity must
    not bypass `workosAuthMiddleware`.
-9a. **Crowdin App embed session is an explicit alternate channel.** Only an
-    explicit `X-Hyperlocalise-Crowdin-Embed` header or
-    `Authorization: Bearer hlce_…` may authenticate org-scoped routes after
-    Crowdin JWT bootstrap. The `hl_crowdin_embed` cookie must not be treated as
-    API auth (it is shared across the origin and would hijack WorkOS sessions).
-    The token only carries opaque Hyperlocalise ids; `workosAuthMiddleware`
-    still loads WorkOS-authoritative membership and capabilities for that
-    user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
-    as org API auth by themselves.
+   9a. **Crowdin App embed session is an explicit alternate channel.** Only an
+   explicit `X-Hyperlocalise-Crowdin-Embed` header or
+   `Authorization: Bearer hlce_…` may authenticate org-scoped routes after
+   Crowdin JWT bootstrap. The `hl_crowdin_embed` cookie must not be treated as
+   API auth (it is shared across the origin and would hijack WorkOS sessions).
+   The token only carries opaque Hyperlocalise ids; `workosAuthMiddleware`
+   still loads WorkOS-authoritative membership and capabilities for that
+   user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
+   as org API auth by themselves.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable

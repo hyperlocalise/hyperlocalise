@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 
-import { badRequestResponse, unauthorizedResponse } from "@/api/response.schema";
+import { badRequestResponse, type JsonContext, unauthorizedResponse } from "@/api/response.schema";
 import { verifyCrowdinAppEventSignature } from "@/lib/crowdin-app/event-signature";
 import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import {
@@ -39,13 +39,14 @@ const validateSessionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-async function readVerifiedCrowdinAppEventBody(c: {
-  req: {
-    text(): Promise<string>;
-    header(name: string): string | undefined;
-  };
-  json(body: { error: string }, status: 401): Response;
-}) {
+async function readVerifiedCrowdinAppEventBody(
+  c: JsonContext & {
+    req: {
+      text(): Promise<string>;
+      header(name: string): string | undefined;
+    };
+  },
+) {
   const rawBody = await c.req.text();
   const verified = verifyCrowdinAppEventSignature({
     rawBody,

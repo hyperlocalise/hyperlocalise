@@ -8,9 +8,7 @@ import { app } from "@/api/app";
 import { env } from "@/lib/env";
 
 function signCrowdinEventBody(rawBody: string) {
-  return createHmac("sha256", env.CROWDIN_APP_CLIENT_SECRET!)
-    .update(rawBody, "utf8")
-    .digest("hex");
+  return createHmac("sha256", env.CROWDIN_APP_CLIENT_SECRET!).update(rawBody, "utf8").digest("hex");
 }
 
 describe("crowdin app routes", () => {
