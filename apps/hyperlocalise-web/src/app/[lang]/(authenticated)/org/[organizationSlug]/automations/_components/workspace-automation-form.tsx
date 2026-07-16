@@ -13,7 +13,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { ClockIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
-import { useIntl, type IntlShape } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
   siGoogle,
@@ -98,6 +98,11 @@ type ComingSoonAutomationTool = {
   name: string;
   icon?: SimpleIcon;
 };
+
+const COMING_SOON_GOOGLE_MENU_LABEL = "Google";
+const COMING_SOON_LINEAR_MENU_LABEL = "Linear";
+const METADATA_SEPARATOR = "|";
+const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "semrush", name: "Semrush", icon: siSemrush },
@@ -254,18 +259,29 @@ function triggerSummary(
     const repository = repositories.find(
       (entry) => entry.id === form.githubInstallationRepositoryId,
     );
-    const repositoryLabel = repository?.fullName ?? "repository required";
-    const branchLabel = form.pushBranches.join(", ") || "branches required";
-    return `GitHub push · ${repositoryLabel} · ${branchLabel}`;
+    const repositoryLabel =
+      repository?.fullName ??
+      intl.formatMessage(workspaceAutomationFormMessages.repositoryRequired);
+    const branchLabel =
+      form.pushBranches.join(", ") ||
+      intl.formatMessage(workspaceAutomationFormMessages.branchesRequired);
+    return intl.formatMessage(workspaceAutomationFormMessages.githubPushSummary, {
+      repository: repositoryLabel,
+      branches: branchLabel,
+    });
   }
 
   if (form.triggerMode === "contentful") {
-    return "Contentful webhook";
+    return intl.formatMessage(workspaceAutomationFormMessages.contentfulWebhook);
   }
 
   if (form.triggerMode === "source_upload") {
     const project = projects.find((entry) => entry.id === form.translationProjectId);
-    return project?.name ? `Source upload · ${project.name}` : "Source upload · project required";
+    return project?.name
+      ? intl.formatMessage(workspaceAutomationFormMessages.sourceUploadSummary, {
+          project: project.name,
+        })
+      : intl.formatMessage(workspaceAutomationFormMessages.sourceUploadProjectRequired);
   }
 
   return "";
@@ -281,22 +297,29 @@ function toolCount(form: WorkspaceAutomationFormState) {
   );
 }
 
-function formatRepositoryOptionLabel(repository: GithubRepositoryOption) {
-  return `${repository.fullName}${repository.enabled ? "" : " (disabled)"}`;
+function formatRepositoryOptionLabel(intl: IntlShape, repository: GithubRepositoryOption) {
+  if (repository.enabled) {
+    return repository.fullName;
+  }
+
+  return intl.formatMessage(workspaceAutomationFormMessages.repositoryDisabledSuffix, {
+    name: repository.fullName,
+  });
 }
 
 function selectedRepositoryLabel(
+  intl: IntlShape,
   repositoryId: string,
   repositories: GithubRepositoryOption[],
-  placeholder = "Select repository",
+  placeholder?: string,
 ) {
   if (!repositoryId) {
-    return placeholder;
+    return placeholder ?? intl.formatMessage(workspaceAutomationFormMessages.selectRepository);
   }
 
   return (
     repositories.find((repository) => repository.id === repositoryId)?.fullName ??
-    "Unknown repository"
+    intl.formatMessage(workspaceAutomationFormMessages.unknownRepository)
   );
 }
 
@@ -327,9 +350,13 @@ function GithubRepositorySelect({
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
 }) {
+  const intl = useIntl();
+
   return (
     <div className="grid gap-1.5">
-      <Label className="text-xs text-muted-foreground">Repository</Label>
+      <Label className="text-xs text-muted-foreground">
+        <FormattedMessage {...workspaceAutomationFormMessages.repositoryLabel} />
+      </Label>
       <Select
         value={form.githubInstallationRepositoryId || undefined}
         onValueChange={(value) => {
@@ -347,14 +374,14 @@ function GithubRepositorySelect({
         <SelectTrigger className="h-8 w-full rounded-lg">
           <span className="truncate">
             {repositories.length === 0
-              ? "Connect GitHub to choose a repository"
-              : selectedRepositoryLabel(form.githubInstallationRepositoryId, repositories)}
+              ? intl.formatMessage(workspaceAutomationFormMessages.connectGithubForRepository)
+              : selectedRepositoryLabel(intl, form.githubInstallationRepositoryId, repositories)}
           </span>
         </SelectTrigger>
         <SelectContent>
           {repositories.map((repository) => (
             <SelectItem key={repository.id} value={repository.id}>
-              {formatRepositoryOptionLabel(repository)}
+              {formatRepositoryOptionLabel(intl, repository)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -364,21 +391,36 @@ function GithubRepositorySelect({
   );
 }
 
-function selectedSlackChannelLabel(channelId: string, channels: SlackChannelOption[]) {
+function selectedSlackChannelLabel(
+  intl: IntlShape,
+  channelId: string,
+  channels: SlackChannelOption[],
+) {
   if (!channelId) {
-    return "Select channel";
+    return intl.formatMessage(workspaceAutomationFormMessages.selectChannel);
   }
 
   const channel = channels.find((entry) => entry.id === channelId);
-  return channel ? `#${channel.name}` : channelId;
+  if (!channel) {
+    return channelId;
+  }
+
+  return channel.private
+    ? intl.formatMessage(workspaceAutomationFormMessages.privateChannelSuffix, {
+        name: channel.name,
+      })
+    : intl.formatMessage(workspaceAutomationFormMessages.publicChannelLabel, {
+        name: channel.name,
+      });
 }
 
 function selectedContentfulConnectionLabel(
+  intl: IntlShape,
   connectionId: string,
   connections: ContentfulConnectionOption[],
 ) {
   if (!connectionId) {
-    return "Select connection";
+    return intl.formatMessage(workspaceAutomationFormMessages.selectConnection);
   }
 
   return (
@@ -401,6 +443,7 @@ function HeaderProjectSelector({
   onChange: (next: WorkspaceAutomationFormState) => void;
   projects: ProjectOption[];
 }) {
+  const intl = useIntl();
   const usesTranslationProject =
     form.triggerMode === "source_upload" ||
     (form.translationEnabled && (form.triggerMode !== "github" || !form.githubEnabled));
@@ -410,7 +453,10 @@ function HeaderProjectSelector({
   const activeProjectId = usesTranslationProject ? form.translationProjectId : form.githubProjectId;
   const selectedProject = selectableProjects.find((project) => project.id === activeProjectId);
   const triggerLabel =
-    selectedProject?.name ?? (activeProjectId ? "Unknown project" : "Select project");
+    selectedProject?.name ??
+    (activeProjectId
+      ? intl.formatMessage(workspaceAutomationFormMessages.unknownProject)
+      : intl.formatMessage(workspaceAutomationFormMessages.selectProject));
 
   function handleProjectSelect(projectId: string) {
     if (usesTranslationProject) {
@@ -447,17 +493,27 @@ function HeaderProjectSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-56" align="start">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Projects</DropdownMenuLabel>
-          {isError ? <DropdownMenuItem disabled>Unable to load projects</DropdownMenuItem> : null}
+          <DropdownMenuLabel>
+            <FormattedMessage {...workspaceAutomationFormMessages.projectsMenu} />
+          </DropdownMenuLabel>
+          {isError ? (
+            <DropdownMenuItem disabled>
+              <FormattedMessage {...workspaceAutomationFormMessages.unableToLoadProjects} />
+            </DropdownMenuItem>
+          ) : null}
           {!isLoading && selectableProjects.length === 0 ? (
-            <DropdownMenuItem disabled>No projects found</DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <FormattedMessage {...workspaceAutomationFormMessages.noProjectsFound} />
+            </DropdownMenuItem>
           ) : null}
           {selectableProjects.map((project) => (
             <DropdownMenuItem key={project.id} onClick={() => handleProjectSelect(project.id)}>
               <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
               {project.name}
               {activeProjectId === project.id ? (
-                <DropdownMenuShortcut>Selected</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.selectedShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
           ))}
@@ -467,9 +523,9 @@ function HeaderProjectSelector({
   );
 }
 
-function formatBranchPatternLabel(branches: string[]) {
+function formatBranchPatternLabel(intl: IntlShape, branches: string[]) {
   if (branches.length === 0) {
-    return "Branches";
+    return intl.formatMessage(workspaceAutomationFormMessages.branchesPlaceholder);
   }
 
   if (branches.length === 1) {
@@ -523,7 +579,7 @@ function BranchPatternSelector({
             />
           }
         >
-          <span className="truncate">{formatBranchPatternLabel(branches)}</span>
+          <span className="truncate">{formatBranchPatternLabel(intl, branches)}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             strokeWidth={1.8}
@@ -532,9 +588,13 @@ function BranchPatternSelector({
         </DropdownMenuTrigger>
         <DropdownMenuContent className="min-w-56" align="start">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Branch patterns</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <FormattedMessage {...workspaceAutomationFormMessages.branchPatternsMenu} />
+            </DropdownMenuLabel>
             {branches.length === 0 ? (
-              <DropdownMenuItem disabled>No branches added</DropdownMenuItem>
+              <DropdownMenuItem disabled>
+                <FormattedMessage {...workspaceAutomationFormMessages.noBranchesAdded} />
+              </DropdownMenuItem>
             ) : (
               branches.map((branch) => (
                 <DropdownMenuItem
@@ -542,7 +602,9 @@ function BranchPatternSelector({
                   onClick={() => onChange(branches.filter((value) => value !== branch))}
                 >
                   <span className="min-w-0 flex-1 truncate">{branch}</span>
-                  <DropdownMenuShortcut>Remove</DropdownMenuShortcut>
+                  <DropdownMenuShortcut>
+                    <FormattedMessage {...workspaceAutomationFormMessages.removeShortcut} />
+                  </DropdownMenuShortcut>
                 </DropdownMenuItem>
               ))
             )}
@@ -554,7 +616,9 @@ function BranchPatternSelector({
             onClick={(event) => event.stopPropagation()}
           >
             <Input
-              aria-label="Branch pattern"
+              aria-label={intl.formatMessage(
+                workspaceAutomationFormMessages.branchPatternAriaLabel,
+              )}
               value={branchInput}
               disabled={disabled}
               placeholder="main"
@@ -578,7 +642,7 @@ function BranchPatternSelector({
               className="h-8 shrink-0"
               onClick={handleAdd}
             >
-              Add
+              <FormattedMessage {...workspaceAutomationFormMessages.addBranch} />
             </Button>
           </div>
           {inputError ? <p className="px-2 pb-2 text-xs text-destructive">{inputError}</p> : null}
@@ -619,19 +683,23 @@ function AddTriggerMenu({
           }
         >
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-          Add Trigger
+          <FormattedMessage {...workspaceAutomationFormMessages.addTrigger} />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="start" sideOffset={2}>
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Supported triggers</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <FormattedMessage {...workspaceAutomationFormMessages.supportedTriggers} />
+            </DropdownMenuLabel>
             <DropdownMenuItem
               disabled={form.triggerMode === "manual"}
               onClick={() => onChange({ ...form, triggerMode: "manual" })}
             >
               <ClockIcon className="size-4" />
-              Manual run
+              <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
               {form.triggerMode === "manual" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -639,9 +707,11 @@ function AddTriggerMenu({
               onClick={() => onChange({ ...form, triggerMode: "scheduled" })}
             >
               <ClockIcon className="size-4" />
-              Scheduled
+              <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
               {form.triggerMode === "scheduled" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -671,13 +741,19 @@ function AddTriggerMenu({
               }}
             >
               <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              GitHub push
+              <FormattedMessage {...workspaceAutomationFormMessages.githubPush} />
               {form.triggerMode === "github" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !githubConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : form.githubEnabled && form.githubMode === "agent" ? (
-                <DropdownMenuShortcut>Sync only</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.syncOnlyShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -691,11 +767,15 @@ function AddTriggerMenu({
               }
             >
               <SearchIcon className="size-4" />
-              Contentful webhook
+              <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
               {form.triggerMode === "contentful" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !contentfulConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -711,9 +791,11 @@ function AddTriggerMenu({
               }
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
-              Source upload
+              <FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />
               {form.triggerMode === "source_upload" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -743,14 +825,16 @@ function TriggerSettings({
   const intl = useIntl();
 
   return (
-    <EditorSection title="Triggers">
+    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.triggersSection)}>
       <EditorPanel>
         {form.triggerMode === "scheduled" ? (
           <EditorRow
             icon={<ClockIcon className="size-4" />}
             title={
               <>
-                <span>Every</span>
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.every} />
+                </span>
                 <Select
                   value={form.scheduledCadence}
                   onValueChange={(value) =>
@@ -765,9 +849,15 @@ function TriggerSettings({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hourly">Hour</SelectItem>
-                    <SelectItem value="daily">Day</SelectItem>
-                    <SelectItem value="weekly">Week</SelectItem>
+                    <SelectItem value="hourly">
+                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceHour} />
+                    </SelectItem>
+                    <SelectItem value="daily">
+                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceDay} />
+                    </SelectItem>
+                    <SelectItem value="weekly">
+                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceWeek} />
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {form.scheduledCadence === "weekly" ? (
@@ -795,7 +885,9 @@ function TriggerSettings({
                 ) : null}
                 {form.scheduledCadence !== "hourly" ? (
                   <>
-                    <span>at</span>
+                    <span>
+                      <FormattedMessage {...workspaceAutomationFormMessages.at} />
+                    </span>
                     <Select
                       value={String(form.scheduledHourUtc)}
                       onValueChange={(value) =>
@@ -820,7 +912,9 @@ function TriggerSettings({
                   </>
                 ) : null}
                 <Input
-                  aria-label="Schedule timezone"
+                  aria-label={intl.formatMessage(
+                    workspaceAutomationFormMessages.scheduleTimezoneAriaLabel,
+                  )}
                   value={form.scheduledTimezone}
                   disabled={disabled}
                   className="h-8 w-32 rounded-lg px-2 text-sm"
@@ -839,7 +933,7 @@ function TriggerSettings({
         {form.triggerMode === "github" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
-            title="GitHub push"
+            title={<FormattedMessage {...workspaceAutomationFormMessages.githubPush} />}
             className="md:items-center"
           >
             <div className="flex w-full min-w-0 flex-col gap-1.5">
@@ -863,16 +957,17 @@ function TriggerSettings({
                   <SelectTrigger className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs">
                     <span className="truncate">
                       {selectedRepositoryLabel(
+                        intl,
                         form.githubInstallationRepositoryId,
                         repositories,
-                        "Repository",
+                        intl.formatMessage(workspaceAutomationFormMessages.repositoryLabel),
                       )}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
                     {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
-                        {formatRepositoryOptionLabel(repository)}
+                        {formatRepositoryOptionLabel(intl, repository)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -892,19 +987,27 @@ function TriggerSettings({
         {form.triggerMode === "manual" ? (
           <EditorRow
             icon={<ClockIcon className="size-4" />}
-            title="Manual only"
-            description="Runs only start when a teammate queues one from this automation."
+            title={<FormattedMessage {...workspaceAutomationFormMessages.manualOnlyTitle} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.manualOnlyDescription} />
+            }
           />
         ) : null}
 
         {form.triggerMode === "contentful" ? (
           <EditorRow
             icon={<SearchIcon className="size-4" />}
-            title="Contentful webhook"
+            title={<FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />}
             description={
-              contentfulConnected
-                ? "Runs when Contentful sends a matching entry create or update webhook."
-                : "Connect Contentful in Integrations before this trigger can run."
+              contentfulConnected ? (
+                <FormattedMessage
+                  {...workspaceAutomationFormMessages.contentfulWebhookConnectedDescription}
+                />
+              ) : (
+                <FormattedMessage
+                  {...workspaceAutomationFormMessages.contentfulWebhookDisconnectedDescription}
+                />
+              )
             }
           />
         ) : null}
@@ -912,8 +1015,10 @@ function TriggerSettings({
         {form.triggerMode === "source_upload" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
-            title="Source upload"
-            description="Runs when a source file is uploaded to the project selected above."
+            title={<FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.sourceUploadDescription} />
+            }
           />
         ) : null}
 
@@ -965,7 +1070,7 @@ function AddToolMenu({
           }
         >
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-          Add Tool
+          <FormattedMessage {...workspaceAutomationFormMessages.addTool} />
         </DropdownMenuTrigger>
         <DropdownMenuContent
           className="max-h-(--available-height) w-80 overflow-y-auto"
@@ -973,7 +1078,9 @@ function AddToolMenu({
           sideOffset={2}
         >
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Supported tools</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <FormattedMessage {...workspaceAutomationFormMessages.supportedTools} />
+            </DropdownMenuLabel>
             <DropdownMenuItem
               disabled={form.githubEnabled || !githubConnected}
               onClick={() => {
@@ -993,11 +1100,15 @@ function AddToolMenu({
               }}
             >
               <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              Use GitHub repo
+              <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />
               {form.githubEnabled && form.githubMode === "agent" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !githubConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1019,11 +1130,15 @@ function AddToolMenu({
               }}
             >
               <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              GitHub sync workflows
+              <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
               {form.githubEnabled && form.githubMode === "sync" ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !githubConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1031,11 +1146,15 @@ function AddToolMenu({
               onClick={() => onChange({ ...form, slackEnabled: true })}
             >
               <HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-4" />
-              Send to Slack
+              <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !slackConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1043,11 +1162,15 @@ function AddToolMenu({
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
               <MailIcon className="size-4" />
-              Send email
+              <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !emailConnected ? (
-                <DropdownMenuShortcut>Enable first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.enableFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1063,11 +1186,15 @@ function AddToolMenu({
               }
             >
               <SearchIcon className="size-4" />
-              Contentful translate
+              <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
-                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
               ) : !contentfulConnected ? (
-                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1083,13 +1210,19 @@ function AddToolMenu({
               }
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
-              Translate
-              {form.translationEnabled ? <DropdownMenuShortcut>Added</DropdownMenuShortcut> : null}
+              <FormattedMessage {...workspaceAutomationFormMessages.translate} />
+              {form.translationEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Coming soon</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <FormattedMessage {...workspaceAutomationFormMessages.comingSoon} />
+            </DropdownMenuLabel>
             {COMING_SOON_SERP_TOOLS.map((tool) => (
               <DropdownMenuItem key={tool.id} disabled>
                 <AutomationToolMenuIcon icon={tool.icon} />
@@ -1100,7 +1233,7 @@ function AddToolMenu({
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <AutomationToolMenuIcon icon={siGoogle} />
-                <span className="min-w-0 flex-1">Google</span>
+                <span className="min-w-0 flex-1">{COMING_SOON_GOOGLE_MENU_LABEL}</span>
                 <ComingSoonBadge className="ms-0" />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
@@ -1114,7 +1247,7 @@ function AddToolMenu({
             </DropdownMenuSub>
             <DropdownMenuItem disabled>
               <AutomationToolMenuIcon icon={siLinear} />
-              Linear
+              {COMING_SOON_LINEAR_MENU_LABEL}
               <ComingSoonBadge />
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -1124,10 +1257,14 @@ function AddToolMenu({
   );
 }
 
+function formatLocalePill(locale: string) {
+  return `${getLocaleLabel(locale)} (${locale})`;
+}
+
 function ContentfulTargetLocalesPicker({
   availableLocales,
   disabled,
-  emptyMessage = "Select a Contentful connection to choose target locales.",
+  emptyMessage,
   error,
   labelledBy,
   selectedLocales,
@@ -1135,7 +1272,7 @@ function ContentfulTargetLocalesPicker({
 }: {
   availableLocales: string[];
   disabled?: boolean;
-  emptyMessage?: string;
+  emptyMessage: string;
   error?: string;
   labelledBy: string;
   selectedLocales: string[];
@@ -1174,7 +1311,7 @@ function ContentfulTargetLocalesPicker({
               onClick={() => toggleLocale(locale)}
               className="h-8 px-2.5 text-xs"
             >
-              {getLocaleLabel(locale)} ({locale})
+              {formatLocalePill(locale)}
             </Button>
           );
         })}
@@ -1225,19 +1362,22 @@ function ToolsSettings({
   );
   const translationAvailableTargetLocales = selectedTranslationProject?.targetLocales ?? [];
   const translationTargetLocalesFieldId = "translation-target-locales";
+  const intl = useIntl();
 
   return (
-    <EditorSection title="Tools">
+    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.toolsSection)}>
       <EditorPanel>
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
-            title="Use GitHub repo"
-            description="Read the repository and follow your instructions. GitHub skills apply automatically."
+            title={<FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepoDescription} />
+            }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove GitHub repo tool"
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeGithubRepoTool)}
                 onClick={() =>
                   onChange({
                     ...form,
@@ -1262,12 +1402,18 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "sync" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
-            title="GitHub sync workflows"
-            description="Push source, pull translations, and validation checks."
+            title={<FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />}
+            description={
+              <FormattedMessage
+                {...workspaceAutomationFormMessages.githubSyncWorkflowsDescription}
+              />
+            }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove GitHub sync workflows"
+                label={intl.formatMessage(
+                  workspaceAutomationFormMessages.removeGithubSyncWorkflows,
+                )}
                 onClick={() =>
                   onChange({
                     ...form,
@@ -1291,7 +1437,9 @@ function ToolsSettings({
               />
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Push source</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.pushSource} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.pushSourceEnabled}
@@ -1300,7 +1448,9 @@ function ToolsSettings({
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Pull translations</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.pullTranslations} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.pullTranslationsEnabled}
@@ -1314,7 +1464,9 @@ function ToolsSettings({
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Validation</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.validation} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.validationEnabled}
@@ -1332,33 +1484,39 @@ function ToolsSettings({
             icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-4" />}
             title={
               <>
-                <span>Send to Slack</span>
-                {!slackConnected ? <Badge variant="secondary">Connect first</Badge> : null}
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
+                </span>
+                {!slackConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
               </>
             }
             description={
-              slackConnected ? (
-                "Notify a channel when runs reach a terminal state."
-              ) : (
-                <>
-                  Connect Slack in{" "}
-                  <Link href={`/org/${organizationSlug}/integrations`} className="underline">
-                    Integrations
-                  </Link>{" "}
-                  to use this tool.
-                </>
-              )
+              slackConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.slackConnectedDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.slackDisconnectedDescription, {
+                    link: (chunks) => (
+                      <Link href={`/org/${organizationSlug}/integrations`} className="underline">
+                        {chunks}
+                      </Link>
+                    ),
+                  })
             }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove Slack notifications"
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeSlackNotifications)}
                 onClick={() => onChange({ ...form, slackEnabled: false, slackChannelId: "" })}
               />
             }
           >
             <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Channel</Label>
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.channelLabel} />
+              </Label>
               <Select
                 value={form.slackChannelId || undefined}
                 onValueChange={(value) => {
@@ -1372,20 +1530,25 @@ function ToolsSettings({
                 <SelectTrigger className="h-8 w-full rounded-lg">
                   <span className="truncate">
                     {slackChannelsLoading
-                      ? "Loading channels..."
-                      : selectedSlackChannelLabel(form.slackChannelId, slackChannels)}
+                      ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
+                      : selectedSlackChannelLabel(intl, form.slackChannelId, slackChannels)}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {!slackChannelsLoading && slackChannels.length === 0 ? (
                     <SelectItem value="__no_slack_channels" disabled>
-                      No channels found
+                      {intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
                     </SelectItem>
                   ) : null}
                   {slackChannels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
-                      #{channel.name}
-                      {channel.private ? " (private)" : ""}
+                      {channel.private
+                        ? intl.formatMessage(workspaceAutomationFormMessages.privateChannelSuffix, {
+                            name: channel.name,
+                          })
+                        : intl.formatMessage(workspaceAutomationFormMessages.publicChannelLabel, {
+                            name: channel.name,
+                          })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1400,34 +1563,38 @@ function ToolsSettings({
             icon={<MailIcon className="size-4" />}
             title={
               <>
-                <span>Send email</span>
-                {!emailConnected ? <Badge variant="secondary">Enable first</Badge> : null}
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
+                </span>
+                {!emailConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.enableFirstBadge} />
+                  </Badge>
+                ) : null}
               </>
             }
             description={
-              emailConnected ? (
-                "Send terminal run summaries to specific recipients."
-              ) : (
-                <>
-                  Enable the email agent in{" "}
-                  <Link href={`/org/${organizationSlug}/integrations`} className="underline">
-                    Integrations
-                  </Link>{" "}
-                  to use email notifications.
-                </>
-              )
+              emailConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.emailConnectedDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.emailDisconnectedDescription, {
+                    link: (chunks) => (
+                      <Link href={`/org/${organizationSlug}/integrations`} className="underline">
+                        {chunks}
+                      </Link>
+                    ),
+                  })
             }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove email notifications"
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeEmailNotifications)}
                 onClick={() => onChange({ ...form, emailEnabled: false, emailRecipients: [] })}
               />
             }
           >
             <div className="grid gap-1.5">
               <Label htmlFor="email-recipients" className="text-xs text-muted-foreground">
-                Recipients
+                <FormattedMessage {...workspaceAutomationFormMessages.recipientsLabel} />
               </Label>
               <Textarea
                 id="email-recipients"
@@ -1455,34 +1622,47 @@ function ToolsSettings({
             icon={<SearchIcon className="size-4" />}
             title={
               <>
-                <span>Contentful translate</span>
-                {!contentfulConnected ? <Badge variant="secondary">Connect first</Badge> : null}
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
+                </span>
+                {!contentfulConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
               </>
             }
             description={
-              contentfulConnected ? (
-                "Translate detected Contentful fields, run QA, and write drafts back for review."
-              ) : (
-                <>
-                  Connect Contentful in{" "}
-                  <Link href={`/org/${organizationSlug}/integrations`} className="underline">
-                    Integrations
-                  </Link>{" "}
-                  to use this tool.
-                </>
-              )
+              contentfulConnected
+                ? intl.formatMessage(
+                    workspaceAutomationFormMessages.contentfulTranslateConnectedDescription,
+                  )
+                : intl.formatMessage(
+                    workspaceAutomationFormMessages.contentfulTranslateDisconnectedDescription,
+                    {
+                      link: (chunks) => (
+                        <Link href={`/org/${organizationSlug}/integrations`} className="underline">
+                          {chunks}
+                        </Link>
+                      ),
+                    },
+                  )
             }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove Contentful translate"
+                label={intl.formatMessage(
+                  workspaceAutomationFormMessages.removeContentfulTranslate,
+                )}
                 onClick={() => onChange({ ...form, contentfulEnabled: false })}
               />
             }
           >
             <div className="grid gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Connection</Label>
+                <Label className="text-xs text-muted-foreground">
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectionLabel} />
+                </Label>
                 <Select
                   value={form.contentfulConnectionId || undefined}
                   disabled={disabled || !contentfulConnected}
@@ -1502,6 +1682,7 @@ function ToolsSettings({
                   <SelectTrigger className="h-8 w-full rounded-lg">
                     <span className="truncate">
                       {selectedContentfulConnectionLabel(
+                        intl,
                         form.contentfulConnectionId,
                         contentfulConnections,
                       )}
@@ -1510,8 +1691,12 @@ function ToolsSettings({
                   <SelectContent>
                     {contentfulConnections.map((connection) => (
                       <SelectItem key={connection.id} value={connection.id}>
-                        {connection.displayName}
-                        {connection.enabled ? "" : " (disabled)"}
+                        {connection.enabled
+                          ? connection.displayName
+                          : intl.formatMessage(
+                              workspaceAutomationFormMessages.connectionDisabledSuffix,
+                              { name: connection.displayName },
+                            )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1525,7 +1710,9 @@ function ToolsSettings({
                 )}
               >
                 <div className="grid gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Project</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.projectLabel} />
+                  </Label>
                   <Select
                     value={form.contentfulProjectId || undefined}
                     disabled={disabled}
@@ -1551,7 +1738,8 @@ function ToolsSettings({
                     <SelectTrigger className="h-8 w-full rounded-lg">
                       <span className="truncate">
                         {projects.find((project) => project.id === form.contentfulProjectId)
-                          ?.name ?? "Select project"}
+                          ?.name ??
+                          intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
                       </span>
                     </SelectTrigger>
                     <SelectContent>
@@ -1567,14 +1755,16 @@ function ToolsSettings({
                 {showContentfulEntryId ? (
                   <div className="grid gap-1.5">
                     <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
-                      Entry ID
+                      <FormattedMessage {...workspaceAutomationFormMessages.entryIdLabel} />
                     </Label>
                     <Input
                       id="contentful-entry-id"
                       value={form.contentfulEntryId}
                       disabled={disabled}
                       className="h-8 rounded-lg text-sm"
-                      placeholder="Contentful entry ID"
+                      placeholder={intl.formatMessage(
+                        workspaceAutomationFormMessages.contentfulEntryIdPlaceholder,
+                      )}
                       onChange={(event) =>
                         onChange({ ...form, contentfulEntryId: event.target.value })
                       }
@@ -1588,11 +1778,14 @@ function ToolsSettings({
                   id={contentfulTargetLocalesFieldId}
                   className="text-xs text-muted-foreground"
                 >
-                  Target locales
+                  <FormattedMessage {...workspaceAutomationFormMessages.targetLocalesLabel} />
                 </Label>
                 <ContentfulTargetLocalesPicker
                   availableLocales={contentfulAvailableTargetLocales}
                   disabled={disabled}
+                  emptyMessage={intl.formatMessage(
+                    workspaceAutomationFormMessages.contentfulTargetLocalesEmpty,
+                  )}
                   error={errors.contentfulTargetLocales}
                   labelledBy={contentfulTargetLocalesFieldId}
                   selectedLocales={form.contentfulTargetLocales}
@@ -1603,7 +1796,9 @@ function ToolsSettings({
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Run QA</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.runQa} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.contentfulRunQa}
@@ -1612,7 +1807,9 @@ function ToolsSettings({
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Write drafts</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.writeDrafts} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.contentfulWriteDrafts}
@@ -1623,7 +1820,9 @@ function ToolsSettings({
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                  <span className="text-xs text-foreground">Overwrite targets</span>
+                  <span className="text-xs text-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.overwriteTargets} />
+                  </span>
                   <Switch
                     size="sm"
                     checked={form.contentfulOverwriteDraftLocales}
@@ -1641,12 +1840,14 @@ function ToolsSettings({
         {form.translationEnabled ? (
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
-            title="Translate"
-            description="Queue translation jobs for uploaded source files in the project selected above."
+            title={<FormattedMessage {...workspaceAutomationFormMessages.translate} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.translateDescription} />
+            }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove Translate"
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslate)}
                 onClick={() =>
                   onChange({
                     ...form,
@@ -1661,7 +1862,9 @@ function ToolsSettings({
           >
             <div className="grid gap-3">
               <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                <span className="text-xs text-foreground">Use project target locales</span>
+                <span className="text-xs text-foreground">
+                  <FormattedMessage {...workspaceAutomationFormMessages.useProjectTargetLocales} />
+                </span>
                 <Switch
                   size="sm"
                   checked={form.translationUseProjectTargetLocales}
@@ -1681,12 +1884,14 @@ function ToolsSettings({
                     id={translationTargetLocalesFieldId}
                     className="text-xs text-muted-foreground"
                   >
-                    Target locales
+                    <FormattedMessage {...workspaceAutomationFormMessages.targetLocalesLabel} />
                   </Label>
                   <ContentfulTargetLocalesPicker
                     availableLocales={translationAvailableTargetLocales}
                     disabled={disabled}
-                    emptyMessage="Choose a project above to pick target locales."
+                    emptyMessage={intl.formatMessage(
+                      workspaceAutomationFormMessages.chooseProjectForTargetLocales,
+                    )}
                     error={errors.translationTargetLocales}
                     labelledBy={translationTargetLocalesFieldId}
                     selectedLocales={form.translationTargetLocales}
@@ -1715,11 +1920,42 @@ function ToolsSettings({
   );
 }
 
+function formatRunStatus(intl: IntlShape, status: string) {
+  const statusMessages = {
+    queued: workspaceAutomationFormMessages.runStatusQueued,
+    running: workspaceAutomationFormMessages.runStatusRunning,
+    succeeded: workspaceAutomationFormMessages.runStatusSucceeded,
+    failed: workspaceAutomationFormMessages.runStatusFailed,
+    cancelled: workspaceAutomationFormMessages.runStatusCancelled,
+    skipped: workspaceAutomationFormMessages.runStatusSkipped,
+  } as const;
+
+  const message = statusMessages[status as keyof typeof statusMessages];
+  return message ? intl.formatMessage(message) : status;
+}
+
+function formatTriggerSource(intl: IntlShape, triggerSource: string) {
+  const triggerMessages = {
+    manual: workspaceAutomationFormMessages.triggerSourceManual,
+    scheduled: workspaceAutomationFormMessages.triggerSourceScheduled,
+    github: workspaceAutomationFormMessages.triggerSourceGithub,
+    contentful: workspaceAutomationFormMessages.triggerSourceContentful,
+    source_upload: workspaceAutomationFormMessages.triggerSourceSourceUpload,
+  } as const;
+
+  const message = triggerMessages[triggerSource as keyof typeof triggerMessages];
+  return message ? intl.formatMessage(message) : triggerSource;
+}
+
 function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
+  const intl = useIntl();
+
   if (runs.length === 0) {
     return (
       <EditorPanel className="px-4 py-10">
-        <p className="text-sm text-muted-foreground">No runs yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...workspaceAutomationFormMessages.noRunsYet} />
+        </p>
       </EditorPanel>
     );
   }
@@ -1727,10 +1963,18 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
   return (
     <EditorPanel>
       <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
-        <span>Status</span>
-        <span>Trigger</span>
-        <span>Summary</span>
-        <span>Completed</span>
+        <span>
+          <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
+        </span>
+        <span>
+          <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
+        </span>
+        <span>
+          <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
+        </span>
+        <span>
+          <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
+        </span>
       </div>
       {runs.map((run) => (
         <div
@@ -1738,14 +1982,16 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
           className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-4 text-sm last:border-b-0"
         >
           <Badge variant="outline" className="w-fit">
-            {run.status}
+            {formatRunStatus(intl, run.status)}
           </Badge>
-          <span>{run.triggerSource}</span>
+          <span>{formatTriggerSource(intl, run.triggerSource)}</span>
           <span className="truncate text-muted-foreground">
-            {Object.keys(run.outputSummary).length > 0 ? JSON.stringify(run.outputSummary) : "—"}
+            {Object.keys(run.outputSummary).length > 0
+              ? JSON.stringify(run.outputSummary)
+              : EMPTY_CELL}
           </span>
           <span className="text-muted-foreground">
-            {run.completedAt ? new Date(run.completedAt).toLocaleString() : "—"}
+            {run.completedAt ? new Date(run.completedAt).toLocaleString() : EMPTY_CELL}
           </span>
         </div>
       ))}
@@ -1897,13 +2143,15 @@ export function WorkspaceAutomationEditor({
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1">
             <Label htmlFor="automation-name" className="sr-only">
-              Automation name
+              <FormattedMessage {...workspaceAutomationFormMessages.automationNameLabel} />
             </Label>
             <Input
               id="automation-name"
               value={form.name}
               disabled={disabled}
-              placeholder="Untitled automation"
+              placeholder={intl.formatMessage(
+                workspaceAutomationFormMessages.untitledAutomationPlaceholder,
+              )}
               className="h-auto rounded-none border-0 bg-transparent px-0 py-0 text-2xl font-medium shadow-none ring-0 focus-visible:ring-0 md:text-2xl"
               onChange={(event) => onChange({ ...form, name: event.target.value })}
             />
@@ -1926,14 +2174,20 @@ export function WorkspaceAutomationEditor({
                 })
               }
             />
-            <span>{form.status === "active" ? "Active" : "Paused"}</span>
+            <span>
+              {form.status === "active" ? (
+                <FormattedMessage {...workspaceAutomationFormMessages.statusActive} />
+              ) : (
+                <FormattedMessage {...workspaceAutomationFormMessages.statusPaused} />
+              )}
+            </span>
           </label>
           {form.translationEnabled ||
           form.contentfulEnabled ||
           (form.githubEnabled && form.githubMode === "sync") ||
           form.triggerMode === "source_upload" ? (
             <>
-              <span className="text-border">|</span>
+              <span className="text-border">{METADATA_SEPARATOR}</span>
               <HeaderProjectSelector
                 disabled={disabled}
                 form={form}
@@ -1946,20 +2200,22 @@ export function WorkspaceAutomationEditor({
           ) : null}
           {form.triggerMode !== "manual" ? (
             <>
-              <span className="text-border">|</span>
+              <span className="text-border">{METADATA_SEPARATOR}</span>
               <span>{triggerSummary(intl, form, repositories, projectsQuery.data ?? [])}</span>
             </>
           ) : null}
-          <span className="text-border">|</span>
+          <span className="text-border">{METADATA_SEPARATOR}</span>
           <span>
-            {toolCount(form)} tool{toolCount(form) === 1 ? "" : "s"}
+            {intl.formatMessage(workspaceAutomationFormMessages.toolCount, {
+              count: toolCount(form),
+            })}
           </span>
         </div>
         <FieldError message={errors.githubProjectId} />
         <FieldError message={errors.translationProjectId} />
         {!canActivate ? (
           <p className="text-xs text-muted-foreground">
-            Add at least one supported tool to activate this automation.
+            <FormattedMessage {...workspaceAutomationFormMessages.activateRequiresTool} />
           </p>
         ) : null}
         <FieldError message={errors.form} />
@@ -1967,8 +2223,14 @@ export function WorkspaceAutomationEditor({
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AutomationEditorTab)}>
         <TabsList>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          {hasHistory ? <TabsTrigger value="history">Run History</TabsTrigger> : null}
+          <TabsTrigger value="settings">
+            <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+          </TabsTrigger>
+          {hasHistory ? (
+            <TabsTrigger value="history">
+              <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
@@ -1982,14 +2244,18 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
           />
 
-          <EditorSection title="Agent Instructions">
+          <EditorSection
+            title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
+          >
             <div className="relative rounded-xl">
               <Textarea
                 id="automation-instructions"
                 value={form.instructions}
                 disabled={disabled}
                 className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
-                placeholder="Tell the automation what to do, what to inspect, and what to ignore."
+                placeholder={intl.formatMessage(
+                  workspaceAutomationFormMessages.instructionsPlaceholder,
+                )}
                 onChange={(event) => onChange({ ...form, instructions: event.target.value })}
               />
               <div

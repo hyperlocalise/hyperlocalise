@@ -1,0 +1,26 @@
+"use client";
+
+import { defineMessages } from "react-intl";
+
+export const catWorkspaceSkeletonMessages = defineMessages({
+  loadingEditor: {
+    defaultMessage: "Loading editor",
+    id: "jfJtnvEq80",
+    description: "Accessible label while the CAT editor panel skeleton is shown",
+  },
+  loadingIntelligence: {
+    defaultMessage: "Loading intelligence",
+    id: "WKx3yZHQjo",
+    description: "Accessible label while the CAT intelligence panel skeleton is shown",
+  },
+  loadingQueue: {
+    defaultMessage: "Loading queue",
+    id: "CHxu7ekWGa",
+    description: "Accessible label while the CAT queue panel skeleton is shown",
+  },
+  loadingWorkspace: {
+    defaultMessage: "Loading CAT workspace",
+    id: "eXEsN78hyb",
+    description: "Accessible label while the full CAT workspace skeleton is shown",
+  },
+});

@@ -8,17 +8,19 @@ import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typogra
 
 import { marketingPageMessages } from "./marketing-page-content.messages";
 import { principles } from "./marketing-page-content";
+import { principlesSectionMessages } from "./principles-section.messages";
 
 export function PrinciplesSection() {
   return (
     <section id="overview">
       <div className="max-w-5xl">
         <TypographyH2>
-          A localization operating system in AI era.{" "}
-          <span className="text-muted-foreground">
-            Built for modern teams with translation, review, sync, and quality control in one
-            workflow.
-          </span>
+          <FormattedMessage
+            {...principlesSectionMessages.headline}
+            values={{
+              muted: (chunks) => <span className="text-muted-foreground">{chunks}</span>,
+            }}
+          />
         </TypographyH2>
       </div>
 
@@ -54,7 +56,9 @@ export function PrinciplesSection() {
                     href={href}
                     className="inline-flex items-center gap-2 text-[1rem] tracking-[-0.02em] transition-colors duration-300 hover:text-subtle-foreground sm:text-[1.05rem]"
                   >
-                    <span>Learn more</span>
+                    <span>
+                      <FormattedMessage {...principlesSectionMessages.learnMore} />
+                    </span>
                     <HugeiconsIcon icon={ArrowRightIcon} className="size-4" strokeWidth={1.7} />
                   </a>
                 </div>
