@@ -295,12 +295,14 @@ const projectStore: ProjectStore = {
 
     // Creators without teams:write only see projects on teams they belong to.
     // Mirror team-create behavior so the new project is immediately listable.
-    await ensureTeamMembership({
-      teamId,
-      userId: auth.user.localUserId,
-      role: "member",
-      database,
-    });
+    if (!hasOrganizationWideProjectAccess(auth)) {
+      await ensureTeamMembership({
+        teamId,
+        userId: auth.user.localUserId,
+        role: "member",
+        database,
+      });
+    }
 
     return project;
   },
