@@ -58,11 +58,7 @@ export function NavbarMobileAuthCta({ auth }: { auth: NavbarAuthState }) {
 
   if (auth.isAuthenticated) {
     return (
-      <Button
-        className="px-3.5"
-        nativeButton={false}
-        render={<Link href={dashboardHref} />}
-      >
+      <Button className="px-3.5" nativeButton={false} render={<Link href={dashboardHref} />}>
         <FormattedMessage {...navbarMessages.dashboard} />
       </Button>
     );
