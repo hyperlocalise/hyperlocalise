@@ -3,7 +3,7 @@
     "defaultMessage": "暂无描述"
   },
   "++VvL4EEbo": {
-    "defaultMessage": "Copied"
+    "defaultMessage": "已复制"
   },
   "+1iajv5nbm": {
     "defaultMessage": "菲律宾语（菲律宾）"
@@ -141,7 +141,7 @@
     "defaultMessage": "批准"
   },
   "0+lekb0oBh": {
-    "defaultMessage": "API key created"
+    "defaultMessage": "API 密钥已创建"
   },
   "06dt5VSN/y": {
     "defaultMessage": "产品图片占位符"
@@ -483,7 +483,7 @@
     "defaultMessage": "使用您偏好的 LLM 起草翻译"
   },
   "4Nb8hxfYt5": {
-    "defaultMessage": "API key revoked"
+    "defaultMessage": "API 密钥已撤销"
   },
   "4NfxqMMl1K": {
     "defaultMessage": "检测已更改的字符串"
@@ -579,7 +579,7 @@
     "defaultMessage": "总成本"
   },
   "5eoi21fmqC": {
-    "defaultMessage": "Copy"
+    "defaultMessage": "复制"
   },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub 拒绝了安装 ID。请确认该应用已安装在预期的账户上。"
@@ -588,7 +588,7 @@
     "defaultMessage": "从新文章到受监控的语言区域覆盖"
   },
   "60PQQ7C+fN": {
-    "defaultMessage": "Last used {date}"
+    "defaultMessage": "上次使用时间：{date}"
   },
   "63np7ewMDD": {
     "defaultMessage": "捕捉源更改，分配本地化工作，收集上下文，并在您现有的工具中始终由人工审核把控。"
@@ -615,7 +615,7 @@
     "defaultMessage": "{triggerSource} · 已完成 {completedAt}"
   },
   "6RuyJHJCyu": {
-    "defaultMessage": "Revoke"
+    "defaultMessage": "撤销"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "连接 Crowdin 失败"
@@ -1032,7 +1032,7 @@
     "defaultMessage": "Knowledge"
   },
   "Bh7oPsMHrP": {
-    "defaultMessage": "Refresh the page to try again."
+    "defaultMessage": "刷新页面后重试。"
   },
   "BjoXu+/Pje": {
     "defaultMessage": "本地化检查"
@@ -1173,7 +1173,7 @@
     "defaultMessage": "本地化项目经理"
   },
   "DSm/l7fomX": {
-    "defaultMessage": "Revoke API key"
+    "defaultMessage": "撤销 API 密钥"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "面向支持和本地化审核员的路线"
@@ -1458,7 +1458,7 @@
     "defaultMessage": "大多数审校周期之所以停滞，是因为译者无法看到屏幕、术语表、意图或产品细微差别。Hyperlocalise 将这些上下文放在字符串旁边。"
   },
   "HZrRUnuo70": {
-    "defaultMessage": "Copy this key now. You will not be able to see it again."
+    "defaultMessage": "立即复制此密钥。之后将无法再次查看。"
   },
   "HZtAltEBuQ": {
     "defaultMessage": "文件中附加了上下文"
@@ -1497,7 +1497,7 @@
     "defaultMessage": "由于没有自动化回归层，错误的翻译会进入生产环境。"
   },
   "IJDgzVk+ER": {
-    "defaultMessage": "Create API key"
+    "defaultMessage": "创建 API 密钥"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "文件"
@@ -1623,7 +1623,7 @@
     "defaultMessage": "已复制"
   },
   "K0Maj++lc6": {
-    "defaultMessage": "No API keys yet"
+    "defaultMessage": "还没有 API 密钥"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "支持内容在以英文发布的那一刻起就会过时"
@@ -1827,7 +1827,7 @@
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
   "NisKtP5fCJ": {
-    "defaultMessage": "Failed to revoke API key"
+    "defaultMessage": "撤销 API 密钥失败"
   },
   "NjO8LhO0p7": {
     "defaultMessage": "正在保存…"
@@ -1929,7 +1929,7 @@
     "defaultMessage": "没有控制台输出"
   },
   "P8buB19/yY": {
-    "defaultMessage": "API keys"
+    "defaultMessage": "API 密钥"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "本地化质量监控 | Hyperlocalise"
@@ -2094,10 +2094,10 @@
     "defaultMessage": "访问被拒绝"
   },
   "RbHK79ne0Y": {
-    "defaultMessage": "Strings"
+    "defaultMessage": "字符串"
   },
   "RcUcWXknuU": {
-    "defaultMessage": "Never"
+    "defaultMessage": "从未"
   },
   "ReZgZHvqUS": {
     "defaultMessage": "模糊匹配"
@@ -2127,7 +2127,7 @@
     "defaultMessage": "思维链"
   },
   "S2pzZyn+jp": {
-    "defaultMessage": "Revoke key"
+    "defaultMessage": "撤销密钥"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "重新连接 Slack"
@@ -2205,7 +2205,7 @@
     "defaultMessage": "定时触发和由 GitHub 触发的确定性工作流"
   },
   "TE3bLZyBSZ": {
-    "defaultMessage": "<b>Reasoning:</b> {reasoning}"
+    "defaultMessage": "<b>推理：</b> {reasoning}"
   },
   "TEXn81XSVY": {
     "defaultMessage": "每天在 {time} · {timezone}"
@@ -2313,7 +2313,7 @@
     "defaultMessage": "所有字符串"
   },
   "V/CBn2NY6n": {
-    "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace."
+    "defaultMessage": "创建一个密钥，用于对脚本、CI 作业和集成进行身份验证，以访问此工作区。"
   },
   "V04dsqCSZQ": {
     "defaultMessage": "No localized image yet"
@@ -2340,7 +2340,7 @@
     "defaultMessage": "上一个片段（{shortcut}）"
   },
   "VH9bOCu5nr": {
-    "defaultMessage": "Create API key"
+    "defaultMessage": "创建 API 密钥"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "这个字符串是什么意思，以及它在哪里使用？"
@@ -2367,7 +2367,7 @@
     "defaultMessage": "在 v0 中打开"
   },
   "VUwFgX4OmD": {
-    "defaultMessage": "Permissions: {permissions}"
+    "defaultMessage": "权限：{permissions}"
   },
   "VWQFJ0pM9H": {
     "defaultMessage": "市场规则、语音偏好和重复错误在整个工作流中保持可见。"
@@ -2607,7 +2607,7 @@
     "defaultMessage": "源文件"
   },
   "ZC65JlwD3i": {
-    "defaultMessage": "Loading API keys..."
+    "defaultMessage": "正在加载 API 密钥……"
   },
   "ZF5d+f8aEU": {
     "defaultMessage": "开始对话以在此处查看消息"
@@ -2655,7 +2655,7 @@
     "defaultMessage": "提取结构、链接和产品术语"
   },
   "ZuaK6pQTdl": {
-    "defaultMessage": "Key name"
+    "defaultMessage": "密钥名称"
   },
   "ZurV/2CmHO": {
     "defaultMessage": "持续监控"
@@ -2706,7 +2706,7 @@
     "defaultMessage": "将已批准的翻译同步回您的 CMS"
   },
   "aMf9NbDyem": {
-    "defaultMessage": "No image yet"
+    "defaultMessage": "暂无图片"
   },
   "aWf83qmrdq": {
     "defaultMessage": "专为本地化运营和发布信心打造"
@@ -2769,7 +2769,7 @@
     "defaultMessage": "电子邮件代理已禁用"
   },
   "bXM2sr8gtz": {
-    "defaultMessage": "API key copied to clipboard"
+    "defaultMessage": "API 密钥已复制到剪贴板"
   },
   "bYpd314kqN": {
     "defaultMessage": "本地化记忆层"
@@ -3324,7 +3324,7 @@
     "defaultMessage": "Failed"
   },
   "jh2RfUdWl3": {
-    "defaultMessage": "Done"
+    "defaultMessage": "完成"
   },
   "jhMzSbK5qz": {
     "defaultMessage": "请稍后再试。如果问题仍然存在，请联系支持或选择其他组织。"
@@ -3414,7 +3414,7 @@
     "defaultMessage": "已复制入站电子邮件"
   },
   "ksrwIvV64s": {
-    "defaultMessage": "Workspace settings"
+    "defaultMessage": "工作区设置"
   },
   "kuwnF7iUJu": {
     "defaultMessage": "播放预览"
@@ -3519,7 +3519,7 @@
     "defaultMessage": "新请求"
   },
   "mctwKXU94p": {
-    "defaultMessage": "Leave page with unsaved changes?"
+    "defaultMessage": "离开页面时有未保存的更改？"
   },
   "mdDGkHBHvr": {
     "defaultMessage": "重试"
@@ -3534,7 +3534,7 @@
     "defaultMessage": "说明"
   },
   "mmB/r+ohDb": {
-    "defaultMessage": "Some segments have unsaved edits. Leave without saving?"
+    "defaultMessage": "部分片段有未保存的编辑。要不保存就离开吗？"
   },
   "moonxzY9iq": {
     "defaultMessage": "来自产品、营销、支持和工程的工作通过不同渠道进入，没有统一的接收入口。"
@@ -3573,7 +3573,7 @@
     "defaultMessage": "Mobile"
   },
   "nE4gAmZP2R": {
-    "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
+    "defaultMessage": "创建和管理 API 密钥，以便以编程方式访问翻译任务和工作区资源。请妥善保管密钥并定期轮换。"
   },
   "nEBGfsZw1I": {
     "defaultMessage": "运行中"
@@ -3747,7 +3747,7 @@
     "defaultMessage": "队列面板加载失败"
   },
   "pwrS5bq0q7": {
-    "defaultMessage": "Create key"
+    "defaultMessage": "创建密钥"
   },
   "py4sv3RBJU": {
     "defaultMessage": "强制执行品牌语调和术语"
@@ -3906,7 +3906,7 @@
     "defaultMessage": "重试"
   },
   "sCwvAHmqAI": {
-    "defaultMessage": "Failed to load API keys"
+    "defaultMessage": "加载 API 密钥失败"
   },
   "sHrPdefvvp": {
     "defaultMessage": "搜索麦克风..."
@@ -3921,7 +3921,7 @@
     "defaultMessage": "当上线工作零散分散时，翻译就会变成最后一刻的手忙脚乱。"
   },
   "sishbO9DCq": {
-    "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working."
+    "defaultMessage": "此密钥将立即失去对工作区 API 的访问权限。任何使用此密钥的集成都将停止运行。"
   },
   "sjmGDLHpLL": {
     "defaultMessage": "品牌背景"
@@ -4113,7 +4113,7 @@
     "defaultMessage": "专为大规模本地化运营而打造"
   },
   "vHkuFGKp7T": {
-    "defaultMessage": "Failed to create API key"
+    "defaultMessage": "创建 API 密钥失败"
   },
   "vHurxfGj2i": {
     "defaultMessage": "查找字符串的上下文"
@@ -4242,7 +4242,7 @@
     "defaultMessage": "人工审核批准"
   },
   "whnz/Xptx4": {
-    "defaultMessage": "Cancel"
+    "defaultMessage": "取消"
   },
   "whr/nciIbp": {
     "defaultMessage": "清除选择"
@@ -4398,7 +4398,7 @@
     "defaultMessage": "已复制 OAuth 回调 URL"
   },
   "z5++P6iegy": {
-    "defaultMessage": "API keys failed to load."
+    "defaultMessage": "API 密钥加载失败。"
   },
   "z6J/H68BKd": {
     "defaultMessage": "源代码管理"
@@ -4422,7 +4422,7 @@
     "defaultMessage": "已更新已启用的仓库"
   },
   "zMB0hQFeRq": {
-    "defaultMessage": "Revoking..."
+    "defaultMessage": "正在撤销…"
   },
   "zMY6O3OGwK": {
     "defaultMessage": "打开{name}的账户菜单"
