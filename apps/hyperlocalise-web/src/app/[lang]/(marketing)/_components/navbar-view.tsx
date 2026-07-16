@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   cliDocsUrl,
+  contactUrl,
   docsUrl,
   githubActionUrl,
   githubRepoUrl,
@@ -89,7 +90,7 @@ const resourceLinks: NavLink[] = [
 ];
 
 const companyLinks: NavLink[] = [
-  { href: "mailto:minh@hyperlocalise.com", kind: "navbar", labelKey: "navContact", external: true },
+  { href: contactUrl, kind: "navbar", labelKey: "navContact" },
   { href: "/trust-center", kind: "navbar", labelKey: "navTrustCenter" },
   { href: "/privacy", kind: "navbar", labelKey: "navPrivacy" },
   { href: "/terms", kind: "navbar", labelKey: "navTerms" },
@@ -99,7 +100,7 @@ const mobileNavLinkClassName =
   "flex min-h-11 items-center rounded-3xl px-4 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground";
 
 const megaMenuLinkClassName =
-  "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground hover:bg-muted focus:bg-muted";
+  "group/mega-menu-link flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 const megaMenuHeadingClassName =
   "px-3 pb-2 text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase";
@@ -120,7 +121,7 @@ function ExternalLinkIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="size-3.5 shrink-0 text-muted-foreground"
+      className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/mega-menu-link:text-foreground"
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

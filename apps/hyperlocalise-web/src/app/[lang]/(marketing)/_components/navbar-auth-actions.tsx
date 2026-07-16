@@ -29,7 +29,7 @@ export function NavbarDesktopAuthActions({ auth }: { auth: NavbarAuthState }) {
 
   if (auth.isAuthenticated) {
     return (
-      <Button variant="outline" nativeButton={false} render={<Link href={dashboardHref} />}>
+      <Button nativeButton={false} render={<Link href={dashboardHref} />}>
         <FormattedMessage {...navbarMessages.dashboard} />
       </Button>
     );
@@ -60,7 +60,6 @@ export function NavbarMobileAuthCta({ auth }: { auth: NavbarAuthState }) {
     return (
       <Button
         className="px-3.5"
-        variant="outline"
         nativeButton={false}
         render={<Link href={dashboardHref} />}
       >
