@@ -47,8 +47,8 @@ describe("frameAncestorFromCrowdinBaseUrl", () => {
 
 describe("buildCrowdinAppFrameAncestorsCsp", () => {
   it("builds a frame-ancestors directive", () => {
-    expect(buildCrowdinAppFrameAncestorsCsp(["https://crowdin.com", "https://translate.acme.com"])).toBe(
-      "frame-ancestors https://crowdin.com https://translate.acme.com;",
-    );
+    expect(
+      buildCrowdinAppFrameAncestorsCsp(["https://crowdin.com", "https://translate.acme.com"]),
+    ).toBe("frame-ancestors https://crowdin.com https://translate.acme.com;");
   });
 });

@@ -142,7 +142,9 @@ describe("proxy", () => {
 
     expect(authkitProxyMock).not.toHaveBeenCalled();
     expect(response?.status).toBe(200);
-    expect(response?.headers.get("Content-Security-Policy")).toBe(buildCrowdinAppFrameAncestorsCsp());
+    expect(response?.headers.get("Content-Security-Policy")).toBe(
+      buildCrowdinAppFrameAncestorsCsp(),
+    );
     expect(response?.headers.get("X-Frame-Options")).toBeNull();
   });
 });
