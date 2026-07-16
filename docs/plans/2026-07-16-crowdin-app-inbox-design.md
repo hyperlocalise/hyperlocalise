@@ -10,7 +10,7 @@ inbox in a Crowdin project.
 ## Decision
 
 Host a Crowdin App inside `hyperlocalise-web` that exposes a **project-scoped**
-agent chat inbox in a Crowdin `project-menu` iframe.
+agent chat inbox in Crowdin `project-menu` and `editor-right-panel` iframes.
 
 - Reuse inbox UI and conversation/chat APIs.
 - Resolve the Hyperlocalise org from the Crowdin JWT against the org Crowdin
@@ -120,7 +120,10 @@ install rows are metadata for later Crowdin-as-app API use.
 
 Allow framing only for `/crowdin-app/*` from Crowdin origins
 (`*.crowdin.com` and configurable Enterprise domains). Keep restrictive
-frame policy elsewhere.
+frame policy elsewhere. Run iframe page requests through the WorkOS AuthKit
+proxy because the shared root layout reads its middleware context, then apply
+the Crowdin-specific `frame-ancestors` CSP to the response. Crowdin JWT and
+embed-session verification remain the authorization boundary.
 
 ## Data flow
 

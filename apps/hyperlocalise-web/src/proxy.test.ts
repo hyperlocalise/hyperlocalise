@@ -135,13 +135,17 @@ describe("proxy", () => {
     expect(response?.status).toBe(200);
   });
 
-  it("sets Crowdin App frame-ancestors CSP on iframe pages without AuthKit", async () => {
+  it("runs Crowdin App iframe pages through AuthKit before applying frame-ancestors CSP", async () => {
     authkitProxyMock.mockReset();
+    authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
 
     const response = await proxy(createRequest("/crowdin-app/inbox"), {} as never);
 
-    expect(authkitProxyMock).not.toHaveBeenCalled();
+    expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
+    expect(response?.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(
+      "https://www.hyperlocalise.com/crowdin-app/inbox",
+    );
     expect(response?.headers.get("Content-Security-Policy")).toBe(
       buildCrowdinAppFrameAncestorsCsp(),
     );

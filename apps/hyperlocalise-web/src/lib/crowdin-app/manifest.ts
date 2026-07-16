@@ -38,6 +38,15 @@ export function buildCrowdinAppManifest() {
           url: "/crowdin-app/inbox",
         },
       ],
+      "editor-right-panel": [
+        {
+          key: "inbox-editor",
+          name: "Hyperlocalise",
+          modes: ["translate"],
+          supportsMultipleStrings: false,
+          url: "/crowdin-app/inbox",
+        },
+      ],
     },
   };
 }
