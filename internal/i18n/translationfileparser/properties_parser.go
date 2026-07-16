@@ -466,7 +466,25 @@ func decodeJavaPropertiesUnicodeEscape(raw string, escapeIndex int) (rune, int, 
 }
 
 func encodeJavaPropertiesKey(s string) string {
+	if s == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: Fast-path to avoid strings.Builder allocation and rune
+	// scanning if no key characters require escaping.
+	needsEscaping := false
+	for _, r := range s {
+		if r == ' ' || r == '\\' || r == '=' || r == ':' || r == '#' || r == '!' ||
+			r == '\t' || r == '\n' || r == '\r' || r == '\f' || r < 0x20 || r > 0xFFFF {
+			needsEscaping = true
+			break
+		}
+	}
+	if !needsEscaping {
+		return s
+	}
+
 	var b strings.Builder
+	b.Grow(len(s) + 4)
 	for _, r := range s {
 		switch r {
 		case ' ':
@@ -494,8 +512,34 @@ func encodeJavaPropertiesKey(s string) string {
 }
 
 func encodeJavaPropertiesValue(s string) string {
-	var b strings.Builder
+	if s == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: Fast-path to avoid strings.Builder allocation and rune
+	// scanning if no value characters require escaping (including leading spaces).
+	needsEscaping := false
 	leadingSpace := true
+	for _, r := range s {
+		if r == ' ' {
+			if leadingSpace {
+				needsEscaping = true
+				break
+			}
+		} else {
+			leadingSpace = false
+			if r == '\\' || r == '\t' || r == '\n' || r == '\r' || r == '\f' || r < 0x20 || r > 0xFFFF {
+				needsEscaping = true
+				break
+			}
+		}
+	}
+	if !needsEscaping {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + 4)
+	leadingSpace = true
 	for _, r := range s {
 		switch r {
 		case ' ':
