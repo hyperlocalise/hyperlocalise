@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -313,5 +313,59 @@ describe("team-scoped project access", () => {
     const listBody = (await listResponse.json()) as ProjectsResponse;
     const legacyProject = listBody.projects.find((project) => project.id === legacyProjectId);
     expect(legacyProject?.teamId).toBe(defaultTeam.id);
+  });
+
+  it("lets developers list projects they create without a prior team membership", async () => {
+    const admin = createWorkosIdentityWithRole("admin");
+    const developer = createWorkosIdentityForOrganization(admin.organization, "developer");
+
+    await authHeadersFor(admin);
+    await authHeadersFor(developer);
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Developer Created Project",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: await authHeadersFor(developer) },
+    );
+
+    expect(createResponse.status).toBe(201);
+    const createBody = (await createResponse.json()) as ProjectResponse;
+
+    const listResponse = await client.api.orgs[":organizationSlug"].projects.$get(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+      },
+      { headers: await authHeadersFor(developer) },
+    );
+
+    expect(listResponse.status).toBe(200);
+    const listBody = (await listResponse.json()) as ProjectsResponse;
+    expect(listBody.projects.map((project) => project.id)).toContain(createBody.project.id);
+
+    const developerUserId = await projectFixture.getLocalUserId(developer.user.workosUserId);
+    const [membership] = await db
+      .select({
+        teamId: schema.teamMemberships.teamId,
+        role: schema.teamMemberships.role,
+      })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.userId, developerUserId),
+          eq(schema.teamMemberships.teamId, createBody.project.teamId!),
+        ),
+      )
+      .limit(1);
+
+    expect(membership).toEqual({
+      teamId: createBody.project.teamId,
+      role: "member",
+    });
   });
 });

@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-reconcile";
 import {
   clearPendingMembershipReplacingInvitation,
@@ -25,6 +26,7 @@ import {
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -102,6 +104,26 @@ async function reconcileMemberMembershipFromWorkos(input: {
   });
 }
 
+async function ensureDefaultTeamAccessForInvitedMember(input: {
+  organizationId: string;
+  userId: string;
+  role: OrganizationMembershipRole;
+  database: DatabaseClient;
+}) {
+  // Operators already see every project via teams:write. Non-operators need an
+  // explicit default-team membership or projects they create stay invisible.
+  if (hasCapability(input.role, "teams:write")) {
+    return;
+  }
+
+  await ensureDefaultWorkspaceTeamMembership({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    role: "member",
+    database: input.database,
+  });
+}
+
 async function inviteOrganizationMember(input: {
   organizationId: string;
   email: string;
@@ -151,6 +173,13 @@ async function inviteOrganizationMember(input: {
         .set({ role: input.role })
         .where(eq(schema.organizationMemberships.id, existingMembership.membershipId));
     }
+
+    await ensureDefaultTeamAccessForInvitedMember({
+      organizationId: input.organizationId,
+      userId: existingMembership.localUserId,
+      role: input.role,
+      database,
+    });
 
     return {
       resend: true as const,
@@ -219,6 +248,13 @@ async function inviteOrganizationMember(input: {
       role: schema.organizationMemberships.role,
       createdAt: schema.organizationMemberships.createdAt,
     });
+
+  await ensureDefaultTeamAccessForInvitedMember({
+    organizationId: input.organizationId,
+    userId: user.id,
+    role: input.role,
+    database,
+  });
 
   return {
     membershipId: membership.id,

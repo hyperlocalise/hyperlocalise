@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { syncWorkosUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
+import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 import {
   deleteProvisionedWorkosOrganization,
   provisionWorkspaceInWorkos,
@@ -101,6 +102,13 @@ export async function createWorkspaceForSessionUser(input: {
           userId: user.id,
           role: "admin",
           workosMembershipId: adminMembership.workosMembershipId,
+        });
+
+        await ensureDefaultWorkspaceTeamMembership({
+          organizationId: organization.id,
+          userId: user.id,
+          role: "manager",
+          database: tx,
         });
 
         return {
