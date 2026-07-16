@@ -3,25 +3,80 @@
 import { defineMessages } from "react-intl";
 
 export const navbarMessages = defineMessages({
-  navAgents: {
-    defaultMessage: "Agents",
-    id: "vxPX8Bfa3e",
-    description: "Marketing navbar link to the agents automation product page",
+  navProduct: {
+    defaultMessage: "Product",
+    id: "QIcAmkRq1i",
+    description: "Marketing navbar trigger for the product mega-menu",
   },
-  navCatTool: {
-    defaultMessage: "CAT Tool",
-    id: "jwTdsyTe54",
-    description: "Marketing navbar link to the next-gen CAT tool product page",
+  navResources: {
+    defaultMessage: "Resources",
+    id: "xi4ZQRm848",
+    description: "Marketing navbar trigger for the resources mega-menu",
   },
-  navKnowledge: {
-    defaultMessage: "Knowledge",
-    id: "BgfpkbN4Fe",
-    description: "Marketing navbar link to the self-evolving knowledge product page",
+  navPlatformHeading: {
+    defaultMessage: "Platform",
+    id: "4/ptvuF8gA",
+    description: "Category heading above product links in the marketing navbar mega-menu",
+  },
+  navUseCasesHeading: {
+    defaultMessage: "Use cases",
+    id: "i6ut53Z7X2",
+    description: "Category heading above use-case links in the marketing navbar mega-menu",
+  },
+  navResourcesHeading: {
+    defaultMessage: "Resources",
+    id: "xEVW32kNCM",
+    description: "Category heading above resource links in the marketing navbar mega-menu",
+  },
+  navCompanyHeading: {
+    defaultMessage: "Company",
+    id: "Qf1y2qH7lj",
+    description: "Category heading above company links in the marketing navbar mega-menu",
   },
   navBlog: {
     defaultMessage: "Blog",
     id: "Qmtq3rDIqg",
     description: "Marketing navbar link to the blog",
+  },
+  navDocumentation: {
+    defaultMessage: "Documentation",
+    id: "zuCO/3GiEh",
+    description: "Marketing navbar link to product documentation",
+  },
+  navCliDocs: {
+    defaultMessage: "CLI docs",
+    id: "PACHUU2LVi",
+    description: "Marketing navbar link to CLI documentation",
+  },
+  navGitHubAction: {
+    defaultMessage: "GitHub Action",
+    id: "siHRtHWO8x",
+    description: "Marketing navbar link to the Hyperlocalise GitHub Action",
+  },
+  navGitHub: {
+    defaultMessage: "GitHub",
+    id: "H5oPOOVIIl",
+    description: "Marketing navbar link to the Hyperlocalise GitHub repository",
+  },
+  navContact: {
+    defaultMessage: "Contact",
+    id: "zstI+O20TZ",
+    description: "Marketing navbar link to contact email",
+  },
+  navTrustCenter: {
+    defaultMessage: "Trust Center",
+    id: "oj7kgOJK5f",
+    description: "Marketing navbar link to the trust center",
+  },
+  navPrivacy: {
+    defaultMessage: "Privacy",
+    id: "5G9CHzXNWL",
+    description: "Marketing navbar link to the privacy policy",
+  },
+  navTerms: {
+    defaultMessage: "Terms",
+    id: "FHizcUfYk8",
+    description: "Marketing navbar link to the terms of service",
   },
   logoAlt: {
     defaultMessage: "Hyperlocalise logo",
@@ -48,6 +103,11 @@ export const navbarMessages = defineMessages({
     id: "nE0iR4v6Zt",
     description: "Accessible label for the mobile navigation landmark",
   },
+  externalLinkAriaLabel: {
+    defaultMessage: "Opens in a new tab",
+    id: "zANk4lJfGw",
+    description: "Screen-reader hint for external navbar links",
+  },
   signIn: {
     defaultMessage: "Sign in",
     id: "mGCNboJK+t",
@@ -57,5 +117,10 @@ export const navbarMessages = defineMessages({
     defaultMessage: "Join waitlist",
     id: "EGk/6OwbtI",
     description: "Marketing navbar call-to-action to join the waitlist",
+  },
+  dashboard: {
+    defaultMessage: "Dashboard",
+    id: "mFfweL99wM",
+    description: "Marketing navbar button to open the app dashboard when signed in",
   },
 });
