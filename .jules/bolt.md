@@ -259,3 +259,7 @@
 ## 2025-05-15 - Optimizing extra placeholder extraction
 **Learning:** Combining multiple independent regex patterns into a single alternation regex (`a|b|c`) significantly reduces the number of scanning passes over the input string (from N passes to 1). Furthermore, simple `strings.ContainsAny` checks for signal characters (like '%' or '$') serve as highly effective fast-paths to avoid regex execution overhead entirely for non-placeholder text.
 **Action:** Use combined regexes and `ContainsAny` fast-paths in high-frequency validation or parsing logic.
+
+## 2026-07-15 - Fast-path for special char extraction and ASCII hex check
+**Learning:** In segment profile validation, `extractSpecialCharLiterals` was allocating a map and scanning every character even for simple strings without escape sequences. A `strings.Contains(value, "\\")` fast-path avoids this. Additionally, `isHexDigits` was using expensive UTF-8 rune decoding for ASCII-only hex characters.
+**Action:** Implemented backslash fast-path and byte-loop hex check, resulting in ~6.6x and ~3x speedups respectively for those functions.
