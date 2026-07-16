@@ -12,15 +12,11 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 export type Tone = "safe" | "watch" | "risk" | "info";
 
-export function WorkspacePageShell({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+type WorkspacePageShellProps = ComponentProps<"main">;
+
+export function WorkspacePageShell({ children, className, ...props }: WorkspacePageShellProps) {
   return (
-    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)}>
+    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)} {...props}>
       {children}
     </main>
   );
