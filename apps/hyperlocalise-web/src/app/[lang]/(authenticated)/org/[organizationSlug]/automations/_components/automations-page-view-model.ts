@@ -1,3 +1,5 @@
+import type { IntlShape } from "react-intl";
+
 import {
   WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES,
   listWorkspaceAutomationTemplates,
@@ -8,6 +10,8 @@ import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationTriggerConfig,
 } from "@/lib/agents/workspace-automations";
+
+import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
 export function resolveVisibleAutomations(automations: WorkspaceAutomationRecord[]) {
   return automations.filter((automation) => automation.status !== "archived");
@@ -47,38 +51,49 @@ export function resolveTemplateCategoryTabs(templates: WorkspaceAutomationTempla
   return WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.filter((category) => counts.has(category.id));
 }
 
-export function formatAutomationRelativeTimestamp(value: string, now = Date.now()) {
+export function formatAutomationRelativeTimestamp(
+  intl: IntlShape,
+  value: string,
+  now = Date.now(),
+) {
   const date = new Date(value);
   const diffMs = now - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 24) {
-    return `${Math.max(diffHours, 1)}h`;
+    return intl.formatMessage(automationsPageViewModelMessages.relativeHours, {
+      hours: Math.max(diffHours, 1),
+    });
   }
 
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d`;
+  return intl.formatMessage(automationsPageViewModelMessages.relativeDays, {
+    days: diffDays,
+  });
 }
 
-export function resolveAutomationTriggerLabel(triggerConfig: WorkspaceAutomationTriggerConfig) {
+export function resolveAutomationTriggerLabel(
+  intl: IntlShape,
+  triggerConfig: WorkspaceAutomationTriggerConfig,
+) {
   if (triggerConfig.mode === "scheduled") {
-    return "Scheduled";
+    return intl.formatMessage(automationsPageViewModelMessages.triggerScheduled);
   }
   if (triggerConfig.mode === "github") {
-    return "GitHub push";
+    return intl.formatMessage(automationsPageViewModelMessages.triggerGithub);
   }
-  return "Manual";
+  return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
 
-export function resolveAutomationTools(automation: WorkspaceAutomationRecord) {
+export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAutomationRecord) {
   const tools: string[] = [];
   if (automation.toolConfig.github?.enabled) {
-    tools.push("GitHub");
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithub));
   }
   if (automation.toolConfig.slack?.enabled) {
-    tools.push("Slack");
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolSlack));
   }
   if (automation.toolConfig.email?.enabled) {
-    tools.push("Email");
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolEmail));
   }
   return tools;
 }

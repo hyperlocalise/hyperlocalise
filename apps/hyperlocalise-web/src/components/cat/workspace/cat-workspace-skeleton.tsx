@@ -1,16 +1,21 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatQueueSkeletonList } from "@/components/cat/queue/cat-queue-skeleton-list";
+import { catWorkspaceSkeletonMessages } from "./cat-workspace-skeleton.messages";
 
 function CatEditorPanelSkeleton() {
+  const intl = useIntl();
+
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-background"
       aria-busy="true"
-      aria-label="Loading editor"
+      aria-label={intl.formatMessage(catWorkspaceSkeletonMessages.loadingEditor)}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -78,11 +83,13 @@ function CatEditorPanelSkeleton() {
 }
 
 function CatIntelligencePanelSkeleton() {
+  const intl = useIntl();
+
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border"
       aria-busy="true"
-      aria-label="Loading intelligence"
+      aria-label={intl.formatMessage(catWorkspaceSkeletonMessages.loadingIntelligence)}
     >
       <div className="shrink-0 border-b border-border px-4 py-3">
         <Skeleton className="h-4 w-32 rounded-full bg-skeleton" />
@@ -101,11 +108,13 @@ function CatIntelligencePanelSkeleton() {
 }
 
 function CatQueuePanelSkeleton() {
+  const intl = useIntl();
+
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-border"
       aria-busy="true"
-      aria-label="Loading queue"
+      aria-label={intl.formatMessage(catWorkspaceSkeletonMessages.loadingQueue)}
     >
       <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
         <div className="space-y-2">
@@ -159,6 +168,8 @@ function CatCompactWorkspaceSkeleton() {
 }
 
 export function CatWorkspaceSkeleton({ className }: { className?: string }) {
+  const intl = useIntl();
+
   return (
     <div
       className={cn(
@@ -166,7 +177,7 @@ export function CatWorkspaceSkeleton({ className }: { className?: string }) {
         className,
       )}
       aria-busy="true"
-      aria-label="Loading CAT workspace"
+      aria-label={intl.formatMessage(catWorkspaceSkeletonMessages.loadingWorkspace)}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
         <CatCompactWorkspaceSkeleton />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
@@ -25,6 +27,7 @@ export function AutomationsNewPageContent({
   organizationSlug: string;
   initialForm?: WorkspaceAutomationFormState;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -51,20 +54,22 @@ export function AutomationsNewPageContent({
         if (body?.error) {
           setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
         }
-        throw new Error(body?.message ?? "Failed to create automation");
+        throw new Error(
+          body?.message ?? intl.formatMessage(automationsNewPageContentMessages.createFailed),
+        );
       }
 
       return response.json();
     },
     onSuccess: (body) => {
-      toast.success("Automation created");
+      toast.success(intl.formatMessage(automationsNewPageContentMessages.createSuccess));
       router.push(`/org/${organizationSlug}/automations/${body.automation.id}`);
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
         return;
       }
-      toast.error("Unable to create automation right now");
+      toast.error(intl.formatMessage(automationsNewPageContentMessages.createError));
     },
   });
 
@@ -83,10 +88,14 @@ export function AutomationsNewPageContent({
               nativeButton={false}
               render={<Link href={`/org/${organizationSlug}/automations`} />}
             >
-              Cancel
+              <FormattedMessage {...automationsNewPageContentMessages.cancel} />
             </Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create automation"}
+              {createMutation.isPending ? (
+                <FormattedMessage {...automationsNewPageContentMessages.creating} />
+              ) : (
+                <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
+              )}
             </Button>
           </>
         }
