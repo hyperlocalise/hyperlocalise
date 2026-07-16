@@ -91,6 +91,11 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     authMode: text("auth_mode").notNull().default("api_token"),
     region: text("region"),
     baseUrl: text("base_url"),
+    /**
+     * Provider-side organization id when known (e.g. Crowdin JWT `organization_id`).
+     * Used to map Crowdin App iframe sessions to a Hyperlocalise workspace.
+     */
+    externalOrganizationId: text("external_organization_id"),
     oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
     validationStatus: text("validation_status").notNull().default("unvalidated"),
     validationMessage: text("validation_message"),
@@ -113,6 +118,9 @@ export const organizationExternalTmsProviderCredentials = pgTable(
       table.providerKind,
     ),
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
+    uniqueIndex("organization_external_tms_provider_credentials_provider_ext_org_key")
+      .on(table.providerKind, table.externalOrganizationId)
+      .where(sql`${table.externalOrganizationId} IS NOT NULL`),
   ],
 );
 

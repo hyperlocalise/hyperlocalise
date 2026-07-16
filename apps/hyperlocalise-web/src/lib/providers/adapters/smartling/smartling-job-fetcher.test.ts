@@ -12,6 +12,7 @@ describe("smartlingTmsProvider.fetchJobTasks", () => {
     displayName: "Smartling",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,

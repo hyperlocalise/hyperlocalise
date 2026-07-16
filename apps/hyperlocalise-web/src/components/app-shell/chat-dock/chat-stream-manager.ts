@@ -31,12 +31,18 @@ function createAssistantMessage(id: string, text = ""): UIMessage {
 export class ChatStreamManager {
   private readonly organizationSlug: string;
   private readonly store: ChatDockStore;
+  private readonly requestHeaders: Record<string, string> | undefined;
   private readonly activeStreams = new Map<string, ActiveStream>();
   private onStreamFinished: ((conversationId: string) => void | Promise<void>) | null = null;
 
-  constructor(organizationSlug: string, store: ChatDockStore) {
+  constructor(
+    organizationSlug: string,
+    store: ChatDockStore,
+    options?: { headers?: Record<string, string> },
+  ) {
     this.organizationSlug = organizationSlug;
     this.store = store;
+    this.requestHeaders = options?.headers;
   }
 
   setOnStreamFinished(handler: ((conversationId: string) => void | Promise<void>) | null) {
@@ -103,6 +109,7 @@ export class ChatStreamManager {
     try {
       const transport = new DefaultChatTransport({
         api: `/api/orgs/${this.organizationSlug}/conversations/${conversationId}/chat`,
+        headers: this.requestHeaders,
       });
 
       const chunkStream = await transport.sendMessages({

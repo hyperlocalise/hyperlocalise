@@ -8,6 +8,7 @@ export * from "./github";
 export * from "./integrations";
 export * from "./contentful";
 export * from "./canva";
+export * from "./crowdin-app";
 export * from "./jobs";
 export * from "./agents";
 export * from "./files";

@@ -13,6 +13,7 @@ describe("phraseTmsProvider.fetchProjects", () => {
     displayName: "Phrase",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,

@@ -13,6 +13,7 @@ describe("lokaliseTmsProvider.fetchProjects", () => {
     displayName: "Lokalise",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,

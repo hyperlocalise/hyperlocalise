@@ -35,6 +35,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/auth/sign-in")).toBe(false);
     expect(isUnsupportedLocalePath("/install")).toBe(false);
     expect(isUnsupportedLocalePath("/api/auth/callback")).toBe(false);
+    expect(isUnsupportedLocalePath("/crowdin-app/inbox")).toBe(false);
+    expect(isUnsupportedLocalePath("/crowdin-app/manifest.json")).toBe(false);
   });
 
   it("rejects removed fixture browser routes", () => {

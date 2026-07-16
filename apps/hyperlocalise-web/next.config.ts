@@ -13,6 +13,20 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md"],
   },
+  async headers() {
+    return [
+      {
+        source: "/crowdin-app/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value:
+              "frame-ancestors https://crowdin.com https://*.crowdin.com https://crowdin.cloud https://*.crowdin.cloud;",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default withWorkflow(nextConfig);
