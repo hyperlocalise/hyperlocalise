@@ -151,4 +151,22 @@ describe("proxy", () => {
     );
     expect(response?.headers.get("X-Frame-Options")).toBeNull();
   });
+
+  it("keeps AuthKit redirects inside the Crowdin App iframe", async () => {
+    authkitProxyMock.mockReset();
+    authkitProxyMock.mockResolvedValueOnce(
+      NextResponse.redirect("https://www.hyperlocalise.com/auth/sign-in"),
+    );
+
+    const response = await proxy(createRequest("/crowdin-app/inbox"), {} as never);
+
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe("Crowdin app unavailable");
+    expect(response?.headers.get("location")).toBeNull();
+    expect(response?.headers.get("Cache-Control")).toBe("no-store");
+    expect(response?.headers.get("Content-Security-Policy")).toBe(
+      buildCrowdinAppFrameAncestorsCsp(),
+    );
+    expect(response?.headers.get("X-Frame-Options")).toBeNull();
+  });
 });

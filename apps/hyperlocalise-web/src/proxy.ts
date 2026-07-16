@@ -101,8 +101,18 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
     return response;
   }
 
+  const isCrowdinAppRequest = isCrowdinAppPath(request.nextUrl.pathname);
+  if (isCrowdinAppRequest && response.headers.has("location")) {
+    return applyCrowdinAppFrameAncestors(
+      new NextResponse("Crowdin app unavailable", {
+        status: 503,
+        headers: { "Cache-Control": "no-store" },
+      }),
+    );
+  }
+
   const nextResponse = ensureRequestUrlHeader(request, response);
-  if (isCrowdinAppPath(request.nextUrl.pathname)) {
+  if (isCrowdinAppRequest) {
     return applyCrowdinAppFrameAncestors(nextResponse);
   }
 

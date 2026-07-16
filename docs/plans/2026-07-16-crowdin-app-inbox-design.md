@@ -123,7 +123,9 @@ Allow framing only for `/crowdin-app/*` from Crowdin origins
 frame policy elsewhere. Run iframe page requests through the WorkOS AuthKit
 proxy because the shared root layout reads its middleware context, then apply
 the Crowdin-specific `frame-ancestors` CSP to the response. Crowdin JWT and
-embed-session verification remain the authorization boundary.
+embed-session verification remain the authorization boundary. If AuthKit
+returns a redirect for an iframe page, replace it with a non-cacheable `503`
+response so the iframe never navigates to WorkOS sign-in.
 
 ## Data flow
 
