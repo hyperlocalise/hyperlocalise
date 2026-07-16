@@ -1,4 +1,21 @@
+import type { IntlShape } from "@formatjs/intl";
+
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+
+import { projectListMessages } from "./project-list.messages";
+
+export type ProjectListIntl = Pick<IntlShape, "formatMessage">;
+
+function resolveMessage(
+  intl: ProjectListIntl | undefined,
+  descriptor: (typeof projectListMessages)[keyof typeof projectListMessages],
+) {
+  if (intl) {
+    return intl.formatMessage(descriptor);
+  }
+
+  return typeof descriptor.defaultMessage === "string" ? descriptor.defaultMessage : "";
+}
 
 export type ApiProject = {
   id: string;
@@ -131,7 +148,7 @@ export function formatProjectLocaleRoute(
   return `${source} → ${preview}${suffix}`;
 }
 
-export function mapProjectToListRow(project: ApiProject): ProjectListRow {
+export function mapProjectToListRow(project: ApiProject, intl?: ProjectListIntl): ProjectListRow {
   const descriptionValue = project.description?.trim() ?? "";
   const translationContextValue = project.translationContext?.trim() ?? "";
   const lastActivityAt =
@@ -141,12 +158,19 @@ export function mapProjectToListRow(project: ApiProject): ProjectListRow {
     id: project.id,
     name: project.name,
     key: createProjectKey(project),
-    description: descriptionValue || "No description",
+    description: descriptionValue || resolveMessage(intl, projectListMessages.noDescription),
     descriptionValue,
-    translationContext: translationContextValue || "No translation context",
+    translationContext:
+      translationContextValue || resolveMessage(intl, projectListMessages.noTranslationContext),
     translationContextValue,
-    created: formatTimestamp(project.createdAt, "Created date unavailable"),
-    updated: formatTimestamp(project.updatedAt, "Updated date unavailable"),
+    created: formatTimestamp(
+      project.createdAt,
+      resolveMessage(intl, projectListMessages.createdUnavailable),
+    ),
+    updated: formatTimestamp(
+      project.updatedAt,
+      resolveMessage(intl, projectListMessages.updatedUnavailable),
+    ),
     source: project.source ?? "native",
     externalProviderKind: project.externalProviderKind ?? null,
     externalProjectId: project.externalProjectId ?? null,

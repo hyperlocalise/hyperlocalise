@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import {
 import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { PROJECTS_PAGE_SIZE, ProjectsTable } from "./projects-table";
+import { projectsPageContentMessages } from "./projects-page-content.messages";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
@@ -85,7 +87,7 @@ function RecentProjectsStrip({
   return (
     <section className="space-y-3">
       <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-        Recently opened
+        <FormattedMessage {...projectsPageContentMessages.recentlyOpened} />
       </TypographyP>
       <div className="flex flex-wrap gap-2">
         {projects.map((project) => (
@@ -111,6 +113,7 @@ function RecentProjectsStrip({
 }
 
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
@@ -128,11 +131,14 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load projects");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(projectsPageContentMessages.loadProjectsFailed),
+        );
       }
 
       const body = await response.json();
-      return body.projects.map(mapProjectToListRow);
+      return body.projects.map((project) => mapProjectToListRow(project, intl));
     },
   });
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
@@ -141,7 +147,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     queryKey: tmsLiveProjectsQueryKey(organizationSlug),
     enabled: hasTmsConnection,
     queryFn: () => fetchTmsLiveProjects(organizationSlug),
-    select: (projects) => projects.map(mapProjectToListRow),
+    select: (projects) => projects.map((project) => mapProjectToListRow(project, intl)),
   });
   const createProject = useMutation({
     mutationFn: async (values: ProjectFormValues) => {
@@ -151,7 +157,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Unable to create project");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(projectsPageContentMessages.createProjectFailed),
+        );
       }
 
       return response.json();
@@ -159,7 +168,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
-      toast.success("Project created");
+      toast.success(intl.formatMessage(projectsPageContentMessages.projectCreated));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -176,7 +185,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Unable to update project");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(projectsPageContentMessages.updateProjectFailed),
+        );
       }
 
       return response.json();
@@ -185,7 +197,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
       setEditingProject(null);
-      toast.success("Project updated");
+      toast.success(intl.formatMessage(projectsPageContentMessages.projectUpdated));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -200,13 +212,16 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       );
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Unable to delete project");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(projectsPageContentMessages.deleteProjectFailed),
+        );
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setDeleteProject(null);
-      toast.success("Project deleted");
+      toast.success(intl.formatMessage(projectsPageContentMessages.projectDeleted));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -266,11 +281,14 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   }, [allProjects, organizationSlug]);
 
   const isSavingProject = createProject.isPending || updateProject.isPending;
-  const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";
+  const projectDialogTitle =
+    projectDialogMode === "edit"
+      ? intl.formatMessage(projectsPageContentMessages.editProjectTitle)
+      : intl.formatMessage(projectsPageContentMessages.createProjectTitle);
   const projectDialogDescription =
     projectDialogMode === "edit"
-      ? "Update the metadata stored with this project."
-      : "Add a project to track localization work and shared translation guidance.";
+      ? intl.formatMessage(projectsPageContentMessages.editProjectDescription)
+      : intl.formatMessage(projectsPageContentMessages.createProjectDescription);
   const initialProjectValues = useMemo(
     () =>
       projectDialogMode === "edit" && editingProject
@@ -290,7 +308,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     (showTmsSection && visibleTmsProjects.length > 0);
   const tmsProviderName = activeTmsProviderQuery.data
     ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
-    : "TMS";
+    : intl.formatMessage(projectsPageContentMessages.tmsFallbackName);
   const hasTmsPrimaryWorkflow = hasTmsConnection && tmsProjects.length > 0;
   const compactNativeEmpty = hasTmsPrimaryWorkflow && nativeProjects.length === 0;
 
@@ -323,8 +341,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   }
 
   const pageDescription = hasTmsConnection
-    ? `Browse live ${tmsProviderName} projects and manage Hyperlocalise workspace projects.`
-    : "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.";
+    ? intl.formatMessage(projectsPageContentMessages.pageDescriptionWithTms, {
+        providerName: tmsProviderName,
+      })
+    : intl.formatMessage(projectsPageContentMessages.pageDescriptionWithoutTms);
 
   const createProjectAction =
     hasTmsPrimaryWorkflow && nativeProjects.length === 0 ? (
@@ -336,7 +356,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         disabled={isSavingProject}
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-        Create native project
+        <FormattedMessage {...projectsPageContentMessages.createNativeProject} />
       </Button>
     ) : (
       <Button
@@ -346,15 +366,17 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         disabled={isSavingProject}
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-        Create project
+        <FormattedMessage {...projectsPageContentMessages.createProject} />
       </Button>
     );
 
   const tmsSection = showTmsSection ? (
     <section className="space-y-4">
       <ProjectsSectionHeader
-        title={`${tmsProviderName} projects`}
-        description="Live projects fetched from your connected TMS provider, ordered by recent activity."
+        title={intl.formatMessage(projectsPageContentMessages.tmsProjectsTitle, {
+          providerName: tmsProviderName,
+        })}
+        description={intl.formatMessage(projectsPageContentMessages.tmsProjectsDescription)}
       />
       <ProjectsTable
         projects={visibleTmsProjects}
@@ -373,8 +395,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const nativeSection = showNativeSection ? (
     <section className="space-y-4">
       <ProjectsSectionHeader
-        title="Hyperlocalise projects"
-        description="Projects created and managed in this workspace."
+        title={intl.formatMessage(projectsPageContentMessages.hyperlocaliseProjectsTitle)}
+        description={intl.formatMessage(
+          projectsPageContentMessages.hyperlocaliseProjectsDescription,
+        )}
       />
       <ProjectsTable
         projects={visibleNativeProjects}
@@ -398,8 +422,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     !hasTmsConnection && !isTmsProjectsLoading && activeTmsProviderQuery.isSuccess ? (
       <section className="space-y-4">
         <ProjectsSectionHeader
-          title="TMS projects"
-          description="Connect a TMS provider to browse live provider projects here."
+          title={intl.formatMessage(projectsPageContentMessages.connectTmsTitle)}
+          description={intl.formatMessage(projectsPageContentMessages.connectTmsDescription)}
         />
         <div className="max-w-xl py-4">
           <Button
@@ -408,7 +432,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
             variant="outline"
             size="sm"
           >
-            Connect a provider
+            <FormattedMessage {...projectsPageContentMessages.connectProvider} />
           </Button>
         </div>
       </section>
@@ -418,17 +442,20 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     <WorkspacePageShell>
       <PageHeader
         icon={FolderKanbanIcon}
-        label="Workspace"
-        title="Projects"
+        label={intl.formatMessage(projectsPageContentMessages.pageLabel)}
+        title={intl.formatMessage(projectsPageContentMessages.pageTitle)}
         description={pageDescription}
         actions={createProjectAction}
       />
 
       {hasAnyProjects ? (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
+          <WorkspaceFilterField
+            label={intl.formatMessage(projectsPageContentMessages.searchLabel)}
+            className="w-full sm:max-w-xs"
+          >
             <Input
-              placeholder="Search by name..."
+              placeholder={intl.formatMessage(projectsPageContentMessages.searchPlaceholder)}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full"
@@ -440,9 +467,13 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
               onValueChange={(value) => setSourceFilter(value as ProjectSourceFilter)}
             >
               <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="all">
+                  <FormattedMessage {...projectsPageContentMessages.filterAll} />
+                </TabsTrigger>
                 <TabsTrigger value="tms">{tmsProviderName}</TabsTrigger>
-                <TabsTrigger value="native">Hyperlocalise</TabsTrigger>
+                <TabsTrigger value="native">
+                  <FormattedMessage {...projectsPageContentMessages.filterHyperlocalise} />
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           ) : null}
@@ -459,14 +490,20 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
       {hasAnyProjects && !hasFilteredResults ? (
         <div className="border-t border-border px-1 py-8 text-sm text-muted-foreground">
-          No projects match your search.{" "}
-          <button
-            type="button"
-            onClick={() => setSearchQuery("")}
-            className="text-subtle-foreground underline hover:text-foreground"
-          >
-            Clear search
-          </button>
+          <FormattedMessage
+            {...projectsPageContentMessages.noSearchResults}
+            values={{
+              clear: (chunks) => (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="text-subtle-foreground underline hover:text-foreground"
+                >
+                  {chunks}
+                </button>
+              ),
+            }}
+          />
         </div>
       ) : null}
 

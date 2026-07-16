@@ -1,6 +1,6 @@
 "use client";
 
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   formatJobKind,
-  formatJobStatusLabel,
   formatRelativeTime,
   getJobName,
   JobSourceLabel,
@@ -26,7 +25,8 @@ import {
   kanbanStatusColumns,
   type KanbanStatus,
 } from "./jobs-view-helpers";
-import { getKanbanStatusMessage } from "./jobs-kanban-board.messages";
+import { getKanbanStatusMessage, jobsKanbanBoardMessages } from "./jobs-kanban-board.messages";
+import { getJobStatusMessage } from "./jobs-page-view.messages";
 import { toneClass, type Tone } from "../../_components/workspace-resource-shared";
 
 type KanbanColumnDef = {
@@ -49,20 +49,23 @@ export function JobRowActions({
   projectId?: string;
   renderJobLink: JobsLinkRenderer;
 }) {
+  const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
   const catHref = buildJobCatHref(organizationSlug, resolvedProjectId, job);
+  const detailsLabel = intl.formatMessage(jobsKanbanBoardMessages.details);
+  const viewStringsLabel = intl.formatMessage(jobsKanbanBoardMessages.viewStrings);
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {detailHref ? (
-        renderJobLink({ href: detailHref, kind: "details", children: "Details" })
+        renderJobLink({ href: detailHref, kind: "details", children: detailsLabel })
       ) : (
         <Button variant="outline" size="sm" className="w-fit" disabled>
-          Details
+          {detailsLabel}
         </Button>
       )}
-      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "View strings" }) : null}
+      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: viewStringsLabel }) : null}
     </div>
   );
 }
@@ -82,6 +85,7 @@ function JobKanbanCard({
   projectId?: string;
   renderJobLink: JobsLinkRenderer;
 }) {
+  const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
 
@@ -94,10 +98,16 @@ function JobKanbanCard({
           children: (
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium text-foreground">
-                {getJobName(job)}
+                {getJobName(job, intl)}
               </span>
               <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-                {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+                <FormattedMessage
+                  {...jobsKanbanBoardMessages.kindWithTaskId}
+                  values={{
+                    kind: formatJobKind(job, intl),
+                    taskId: job.externalTaskId ?? job.id,
+                  }}
+                />
               </span>
             </span>
           ),
@@ -105,10 +115,16 @@ function JobKanbanCard({
       ) : (
         <div className="min-w-0">
           <TypographyP className="truncate text-sm font-medium text-foreground">
-            {getJobName(job)}
+            {getJobName(job, intl)}
           </TypographyP>
           <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
-            {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+            <FormattedMessage
+              {...jobsKanbanBoardMessages.kindWithTaskId}
+              values={{
+                kind: formatJobKind(job, intl),
+                taskId: job.externalTaskId ?? job.id,
+              }}
+            />
           </TypographyP>
         </div>
       )}
@@ -117,17 +133,24 @@ function JobKanbanCard({
         <JobSourceLabel job={job} compact />
         {!projectId ? (
           <Badge variant="outline" className="w-fit rounded-full text-[11px]">
-            {job.projectName ?? job.projectId ?? "Workspace"}
+            {job.projectName ??
+              job.projectId ??
+              intl.formatMessage(jobsKanbanBoardMessages.workspaceFallback)}
           </Badge>
         ) : null}
       </div>
 
       <TypographyP className="mt-3 line-clamp-2 text-xs text-subtle-foreground">
-        {taskDetailSummary(job)}
+        {taskDetailSummary(job, intl)}
       </TypographyP>
       <TypographyP className="mt-1 text-[11px] text-muted-foreground">
-        Due {formatRelativeTime(job.externalDueDate, now)} · Synced{" "}
-        {formatRelativeTime(job.updatedAt, now)}
+        <FormattedMessage
+          {...jobsKanbanBoardMessages.dueSyncedMeta}
+          values={{
+            due: formatRelativeTime(job.externalDueDate, now),
+            synced: formatRelativeTime(job.updatedAt, now),
+          }}
+        />
       </TypographyP>
 
       <div className="mt-3 border-t border-border pt-3">
@@ -164,7 +187,7 @@ function KanbanColumn({
       <div className="flex flex-1 flex-col gap-3 p-3">
         {jobs.length === 0 ? (
           <TypographyP className="px-1 py-6 text-center text-xs text-muted-foreground">
-            No jobs
+            <FormattedMessage {...jobsKanbanBoardMessages.noJobs} />
           </TypographyP>
         ) : (
           jobs.map((job) => <JobKanbanCard key={job.id} job={job} {...cardProps} />)
@@ -209,7 +232,11 @@ function JobsKanbanBoardSkeleton() {
   const intl = useIntl();
 
   return (
-    <div className="overflow-x-auto pb-1" aria-busy="true" aria-label="Loading jobs board">
+    <div
+      className="overflow-x-auto pb-1"
+      aria-busy="true"
+      aria-label={intl.formatMessage(jobsKanbanBoardMessages.loadingBoardAriaLabel)}
+    >
       <div className="flex min-w-max gap-3">
         {kanbanStatusColumns.map((status) => (
           <KanbanColumnSkeleton
@@ -241,6 +268,8 @@ export function JobsKanbanBoard({
   projectId?: string;
   renderJobLink: JobsLinkRenderer;
 }) {
+  const intl = useIntl();
+
   if (isLoading) {
     return <JobsKanbanBoardSkeleton />;
   }
@@ -274,7 +303,7 @@ export function JobsKanbanBoard({
     .filter((status) => (jobsByStatus.get(status)?.length ?? 0) > 0)
     .map((status) => ({
       key: status,
-      label: formatJobStatusLabel(status),
+      label: intl.formatMessage(getJobStatusMessage(status)),
       statusTone: jobTone(status),
       jobs: jobsByStatus.get(status) ?? [],
     }));
@@ -282,7 +311,7 @@ export function JobsKanbanBoard({
   if (unknownStatusJobs.length > 0) {
     columns.push({
       key: "other",
-      label: "Other",
+      label: intl.formatMessage(jobsKanbanBoardMessages.otherColumn),
       statusTone: "watch",
       jobs: unknownStatusJobs,
     });

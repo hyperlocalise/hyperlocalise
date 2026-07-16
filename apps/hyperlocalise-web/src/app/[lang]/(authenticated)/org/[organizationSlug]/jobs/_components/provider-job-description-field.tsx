@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Edit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import {
@@ -12,6 +13,8 @@ import {
 } from "@/components/markdown-description-editor/markdown-description-editor";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { providerJobDescriptionFieldMessages } from "./provider-job-description-field.messages";
 
 export function ProviderJobDescriptionFieldView({
   description,
@@ -30,6 +33,7 @@ export function ProviderJobDescriptionFieldView({
   onSaveDescription?: (description: string) => Promise<string | void>;
   onSaveError?: (error: unknown) => void;
 }) {
+  const intl = useIntl();
   const [isEditing, setIsEditing] = useState(initialIsEditing);
   const [draftState, setDraftState] = useState({
     baseDescription: description,
@@ -39,10 +43,11 @@ export function ProviderJobDescriptionFieldView({
   const isDirty = draft !== description;
   const [internalIsSaving, setInternalIsSaving] = useState(false);
   const savePending = isSaving || internalIsSaving;
+  const noDescription = intl.formatMessage(providerJobDescriptionFieldMessages.noDescription);
 
   if (!editable) {
     if (!description.trim()) {
-      return <p className="text-sm text-muted-foreground">No description</p>;
+      return <p className="text-sm text-muted-foreground">{noDescription}</p>;
     }
 
     return (
@@ -55,14 +60,14 @@ export function ProviderJobDescriptionFieldView({
       <div className="group/description relative">
         <MarkdownDescriptionPreview
           value={description}
-          emptyMessage="No description"
+          emptyMessage={noDescription}
           className="border-border bg-transparent pr-12"
         />
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Edit description"
+          aria-label={intl.formatMessage(providerJobDescriptionFieldMessages.editAriaLabel)}
           className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
           onClick={() => {
             setDraftState({ baseDescription: description, draft: description });
@@ -105,7 +110,11 @@ export function ProviderJobDescriptionFieldView({
             }
           }}
         >
-          {savePending ? "Saving…" : "Save description"}
+          {savePending ? (
+            <FormattedMessage {...providerJobDescriptionFieldMessages.saving} />
+          ) : (
+            <FormattedMessage {...providerJobDescriptionFieldMessages.saveDescription} />
+          )}
         </Button>
         <Button
           size="sm"
@@ -115,7 +124,7 @@ export function ProviderJobDescriptionFieldView({
             setDraftState({ baseDescription: description, draft: description });
           }}
         >
-          Reset
+          <FormattedMessage {...providerJobDescriptionFieldMessages.reset} />
         </Button>
         <Button
           size="sm"
@@ -126,7 +135,7 @@ export function ProviderJobDescriptionFieldView({
             setIsEditing(false);
           }}
         >
-          Cancel
+          <FormattedMessage {...providerJobDescriptionFieldMessages.cancel} />
         </Button>
       </div>
     </div>
@@ -146,6 +155,7 @@ export function ProviderJobDescriptionField({
   editable: boolean;
   queryKey: readonly unknown[];
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
 
   const saveMutation = useMutation({
@@ -163,7 +173,11 @@ export function ProviderJobDescriptionField({
           message?: string;
         } | null;
         throw new Error(
-          body?.message ?? body?.error ?? `Failed to save description (${response.status})`,
+          body?.message ??
+            body?.error ??
+            intl.formatMessage(providerJobDescriptionFieldMessages.saveFailedWithStatus, {
+              status: response.status,
+            }),
         );
       }
 
@@ -193,7 +207,7 @@ export function ProviderJobDescriptionField({
       return nextDescription;
     },
     onSuccess: () => {
-      toast.success("Description saved");
+      toast.success(intl.formatMessage(providerJobDescriptionFieldMessages.saveSuccess));
     },
   });
 
@@ -204,7 +218,11 @@ export function ProviderJobDescriptionField({
       isSaving={saveMutation.isPending}
       onSaveDescription={(nextDescription) => saveMutation.mutateAsync(nextDescription)}
       onSaveError={(error) => {
-        toast.error(error instanceof Error ? error.message : "Failed to save description");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : intl.formatMessage(providerJobDescriptionFieldMessages.saveFailedFallback),
+        );
       }}
     />
   );

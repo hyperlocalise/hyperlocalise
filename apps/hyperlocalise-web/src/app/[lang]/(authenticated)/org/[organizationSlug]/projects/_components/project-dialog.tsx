@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useId, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/primitives/cn";
 
+import { projectDialogMessages } from "./project-dialog.messages";
 import { ProjectSourceLocalePicker, ProjectTargetLocalesPicker } from "./project-locale-picker";
 import {
   projectFormHasErrors,
@@ -52,6 +54,7 @@ export function ProjectDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ProjectFormValues) => void;
 }) {
+  const intl = useIntl();
   const [values, setValues] = useState<ProjectFormValues>(initialValues);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -73,7 +76,10 @@ export function ProjectDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextErrors = validateProjectForm(values, { requireLocales: showLocaleFields });
+    const nextErrors = validateProjectForm(values, {
+      requireLocales: showLocaleFields,
+      intl,
+    });
     setErrors(nextErrors);
 
     if (nextErrors.description) {
@@ -106,7 +112,9 @@ export function ProjectDialog({
           </DialogHeader>
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 py-4">
             <Field className="gap-1.5">
-              <FieldLabel htmlFor={nameId}>Name</FieldLabel>
+              <FieldLabel htmlFor={nameId}>
+                <FormattedMessage {...projectDialogMessages.nameLabel} />
+              </FieldLabel>
               <Input
                 id={nameId}
                 value={values.name}
@@ -116,7 +124,7 @@ export function ProjectDialog({
                 aria-invalid={Boolean(errors.name)}
                 aria-describedby={nameCountId}
                 disabled={isSaving}
-                placeholder="Marketing site launch"
+                placeholder={intl.formatMessage(projectDialogMessages.namePlaceholder)}
                 className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
               />
               <div className="flex items-center justify-between gap-2">
@@ -125,7 +133,10 @@ export function ProjectDialog({
                   id={nameCountId}
                   className="ml-auto tabular-nums text-[10px] font-medium text-muted-foreground"
                 >
-                  {values.name.length} / 200
+                  {intl.formatMessage(projectDialogMessages.characterCount, {
+                    current: values.name.length,
+                    max: 200,
+                  })}
                 </span>
               </div>
             </Field>
@@ -161,7 +172,7 @@ export function ProjectDialog({
                     size="sm"
                     className="h-9 w-full justify-between px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    Settings
+                    <FormattedMessage {...projectDialogMessages.settings} />
                     <ChevronDownIcon
                       className={cn(
                         "size-4 shrink-0 transition-transform",
@@ -174,7 +185,9 @@ export function ProjectDialog({
               />
               <CollapsibleContent className="pt-2">
                 <Field className="gap-1.5">
-                  <FieldLabel htmlFor={descriptionId}>Description</FieldLabel>
+                  <FieldLabel htmlFor={descriptionId}>
+                    <FormattedMessage {...projectDialogMessages.descriptionLabel} />
+                  </FieldLabel>
                   <Textarea
                     id={descriptionId}
                     value={values.description}
@@ -184,7 +197,7 @@ export function ProjectDialog({
                     aria-invalid={Boolean(errors.description)}
                     aria-describedby={descriptionCountId}
                     disabled={isSaving}
-                    placeholder="Project scope, release, or ownership notes"
+                    placeholder={intl.formatMessage(projectDialogMessages.descriptionPlaceholder)}
                     className="min-h-20 border-border bg-muted text-foreground placeholder:text-muted-foreground"
                   />
                   <div className="flex items-center justify-between gap-2">
@@ -195,7 +208,10 @@ export function ProjectDialog({
                       id={descriptionCountId}
                       className="ml-auto tabular-nums text-[10px] font-medium text-muted-foreground"
                     >
-                      {values.description.length.toLocaleString()} / 10,000
+                      {intl.formatMessage(projectDialogMessages.characterCount, {
+                        current: values.description.length.toLocaleString(),
+                        max: "10,000",
+                      })}
                     </span>
                   </div>
                 </Field>
@@ -209,11 +225,15 @@ export function ProjectDialog({
               disabled={isSaving}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              <FormattedMessage {...projectDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
-              {isSaving ? "Saving..." : "Save project"}
+              {isSaving ? (
+                <FormattedMessage {...projectDialogMessages.saving} />
+              ) : (
+                <FormattedMessage {...projectDialogMessages.saveProject} />
+              )}
             </Button>
           </DialogFooter>
         </form>

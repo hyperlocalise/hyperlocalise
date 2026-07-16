@@ -2,6 +2,7 @@
 
 import { CustomerSupportIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import {
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
+import { appShellFooterMessages } from "./app-shell-footer.messages";
+
 export function AppShellFooter({
   organizationSlug,
   showPlan,
@@ -24,6 +27,7 @@ export function AppShellFooter({
   showPlan: boolean;
   currentUser?: InboxCurrentUser;
 }) {
+  const intl = useIntl();
   const showChatDock = Boolean(organizationSlug && currentUser);
 
   return (
@@ -35,7 +39,7 @@ export function AppShellFooter({
         </ChatDockErrorBoundary>
       ) : null}
 
-      <div className="flex h-[var(--app-shell-plan-footer-height)] shrink-0 items-stretch px-2">
+      <div className="flex h-(--app-shell-plan-footer-height) shrink-0 items-stretch px-2">
         <div className="flex h-10 w-full items-center gap-2">
           {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
           <div className="ms-auto flex min-w-0 items-center gap-2">
@@ -47,14 +51,14 @@ export function AppShellFooter({
                     variant="ghost"
                     size="icon-xs"
                     render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
-                    aria-label="Email support"
+                    aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
                   >
                     <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} />
                   </Button>
                 }
               />
               <TooltipContent side="top" align="end">
-                Support
+                <FormattedMessage {...appShellFooterMessages.supportTooltip} />
               </TooltipContent>
             </Tooltip>
           </div>

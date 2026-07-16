@@ -3,54 +3,52 @@
 import type { MessageDescriptor } from "react-intl";
 import { defineMessages } from "react-intl";
 
+import { getJobStatusMessage } from "./jobs-page-view.messages";
 import type { KanbanStatus } from "./jobs-view-helpers";
 
 export const jobsKanbanBoardMessages = defineMessages({
-  queued: {
-    defaultMessage: "Queued",
-    id: "8rr2LhuMpW",
-    description: "Kanban column label for queued jobs",
+  details: {
+    defaultMessage: "Details",
+    id: "TotmChYda4",
+    description: "Button or link to open the job detail page",
   },
-  running: {
-    defaultMessage: "Running",
-    id: "nEBGfsZw1I",
-    description: "Kanban column label for running jobs",
+  viewStrings: {
+    defaultMessage: "View strings",
+    id: "21nIG8nStI",
+    description: "Button or link to open the job CAT workspace",
   },
-  waitingForReview: {
-    defaultMessage: "Waiting for review",
-    id: "xsAaVb0T8m",
-    description: "Kanban column label for jobs waiting for review",
+  workspaceFallback: {
+    defaultMessage: "Workspace",
+    id: "mYcDqMLO3I",
+    description: "Fallback project badge when a kanban job has no project name",
   },
-  succeeded: {
-    defaultMessage: "Succeeded",
-    id: "hKQGjL6KUM",
-    description: "Kanban column label for succeeded jobs",
+  dueSyncedMeta: {
+    defaultMessage: "Due {due} · Synced {synced}",
+    id: "WL/j4jcqMB",
+    description: "Relative due date and last sync time on a kanban job card",
   },
-  failed: {
-    defaultMessage: "Failed",
-    id: "vUMdCurROo",
-    description: "Kanban column label for failed jobs",
+  noJobs: {
+    defaultMessage: "No jobs",
+    id: "O3GC76fqH9",
+    description: "Empty state inside a kanban column with no jobs",
   },
-  cancelled: {
-    defaultMessage: "Cancelled",
-    id: "/UI9Zob6RC",
-    description: "Kanban column label for cancelled jobs",
+  otherColumn: {
+    defaultMessage: "Other",
+    id: "XpdC3tQD4o",
+    description: "Kanban column label for jobs with an unrecognized status",
+  },
+  loadingBoardAriaLabel: {
+    defaultMessage: "Loading jobs board",
+    id: "6fRdYraA0j",
+    description: "Accessible label while the kanban board skeleton is shown",
+  },
+  kindWithTaskId: {
+    defaultMessage: "{kind} · {taskId}",
+    id: "H0Rnoert6W",
+    description: "Job kind and task identifier shown under the kanban card title",
   },
 });
 
 export function getKanbanStatusMessage(status: KanbanStatus): MessageDescriptor {
-  switch (status) {
-    case "queued":
-      return jobsKanbanBoardMessages.queued;
-    case "running":
-      return jobsKanbanBoardMessages.running;
-    case "waiting_for_review":
-      return jobsKanbanBoardMessages.waitingForReview;
-    case "succeeded":
-      return jobsKanbanBoardMessages.succeeded;
-    case "failed":
-      return jobsKanbanBoardMessages.failed;
-    case "cancelled":
-      return jobsKanbanBoardMessages.cancelled;
-  }
+  return getJobStatusMessage(status);
 }

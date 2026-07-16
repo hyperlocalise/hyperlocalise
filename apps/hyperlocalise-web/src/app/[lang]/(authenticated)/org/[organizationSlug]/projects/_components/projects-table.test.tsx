@@ -3,11 +3,21 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UseQueryResult } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import type { ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      {ui}
+    </IntlProvider>,
+  );
+}
 
 function createProject(overrides: Partial<ProjectListRow> = {}): ProjectListRow {
   return {
@@ -47,7 +57,7 @@ function successQuery(): UseQueryResult<ProjectListRow[], Error> {
 
 describe("ProjectsTable", () => {
   it("shows source-to-target locales for native and external project cards", () => {
-    render(
+    renderWithIntl(
       <>
         <ProjectsTable
           projects={[createProject()]}
@@ -90,7 +100,7 @@ describe("ProjectsTable", () => {
     const onDeleteProject = vi.fn();
     const project = createProject();
 
-    render(
+    renderWithIntl(
       <ProjectsTable
         projects={[project]}
         projectsQuery={successQuery()}
@@ -120,7 +130,7 @@ describe("DeleteProjectDialog", () => {
     const onDelete = vi.fn();
     const project = createProject();
 
-    render(
+    renderWithIntl(
       <DeleteProjectDialog
         project={project}
         isDeleting={false}
