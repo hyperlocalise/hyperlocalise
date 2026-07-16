@@ -150,7 +150,7 @@ import {
 } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
-  forbiddenResponse,
+  projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   invalidProjectPayloadResponse,
@@ -748,7 +748,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -1000,7 +1000,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatTranslationBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1077,7 +1077,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatCommentBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1147,7 +1147,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatCommentResolveBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1281,7 +1281,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatRecommendationBody,
       async (c) => {
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1342,7 +1342,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatStatusBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1387,7 +1387,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatImageRegenerateBody,
       async (c) => {
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1522,7 +1522,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1761,7 +1761,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatImageStatusBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1836,7 +1836,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatTreatAsImageBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1993,7 +1993,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const body = c.req.valid("json");
 
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
@@ -2227,7 +2227,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
       async (c) => {
         if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -2350,7 +2350,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -2654,7 +2654,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .patch("/:projectId", validateProjectParams, validateUpdateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -2678,7 +2678,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");

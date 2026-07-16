@@ -58,7 +58,7 @@ export function unsupportedProjectFileResponse(c: { json: JsonContext["json"] },
   });
 }
 
-export function forbiddenResponse(c: { json: JsonContext["json"] }) {
+export function projectForbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
