@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -34,6 +35,8 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { cn } from "@/lib/primitives/cn";
+
+import { createJobDialogMessages } from "./create-job-dialog.messages";
 
 class PartialCreateJobsError extends Error {
   readonly createdCount: number;
@@ -136,6 +139,7 @@ export function CreateJobDialog({
   targetLocales,
   onCreated,
 }: CreateJobDialogProps) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const parsedProviderProject = parseProviderProjectId(projectId);
   const isProviderProject = Boolean(parsedProviderProject);
@@ -170,7 +174,10 @@ export function CreateJobDialog({
         query: { limit: "500" },
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load files");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(createJobDialogMessages.loadFilesFailed),
+        );
       }
       const body = (await response.json()) as { files: ProjectFileRecord[] };
       return body.files;
@@ -194,7 +201,10 @@ export function CreateJobDialog({
         query: { limit: "500" },
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load provider files");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(createJobDialogMessages.loadProviderFilesFailed),
+        );
       }
       const body = (await response.json()) as {
         files: Array<{
@@ -215,7 +225,10 @@ export function CreateJobDialog({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load members");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(createJobDialogMessages.loadMembersFailed),
+        );
       }
       const body = (await response.json()) as {
         members: Array<{
@@ -245,7 +258,10 @@ export function CreateJobDialog({
         },
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project members");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(createJobDialogMessages.loadProjectMembersFailed),
+        );
       }
       const body = (await response.json()) as {
         members: Array<{
@@ -315,13 +331,13 @@ export function CreateJobDialog({
   const createJob = useMutation({
     mutationFn: async () => {
       if (!title.trim()) {
-        throw new Error("Enter a job title.");
+        throw new Error(intl.formatMessage(createJobDialogMessages.titleRequired));
       }
       if (selectedLocales.length === 0) {
-        throw new Error("Select at least one target locale.");
+        throw new Error(intl.formatMessage(createJobDialogMessages.localesRequired));
       }
       if (selectedFileIds.length === 0) {
-        throw new Error("Select at least one file.");
+        throw new Error(intl.formatMessage(createJobDialogMessages.filesRequired));
       }
 
       if (parsedProviderProject) {
@@ -361,7 +377,7 @@ export function CreateJobDialog({
             "message" in body &&
             typeof (body as { message: unknown }).message === "string"
               ? (body as { message: string }).message
-              : "Failed to create Crowdin jobs";
+              : intl.formatMessage(createJobDialogMessages.createCrowdinFailed);
           if (createdCount > 0) {
             throw new PartialCreateJobsError(message, createdCount);
           }
@@ -396,10 +412,17 @@ export function CreateJobDialog({
           },
         });
         if (!response.ok) {
-          const failure = await readApiResponseError(response, "Failed to create translation job");
+          const failure = await readApiResponseError(
+            response,
+            intl.formatMessage(createJobDialogMessages.createNativeFailed),
+          );
           if (createdIds.length > 0) {
             throw new PartialCreateJobsError(
-              `Created ${createdIds.length} of ${eligibleFiles.length} jobs, then failed: ${failure.message}`,
+              intl.formatMessage(createJobDialogMessages.partialCreateNative, {
+                createdCount: createdIds.length,
+                totalCount: eligibleFiles.length,
+                errorMessage: failure.message,
+              }),
               createdIds.length,
             );
           }
@@ -410,7 +433,7 @@ export function CreateJobDialog({
       }
 
       if (createdIds.length === 0) {
-        throw new Error("No supported files were selected.");
+        throw new Error(intl.formatMessage(createJobDialogMessages.noSupportedFiles));
       }
 
       return { count: createdIds.length };
@@ -423,7 +446,11 @@ export function CreateJobDialog({
         }),
         queryClient.invalidateQueries({ queryKey: ["project-files", organizationSlug, projectId] }),
       ]);
-      toast.success(result.count === 1 ? "Job created" : `${result.count} jobs created`);
+      toast.success(
+        result.count === 1
+          ? intl.formatMessage(createJobDialogMessages.createSuccessOne)
+          : intl.formatMessage(createJobDialogMessages.createSuccessMany, { count: result.count }),
+      );
       onCreated?.();
       onOpenChange(false);
     },
@@ -439,10 +466,16 @@ export function CreateJobDialog({
           }),
         ]);
         toast.warning(
-          `${error.createdCount} job${error.createdCount === 1 ? "" : "s"} created before the error. Refresh the jobs list before retrying to avoid duplicates.`,
+          intl.formatMessage(createJobDialogMessages.partialCreateWarning, {
+            count: error.createdCount,
+          }),
         );
       }
-      toast.error(error instanceof Error ? error.message : "Failed to create job");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(createJobDialogMessages.createFailedFallback),
+      );
     },
   });
 
@@ -450,22 +483,28 @@ export function CreateJobDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>Create job</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...createJobDialogMessages.title} />
+          </DialogTitle>
           <DialogDescription>
-            {isProviderProject
-              ? "Create Crowdin tasks with files, locales, and assignees."
-              : "Create native translation jobs with files, locales, and an assignee."}
+            {isProviderProject ? (
+              <FormattedMessage {...createJobDialogMessages.descriptionProvider} />
+            ) : (
+              <FormattedMessage {...createJobDialogMessages.descriptionNative} />
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 overflow-y-auto px-6 py-4">
           <div className="space-y-2">
-            <Label htmlFor="create-job-title">Title</Label>
+            <Label htmlFor="create-job-title">
+              <FormattedMessage {...createJobDialogMessages.titleLabel} />
+            </Label>
             <Input
               id="create-job-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Release notes · JP + KO"
+              placeholder={intl.formatMessage(createJobDialogMessages.titlePlaceholder)}
               maxLength={256}
             />
           </div>
@@ -473,7 +512,9 @@ export function CreateJobDialog({
           {isProviderProject ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Task type</Label>
+                <Label>
+                  <FormattedMessage {...createJobDialogMessages.taskTypeLabel} />
+                </Label>
                 <Select
                   value={kind}
                   onValueChange={(value) => {
@@ -486,32 +527,45 @@ export function CreateJobDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="translation">Translation</SelectItem>
-                    <SelectItem value="proofread">Proofread</SelectItem>
+                    <SelectItem value="translation">
+                      <FormattedMessage {...createJobDialogMessages.taskTypeTranslation} />
+                    </SelectItem>
+                    <SelectItem value="proofread">
+                      <FormattedMessage {...createJobDialogMessages.taskTypeProofread} />
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="create-job-description">Description</Label>
+                <Label htmlFor="create-job-description">
+                  <FormattedMessage {...createJobDialogMessages.descriptionLabel} />
+                </Label>
                 <Textarea
                   id="create-job-description"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows={2}
                   maxLength={2048}
-                  placeholder="Optional notes for translators"
+                  placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
                 />
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Source locale: <span className="font-medium text-foreground">{sourceLocale}</span>
+              <FormattedMessage
+                {...createJobDialogMessages.sourceLocale}
+                values={{
+                  locale: <span className="font-medium text-foreground">{sourceLocale}</span>,
+                }}
+              />
             </p>
           )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>Target locales</Label>
+              <Label>
+                <FormattedMessage {...createJobDialogMessages.targetLocalesLabel} />
+              </Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -523,28 +577,37 @@ export function CreateJobDialog({
                   )
                 }
               >
-                {selectedLocales.length === targetLocales.length ? "Clear" : "Select all"}
+                {selectedLocales.length === targetLocales.length ? (
+                  <FormattedMessage {...createJobDialogMessages.clear} />
+                ) : (
+                  <FormattedMessage {...createJobDialogMessages.selectAll} />
+                )}
               </Button>
             </div>
             {targetLocales.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Add target locales in project settings before creating jobs.
+                <FormattedMessage {...createJobDialogMessages.noTargetLocalesConfigured} />
               </p>
             ) : (
               <SelectionList
                 items={targetLocales.map((locale) => ({ id: locale, label: locale }))}
                 selected={selectedLocales}
                 onToggle={(locale) => setSelectedLocales((current) => toggleValue(current, locale))}
-                emptyLabel="No locales available"
+                emptyLabel={intl.formatMessage(createJobDialogMessages.noLocalesAvailable)}
               />
             )}
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>Files</Label>
+              <Label>
+                <FormattedMessage {...createJobDialogMessages.filesLabel} />
+              </Label>
               <span className="text-xs text-muted-foreground">
-                {selectedFileIds.length} selected
+                <FormattedMessage
+                  {...createJobDialogMessages.filesSelectedCount}
+                  values={{ count: selectedFileIds.length }}
+                />
               </span>
             </div>
             {filesLoading ? (
@@ -556,13 +619,19 @@ export function CreateJobDialog({
                 items={fileOptions.map((file) => ({ id: file.id, label: file.label }))}
                 selected={selectedFileIds}
                 onToggle={(fileId) => setSelectedFileIds((current) => toggleValue(current, fileId))}
-                emptyLabel="No files available in this project."
+                emptyLabel={intl.formatMessage(createJobDialogMessages.noFilesAvailable)}
               />
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>{isProviderProject ? "Assignees" : "Assignee"}</Label>
+            <Label>
+              {isProviderProject ? (
+                <FormattedMessage {...createJobDialogMessages.assigneesLabel} />
+              ) : (
+                <FormattedMessage {...createJobDialogMessages.assigneeLabel} />
+              )}
+            </Label>
             {assigneesLoading ? (
               <div className="flex h-40 items-center justify-center rounded-md border border-border">
                 <Spinner className="size-4" />
@@ -580,16 +649,16 @@ export function CreateJobDialog({
                     current.includes(assigneeId) ? [] : [assigneeId],
                   );
                 }}
-                emptyLabel={
+                emptyLabel={intl.formatMessage(
                   isProviderProject
-                    ? "No Crowdin project members found."
-                    : "No organization members available."
-                }
+                    ? createJobDialogMessages.noCrowdinMembers
+                    : createJobDialogMessages.noOrgMembers,
+                )}
               />
             )}
             {!isProviderProject ? (
               <p className="text-xs text-muted-foreground">
-                Optional. Native jobs currently support one assignee.
+                <FormattedMessage {...createJobDialogMessages.assigneeHintNative} />
               </p>
             ) : null}
           </div>
@@ -597,7 +666,7 @@ export function CreateJobDialog({
 
         <DialogFooter className="border-t border-border px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            <FormattedMessage {...createJobDialogMessages.cancel} />
           </Button>
           <Button
             type="button"
@@ -611,7 +680,7 @@ export function CreateJobDialog({
             onClick={() => createJob.mutate()}
           >
             {createJob.isPending ? <Spinner className="size-4" /> : null}
-            Create job
+            <FormattedMessage {...createJobDialogMessages.submit} />
           </Button>
         </DialogFooter>
       </DialogContent>

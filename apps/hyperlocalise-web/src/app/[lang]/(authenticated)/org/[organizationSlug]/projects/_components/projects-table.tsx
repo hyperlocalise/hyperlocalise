@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight01Icon,
@@ -8,6 +10,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +33,7 @@ import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tm
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { ProjectAvatar } from "./project-avatar";
 import { formatProjectLocaleRoute, type ProjectListRow } from "./project-list";
+import { projectsTableMessages } from "./projects-table.messages";
 
 export const PROJECTS_PAGE_SIZE = 12;
 
@@ -63,19 +67,23 @@ function NativeEmptyState({
   if (compact) {
     return (
       <TypographyP className="text-sm leading-6 text-muted-foreground">
-        No Hyperlocalise projects yet.{" "}
-        {onCreateProject ? (
-          <button
-            type="button"
-            onClick={onCreateProject}
-            className="text-subtle-foreground underline hover:text-foreground"
-          >
-            Create one
-          </button>
-        ) : (
-          "Create one"
-        )}{" "}
-        to add translation context and job tracking.
+        <FormattedMessage
+          {...projectsTableMessages.nativeEmptyCompact}
+          values={{
+            action: (chunks) =>
+              onCreateProject ? (
+                <button
+                  type="button"
+                  onClick={onCreateProject}
+                  className="text-subtle-foreground underline hover:text-foreground"
+                >
+                  {chunks}
+                </button>
+              ) : (
+                chunks
+              ),
+          }}
+        />
       </TypographyP>
     );
   }
@@ -83,11 +91,10 @@ function NativeEmptyState({
   return (
     <div className="max-w-xl space-y-3 py-6">
       <TypographyP className="text-sm font-medium text-foreground">
-        Create your first localization project
+        <FormattedMessage {...projectsTableMessages.nativeEmptyTitle} />
       </TypographyP>
       <TypographyP className="text-sm leading-6 text-muted-foreground">
-        Track source content, release ownership, and translation context before work moves into
-        translation jobs.
+        <FormattedMessage {...projectsTableMessages.nativeEmptyDescription} />
       </TypographyP>
     </div>
   );
@@ -110,14 +117,15 @@ function ProjectCard({
   onDeleteProject?: (project: ProjectListRow) => void;
   onOpenProject?: (projectId: string) => void;
 }) {
+  const intl = useIntl();
   const providerName =
     project.source === "external_tms"
       ? getTmsProviderBranding(project.externalProviderKind).name
-      : "Hyperlocalise";
+      : intl.formatMessage(projectsTableMessages.hyperlocaliseProvider);
   const localeRoute = formatProjectLocaleRoute(project.sourceLocale, project.targetLocales);
   const activityLabel = project.lastActivityAt
     ? formatRelativeTimestamp(project.lastActivityAt)
-    : project.updated;
+    : project.updated || intl.formatMessage(projectsTableMessages.updatedUnavailable);
   const isNativeProject = project.source === "native";
   const projectHref = `/org/${organizationSlug}/projects/${project.id}`;
 
@@ -137,7 +145,7 @@ function ProjectCard({
               </TypographyH3>
               {!project.isActive ? (
                 <Badge variant="outline" className="text-[10px]">
-                  Inactive
+                  <FormattedMessage {...projectsTableMessages.inactiveBadge} />
                 </Badge>
               ) : null}
             </div>
@@ -145,7 +153,8 @@ function ProjectCard({
               {providerName}
             </TypographyP>
             <TypographyP className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-              {project.descriptionValue || "No description yet"}
+              {project.descriptionValue ||
+                intl.formatMessage(projectsTableMessages.noDescriptionYet)}
             </TypographyP>
           </div>
         </Link>
@@ -169,12 +178,18 @@ function ProjectCard({
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.8} />
-                    <span className="sr-only">Open {project.name} in provider</span>
+                    <span className="sr-only">
+                      {intl.formatMessage(projectsTableMessages.openInProviderSrOnly, {
+                        projectName: project.name,
+                      })}
+                    </span>
                   </Button>
                 }
               />
               <TooltipContent side="bottom" align="center">
-                Open in {providerName}
+                {intl.formatMessage(projectsTableMessages.openInProvider, {
+                  providerName,
+                })}
               </TooltipContent>
             </Tooltip>
           ) : null}
@@ -186,7 +201,9 @@ function ProjectCard({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label={`Actions for ${project.name}`}
+                    aria-label={intl.formatMessage(projectsTableMessages.actionsForProject, {
+                      projectName: project.name,
+                    })}
                     disabled={isDeletingProject || isSavingProject}
                     className="text-muted-foreground hover:text-foreground"
                   />
@@ -197,14 +214,14 @@ function ProjectCard({
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuGroup>
                   <DropdownMenuItem render={<Link href={projectHref} />}>
-                    Open project
+                    <FormattedMessage {...projectsTableMessages.openProject} />
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onEditProject(project)}
                     disabled={isSavingProject}
                   >
                     <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
-                    Edit project...
+                    <FormattedMessage {...projectsTableMessages.editProject} />
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -215,7 +232,7 @@ function ProjectCard({
                     disabled={isDeletingProject || isSavingProject}
                   >
                     <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                    Delete project...
+                    <FormattedMessage {...projectsTableMessages.deleteProject} />
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -231,26 +248,36 @@ function ProjectCard({
 
       <dl className="mt-5 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
         <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">Locales</dt>
+          <dt className="text-xs font-medium text-muted-foreground uppercase">
+            <FormattedMessage {...projectsTableMessages.localesLabel} />
+          </dt>
           <dd className="mt-1 truncate text-sm text-muted-foreground">{localeRoute}</dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">Open jobs</dt>
+          <dt className="text-xs font-medium text-muted-foreground uppercase">
+            <FormattedMessage {...projectsTableMessages.openJobsLabel} />
+          </dt>
           <dd className="mt-1 truncate text-sm text-muted-foreground">
             {project.openJobCount > 0 ? (
               <Link
                 href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
                 className="text-subtle-foreground hover:text-foreground hover:underline"
               >
-                {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
+                {intl.formatMessage(projectsTableMessages.openJobsCount, {
+                  count: project.openJobCount,
+                })}
               </Link>
             ) : (
-              <span>None</span>
+              <span>
+                <FormattedMessage {...projectsTableMessages.noOpenJobs} />
+              </span>
             )}
           </dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">Updated</dt>
+          <dt className="text-xs font-medium text-muted-foreground uppercase">
+            <FormattedMessage {...projectsTableMessages.updatedLabel} />
+          </dt>
           <dd className="mt-1 truncate text-sm text-muted-foreground">{activityLabel}</dd>
         </div>
       </dl>
@@ -287,9 +314,7 @@ export function ProjectsTable({
   onCreateProject?: () => void;
   onOpenProject?: (projectId: string) => void;
 }) {
-  const emptyTmsTitle = "No TMS projects found";
-  const emptyTmsDescription =
-    "Your provider connection is active, but no projects were returned from the live API.";
+  const intl = useIntl();
 
   return (
     <section>
@@ -297,7 +322,7 @@ export function ProjectsTable({
         <div
           className="grid gap-3 py-4 lg:grid-cols-2"
           aria-busy="true"
-          aria-label="Loading projects"
+          aria-label={intl.formatMessage(projectsTableMessages.loadingProjects)}
         >
           {Array.from({ length: 4 }).map((_, index) => (
             <ProjectCardSkeleton key={index} />
@@ -315,12 +340,12 @@ export function ProjectsTable({
           ) : (
             <>
               <TypographyP className="text-sm font-medium text-flame-100">
-                Projects failed to load.
+                <FormattedMessage {...projectsTableMessages.loadFailedTitle} />
               </TypographyP>
               <TypographyP className="mt-1 text-xs text-muted-foreground">
                 {projectsQuery.error instanceof Error
                   ? projectsQuery.error.message
-                  : "Refresh the page to try again."}
+                  : intl.formatMessage(projectsTableMessages.loadFailedFallback)}
               </TypographyP>
             </>
           )}
@@ -332,10 +357,10 @@ export function ProjectsTable({
         ) : (
           <div className="max-w-xl space-y-3 py-4">
             <TypographyP className="text-sm font-medium text-foreground">
-              {emptyTmsTitle}
+              <FormattedMessage {...projectsTableMessages.emptyTmsTitle} />
             </TypographyP>
             <TypographyP className="text-sm leading-6 text-muted-foreground">
-              {emptyTmsDescription}
+              <FormattedMessage {...projectsTableMessages.emptyTmsDescription} />
             </TypographyP>
           </div>
         )
@@ -378,7 +403,7 @@ export function ProjectsTable({
       {hasMore && projectsQuery.isSuccess && projects.length > 0 && onLoadMore ? (
         <div className={cn("flex justify-center", variant === "tms" ? "pt-4" : "pt-6")}>
           <Button type="button" variant="outline" onClick={onLoadMore} className="rounded-full">
-            Load more
+            <FormattedMessage {...projectsTableMessages.loadMore} />
           </Button>
         </div>
       ) : null}

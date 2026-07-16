@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   type JobsScope,
   type JobsStatusFilter,
 } from "./jobs-page-view";
+import { jobsPageContentMessages } from "./jobs-page-content.messages";
 
 import {
   JOB_STATUS_FILTERS,
@@ -118,6 +120,7 @@ function toNativeJobRows(jobs: JobRow[]): JobRow[] {
 async function fetchNativeWorkspaceJobs(
   organizationSlug: string,
   statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
   relationship?: "assigned" | "created",
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
@@ -129,7 +132,7 @@ async function fetchNativeWorkspaceJobs(
     },
   });
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load jobs");
+    throw await readApiResponseError(response, loadJobsFailedMessage);
   }
 
   const body = await response.json();
@@ -140,6 +143,7 @@ async function fetchNativeProjectJobs(
   organizationSlug: string,
   projectId: string,
   statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
     param: { organizationSlug, projectId },
@@ -149,25 +153,30 @@ async function fetchNativeProjectJobs(
     },
   });
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load jobs");
+    throw await readApiResponseError(response, loadJobsFailedMessage);
   }
 
   const body = await response.json();
   return body.jobs as JobListResponse[];
 }
 
-async function fetchTmsWorkspaceJobs(organizationSlug: string, mine = false) {
+async function fetchTmsWorkspaceJobs(
+  organizationSlug: string,
+  loadTmsJobsFailedMessage: string,
+  mine = false,
+) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
     param: { organizationSlug },
     query: { mine: mine ? "true" : "false" },
   });
 
-  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
 async function fetchTmsProjectJobs(
   organizationSlug: string,
   externalProjectId: string,
+  loadTmsJobsFailedMessage: string,
   mine = false,
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
@@ -177,7 +186,7 @@ async function fetchTmsProjectJobs(
     query: { mine: mine ? "true" : "false" },
   });
 
-  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
 export function JobsPageContent({
@@ -189,6 +198,7 @@ export function JobsPageContent({
   scope?: JobsScope;
   projectId?: string;
 }) {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
   const [createJobOpen, setCreateJobOpen] = useState(false);
@@ -199,6 +209,8 @@ export function JobsPageContent({
   const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
     enabled: Boolean(projectId),
   });
+  const loadJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadJobsFailed);
+  const loadTmsJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadTmsJobsFailed);
 
   const nativeJobsQueryKey = [
     "jobs",
@@ -222,21 +234,28 @@ export function JobsPageContent({
     enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
-        return fetchNativeProjectJobs(organizationSlug, projectId, statusFilter);
+        return fetchNativeProjectJobs(
+          organizationSlug,
+          projectId,
+          statusFilter,
+          loadJobsFailedMessage,
+        );
       }
 
-      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter);
+      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage);
     },
   });
   const assignedNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "assigned"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => fetchNativeWorkspaceJobs(organizationSlug, statusFilter, "assigned"),
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "assigned"),
   });
   const createdNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "created"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => fetchNativeWorkspaceJobs(organizationSlug, statusFilter, "created"),
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "created"),
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
@@ -246,11 +265,16 @@ export function JobsPageContent({
         return fetchTmsProjectJobs(
           organizationSlug,
           parsedProviderProject.externalProjectId,
+          loadTmsJobsFailedMessage,
           scope === "personal",
         );
       }
 
-      return fetchTmsWorkspaceJobs(organizationSlug, scope === "personal");
+      return fetchTmsWorkspaceJobs(
+        organizationSlug,
+        loadTmsJobsFailedMessage,
+        scope === "personal",
+      );
     },
   });
 
@@ -282,7 +306,7 @@ export function JobsPageContent({
           canCreateJob ? (
             <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create job
+              <FormattedMessage {...jobsPageContentMessages.createJob} />
             </Button>
           ) : null
         }

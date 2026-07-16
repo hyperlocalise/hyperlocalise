@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -37,6 +38,7 @@ import {
   selectJobCatRepository,
   sortJobCatProviderFiles,
 } from "./select-job-cat-repository";
+import { jobCatPageContentMessages } from "./job-cat-page-content.messages";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
 import {
   attemptCatPageNavigation,
@@ -167,6 +169,7 @@ export function JobCatPageContent({
   initialQueueFilter?: CatQueueFilter;
   catAllFilesEnabled?: boolean;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
@@ -305,11 +308,11 @@ export function JobCatPageContent({
       <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
         {repositoriesQuery.isError ? (
           <TypographyP className="text-xs text-muted-foreground">
-            GitHub repositories could not be loaded. Repository context lookup is unavailable.
+            <FormattedMessage {...jobCatPageContentMessages.repositoriesLoadFailed} />
           </TypographyP>
         ) : (
           <TypographyP className="text-xs text-muted-foreground">
-            Select a GitHub repository to look up string context.
+            <FormattedMessage {...jobCatPageContentMessages.selectRepositoryForContext} />
           </TypographyP>
         )}
       </div>
@@ -406,7 +409,9 @@ export function JobCatPageContent({
         <ProjectPageShell>
           <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
             <Spinner />
-            <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+            </TypographyP>
           </div>
         </ProjectPageShell>
       );
@@ -419,7 +424,7 @@ export function JobCatPageContent({
             <TypographyP className="text-sm text-flame-100">
               {defaultFileQuery.error instanceof Error
                 ? defaultFileQuery.error.message
-                : "Unable to load task files."}
+                : intl.formatMessage(jobCatPageContentMessages.unableToLoadTaskFiles)}
             </TypographyP>
           </div>
         </ProjectPageShell>
@@ -430,8 +435,8 @@ export function JobCatPageContent({
       const hasSourceFiles = (defaultFileQuery.data?.files.length ?? 0) > 0;
       const emptyStateMessage =
         hasSourceFiles && !targetLocale
-          ? "No target locale is specified for this task."
-          : "No source file is linked to this task.";
+          ? intl.formatMessage(jobCatPageContentMessages.noTargetLocaleSpecified)
+          : intl.formatMessage(jobCatPageContentMessages.noSourceFileLinked);
 
       return (
         <ProjectPageShell>
@@ -446,7 +451,9 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Opening workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.openingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -478,7 +485,9 @@ export function JobCatPageContent({
         <ProjectPageShell>
           <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
             <Spinner />
-            <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+            </TypographyP>
           </div>
         </ProjectPageShell>
       );
@@ -490,7 +499,7 @@ export function JobCatPageContent({
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
             <TypographyP className="text-sm text-flame-100">
-              This project does not have a source locale.
+              <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
             </TypographyP>
           </div>
         </ProjectPageShell>
@@ -502,9 +511,11 @@ export function JobCatPageContent({
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
             <TypographyP className="text-sm text-muted-foreground">
-              {!sourceLocale
-                ? "Loading workspace…"
-                : "No target locale is available for this task."}
+              {!sourceLocale ? (
+                <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+              ) : (
+                <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForTask} />
+              )}
             </TypographyP>
           </div>
         </ProjectPageShell>
@@ -631,7 +642,9 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -646,7 +659,7 @@ export function JobCatPageContent({
               ? projectQuery.error.message
               : targetFileQuery.error instanceof Error
                 ? targetFileQuery.error.message
-                : "Unable to load task files."}
+                : intl.formatMessage(jobCatPageContentMessages.unableToLoadTaskFiles)}
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -661,9 +674,10 @@ export function JobCatPageContent({
             {targetFileQuery.data.reference}
           </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
-            This project has more than {targetFileQuery.data.fetchedCount.toLocaleString()} files,
-            so the source file could not be resolved from the loaded file list. Open CAT from the
-            project Files page instead, or ask support to narrow the project file list.
+            <FormattedMessage
+              {...jobCatPageContentMessages.listTruncated}
+              values={{ fetchedCount: targetFileQuery.data.fetchedCount }}
+            />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -678,7 +692,7 @@ export function JobCatPageContent({
             {sourcePath ?? storedFileId}
           </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
-            This source file is not linked to the task anymore.
+            <FormattedMessage {...jobCatPageContentMessages.sourceFileNoLongerLinked} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -691,7 +705,7 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            This project does not have a source locale.
+            <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -703,7 +717,9 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -714,7 +730,9 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -726,7 +744,7 @@ export function JobCatPageContent({
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
             <TypographyP className="text-sm text-muted-foreground">
-              No target locale is available for this task file.
+              <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForTaskFile} />
             </TypographyP>
           </div>
         </ProjectPageShell>
@@ -798,7 +816,7 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            String editing is only available for supported provider task files.
+            <FormattedMessage {...jobCatPageContentMessages.stringEditingUnsupported} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -812,7 +830,7 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            No target locale is available for this provider task file.
+            <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForProviderFile} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -904,7 +922,12 @@ export function JobCatPageContent({
         ) : null}
 
         <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
-          {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
+          {intl.formatMessage(jobCatPageContentMessages.providerKindAndFormat, {
+            kind: selectedFile.provider.kind,
+            format:
+              selectedFile.provider.format ??
+              intl.formatMessage(jobCatPageContentMessages.fileFormatFallback),
+          })}
         </TypographyP>
       </div>
 

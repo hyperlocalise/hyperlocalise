@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import {
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
 import { canonicalizeLocale, COMMON_LOCALES, isValidLocaleInput } from "@/lib/i18n/locales";
+
+import { projectLocalePickerMessages } from "./project-locale-picker.messages";
 
 function sortLocaleCodes(locales: string[]) {
   return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -60,7 +62,9 @@ export function ProjectSourceLocalePicker({
 
   return (
     <Field className="gap-1">
-      <FieldLabel htmlFor={fieldId}>Source locale</FieldLabel>
+      <FieldLabel htmlFor={fieldId}>
+        <FormattedMessage {...projectLocalePickerMessages.sourceLocaleLabel} />
+      </FieldLabel>
       <Select
         value={value || undefined}
         onValueChange={(next) => {
@@ -71,7 +75,9 @@ export function ProjectSourceLocalePicker({
         disabled={disabled}
       >
         <SelectTrigger id={fieldId} className="w-full border-border bg-muted text-foreground">
-          <SelectValue placeholder="Select locale" />
+          <SelectValue
+            placeholder={intl.formatMessage(projectLocalePickerMessages.selectLocalePlaceholder)}
+          />
         </SelectTrigger>
         <SelectContent
           align="start"
@@ -80,8 +86,7 @@ export function ProjectSourceLocalePicker({
         >
           {options.map((locale) => (
             <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
-              <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
-              <span className="text-muted-foreground">({locale})</span>
+              <span className="truncate">{formatLocaleOptionLabel(intl, locale)}</span>
             </SelectItem>
           ))}
         </SelectContent>
@@ -167,13 +172,13 @@ export function ProjectTargetLocalesPicker({
 
   function applyCustomLocale() {
     if (!isValidLocaleInput(customLocale)) {
-      setCustomError("Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).");
+      setCustomError(intl.formatMessage(projectLocalePickerMessages.invalidCustomLocale));
       return;
     }
 
     const canonical = canonicalizeLocale(customLocale) as string;
     if (canonical.toLowerCase() === sourceKey) {
-      setCustomError("Target locale cannot match the source locale.");
+      setCustomError(intl.formatMessage(projectLocalePickerMessages.targetMatchesSource));
       return;
     }
 
@@ -185,7 +190,9 @@ export function ProjectTargetLocalesPicker({
 
   return (
     <Field className="gap-1.5">
-      <FieldLabel id={fieldId}>Target locales</FieldLabel>
+      <FieldLabel id={fieldId}>
+        <FormattedMessage {...projectLocalePickerMessages.targetLocalesLabel} />
+      </FieldLabel>
       <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={fieldId}>
         {commonLocales.map((locale) => {
           const isSelected = selected.has(locale.toLowerCase());
@@ -245,7 +252,9 @@ export function ProjectTargetLocalesPicker({
               }
             }}
             disabled={disabled}
-            placeholder="Other target locale"
+            placeholder={intl.formatMessage(
+              projectLocalePickerMessages.otherTargetLocalePlaceholder,
+            )}
             className="min-w-0 flex-1 border-border bg-muted text-foreground placeholder:text-muted-foreground"
           />
           <Button
@@ -256,7 +265,7 @@ export function ProjectTargetLocalesPicker({
             disabled={disabled}
             onClick={applyCustomLocale}
           >
-            Add
+            <FormattedMessage {...projectLocalePickerMessages.add} />
           </Button>
         </div>
       ) : (
@@ -266,7 +275,7 @@ export function ProjectTargetLocalesPicker({
           size="sm"
           className="h-7 w-7 shrink-0 px-0"
           disabled={disabled}
-          aria-label="Add other target locale"
+          aria-label={intl.formatMessage(projectLocalePickerMessages.addOtherTargetLocale)}
           onClick={() => setShowCustomInput(true)}
         >
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />

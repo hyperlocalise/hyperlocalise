@@ -114,7 +114,7 @@ async function fetchNativeProjects(organizationSlug: string) {
   }
 
   const body = await response.json();
-  return body.projects.map(mapProjectToListRow);
+  return body.projects;
 }
 
 async function fetchSlackConnected(organizationSlug: string) {
@@ -250,6 +250,7 @@ export function DashboardPageContent({
   const nativeProjectsQuery = useQuery({
     queryKey: ["dashboard-projects", organizationSlug],
     queryFn: () => fetchNativeProjects(organizationSlug),
+    select: (projects) => projects.map((project) => mapProjectToListRow(project, intl)),
   });
 
   const assignedJobsQuery = useQuery({
@@ -287,7 +288,7 @@ export function DashboardPageContent({
   const tmsProjectsQuery = useQuery({
     queryKey: tmsLiveProjectsQueryKey(organizationSlug),
     queryFn: () => fetchTmsLiveProjects(organizationSlug),
-    select: (projects) => projects.map(mapProjectToListRow),
+    select: (projects) => projects.map((project) => mapProjectToListRow(project, intl)),
     enabled: hasTmsConnection,
   });
 

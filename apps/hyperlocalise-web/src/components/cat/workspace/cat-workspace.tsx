@@ -17,6 +17,7 @@ import { catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { useCatWorkspace } from "./cat-workspace-context";
+import { catWorkspaceViewMessages } from "./cat-workspace.messages";
 import { resolveSegmentIntelligenceForDisplay } from "./store/cat-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -532,8 +533,22 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           <div className="shrink-0 border-b border-border px-4 py-3">
             <div className="min-w-0 space-y-1">
               <p className="font-mono text-xs text-muted-foreground tabular-nums">
-                {String(segmentPosition).padStart(2, "0")}
-                {totalSegments != null ? ` / ${String(totalSegments).padStart(2, "0")}` : "+"}
+                {totalSegments != null ? (
+                  <FormattedMessage
+                    {...catWorkspaceViewMessages.segmentPosition}
+                    values={{
+                      position: String(segmentPosition).padStart(2, "0"),
+                      total: String(totalSegments).padStart(2, "0"),
+                    }}
+                  />
+                ) : (
+                  <FormattedMessage
+                    {...catWorkspaceViewMessages.segmentPositionOpenEnded}
+                    values={{
+                      position: String(segmentPosition).padStart(2, "0"),
+                    }}
+                  />
+                )}
               </p>
               <CatSegmentKeyMeta
                 segmentKey={editorSegment.key}

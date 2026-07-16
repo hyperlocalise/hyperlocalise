@@ -1,5 +1,8 @@
+"use client";
+
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -13,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
+import { deleteProjectDialogMessages } from "./delete-project-dialog.messages";
 import type { ProjectListRow } from "./project-list";
 
 export function DeleteProjectDialog({
@@ -26,19 +30,27 @@ export function DeleteProjectDialog({
   onOpenChange: (open: boolean) => void;
   onDelete: (projectId: string) => void;
 }) {
+  const intl = useIntl();
+
   return (
     <AlertDialog open={project !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete project?</AlertDialogTitle>
+          <AlertDialogTitle>
+            <FormattedMessage {...deleteProjectDialogMessages.title} />
+          </AlertDialogTitle>
           <AlertDialogDescription>
             {project
-              ? `${project.name} will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.`
-              : "This project will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association."}
+              ? intl.formatMessage(deleteProjectDialogMessages.descriptionWithName, {
+                  projectName: project.name,
+                })
+              : intl.formatMessage(deleteProjectDialogMessages.descriptionWithoutName)}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>
+            <FormattedMessage {...deleteProjectDialogMessages.cancel} />
+          </AlertDialogCancel>
           <Button
             variant="destructive"
             disabled={isDeleting || !project}
@@ -49,7 +61,11 @@ export function DeleteProjectDialog({
             }}
           >
             {isDeleting ? <Spinner /> : <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />}
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isDeleting ? (
+              <FormattedMessage {...deleteProjectDialogMessages.deleting} />
+            ) : (
+              <FormattedMessage {...deleteProjectDialogMessages.delete} />
+            )}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

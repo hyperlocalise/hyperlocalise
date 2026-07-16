@@ -10,6 +10,7 @@ import {
   WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,11 @@ import {
   writeJobsViewMode,
   type JobsViewMode,
 } from "./jobs-view-helpers";
+import {
+  getJobStatusMessage,
+  getJobsStatusFilterMessage,
+  jobsPageViewMessages,
+} from "./jobs-page-view.messages";
 import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
 import {
@@ -116,11 +122,6 @@ const jobStatusLabels = {
   waiting_for_review: "Waiting for review",
   cancelled: "Cancelled",
 } as const satisfies Record<ApiJob["status"], string>;
-
-const statusFilterLabels = {
-  all: "All status",
-  ...jobStatusLabels,
-} as const satisfies Record<JobsStatusFilter, string>;
 
 export function formatJobStatusLabel(status: ApiJob["status"]) {
   return jobStatusLabels[status];
@@ -226,7 +227,7 @@ function getInputPayloadString(job: ApiJob, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export function getJobName(job: ApiJob) {
+export function getJobName(job: ApiJob, intl?: IntlShape) {
   if (job.externalTitle) return formatJobName(job.externalTitle);
   const metadataTitle =
     typeof job.inputPayload === "object" &&
@@ -238,14 +239,47 @@ export function getJobName(job: ApiJob) {
       ? (job.inputPayload as { metadata: { title: string } }).metadata.title
       : null;
   if (metadataTitle) return formatJobName(metadataTitle);
-  if (job.kind === "review" && job.reviewCriteria)
-    return formatJobName(`Review: ${job.reviewCriteria}`);
-  if (job.kind === "sync" && job.syncConnectorKind)
-    return formatJobName(`${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`);
-  if (job.kind === "asset_management" && job.assetType)
-    return formatJobName(`${job.assetOperation ?? "manage"} ${job.assetType}`);
+  if (job.kind === "review" && job.reviewCriteria) {
+    return formatJobName(
+      intl
+        ? intl.formatMessage(jobsPageViewMessages.reviewJobName, { criteria: job.reviewCriteria })
+        : `Review: ${job.reviewCriteria}`,
+    );
+  }
+  if (job.kind === "sync" && job.syncConnectorKind) {
+    const direction =
+      job.syncDirection ??
+      (intl ? intl.formatMessage(jobsPageViewMessages.syncDirectionFallback) : "sync");
+    return formatJobName(
+      intl
+        ? intl.formatMessage(jobsPageViewMessages.syncJobName, {
+            direction,
+            connector: job.syncConnectorKind,
+          })
+        : `${direction} ${job.syncConnectorKind}`,
+    );
+  }
+  if (job.kind === "asset_management" && job.assetType) {
+    const operation =
+      job.assetOperation ??
+      (intl ? intl.formatMessage(jobsPageViewMessages.assetOperationFallback) : "manage");
+    return formatJobName(
+      intl
+        ? intl.formatMessage(jobsPageViewMessages.assetJobName, {
+            operation,
+            assetType: job.assetType,
+          })
+        : `${operation} ${job.assetType}`,
+    );
+  }
   const researchScope = getInputPayloadString(job, "scope");
-  if (job.kind === "research" && researchScope) return formatJobName(`Research: ${researchScope}`);
+  if (job.kind === "research" && researchScope) {
+    return formatJobName(
+      intl
+        ? intl.formatMessage(jobsPageViewMessages.researchJobName, { scope: researchScope })
+        : `Research: ${researchScope}`,
+    );
+  }
   const sourceText = getInputPayloadString(job, "sourceText");
   if (sourceText) return formatJobName(sourceText);
   const sourceFileId = getInputPayloadString(job, "sourceFileId");
@@ -253,7 +287,22 @@ export function getJobName(job: ApiJob) {
   return job.id;
 }
 
-export function formatJobKind(job: ApiJob) {
+const jobKindMessages = {
+  translation: jobsPageViewMessages.kindTranslation,
+  research: jobsPageViewMessages.kindResearch,
+  review: jobsPageViewMessages.kindReview,
+  proofread: jobsPageViewMessages.kindProofread,
+  sync: jobsPageViewMessages.kindSync,
+  asset_management: jobsPageViewMessages.kindAssetManagement,
+} as const;
+
+export function formatJobKind(job: ApiJob, intl?: IntlShape) {
+  if (intl) {
+    if (job.kind === "translation" && job.type) {
+      return intl.formatMessage(jobsPageViewMessages.kindTranslationWithType, { type: job.type });
+    }
+    return intl.formatMessage(jobKindMessages[job.kind]);
+  }
   if (job.kind === "translation" && job.type) return `${job.kind.replace("_", " ")} · ${job.type}`;
   return job.kind.replace("_", " ");
 }
@@ -278,7 +327,7 @@ function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: J
   return matchesStatus && matchesSearch;
 }
 
-export function taskDetailSummary(job: ApiJob) {
+export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
   const fallbackTargetLocales = job.externalTargetLocales?.length
     ? job.externalTargetLocales
     : job.reviewTargetLocale
@@ -286,7 +335,11 @@ export function taskDetailSummary(job: ApiJob) {
       : [];
   const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
   const people = assignees(job);
-  if (locales === "—" && people === "—") return "No locales or assignees";
+  if (locales === "—" && people === "—") {
+    return intl
+      ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)
+      : "No locales or assignees";
+  }
   if (locales === "—") return people;
   if (people === "—") return locales;
   return `${locales} · ${people}`;
@@ -329,11 +382,17 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
 }
 
 export function JobsPageErrorMessage({ error }: { error: unknown }) {
+  const intl = useIntl();
+
   return (
     <>
-      <TypographyP className="text-sm font-medium text-flame-100">Jobs failed to load.</TypographyP>
+      <TypographyP className="text-sm font-medium text-flame-100">
+        <FormattedMessage {...jobsPageViewMessages.loadErrorTitle} />
+      </TypographyP>
       <TypographyP className="mt-1 text-sm text-muted-foreground">
-        {error instanceof Error ? error.message : "Failed to load jobs."}
+        {error instanceof Error
+          ? error.message
+          : intl.formatMessage(jobsPageViewMessages.loadErrorFallback)}
       </TypographyP>
     </>
   );
@@ -358,9 +417,13 @@ function JobsList({
   projectId?: string;
   renderJobLink: JobsLinkRenderer;
 }) {
+  const intl = useIntl();
+
   if (isLoading)
     return (
-      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">Loading jobs…</TypographyP>
+      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">
+        <FormattedMessage {...jobsPageViewMessages.loadingJobs} />
+      </TypographyP>
     );
   if (jobs.length === 0) {
     return (
@@ -377,12 +440,24 @@ function JobsList({
             "px-3 py-3 text-sm font-medium text-muted-foreground",
           )}
         >
-          <TypographyP>Name</TypographyP>
-          <TypographyP>Source</TypographyP>
-          <TypographyP>Project</TypographyP>
-          <TypographyP>Status</TypographyP>
-          <TypographyP>Task details</TypographyP>
-          <TypographyP className="text-end">Actions</TypographyP>
+          <TypographyP>
+            <FormattedMessage {...jobsPageViewMessages.columnName} />
+          </TypographyP>
+          <TypographyP>
+            <FormattedMessage {...jobsPageViewMessages.columnSource} />
+          </TypographyP>
+          <TypographyP>
+            <FormattedMessage {...jobsPageViewMessages.columnProject} />
+          </TypographyP>
+          <TypographyP>
+            <FormattedMessage {...jobsPageViewMessages.columnStatus} />
+          </TypographyP>
+          <TypographyP>
+            <FormattedMessage {...jobsPageViewMessages.columnTaskDetails} />
+          </TypographyP>
+          <TypographyP className="text-end">
+            <FormattedMessage {...jobsPageViewMessages.columnActions} />
+          </TypographyP>
         </div>
         {jobs.map((job, index) => {
           const detailHref = buildDetailHref(organizationSlug, projectId ?? job.projectId, job.id);
@@ -403,21 +478,28 @@ function JobsList({
                 )}
                 <JobSourceLabel job={job} />
                 <TypographyP className="truncate text-sm text-muted-foreground">
-                  {job.projectName ?? job.projectId ?? "Workspace"}
+                  {job.projectName ??
+                    job.projectId ??
+                    intl.formatMessage(jobsPageViewMessages.workspaceFallback)}
                 </TypographyP>
                 <Badge
                   variant="outline"
                   className={cn("w-fit rounded-full", toneClass(jobTone(job.status)))}
                 >
-                  {formatJobStatusLabel(job.status)}
+                  {intl.formatMessage(getJobStatusMessage(job.status))}
                 </Badge>
                 <div className="min-w-0">
                   <TypographyP className="truncate text-sm text-subtle-foreground">
-                    {taskDetailSummary(job)}
+                    {taskDetailSummary(job, intl)}
                   </TypographyP>
                   <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
-                    Due {formatRelativeTime(job.externalDueDate, now)} · Synced{" "}
-                    {formatRelativeTime(job.updatedAt, now)}
+                    <FormattedMessage
+                      {...jobsPageViewMessages.dueSyncedMeta}
+                      values={{
+                        due: formatRelativeTime(job.externalDueDate, now),
+                        synced: formatRelativeTime(job.updatedAt, now),
+                      }}
+                    />
                   </TypographyP>
                 </div>
                 <JobRowActions
@@ -438,13 +520,21 @@ function JobsList({
 }
 
 function JobListItemTitle({ job }: { job: ApiJob }) {
+  const intl = useIntl();
+
   return (
     <span className="min-w-0">
       <span className="block truncate text-base font-medium text-foreground">
-        {getJobName(job)}
+        {getJobName(job, intl)}
       </span>
       <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-        {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+        <FormattedMessage
+          {...jobsPageViewMessages.kindWithTaskId}
+          values={{
+            kind: formatJobKind(job, intl),
+            taskId: job.externalTaskId ?? job.id,
+          }}
+        />
       </span>
     </span>
   );
@@ -457,8 +547,10 @@ function JobsViewModeToggle({
   viewMode: JobsViewMode;
   onViewModeChange: (viewMode: JobsViewMode) => void;
 }) {
+  const intl = useIntl();
+
   return (
-    <ButtonGroup aria-label="Jobs view mode">
+    <ButtonGroup aria-label={intl.formatMessage(jobsPageViewMessages.viewModeAriaLabel)}>
       <Button
         type="button"
         variant={viewMode === "row" ? "default" : "outline"}
@@ -467,7 +559,7 @@ function JobsViewModeToggle({
         onClick={() => onViewModeChange("row")}
       >
         <HugeiconsIcon icon={ListViewIcon} strokeWidth={1.8} />
-        Row
+        <FormattedMessage {...jobsPageViewMessages.viewModeRow} />
       </Button>
       <Button
         type="button"
@@ -477,7 +569,7 @@ function JobsViewModeToggle({
         onClick={() => onViewModeChange("kanban")}
       >
         <HugeiconsIcon icon={KanbanIcon} strokeWidth={1.8} />
-        Board
+        <FormattedMessage {...jobsPageViewMessages.viewModeBoard} />
       </Button>
     </ButtonGroup>
   );
@@ -639,6 +731,7 @@ export function JobsPageView({
   tmsError?: unknown;
   tmsJobs?: JobRow[];
 }) {
+  const intl = useIntl();
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
   const [viewMode, setViewMode] = useState<JobsViewMode>("kanban");
@@ -679,20 +772,26 @@ export function JobsPageView({
   const showTmsSection = isProviderProjectScope || (!projectId && hasActiveTmsConnection);
 
   const nativeEmptyLabel = projectId
-    ? "No Hyperlocalise jobs found for this project yet."
+    ? intl.formatMessage(jobsPageViewMessages.emptyNativeProject)
     : scope === "personal"
-      ? "No Hyperlocalise work items found for your account."
-      : "No Hyperlocalise jobs found for this workspace.";
+      ? intl.formatMessage(jobsPageViewMessages.emptyNativePersonal)
+      : intl.formatMessage(jobsPageViewMessages.emptyNativeWorkspace);
   const tmsEmptyLabel = projectId
-    ? "No TMS jobs found for this project."
+    ? intl.formatMessage(jobsPageViewMessages.emptyTmsProject)
     : scope === "personal"
-      ? "No TMS jobs assigned to you were returned from the live provider API."
-      : "No TMS jobs were returned from the live provider API.";
+      ? intl.formatMessage(jobsPageViewMessages.emptyTmsPersonal)
+      : intl.formatMessage(jobsPageViewMessages.emptyTmsWorkspace);
+  const statusFilterLabel = intl.formatMessage(getJobsStatusFilterMessage(statusFilter));
+  const nativeJobsTitle = intl.formatMessage(jobsPageViewMessages.nativeJobsTitle);
+  const tmsJobsTitle = intl.formatMessage(jobsPageViewMessages.tmsJobsTitle);
 
   const jobsSection = (
     <section className="space-y-8">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <JobsFilterField label="Search" className="min-w-0 flex-1">
+        <JobsFilterField
+          label={intl.formatMessage(jobsPageViewMessages.filterSearch)}
+          className="min-w-0 flex-1"
+        >
           <div className="relative">
             <HugeiconsIcon
               icon={SearchIcon}
@@ -703,12 +802,15 @@ export function JobsPageView({
               id={searchId}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Jobs, providers, locales, assignees..."
+              placeholder={intl.formatMessage(jobsPageViewMessages.filterSearchPlaceholder)}
               className="h-9 border-border bg-transparent pl-9 text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </JobsFilterField>
-        <JobsFilterField label="Status" className="w-full lg:w-40">
+        <JobsFilterField
+          label={intl.formatMessage(jobsPageViewMessages.filterStatus)}
+          className="w-full lg:w-40"
+        >
           <Select
             value={statusFilter}
             onValueChange={(value) => {
@@ -720,19 +822,25 @@ export function JobsPageView({
             }}
           >
             <SelectTrigger className={jobsFilterTriggerClassName}>
-              <SelectValue>{statusFilterLabels[statusFilter]}</SelectValue>
+              <SelectValue>{statusFilterLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent className={jobsFilterSelectContentClassName}>
-              {jobsStatusOptions.map((status) => (
-                <SelectItem key={status} value={status} label={statusFilterLabels[status]}>
-                  {statusFilterLabels[status]}
-                </SelectItem>
-              ))}
+              {jobsStatusOptions.map((status) => {
+                const label = intl.formatMessage(getJobsStatusFilterMessage(status));
+                return (
+                  <SelectItem key={status} value={status} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </JobsFilterField>
         {projectId ? (
-          <JobsFilterField label="View" className="w-full lg:w-auto">
+          <JobsFilterField
+            label={intl.formatMessage(jobsPageViewMessages.filterView)}
+            className="w-full lg:w-auto"
+          >
             <JobsViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
           </JobsFilterField>
         ) : null}
@@ -741,11 +849,13 @@ export function JobsPageView({
       {isPersonalWork ? (
         <>
           <div className="space-y-8">
-            <JobsSectionHeader title="Assigned to me" />
+            <JobsSectionHeader
+              title={intl.formatMessage(jobsPageViewMessages.sectionAssignedToMe)}
+            />
             {showNativeSection ? (
               <JobsResourceSection
                 buildJobDetailHref={buildDetailHref}
-                emptyLabel="No assigned Hyperlocalise jobs found."
+                emptyLabel={intl.formatMessage(jobsPageViewMessages.emptyAssignedNative)}
                 error={nativeError}
                 isLoading={isNativeLoading}
                 jobs={visibleAssignedNativeJobs}
@@ -754,14 +864,14 @@ export function JobsPageView({
                 projectId={projectId}
                 renderError={renderError}
                 renderJobLink={renderJobLink}
-                title="Hyperlocalise jobs"
+                title={nativeJobsTitle}
                 viewMode={viewMode}
               />
             ) : null}
             {showTmsSection ? (
               <JobsResourceSection
                 buildJobDetailHref={buildDetailHref}
-                emptyLabel="No assigned TMS jobs found."
+                emptyLabel={intl.formatMessage(jobsPageViewMessages.emptyAssignedTms)}
                 error={tmsError}
                 isLoading={isTmsLoading}
                 jobs={visibleTmsJobs}
@@ -770,17 +880,19 @@ export function JobsPageView({
                 projectId={projectId}
                 renderError={renderError}
                 renderJobLink={renderJobLink}
-                title="TMS jobs"
-                description="Live jobs assigned to you in the connected provider."
+                title={tmsJobsTitle}
+                description={intl.formatMessage(jobsPageViewMessages.tmsJobsAssignedDescription)}
                 viewMode={viewMode}
               />
             ) : null}
           </div>
           <div className="space-y-8">
-            <JobsSectionHeader title="Created by me" />
+            <JobsSectionHeader
+              title={intl.formatMessage(jobsPageViewMessages.sectionCreatedByMe)}
+            />
             <JobsResourceSection
               buildJobDetailHref={buildDetailHref}
-              emptyLabel="No Hyperlocalise jobs created by you found."
+              emptyLabel={intl.formatMessage(jobsPageViewMessages.emptyCreatedNative)}
               error={nativeError}
               isLoading={isNativeLoading}
               jobs={visibleCreatedNativeJobs}
@@ -789,7 +901,7 @@ export function JobsPageView({
               projectId={projectId}
               renderError={renderError}
               renderJobLink={renderJobLink}
-              title="Hyperlocalise jobs"
+              title={nativeJobsTitle}
               viewMode={viewMode}
             />
           </div>
@@ -808,8 +920,8 @@ export function JobsPageView({
               projectId={projectId}
               renderError={renderError}
               renderJobLink={renderJobLink}
-              title="Hyperlocalise jobs"
-              description="Jobs created and tracked in this workspace."
+              title={nativeJobsTitle}
+              description={intl.formatMessage(jobsPageViewMessages.nativeJobsDescription)}
               viewMode={viewMode}
             />
           ) : null}
@@ -825,8 +937,8 @@ export function JobsPageView({
               projectId={projectId}
               renderError={renderError}
               renderJobLink={renderJobLink}
-              title="TMS jobs"
-              description="Live jobs fetched from your connected TMS provider."
+              title={tmsJobsTitle}
+              description={intl.formatMessage(jobsPageViewMessages.tmsJobsDescription)}
               viewMode={viewMode}
             />
           ) : null}
@@ -840,8 +952,8 @@ export function JobsPageView({
       <ProjectPageShell>
         <ProjectSectionHeader
           icon={Task01Icon}
-          section="Jobs"
-          description="Translation, review, QA, and sync work from Hyperlocalise and your TMS."
+          section={intl.formatMessage(jobsPageViewMessages.projectSectionLabel)}
+          description={intl.formatMessage(jobsPageViewMessages.projectSectionDescription)}
           actions={headerActions}
         />
         {jobsSection}
@@ -853,12 +965,16 @@ export function JobsPageView({
     <WorkspacePageShell>
       <PageHeader
         icon={isPersonalWork ? WorkHistoryIcon : Task01Icon}
-        label="Workspace"
-        title={isPersonalWork ? "My Jobs" : "Jobs"}
+        label={intl.formatMessage(jobsPageViewMessages.workspaceLabel)}
+        title={
+          isPersonalWork
+            ? intl.formatMessage(jobsPageViewMessages.pageTitleMyJobs)
+            : intl.formatMessage(jobsPageViewMessages.pageTitleJobs)
+        }
         description={
           isPersonalWork
-            ? "Hyperlocalise and live TMS work assigned to you or created by you."
-            : "Hyperlocalise jobs and live TMS jobs tracked across the workspace."
+            ? intl.formatMessage(jobsPageViewMessages.pageDescriptionPersonal)
+            : intl.formatMessage(jobsPageViewMessages.pageDescriptionWorkspace)
         }
         actions={headerActions}
       />
