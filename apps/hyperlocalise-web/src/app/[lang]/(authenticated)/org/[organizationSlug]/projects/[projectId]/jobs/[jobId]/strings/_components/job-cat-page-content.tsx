@@ -266,8 +266,9 @@ export function JobCatPageContent({
     [repositoriesQuery.data],
   );
 
-  const repositoryPreferenceKey = selectedFile
-    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, selectedFile.sourcePath)
+  const repositoryPreferencePath = allFiles ? CAT_ALL_FILES_SOURCE_PATH : selectedFile?.sourcePath;
+  const repositoryPreferenceKey = repositoryPreferencePath
+    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, repositoryPreferencePath)
     : null;
 
   const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
@@ -288,6 +289,32 @@ export function JobCatPageContent({
   }, [enabledRepositoryFullNames, repositoryPreferenceKey]);
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
+
+  const handleRepositoryChange = (nextRepositoryFullName: string) => {
+    if (!repositoryPreferenceKey) {
+      return;
+    }
+
+    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
+  };
+
+  const repositoryBanner =
+    repositoriesQuery.isError ||
+    (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
+      <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+        {repositoriesQuery.isError ? (
+          <TypographyP className="text-xs text-muted-foreground">
+            GitHub repositories could not be loaded. Repository context lookup is unavailable.
+          </TypographyP>
+        ) : (
+          <TypographyP className="text-xs text-muted-foreground">
+            Select a GitHub repository to look up string context.
+          </TypographyP>
+        )}
+      </div>
+    ) : null;
+
   const jobTargetLocales = jobLocalesQuery.data ?? [];
   const activeTargetLocale = selectJobCatTargetLocale({
     requestedTargetLocale: targetLocale,
@@ -554,6 +581,14 @@ export function JobCatPageContent({
             onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
           />
 
+          {enabledRepositoryFullNames.length > 0 ? (
+            <CatRepositorySelect
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          ) : null}
+
           {jobTargetLocales.length > 0 ? (
             <CatLocaleSelect
               targetLocales={jobTargetLocales}
@@ -562,6 +597,8 @@ export function JobCatPageContent({
             />
           ) : null}
         </div>
+
+        {repositoryBanner}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
           <ProjectFileCatWorkspace
@@ -572,6 +609,11 @@ export function JobCatPageContent({
             sourcePath={CAT_ALL_FILES_SOURCE_PATH}
             targetLocale={selectedTargetLocale}
             highlightLocale={selectedTargetLocale}
+            repositoryFullName={selectedRepositoryFullName}
+            canLookupFreshContext={canLookupFreshCatRepositoryContext(
+              enabledRepositoryFullNames,
+              selectedRepositoryFullName,
+            )}
             initialSegmentKey={initialSegmentKey}
             initialQueueFilter={initialQueueFilter}
             sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
@@ -677,31 +719,6 @@ export function JobCatPageContent({
       </ProjectPageShell>
     );
   }
-
-  const handleRepositoryChange = (nextRepositoryFullName: string) => {
-    if (!repositoryPreferenceKey) {
-      return;
-    }
-
-    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
-    setRepositoryOverride(nextRepositoryFullName);
-  };
-
-  const repositoryBanner =
-    repositoriesQuery.isError ||
-    (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
-      <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
-        {repositoriesQuery.isError ? (
-          <TypographyP className="text-xs text-muted-foreground">
-            GitHub repositories could not be loaded. Repository context lookup is unavailable.
-          </TypographyP>
-        ) : (
-          <TypographyP className="text-xs text-muted-foreground">
-            Select a GitHub repository to look up string context.
-          </TypographyP>
-        )}
-      </div>
-    ) : null;
 
   if (isNativeFile) {
     if (!activeTargetLocale) {

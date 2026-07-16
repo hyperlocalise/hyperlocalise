@@ -329,4 +329,50 @@ describe("ProjectFileCatPageContent CAT shell", () => {
       screen.queryByText("Select a GitHub repository to look up string context."),
     ).not.toBeInTheDocument();
   });
+
+  it("shows the saved GitHub repository when viewing All Files", async () => {
+    localStorage.setItem("job-cat-repository:acme:proj_1:*", "acme/docs");
+
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath={null}
+          allFiles
+          catAllFilesEnabled
+          highlightLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "*");
+    });
+    expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
+  });
+
+  it("auto-selects the only enabled repository when viewing All Files", async () => {
+    mockRepositories([{ fullName: "acme/web", enabled: true, archived: false }]);
+
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath={null}
+          allFiles
+          catAllFilesEnabled
+          highlightLocale="vi"
+        />
+      </CatTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
+    });
+  });
 });
