@@ -2,6 +2,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "Không có mô tả"
   },
+  "++VvL4EEbo": {
+    "defaultMessage": "Copied"
+  },
   "+1iajv5nbm": {
     "defaultMessage": "Tiếng Filipino (Philippines)"
   },
@@ -136,6 +139,9 @@
   },
   "0+GXVlndL6": {
     "defaultMessage": "Phê duyệt"
+  },
+  "0+lekb0oBh": {
+    "defaultMessage": "API key created"
   },
   "06dt5VSN/y": {
     "defaultMessage": "Hình ảnh sản phẩm thay thế"
@@ -476,6 +482,9 @@
   "4NIhoyP8P+": {
     "defaultMessage": "Bản dịch nháp bằng LLM bạn पसंद thích"
   },
+  "4Nb8hxfYt5": {
+    "defaultMessage": "API key revoked"
+  },
   "4NfxqMMl1K": {
     "defaultMessage": "Phát hiện các chuỗi đã thay đổi"
   },
@@ -569,11 +578,17 @@
   "5dpVYaBmRK": {
     "defaultMessage": "Tổng chi phí"
   },
+  "5eoi21fmqC": {
+    "defaultMessage": "Copy"
+  },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub đã từ chối ID cài đặt. Xác nhận ứng dụng được cài đặt trên tài khoản dự kiến."
   },
   "5yXqdk0MWc": {
     "defaultMessage": "Từ bài viết mới đến phạm vi ngôn ngữ được theo dõi"
+  },
+  "60PQQ7C+fN": {
+    "defaultMessage": "Last used {date}"
   },
   "63np7ewMDD": {
     "defaultMessage": "Phát hiện thay đổi nguồn, định tuyến công việc bản địa hóa, thu thập ngữ cảnh và giữ quyền kiểm soát duyệt của con người trên các công cụ hiện có của bạn."
@@ -598,6 +613,9 @@
   },
   "6QjQu7ZEVO": {
     "defaultMessage": "{triggerSource} · đã hoàn tất vào {completedAt}"
+  },
+  "6RuyJHJCyu": {
+    "defaultMessage": "Revoke"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "Không thể kết nối với Crowdin"
@@ -884,6 +902,9 @@
   "9pmdbGAxZ4": {
     "defaultMessage": "Không thể tạo URL cài đặt GitHub"
   },
+  "9uVn8mc+mK": {
+    "defaultMessage": "e.g. Production CI"
+  },
   "9w0U+WoX/B": {
     "defaultMessage": "Chuyển đến người duyệt marketing và pháp lý"
   },
@@ -1010,6 +1031,9 @@
   "BgfpkbN4Fe": {
     "defaultMessage": "Kiến thức"
   },
+  "Bh7oPsMHrP": {
+    "defaultMessage": "Refresh the page to try again."
+  },
   "BjoXu+/Pje": {
     "defaultMessage": "Kiểm tra bản địa hóa"
   },
@@ -1079,6 +1103,12 @@
   "CUMVPg+yCv": {
     "defaultMessage": "Cách hoạt động"
   },
+  "CWXh32oIoB": {
+    "defaultMessage": "{prefix}••••••••"
+  },
+  "CWdGpW4jOj": {
+    "defaultMessage": "Strings"
+  },
   "CfAFoekPz1": {
     "defaultMessage": "Dự án của {providerName}"
   },
@@ -1141,6 +1171,9 @@
   },
   "DOGd1ZI3w4": {
     "defaultMessage": "Quản lý dự án bản địa hóa"
+  },
+  "DSm/l7fomX": {
+    "defaultMessage": "Revoke API key"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "Định tuyến đến nhóm hỗ trợ và người xem xét bản địa hóa"
@@ -1424,6 +1457,9 @@
   "HWwdf4dk7T": {
     "defaultMessage": "Hầu hết các vòng đánh giá bị đình trệ vì biên dịch viên không thể thấy màn hình, bảng thuật ngữ, mục đích hay sắc thái của sản phẩm. Hyperlocalise đặt ngữ cảnh đó bên cạnh chuỗi."
   },
+  "HZrRUnuo70": {
+    "defaultMessage": "Copy this key now. You will not be able to see it again."
+  },
   "HZtAltEBuQ": {
     "defaultMessage": "Ngữ cảnh được đính kèm trong tệp"
   },
@@ -1459,6 +1495,9 @@
   },
   "IHNG6SIjSG": {
     "defaultMessage": "Các bản dịch sai vẫn lọt vào môi trường sản xuất vì không có lớp hồi quy tự động."
+  },
+  "IJDgzVk+ER": {
+    "defaultMessage": "Create API key"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files"
@@ -1582,6 +1621,9 @@
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Đã sao chép"
+  },
+  "K0Maj++lc6": {
+    "defaultMessage": "No API keys yet"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Nội dung hỗ trợ trở nên lỗi thời ngay khi được phát hành bằng tiếng Anh"
@@ -1778,8 +1820,14 @@
   "NPcxGbshkv": {
     "defaultMessage": "Bật lần chạy kiểm tra"
   },
+  "NX9i6pdgvw": {
+    "defaultMessage": "Created {date}"
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
+  },
+  "NisKtP5fCJ": {
+    "defaultMessage": "Failed to revoke API key"
   },
   "NjO8LhO0p7": {
     "defaultMessage": "Đang lưu…"
@@ -1879,6 +1927,9 @@
   },
   "P7DyqhOghg": {
     "defaultMessage": "Không có đầu ra từ console"
+  },
+  "P8buB19/yY": {
+    "defaultMessage": "API keys"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "Giám sát chất lượng bản địa hóa | Hyperlocalise"
@@ -2042,6 +2093,12 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Truy cập bị từ chối"
   },
+  "RbHK79ne0Y": {
+    "defaultMessage": "Strings"
+  },
+  "RcUcWXknuU": {
+    "defaultMessage": "Never"
+  },
   "ReZgZHvqUS": {
     "defaultMessage": "Khớp gần đúng"
   },
@@ -2068,6 +2125,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chuỗi suy nghĩ"
+  },
+  "S2pzZyn+jp": {
+    "defaultMessage": "Revoke key"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "Kết nối lại Slack"
@@ -2105,6 +2165,9 @@
   "ScESvsRyBk": {
     "defaultMessage": "Hyperlocalise nằm giữa các nhà cung cấp LLM và các công cụ TMS, mang đến cho các nhóm một quy trình làm việc duy nhất ngay cả khi các mô hình, nhà cung cấp và hệ thống rà soát thay đổi bên dưới nó."
   },
+  "ScpiJIZOJM": {
+    "defaultMessage": "Give your key a name so you can identify it later."
+  },
   "SgpR5Qp/zA": {
     "defaultMessage": "Bản địa hóa bản phát hành GitHub"
   },
@@ -2140,6 +2203,9 @@
   },
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows"
+  },
+  "TE3bLZyBSZ": {
+    "defaultMessage": "<b>Reasoning:</b> {reasoning}"
   },
   "TEXn81XSVY": {
     "defaultMessage": "Mỗi ngày lúc {time} · {timezone}"
@@ -2185,6 +2251,9 @@
   },
   "TpaF4AqL/5": {
     "defaultMessage": "Đặt lại cài đặt tự động hóa?"
+  },
+  "TrnH0+MELk": {
+    "defaultMessage": "Failed to copy to clipboard"
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Thực thi thuật ngữ, giới hạn ký tự và giọng điệu sản phẩm trước khi bản nháp đến tay người rà soát."
@@ -2243,6 +2312,9 @@
   "V+8wDWpBnh": {
     "defaultMessage": "Tất cả chuỗi"
   },
+  "V/CBn2NY6n": {
+    "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace."
+  },
   "V04dsqCSZQ": {
     "defaultMessage": "Chưa có hình ảnh được bản địa hóaેઠ"
   },
@@ -2266,6 +2338,9 @@
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Phân đoạn trước ({shortcut})"
+  },
+  "VH9bOCu5nr": {
+    "defaultMessage": "Create API key"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "Chuỗi này có nghĩa là gì và được sử dụng ở đâu?"
@@ -2291,8 +2366,14 @@
   "VTQVrhBIAm": {
     "defaultMessage": "Mở trong v0"
   },
+  "VUwFgX4OmD": {
+    "defaultMessage": "Permissions: {permissions}"
+  },
   "VWQFJ0pM9H": {
     "defaultMessage": "Các quy tắc thị trường, sở thích giọng điệu và những sai lầm lặp lại vẫn hiển thị xuyên suốt các quy trình làm việc."
+  },
+  "VZ/tPAEVdg": {
+    "defaultMessage": "API Keys"
   },
   "Vb+OMqzvaE": {
     "defaultMessage": "Đẩy nguồn, kéo bản dịch và xuất bản các kiểm tra bản địa hóa cho kho lưu trữ này."
@@ -2525,6 +2606,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Nguồn"
   },
+  "ZC65JlwD3i": {
+    "defaultMessage": "Loading API keys..."
+  },
   "ZF5d+f8aEU": {
     "defaultMessage": "Bắt đầu một cuộc trò chuyện để xem tin nhắn ở đây"
   },
@@ -2569,6 +2653,9 @@
   },
   "ZtpmqfuRlV": {
     "defaultMessage": "Trích xuất cấu trúc, liên kết và thuật ngữ sản phẩm"
+  },
+  "ZuaK6pQTdl": {
+    "defaultMessage": "Key name"
   },
   "ZurV/2CmHO": {
     "defaultMessage": "Giám sát liên tục"
@@ -2617,6 +2704,9 @@
   },
   "aGnEykoMgS": {
     "defaultMessage": "Đồng bộ các bản dịch đã được phê duyệt trở lại CMS của bạn"
+  },
+  "aMf9NbDyem": {
+    "defaultMessage": "No image yet"
   },
   "aWf83qmrdq": {
     "defaultMessage": "Được xây dựng cho các hoạt động bản địa hóa và độ tin cậy khi phát hành"
@@ -2677,6 +2767,9 @@
   },
   "bW5VkndWCk": {
     "defaultMessage": "Tác nhân email đã bị vô hiệu hóa"
+  },
+  "bXM2sr8gtz": {
+    "defaultMessage": "API key copied to clipboard"
   },
   "bYpd314kqN": {
     "defaultMessage": "Lớp bộ nhớ bản địa hóa"
@@ -2767,6 +2860,9 @@
   },
   "d2lnyxMtP0": {
     "defaultMessage": "Một nhà phát triển mở một pull request đổi tên mười bốn chuỗi giao diện người dùng và thêm sáu chuỗi mới. Hyperlocalise sẽ bình luận trên PR với các ngôn ngữ bị ảnh hưởng, tạo bản nháp dịch bằng ngữ cảnh thuật ngữ từ bản tóm tắt ra mắt được liên kết, mở các tác vụ rà soát trong Lokalise, chạy GitHub Action để xác minh rằng tất cả các ngôn ngữ đích đều được bao phủ, và chặn việc hợp nhất cho đến khi người rà soát tiếng Đức và tiếng Nhật phê duyệt thuật ngữ định giá đã cập nhật."
+  },
+  "d4ixdVNgC5": {
+    "defaultMessage": "Creating..."
   },
   "d6ELhmM7BL": {
     "defaultMessage": "AI giúp giải thích các đánh đổi, nhưng người duyệt vẫn giữ quyền kiểm soát quyết định cuối cùng."
@@ -3134,6 +3230,9 @@
   "iV4M/BRREW": {
     "defaultMessage": "Tệp đính kèm"
   },
+  "iXddAxYfyx": {
+    "defaultMessage": "{arg} · {type}"
+  },
   "iZaQ7K2itB": {
     "defaultMessage": "Nhập URL..."
   },
@@ -3224,6 +3323,9 @@
   "jgrmHo9SE2": {
     "defaultMessage": "Không thành công"
   },
+  "jh2RfUdWl3": {
+    "defaultMessage": "Done"
+  },
   "jhMzSbK5qz": {
     "defaultMessage": "Thử lại sau một lúc. Nếu sự cố vẫn tiếp diễn, hãy liên hệ bộ phận hỗ trợ hoặc chọn một tổ chức khác."
   },
@@ -3310,6 +3412,9 @@
   },
   "kod/dgRhlc": {
     "defaultMessage": "Email đến đã được sao chép"
+  },
+  "ksrwIvV64s": {
+    "defaultMessage": "Workspace settings"
   },
   "kuwnF7iUJu": {
     "defaultMessage": "Phát xem trước"
@@ -3413,6 +3518,9 @@
   "mV0v+ofKFK": {
     "defaultMessage": "Yêu cầu mới"
   },
+  "mctwKXU94p": {
+    "defaultMessage": "Leave page with unsaved changes?"
+  },
   "mdDGkHBHvr": {
     "defaultMessage": "Thử lại"
   },
@@ -3424,6 +3532,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "Hướng dẫn"
+  },
+  "mmB/r+ohDb": {
+    "defaultMessage": "Some segments have unsaved edits. Leave without saving?"
   },
   "moonxzY9iq": {
     "defaultMessage": "Công việc đến từ sản phẩm, marketing, hỗ trợ và kỹ thuật qua nhiều kênh khác nhau mà không có đầu mối tiếp nhận chung."
@@ -3460,6 +3571,9 @@
   },
   "nE0iR4v6Zt": {
     "defaultMessage": "Di động"
+  },
+  "nE4gAmZP2R": {
+    "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
   },
   "nEBGfsZw1I": {
     "defaultMessage": "Đang chạy"
@@ -3632,6 +3746,9 @@
   "ppXDMSLgyj": {
     "defaultMessage": "Không tải được bảng điều khiển hàng đợi"
   },
+  "pwrS5bq0q7": {
+    "defaultMessage": "Create key"
+  },
   "py4sv3RBJU": {
     "defaultMessage": "Đảm bảo giọng điệu thương hiệu và thuật ngữ"
   },
@@ -3788,6 +3905,9 @@
   "sAOynMMuiJ": {
     "defaultMessage": "Thử lại"
   },
+  "sCwvAHmqAI": {
+    "defaultMessage": "Failed to load API keys"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "Tìm kiếm micro..."
   },
@@ -3799,6 +3919,9 @@
   },
   "sZFiP5Oe8M": {
     "defaultMessage": "Khi công việc ra mắt bị rải rác, việc dịch thuật trở thành một cuộc chạy nước rút vào phút chót."
+  },
+  "sishbO9DCq": {
+    "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working."
   },
   "sjmGDLHpLL": {
     "defaultMessage": "Bối cảnh thương hiệu"
@@ -3935,6 +4058,9 @@
   "uZnk0UoDEu": {
     "defaultMessage": "{count} đã chọn"
   },
+  "uadZLjPGYZ": {
+    "defaultMessage": "{position} / {total}"
+  },
   "ubk8Jr6n+B": {
     "defaultMessage": "Kiểm tra định dạng & QA"
   },
@@ -3985,6 +4111,9 @@
   },
   "vFJiS8I8Kx": {
     "defaultMessage": "Được xây dựng cho các hoạt động bản địa hóa ở quy mô lớn"
+  },
+  "vHkuFGKp7T": {
+    "defaultMessage": "Failed to create API key"
   },
   "vHurxfGj2i": {
     "defaultMessage": "Tìm ngữ cảnh cho một chuỗi"
@@ -4111,6 +4240,9 @@
   },
   "wgVc9diqXQ": {
     "defaultMessage": "Phê duyệt có sự tham gia của con người"
+  },
+  "whnz/Xptx4": {
+    "defaultMessage": "Cancel"
   },
   "whr/nciIbp": {
     "defaultMessage": "Xóa lựa chọn"
@@ -4265,6 +4397,9 @@
   "z4vfspWg4+": {
     "defaultMessage": "Đã sao chép URL callback OAuth"
   },
+  "z5++P6iegy": {
+    "defaultMessage": "API keys failed to load."
+  },
   "z6J/H68BKd": {
     "defaultMessage": "Kiểm soát nguồn"
   },
@@ -4285,6 +4420,9 @@
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Kho lưu trữ đã bật đã được cập nhật"
+  },
+  "zMB0hQFeRq": {
+    "defaultMessage": "Revoking..."
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Mở menu tài khoản của {name}"

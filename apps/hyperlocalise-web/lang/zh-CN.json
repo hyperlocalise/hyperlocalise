@@ -2,6 +2,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "暂无描述"
   },
+  "++VvL4EEbo": {
+    "defaultMessage": "Copied"
+  },
   "+1iajv5nbm": {
     "defaultMessage": "菲律宾语（菲律宾）"
   },
@@ -136,6 +139,9 @@
   },
   "0+GXVlndL6": {
     "defaultMessage": "批准"
+  },
+  "0+lekb0oBh": {
+    "defaultMessage": "API key created"
   },
   "06dt5VSN/y": {
     "defaultMessage": "产品图片占位符"
@@ -476,6 +482,9 @@
   "4NIhoyP8P+": {
     "defaultMessage": "使用您偏好的 LLM 起草翻译"
   },
+  "4Nb8hxfYt5": {
+    "defaultMessage": "API key revoked"
+  },
   "4NfxqMMl1K": {
     "defaultMessage": "检测已更改的字符串"
   },
@@ -569,11 +578,17 @@
   "5dpVYaBmRK": {
     "defaultMessage": "总成本"
   },
+  "5eoi21fmqC": {
+    "defaultMessage": "Copy"
+  },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub 拒绝了安装 ID。请确认该应用已安装在预期的账户上。"
   },
   "5yXqdk0MWc": {
     "defaultMessage": "从新文章到受监控的语言区域覆盖"
+  },
+  "60PQQ7C+fN": {
+    "defaultMessage": "Last used {date}"
   },
   "63np7ewMDD": {
     "defaultMessage": "捕捉源更改，分配本地化工作，收集上下文，并在您现有的工具中始终由人工审核把控。"
@@ -598,6 +613,9 @@
   },
   "6QjQu7ZEVO": {
     "defaultMessage": "{triggerSource} · 已完成 {completedAt}"
+  },
+  "6RuyJHJCyu": {
+    "defaultMessage": "Revoke"
   },
   "6eyR0nBKXG": {
     "defaultMessage": "连接 Crowdin 失败"
@@ -884,6 +902,9 @@
   "9pmdbGAxZ4": {
     "defaultMessage": "无法生成 GitHub 安装 URL"
   },
+  "9uVn8mc+mK": {
+    "defaultMessage": "e.g. Production CI"
+  },
   "9w0U+WoX/B": {
     "defaultMessage": "将内容路由给市场和法务审核人员"
   },
@@ -1010,6 +1031,9 @@
   "BgfpkbN4Fe": {
     "defaultMessage": "Knowledge"
   },
+  "Bh7oPsMHrP": {
+    "defaultMessage": "Refresh the page to try again."
+  },
   "BjoXu+/Pje": {
     "defaultMessage": "本地化检查"
   },
@@ -1079,6 +1103,12 @@
   "CUMVPg+yCv": {
     "defaultMessage": "它是如何运作的"
   },
+  "CWXh32oIoB": {
+    "defaultMessage": "{prefix}••••••••"
+  },
+  "CWdGpW4jOj": {
+    "defaultMessage": "Strings"
+  },
   "CfAFoekPz1": {
     "defaultMessage": "{providerName} projects"
   },
@@ -1141,6 +1171,9 @@
   },
   "DOGd1ZI3w4": {
     "defaultMessage": "本地化项目经理"
+  },
+  "DSm/l7fomX": {
+    "defaultMessage": "Revoke API key"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "面向支持和本地化审核员的路线"
@@ -1424,6 +1457,9 @@
   "HWwdf4dk7T": {
     "defaultMessage": "大多数审校周期之所以停滞，是因为译者无法看到屏幕、术语表、意图或产品细微差别。Hyperlocalise 将这些上下文放在字符串旁边。"
   },
+  "HZrRUnuo70": {
+    "defaultMessage": "Copy this key now. You will not be able to see it again."
+  },
   "HZtAltEBuQ": {
     "defaultMessage": "文件中附加了上下文"
   },
@@ -1459,6 +1495,9 @@
   },
   "IHNG6SIjSG": {
     "defaultMessage": "由于没有自动化回归层，错误的翻译会进入生产环境。"
+  },
+  "IJDgzVk+ER": {
+    "defaultMessage": "Create API key"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "文件"
@@ -1582,6 +1621,9 @@
   },
   "K+AvrhTOJl": {
     "defaultMessage": "已复制"
+  },
+  "K0Maj++lc6": {
+    "defaultMessage": "No API keys yet"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "支持内容在以英文发布的那一刻起就会过时"
@@ -1778,8 +1820,14 @@
   "NPcxGbshkv": {
     "defaultMessage": "启用检查运行"
   },
+  "NX9i6pdgvw": {
+    "defaultMessage": "Created {date}"
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
+  },
+  "NisKtP5fCJ": {
+    "defaultMessage": "Failed to revoke API key"
   },
   "NjO8LhO0p7": {
     "defaultMessage": "正在保存…"
@@ -1879,6 +1927,9 @@
   },
   "P7DyqhOghg": {
     "defaultMessage": "没有控制台输出"
+  },
+  "P8buB19/yY": {
+    "defaultMessage": "API keys"
   },
   "PD89ps+Bh6": {
     "defaultMessage": "本地化质量监控 | Hyperlocalise"
@@ -2042,6 +2093,12 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "访问被拒绝"
   },
+  "RbHK79ne0Y": {
+    "defaultMessage": "Strings"
+  },
+  "RcUcWXknuU": {
+    "defaultMessage": "Never"
+  },
   "ReZgZHvqUS": {
     "defaultMessage": "模糊匹配"
   },
@@ -2068,6 +2125,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "思维链"
+  },
+  "S2pzZyn+jp": {
+    "defaultMessage": "Revoke key"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "重新连接 Slack"
@@ -2105,6 +2165,9 @@
   "ScESvsRyBk": {
     "defaultMessage": "Hyperlocalise 位于 LLM 提供商和 TMS 工具之间，即使底层的模型、供应商和审校系统不断变化，也能让团队保持在同一个工作流程中。"
   },
+  "ScpiJIZOJM": {
+    "defaultMessage": "Give your key a name so you can identify it later."
+  },
   "SgpR5Qp/zA": {
     "defaultMessage": "GitHub 发布本地化"
   },
@@ -2140,6 +2203,9 @@
   },
   "TBagRGINiT": {
     "defaultMessage": "定时触发和由 GitHub 触发的确定性工作流"
+  },
+  "TE3bLZyBSZ": {
+    "defaultMessage": "<b>Reasoning:</b> {reasoning}"
   },
   "TEXn81XSVY": {
     "defaultMessage": "每天在 {time} · {timezone}"
@@ -2185,6 +2251,9 @@
   },
   "TpaF4AqL/5": {
     "defaultMessage": "重置自动化设置？"
+  },
+  "TrnH0+MELk": {
+    "defaultMessage": "Failed to copy to clipboard"
   },
   "TvKxxMeDL1": {
     "defaultMessage": "在草稿提交给人工审核之前，强制执行术语、字符限制和产品语调。"
@@ -2243,6 +2312,9 @@
   "V+8wDWpBnh": {
     "defaultMessage": "所有字符串"
   },
+  "V/CBn2NY6n": {
+    "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace."
+  },
   "V04dsqCSZQ": {
     "defaultMessage": "No localized image yet"
   },
@@ -2266,6 +2338,9 @@
   },
   "VGayu+ZFkL": {
     "defaultMessage": "上一个片段（{shortcut}）"
+  },
+  "VH9bOCu5nr": {
+    "defaultMessage": "Create API key"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "这个字符串是什么意思，以及它在哪里使用？"
@@ -2291,8 +2366,14 @@
   "VTQVrhBIAm": {
     "defaultMessage": "在 v0 中打开"
   },
+  "VUwFgX4OmD": {
+    "defaultMessage": "Permissions: {permissions}"
+  },
   "VWQFJ0pM9H": {
     "defaultMessage": "市场规则、语音偏好和重复错误在整个工作流中保持可见。"
+  },
+  "VZ/tPAEVdg": {
+    "defaultMessage": "API Keys"
   },
   "Vb+OMqzvaE": {
     "defaultMessage": "为此仓库推送源内容、拉取翻译，并发布本地化检查。"
@@ -2525,6 +2606,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "源文件"
   },
+  "ZC65JlwD3i": {
+    "defaultMessage": "Loading API keys..."
+  },
   "ZF5d+f8aEU": {
     "defaultMessage": "开始对话以在此处查看消息"
   },
@@ -2569,6 +2653,9 @@
   },
   "ZtpmqfuRlV": {
     "defaultMessage": "提取结构、链接和产品术语"
+  },
+  "ZuaK6pQTdl": {
+    "defaultMessage": "Key name"
   },
   "ZurV/2CmHO": {
     "defaultMessage": "持续监控"
@@ -2617,6 +2704,9 @@
   },
   "aGnEykoMgS": {
     "defaultMessage": "将已批准的翻译同步回您的 CMS"
+  },
+  "aMf9NbDyem": {
+    "defaultMessage": "No image yet"
   },
   "aWf83qmrdq": {
     "defaultMessage": "专为本地化运营和发布信心打造"
@@ -2677,6 +2767,9 @@
   },
   "bW5VkndWCk": {
     "defaultMessage": "电子邮件代理已禁用"
+  },
+  "bXM2sr8gtz": {
+    "defaultMessage": "API key copied to clipboard"
   },
   "bYpd314kqN": {
     "defaultMessage": "本地化记忆层"
@@ -2767,6 +2860,9 @@
   },
   "d2lnyxMtP0": {
     "defaultMessage": "一位开发者打开了一个拉取请求，将十四条 UI 字符串重命名并新增六条。Hyperlocalise 在 PR 上评论受影响的语言环境，使用链接的发布简报中的术语表上下文生成翻译草稿，在 Lokalise 中打开审校任务，运行 GitHub Action 以验证所有目标语言环境都已覆盖，并在德语和日语审校者批准更新后的定价术语之前阻止合并。"
+  },
+  "d4ixdVNgC5": {
+    "defaultMessage": "Creating..."
   },
   "d6ELhmM7BL": {
     "defaultMessage": "AI 有助于解释权衡取舍，但人工审校者始终掌握最终决定权。"
@@ -3134,6 +3230,9 @@
   "iV4M/BRREW": {
     "defaultMessage": "附件"
   },
+  "iXddAxYfyx": {
+    "defaultMessage": "{arg} · {type}"
+  },
   "iZaQ7K2itB": {
     "defaultMessage": "输入网址..."
   },
@@ -3224,6 +3323,9 @@
   "jgrmHo9SE2": {
     "defaultMessage": "Failed"
   },
+  "jh2RfUdWl3": {
+    "defaultMessage": "Done"
+  },
   "jhMzSbK5qz": {
     "defaultMessage": "请稍后再试。如果问题仍然存在，请联系支持或选择其他组织。"
   },
@@ -3310,6 +3412,9 @@
   },
   "kod/dgRhlc": {
     "defaultMessage": "已复制入站电子邮件"
+  },
+  "ksrwIvV64s": {
+    "defaultMessage": "Workspace settings"
   },
   "kuwnF7iUJu": {
     "defaultMessage": "播放预览"
@@ -3413,6 +3518,9 @@
   "mV0v+ofKFK": {
     "defaultMessage": "新请求"
   },
+  "mctwKXU94p": {
+    "defaultMessage": "Leave page with unsaved changes?"
+  },
   "mdDGkHBHvr": {
     "defaultMessage": "重试"
   },
@@ -3424,6 +3532,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "说明"
+  },
+  "mmB/r+ohDb": {
+    "defaultMessage": "Some segments have unsaved edits. Leave without saving?"
   },
   "moonxzY9iq": {
     "defaultMessage": "来自产品、营销、支持和工程的工作通过不同渠道进入，没有统一的接收入口。"
@@ -3460,6 +3571,9 @@
   },
   "nE0iR4v6Zt": {
     "defaultMessage": "Mobile"
+  },
+  "nE4gAmZP2R": {
+    "defaultMessage": "Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
   },
   "nEBGfsZw1I": {
     "defaultMessage": "运行中"
@@ -3632,6 +3746,9 @@
   "ppXDMSLgyj": {
     "defaultMessage": "队列面板加载失败"
   },
+  "pwrS5bq0q7": {
+    "defaultMessage": "Create key"
+  },
   "py4sv3RBJU": {
     "defaultMessage": "强制执行品牌语调和术语"
   },
@@ -3788,6 +3905,9 @@
   "sAOynMMuiJ": {
     "defaultMessage": "重试"
   },
+  "sCwvAHmqAI": {
+    "defaultMessage": "Failed to load API keys"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "搜索麦克风..."
   },
@@ -3799,6 +3919,9 @@
   },
   "sZFiP5Oe8M": {
     "defaultMessage": "当上线工作零散分散时，翻译就会变成最后一刻的手忙脚乱。"
+  },
+  "sishbO9DCq": {
+    "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working."
   },
   "sjmGDLHpLL": {
     "defaultMessage": "品牌背景"
@@ -3935,6 +4058,9 @@
   "uZnk0UoDEu": {
     "defaultMessage": "已选择 {count} 项"
   },
+  "uadZLjPGYZ": {
+    "defaultMessage": "{position} / {total}"
+  },
   "ubk8Jr6n+B": {
     "defaultMessage": "格式与质量保证检查"
   },
@@ -3985,6 +4111,9 @@
   },
   "vFJiS8I8Kx": {
     "defaultMessage": "专为大规模本地化运营而打造"
+  },
+  "vHkuFGKp7T": {
+    "defaultMessage": "Failed to create API key"
   },
   "vHurxfGj2i": {
     "defaultMessage": "查找字符串的上下文"
@@ -4111,6 +4240,9 @@
   },
   "wgVc9diqXQ": {
     "defaultMessage": "人工审核批准"
+  },
+  "whnz/Xptx4": {
+    "defaultMessage": "Cancel"
   },
   "whr/nciIbp": {
     "defaultMessage": "清除选择"
@@ -4265,6 +4397,9 @@
   "z4vfspWg4+": {
     "defaultMessage": "已复制 OAuth 回调 URL"
   },
+  "z5++P6iegy": {
+    "defaultMessage": "API keys failed to load."
+  },
   "z6J/H68BKd": {
     "defaultMessage": "源代码管理"
   },
@@ -4285,6 +4420,9 @@
   },
   "zM/fYyJiHY": {
     "defaultMessage": "已更新已启用的仓库"
+  },
+  "zMB0hQFeRq": {
+    "defaultMessage": "Revoking..."
   },
   "zMY6O3OGwK": {
     "defaultMessage": "打开{name}的账户菜单"
