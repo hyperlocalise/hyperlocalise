@@ -14,7 +14,6 @@ import { resolveApiAuthContextFromCrowdinEmbed } from "@/lib/crowdin-app/build-a
 import {
   CROWDIN_EMBED_SESSION_HEADER,
   CROWDIN_EMBED_SESSION_TOKEN_PREFIX,
-  parseCrowdinEmbedSessionFromCookie,
   verifyCrowdinEmbedSessionToken,
   type CrowdinEmbedSessionPayload,
 } from "@/lib/crowdin-app/embed-session";
@@ -104,7 +103,12 @@ export type AuthVariables = EvlogVariables["Variables"] & {
   crowdinEmbedSession?: CrowdinEmbedSessionPayload;
 };
 
-function readCrowdinEmbedSessionToken(c: {
+/**
+ * Explicit embed credentials only — never the Path=/ embed cookie.
+ * The cookie is shared across the whole origin and must not hijack WorkOS auth
+ * on the regular app; Crowdin App clients send the header (or Bearer) instead.
+ */
+function readExplicitCrowdinEmbedSessionToken(c: {
   req: {
     header(name: string): string | undefined;
   };
@@ -122,7 +126,7 @@ function readCrowdinEmbedSessionToken(c: {
     }
   }
 
-  return parseCrowdinEmbedSessionFromCookie(c.req.header("cookie"));
+  return null;
 }
 
 export function createWorkosAuthMiddleware() {
@@ -143,7 +147,7 @@ export function createWorkosAuthMiddleware() {
         auth: { organizationSlug, teamSlug },
       });
 
-      const embedToken = readCrowdinEmbedSessionToken(c);
+      const embedToken = readExplicitCrowdinEmbedSessionToken(c);
       if (embedToken) {
         const embedSession = verifyCrowdinEmbedSessionToken(embedToken);
         if ("error" in embedSession) {

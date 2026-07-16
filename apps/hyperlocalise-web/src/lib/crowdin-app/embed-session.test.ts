@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   CROWDIN_EMBED_SESSION_TOKEN_PREFIX,
+  buildCrowdinEmbedSessionCookie,
   mintCrowdinEmbedSessionToken,
   verifyCrowdinEmbedSessionToken,
 } from "./embed-session";
@@ -42,5 +43,11 @@ describe("crowdin embed session", () => {
     expect(verifyCrowdinEmbedSessionToken(`${token}x`)).toEqual({
       error: "crowdin_embed_session_invalid",
     });
+  });
+
+  it("always sets Secure with SameSite=None on the embed cookie", () => {
+    const cookie = buildCrowdinEmbedSessionCookie("hlce_test");
+    expect(cookie).toContain("SameSite=None");
+    expect(cookie).toContain("Secure");
   });
 });

@@ -150,8 +150,8 @@ export const env = createEnv({
     CROWDIN_APP_CLIENT_SECRET: z.string().min(1).optional(),
 
     /**
-     * Secret for signing Crowdin App embed sessions. Falls back to the Crowdin
-     * App client secret, then WorkOS cookie password, then provider master key.
+     * Secret for signing Crowdin App embed sessions. Required when the Crowdin
+     * App iframe is enabled; do not reuse WorkOS or provider credential keys.
      */
     CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
 

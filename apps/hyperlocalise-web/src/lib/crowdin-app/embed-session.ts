@@ -20,12 +20,11 @@ export type CrowdinEmbedSessionPayload = {
 };
 
 function getEmbedSessionSecret() {
-  return (
-    env.CROWDIN_APP_EMBED_SESSION_SECRET ??
-    env.CROWDIN_APP_CLIENT_SECRET ??
-    env.WORKOS_COOKIE_PASSWORD ??
-    env.PROVIDER_CREDENTIALS_MASTER_KEY
-  );
+  const secret = env.CROWDIN_APP_EMBED_SESSION_SECRET?.trim();
+  if (!secret) {
+    throw new Error("crowdin_embed_session_secret_missing");
+  }
+  return secret;
 }
 
 function encodePayload(payload: CrowdinEmbedSessionPayload) {
@@ -40,9 +39,6 @@ export function mintCrowdinEmbedSessionToken(
   input: Omit<CrowdinEmbedSessionPayload, "v" | "exp"> & { expiresInSeconds?: number },
 ): string {
   const secret = getEmbedSessionSecret();
-  if (!secret) {
-    throw new Error("crowdin_embed_session_secret_missing");
-  }
 
   const payload: CrowdinEmbedSessionPayload = {
     v: 1,
@@ -63,8 +59,10 @@ export function mintCrowdinEmbedSessionToken(
 export function verifyCrowdinEmbedSessionToken(
   token: string,
 ): CrowdinEmbedSessionPayload | { error: string } {
-  const secret = getEmbedSessionSecret();
-  if (!secret) {
+  let secret: string;
+  try {
+    secret = getEmbedSessionSecret();
+  } catch {
     return { error: "crowdin_embed_session_secret_missing" };
   }
 
@@ -118,16 +116,14 @@ export function parseCrowdinEmbedSessionFromCookie(cookieHeader: string | undefi
   return token || null;
 }
 
-export function buildCrowdinEmbedSessionCookie(token: string, secure: boolean) {
-  const parts = [
+export function buildCrowdinEmbedSessionCookie(token: string): string {
+  // SameSite=None requires Secure; browsers reject the pair otherwise.
+  return [
     `${CROWDIN_EMBED_SESSION_COOKIE}=${token}`,
     "Path=/",
     "HttpOnly",
     "SameSite=None",
+    "Secure",
     `Max-Age=${EMBED_SESSION_TTL_SECONDS}`,
-  ];
-  if (secure) {
-    parts.push("Secure");
-  }
-  return parts.join("; ");
+  ].join("; ");
 }

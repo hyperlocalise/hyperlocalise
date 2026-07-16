@@ -1,9 +1,17 @@
+import { createHmac } from "node:crypto";
+
 import jwt from "jsonwebtoken";
 import { describe, expect, it } from "vite-plus/test";
 import { testClient } from "hono/testing";
 
 import { app } from "@/api/app";
 import { env } from "@/lib/env";
+
+function signCrowdinEventBody(rawBody: string) {
+  return createHmac("sha256", env.CROWDIN_APP_CLIENT_SECRET!)
+    .update(rawBody, "utf8")
+    .digest("hex");
+}
 
 describe("crowdin app routes", () => {
   it("serves session errors for invalid jwt", async () => {
@@ -18,16 +26,40 @@ describe("crowdin app routes", () => {
     });
   });
 
-  it("rejects install payloads missing secrets", async () => {
-    const client = testClient(app);
-    const response = await client.api["crowdin-app"].events.installed.$post({
-      json: {
+  it("rejects install events without a Crowdin signature", async () => {
+    const response = await app.request("/api/crowdin-app/events/installed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         appId: "app",
-        // missing appSecret
+        appSecret: "secret",
         organizationId: 1,
         userId: 2,
         baseUrl: "https://api.crowdin.com",
-      } as never,
+      }),
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "crowdin_event_signature_missing",
+    });
+  });
+
+  it("rejects signed install payloads missing secrets", async () => {
+    const rawBody = JSON.stringify({
+      appId: "app",
+      organizationId: 1,
+      userId: 2,
+      baseUrl: "https://api.crowdin.com",
+    });
+
+    const response = await app.request("/api/crowdin-app/events/installed", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Crowdin-Content-Checksum": signCrowdinEventBody(rawBody),
+      },
+      body: rawBody,
     });
 
     expect(response.status).toBe(400);

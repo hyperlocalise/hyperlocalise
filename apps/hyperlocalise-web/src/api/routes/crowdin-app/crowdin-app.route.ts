@@ -3,6 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 
 import { badRequestResponse, unauthorizedResponse } from "@/api/response.schema";
+import { verifyCrowdinAppEventSignature } from "@/lib/crowdin-app/event-signature";
 import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import {
   buildCrowdinEmbedSessionCookie,
@@ -38,21 +39,37 @@ const validateSessionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateInstalledBody = validator("json", (value, c) => {
-  const parsed = crowdinAppInstalledBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return badRequestResponse(c, "invalid_crowdin_app_install_payload");
+async function readVerifiedCrowdinAppEventBody(c: {
+  req: {
+    text(): Promise<string>;
+    header(name: string): string | undefined;
+  };
+  json(body: { error: string }, status: 401): Response;
+}) {
+  const rawBody = await c.req.text();
+  const verified = verifyCrowdinAppEventSignature({
+    rawBody,
+    contentChecksumHeader: c.req.header("x-crowdin-content-checksum"),
+    signatureHeader: c.req.header("x-crowdin-signature"),
+  });
+  if ("error" in verified) {
+    return {
+      errorResponse: unauthorizedResponse(
+        c,
+        verified.error,
+        "Crowdin App event signature is invalid.",
+      ),
+    };
   }
-  return parsed.data;
-});
 
-const validateUninstallBody = validator("json", (value, c) => {
-  const parsed = crowdinAppUninstallBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return badRequestResponse(c, "invalid_crowdin_app_uninstall_payload");
+  try {
+    return { rawBody, json: JSON.parse(rawBody) as unknown };
+  } catch {
+    return {
+      errorResponse: badRequestResponse(c, "invalid_crowdin_app_event_payload"),
+    };
   }
-  return parsed.data;
-});
+}
 
 export function createCrowdinAppRoutes() {
   return new Hono()
@@ -79,8 +96,7 @@ export function createCrowdinAppRoutes() {
         crowdinProjectId: resolved.crowdinProjectId,
       });
 
-      const secure = c.req.url.startsWith("https://");
-      c.header("Set-Cookie", buildCrowdinEmbedSessionCookie(embedToken, secure));
+      c.header("Set-Cookie", buildCrowdinEmbedSessionCookie(embedToken));
 
       return c.json(
         {
@@ -99,14 +115,23 @@ export function createCrowdinAppRoutes() {
         200,
       );
     })
-    .post("/events/installed", validateInstalledBody, async (c) => {
-      const body = c.req.valid("json");
+    .post("/events/installed", async (c) => {
+      const verified = await readVerifiedCrowdinAppEventBody(c);
+      if ("errorResponse" in verified) {
+        return verified.errorResponse;
+      }
+
+      const parsed = crowdinAppInstalledBodySchema.safeParse(verified.json);
+      if (!parsed.success) {
+        return badRequestResponse(c, "invalid_crowdin_app_install_payload");
+      }
+
       try {
-        const installationId = await upsertCrowdinAppInstallation(body);
+        const installationId = await upsertCrowdinAppInstallation(parsed.data);
         logger.info(
           {
             installationId,
-            crowdinOrganizationId: body.organizationId,
+            crowdinOrganizationId: parsed.data.organizationId,
           },
           "crowdin app installation saved",
         );
@@ -121,13 +146,22 @@ export function createCrowdinAppRoutes() {
         return badRequestResponse(c, "crowdin_app_install_failed");
       }
     })
-    .post("/events/uninstall", validateUninstallBody, async (c) => {
-      const body = c.req.valid("json");
+    .post("/events/uninstall", async (c) => {
+      const verified = await readVerifiedCrowdinAppEventBody(c);
+      if ("errorResponse" in verified) {
+        return verified.errorResponse;
+      }
+
+      const parsed = crowdinAppUninstallBodySchema.safeParse(verified.json);
+      if (!parsed.success) {
+        return badRequestResponse(c, "invalid_crowdin_app_uninstall_payload");
+      }
+
       try {
-        await deleteCrowdinAppInstallation(body);
+        await deleteCrowdinAppInstallation(parsed.data);
         logger.info(
           {
-            crowdinOrganizationId: body.organizationId,
+            crowdinOrganizationId: parsed.data.organizationId,
           },
           "crowdin app installation removed",
         );
