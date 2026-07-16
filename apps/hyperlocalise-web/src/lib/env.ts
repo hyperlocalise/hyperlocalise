@@ -156,7 +156,9 @@ export const env = createEnv({
     CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
 
     /**
-     * Comma-separated CSP frame-ancestors for `/crowdin-app/*` (defaults to Crowdin hosts).
+     * Extra CSP frame-ancestors for `/crowdin-app/*`, merged with Crowdin SaaS
+     * defaults. Use for Crowdin Enterprise custom UI domains (CNAME), e.g.
+     * `https://translate.acme.com`. Applied by the Next proxy at runtime.
      */
     CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
 

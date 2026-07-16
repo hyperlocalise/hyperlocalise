@@ -160,7 +160,7 @@ New threads use `source: chat_ui` and the mapped Hyperlocalise `projectId`.
 | Ambiguous Crowdin org → Hyperlocalise org | Require a unique match; otherwise error |
 | `SameSite=None` cookie blocked | Fallback: bootstrap returns a bearer token used as `Authorization` |
 | AUTH_INVARIANTS drift | Document embed session as an explicit exception with the same capability checks |
-| Enterprise Crowdin domains | Configurable `frame-ancestors` allowlist |
+| Enterprise Crowdin domains | Proxy sets `frame-ancestors` = Crowdin defaults ∪ `CROWDIN_APP_FRAME_ANCESTORS` (custom UI CNAMEs); do not also set CSP in `next.config` (multiple CSPs intersect) |
 
 ## Out of scope (v1)
 

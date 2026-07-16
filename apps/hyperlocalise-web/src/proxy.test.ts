@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import proxy, { ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
 
@@ -132,5 +133,16 @@ describe("proxy", () => {
 
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
+  });
+
+  it("sets Crowdin App frame-ancestors CSP on iframe pages without AuthKit", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/crowdin-app/inbox"), {} as never);
+
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("Content-Security-Policy")).toBe(buildCrowdinAppFrameAncestorsCsp());
+    expect(response?.headers.get("X-Frame-Options")).toBeNull();
   });
 });
