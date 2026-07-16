@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md"],
   },
+  // Crowdin App frame-ancestors CSP is set at runtime in `src/proxy.ts`
+  // (defaults ∪ CROWDIN_APP_FRAME_ANCESTORS). Do not also set CSP here —
+  // multiple CSP headers intersect and would block Enterprise custom domains.
 };
 
 export default withWorkflow(nextConfig);

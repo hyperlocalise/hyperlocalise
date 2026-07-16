@@ -1,0 +1,8 @@
+.crowdin-app-root {
+  --app-shell-content-height: 100svh;
+}
+
+.crowdin-app-root main[data-organization] {
+  margin: 0 !important;
+  height: 100svh;
+}

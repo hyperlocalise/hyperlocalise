@@ -10,6 +10,13 @@ import {
   OrganizationSlugUnresolvableError,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { resolveApiAuthContextFromCrowdinEmbed } from "@/lib/crowdin-app/build-auth-context";
+import {
+  CROWDIN_EMBED_SESSION_HEADER,
+  CROWDIN_EMBED_SESSION_TOKEN_PREFIX,
+  verifyCrowdinEmbedSessionToken,
+  type CrowdinEmbedSessionPayload,
+} from "@/lib/crowdin-app/embed-session";
 
 export type WorkosUserIdentity = {
   workosUserId: string;
@@ -93,15 +100,38 @@ export { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 
 export type AuthVariables = EvlogVariables["Variables"] & {
   auth: ApiAuthContext;
+  crowdinEmbedSession?: CrowdinEmbedSessionPayload;
 };
+
+/**
+ * Explicit embed credentials only — never the Path=/ embed cookie.
+ * The cookie is shared across the whole origin and must not hijack WorkOS auth
+ * on the regular app; Crowdin App clients send the header (or Bearer) instead.
+ */
+function readExplicitCrowdinEmbedSessionToken(c: {
+  req: {
+    header(name: string): string | undefined;
+  };
+}) {
+  const headerToken = c.req.header(CROWDIN_EMBED_SESSION_HEADER)?.trim();
+  if (headerToken) {
+    return headerToken;
+  }
+
+  const authorization = c.req.header("authorization");
+  if (authorization?.toLowerCase().startsWith("bearer ")) {
+    const token = authorization.slice("bearer ".length).trim();
+    if (token.startsWith(CROWDIN_EMBED_SESSION_TOKEN_PREFIX)) {
+      return token;
+    }
+  }
+
+  return null;
+}
 
 export function createWorkosAuthMiddleware() {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
-      if (!c.req.raw.headers.has("cookie")) {
-        throw new Error("missing_auth_context");
-      }
-
       const requestUrl = new URL(c.req.url);
       const organizationSlug =
         c.req.param("organizationSlug") ||
@@ -116,6 +146,41 @@ export function createWorkosAuthMiddleware() {
       c.get("log").set({
         auth: { organizationSlug, teamSlug },
       });
+
+      const embedToken = readExplicitCrowdinEmbedSessionToken(c);
+      if (embedToken) {
+        const embedSession = verifyCrowdinEmbedSessionToken(embedToken);
+        if ("error" in embedSession) {
+          throw new Error("missing_auth_context");
+        }
+        if (organizationSlug && organizationSlug !== embedSession.hlOrganizationSlug) {
+          throw new Error("organization_access_denied");
+        }
+
+        const authFromEmbed = await resolveApiAuthContextFromCrowdinEmbed(embedSession);
+        if (!authFromEmbed) {
+          throw new Error("organization_access_denied");
+        }
+
+        c.set("auth", authFromEmbed);
+        c.set("crowdinEmbedSession", embedSession);
+        c.get("log").set({
+          auth: {
+            organizationSlug,
+            teamSlug,
+            localUserId: authFromEmbed.user.localUserId,
+            localOrganizationId: authFromEmbed.organization.localOrganizationId,
+            activeTeamId: authFromEmbed.activeTeam?.id,
+            channel: "crowdin_embed",
+          },
+        });
+        await next();
+        return;
+      }
+
+      if (!c.req.raw.headers.has("cookie")) {
+        throw new Error("missing_auth_context");
+      }
 
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),

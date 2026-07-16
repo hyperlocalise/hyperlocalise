@@ -9,17 +9,36 @@ import {
 } from "@/lib/app-i18n/locales";
 import { isFixtureAuthEnabled } from "@/lib/e2e/config";
 import { hasFixtureSessionCookie } from "@/lib/e2e/fixture-auth";
+import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 
 const workosProxy = authkitProxy();
 type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
 
+function isCrowdinAppPath(pathname: string) {
+  return pathname === "/crowdin-app" || pathname.startsWith("/crowdin-app/");
+}
+
+function applyCrowdinAppFrameAncestors(response: NextResponse): NextResponse {
+  // Single CSP source for iframe HTML — see frame-ancestors.ts.
+  response.headers.delete("X-Frame-Options");
+  response.headers.set("Content-Security-Policy", buildCrowdinAppFrameAncestorsCsp());
+  return response;
+}
+
 function shouldBypassWorkosProxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Crowdin App iframe pages authenticate via Crowdin JWT + embed session.
+  if (isCrowdinAppPath(pathname)) {
+    return true;
+  }
+
   if (!isFixtureAuthEnabled()) {
     return false;
   }
 
-  if (request.nextUrl.pathname.startsWith("/api/e2e/")) {
+  if (pathname.startsWith("/api/e2e/")) {
     return true;
   }
 
@@ -79,7 +98,11 @@ export function ensureRequestUrlHeader(request: NextRequest, response: NextRespo
 
 async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
   if (shouldBypassWorkosProxy(request)) {
-    return nextWithRequestUrl(request);
+    const response = nextWithRequestUrl(request);
+    if (isCrowdinAppPath(request.nextUrl.pathname)) {
+      return applyCrowdinAppFrameAncestors(response);
+    }
+    return response;
   }
 
   const response = await workosProxy(request, event);
@@ -93,7 +116,7 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];
 
 function splitLocalePath(pathname: string): {
   locale: string | null;

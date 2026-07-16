@@ -143,6 +143,25 @@ export const env = createEnv({
     /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
+    /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
+    CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Crowdin App OAuth client secret used to verify Crowdin Apps JWTs. */
+    CROWDIN_APP_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Secret for signing Crowdin App embed sessions. Required when the Crowdin
+     * App iframe is enabled; do not reuse WorkOS or provider credential keys.
+     */
+    CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
+
+    /**
+     * Extra CSP frame-ancestors for `/crowdin-app/*`, merged with Crowdin SaaS
+     * defaults. Use for Crowdin Enterprise custom UI domains (CNAME), e.g.
+     * `https://translate.acme.com`. Applied by the Next proxy at runtime.
+     */
+    CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
+
     /** Enables fixture auth routes and session bypass for browser e2e tests. */
     E2E_AUTH_MODE: z.enum(["fixture", "workos"]).optional(),
 
@@ -161,6 +180,9 @@ export const env = createEnv({
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
+
+    /** Crowdin Apps iframe helper script CDN URL. */
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -232,6 +254,15 @@ export const env = createEnv({
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    CROWDIN_APP_CLIENT_ID:
+      process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
+    CROWDIN_APP_CLIENT_SECRET:
+      process.env.CROWDIN_APP_CLIENT_SECRET ??
+      (isTestEnv ? "test-crowdin-app-client-secret" : undefined),
+    CROWDIN_APP_EMBED_SESSION_SECRET:
+      process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
+      (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
+    CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
     E2E_AUTH_MODE: process.env.E2E_AUTH_MODE,
     E2E_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
@@ -242,5 +273,8 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??
       (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC:
+      process.env.NEXT_PUBLIC_CROWDIN_IFRAME_SRC ??
+      (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
   },
 });

@@ -43,9 +43,14 @@ type OrganizationExternalTmsProviderCredential =
 
 export type ExternalTmsCredential = Omit<
   OrganizationExternalTmsProviderCredential,
-  "authMode" | "oauthExpiresAt"
+  "authMode" | "oauthExpiresAt" | "externalOrganizationId"
 > &
-  Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
+  Partial<
+    Pick<
+      OrganizationExternalTmsProviderCredential,
+      "authMode" | "oauthExpiresAt" | "externalOrganizationId"
+    >
+  >;
 
 async function runInDatabaseTransaction<T>(
   database: DatabaseClient | undefined,
