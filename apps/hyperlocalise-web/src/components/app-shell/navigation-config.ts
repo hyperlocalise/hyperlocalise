@@ -5,6 +5,7 @@ import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
@@ -43,6 +44,7 @@ export type NavigationItem = {
   featureFlagKey?:
     | typeof WORKSPACE_AUTOMATIONS_FLAG
     | typeof WORKSPACE_KNOWLEDGE_FLAG
+    | typeof WORKSPACE_ISSUES_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
 
@@ -113,6 +115,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("issues"),
           icon: ClipboardListIcon,
+          featureFlagKey: WORKSPACE_ISSUES_FLAG,
         },
         {
           label: intl.formatMessage({
@@ -292,6 +295,7 @@ export function buildProjectNavigationItems(
       }),
       href: project("issue-sheet"),
       icon: ClipboardListIcon,
+      featureFlagKey: WORKSPACE_ISSUES_FLAG,
     },
     {
       label: intl.formatMessage({

@@ -7,6 +7,8 @@ import {
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
 import { badRequestResponse, conflictResponse } from "@/api/response.schema";
+import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
+import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import {
@@ -20,7 +22,11 @@ import {
   issueSheetSetValueBodySchema,
   issueSheetUpdateIssueBodySchema,
 } from "./issue-sheet.schema";
-import { forbiddenResponse, getOwnedProject, projectNotFoundResponse } from "./project.shared";
+import {
+  getOwnedProject,
+  projectForbiddenResponse,
+  projectNotFoundResponse,
+} from "./project.shared";
 
 const service = new IssueSheetService();
 
@@ -70,6 +76,11 @@ const validateImportBody = createZodValidator(
   "invalid_issue_sheet_import_payload",
 );
 
+const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
+  workspaceIssuesFlag,
+  "Workspace issues is not enabled for this organization",
+);
+
 async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, projectId: string) {
   const project = await getOwnedProject(c.var.auth, projectId);
   if (!project) {
@@ -80,6 +91,7 @@ async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, proje
 
 export function createIssueSheetRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
+    .use("*", requireWorkspaceIssuesFeature)
     .get("/", validateIssueSheetParams, validateIssueSheetQuery, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);
@@ -97,7 +109,7 @@ export function createIssueSheetRoutes() {
     })
     .post("/", validateIssueSheetParams, validateCreateIssueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);
@@ -125,7 +137,7 @@ export function createIssueSheetRoutes() {
     })
     .post("/import", validateIssueSheetParams, validateImportBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);
@@ -172,7 +184,7 @@ export function createIssueSheetRoutes() {
     })
     .patch("/:issueId", validateIssueSheetIssueParams, validateUpdateIssueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
       const projectParams = c.req.valid("param");
       const project = await requireProject(c, projectParams.projectId);
@@ -208,7 +220,7 @@ export function createIssueSheetRoutes() {
     })
     .post("/columns", validateIssueSheetParams, validateCreateColumnBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);
@@ -233,7 +245,7 @@ export function createIssueSheetRoutes() {
     })
     .patch("/:issueId/values", validateIssueSheetIssueParams, validateSetValueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
       const projectParams = c.req.valid("param");
       const project = await requireProject(c, projectParams.projectId);

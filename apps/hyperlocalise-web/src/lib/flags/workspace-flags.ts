@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
-import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 import { db, schema } from "@/lib/database";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
@@ -11,11 +10,17 @@ import { workosAdapter } from "./workos-adapter";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
+  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
+
+export {
+  filterNavigationByWorkspaceFlags,
+  filterNavigationItemsByWorkspaceFlags,
+} from "./workspace-flag-navigation";
 
 export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_AUTOMATIONS_FLAG,
@@ -38,18 +43,26 @@ export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
+export const workspaceIssuesFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_ISSUES_FLAG,
+  defaultValue: false,
+  description: "Workspace issues and project Issue Sheet for localization issue tracking.",
+  adapter: workosAdapter(),
+});
+
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
 
-  const [automations, knowledge, visualMock] = await Promise.all([
+  const [automations, knowledge, visualMock, issues] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
     workspaceKnowledgeFlag.run({ identify }),
     workspaceVisualMockFlag.run({ identify }),
+    workspaceIssuesFlag.run({ identify }),
   ]);
 
-  return { automations, knowledge, visualMock };
+  return { automations, knowledge, visualMock, issues };
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {
@@ -113,28 +126,4 @@ export async function requireWorkspaceFeatureFlag(
   }
 
   redirect("/auth/select-organization");
-}
-
-export function filterNavigationByWorkspaceFlags(
-  groups: readonly NavigationGroup[],
-  flags: WorkspaceFeatureFlagState,
-): readonly NavigationGroup[] {
-  const enabledByKey: Record<string, boolean> = {
-    [WORKSPACE_AUTOMATIONS_FLAG]: flags.automations,
-    [WORKSPACE_KNOWLEDGE_FLAG]: flags.knowledge,
-    [WORKSPACE_VISUAL_MOCK_FLAG]: flags.visualMock,
-  };
-
-  return groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        if (!item.featureFlagKey) {
-          return true;
-        }
-
-        return enabledByKey[item.featureFlagKey] ?? false;
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
 }

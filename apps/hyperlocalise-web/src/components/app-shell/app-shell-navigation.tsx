@@ -22,6 +22,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
+import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+
 import {
   buildOrganizationPath,
   buildProjectNavigationItems,
@@ -163,7 +165,11 @@ function ProjectNavigation({
     },
   });
 
-  const resolvedItems = items ?? buildProjectNavigationItems(organizationSlug, projectId, intl);
+  const store = useAppShellStore();
+  const resolvedItems = filterNavigationItemsByWorkspaceFlags(
+    items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
+    store.workspaceFeatureFlags,
+  );
   const resolvedProjectName =
     projectName ??
     projectQuery.data?.name ??

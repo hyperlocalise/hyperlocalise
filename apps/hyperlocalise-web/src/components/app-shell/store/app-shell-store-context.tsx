@@ -4,6 +4,10 @@ import { createContext, useContext, useRef, useState, type ReactNode } from "rea
 import { usePathname } from "next/navigation";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
+import {
+  DISABLED_WORKSPACE_FEATURE_FLAGS,
+  type WorkspaceFeatureFlagState,
+} from "@/lib/flags/workos-flag-entities";
 
 import { AppShellStore, createAppShellStore } from "./app-shell-store";
 
@@ -11,12 +15,16 @@ const AppShellStoreContext = createContext<AppShellStore | null>(null);
 
 export function AppShellStoreProvider({
   defaultNavigationGroups,
+  workspaceFeatureFlags = DISABLED_WORKSPACE_FEATURE_FLAGS,
   children,
 }: {
   defaultNavigationGroups: readonly NavigationGroup[];
+  workspaceFeatureFlags?: WorkspaceFeatureFlagState;
   children: ReactNode;
 }) {
-  const [store] = useState(() => createAppShellStore(defaultNavigationGroups));
+  const [store] = useState(() =>
+    createAppShellStore(defaultNavigationGroups, workspaceFeatureFlags),
+  );
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
 

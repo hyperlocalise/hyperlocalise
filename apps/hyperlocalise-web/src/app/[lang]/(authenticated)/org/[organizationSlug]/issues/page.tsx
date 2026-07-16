@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { TypographyP } from "@/components/ui/typography";
+import { requireWorkspaceFeatureFlag, workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { IssuesPageContent } from "./_components/issues-page-content";
@@ -11,7 +12,8 @@ export default async function IssuesPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
+  await requireWorkspaceFeatureFlag(workspaceIssuesFlag, auth);
 
   return (
     <Suspense

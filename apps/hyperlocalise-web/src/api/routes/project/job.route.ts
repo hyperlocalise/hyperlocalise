@@ -54,7 +54,7 @@ import type {
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 
 import {
-  forbiddenResponse,
+  projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
@@ -368,7 +368,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -684,7 +684,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       validateUpdateAgentRunProposalReviewBody,
       async (c) => {
         if (!isReviewApproveAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -862,7 +862,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const payload = c.req.valid("json");
 
         if (!isJobProviderActionAllowed(c.var.auth.membership.role, payload.action)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
@@ -1023,7 +1023,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     )
     .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1102,7 +1102,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1231,7 +1231,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1355,7 +1355,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/mark-failed", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1425,7 +1425,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
