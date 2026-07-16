@@ -29,11 +29,6 @@ function applyCrowdinAppFrameAncestors(response: NextResponse): NextResponse {
 function shouldBypassWorkosProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Crowdin App iframe pages authenticate via Crowdin JWT + embed session.
-  if (isCrowdinAppPath(pathname)) {
-    return true;
-  }
-
   if (!isFixtureAuthEnabled()) {
     return false;
   }
@@ -98,11 +93,7 @@ export function ensureRequestUrlHeader(request: NextRequest, response: NextRespo
 
 async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
   if (shouldBypassWorkosProxy(request)) {
-    const response = nextWithRequestUrl(request);
-    if (isCrowdinAppPath(request.nextUrl.pathname)) {
-      return applyCrowdinAppFrameAncestors(response);
-    }
-    return response;
+    return nextWithRequestUrl(request);
   }
 
   const response = await workosProxy(request, event);
@@ -110,7 +101,22 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
     return response;
   }
 
-  return ensureRequestUrlHeader(request, response);
+  const isCrowdinAppRequest = isCrowdinAppPath(request.nextUrl.pathname);
+  if (isCrowdinAppRequest && response.headers.has("location")) {
+    return applyCrowdinAppFrameAncestors(
+      new NextResponse("Crowdin app unavailable", {
+        status: 503,
+        headers: { "Cache-Control": "no-store" },
+      }),
+    );
+  }
+
+  const nextResponse = ensureRequestUrlHeader(request, response);
+  if (isCrowdinAppRequest) {
+    return applyCrowdinAppFrameAncestors(nextResponse);
+  }
+
+  return nextResponse;
 }
 
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
