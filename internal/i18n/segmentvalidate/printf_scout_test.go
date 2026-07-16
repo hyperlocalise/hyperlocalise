@@ -15,6 +15,14 @@ func TestExtractExtraPlaceholdersPrintfExtended(t *testing.T) {
 			want: []string{"%i"},
 		},
 		{
+			text: "Char: %c",
+			want: []string{"%c"},
+		},
+		{
+			text: "Wide Char: %C",
+			want: []string{"%C"},
+		},
+		{
 			text: "Hex: %x",
 			want: []string{"%x"},
 		},
@@ -49,6 +57,18 @@ func TestExtractExtraPlaceholdersPrintfExtended(t *testing.T) {
 		{
 			text: "Named: %(count)i",
 			want: []string{"%(count)i"},
+		},
+		{
+			text: "Positional Object: %1$@",
+			want: []string{"%1$@"},
+		},
+		{
+			text: "Named Object: %(obj)@",
+			want: []string{"%(obj)@"},
+		},
+		{
+			text: "Non-standard object with width: %10@",
+			want: nil,
 		},
 	}
 
