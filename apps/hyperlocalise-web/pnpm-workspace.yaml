@@ -23,7 +23,7 @@ overrides:
   devalue: "5.8.1"
   qs: "6.15.3"
   "@anthropic-ai/sdk": "0.111.0"
-  postcss: "8.5.18"
+  postcss: "8.5.19"
   esbuild: "0.28.1"
   "ip-address": "10.2.0"
   hono: "4.12.30"

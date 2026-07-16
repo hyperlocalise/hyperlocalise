@@ -55,7 +55,7 @@
     "@tiptap/starter-kit": "^3.27.1",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.5.0",
-    "@vercel/sandbox": "2.5.0",
+    "@vercel/sandbox": "2.6.0",
     "@workos-inc/authkit-nextjs": "4.2.0",
     "@workos-inc/node": "^10.7.0",
     "@xyflow/react": "^12.11.1",
