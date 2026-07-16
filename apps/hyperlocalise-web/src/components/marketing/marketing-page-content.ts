@@ -1,5 +1,5 @@
-import { useCaseFooterLinks } from "@/components/marketing/use-case";
 import { productFooterLinks } from "@/components/marketing/product/product-page-content";
+import { useCaseFooterLinks } from "@/components/marketing/use-case/use-case-page-content";
 
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";

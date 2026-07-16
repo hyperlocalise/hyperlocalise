@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-import { NavbarView } from "./navbar";
+import { NavbarView } from "./navbar-view";
 
 const meta = {
   title: "Marketing/Navbar",
@@ -37,8 +37,8 @@ export const SignedOut: Story = {
     await expect(canvas.getByRole("link", { name: /Hyperlocalise/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Product" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Resources" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Join waitlist" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Join waitlist" })).toBeInTheDocument();
   },
 };
 
@@ -52,9 +52,9 @@ export const SignedIn: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Join waitlist" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Join waitlist" })).not.toBeInTheDocument();
   },
 };
 
@@ -68,9 +68,9 @@ export const AuthLoading: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Join waitlist" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Join waitlist" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
   },
 };
 
