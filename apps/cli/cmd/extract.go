@@ -59,7 +59,7 @@ func newExtractCmd() *cobra.Command {
 		Short:        "extract react-intl messages from TypeScript files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			messages, err := runExtract(args, o, cmd.OutOrStdout())
+			messages, err := runExtract(args, o, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

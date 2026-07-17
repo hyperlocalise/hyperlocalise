@@ -845,19 +845,20 @@ formatMessage({
 			"});\n",
 	)
 
-	outFile := filepath.Join(dir, "messages.json")
 	cmd := newExtractCmd()
 	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
-	cmd.SetArgs([]string{".", "--out-file", outFile})
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"."})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute extract command: %v", err)
 	}
 
-	errorOutput := out.String()
+	errorOutput := errOut.String()
 	if !strings.Contains(errorOutput, `error: extract "`) || !strings.Contains(errorOutput, "bad.ts") {
-		t.Fatalf("expected extraction error for bad.ts on stdout, got %q", errorOutput)
+		t.Fatalf("expected extraction error for bad.ts on stderr, got %q", errorOutput)
 	}
 	if !strings.Contains(errorOutput, "unterminated template literal") {
 		t.Fatalf("expected unterminated template literal detail, got %q", errorOutput)
@@ -865,17 +866,16 @@ formatMessage({
 	if strings.Contains(errorOutput, "good.ts") {
 		t.Fatalf("did not expect error for good.ts, got %q", errorOutput)
 	}
-
-	content, err := os.ReadFile(outFile)
-	if err != nil {
-		t.Fatalf("read out-file: %v", err)
+	if strings.Contains(out.String(), "error:") {
+		t.Fatalf("stdout JSON must not include error lines, got %q", out.String())
 	}
-	catalog := decodeExtractTestCatalog(t, content)
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
 	if _, ok := catalog["good.message"]; !ok {
-		t.Fatalf("missing good.message in catalog=%s", content)
+		t.Fatalf("missing good.message in catalog=%s", out.String())
 	}
 	if _, ok := catalog["bad.message"]; ok {
-		t.Fatalf("bad.message should be skipped, catalog=%s", content)
+		t.Fatalf("bad.message should be skipped, catalog=%s", out.String())
 	}
 }
 
