@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import {
   isJobProviderActionAllowed,
 } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
-import { ownedProjectWhere } from "@/api/auth/team-access";
+import { canAccessProject } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
@@ -506,6 +507,11 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
       }
 
+      const accessibleProject = await canAccessProject(c.var.auth, payload.projectId);
+      if (!accessibleProject) {
+        return notFoundResponse(c, "project_not_found", "Project not found");
+      }
+
       const [project] = await db
         .select({
           id: schema.projects.id,
@@ -513,7 +519,12 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           externalProviderKind: schema.projects.externalProviderKind,
         })
         .from(schema.projects)
-        .where(await ownedProjectWhere(c.var.auth, payload.projectId))
+        .where(
+          and(
+            eq(schema.projects.organizationId, organizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
         .limit(1);
 
       if (!project) {

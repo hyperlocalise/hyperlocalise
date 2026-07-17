@@ -1,14 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 const dbSelectMock = vi.fn();
+const getTmsProviderLiveProjectMock = vi.fn();
 
 vi.mock("@/lib/database", () => ({
   db: {
     select: dbSelectMock,
   },
   schema: {
+    projects: {
+      id: "id",
+      organizationId: "organization_id",
+      teamId: "team_id",
+      source: "source",
+    },
+    teams: {
+      id: "id",
+      organizationId: "organization_id",
+    },
+    teamMemberships: {
+      teamId: "team_id",
+      userId: "user_id",
+    },
     glossaries: {
       id: "id",
       organizationId: "organization_id",
@@ -24,7 +40,20 @@ vi.mock("@/lib/teams/default-workspace-team", () => ({
   backfillOrganizationProjectTeams: vi.fn(),
 }));
 
-function createAuthContext(): ApiAuthContext {
+vi.mock("@/lib/providers/jobs/tms-provider-live", () => ({
+  getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),
+}));
+
+vi.mock("@/api/auth/policy", () => ({
+  hasCapability: (role: string, capability: string) => {
+    if (capability === "teams:write") {
+      return role === "admin" || role === "localization_manager";
+    }
+    return true;
+  },
+}));
+
+function createAuthContext(role: "admin" | "member" = "admin"): ApiAuthContext {
   const organization = {
     workosOrganizationId: "workos_org_1",
     localOrganizationId: "org_1",
@@ -32,7 +61,7 @@ function createAuthContext(): ApiAuthContext {
     slug: null,
     membership: {
       workosMembershipId: null,
-      role: "admin",
+      role,
       accessSource: "direct",
     },
   };
@@ -50,6 +79,37 @@ function createAuthContext(): ApiAuthContext {
     activeTeam: null,
     capabilities: [],
   } as ApiAuthContext;
+}
+
+/**
+ * Chainable select mock that supports both:
+ * - `.from().where().limit()` (project / backfill lookups)
+ * - `.from().innerJoin().where()` (team membership lookups)
+ */
+function mockEmptyTeamScopedLookups() {
+  dbSelectMock.mockImplementation(() => {
+    const createThenable = (value: unknown[] = []) => {
+      const thenable: {
+        limit: ReturnType<typeof vi.fn>;
+        then: Promise<unknown[]>["then"];
+        innerJoin: ReturnType<typeof vi.fn>;
+        where: ReturnType<typeof vi.fn>;
+        from: ReturnType<typeof vi.fn>;
+      } = {
+        limit: vi.fn(async () => value),
+        then: (onFulfilled, onRejected) => Promise.resolve(value).then(onFulfilled, onRejected),
+        innerJoin: vi.fn(),
+        where: vi.fn(),
+        from: vi.fn(),
+      };
+      thenable.innerJoin.mockReturnValue(thenable);
+      thenable.where.mockReturnValue(thenable);
+      thenable.from.mockReturnValue(thenable);
+      return thenable;
+    };
+
+    return createThenable([]);
+  });
 }
 
 describe("canAccessGlossary", () => {
@@ -79,5 +139,67 @@ describe("canAccessMemory", () => {
 
     expect(result).toBeNull();
     expect(dbSelectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("canAccessProject", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    mockEmptyTeamScopedLookups();
+  });
+
+  it("allows live-only external TMS projects when no local projects row exists", async () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    getTmsProviderLiveProjectMock.mockResolvedValueOnce({
+      id: projectId,
+      name: "HL-Test",
+    });
+
+    const { canAccessProject } = await import("./team-access");
+    const result = await canAccessProject(createAuthContext("member"), projectId);
+
+    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith("org_1", "902807", {
+      actorUserId: "user_1",
+    });
+    expect(result).toEqual({ id: projectId });
+  });
+
+  it("allows live external TMS projects even when materialized outside the member's teams", async () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    getTmsProviderLiveProjectMock.mockResolvedValueOnce({
+      id: projectId,
+      name: "HL-Test",
+    });
+
+    const { canAccessProject } = await import("./team-access");
+    const result = await canAccessProject(createAuthContext("member"), projectId);
+
+    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith("org_1", "902807", {
+      actorUserId: "user_1",
+    });
+    expect(result).toEqual({ id: projectId });
+  });
+
+  it("denies external TMS projects the live provider does not return", async () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    getTmsProviderLiveProjectMock.mockResolvedValueOnce(null);
+
+    const { canAccessProject } = await import("./team-access");
+    const result = await canAccessProject(createAuthContext("member"), projectId);
+
+    expect(result).toBeNull();
   });
 });

@@ -7,19 +7,16 @@ import {
   buildProjectLinkedMemoryWhere,
   canAccessGlossary,
   canAccessMemory,
+  canAccessProject,
   canAccessStoredFile,
-  ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   isLiveProviderGlossaryId,
   isLiveProviderMemoryId,
-  parseProviderProjectId,
 } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 function organizationRecord(ctx: ToolContext) {
@@ -72,54 +69,7 @@ export function toolProjectLinkedMemoryWhere(ctx: ToolContext) {
 }
 
 export async function toolCanAccessProject(ctx: ToolContext, projectId: string) {
-  const normalizedProjectId = normalizeProjectId(projectId);
-  if (typeof normalizedProjectId !== "string" || normalizedProjectId.length === 0) {
-    return null;
-  }
-
-  const auth = apiAuthContextFromToolContext(ctx);
-
-  const [project] = await ctx.db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(await ownedProjectWhere(auth, normalizedProjectId))
-    .limit(1);
-
-  if (project) {
-    return project;
-  }
-
-  const encodedProject = parseProviderProjectId(normalizedProjectId);
-  if (!encodedProject) {
-    return null;
-  }
-
-  const [organizationProject] = await ctx.db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.organizationId, ctx.organizationId),
-        eq(schema.projects.id, normalizedProjectId),
-      ),
-    )
-    .limit(1);
-
-  if (organizationProject) {
-    return null;
-  }
-
-  const liveProject = await getTmsProviderLiveProject(
-    ctx.organizationId,
-    encodedProject.externalProjectId,
-    { actorUserId: ctx.localUserId },
-  ).catch(() => null);
-
-  if (!liveProject || liveProject.id !== normalizedProjectId) {
-    return null;
-  }
-
-  return { id: liveProject.id };
+  return canAccessProject(apiAuthContextFromToolContext(ctx), projectId);
 }
 
 export function toolCanAccessGlossary(ctx: ToolContext, glossaryId: string) {
