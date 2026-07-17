@@ -28,10 +28,7 @@ export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
         throw new Error("translation_workflow_not_configured");
       }
 
-      const existingOutput = readCreateNativeTmsJob(
-        session.run.outputSummary,
-        session.stepResults,
-      );
+      const existingOutput = readCreateNativeTmsJob(session.run.outputSummary, session.stepResults);
       if (existingOutput) {
         session.stepResults.create_native_tms_job = existingOutput;
         return existingOutput;

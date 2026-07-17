@@ -41,11 +41,13 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-function session(overrides: {
-  outputSummary?: Record<string, unknown>;
-  stepResults?: WorkspaceOrchestratorSession["stepResults"];
-  inputSnapshot?: Record<string, unknown>;
-} = {}): WorkspaceOrchestratorSession {
+function session(
+  overrides: {
+    outputSummary?: Record<string, unknown>;
+    stepResults?: WorkspaceOrchestratorSession["stepResults"];
+    inputSnapshot?: Record<string, unknown>;
+  } = {},
+): WorkspaceOrchestratorSession {
   const automation = {
     id: "automation-1",
     organizationId: "org-1",
@@ -126,10 +128,13 @@ describe("createNativeTmsJobTool", () => {
     const currentSession = session();
     const tool = createNativeTmsJobTool(currentSession);
 
-    const result = await tool.execute!({ summary: "from upload" }, {
-      toolCallId: "call-1",
-      messages: [],
-    });
+    const result = await tool.execute!(
+      { summary: "from upload" },
+      {
+        toolCallId: "call-1",
+        messages: [],
+      },
+    );
 
     expect(result).toMatchObject({
       jobId: "job_1",

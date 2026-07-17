@@ -27,10 +27,12 @@ vi.mock("@/lib/workflow/queues", () => ({
   createTranslationJobEventQueue: () => mocks.createTranslationJobEventQueue(),
 }));
 
-function session(overrides: {
-  outputSummary?: Record<string, unknown>;
-  stepResults?: WorkspaceOrchestratorSession["stepResults"];
-} = {}): WorkspaceOrchestratorSession {
+function session(
+  overrides: {
+    outputSummary?: Record<string, unknown>;
+    stepResults?: WorkspaceOrchestratorSession["stepResults"];
+  } = {},
+): WorkspaceOrchestratorSession {
   const automation = {
     id: "automation-1",
     organizationId: "org-1",

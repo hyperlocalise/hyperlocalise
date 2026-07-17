@@ -47,9 +47,7 @@ export function createAssignTranslateWithAgentTool(session: WorkspaceOrchestrato
 
       const createdJob = readCreateNativeTmsJob(session.run.outputSummary, session.stepResults);
       const resolvedJobId =
-        jobId?.trim() ||
-        (typeof createdJob?.jobId === "string" ? createdJob.jobId : null) ||
-        null;
+        jobId?.trim() || (typeof createdJob?.jobId === "string" ? createdJob.jobId : null) || null;
 
       if (!resolvedJobId) {
         throw new Error("native_tms_job_missing");
