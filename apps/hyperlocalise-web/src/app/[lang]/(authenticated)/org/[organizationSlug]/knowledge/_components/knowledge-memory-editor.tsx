@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FloppyDiskIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { HistoryIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type { KnowledgeMemoryPreviewResponse } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
+import type {
+  KnowledgeMemoryPreviewResponse,
+  KnowledgeMemoryRecord,
+} from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -15,8 +19,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
-import { getKnowledgeMemoryEditorState } from "./knowledge-memory-editor-state";
+import {
+  getKnowledgeMemoryEditorState,
+  shouldApplyKnowledgeMemoryRefresh,
+} from "./knowledge-memory-editor-state";
+import {
+  KnowledgeMemoryHistoryDialog,
+  type KnowledgeMemoryConflict,
+} from "./knowledge-memory-history-dialog";
 import {
   formatMemoryReductionPercent,
   getKnowledgeMemoryPreviewState,
@@ -39,6 +51,25 @@ function formatUpdatedAt(value: string | null) {
 }
 
 type MemoryPreview = KnowledgeMemoryPreviewResponse["memoryPreview"];
+type LoadedKnowledgeMemory = {
+  knowledgeMemory: KnowledgeMemoryRecord;
+  etag: string;
+};
+
+function parsePreconditionFailure(body: unknown): KnowledgeMemoryRecord | null {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("details" in body) ||
+    typeof body.details !== "object" ||
+    body.details === null ||
+    !("knowledgeMemory" in body.details)
+  ) {
+    return null;
+  }
+
+  return body.details.knowledgeMemory as KnowledgeMemoryRecord;
+}
 
 export function KnowledgeMemoryEditor({
   organizationSlug,
@@ -50,6 +81,13 @@ export function KnowledgeMemoryEditor({
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
+  const [savedKnowledgeMemory, setSavedKnowledgeMemory] = useState<KnowledgeMemoryRecord | null>(
+    null,
+  );
+  const [summary, setSummary] = useState("");
+  const [savedEtag, setSavedEtag] = useState('"0"');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [conflict, setConflict] = useState<KnowledgeMemoryConflict | null>(null);
   const [previewTargetLocale, setPreviewTargetLocale] = useState("");
   const [previewSourceText, setPreviewSourceText] = useState("");
   const [memoryPreview, setMemoryPreview] = useState<MemoryPreview | null>(null);
@@ -67,42 +105,95 @@ export function KnowledgeMemoryEditor({
       }
 
       const body = await response.json();
-      return body.knowledgeMemory;
+      return {
+        knowledgeMemory: body.knowledgeMemory,
+        etag: response.headers.get("etag") ?? '"0"',
+      } satisfies LoadedKnowledgeMemory;
     },
   });
 
   useEffect(() => {
-    if (!knowledgeMemoryQuery.data) {
+    if (
+      !knowledgeMemoryQuery.data ||
+      !shouldApplyKnowledgeMemoryRefresh({ content, savedContent })
+    ) {
       return;
     }
 
-    setContent(knowledgeMemoryQuery.data.content);
-    setSavedContent(knowledgeMemoryQuery.data.content);
+    setContent(knowledgeMemoryQuery.data.knowledgeMemory.content);
+    setSavedContent(knowledgeMemoryQuery.data.knowledgeMemory.content);
+    setSavedKnowledgeMemory(knowledgeMemoryQuery.data.knowledgeMemory);
+    setSavedEtag(knowledgeMemoryQuery.data.etag);
+    setSummary("");
+    setConflict(null);
     previewGeneration.current += 1;
     setMemoryPreview(null);
-  }, [knowledgeMemoryQuery.data]);
+  }, [content, knowledgeMemoryQuery.data, savedContent]);
+
+  const applyLoadedKnowledgeMemory = useCallback(
+    (knowledgeMemory: KnowledgeMemoryRecord, etag: string) => {
+      setContent(knowledgeMemory.content);
+      setSavedContent(knowledgeMemory.content);
+      setSavedKnowledgeMemory(knowledgeMemory);
+      setSavedEtag(etag);
+      setSummary("");
+      setConflict(null);
+      previewGeneration.current += 1;
+      setMemoryPreview(null);
+      queryClient.setQueryData<LoadedKnowledgeMemory>(knowledgeMemoryQueryKey(organizationSlug), {
+        knowledgeMemory,
+        etag,
+      });
+    },
+    [organizationSlug, queryClient],
+  );
 
   const saveKnowledgeMemory = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].$put({
-        param: { organizationSlug },
-        json: { content },
-      });
+    mutationFn: async (input: { content: string; summary?: string; expectedEtag: string }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].$put(
+        {
+          param: { organizationSlug },
+          json: { content: input.content, summary: input.summary },
+        },
+        { headers: { "If-Match": input.expectedEtag } },
+      );
+
+      if (response.status === 412) {
+        const latestKnowledgeMemory = parsePreconditionFailure(await response.json());
+        if (latestKnowledgeMemory) {
+          return {
+            kind: "stale" as const,
+            latestKnowledgeMemory,
+            latestEtag: response.headers.get("etag") ?? '"0"',
+          };
+        }
+        throw new Error("Knowledge Memory changed after it was loaded");
+      }
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Unable to save knowledge memory"));
+        throw new Error(await readApiError(response, "Unable to commit Knowledge Memory"));
       }
 
       const body = await response.json();
-      return body.knowledgeMemory;
+      return {
+        kind: "committed" as const,
+        knowledgeMemory: body.knowledgeMemory,
+        etag: response.headers.get("etag") ?? '"0"',
+      };
     },
-    onSuccess: async (knowledgeMemory) => {
-      setContent(knowledgeMemory.content);
-      setSavedContent(knowledgeMemory.content);
-      previewGeneration.current += 1;
-      setMemoryPreview(null);
-      await queryClient.invalidateQueries({ queryKey: knowledgeMemoryQueryKey(organizationSlug) });
-      toast.success("Knowledge memory saved");
+    onSuccess: (result, input) => {
+      if (result.kind === "stale") {
+        setConflict({
+          draftContent: input.content,
+          latestEtag: result.latestEtag,
+          latestKnowledgeMemory: result.latestKnowledgeMemory,
+        });
+        setHistoryOpen(true);
+        return;
+      }
+
+      applyLoadedKnowledgeMemory(result.knowledgeMemory, result.etag);
+      toast.success(`Committed version ${result.knowledgeMemory.version}`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -161,9 +252,12 @@ export function KnowledgeMemoryEditor({
             to avoid.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Last updated {formatUpdatedAt(knowledgeMemoryQuery.data?.updatedAt ?? null)}
-        </p>
+        <div className="text-end text-xs text-muted-foreground">
+          <p>Last updated {formatUpdatedAt(savedKnowledgeMemory?.updatedAt ?? null)}</p>
+          {savedKnowledgeMemory?.version ? (
+            <p className="mt-1">Version {savedKnowledgeMemory.version}</p>
+          ) : null}
+        </div>
       </div>
 
       {knowledgeMemoryQuery.isLoading ? (
@@ -176,7 +270,11 @@ export function KnowledgeMemoryEditor({
           onSubmit={(event) => {
             event.preventDefault();
             if (currentEditorState.canSave) {
-              saveKnowledgeMemory.mutate();
+              saveKnowledgeMemory.mutate({
+                content,
+                summary: summary.trim() || undefined,
+                expectedEtag: savedEtag,
+              });
             }
           }}
         >
@@ -187,7 +285,10 @@ export function KnowledgeMemoryEditor({
               value={content}
               readOnly={!canUpdateKnowledgeMemory}
               aria-invalid={currentEditorState.isOverLimit}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                setConflict(null);
+              }}
               className="min-h-64 resize-y border-border bg-background font-mono text-sm leading-6"
               placeholder="Example: ## Tone&#10;- Keep product copy practical and direct.&#10;- Keep Hyperlocalise untranslated."
             />
@@ -198,16 +299,35 @@ export function KnowledgeMemoryEditor({
             ) : null}
           </Field>
 
+          {canUpdateKnowledgeMemory ? (
+            <Field>
+              <FieldLabel htmlFor="knowledge-memory-summary">Version note (optional)</FieldLabel>
+              <Input
+                id="knowledge-memory-summary"
+                value={summary}
+                maxLength={KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH}
+                onChange={(event) => setSummary(event.target.value)}
+                placeholder="Explain what changed"
+              />
+            </Field>
+          ) : null}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
               {currentEditorState.characterCount}/{currentEditorState.characterLimit} characters
             </p>
-            {canUpdateKnowledgeMemory ? (
-              <Button type="submit" disabled={!currentEditorState.canSave}>
-                <HugeiconsIcon icon={FloppyDiskIcon} strokeWidth={1.8} />
-                {saveKnowledgeMemory.isPending ? "Saving" : "Save"}
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setHistoryOpen(true)}>
+                <HistoryIcon className="size-4" />
+                History
               </Button>
-            ) : null}
+              {canUpdateKnowledgeMemory ? (
+                <Button type="submit" disabled={!currentEditorState.canSave}>
+                  <HugeiconsIcon icon={FloppyDiskIcon} strokeWidth={1.8} />
+                  {saveKnowledgeMemory.isPending ? "Committing" : "Commit changes"}
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-4 border-t border-border pt-5">
@@ -300,6 +420,45 @@ export function KnowledgeMemoryEditor({
           </div>
         </form>
       )}
+
+      <KnowledgeMemoryHistoryDialog
+        organizationSlug={organizationSlug}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+        hasUnsavedChanges={currentEditorState.hasChanges}
+        currentEtag={savedEtag}
+        currentRevisionId={savedKnowledgeMemory?.revisionId ?? null}
+        conflict={conflict}
+        isCommittingConflict={saveKnowledgeMemory.isPending}
+        onCommitConflict={() => {
+          if (!conflict) {
+            return;
+          }
+          saveKnowledgeMemory.mutate({
+            content: conflict.draftContent,
+            summary: summary.trim() || undefined,
+            expectedEtag: conflict.latestEtag,
+          });
+        }}
+        onReloadLatest={() => {
+          if (!conflict) {
+            return;
+          }
+          applyLoadedKnowledgeMemory(conflict.latestKnowledgeMemory, conflict.latestEtag);
+          setHistoryOpen(false);
+        }}
+        onPreconditionFailed={(knowledgeMemory, etag) => {
+          setConflict({
+            draftContent: content,
+            latestEtag: etag,
+            latestKnowledgeMemory: knowledgeMemory,
+          });
+        }}
+        onRestored={(knowledgeMemory, etag) => {
+          applyLoadedKnowledgeMemory(knowledgeMemory, etag);
+        }}
+      />
     </section>
   );
 }

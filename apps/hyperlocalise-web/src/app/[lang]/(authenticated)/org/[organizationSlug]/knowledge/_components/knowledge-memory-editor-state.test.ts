@@ -2,7 +2,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
-import { getKnowledgeMemoryEditorState } from "./knowledge-memory-editor-state";
+import {
+  getKnowledgeMemoryEditorState,
+  shouldApplyKnowledgeMemoryRefresh,
+} from "./knowledge-memory-editor-state";
 
 describe("getKnowledgeMemoryEditorState", () => {
   it("tracks the character counter and allows saving changed content", () => {
@@ -34,5 +37,20 @@ describe("getKnowledgeMemoryEditorState", () => {
       isOverLimit: true,
       canSave: false,
     });
+  });
+
+  it("does not replace an unsaved draft during a background refresh", () => {
+    expect(
+      shouldApplyKnowledgeMemoryRefresh({
+        content: "Unsaved local guidance",
+        savedContent: "Previously loaded guidance",
+      }),
+    ).toBe(false);
+    expect(
+      shouldApplyKnowledgeMemoryRefresh({
+        content: "Previously loaded guidance",
+        savedContent: "Previously loaded guidance",
+      }),
+    ).toBe(true);
   });
 });

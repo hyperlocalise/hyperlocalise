@@ -18,3 +18,10 @@ export function getKnowledgeMemoryEditorState(input: {
     canSave: input.canUpdateKnowledgeMemory && hasChanges && !isOverLimit && !input.isSaving,
   };
 }
+
+export function shouldApplyKnowledgeMemoryRefresh(input: {
+  content: string;
+  savedContent: string;
+}) {
+  return input.content === input.savedContent;
+}
