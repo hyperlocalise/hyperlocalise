@@ -3,7 +3,7 @@ package segmentvalidate
 import (
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -46,8 +46,9 @@ func extractExtraPlaceholders(text string) []string {
 	}
 
 	// BOLT OPTIMIZATION: Only sort if there are multiple placeholders.
+	// Use modern slices.Sort for allocation-free inlined sorting.
 	if len(out) > 1 {
-		sort.Strings(out)
+		slices.Sort(out)
 	}
 	return out
 }

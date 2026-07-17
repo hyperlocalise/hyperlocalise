@@ -189,6 +189,20 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			translated: "texte",
 			wantErr:    false,
 		},
+		{
+			name:       "json_plain_source_but_translated_has_extra_icu_placeholder_ignored",
+			path:       "/pkg/en.json",
+			source:     "plain",
+			translated: "texte {extra}",
+			wantErr:    false,
+		},
+		{
+			name:       "json_plain_source_but_translated_has_malformed_icu_ignored",
+			path:       "/pkg/en.json",
+			source:     "plain",
+			translated: "texte {invalid",
+			wantErr:    false,
+		},
 	}
 
 	for _, tt := range tests {

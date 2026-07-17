@@ -2,7 +2,7 @@ package segmentvalidate
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -136,7 +136,8 @@ func extractSpecialCharLiterals(value string) []string {
 			out = append(out, token)
 		}
 	}
-	sort.Strings(out)
+	// BOLT OPTIMIZATION: Use modern slices.Sort for allocation-free inlined sorting.
+	slices.Sort(out)
 	return out
 }
 

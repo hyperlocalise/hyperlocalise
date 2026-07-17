@@ -2,11 +2,20 @@ package segmentvalidate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 )
 
 func validateICUInvariant(source, translated string) error {
+	// BOLT OPTIMIZATION: Fast-path for plain text without any potential ICU structures or HTML tags.
+	// If neither the source nor the translated text contains '{' or '<', neither can contain any ICU
+	// blocks, placeholders, or tags. We can immediately return nil, skipping space trimming and the
+	// expensive ICU AST parser for both.
+	if !strings.ContainsAny(source, "{<") && !strings.ContainsAny(translated, "{<") {
+		return nil
+	}
+
 	source = trimSpace(source)
 	translated = trimSpace(translated)
 
