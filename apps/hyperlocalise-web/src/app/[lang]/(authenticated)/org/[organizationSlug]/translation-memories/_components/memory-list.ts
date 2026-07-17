@@ -140,12 +140,12 @@ export function mapLiveTmsProviderMemoryToListRow(
     segmentCountLabel: formatSegmentCount(memory.segmentCount),
     syncState: null,
     capabilityMode: "reference_only",
-    capabilityLabel: "Read-only (live)",
+    capabilityLabel: "Read-only",
     externalUrl: memory.externalUrl,
-    lastSyncedAt: "Live",
+    lastSyncedAt: null,
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
-    updatedAt: "Live",
+    updatedAt: "—",
     projectLinkId: encodeProviderProjectId({
       providerKind,
       externalProjectId: memory.externalProjectId,
@@ -171,4 +171,40 @@ export function buildProjectIdByExternalKey(
   }
 
   return map;
+}
+
+export function filterMemoryListRows(
+  memories: readonly MemoryListRow[],
+  filters: {
+    searchQuery: string;
+    sourceFilter: string;
+    providerFilter: string;
+    syncFilter: string;
+  },
+): MemoryListRow[] {
+  return memories.filter((memory) => {
+    if (filters.searchQuery.trim()) {
+      const query = filters.searchQuery.toLowerCase();
+      const matchesName = memory.name.toLowerCase().includes(query);
+      const matchesProject = memory.externalProjectId?.toLowerCase().includes(query);
+      const matchesMemoryId = memory.externalMemoryId?.toLowerCase().includes(query);
+      if (!matchesName && !matchesProject && !matchesMemoryId) return false;
+    }
+
+    if (filters.sourceFilter !== "all" && memory.source !== filters.sourceFilter) return false;
+
+    if (filters.providerFilter !== "all") {
+      if (memory.externalProviderKind !== filters.providerFilter) return false;
+    }
+
+    if (filters.syncFilter !== "all") {
+      if (filters.syncFilter === "error") {
+        if (!memory.lastSyncErrorAt) return false;
+      } else if (memory.syncState !== filters.syncFilter) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }

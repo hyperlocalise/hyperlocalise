@@ -33,6 +33,14 @@ export function readWorkspaceFilterParam(
   return fallback;
 }
 
+/** Live TMS list rows have no sync metadata; ignore ?sync= while browsing them. */
+export function effectiveWorkspaceSyncFilter(
+  syncFilter: string,
+  ignoreSyncFilter: boolean,
+): string {
+  return ignoreSyncFilter ? "all" : syncFilter;
+}
+
 export function buildWorkspaceHref(
   path: string,
   params: Record<string, string | undefined | null>,

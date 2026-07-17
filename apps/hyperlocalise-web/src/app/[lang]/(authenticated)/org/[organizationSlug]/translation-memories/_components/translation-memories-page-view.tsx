@@ -252,7 +252,7 @@ export function TranslationMemoriesPageView({
             </WorkspaceFilterField>
           ) : null}
 
-          {hasExternalMemories && sourceFilter !== "native" ? (
+          {hasExternalMemories && sourceFilter !== "native" && !useLiveProviderMemories ? (
             <WorkspaceFilterField label="Sync" className="w-full sm:w-40">
               <Select
                 value={syncFilter}

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { effectiveWorkspaceSyncFilter } from "../../_components/workspace-filter-params";
 import {
   buildProjectIdByExternalKey,
   externalProjectLookupKey,
+  filterMemoryListRows,
+  mapLiveTmsProviderMemoryToListRow,
   mapMemoryToListRow,
 } from "./memory-list";
 
@@ -78,5 +81,99 @@ describe("memory-list", () => {
     expect(provider.segmentCountLabel).toBe("50.0k");
     expect(provider.projectLinkId).toBe("project-1");
     expect(externalProjectLookupKey("phrase", "phrase-project-9")).toBe("phrase:phrase-project-9");
+  });
+
+  it("keeps live provider memories when sync filters are ignored", () => {
+    const liveMemory = mapLiveTmsProviderMemoryToListRow(
+      {
+        id: "phrase:tm:tm-42",
+        name: "Phrase TM",
+        description: "Marketing",
+        sourceLocale: "en",
+        externalProjectId: "phrase-project-9",
+        projectName: "Marketing",
+        localeCoverage: ["en", "fr"],
+        segmentCount: 50_000,
+        externalUrl: "https://phrase.com/tm/42",
+      },
+      "phrase",
+    );
+
+    const syncedFilter = effectiveWorkspaceSyncFilter("synced", true);
+    const filtered = filterMemoryListRows([liveMemory], {
+      searchQuery: "",
+      sourceFilter: "all",
+      providerFilter: "all",
+      syncFilter: syncedFilter,
+    });
+
+    expect(liveMemory.syncState).toBeNull();
+    expect(syncedFilter).toBe("all");
+    expect(filtered).toEqual([liveMemory]);
+  });
+
+  it("filters materialized memories by sync state when sync filters apply", () => {
+    const projectMap = buildProjectIdByExternalKey([]);
+    const synced = mapMemoryToListRow(
+      {
+        id: "mem-synced",
+        organizationId: "org-1",
+        createdByUserId: null,
+        name: "Synced TM",
+        description: "",
+        status: "active",
+        source: "external_tms",
+        externalProviderKind: "phrase",
+        externalProjectId: "phrase-project-9",
+        externalMemoryId: "tm-1",
+        localeCoverage: ["en"],
+        segmentCount: 10,
+        syncState: "synced",
+        capabilityMode: "live_search",
+        segmentCapabilities: {},
+        externalUrl: null,
+        lastSyncedAt: "2026-05-20T12:00:00.000Z",
+        lastSyncErrorAt: null,
+        lastSyncErrorMessage: null,
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-20T12:00:00.000Z",
+      },
+      projectMap,
+    );
+    const stale = mapMemoryToListRow(
+      {
+        id: "mem-stale",
+        organizationId: "org-1",
+        createdByUserId: null,
+        name: "Stale TM",
+        description: "",
+        status: "active",
+        source: "external_tms",
+        externalProviderKind: "phrase",
+        externalProjectId: "phrase-project-9",
+        externalMemoryId: "tm-2",
+        localeCoverage: ["en"],
+        segmentCount: 10,
+        syncState: "stale",
+        capabilityMode: "live_search",
+        segmentCapabilities: {},
+        externalUrl: null,
+        lastSyncedAt: "2026-05-01T12:00:00.000Z",
+        lastSyncErrorAt: null,
+        lastSyncErrorMessage: null,
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-01T12:00:00.000Z",
+      },
+      projectMap,
+    );
+
+    expect(
+      filterMemoryListRows([synced, stale], {
+        searchQuery: "",
+        sourceFilter: "all",
+        providerFilter: "all",
+        syncFilter: effectiveWorkspaceSyncFilter("synced", false),
+      }).map((memory) => memory.id),
+    ).toEqual(["mem-synced"]);
   });
 });
