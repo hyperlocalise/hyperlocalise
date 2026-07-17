@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 type LegalPageProps = {
   eyebrow: string;
@@ -13,13 +15,18 @@ type LegalPageProps = {
 export function createLegalMetadata({
   title,
   description,
+  locale,
+  path,
 }: {
   title: string;
   description: string;
+  locale: AppLocale;
+  path: "/terms" | "/privacy";
 }): Metadata {
   return {
     title,
     description,
+    alternates: getLocalizedAlternates({ locale, path }),
   };
 }
 

@@ -4,18 +4,30 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
-export const metadata: Metadata = {
-  title: "Trust Center",
-  description:
-    "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
-  openGraph: {
-    title: "Hyperlocalise Trust Center",
-    description:
-      "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
-    type: "website",
-  },
+type TrustCenterPageProps = {
+  params: Promise<{ lang: string }>;
 };
+
+export async function generateMetadata({ params }: TrustCenterPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const description =
+    "Security, subprocessor, privacy, and certification status information for Hyperlocalise.";
+
+  return {
+    title: "Trust Center",
+    description,
+    alternates: getLocalizedAlternates({ locale, path: "/trust-center" }),
+    openGraph: {
+      title: "Hyperlocalise Trust Center",
+      description,
+      type: "website",
+    },
+  };
+}
 
 const securityPractices = [
   {

@@ -1,10 +1,26 @@
-import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+import type { Metadata } from "next";
+
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { TypographyP } from "@/components/ui/typography";
 
-export const metadata = createLegalMetadata({
-  title: "Terms of service",
-  description: "The baseline terms that govern use of Hyperlocalise websites, docs, and services.",
-});
+import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+
+type TermsPageProps = {
+  params: Promise<{ lang: string }>;
+};
+
+export async function generateMetadata({ params }: TermsPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
+  return createLegalMetadata({
+    title: "Terms of service",
+    description:
+      "The baseline terms that govern use of Hyperlocalise websites, docs, and services.",
+    locale,
+    path: "/terms",
+  });
+}
 
 export default function TermsPage() {
   return (

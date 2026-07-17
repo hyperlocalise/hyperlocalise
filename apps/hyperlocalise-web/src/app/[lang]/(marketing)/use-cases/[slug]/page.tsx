@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 
 import { UseCasePage, useCasePagesBySlug, useCaseSlugs } from "@/components/marketing/use-case";
 import { getIntlShape } from "@/lib/app-i18n/intl";
-import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  SUPPORTED_APP_LOCALES,
+} from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 import { getUseCaseRouteMetadata } from "./use-case-route-metadata";
 
@@ -28,7 +33,8 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
     return {};
   }
 
-  const intl = getIntlShape(lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
   const metadata = getUseCaseRouteMetadata(slug, intl);
 
   if (!metadata) {
@@ -41,6 +47,7 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
     title,
     description,
     keywords: content.metadata.keywords,
+    alternates: getLocalizedAlternates({ locale, path: `/use-cases/${slug}` }),
     openGraph: {
       title,
       description,

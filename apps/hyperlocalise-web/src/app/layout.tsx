@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import type { AppLocale } from "@/lib/app-i18n/locales";
+import { SITE_URL } from "@/lib/seo/site-url";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { cn } from "@/lib/primitives/cn";
 import "./globals.css";
@@ -55,6 +56,7 @@ function headingFontForLocale(locale: AppLocale) {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Hyperlocalise | Localisation for the Agentic Era",
   description:
     "Localisation for the Agentic Era. Hyperlocalise helps teams review multilingual product copy for quality, nuance, and release safety before it ships.",

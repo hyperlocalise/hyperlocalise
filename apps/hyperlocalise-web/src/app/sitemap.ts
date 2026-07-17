@@ -2,56 +2,89 @@ import { MetadataRoute } from "next";
 
 import { productSlugs } from "@/components/marketing/product";
 import { useCaseSlugs } from "@/components/marketing/use-case";
-import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
-import { getAllPosts, parseBlogPostDate } from "@/lib/blog/blog-post";
+import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
+import { getAllPosts, getPostBySlug, parseBlogPostDate } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
+import {
+  getLocalizedAbsoluteUrl,
+  getSitemapLanguageAlternates,
+} from "@/lib/seo/localized-alternates";
+import { SITE_URL } from "@/lib/seo/site-url";
 
-const BASE_URL = "https://www.hyperlocalise.com";
-
-function localizedPath(locale: string, path = "/") {
-  return path === "/" ? `/${locale}` : `/${locale}${path}`;
-}
-
-function localizedUrl(locale: string, path = "/") {
-  return `${BASE_URL}${localizedPath(locale, path)}`;
+function localizedSitemapEntry({
+  locale,
+  path,
+  lastModified,
+  changeFrequency,
+  priority,
+  locales = SUPPORTED_APP_LOCALES,
+}: {
+  locale: AppLocale;
+  path: string;
+  lastModified: Date;
+  changeFrequency: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
+  priority: number;
+  locales?: readonly AppLocale[];
+}): MetadataRoute.Sitemap[number] {
+  return {
+    url: getLocalizedAbsoluteUrl(locale, path),
+    lastModified,
+    changeFrequency,
+    priority,
+    alternates: {
+      languages: getSitemapLanguageAlternates(path, locales),
+    },
+  };
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const localizedStaticPaths = ["/", "/terms", "/privacy", "/trust-center"];
+  const localizedStaticPaths = [
+    { path: "/", changeFrequency: "weekly" as const, priority: 1 },
+    { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
+    { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
+    { path: "/trust-center", changeFrequency: "monthly" as const, priority: 0.5 },
+  ];
+
   const localizedStaticEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
-    localizedStaticPaths.map((path) => ({
-      url: localizedUrl(locale, path),
-      lastModified: now,
-      changeFrequency: path === "/" ? "weekly" : "monthly",
-      priority: path === "/" ? 1 : 0.5,
-    })),
+    localizedStaticPaths.map(({ path, changeFrequency, priority }) =>
+      localizedSitemapEntry({ locale, path, lastModified: now, changeFrequency, priority }),
+    ),
   );
 
   const productEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
-    productSlugs.map((slug) => ({
-      url: localizedUrl(locale, `/product/${slug}`),
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    })),
+    productSlugs.map((slug) =>
+      localizedSitemapEntry({
+        locale,
+        path: `/product/${slug}`,
+        lastModified: now,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      }),
+    ),
   );
 
   const useCaseEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
-    useCaseSlugs.map((slug) => ({
-      url: localizedUrl(locale, `/use-cases/${slug}`),
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    })),
+    useCaseSlugs.map((slug) =>
+      localizedSitemapEntry({
+        locale,
+        path: `/use-cases/${slug}`,
+        lastModified: now,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      }),
+    ),
   );
 
-  const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) => ({
-    url: localizedUrl(locale, "/blog"),
-    lastModified: now,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
+  const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) =>
+    localizedSitemapEntry({
+      locale,
+      path: "/blog",
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    }),
+  );
 
   const blogPostEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
     getAllPosts(locale).flatMap((post) => {
@@ -65,13 +98,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
         return [];
       }
 
+      const availableLocales = SUPPORTED_APP_LOCALES.filter(
+        (candidateLocale) => getPostBySlug(post.slug, candidateLocale) != null,
+      );
+
       return [
-        {
-          url: `${BASE_URL}${postPath}`,
+        localizedSitemapEntry({
+          locale,
+          path: `/blog/${post.slug}`,
           lastModified,
-          changeFrequency: "monthly" as const,
+          changeFrequency: "monthly",
           priority: 0.7,
-        },
+          locales: availableLocales,
+        }),
       ];
     }),
   );
@@ -79,7 +118,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...localizedStaticEntries,
     {
-      url: `${BASE_URL}/install`,
+      url: `${SITE_URL}/install`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,

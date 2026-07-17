@@ -1,8 +1,7 @@
 import { MetadataRoute } from "next";
 
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
-
-const BASE_URL = "https://www.hyperlocalise.com";
+import { SITE_URL } from "@/lib/seo/site-url";
 
 export default function robots(): MetadataRoute.Robots {
   const protectedLocalizedDisallows = SUPPORTED_APP_LOCALES.flatMap((locale) => [
@@ -16,6 +15,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/auth/", "/api/", "/mcp", ...protectedLocalizedDisallows],
     },
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

@@ -12,7 +12,9 @@ import {
   RecentBlogPostsSection,
 } from "@/components/marketing";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts } from "@/lib/blog/blog-post";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 const metadataKeywords = [
   "localisation",
@@ -30,7 +32,8 @@ type HomePageProps = {
 
 export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
   const { lang } = await params;
-  const intl = getIntlShape(lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
     defaultMessage: "Hyperlocalise | Localisation Platform for the Agentic Era",
@@ -55,6 +58,7 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
     title,
     description,
     keywords: [...metadataKeywords],
+    alternates: getLocalizedAlternates({ locale, path: "/" }),
     openGraph: {
       title,
       description: openGraphDescription,
