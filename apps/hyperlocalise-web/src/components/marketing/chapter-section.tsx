@@ -47,7 +47,7 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
     <section>
       <div className="max-w-2xl space-y-1.5">
         <div className="mt-6 text-sm text-muted-foreground">
-          {chapter.id} <FormattedMessage {...marketingPageMessages[chapter.labelKey]} />
+          <FormattedMessage {...marketingPageMessages[chapter.labelKey]} />
         </div>
         <TypographyH2 className="text-4xl sm:text-5xl">
           <FormattedMessage {...marketingPageMessages[chapter.titleKey]} />
@@ -74,9 +74,9 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
       </div>
 
       <div className="mt-8 grid gap-4 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-        {chapter.linkKeys.map((linkKey, index) => (
+        {chapter.linkKeys.map((linkKey) => (
           <div key={linkKey}>
-            {chapter.id}.{index + 1} <FormattedMessage {...marketingPageMessages[linkKey]} />
+            <FormattedMessage {...marketingPageMessages[linkKey]} />
           </div>
         ))}
       </div>

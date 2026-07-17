@@ -6,6 +6,7 @@ import { chapters, footerColumns } from "@/components/marketing/marketing-page-c
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   ChapterSection,
+  ChatDockMockSection,
   FinalCtaSection,
   HeroSection,
   PrinciplesSection,
@@ -107,6 +108,10 @@ export default async function Home({ params }: HomePageProps) {
         <main className="mx-auto max-w-7xl">
           <section className=" px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
             <HeroSection />
+          </section>
+
+          <section className="px-5 py-16 sm:px-8 lg:px-10">
+            <ChatDockMockSection />
           </section>
 
           <section className="px-5 py-16 sm:px-8 lg:px-10">
