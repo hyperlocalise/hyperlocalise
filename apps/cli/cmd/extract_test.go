@@ -747,6 +747,68 @@ func TestScanTemplateLiteralIgnoresEscapedInterpolations(t *testing.T) {
 	}
 }
 
+func TestScanTemplateLiteralHandlesRegexWithQuotesInInterpolation(t *testing.T) {
+	// Mirrors escapeCsv-style helpers: a template literal whose interpolation
+	// contains a regex with a quote, plus a string with doubled quotes.
+	src := "`\"${str.replace(/\"/g, '\"\"')}\"`"
+	end, expressions, ok := scanTemplateLiteral(src, 0)
+	if !ok {
+		t.Fatalf("expected template literal with regex interpolation to scan successfully")
+	}
+	if end != len(src) {
+		t.Fatalf("end = %d, want %d", end, len(src))
+	}
+	if got, want := len(expressions), 1; got != want {
+		t.Fatalf("expression count = %d, want %d", got, want)
+	}
+	if got, want := src[expressions[0].start:expressions[0].end], "str.replace(/\"/g, '\"\"')"; got != want {
+		t.Fatalf("expression = %q, want %q", got, want)
+	}
+}
+
+func TestExtractMessagesFromSourceWithRegexInsideTemplateLiteral(t *testing.T) {
+	src := "\n" +
+		"function escapeCsv(field: string | number): string {\n" +
+		"  const str = String(field);\n" +
+		"  if (str.includes(\",\") || str.includes('\"') || str.includes(\"\\n\")) {\n" +
+		"    return `\"${str.replace(/\"/g, '\"\"')}\"`;\n" +
+		"  }\n" +
+		"  return str;\n" +
+		"}\n" +
+		"\n" +
+		"formatMessage({\n" +
+		"  id: \"csv.header\",\n" +
+		"  defaultMessage: \"Export\",\n" +
+		"  description: \"CSV header\",\n" +
+		"});\n"
+	messages, err := extractMessagesFromReactIntlSource(src, "escape-csv.ts")
+	if err != nil {
+		t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+	}
+	if got, want := len(messages), 1; got != want {
+		t.Fatalf("message count = %d, want %d", got, want)
+	}
+	if messages[0].ID != "csv.header" {
+		t.Fatalf("id = %q, want csv.header", messages[0].ID)
+	}
+}
+
+func TestSkipRegexLiteralDistinguishesDivision(t *testing.T) {
+	regexSrc := `replace(/"/g, '""')`
+	end, ok := skipRegexLiteral(regexSrc, strings.IndexByte(regexSrc, '/'))
+	if !ok {
+		t.Fatalf("expected regex literal to be skipped")
+	}
+	if got, want := regexSrc[:end], `replace(/"/g`; got != want {
+		t.Fatalf("skipped prefix = %q, want %q", got, want)
+	}
+
+	divisionSrc := "value / 2"
+	if _, ok := skipRegexLiteral(divisionSrc, strings.IndexByte(divisionSrc, '/')); ok {
+		t.Fatalf("expected division operator not to be treated as regex")
+	}
+}
+
 func TestSkipStringLiteralHandlesNestedTemplateLiterals(t *testing.T) {
 	src := "`outer ${`inner`} tail` ;"
 	got := skipStringLiteral(src, 0)

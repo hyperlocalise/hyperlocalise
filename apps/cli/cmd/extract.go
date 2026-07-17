@@ -1207,10 +1207,105 @@ func skipIgnoredToken(src string, index int) (int, bool) {
 	case '\'', '"', '`':
 		return skipStringLiteral(src, index), true
 	case '/':
-		return skipComment(src, index)
+		if next, ok := skipComment(src, index); ok {
+			return next, true
+		}
+		return skipRegexLiteral(src, index)
 	default:
 		return index, false
 	}
+}
+
+// skipRegexLiteral skips a JavaScript regular expression literal starting at '/'.
+// It uses a lookbehind heuristic to distinguish regex literals from division.
+func skipRegexLiteral(src string, index int) (int, bool) {
+	if index >= len(src) || src[index] != '/' || !canStartRegexLiteral(src, index) {
+		return index, false
+	}
+
+	inClass := false
+	for i := index + 1; i < len(src); i++ {
+		switch src[i] {
+		case '\\':
+			if i+1 >= len(src) {
+				return index, false
+			}
+			i++
+		case '\n', '\r':
+			return index, false
+		case '[':
+			if !inClass {
+				inClass = true
+				if i+1 < len(src) && src[i+1] == '^' {
+					i++
+				}
+				// A ']' immediately after '[' or '[^' is a literal character.
+				if i+1 < len(src) && src[i+1] == ']' {
+					i++
+				}
+			}
+		case ']':
+			inClass = false
+		case '/':
+			if inClass {
+				continue
+			}
+			i++
+			for i < len(src) && isRegexFlag(src[i]) {
+				i++
+			}
+			return i, true
+		}
+	}
+
+	return index, false
+}
+
+func canStartRegexLiteral(src string, index int) bool {
+	i := index - 1
+	for i >= 0 && unicode.IsSpace(rune(src[i])) {
+		i--
+	}
+	if i < 0 {
+		return true
+	}
+
+	ch := src[i]
+	switch ch {
+	case ')', ']', '"', '\'', '`':
+		return false
+	case '+', '-':
+		if i > 0 && src[i-1] == ch {
+			return false
+		}
+		return true
+	}
+
+	if !isIdentifierPart(ch) {
+		return true
+	}
+
+	end := i + 1
+	for i >= 0 && isIdentifierPart(src[i]) {
+		i--
+	}
+
+	return isRegexPrefixKeyword(src[i+1 : end])
+}
+
+func isRegexPrefixKeyword(word string) bool {
+	switch word {
+	case "return", "throw", "case", "else", "typeof", "void", "delete",
+		"await", "yield", "new", "in", "of", "instanceof", "extends",
+		"do", "with":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRegexFlag(ch byte) bool {
+	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
 }
 
 func skipStringLiteral(src string, index int) int {
