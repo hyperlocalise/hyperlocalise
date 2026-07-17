@@ -22,7 +22,7 @@ concurrency:
 jobs:
   action-self-test:
     name: Action Self Test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
 
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
 
   web-sync-cli-smoke-test:
     name: Web Sync CLI Smoke Test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     defaults:
       run:
         working-directory: apps/hyperlocalise-web
@@ -89,7 +89,7 @@ jobs:
 
   bazel-build-test:
     name: Bazel Build/Test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     env:
       BUILDBUDDY_ENDPOINT: grpcs://remote.buildbuddy.io
       BUILDBUDDY_RESULTS_URL: https://app.buildbuddy.io/invocation/
@@ -130,7 +130,7 @@ jobs:
 
   go-quality:
     name: Go Quality
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
 
     steps:
       - name: Checkout

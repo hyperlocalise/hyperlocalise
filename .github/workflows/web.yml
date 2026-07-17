@@ -22,7 +22,7 @@ concurrency:
 jobs:
   hyperlocalise-web-build:
     name: Hyperlocalise Web Build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     services:
       postgres:
         image: postgres:18
@@ -39,7 +39,7 @@ jobs:
           --health-retries 12
     env:
       CI: "true"
-      NODE_OPTIONS: --max-old-space-size=8192
+      NODE_OPTIONS: --max-old-space-size=4096
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
       OPENAI_API_KEY: test-openai-api-key
       NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
