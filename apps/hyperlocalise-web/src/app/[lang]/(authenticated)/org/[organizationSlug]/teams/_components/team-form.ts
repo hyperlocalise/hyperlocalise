@@ -1,7 +1,13 @@
+"use client";
+
+import type { IntlShape } from "@formatjs/intl";
+
 import { slugifyTeamName } from "@/api/routes/team/team-slug";
 import type { CreateTeamBody, UpdateTeamBody } from "@/api/routes/team/team.schema";
+import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type { TeamSummaryRow } from "./teams-api";
+import { teamFormMessages } from "./team-form.messages";
 
 export type TeamFormValues = {
   name: string;
@@ -9,6 +15,8 @@ export type TeamFormValues = {
 };
 
 export type TeamFormErrors = Partial<Record<keyof TeamFormValues, string>>;
+
+export type TeamFormIntl = Pick<IntlShape, "formatMessage">;
 
 const slugPattern = /^[a-z0-9-]+$/;
 
@@ -28,24 +36,29 @@ export function createTeamFormFromSummary(
   };
 }
 
-export function validateTeamForm(values: TeamFormValues, mode: "create" | "edit"): TeamFormErrors {
+export function validateTeamForm(
+  values: TeamFormValues,
+  mode: "create" | "edit",
+  options?: { intl?: TeamFormIntl },
+): TeamFormErrors {
   const errors: TeamFormErrors = {};
   const name = values.name.trim();
   const slug = values.slug.trim();
+  const intl = options?.intl;
 
   if (!name) {
-    errors.name = "Team name is required.";
+    errors.name = resolveMessage(intl, teamFormMessages.nameRequired);
   } else if (name.length > 120) {
-    errors.name = "Team name must be 120 characters or fewer.";
+    errors.name = resolveMessage(intl, teamFormMessages.nameTooLong);
   }
 
   if (mode === "edit" || slug.length > 0) {
     if (!slug) {
-      errors.slug = "Team slug is required.";
+      errors.slug = resolveMessage(intl, teamFormMessages.slugRequired);
     } else if (!slugPattern.test(slug)) {
-      errors.slug = "Use lowercase letters, numbers, and hyphens only.";
+      errors.slug = resolveMessage(intl, teamFormMessages.slugInvalid);
     } else if (slug.length > 120) {
-      errors.slug = "Team slug must be 120 characters or fewer.";
+      errors.slug = resolveMessage(intl, teamFormMessages.slugTooLong);
     }
   }
 

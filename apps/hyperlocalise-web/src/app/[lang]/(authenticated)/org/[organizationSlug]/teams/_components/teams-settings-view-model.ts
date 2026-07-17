@@ -1,4 +1,9 @@
+"use client";
+
+import type { IntlShape } from "@formatjs/intl";
+
 import type { TeamRole } from "@/api/routes/team/team.schema";
+import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type {
   OrganizationMemberDirectoryEntry,
@@ -6,23 +11,26 @@ import type {
   TeamMemberRow,
   TeamSummaryRow,
 } from "./teams-api";
+import { teamsSettingsViewModelMessages } from "./teams-settings-view-model.messages";
 
-const teamRoleLabels: Record<TeamRole, string> = {
-  manager: "Manager",
-  member: "Member",
-};
+export type TeamsSettingsIntl = Pick<IntlShape, "formatMessage">;
 
-const teamRoleDescriptions: Record<TeamRole, string> = {
-  manager: "Can add or remove people and update team membership roles.",
-  member: "Can access projects and work assigned to this team.",
-};
+const teamRoleLabelMessages = {
+  manager: teamsSettingsViewModelMessages.roleManager,
+  member: teamsSettingsViewModelMessages.roleMember,
+} as const;
 
-export function getTeamRoleLabel(role: TeamRole) {
-  return teamRoleLabels[role];
+const teamRoleDescriptionMessages = {
+  manager: teamsSettingsViewModelMessages.roleManagerDescription,
+  member: teamsSettingsViewModelMessages.roleMemberDescription,
+} as const;
+
+export function getTeamRoleLabel(role: TeamRole, intl?: TeamsSettingsIntl) {
+  return resolveMessage(intl, teamRoleLabelMessages[role]);
 }
 
-export function getTeamRoleDescription(role: TeamRole) {
-  return teamRoleDescriptions[role];
+export function getTeamRoleDescription(role: TeamRole, intl?: TeamsSettingsIntl) {
+  return resolveMessage(intl, teamRoleDescriptionMessages[role]);
 }
 
 export function resolveTeamsListPageState(input: {
