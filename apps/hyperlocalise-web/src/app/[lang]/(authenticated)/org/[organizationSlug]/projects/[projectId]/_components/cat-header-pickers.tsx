@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/i18n/locale-display-names.messages";
 
 import { ProjectFilesTree } from "../files/_components/project-files-tree";
+import { catHeaderPickersMessages } from "./cat-header-pickers.messages";
 
 function FilePickerIcon({ className }: { className?: string }) {
   return (
@@ -88,6 +89,7 @@ export function CatFileTreePicker({
   allFilesSelected?: boolean;
   onSelectAllFiles?: () => void;
 }) {
+  const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [dialogSourcePath, setDialogSourcePath] = useState(selectedSourcePath);
   const [dialogAllFiles, setDialogAllFiles] = useState(allFilesSelected);
@@ -125,7 +127,9 @@ export function CatFileTreePicker({
     setOpen(false);
   };
 
-  const triggerLabel = allFilesSelected ? "All Files" : selectedSourcePath;
+  const triggerLabel = allFilesSelected
+    ? intl.formatMessage(catHeaderPickersMessages.allFiles)
+    : selectedSourcePath;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -135,7 +139,7 @@ export function CatFileTreePicker({
             variant="outline"
             size="sm"
             className="h-8 min-w-0 flex-1 basis-40 justify-start font-mono text-xs sm:max-w-xs"
-            aria-label="Source file"
+            aria-label={intl.formatMessage(catHeaderPickersMessages.sourceFileAriaLabel)}
           />
         }
       >
@@ -144,9 +148,11 @@ export function CatFileTreePicker({
       </DialogTrigger>
       <DialogContent className="flex h-[min(720px,calc(100svh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 gap-2 px-6 pt-6 pe-12 pb-4">
-          <DialogTitle>Choose source file</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...catHeaderPickersMessages.chooseSourceFileTitle} />
+          </DialogTitle>
           <DialogDescription>
-            Browse the file tree, or choose All Files to view strings across every file.
+            <FormattedMessage {...catHeaderPickersMessages.chooseSourceFileDescription} />
           </DialogDescription>
         </DialogHeader>
 
@@ -161,7 +167,7 @@ export function CatFileTreePicker({
                 setDialogSourcePath("");
               }}
             >
-              All Files
+              <FormattedMessage {...catHeaderPickersMessages.allFiles} />
             </Button>
           ) : null}
 
@@ -174,7 +180,7 @@ export function CatFileTreePicker({
                 setDialogSourcePath(sourcePath);
               }}
               onActivateFile={handleActivateFile}
-              ariaLabel="Source files"
+              ariaLabel={intl.formatMessage(catHeaderPickersMessages.sourceFilesAriaLabel)}
               fillHeight
             />
           </div>
@@ -182,10 +188,10 @@ export function CatFileTreePicker({
 
         <DialogFooter className="shrink-0 gap-2 border-t border-border px-6 pt-4 pb-6 sm:justify-end">
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            <FormattedMessage {...catHeaderPickersMessages.cancel} />
           </Button>
           <Button onClick={handleOpenSelectedFile} disabled={!dialogAllFiles && !selectedFile}>
-            Open file
+            <FormattedMessage {...catHeaderPickersMessages.openFile} />
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -214,11 +220,11 @@ export function CatLocaleSelect({
     <Select value={selectedTargetLocale} onValueChange={handleValueChange}>
       <SelectTrigger
         className="h-8 min-w-0 flex-1 basis-28 text-xs sm:max-w-48"
-        aria-label="Target locale"
+        aria-label={intl.formatMessage(catHeaderPickersMessages.targetLocaleAriaLabel)}
         disabled={targetLocales.length <= 1}
       >
         <LocaleIcon className="size-4 text-muted-foreground" />
-        <SelectValue placeholder="Locale" />
+        <SelectValue placeholder={intl.formatMessage(catHeaderPickersMessages.localePlaceholder)} />
       </SelectTrigger>
       <SelectContent
         align="start"
@@ -246,6 +252,8 @@ export function CatRepositorySelect({
   selectedRepositoryFullName: string | null;
   onRepositoryChange: (repositoryFullName: string) => void;
 }) {
+  const intl = useIntl();
+
   const handleValueChange = (repositoryFullName: string | null) => {
     if (repositoryFullName) {
       onRepositoryChange(repositoryFullName);
@@ -256,10 +264,12 @@ export function CatRepositorySelect({
     <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleValueChange}>
       <SelectTrigger
         className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-        aria-label="GitHub repository"
+        aria-label={intl.formatMessage(catHeaderPickersMessages.githubRepositoryAriaLabel)}
       >
         <GitHubMark className="size-4 text-muted-foreground" />
-        <SelectValue placeholder="GitHub repo" />
+        <SelectValue
+          placeholder={intl.formatMessage(catHeaderPickersMessages.githubRepoPlaceholder)}
+        />
       </SelectTrigger>
       <SelectContent>
         {repositoryFullNames.map((repositoryFullName) => (
