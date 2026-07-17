@@ -217,13 +217,15 @@ async function runFileTranslationInSandbox(input: {
 
   const translatedContent = await readTranslatedFile(input.sandboxId, outputFilename);
   const translatedEntries = await extractSandboxEntries(input.sandboxId, outputFilename);
-  if (!translatedEntries) {
-    throw new Error(`failed to extract translated entries: ${outputFilename}`);
+  if (!translatedEntries.ok) {
+    throw new Error(
+      `failed to extract translated entries: ${outputFilename}: exitCode=${translatedEntries.exitCode}`,
+    );
   }
 
   return {
     translatedText: translatedContent.toString("utf8"),
-    translatedEntries,
+    translatedEntries: translatedEntries.entries,
   };
 }
 
@@ -458,7 +460,14 @@ export async function translateProviderJobFiles(input: {
       );
 
       try {
-        sourceEntries = await extractSandboxEntries(sandboxId, inputFilename);
+        const extracted = await extractSandboxEntries(sandboxId, inputFilename);
+        if (extracted.ok) {
+          sourceEntries = extracted.entries;
+        } else {
+          warnings.push(
+            `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: exitCode=${extracted.exitCode}`,
+          );
+        }
       } catch (error) {
         warnings.push(
           `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: ${
@@ -525,7 +534,8 @@ export async function translateProviderJobFiles(input: {
             mergeApproved: true,
           });
           if (downloadResult.ok) {
-            crowdinPrefilled = (await extractSandboxEntries(sandboxId, outputFilename)) ?? {};
+            const crowdinEntries = await extractSandboxEntries(sandboxId, outputFilename);
+            crowdinPrefilled = crowdinEntries.ok ? crowdinEntries.entries : {};
           }
         }
 

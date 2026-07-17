@@ -380,21 +380,18 @@ async function extractEntriesStep(
   options?: { sourcePath?: string },
 ) {
   "use step";
-  const { getSandboxTranslationEnv, runSandboxCommand } = await import("@/lib/translation/sandbox");
-  const sourcePath = options?.sourcePath?.trim();
-  const sourceFlag = sourcePath ? ` --source '${shellSingleQuote(sourcePath)}'` : "";
-  const result = await runSandboxCommand(
-    sandboxId,
-    "bash",
-    ["-lc", `hl entries '${shellSingleQuote(path)}'${sourceFlag}`],
-    { env: getSandboxTranslationEnv(), output: "stdout" },
-  );
-  if (result.exitCode !== 0) {
+  // Use extractSandboxEntries so UTF-8 entries are read via binary file IO,
+  // not sandbox stdout string capture (which can turn multi-byte chars into �).
+  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
+  const result = await extractSandboxEntries(sandboxId, path, {
+    sourcePath: options?.sourcePath,
+  });
+  if (!result.ok) {
     throw new Error(
       `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
     );
   }
-  return JSON.parse(result.output) as Record<string, string>;
+  return result.entries;
 }
 async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";

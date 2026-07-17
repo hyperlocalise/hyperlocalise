@@ -156,7 +156,7 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
       "bash",
       [
         "-lc",
-        `set -euo pipefail; target=${shellQuote(path)}; if [ -L "$target" ]; then exit 42; fi; resolved=$(readlink -f "$target" 2>/dev/null || true); if [ -z "$resolved" ] || [ ! -f "$resolved" ]; then exit 43; fi; case "$resolved" in /etc/*|/proc/*|/sys/*|/var/*|/root/*|/home/*/.ssh/*) exit 44;; esac; cat "$resolved"`,
+        `set -euo pipefail; target=${shellQuote(path)}; if [ -L "$target" ]; then exit 42; fi; resolved=$(readlink -f "$target" 2>/dev/null || true); if [ -z "$resolved" ] || [ ! -f "$resolved" ]; then exit 43; fi; case "$resolved" in /etc/*|/proc/*|/sys/*|/var/*|/root/*|/home/*/.ssh/*) exit 44;; esac; printf '%s' "$resolved"`,
       ],
       { output: "stdout" },
     );
@@ -174,7 +174,19 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
       throw new Error(guard.output || `Failed to read ${path}`);
     }
 
-    return guard.output;
+    const resolvedPath = guard.output.trim();
+    if (!resolvedPath) {
+      throw new Error(`Failed to read ${path}`);
+    }
+
+    // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
+    // Use the guard-resolved absolute path so the bytes match what was validated.
+    const sandbox = await Sandbox.get({ name: this.id });
+    const content = await sandbox.readFileToBuffer({ path: resolvedPath });
+    if (!content) {
+      throw new Error(`Failed to read ${path}`);
+    }
+    return Buffer.from(content).toString("utf8");
   }
 
   async writeFile(path: string, content: string | Buffer): Promise<void> {

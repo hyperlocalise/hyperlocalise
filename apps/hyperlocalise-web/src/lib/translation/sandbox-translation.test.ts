@@ -40,6 +40,7 @@ import {
   buildMultiLocaleTempConfig,
   buildTempConfig,
   createTranslationSandbox,
+  extractSandboxEntries,
   getOutputFilenamePattern,
   isSandboxDisconnectError,
   isSandboxStreamClosedError,
@@ -327,6 +328,112 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.get).not.toHaveBeenCalledWith(
       expect.objectContaining({ resume: expect.anything() }),
     );
+  });
+
+  it("extracts hl entries via file redirect so Vietnamese UTF-8 is preserved", async () => {
+    const vietnamese = "Tìm hiểu thêm về{0}";
+    const entriesJson = `${JSON.stringify({ i02F07: vietnamese }, null, 2)}\n`;
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    const cleanupWait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from(entriesJson, "utf8"));
+    sandboxMocks.output.mockResolvedValue("");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({
+        cmdId: "cmd_entries",
+        wait,
+      })
+      .mockResolvedValueOnce({
+        cmdId: "cmd_cleanup",
+        wait: cleanupWait,
+      });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      });
+
+    await expect(extractSandboxEntries("sandbox_123", "lang/vi-VN.json")).resolves.toEqual({
+      ok: true,
+      entries: { i02F07: vietnamese },
+    });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "bash",
+      args: [
+        "-lc",
+        expect.stringMatching(
+          /^hl entries 'lang\/vi-VN\.json' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
+        ),
+      ],
+      env: { OPENAI_API_KEY: "test-openai-api-key" },
+      detached: true,
+    });
+    expect(readFileToBuffer).toHaveBeenCalledWith({
+      path: expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/),
+    });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "rm",
+      args: ["-f", expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/)],
+      env: undefined,
+      detached: true,
+    });
+  });
+
+  it("returns exitCode and output when hl entries fails", async () => {
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 1,
+      output: sandboxMocks.output,
+    });
+    const cleanupWait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValue("markdown AST parity mismatch");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({
+        cmdId: "cmd_entries",
+        wait,
+      })
+      .mockResolvedValueOnce({
+        cmdId: "cmd_cleanup",
+        wait: cleanupWait,
+      });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      });
+
+    await expect(extractSandboxEntries("sandbox_123", "lang/vi-VN.json")).resolves.toEqual({
+      ok: false,
+      exitCode: 1,
+      output: "markdown AST parity mismatch",
+    });
+  });
+
+  it("documents that splitting UTF-8 bytes across chunks yields U+FFFD", () => {
+    // Sandbox NDJSON log capture can deliver multi-byte UTF-8 across chunk
+    // boundaries. Decoding each chunk independently replaces orphaned bytes
+    // with U+FFFD — the CAT symptom for "về" → "v���".
+    const eWithCircumflexGrave = Buffer.from("ề", "utf8"); // E1 BB 81
+    expect(eWithCircumflexGrave).toEqual(Buffer.from([0xe1, 0xbb, 0x81]));
+
+    const decoder = new TextDecoder("utf-8");
+    const corrupted =
+      decoder.decode(eWithCircumflexGrave.subarray(0, 1)) +
+      decoder.decode(eWithCircumflexGrave.subarray(1));
+    expect(corrupted).toBe("\uFFFD\uFFFD\uFFFD");
   });
 });
 

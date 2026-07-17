@@ -10,7 +10,7 @@ import {
   sha256Hex,
 } from "@/lib/file-storage/records";
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
-import { runSandboxCommand } from "@/lib/translation/sandbox";
+import { readTranslatedFile } from "@/lib/translation/sandbox";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("upload-repository-source-files");
@@ -57,10 +57,11 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
       continue;
     }
 
-    const readResult = await runSandboxCommand(input.sandboxId, "cat", [normalizedPath], {
-      output: "stdout",
-    });
-    if (readResult.exitCode !== 0) {
+    let content: Buffer;
+    try {
+      // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
+      content = await readTranslatedFile(input.sandboxId, normalizedPath);
+    } catch {
       results.push({
         path: normalizedPath,
         outcome: "failed",
@@ -69,7 +70,6 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
       continue;
     }
 
-    const content = Buffer.from(readResult.output);
     const sourceHash = await sha256Hex(content);
 
     if (input.commitSha) {

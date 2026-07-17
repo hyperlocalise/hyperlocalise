@@ -58,11 +58,11 @@ export async function writeSourceIngestFileStep(
 export async function extractSourceIngestEntriesStep(sandboxId: string, filePath: string) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const entries = await extractSandboxEntries(sandboxId, filePath);
-  if (!entries) {
-    throw new Error(`failed to extract entries for ${filePath}`);
+  const result = await extractSandboxEntries(sandboxId, filePath);
+  if (!result.ok) {
+    throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
   }
-  return entries;
+  return result.entries;
 }
 
 export async function parseHlEntriesStep(

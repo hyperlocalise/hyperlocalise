@@ -12,6 +12,7 @@ import {
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import { readTranslatedFile } from "@/lib/translation/sandbox";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import type { WriteAction } from "@/lib/agent-contracts/write-gate";
 import { canPushToGitHubBranch } from "@/lib/agents/repository-write-gate";
@@ -394,14 +395,18 @@ export function createUploadSourcesTool(ctx: ToolContext) {
             };
           }
 
-          const result = await runSandboxCommand(ctx.sandboxId, "cat", [path], "stdout");
-          if (result.exitCode !== 0) {
+          let fileContent: Buffer;
+          try {
+            // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
+            fileContent = await readTranslatedFile(ctx.sandboxId, path);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : `Failed to read ${path}`;
             await logMutation(ctx, {
               action: "upload_sources",
               status: "failed",
-              details: { error: `Failed to read ${path}: ${result.output}` },
+              details: { error: message },
             });
-            return { success: false, error: `Failed to read ${path}: ${result.output}` };
+            return { success: false, error: message };
           }
 
           let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
@@ -415,7 +420,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                 sourceKind: "repository_file",
                 filename: sourceFilename(normalizedPath),
                 contentType: sourceContentType(normalizedPath),
-                content: Buffer.from(result.output),
+                content: fileContent,
                 metadata: {
                   sourcePath: normalizedPath,
                   commitSha: ctx.githubContext?.commitSha,
