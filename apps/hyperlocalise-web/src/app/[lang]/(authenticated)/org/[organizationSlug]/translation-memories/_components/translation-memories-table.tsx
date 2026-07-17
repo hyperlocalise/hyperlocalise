@@ -52,9 +52,10 @@ function SyncHealthBadge({ memory }: { memory: MemoryListRow }) {
     return <SyncStateBadge syncState={memory.syncState} />;
   }
 
+  // External TMS memories are fetched live from the provider API.
   return (
-    <Badge variant="outline" className="text-[10px] text-muted-foreground">
-      Not synced
+    <Badge variant="outline" className={toneClass("info")}>
+      Live
     </Badge>
   );
 }
@@ -87,7 +88,9 @@ function MemoryRow({
       : [
           memory.externalProviderKind ? providerLabel(memory.externalProviderKind) : "Provider",
           memory.externalProjectId ? `Project ${memory.externalProjectId}` : null,
-          memory.lastSyncedAt ? `Synced ${memory.lastSyncedAt}` : "Not synced yet",
+          memory.lastSyncedAt && memory.lastSyncedAt !== "Live"
+            ? `Synced ${memory.lastSyncedAt}`
+            : "Live",
         ]
           .filter(Boolean)
           .join(" · ");

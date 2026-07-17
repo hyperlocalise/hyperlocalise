@@ -52,9 +52,10 @@ function SyncHealthBadge({ glossary }: { glossary: GlossaryListRow }) {
     return <SyncStateBadge syncState={glossary.syncState} />;
   }
 
+  // External TMS glossaries are fetched live from the provider API.
   return (
-    <Badge variant="outline" className="text-[10px] text-muted-foreground">
-      Not synced
+    <Badge variant="outline" className={toneClass("info")}>
+      Live
     </Badge>
   );
 }
@@ -97,7 +98,9 @@ function GlossaryRow({
       : [
           glossary.externalProviderKind ? providerLabel(glossary.externalProviderKind) : "Provider",
           glossary.externalProjectId ? `Project ${glossary.externalProjectId}` : null,
-          glossary.lastSyncedAt ? `Synced ${glossary.lastSyncedAt}` : "Not synced yet",
+          glossary.lastSyncedAt && glossary.lastSyncedAt !== "Live"
+            ? `Synced ${glossary.lastSyncedAt}`
+            : "Live",
         ]
           .filter(Boolean)
           .join(" · ");
