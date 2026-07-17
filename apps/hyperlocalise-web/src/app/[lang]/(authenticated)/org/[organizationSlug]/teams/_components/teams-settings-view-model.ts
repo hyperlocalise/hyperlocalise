@@ -1,6 +1,9 @@
+"use client";
+
 import type { IntlShape } from "@formatjs/intl";
 
 import type { TeamRole } from "@/api/routes/team/team.schema";
+import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type {
   OrganizationMemberDirectoryEntry,
@@ -11,17 +14,6 @@ import type {
 import { teamsSettingsViewModelMessages } from "./teams-settings-view-model.messages";
 
 export type TeamsSettingsIntl = Pick<IntlShape, "formatMessage">;
-
-function resolveMessage(
-  intl: TeamsSettingsIntl | undefined,
-  descriptor: (typeof teamsSettingsViewModelMessages)[keyof typeof teamsSettingsViewModelMessages],
-) {
-  if (intl) {
-    return intl.formatMessage(descriptor);
-  }
-
-  return typeof descriptor.defaultMessage === "string" ? descriptor.defaultMessage : "";
-}
 
 const teamRoleLabelMessages = {
   manager: teamsSettingsViewModelMessages.roleManager,

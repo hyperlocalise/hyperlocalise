@@ -1,7 +1,10 @@
+"use client";
+
 import type { IntlShape } from "@formatjs/intl";
 
 import { slugifyTeamName } from "@/api/routes/team/team-slug";
 import type { CreateTeamBody, UpdateTeamBody } from "@/api/routes/team/team.schema";
+import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type { TeamSummaryRow } from "./teams-api";
 import { teamFormMessages } from "./team-form.messages";
@@ -16,17 +19,6 @@ export type TeamFormErrors = Partial<Record<keyof TeamFormValues, string>>;
 export type TeamFormIntl = Pick<IntlShape, "formatMessage">;
 
 const slugPattern = /^[a-z0-9-]+$/;
-
-function resolveMessage(
-  intl: TeamFormIntl | undefined,
-  descriptor: (typeof teamFormMessages)[keyof typeof teamFormMessages],
-) {
-  if (intl) {
-    return intl.formatMessage(descriptor);
-  }
-
-  return typeof descriptor.defaultMessage === "string" ? descriptor.defaultMessage : "";
-}
 
 export function createEmptyTeamForm(): TeamFormValues {
   return {
