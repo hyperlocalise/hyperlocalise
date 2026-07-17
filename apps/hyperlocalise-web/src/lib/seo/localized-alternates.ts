@@ -35,39 +35,7 @@ export type LocalizedAlternatesOptions = {
   locales?: readonly AppLocale[];
 };
 
-/**
- * Builds Next.js `metadata.alternates` with a canonical URL and hreflang language map,
- * including `x-default` pointing at the default app locale (English).
- */
-export function getLocalizedAlternates({
-  locale,
-  path,
-  locales = SUPPORTED_APP_LOCALES,
-}: LocalizedAlternatesOptions): NonNullable<Metadata["alternates"]> {
-  const languages: Record<string, string> = {};
-
-  for (const appLocale of locales) {
-    languages[appLocale] = getLocalizedAbsoluteUrl(appLocale, path);
-  }
-
-  if (locales.includes(DEFAULT_APP_LOCALE)) {
-    languages["x-default"] = getLocalizedAbsoluteUrl(DEFAULT_APP_LOCALE, path);
-  }
-
-  return {
-    canonical: getLocalizedAbsoluteUrl(locale, path),
-    languages,
-  };
-}
-
-/**
- * Language alternate map for a sitemap entry (`alternates.languages`).
- * Same shape as metadata hreflang, including `x-default`.
- */
-export function getSitemapLanguageAlternates(
-  path: string,
-  locales: readonly AppLocale[] = SUPPORTED_APP_LOCALES,
-): NonNullable<NonNullable<MetadataRoute.Sitemap[number]["alternates"]>["languages"]> {
+function buildLanguageMap(path: string, locales: readonly AppLocale[]): Record<string, string> {
   const languages: Record<string, string> = {};
 
   for (const appLocale of locales) {
@@ -79,4 +47,30 @@ export function getSitemapLanguageAlternates(
   }
 
   return languages;
+}
+
+/**
+ * Builds Next.js `metadata.alternates` with a canonical URL and hreflang language map,
+ * including `x-default` pointing at the default app locale (English).
+ */
+export function getLocalizedAlternates({
+  locale,
+  path,
+  locales = SUPPORTED_APP_LOCALES,
+}: LocalizedAlternatesOptions): NonNullable<Metadata["alternates"]> {
+  return {
+    canonical: getLocalizedAbsoluteUrl(locale, path),
+    languages: buildLanguageMap(path, locales),
+  };
+}
+
+/**
+ * Language alternate map for a sitemap entry (`alternates.languages`).
+ * Same shape as metadata hreflang, including `x-default`.
+ */
+export function getSitemapLanguageAlternates(
+  path: string,
+  locales: readonly AppLocale[] = SUPPORTED_APP_LOCALES,
+): NonNullable<NonNullable<MetadataRoute.Sitemap[number]["alternates"]>["languages"]> {
+  return buildLanguageMap(path, locales);
 }

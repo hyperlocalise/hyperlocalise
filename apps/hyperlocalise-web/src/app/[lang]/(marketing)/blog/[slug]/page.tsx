@@ -72,10 +72,13 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
   };
 }
 
-function buildArticleJsonLd(post: NonNullable<ReturnType<typeof getPostBySlug>>, lang: string) {
-  const postPath = getBlogPostPath(lang, post.slug);
-  const canonicalUrl = postPath ? `${SITE_URL}${postPath}` : `${SITE_URL}/${lang}/blog`;
-  const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, SITE_URL);
+function buildArticleJsonLd(
+  post: NonNullable<ReturnType<typeof getPostBySlug>>,
+  locale: AppLocale,
+) {
+  const postPath = getBlogPostPath(locale, post.slug);
+  const canonicalUrl = postPath ? `${SITE_URL}${postPath}` : `${SITE_URL}/${locale}/blog`;
+  const imageUrl = getBlogPostCoverAbsoluteUrl(post, locale, SITE_URL);
 
   const articleSchema: WithContext<Article> = {
     "@context": "https://schema.org",
@@ -110,20 +113,26 @@ function buildArticleJsonLd(post: NonNullable<ReturnType<typeof getPostBySlug>>,
 
 export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
   const { lang, slug } = await params;
-  const post = getPostBySlug(slug, lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const post = getPostBySlug(slug, locale);
 
   if (!post) {
     notFound();
   }
 
   const htmlContent = await markdownToHtml(post.content);
-  const jsonLd = buildArticleJsonLd(post, lang);
-  const relatedPosts = getRelevantPosts(slug, lang);
+  const jsonLd = buildArticleJsonLd(post, locale);
+  const relatedPosts = getRelevantPosts(slug, locale);
 
   return (
     <>
       <JsonLd data={jsonLd} />
-      <BlogPostPage htmlContent={htmlContent} lang={lang} post={post} relatedPosts={relatedPosts} />
+      <BlogPostPage
+        htmlContent={htmlContent}
+        lang={locale}
+        post={post}
+        relatedPosts={relatedPosts}
+      />
     </>
   );
 }
