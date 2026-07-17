@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp01Icon, Cancel01Icon, Chat01Icon, File01Icon } from "@hugeicons/core-free-icons";
+import {
+  Cancel01Icon,
+  Chat01Icon,
+  File01Icon,
+  RefreshIcon,
+  SentIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -357,18 +363,30 @@ export function ChatDockMockSection() {
                         className="h-8 rounded-full px-3"
                         onClick={resetPlayback}
                       >
+                        <HugeiconsIcon
+                          data-icon="inline-start"
+                          icon={RefreshIcon}
+                          strokeWidth={2}
+                          className="size-3.5"
+                        />
                         <FormattedMessage {...chatDockMockMessages.replayLabel} />
                       </Button>
                     ) : (
                       <Button
                         type="button"
-                        size="icon-sm"
-                        className="size-8 rounded-full"
+                        size="sm"
+                        className="h-8 rounded-full px-3"
                         disabled={isBusy}
                         aria-label={intl.formatMessage(chatDockMockMessages.sendLabel)}
                         onClick={startPlayback}
                       >
-                        <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} className="size-4" />
+                        <HugeiconsIcon
+                          data-icon="inline-start"
+                          icon={SentIcon}
+                          strokeWidth={2}
+                          className="size-3.5"
+                        />
+                        <FormattedMessage {...chatDockMockMessages.sendLabel} />
                       </Button>
                     )}
                   </div>
