@@ -1,10 +1,25 @@
-import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+import type { Metadata } from "next";
+
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { TypographyP } from "@/components/ui/typography";
 
-export const metadata = createLegalMetadata({
-  title: "Privacy policy",
-  description: "How Hyperlocalise handles account, usage, and provider-related data.",
-});
+import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+
+type PrivacyPageProps = {
+  params: Promise<{ lang: string }>;
+};
+
+export async function generateMetadata({ params }: PrivacyPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
+  return createLegalMetadata({
+    title: "Privacy policy",
+    description: "How Hyperlocalise handles account, usage, and provider-related data.",
+    locale,
+    path: "/privacy",
+  });
+}
 
 export default function PrivacyPage() {
   return (

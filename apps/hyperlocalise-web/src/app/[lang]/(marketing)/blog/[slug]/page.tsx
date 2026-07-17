@@ -4,13 +4,22 @@ import { notFound } from "next/navigation";
 
 import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  SUPPORTED_APP_LOCALES,
+  type AppLocale,
+} from "@/lib/app-i18n/locales";
 import { getPostBySlug, getPostSlugs, getRelevantPosts } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { getBlogPostCoverAbsoluteUrl } from "@/lib/blog/get-blog-post-cover-url";
 import { markdownToHtml } from "@/lib/blog/markdown-to-html";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { SITE_URL } from "@/lib/seo/site-url";
 
-const BASE_URL = "https://www.hyperlocalise.com";
+function getLocalesWithBlogPost(slug: string): AppLocale[] {
+  return SUPPORTED_APP_LOCALES.filter((locale) => getPostBySlug(slug, locale) != null);
+}
 
 type BlogPostRouteParams = {
   lang: string;
@@ -29,17 +38,24 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: BlogPostRouteProps): Promise<Metadata> {
   const { lang, slug } = await params;
-  const post = getPostBySlug(slug, lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const post = getPostBySlug(slug, locale);
 
   if (!post) {
     return {};
   }
 
-  const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, BASE_URL);
+  const imageUrl = getBlogPostCoverAbsoluteUrl(post, locale, SITE_URL);
+  const availableLocales = getLocalesWithBlogPost(slug);
 
   return {
     title: `${post.title} | Hyperlocalise`,
     description: post.excerpt,
+    alternates: getLocalizedAlternates({
+      locale,
+      path: `/blog/${post.slug}`,
+      locales: availableLocales,
+    }),
     openGraph: {
       title: post.title,
       description: post.excerpt,
@@ -58,8 +74,8 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 
 function buildArticleJsonLd(post: NonNullable<ReturnType<typeof getPostBySlug>>, lang: string) {
   const postPath = getBlogPostPath(lang, post.slug);
-  const canonicalUrl = postPath ? `${BASE_URL}${postPath}` : `${BASE_URL}/${lang}/blog`;
-  const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, BASE_URL);
+  const canonicalUrl = postPath ? `${SITE_URL}${postPath}` : `${SITE_URL}/${lang}/blog`;
+  const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, SITE_URL);
 
   const articleSchema: WithContext<Article> = {
     "@context": "https://schema.org",
@@ -77,14 +93,14 @@ function buildArticleJsonLd(post: NonNullable<ReturnType<typeof getPostBySlug>>,
     author: {
       "@type": "Organization",
       name: "Hyperlocalise",
-      url: BASE_URL,
+      url: SITE_URL,
     },
     publisher: {
       "@type": "Organization",
       name: "Hyperlocalise",
       logo: {
         "@type": "ImageObject",
-        url: `${BASE_URL}/images/logo.png`,
+        url: `${SITE_URL}/images/logo.png`,
       },
     },
   };

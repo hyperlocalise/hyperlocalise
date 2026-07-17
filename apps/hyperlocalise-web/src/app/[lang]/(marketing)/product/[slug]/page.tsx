@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 
 import { ProductPage, productPagesBySlug, productSlugs } from "@/components/marketing/product";
 import { getIntlShape } from "@/lib/app-i18n/intl";
-import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  SUPPORTED_APP_LOCALES,
+} from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 import { getProductRouteMetadata } from "./product-route-metadata";
 
@@ -28,7 +33,8 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     return {};
   }
 
-  const intl = getIntlShape(lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
   const metadata = getProductRouteMetadata(slug, intl);
 
   if (!metadata) {
@@ -41,6 +47,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     title,
     description,
     keywords: content.metadata.keywords,
+    alternates: getLocalizedAlternates({ locale, path: `/product/${slug}` }),
     openGraph: {
       title,
       description,
