@@ -825,6 +825,60 @@ func TestUnescapeJavaScriptStringSupportsHighByteHexEscapes(t *testing.T) {
 	}
 }
 
+func TestExtractCommandSkipsFilesWithExtractionErrors(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "good.ts"), `
+formatMessage({
+  id: "good.message",
+  defaultMessage: "Hello",
+  description: "Greeting",
+});
+`)
+	writeExtractTestFile(
+		t, filepath.Join(dir, "bad.ts"),
+		"const broken = `unterminated template;\n"+
+			"formatMessage({\n"+
+			"  id: \"bad.message\",\n"+
+			"  defaultMessage: \"Should be skipped\",\n"+
+			"});\n",
+	)
+
+	outFile := filepath.Join(dir, "messages.json")
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{".", "--out-file", outFile})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	errorOutput := out.String()
+	if !strings.Contains(errorOutput, `error: extract "`) || !strings.Contains(errorOutput, "bad.ts") {
+		t.Fatalf("expected extraction error for bad.ts on stdout, got %q", errorOutput)
+	}
+	if !strings.Contains(errorOutput, "unterminated template literal") {
+		t.Fatalf("expected unterminated template literal detail, got %q", errorOutput)
+	}
+	if strings.Contains(errorOutput, "good.ts") {
+		t.Fatalf("did not expect error for good.ts, got %q", errorOutput)
+	}
+
+	content, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("read out-file: %v", err)
+	}
+	catalog := decodeExtractTestCatalog(t, content)
+	if _, ok := catalog["good.message"]; !ok {
+		t.Fatalf("missing good.message in catalog=%s", content)
+	}
+	if _, ok := catalog["bad.message"]; ok {
+		t.Fatalf("bad.message should be skipped, catalog=%s", content)
+	}
+}
+
 func TestRootHelpIncludesExtractCommand(t *testing.T) {
 	cmd := newRootCmd("")
 	b := bytes.NewBufferString("")

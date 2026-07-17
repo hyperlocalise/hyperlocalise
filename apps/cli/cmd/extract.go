@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -58,7 +59,7 @@ func newExtractCmd() *cobra.Command {
 		Short:        "extract react-intl messages from TypeScript files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			messages, err := runExtract(args, o)
+			messages, err := runExtract(args, o, cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}
@@ -119,7 +120,7 @@ func buildExtractCatalog(messages []extractMessage) map[string]extractCatalogMes
 	return catalog
 }
 
-func runExtract(paths []string, options extractOptions) ([]extractMessage, error) {
+func runExtract(paths []string, options extractOptions, errorOut io.Writer) ([]extractMessage, error) {
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}
@@ -131,6 +132,9 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no .ts or .tsx files matched")
 	}
+	if errorOut == nil {
+		errorOut = io.Discard
+	}
 
 	messages := make([]extractMessage, 0)
 	for _, file := range files {
@@ -141,7 +145,10 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 
 		fileMessages, err := extractMessagesFromReactIntlSource(string(content), file)
 		if err != nil {
-			return nil, fmt.Errorf("extract %q: %w", file, err)
+			if _, writeErr := fmt.Fprintf(errorOut, "error: extract %q: %v\n", file, err); writeErr != nil {
+				return nil, fmt.Errorf("write extract error for %q: %w", file, writeErr)
+			}
+			continue
 		}
 		if options.prefixID {
 			prefix := normalizedExtractFilename(file)
@@ -151,7 +158,10 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 		}
 		if options.flatten {
 			if err := flattenExtractMessages(fileMessages); err != nil {
-				return nil, fmt.Errorf("flatten %q: %w", file, err)
+				if _, writeErr := fmt.Fprintf(errorOut, "error: flatten %q: %v\n", file, err); writeErr != nil {
+					return nil, fmt.Errorf("write flatten error for %q: %w", file, writeErr)
+				}
+				continue
 			}
 		}
 
