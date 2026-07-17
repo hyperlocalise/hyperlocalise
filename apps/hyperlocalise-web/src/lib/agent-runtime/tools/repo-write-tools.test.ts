@@ -46,6 +46,14 @@ vi.mock("@/lib/file-storage/records", async (importOriginal) => {
   };
 });
 
+const { readTranslatedFileMock } = vi.hoisted(() => ({
+  readTranslatedFileMock: vi.fn(),
+}));
+
+vi.mock("@/lib/translation/sandbox", () => ({
+  readTranslatedFile: readTranslatedFileMock,
+}));
+
 import {
   createApplyHyperlocaliseFixesTool,
   createCommitChangesTool,
@@ -422,13 +430,12 @@ describe("createUploadSourcesTool", () => {
   });
 
   it("uploads files and returns success", async () => {
-    const runCommandMock = vi.fn(async () => ({
-      exitCode: 0,
-      output: vi.fn(async () => '{"hello":"Hello"}'),
-    }));
-    sandboxGetMock.mockResolvedValue({
-      runCommand: runCommandMock,
-    } as never);
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.endsWith("en.json")) {
+        return Buffer.from('{"hello":"Hello"}');
+      }
+      return Buffer.from('{"hello":"Bonjour"}');
+    });
 
     const tool = createUploadSourcesTool(createBaseCtx());
     const result = (await tool.execute!(
@@ -452,6 +459,7 @@ describe("createUploadSourcesTool", () => {
         sourceFileVersionId: "version_file_fr.json",
       },
     ]);
+    expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_1", "src/i18n/en.json");
     expect(createStoredFileMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org_1",
@@ -478,14 +486,9 @@ describe("createUploadSourcesTool", () => {
   });
 
   it("returns error when a file cannot be read", async () => {
-    const runCommandMock = vi
-      .fn()
-      .mockResolvedValueOnce({ exitCode: 0, output: vi.fn(async () => '{"hello":"Hello"}') })
-      .mockResolvedValueOnce({ exitCode: 1, output: vi.fn(async () => "No such file") });
-
-    sandboxGetMock.mockResolvedValue({
-      runCommand: runCommandMock,
-    } as never);
+    readTranslatedFileMock
+      .mockResolvedValueOnce(Buffer.from('{"hello":"Hello"}'))
+      .mockRejectedValueOnce(new Error("Failed to read src/i18n/missing.json"));
 
     const tool = createUploadSourcesTool(createBaseCtx());
     const result = (await tool.execute!(
