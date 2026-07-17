@@ -2,18 +2,17 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Alert02Icon, ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 
 import { isLiveProviderMemoryId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
+import { ProviderKindBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
@@ -28,36 +27,6 @@ function SourceLabel({ memory }: { memory: MemoryListRow }) {
   }
 
   return <span className="text-xs text-muted-foreground">External TMS</span>;
-}
-
-function SyncHealthBadge({ memory }: { memory: MemoryListRow }) {
-  if (memory.source === "native") {
-    return (
-      <Badge variant="outline" className={toneClass("info")}>
-        Active
-      </Badge>
-    );
-  }
-
-  if (memory.lastSyncErrorAt) {
-    return (
-      <Badge variant="destructive" className="text-[10px]">
-        <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="size-3" />
-        Sync error
-      </Badge>
-    );
-  }
-
-  if (memory.syncState) {
-    return <SyncStateBadge syncState={memory.syncState} />;
-  }
-
-  // External TMS memories are fetched live from the provider API.
-  return (
-    <Badge variant="outline" className={toneClass("info")}>
-      Live
-    </Badge>
-  );
 }
 
 function CapabilityBadge({ memory }: { memory: MemoryListRow }) {
@@ -88,15 +57,12 @@ function MemoryRow({
       : [
           memory.externalProviderKind ? providerLabel(memory.externalProviderKind) : "Provider",
           memory.externalProjectId ? `Project ${memory.externalProjectId}` : null,
-          memory.lastSyncedAt && memory.lastSyncedAt !== "Live"
-            ? `Synced ${memory.lastSyncedAt}`
-            : "Live",
         ]
           .filter(Boolean)
           .join(" · ");
 
   return (
-    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.4fr_1fr_0.9fr_0.9fr_auto] md:items-center">
+    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.4fr_1fr_0.9fr_0.9fr] md:items-center">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
@@ -117,20 +83,6 @@ function MemoryRow({
           <SourceLabel memory={memory} />
         </div>
         <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
-        {memory.lastSyncErrorAt ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span className="mt-1 block text-xs text-destructive">
-                  Last sync failed {memory.lastSyncErrorAt}
-                </span>
-              }
-            />
-            <TooltipContent side="bottom" align="start" className="max-w-xs">
-              <p className="text-xs">{memory.lastSyncErrorMessage ?? "Unknown error"}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {memory.projectLinkId ? (
             <Link
@@ -164,7 +116,6 @@ function MemoryRow({
       <div className="flex flex-wrap gap-2">
         <CapabilityBadge memory={memory} />
       </div>
-      <SyncHealthBadge memory={memory} />
     </div>
   );
 }
