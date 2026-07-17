@@ -95,7 +95,7 @@ export const jobsPageViewMessages = defineMessages({
   },
   dueMeta: {
     defaultMessage: "Due {due}",
-    id: "kP9mR2wLxN",
+    id: "GvcjcKm7Sc",
     description: "Relative due date under job task details",
   },
   viewModeAriaLabel: {
@@ -220,7 +220,7 @@ export const jobsPageViewMessages = defineMessages({
   },
   projectSectionDescription: {
     defaultMessage: "Translation, review, and QA work from Hyperlocalise and your TMS.",
-    id: "hT4nQ8vBcR",
+    id: "zjUiRNln1O",
     description: "Project page section description for the jobs view",
   },
   workspaceLabel: {

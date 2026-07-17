@@ -24,7 +24,7 @@ export const jobsKanbanBoardMessages = defineMessages({
   },
   dueMeta: {
     defaultMessage: "Due {due}",
-    id: "wN7cF5yKpA",
+    id: "kPJq84MgiE",
     description: "Relative due date on a kanban job card",
   },
   noJobs: {
