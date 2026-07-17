@@ -88,27 +88,18 @@ function createAuthContext(role: "admin" | "member" = "admin"): ApiAuthContext {
  */
 function mockEmptyTeamScopedLookups() {
   dbSelectMock.mockImplementation(() => {
-    const createThenable = (value: unknown[] = []) => {
-      const thenable: {
-        limit: ReturnType<typeof vi.fn>;
-        then: Promise<unknown[]>["then"];
-        innerJoin: ReturnType<typeof vi.fn>;
-        where: ReturnType<typeof vi.fn>;
-        from: ReturnType<typeof vi.fn>;
-      } = {
-        limit: vi.fn(async () => value),
-        then: (onFulfilled, onRejected) => Promise.resolve(value).then(onFulfilled, onRejected),
-        innerJoin: vi.fn(),
-        where: vi.fn(),
-        from: vi.fn(),
-      };
-      thenable.innerJoin.mockReturnValue(thenable);
-      thenable.where.mockReturnValue(thenable);
-      thenable.from.mockReturnValue(thenable);
-      return thenable;
+    const emptyRows: unknown[] = [];
+    const builder = Promise.resolve(emptyRows) as Promise<unknown[]> & {
+      from: ReturnType<typeof vi.fn>;
+      innerJoin: ReturnType<typeof vi.fn>;
+      where: ReturnType<typeof vi.fn>;
+      limit: ReturnType<typeof vi.fn>;
     };
-
-    return createThenable([]);
+    builder.from = vi.fn(() => builder);
+    builder.innerJoin = vi.fn(() => builder);
+    builder.where = vi.fn(() => builder);
+    builder.limit = vi.fn(async () => emptyRows);
+    return builder;
   });
 }
 
