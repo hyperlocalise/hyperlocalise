@@ -8,6 +8,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { TeamRole } from "@/api/routes/team/team.schema";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ import {
   listAssignableMembers,
   resolveTeamDetailPageState,
 } from "./teams-settings-view-model";
+import { teamDetailPageViewMessages } from "./team-detail-page-view.messages";
 
 function MembersTableHeader({ showActions }: { showActions: boolean }) {
   return (
@@ -65,11 +67,17 @@ function MembersTableHeader({ showActions }: { showActions: boolean }) {
           : "md:grid-cols-[minmax(0,1.5fr)_12rem]",
       )}
     >
-      <div role="columnheader">Member</div>
-      <div role="columnheader">Role</div>
+      <div role="columnheader">
+        <FormattedMessage {...teamDetailPageViewMessages.columnMember} />
+      </div>
+      <div role="columnheader">
+        <FormattedMessage {...teamDetailPageViewMessages.columnRole} />
+      </div>
       {showActions ? (
         <div role="columnheader" className="text-right">
-          <span className="sr-only">Actions</span>
+          <span className="sr-only">
+            <FormattedMessage {...teamDetailPageViewMessages.columnActions} />
+          </span>
         </div>
       ) : null}
     </div>
@@ -87,6 +95,8 @@ function MemberRowActions({
   isRemovingMember: boolean;
   onRemoveMember: (member: TeamMemberRow) => void;
 }) {
+  const intl = useIntl();
+
   if (!canRemove) {
     return null;
   }
@@ -104,7 +114,9 @@ function MemberRowActions({
               "opacity-100 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100",
               "data-popup-open:opacity-100 aria-expanded:opacity-100",
             )}
-            aria-label={`Actions for ${member.email}`}
+            aria-label={intl.formatMessage(teamDetailPageViewMessages.actionsForMember, {
+              email: member.email,
+            })}
             disabled={isRemovingMember}
           />
         }
@@ -118,7 +130,7 @@ function MemberRowActions({
             onClick={() => onRemoveMember(member)}
             disabled={isRemovingMember}
           >
-            Remove from team...
+            <FormattedMessage {...teamDetailPageViewMessages.removeFromTeam} />
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -171,6 +183,7 @@ export function TeamDetailPageView({
   onRemoveMember: (workosUserId: string) => void;
   onRemovingMemberChange: (member: TeamMemberRow | null) => void;
 }) {
+  const intl = useIntl();
   const pageState = resolveTeamDetailPageState({
     team,
     canManageTeams,
@@ -194,17 +207,19 @@ export function TeamDetailPageView({
           className="w-fit px-2 text-muted-foreground hover:text-foreground"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} />
-          Back to teams
+          <FormattedMessage {...teamDetailPageViewMessages.backToTeams} />
         </Button>
 
         <PageHeader
           icon={UserGroupIcon}
-          label="Team"
-          title={team?.name ?? "Team"}
+          label={intl.formatMessage(teamDetailPageViewMessages.pageLabel)}
+          title={team?.name ?? intl.formatMessage(teamDetailPageViewMessages.pageTitleFallback)}
           description={
             team
-              ? `Manage membership and roles for the ${team.slug} team.`
-              : "Load team membership and roles."
+              ? intl.formatMessage(teamDetailPageViewMessages.pageDescriptionWithSlug, {
+                  slug: team.slug,
+                })
+              : intl.formatMessage(teamDetailPageViewMessages.pageDescriptionLoading)
           }
           actions={
             pageState.canManageTeams && team ? (
@@ -215,27 +230,36 @@ export function TeamDetailPageView({
                 onClick={() => onEditOpenChange(true)}
                 disabled={isSavingTeam}
               >
-                Edit team
+                <FormattedMessage {...teamDetailPageViewMessages.editTeam} />
               </Button>
             ) : null
           }
         />
       </div>
 
-      <section aria-label="Team members" className="min-w-0">
+      <section
+        aria-label={intl.formatMessage(teamDetailPageViewMessages.sectionLabel)}
+        className="min-w-0"
+      >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">Members</TypographyP>
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...teamDetailPageViewMessages.membersHeading} />
+            </TypographyP>
             <TypographyP className="mt-1 text-sm text-muted-foreground">
-              People assigned to this team can access its projects and jobs. Need someone new in the
-              workspace?{" "}
-              <Link
-                href={`/org/${organizationSlug}/members`}
-                className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Invite a member
-              </Link>
-              .
+              <FormattedMessage
+                {...teamDetailPageViewMessages.membersDescription}
+                values={{
+                  invite: (chunks) => (
+                    <Link
+                      href={`/org/${organizationSlug}/members`}
+                      className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                }}
+              />
             </TypographyP>
           </div>
           {pageState.canManageMembers ? (
@@ -246,29 +270,33 @@ export function TeamDetailPageView({
               disabled={isAddingMember}
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Add member
+              <FormattedMessage {...teamDetailPageViewMessages.addMember} />
             </Button>
           ) : null}
         </div>
 
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-muted-foreground">Loading team...</TypographyP>
+          <TypographyP className="py-8 text-sm text-muted-foreground">
+            <FormattedMessage {...teamDetailPageViewMessages.loading} />
+          </TypographyP>
         ) : error ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
-              Team failed to load.
+              <FormattedMessage {...teamDetailPageViewMessages.loadFailed} />
             </TypographyP>
             <TypographyP className="mt-1 text-xs text-muted-foreground">
-              {error instanceof Error ? error.message : "Refresh the page to try again."}
+              {error instanceof Error
+                ? error.message
+                : intl.formatMessage(teamDetailPageViewMessages.loadFailedFallback)}
             </TypographyP>
           </div>
         ) : pageState.members.length === 0 ? (
           <div className="py-10">
             <TypographyP className="text-sm font-medium text-foreground">
-              No members on this team
+              <FormattedMessage {...teamDetailPageViewMessages.emptyTitle} />
             </TypographyP>
             <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Add workspace members to start scoping projects and jobs to this team.
+              <FormattedMessage {...teamDetailPageViewMessages.emptyDescription} />
             </TypographyP>
           </div>
         ) : (
@@ -305,7 +333,7 @@ export function TeamDetailPageView({
                       </TypographyP>
                       {isCurrentUser ? (
                         <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                          You
+                          <FormattedMessage {...teamDetailPageViewMessages.youBadge} />
                         </span>
                       ) : null}
                     </div>
@@ -314,7 +342,7 @@ export function TeamDetailPageView({
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
                       <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
-                        Role
+                        <FormattedMessage {...teamDetailPageViewMessages.columnRole} />
                       </span>
                       {canUpdateRole ? (
                         <Select
@@ -332,11 +360,15 @@ export function TeamDetailPageView({
                           disabled={updatingMemberRoleId === member.workosUserId}
                         >
                           <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
-                            <SelectValue>{getTeamRoleLabel(member.role)}</SelectValue>
+                            <SelectValue>{getTeamRoleLabel(member.role, intl)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="manager">{getTeamRoleLabel("manager")}</SelectItem>
-                            <SelectItem value="member">{getTeamRoleLabel("member")}</SelectItem>
+                            <SelectItem value="manager">
+                              {getTeamRoleLabel("manager", intl)}
+                            </SelectItem>
+                            <SelectItem value="member">
+                              {getTeamRoleLabel("member", intl)}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
@@ -350,12 +382,12 @@ export function TeamDetailPageView({
                                   "border-border bg-muted text-subtle-foreground",
                                 )}
                               >
-                                {getTeamRoleLabel(member.role)}
+                                {getTeamRoleLabel(member.role, intl)}
                               </Badge>
                             }
                           />
                           <TooltipContent side="bottom" align="start" className="max-w-xs">
-                            {getTeamRoleDescription(member.role)}
+                            {getTeamRoleDescription(member.role, intl)}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -383,8 +415,8 @@ export function TeamDetailPageView({
         <TeamDialog
           open={isEditOpen}
           mode="edit"
-          title="Edit team"
-          description="Update the team name or slug used for project scoping."
+          title={intl.formatMessage(teamDetailPageViewMessages.editTeamTitle)}
+          description={intl.formatMessage(teamDetailPageViewMessages.editTeamDescription)}
           initialValues={createTeamFormFromSummary(team)}
           isSaving={isSavingTeam}
           onOpenChange={onEditOpenChange}
@@ -406,16 +438,20 @@ export function TeamDetailPageView({
       >
         <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Remove team member</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...teamDetailPageViewMessages.removeMemberTitle} />
+            </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? `${removingMember.email} will lose access to projects scoped to this team.`
+                ? intl.formatMessage(teamDetailPageViewMessages.removeMemberDescription, {
+                    email: removingMember.email,
+                  })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onRemovingMemberChange(null)}>
-              Cancel
+              <FormattedMessage {...teamDetailPageViewMessages.cancel} />
             </Button>
             <Button
               type="button"
@@ -427,7 +463,7 @@ export function TeamDetailPageView({
                 }
               }}
             >
-              Remove member
+              <FormattedMessage {...teamDetailPageViewMessages.removeMemberConfirm} />
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -9,6 +9,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { TeamDialog } from "./team-dialog";
 import type { TeamSummaryRow } from "./teams-api";
 import { createEmptyTeamForm, createTeamFormFromSummary } from "./team-form";
 import { getTeamRoleLabel, resolveTeamsListPageState } from "./teams-settings-view-model";
+import { teamsPageViewMessages } from "./teams-page-view.messages";
 
 export type TeamsLinkRenderer = (props: {
   href: string;
@@ -76,15 +78,23 @@ function TeamsTableHeader({ showActions }: { showActions: boolean }) {
         teamsTableColumns,
       )}
     >
-      <div role="columnheader">Team</div>
-      <div role="columnheader">Slug</div>
-      <div role="columnheader">Your role</div>
+      <div role="columnheader">
+        <FormattedMessage {...teamsPageViewMessages.columnTeam} />
+      </div>
+      <div role="columnheader">
+        <FormattedMessage {...teamsPageViewMessages.columnSlug} />
+      </div>
+      <div role="columnheader">
+        <FormattedMessage {...teamsPageViewMessages.columnYourRole} />
+      </div>
       <div role="columnheader" className="text-right">
-        Members
+        <FormattedMessage {...teamsPageViewMessages.columnMembers} />
       </div>
       {showActions ? (
         <div role="columnheader" className="text-right">
-          <span className="sr-only">Actions</span>
+          <span className="sr-only">
+            <FormattedMessage {...teamsPageViewMessages.columnActions} />
+          </span>
         </div>
       ) : null}
     </div>
@@ -106,6 +116,7 @@ function TeamRowActions({
   onEditTeam: (team: TeamSummaryRow) => void;
   onDeleteTeam: (team: TeamSummaryRow) => void;
 }) {
+  const intl = useIntl();
   const teamHref = `/org/${organizationSlug}/teams/${team.id}`;
 
   return (
@@ -121,7 +132,9 @@ function TeamRowActions({
               "opacity-100 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100",
               "data-popup-open:opacity-100 aria-expanded:opacity-100",
             )}
-            aria-label={`Actions for ${team.name}`}
+            aria-label={intl.formatMessage(teamsPageViewMessages.actionsForTeam, {
+              teamName: team.name,
+            })}
             disabled={isDeletingTeam}
           />
         }
@@ -130,11 +143,17 @@ function TeamRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link href={teamHref} />}>Open team</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href={teamHref} />}>
+            <FormattedMessage {...teamsPageViewMessages.openTeam} />
+          </DropdownMenuItem>
           {canManageTeams ? (
-            <DropdownMenuItem onClick={() => onEditTeam(team)}>Edit team...</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEditTeam(team)}>
+              <FormattedMessage {...teamsPageViewMessages.editTeam} />
+            </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem render={<Link href={teamHref} />}>Manage members...</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href={teamHref} />}>
+            <FormattedMessage {...teamsPageViewMessages.manageMembers} />
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         {canManageTeams ? (
           <>
@@ -145,7 +164,7 @@ function TeamRowActions({
                 onClick={() => onDeleteTeam(team)}
                 disabled={isDeletingTeam}
               >
-                Delete team...
+                <FormattedMessage {...teamsPageViewMessages.deleteTeamMenu} />
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </>
@@ -194,6 +213,7 @@ export function TeamsPageView({
   onDeleteTeam: () => void;
   renderTeamLink?: TeamsLinkRenderer;
 }) {
+  const intl = useIntl();
   const pageState = resolveTeamsListPageState({ teams, canManageTeams });
 
   return (
@@ -202,9 +222,9 @@ export function TeamsPageView({
 
       <PageHeader
         icon={UserGroupIcon}
-        label="Workspace"
-        title="Teams"
-        description="Group people into teams to scope projects, jobs, and localization ownership."
+        label={intl.formatMessage(teamsPageViewMessages.pageLabel)}
+        title={intl.formatMessage(teamsPageViewMessages.pageTitle)}
+        description={intl.formatMessage(teamsPageViewMessages.pageDescription)}
         actions={
           pageState.canCreateTeam ? (
             <Button
@@ -214,37 +234,50 @@ export function TeamsPageView({
               disabled={isCreating}
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create team
+              <FormattedMessage {...teamsPageViewMessages.createTeam} />
             </Button>
           ) : null
         }
       />
 
-      <section aria-label="Workspace teams" className="min-w-0">
+      <section
+        aria-label={intl.formatMessage(teamsPageViewMessages.sectionLabel)}
+        className="min-w-0"
+      >
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-muted-foreground">Loading teams...</TypographyP>
+          <TypographyP className="py-8 text-sm text-muted-foreground">
+            <FormattedMessage {...teamsPageViewMessages.loading} />
+          </TypographyP>
         ) : error ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
-              Teams failed to load.
+              <FormattedMessage {...teamsPageViewMessages.loadFailed} />
             </TypographyP>
             <TypographyP className="mt-1 text-xs text-muted-foreground">
-              {error instanceof Error ? error.message : "Refresh the page to try again."}
+              {error instanceof Error
+                ? error.message
+                : intl.formatMessage(teamsPageViewMessages.loadFailedFallback)}
             </TypographyP>
           </div>
         ) : pageState.teams.length === 0 ? (
           <div className="py-10">
-            <TypographyP className="text-sm font-medium text-foreground">No teams yet</TypographyP>
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...teamsPageViewMessages.emptyTitle} />
+            </TypographyP>
             <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Create a team to group workspace members and scope project access. Invite people on
-              the{" "}
-              <Link
-                href={`/org/${organizationSlug}/members`}
-                className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Members
-              </Link>{" "}
-              page first if your workspace is still empty.
+              <FormattedMessage
+                {...teamsPageViewMessages.emptyDescription}
+                values={{
+                  members: (chunks) => (
+                    <Link
+                      href={`/org/${organizationSlug}/members`}
+                      className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                }}
+              />
             </TypographyP>
           </div>
         ) : (
@@ -291,24 +324,26 @@ export function TeamsPageView({
                 <div role="cell" className="min-w-0">
                   <div className="flex items-center justify-between gap-3 md:block">
                     <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
-                      Your role
+                      <FormattedMessage {...teamsPageViewMessages.columnYourRole} />
                     </span>
                     {team.currentUserRole ? (
                       <Badge
                         variant="outline"
                         className="w-fit rounded-full border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-subtle-foreground"
                       >
-                        {getTeamRoleLabel(team.currentUserRole)}
+                        {getTeamRoleLabel(team.currentUserRole, intl)}
                       </Badge>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <span className="text-sm text-muted-foreground">
+                        <FormattedMessage {...teamsPageViewMessages.noRole} />
+                      </span>
                     )}
                   </div>
                 </div>
 
                 <div role="cell" className="flex items-center justify-between gap-3 md:justify-end">
                   <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
-                    Members
+                    <FormattedMessage {...teamsPageViewMessages.columnMembers} />
                   </span>
                   <span
                     className={cn(
@@ -339,8 +374,8 @@ export function TeamsPageView({
       <TeamDialog
         open={isCreateOpen}
         mode="create"
-        title="Create team"
-        description="Teams group workspace members and scope which projects they can access."
+        title={intl.formatMessage(teamsPageViewMessages.createTeamTitle)}
+        description={intl.formatMessage(teamsPageViewMessages.createTeamDescription)}
         initialValues={createEmptyTeamForm()}
         isSaving={isCreating}
         onOpenChange={onCreateOpenChange}
@@ -350,8 +385,8 @@ export function TeamsPageView({
       <TeamDialog
         open={editingTeam !== null}
         mode="edit"
-        title="Edit team"
-        description="Update the team name or slug used across the workspace."
+        title={intl.formatMessage(teamsPageViewMessages.editTeamTitle)}
+        description={intl.formatMessage(teamsPageViewMessages.editTeamDescription)}
         initialValues={editingTeam ? createTeamFormFromSummary(editingTeam) : createEmptyTeamForm()}
         isSaving={isUpdatingTeam}
         onOpenChange={(open) => !open && onEditingTeamChange(null)}
@@ -364,16 +399,20 @@ export function TeamsPageView({
       >
         <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete team</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...teamsPageViewMessages.deleteTeamTitle} />
+            </DialogTitle>
             <DialogDescription>
               {deletingTeam
-                ? `${deletingTeam.name} will be removed and members will lose team-scoped access tied to it.`
+                ? intl.formatMessage(teamsPageViewMessages.deleteTeamDescription, {
+                    teamName: deletingTeam.name,
+                  })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onDeletingTeamChange(null)}>
-              Cancel
+              <FormattedMessage {...teamsPageViewMessages.cancel} />
             </Button>
             <Button
               type="button"
@@ -382,7 +421,7 @@ export function TeamsPageView({
               onClick={onDeleteTeam}
             >
               <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
-              Delete team
+              <FormattedMessage {...teamsPageViewMessages.deleteTeamConfirm} />
             </Button>
           </DialogFooter>
         </DialogContent>

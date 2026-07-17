@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
+import { teamDialogMessages } from "./team-dialog.messages";
 import {
   createEmptyTeamForm,
   suggestTeamSlug,
@@ -45,6 +47,7 @@ export function TeamDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: TeamFormValues) => void;
 }) {
+  const intl = useIntl();
   const [values, setValues] = useState<TeamFormValues>(initialValues ?? createEmptyTeamForm());
   const [errors, setErrors] = useState<TeamFormErrors>({});
   const [slugTouched, setSlugTouched] = useState(false);
@@ -62,7 +65,7 @@ export function TeamDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextErrors = validateTeamForm(values, mode);
+    const nextErrors = validateTeamForm(values, mode, { intl });
     setErrors(nextErrors);
 
     if (teamFormHasErrors(nextErrors)) {
@@ -91,7 +94,9 @@ export function TeamDialog({
           </DialogHeader>
 
           <Field>
-            <FieldLabel htmlFor={nameId}>Name</FieldLabel>
+            <FieldLabel htmlFor={nameId}>
+              <FormattedMessage {...teamDialogMessages.nameLabel} />
+            </FieldLabel>
             <Input
               id={nameId}
               value={values.name}
@@ -104,14 +109,16 @@ export function TeamDialog({
               }}
               aria-invalid={Boolean(errors.name)}
               disabled={isSaving}
-              placeholder="Localization"
+              placeholder={intl.formatMessage(teamDialogMessages.namePlaceholder)}
               className="border-border bg-muted"
             />
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
           </Field>
 
           <Field>
-            <FieldLabel htmlFor={slugId}>Slug</FieldLabel>
+            <FieldLabel htmlFor={slugId}>
+              <FormattedMessage {...teamDialogMessages.slugLabel} />
+            </FieldLabel>
             <Input
               id={slugId}
               value={values.slug}
@@ -121,11 +128,11 @@ export function TeamDialog({
               }}
               aria-invalid={Boolean(errors.slug)}
               disabled={isSaving}
-              placeholder="localization"
+              placeholder={intl.formatMessage(teamDialogMessages.slugPlaceholder)}
               className="border-border bg-muted"
             />
             <FieldDescription>
-              Used in URLs and project scoping. Lowercase letters, numbers, and hyphens only.
+              <FormattedMessage {...teamDialogMessages.slugDescription} />
             </FieldDescription>
             <FieldError errors={errors.slug ? [{ message: errors.slug }] : undefined} />
           </Field>
@@ -137,11 +144,17 @@ export function TeamDialog({
               disabled={isSaving}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              <FormattedMessage {...teamDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
-              {isSaving ? "Saving..." : mode === "create" ? "Create team" : "Save changes"}
+              {isSaving ? (
+                <FormattedMessage {...teamDialogMessages.saving} />
+              ) : mode === "create" ? (
+                <FormattedMessage {...teamDialogMessages.createTeam} />
+              ) : (
+                <FormattedMessage {...teamDialogMessages.saveChanges} />
+              )}
             </Button>
           </DialogFooter>
         </form>
