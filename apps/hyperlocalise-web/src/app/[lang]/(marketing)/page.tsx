@@ -4,6 +4,7 @@ import { WebApplication } from "schema-dts";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { chapters, footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
+import { ChatDockMockSection } from "@/components/marketing/chat-dock-mock";
 import {
   ChapterSection,
   FinalCtaSection,
@@ -107,6 +108,10 @@ export default async function Home({ params }: HomePageProps) {
         <main className="mx-auto max-w-7xl">
           <section className=" px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
             <HeroSection />
+          </section>
+
+          <section className="px-5 py-16 sm:px-8 lg:px-10">
+            <ChatDockMockSection />
           </section>
 
           <section className="px-5 py-16 sm:px-8 lg:px-10">

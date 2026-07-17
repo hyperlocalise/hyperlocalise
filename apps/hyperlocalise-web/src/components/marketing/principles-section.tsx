@@ -27,7 +27,6 @@ export function PrinciplesSection() {
       <div className="mt-10 overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-[0_20px_48px_rgba(0,0,0,0.22)] sm:mt-12 sm:rounded-[2rem] sm:shadow-[0_32px_80px_rgba(0,0,0,0.28)]">
         <div className="grid divide-y divide-border lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {principles.map((item, index) => {
-            const chapterNumber = `0${index + 1}.0`;
             const anchorIds = ["translate-task", "providers", "evaluations"] as const;
             const href = `#${anchorIds[index]}`;
 
@@ -37,10 +36,6 @@ export function PrinciplesSection() {
                 className="flex flex-col gap-8 px-6 py-7 text-foreground sm:px-7 sm:py-8 lg:min-h-112 lg:justify-between lg:gap-16 lg:px-8 lg:py-9"
               >
                 <div className="space-y-8 sm:space-y-12 lg:space-y-16">
-                  <TypographyP className="text-[0.95rem] tracking-[-0.02em] text-muted-foreground">
-                    {chapterNumber}
-                  </TypographyP>
-
                   <div className="max-w-none space-y-4 sm:max-w-[21ch]">
                     <TypographyH3 className="max-w-none text-balance text-[1.55rem] font-medium leading-[0.98] tracking-[-0.045em] text-foreground sm:max-w-[11ch] sm:text-[2.05rem] sm:tracking-[-0.05em] md:text-[2.05rem] lg:max-w-[10ch] lg:text-[2.15rem] lg:leading-[1.02]">
                       <FormattedMessage {...marketingPageMessages[item.titleKey]} />
