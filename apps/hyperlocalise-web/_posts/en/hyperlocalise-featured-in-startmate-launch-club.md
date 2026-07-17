@@ -18,7 +18,7 @@ tags:
   - product localisation
 ---
 
-We are excited to share that Hyperlocalise has been featured by [Startmate](https://startmate.com/) in *[Speaking everyone's language: In Conversation with Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)* — a Launch Club interview with our founder, Minh Cung.
+We are excited to share that Hyperlocalise has been featured by [Startmate](https://startmate.com/) in _[Speaking everyone's language: In Conversation with Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)_ — a Launch Club interview with our founder, Minh Cung.
 
 The piece, written by Taylor Jackson, captures the problem we see every day: companies expand into new markets, and their messaging stops landing. A phrase that works in Australia can miss completely in Asia. Translation that ignores culture does not just sound off — it can change meaning in ways teams never intended.
 
