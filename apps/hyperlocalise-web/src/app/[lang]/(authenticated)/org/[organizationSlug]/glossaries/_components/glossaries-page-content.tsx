@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
+  effectiveWorkspaceSyncFilter,
   GLOSSARY_SYNC_FILTERS,
   PROJECT_SOURCE_FILTERS,
   readWorkspaceFilterParam,
@@ -104,7 +105,10 @@ function createEmptyGlossaryForm(): GlossaryCreateForm {
   };
 }
 
-function useGlossaryFilters(searchParams: URLSearchParams) {
+function useGlossaryFilters(
+  searchParams: URLSearchParams,
+  options?: { ignoreSyncFilter?: boolean },
+) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState(() =>
     readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
@@ -118,6 +122,10 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
   const [syncFilter, setSyncFilter] = useState(() =>
     readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
   );
+  const effectiveSyncFilter = effectiveWorkspaceSyncFilter(
+    syncFilter,
+    Boolean(options?.ignoreSyncFilter),
+  );
 
   const filters = useMemo(
     () => ({
@@ -125,9 +133,9 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
       sourceFilter,
       providerFilter,
       resourceTypeFilter,
-      syncFilter,
+      syncFilter: effectiveSyncFilter,
     }),
-    [searchQuery, sourceFilter, providerFilter, resourceTypeFilter, syncFilter],
+    [searchQuery, sourceFilter, providerFilter, resourceTypeFilter, effectiveSyncFilter],
   );
 
   const activeFilterCount = [
@@ -135,7 +143,7 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
     sourceFilter,
     providerFilter,
     resourceTypeFilter,
-    syncFilter,
+    effectiveSyncFilter,
   ].filter((value) => value && value !== "all").length;
 
   const hasActiveFilters = activeFilterCount > 0;
@@ -158,7 +166,7 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
     setProviderFilter,
     resourceTypeFilter,
     setResourceTypeFilter,
-    syncFilter,
+    syncFilter: effectiveSyncFilter,
     setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
@@ -181,6 +189,9 @@ export function GlossariesPageContent({
   const [createForm, setCreateForm] = useState<GlossaryCreateForm>(() => createEmptyGlossaryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string; targetLocales?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
+  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const useLiveProviderGlossaries = Boolean(activeTmsProvider);
+  const allowCreateGlossaries = canCreateGlossaries && !useLiveProviderGlossaries;
   const {
     filters,
     searchQuery,
@@ -196,10 +207,9 @@ export function GlossariesPageContent({
     activeFilterCount,
     hasActiveFilters,
     clearFilters,
-  } = useGlossaryFilters(searchParams);
-  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
-  const useLiveProviderGlossaries = Boolean(activeTmsProvider);
-  const allowCreateGlossaries = canCreateGlossaries && !useLiveProviderGlossaries;
+  } = useGlossaryFilters(searchParams, {
+    ignoreSyncFilter: useLiveProviderGlossaries,
+  });
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),

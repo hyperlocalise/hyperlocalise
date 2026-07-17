@@ -11,6 +11,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
+  effectiveWorkspaceSyncFilter,
   GLOSSARY_SYNC_FILTERS,
   PROJECT_SOURCE_FILTERS,
   readWorkspaceFilterParam,
@@ -18,6 +19,7 @@ import {
 } from "../../_components/workspace-filter-params";
 import {
   buildProjectIdByExternalKey,
+  filterMemoryListRows,
   mapLiveTmsProviderMemoryToListRow,
   mapMemoryToListRow,
   providerLabel,
@@ -49,7 +51,11 @@ function createEmptyMemoryForm(): MemoryCreateForm {
   return { name: "", description: "" };
 }
 
-function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchParams) {
+function useMemoryFilters(
+  memories: MemoryListRow[],
+  searchParams: URLSearchParams,
+  options?: { ignoreSyncFilter?: boolean },
+) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState(() =>
     readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
@@ -60,36 +66,23 @@ function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchPara
   const [syncFilter, setSyncFilter] = useState(() =>
     readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
   );
+  const effectiveSyncFilter = effectiveWorkspaceSyncFilter(
+    syncFilter,
+    Boolean(options?.ignoreSyncFilter),
+  );
 
-  const filteredMemories = useMemo(() => {
-    return memories.filter((memory) => {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesName = memory.name.toLowerCase().includes(query);
-        const matchesProject = memory.externalProjectId?.toLowerCase().includes(query);
-        const matchesMemoryId = memory.externalMemoryId?.toLowerCase().includes(query);
-        if (!matchesName && !matchesProject && !matchesMemoryId) return false;
-      }
+  const filteredMemories = useMemo(
+    () =>
+      filterMemoryListRows(memories, {
+        searchQuery,
+        sourceFilter,
+        providerFilter,
+        syncFilter: effectiveSyncFilter,
+      }),
+    [memories, searchQuery, sourceFilter, providerFilter, effectiveSyncFilter],
+  );
 
-      if (sourceFilter !== "all" && memory.source !== sourceFilter) return false;
-
-      if (providerFilter !== "all") {
-        if (memory.externalProviderKind !== providerFilter) return false;
-      }
-
-      if (syncFilter !== "all") {
-        if (syncFilter === "error") {
-          if (!memory.lastSyncErrorAt) return false;
-        } else if (memory.syncState !== syncFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [memories, searchQuery, sourceFilter, providerFilter, syncFilter]);
-
-  const activeFilterCount = [sourceFilter, providerFilter, syncFilter].filter(
+  const activeFilterCount = [sourceFilter, providerFilter, effectiveSyncFilter].filter(
     (f) => f !== "all",
   ).length;
 
@@ -107,7 +100,7 @@ function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchPara
     setSourceFilter,
     providerFilter,
     setProviderFilter,
-    syncFilter,
+    syncFilter: effectiveSyncFilter,
     setSyncFilter,
     filteredMemories,
     activeFilterCount,
@@ -301,7 +294,9 @@ export function TranslationMemoriesPageContent({
     filteredMemories,
     activeFilterCount,
     clearFilters,
-  } = useMemoryFilters(memories, searchParams);
+  } = useMemoryFilters(memories, searchParams, {
+    ignoreSyncFilter: useLiveProviderMemories,
+  });
 
   useEffect(() => {
     setPage(1);
