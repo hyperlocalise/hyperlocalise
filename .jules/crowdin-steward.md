@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-12 - Fix CheckGlossaryImportStatus importID type mismatch
+
+**Learning:** In Crowdin API v2, the glossary import background job is initiated by `ImportGlossary` which returns a string UUID `identifier` representing the job. Consequently, checking the status of this background job via the Check Glossary Import Status endpoint (`GET /api/v2/glossaries/{glossaryId}/imports/{importId}`) requires passing this string UUID. However, the SDK incorrectly typed `importID` as an `int` and formatted the request URL using `%d`, rendering the status check unusable under real-world scenarios.
+
+**Action:** Updated `CheckGlossaryImportStatus` in `crowdin/glossaries.go` to accept `importID string` and formatted the URL using `%s` instead of `%d`. Updated the corresponding unit test `TestGlossariesService_CheckGlossaryImportStatus` in `crowdin/glossaries_test.go` to use a string UUID for `importID` and verify the correct endpoint URL construction.
+
 ## 2026-05-08 - Fix Project model parity for DelayedWorkflowStart and AiPreTranslate
 
 **Learning:** Crowdin API v2 uses `delayedWorkflowStart` as the JSON field name for delaying workflows, but the SDK was using `delayedTranslations`. Additionally, the `aiPreTranslate` field was missing from the `Project` response model despite being present in `ProjectsAddRequest`.
@@ -118,18 +124,6 @@
 
 **Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
 
-**Action:** Added  (*bool) to  and . Added  ([]int) to , , and , and updated  to include them. Added  (*bool) to . Verified with comprehensive unit tests in  and .
-
-## 2026-08-29 - Improve AI Prompts parity for provider and model filtering
-
-**Learning:** The Crowdin AI Prompts API v2 supports filtering prompts by `aiProviderId` and `aiModelId`, but these options were missing from the SDK's `AIPromptsListOptions`. Additionally, the `Prompt` response model was using a generic `string` for the `action` field instead of the existing `PromptAction` enum.
-
-**Action:** Added `AIProviderID` and `AIModelID` to `AIPromptsListOptions` and updated its `Values()` method for correct query parameter encoding. Updated `Prompt.Action` to use the `PromptAction` type. Cleaned up redundant client access in AI service tests. Verified with updated unit tests in `model/ai_test.go` and full suite passing.
-
-## 2026-08-22 - Improve Translations API parity for labels and soft match
-
-**Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
-
 **Action:** Added `TranslateWithSoftMatchOnly` (*bool) to `PreTranslationRequest` and `PreTranslationAttributes`. Added `LabelIDs` ([]int) to `BuildProjectRequest`, `BuildProjectDirectoryTranslationRequest`, and `BuildAttributes`, and updated `MarshalJSON` to include them. Added `MarkAddedAsDone` (*bool) to `UploadTranslationsRequest`. Verified with comprehensive unit tests in `translations_test.go` and `model/translations_test.go`.
 
 ## 2026-09-05 - Improve Machine Translation Engines model parity and flexibility
@@ -173,12 +167,6 @@
 **Learning:** Several list response models in the Crowdin Go SDK were missing the `pagination` field, preventing callers from handling multi-page results for translation progress, QA checks, and group managers. Additionally, the `ManagerListOptions.Values()` method was using a manual loop for slice joining, which is less efficient and consistent than the `JoinSlice` helper.
 
 **Action:** Added `Pagination *Pagination` to `TranslationProgressResponse`, `QAChecksResponse`, and `ManagerResponse`. Refactored `ManagerListOptions.Values()` to use `JoinSlice`. Added comprehensive unmarshaling tests to verify that the new pagination fields are correctly populated from API responses. Verified with `go test` in the fork.
-
-## 2026-10-10 - Improve Enterprise Task parity and fix test typos
-
-**Learning:** The Crowdin Enterprise API v2 supports  in , but it was missing from the SDK model. Additionally, several test function names in  contained typos (e.g., "Tepmlate").
-
-**Action:** Added  string field to  in . Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in . Added  to verify parity.
 
 ## 2026-10-10 - Improve Enterprise Task parity and fix test typos
 
@@ -234,7 +222,7 @@
 
 ## 2026-11-28 - Improve Workflows ListSteps parity and pagination
 **Learning:** The `Workflows.ListSteps` endpoint in the Crowdin API v2 uses an integer for the project ID and supports pagination via `limit` and `offset`. The Go SDK was incorrectly using a string for the project ID and was missing pagination support for both the request and response models.
-**Action:** Updated `WorkflowsService.ListSteps` to accept `projectID` as an `int` and added `WorkflowStepsListOptions` for pagination. Added the `Pagination` field to `WorkflowStepsResponse`. Note that `WorkflowStep.Languages` at the project level uses string identifiers (e.g., "de"), which differs from the numeric IDs used at the workflow template level. Verified with updated contract tests in `workflows_test.go`.
+**Action:** Updated `WorkflowsService.ListSteps` to accept `projectID` as an `int` and added `WorkflowStepsListOptions` for pagination. Added the `Pagination` field to `WorkflowStepsResponse`. Note that `WorkflowStep.Languages` at the project level uses string identifiers (e.g., "de"), which differs from the workflow template level. Verified with updated contract tests in `workflows_test.go`.
 
 ## 2026-12-05 - Improve Webhook model parity for Branch events and documentation
 
