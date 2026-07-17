@@ -786,9 +786,9 @@ func TestGlossariesService_CheckGlossaryImportStatus(t *testing.T) {
 
 	var (
 		glossaryID = 1
-		importID   = 2
+		importID   = "c050fba2-200e-4ce1-8de4-f7ba8eb58732"
 
-		path = fmt.Sprintf("/api/v2/glossaries/%d/imports/%d", glossaryID, importID)
+		path = fmt.Sprintf("/api/v2/glossaries/%d/imports/%s", glossaryID, importID)
 	)
 
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
