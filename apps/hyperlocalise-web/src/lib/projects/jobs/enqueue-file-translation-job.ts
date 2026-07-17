@@ -321,6 +321,14 @@ export async function enqueueExistingFileTranslationJob(
     };
   }
 
+  if (job.status !== "queued") {
+    return {
+      ok: false,
+      code: "job_not_enqueueable",
+      message: `Job status "${job.status}" cannot be assigned to the translation agent.`,
+    };
+  }
+
   const enqueued = await enqueueFileTranslationJobEvent({
     organizationId: input.organizationId,
     jobId: job.id,
