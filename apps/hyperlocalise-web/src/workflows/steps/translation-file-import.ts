@@ -5,13 +5,13 @@ export async function extractTranslationImportEntriesStep(input: {
 }) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const entries = await extractSandboxEntries(input.sandboxId, input.filePath, {
+  const result = await extractSandboxEntries(input.sandboxId, input.filePath, {
     locale: input.targetLocale,
   });
-  if (!entries) {
-    throw new Error(`failed to extract entries for ${input.filePath}`);
+  if (!result.ok) {
+    throw new Error(`failed to extract entries for ${input.filePath}: exitCode=${result.exitCode}`);
   }
-  return entries;
+  return result.entries;
 }
 
 export async function importTranslationsFromEntriesStep(input: {

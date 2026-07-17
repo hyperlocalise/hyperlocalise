@@ -337,20 +337,33 @@ describe("sandbox command runner", () => {
       exitCode: 0,
       output: sandboxMocks.output,
     });
-    const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from(entriesJson, "utf8"));
-    sandboxMocks.output.mockResolvedValueOnce("");
-    sandboxMocks.runCommand.mockResolvedValueOnce({
-      cmdId: "cmd_entries",
-      wait,
+    const cleanupWait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
     });
+    const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from(entriesJson, "utf8"));
+    sandboxMocks.output.mockResolvedValue("");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({
+        cmdId: "cmd_entries",
+        wait,
+      })
+      .mockResolvedValueOnce({
+        cmdId: "cmd_cleanup",
+        wait: cleanupWait,
+      });
     sandboxMocks.get
       .mockResolvedValueOnce({
         runCommand: sandboxMocks.runCommand,
       })
-      .mockResolvedValueOnce({ readFileToBuffer });
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      });
 
     await expect(extractSandboxEntries("sandbox_123", "lang/vi-VN.json")).resolves.toEqual({
-      i02F07: vietnamese,
+      ok: true,
+      entries: { i02F07: vietnamese },
     });
 
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
@@ -366,6 +379,46 @@ describe("sandbox command runner", () => {
     });
     expect(readFileToBuffer).toHaveBeenCalledWith({
       path: expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/),
+    });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "rm",
+      args: ["-f", expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/)],
+      env: undefined,
+      detached: true,
+    });
+  });
+
+  it("returns exitCode and output when hl entries fails", async () => {
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 1,
+      output: sandboxMocks.output,
+    });
+    const cleanupWait = vi.fn().mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.output.mockResolvedValue("markdown AST parity mismatch");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({
+        cmdId: "cmd_entries",
+        wait,
+      })
+      .mockResolvedValueOnce({
+        cmdId: "cmd_cleanup",
+        wait: cleanupWait,
+      });
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      });
+
+    await expect(extractSandboxEntries("sandbox_123", "lang/vi-VN.json")).resolves.toEqual({
+      ok: false,
+      exitCode: 1,
+      output: "markdown AST parity mismatch",
     });
   });
 

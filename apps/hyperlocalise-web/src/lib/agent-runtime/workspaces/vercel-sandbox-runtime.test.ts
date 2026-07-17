@@ -75,7 +75,8 @@ describe("VercelSandboxRuntime", () => {
 
   it("reads files via binary buffer so Vietnamese UTF-8 is preserved", async () => {
     const vietnamese = "Tìm hiểu thêm về{0}";
-    const output = vi.fn().mockResolvedValue("");
+    const resolvedPath = "/vercel/sandbox/lang/vi-VN.json";
+    const output = vi.fn().mockResolvedValue(resolvedPath);
     const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from(vietnamese, "utf8"));
     sandboxMocks.runCommand.mockResolvedValueOnce({
       exitCode: 0,
@@ -92,10 +93,10 @@ describe("VercelSandboxRuntime", () => {
     const runtime = new VercelSandboxRuntime("sbx_123");
     await expect(runtime.readFile("lang/vi-VN.json")).resolves.toBe(vietnamese);
 
-    expect(readFileToBuffer).toHaveBeenCalledWith({ path: "lang/vi-VN.json" });
+    expect(readFileToBuffer).toHaveBeenCalledWith({ path: resolvedPath });
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
-      expect.arrayContaining(["-lc", expect.stringContaining("readlink -f")]),
+      expect.arrayContaining(["-lc", expect.stringContaining(`printf '%s' "$resolved"`)]),
     );
   });
 });

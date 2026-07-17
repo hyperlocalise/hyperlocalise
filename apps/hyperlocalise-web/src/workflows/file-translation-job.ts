@@ -383,13 +383,15 @@ async function extractEntriesStep(
   // Use extractSandboxEntries so UTF-8 entries are read via binary file IO,
   // not sandbox stdout string capture (which can turn multi-byte chars into �).
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const entries = await extractSandboxEntries(sandboxId, path, {
+  const result = await extractSandboxEntries(sandboxId, path, {
     sourcePath: options?.sourcePath,
   });
-  if (!entries) {
-    throw new Error(`failed to extract entries for ${path}`);
+  if (!result.ok) {
+    throw new Error(
+      `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
+    );
   }
-  return entries;
+  return result.entries;
 }
 async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";

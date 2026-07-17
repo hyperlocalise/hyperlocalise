@@ -22,6 +22,10 @@ export const sandboxFileBucketName = "file";
 
 export type { SandboxTranslationContext };
 
+export type ExtractSandboxEntriesResult =
+  | { ok: true; entries: Record<string, string> }
+  | { ok: false; exitCode: number; output: string };
+
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
@@ -700,7 +704,7 @@ export class HyperlocaliseCliRunner {
     sandboxId: string,
     path: string,
     options?: { locale?: string; sourcePath?: string },
-  ): Promise<Record<string, string> | null> {
+  ): Promise<ExtractSandboxEntriesResult> {
     const locale = options?.locale?.trim();
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
     const sourcePath = options?.sourcePath?.trim();
@@ -710,24 +714,39 @@ export class HyperlocaliseCliRunner {
     // chunks, each orphaned byte becomes U+FFFD (�). Write entries to a file and
     // read bytes instead so CAT / pull persist valid Unicode.
     const outputPath = `/tmp/hl-entries-${randomUUID()}.json`;
-    const result = await this.lifecycle.runCommand(
-      sandboxId,
-      "bash",
-      [
-        "-lc",
-        `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag} > ${shellQuote(outputPath)}`,
-      ],
-      { env: getSandboxTranslationEnv() },
-    );
-    if (result.exitCode !== 0) {
-      return null;
-    }
-
     try {
-      const content = await this.lifecycle.readFile(sandboxId, outputPath);
-      return JSON.parse(content.toString("utf8")) as Record<string, string>;
-    } catch {
-      return null;
+      const result = await this.lifecycle.runCommand(
+        sandboxId,
+        "bash",
+        [
+          "-lc",
+          `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag} > ${shellQuote(outputPath)}`,
+        ],
+        { env: getSandboxTranslationEnv() },
+      );
+      if (result.exitCode !== 0) {
+        return { ok: false, exitCode: result.exitCode, output: result.output };
+      }
+
+      try {
+        const content = await this.lifecycle.readFile(sandboxId, outputPath);
+        return {
+          ok: true,
+          entries: JSON.parse(content.toString("utf8")) as Record<string, string>,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          exitCode: 0,
+          output: error instanceof Error ? error.message : "failed to read or parse entries JSON",
+        };
+      }
+    } finally {
+      try {
+        await this.lifecycle.runCommand(sandboxId, "rm", ["-f", outputPath]);
+      } catch {
+        // Best-effort cleanup; sandboxes are ephemeral.
+      }
     }
   }
 }
@@ -913,7 +932,7 @@ export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
   options?: { locale?: string; sourcePath?: string },
-) {
+): Promise<ExtractSandboxEntriesResult> {
   return defaultRunner.extractEntries(sandboxId, path, options);
 }
 
