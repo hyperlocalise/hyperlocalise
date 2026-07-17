@@ -15,7 +15,7 @@ export function composeWorkspaceAutomationInstructions(input: {
     "## Enabled tools",
     `Trigger mode: ${input.triggerMode}.`,
     `Execution plan: ${input.plan.tools.map((tool) => `\`${tool}\``).join(" → ") || "none"}.`,
-    input.knowledgeEnabled
+    input.knowledgeEnabled && input.knowledgeMemory?.trim()
       ? "Workspace knowledge memories are enabled and applied as context below."
       : null,
     "Call each planned tool in order. Use customer instructions when invoking workflow tools.",

@@ -16,4 +16,17 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).toContain("## Workspace knowledge");
     expect(instructions).toContain("Use sentence case for feature names.");
   });
+
+  it("omits knowledge context copy when memories are enabled but empty", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "manual",
+      plan: { tools: ["notify_slack"] },
+      userOverride: "Notify the team.",
+      knowledgeEnabled: true,
+      knowledgeMemory: null,
+    });
+
+    expect(instructions).not.toContain("applied as context below");
+    expect(instructions).not.toContain("## Workspace knowledge");
+  });
 });
