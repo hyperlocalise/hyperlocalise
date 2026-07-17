@@ -196,8 +196,8 @@ export const tmsProviderCredentialPanelMessages = defineMessages({
   },
   saveCredentialsIntro: {
     defaultMessage:
-      "Save credentials to connect {providerName}. The secret is encrypted at rest and used to sync projects, files, and jobs into the workspace.",
-    id: "YOCao9EtJ4",
+      "Save credentials to connect {providerName}. The secret is encrypted at rest and used for live API calls to projects, files, and jobs.",
+    id: "bR6xM3pQeL",
     description: "Intro text before saving API token credentials for a TMS provider",
   },
   displayNameLabel: {

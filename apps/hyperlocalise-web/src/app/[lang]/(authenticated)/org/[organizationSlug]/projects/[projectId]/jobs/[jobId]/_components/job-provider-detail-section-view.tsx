@@ -167,7 +167,6 @@ export function JobProviderDetailSectionView({
           <dl className="mt-3 divide-y divide-border">
             <DetailRow label="Provider title" value={job.externalTitle} />
             <DetailRow label="Provider status" value={job.externalStatus} />
-            <DetailRow label="Sync state" value={job.externalSyncState} />
             {job.externalProviderKind === "crowdin" ? (
               <>
                 <DetailRow

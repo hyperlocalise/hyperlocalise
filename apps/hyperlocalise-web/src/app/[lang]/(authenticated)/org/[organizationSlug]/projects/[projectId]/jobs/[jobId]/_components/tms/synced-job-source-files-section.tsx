@@ -44,7 +44,7 @@ export function SyncedJobSourceFilesSection({
       projectId={projectId}
       encodedJobId={encodedJobId}
       files={files}
-      emptyMessage="No synced source files linked to this job."
+      emptyMessage="No source files linked to this job."
       highlightLocale={highlightLocale ?? null}
       queueFilter={queueFilter}
     />
