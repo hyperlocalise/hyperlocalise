@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ArrowUp01Icon,
-  Cancel01Icon,
-  Chat01Icon,
-  File01Icon,
-} from "@hugeicons/core-free-icons";
+import { ArrowUp01Icon, Cancel01Icon, Chat01Icon, File01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -66,8 +61,8 @@ const DEMO_STEPS: DemoStep[] = [
       path: "apps/web/src/components/settings/account-form.tsx",
     },
     resultLines: [
-      "82  <div className=\"flex justify-end gap-2\">",
-      "83    <Button variant=\"ghost\">Cancel</Button>",
+      '82  <div className="flex justify-end gap-2">',
+      '83    <Button variant="ghost">Cancel</Button>',
       '84    <Button type="submit">{t("account.settings.save")}</Button>',
       "85  </div>",
     ],
@@ -165,10 +160,13 @@ export function ChatDockMockSection() {
       elapsed += shouldReduceMotion ? 0 : STEP_MS;
     });
 
-    schedule(() => {
-      setShowAnswer(true);
-      setPhase("done");
-    }, elapsed + (shouldReduceMotion ? 0 : 120));
+    schedule(
+      () => {
+        setShowAnswer(true);
+        setPhase("done");
+      },
+      elapsed + (shouldReduceMotion ? 0 : 120),
+    );
   };
 
   useEffect(() => () => clearTimers(), []);
@@ -285,7 +283,10 @@ export function ChatDockMockSection() {
                               key={step.id}
                               initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_OUT }}
+                              transition={{
+                                duration: shouldReduceMotion ? 0 : 0.28,
+                                ease: EASE_OUT,
+                              }}
                               className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
                             >
                               <Tool defaultOpen={state === "output-available"}>
