@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { Sandbox, StreamError } from "@vercel/sandbox";
 
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
@@ -703,17 +705,30 @@ export class HyperlocaliseCliRunner {
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
     const sourcePath = options?.sourcePath?.trim();
     const sourceFlag = sourcePath ? ` --source ${shellQuote(sourcePath)}` : "";
+    // Sandbox command.output() concatenates NDJSON log chunks as JS strings. When a
+    // UTF-8 multi-byte character (e.g. Vietnamese ề = E1 BB 81) is split across
+    // chunks, each orphaned byte becomes U+FFFD (�). Write entries to a file and
+    // read bytes instead so CAT / pull persist valid Unicode.
+    const outputPath = `/tmp/hl-entries-${randomUUID()}.json`;
     const result = await this.lifecycle.runCommand(
       sandboxId,
       "bash",
-      ["-lc", `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}`],
-      { env: getSandboxTranslationEnv(), output: "stdout" },
+      [
+        "-lc",
+        `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag} > ${shellQuote(outputPath)}`,
+      ],
+      { env: getSandboxTranslationEnv() },
     );
     if (result.exitCode !== 0) {
       return null;
     }
 
-    return JSON.parse(result.output) as Record<string, string>;
+    try {
+      const content = await this.lifecycle.readFile(sandboxId, outputPath);
+      return JSON.parse(content.toString("utf8")) as Record<string, string>;
+    } catch {
+      return null;
+    }
   }
 }
 
