@@ -221,6 +221,24 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  "Bonjour",
 			want: true,
 		},
+		{
+			name: "custom tag with dot and attributes in self-closing syntax is protected",
+			src:  `<tag.name attr="val" />`,
+			tgt:  "Bonjour",
+			want: true,
+		},
+		{
+			name: "custom tag with underscore and attributes in flexible self-closing syntax is protected",
+			src:  `<tag_name attr="val" / >`,
+			tgt:  "Bonjour",
+			want: true,
+		},
+		{
+			name: "custom tag with digit and attributes in flexible self-closing syntax is protected",
+			src:  `<tag1 attr="val"  /  >`,
+			tgt:  "Bonjour",
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
