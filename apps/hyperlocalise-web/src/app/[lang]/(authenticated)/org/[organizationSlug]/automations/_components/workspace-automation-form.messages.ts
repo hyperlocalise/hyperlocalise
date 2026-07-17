@@ -260,7 +260,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   builtInTools: {
     defaultMessage: "Built-in",
-    id: "kMemBuiltIn1",
+    id: "8Ktyj8rNhr",
     description: "Dropdown section label for built-in automation tools",
   },
   supportedTools: {
@@ -270,43 +270,43 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   memories: {
     defaultMessage: "Memories",
-    id: "kMemTitle01",
+    id: "mLI55faX8v",
     description: "Menu item and tool title for workspace knowledge memories",
   },
   memoriesDescription: {
     defaultMessage: "Use organization knowledge memory as guidance for this automation.",
-    id: "kMemDesc001",
+    id: "rcdU5+Pv4r",
     description: "Description for the knowledge memories automation tool",
   },
   memoriesUnavailableDescription: {
     defaultMessage:
       "Enable workspace knowledge for this organization before using memories in automations.",
-    id: "kMemUnavail1",
+    id: "yl7Dzt+xE3",
     description: "Description when knowledge memories cannot be used yet",
   },
   manageMemories: {
     defaultMessage: "Manage",
-    id: "kMemManage1",
+    id: "WNUkfqHAtJ",
     description: "Button to open the knowledge memories editor from an automation",
   },
   manageMemoriesTitle: {
     defaultMessage: "Knowledge memories",
-    id: "kMemSheetT1",
+    id: "W9S7Ht69kS",
     description: "Title for the knowledge memories management sheet",
   },
   manageMemoriesDescription: {
     defaultMessage: "Edit the shared organization knowledge used by this automation.",
-    id: "kMemSheetD1",
+    id: "WBqbSdV/u8",
     description: "Description for the knowledge memories management sheet",
   },
   removeMemoriesTool: {
     defaultMessage: "Remove memories tool",
-    id: "kMemRemove1",
+    id: "axtydiBtML",
     description: "Accessible label to remove the knowledge memories tool",
   },
   enableKnowledgeFirstShortcut: {
     defaultMessage: "Enable first",
-    id: "kMemEnable1",
+    id: "a51/Gtv+h4",
     description: "Shortcut shown when workspace knowledge is not enabled for the organization",
   },
   useGithubRepo: {

@@ -1,7 +1,4 @@
-import {
-  hasWorkspaceAutomationKnowledgeTool,
-  type WorkspaceAutomationRecord,
-} from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 
@@ -9,7 +6,7 @@ export async function resolveWorkspaceAutomationKnowledgeContext(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
 }): Promise<string | null> {
-  if (!hasWorkspaceAutomationKnowledgeTool(input.automation.toolConfig)) {
+  if (!input.automation.toolConfig.knowledge?.enabled) {
     return null;
   }
 

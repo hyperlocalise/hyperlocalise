@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
-
-const getKnowledgeMemoryForOrganizationMock = vi.hoisted(() => vi.fn());
+const getKnowledgeMemoryForOrganizationMock = vi.hoisted(() => {
+  process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
+  process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??= "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  return vi.fn();
+});
 const selectKnowledgeMemoryContextMock = vi.hoisted(() => vi.fn());
+
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
   getKnowledgeMemoryForOrganization: getKnowledgeMemoryForOrganizationMock,
@@ -15,7 +19,9 @@ vi.mock("@/lib/knowledge-memory/knowledge-memory-selection", () => ({
 
 import { resolveWorkspaceAutomationKnowledgeContext } from "./resolve-workspace-automation-knowledge";
 
-function automation(toolConfig: WorkspaceAutomationRecord["toolConfig"]): WorkspaceAutomationRecord {
+function automation(
+  toolConfig: WorkspaceAutomationRecord["toolConfig"],
+): WorkspaceAutomationRecord {
   return {
     id: "automation-1",
     organizationId: "org-1",

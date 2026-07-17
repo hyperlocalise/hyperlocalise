@@ -1991,10 +1991,7 @@ function ToolsSettings({
       </EditorPanel>
 
       <Sheet open={memoriesOpen} onOpenChange={setMemoriesOpen}>
-        <SheetContent
-          side="right"
-          className="w-full overflow-y-auto sm:max-w-xl md:max-w-2xl"
-        >
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl md:max-w-2xl">
           <SheetHeader>
             <SheetTitle>
               <FormattedMessage {...workspaceAutomationFormMessages.manageMemoriesTitle} />
