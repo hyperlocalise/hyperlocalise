@@ -183,10 +183,32 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			errContains: "placeholder parity",
 		},
 		{
+			// Exercises the dual-string fast-path in validateICUInvariant because
+			// neither source ("plain") nor translated ("texte") contains '{' or '<'.
 			name:       "json_plain_no_icu_structure",
 			path:       "/pkg/en.json",
 			source:     "plain",
 			translated: "texte",
+			wantErr:    false,
+		},
+		{
+			// Bypasses the dual-string fast-path because translated contains '{'.
+			// Instead, it exercises the pre-existing early-exit logic:
+			// (len(srcInv.Placeholders) == 0 && len(srcInv.ICUBlocks) == 0).
+			name:       "json_plain_source_translated_adds_icu_ignored",
+			path:       "/pkg/en.json",
+			source:     "plain",
+			translated: "texte {extra}",
+			wantErr:    false,
+		},
+		{
+			// Bypasses the dual-string fast-path because translated contains '{'.
+			// Instead, it exercises the pre-existing early-exit logic:
+			// (len(srcInv.Placeholders) == 0 && len(srcInv.ICUBlocks) == 0).
+			name:       "json_plain_source_translated_has_malformed_icu_ignored",
+			path:       "/pkg/en.json",
+			source:     "plain",
+			translated: "texte {invalid",
 			wantErr:    false,
 		},
 	}

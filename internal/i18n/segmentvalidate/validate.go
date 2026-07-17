@@ -37,7 +37,10 @@ const (
 
 // ValidateSegment runs format, length, and optional QA checks for a CAT segment.
 func ValidateSegment(req Request) []Check {
-	checks := make([]Check, 0, 6)
+	// BOLT OPTIMIZATION: Reduce initial capacity from 6 to 2 because most segments only
+	// return a single pass check (and occasionally a QA warning). This avoids allocating
+	// a large slice of 6 Check structs (~576 bytes) on the heap for the common path.
+	checks := make([]Check, 0, 2)
 
 	if req.MaxLength > 0 && utf8.RuneCountInString(req.TargetText) > req.MaxLength {
 		checks = append(checks, Check{
@@ -249,9 +252,12 @@ func segmentHasFormatTokens(source string, kind FormatKind) bool {
 		}
 	}
 
-	inv, err := icuparser.ParseInvariant(trimSpace(source))
-	if err == nil && (len(inv.Placeholders) > 0 || len(inv.ICUBlocks) > 0) {
-		return true
+	// BOLT OPTIMIZATION: Avoid ParseInvariant overhead if there's no potential ICU structure or tag.
+	if strings.ContainsAny(source, "{<") {
+		inv, err := icuparser.ParseInvariant(trimSpace(source))
+		if err == nil && (len(inv.Placeholders) > 0 || len(inv.ICUBlocks) > 0) {
+			return true
+		}
 	}
 	return profileHasFormatTokens(source)
 }
