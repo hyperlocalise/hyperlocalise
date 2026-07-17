@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { CreditCardIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCustomer, useListPlans } from "autumn-js/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +29,16 @@ import {
   type ResolvedPlanUsageSummary,
 } from "@/lib/billing/plan-usage";
 
+import { planUsageSummaryMessages } from "./plan-usage-summary.messages";
+
 function PlanUsageSummarySkeleton() {
+  const intl = useIntl();
+
   return (
-    <div className="flex flex-col gap-3 py-2" aria-label="Loading plan usage">
+    <div
+      className="flex flex-col gap-3 py-2"
+      aria-label={intl.formatMessage(planUsageSummaryMessages.loadingPlanUsageAriaLabel)}
+    >
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-3 w-40" />
       <Skeleton className="h-2 w-full" />
@@ -39,15 +47,31 @@ function PlanUsageSummarySkeleton() {
   );
 }
 
+function formatRenewalCopy(summary: ResolvedPlanUsageSummary, intl: IntlShape) {
+  if (!summary.renewalLabel) {
+    return null;
+  }
+
+  return intl.formatMessage(
+    summary.isScheduledForCancel
+      ? planUsageSummaryMessages.accessUntil
+      : planUsageSummaryMessages.renewsOn,
+    { date: summary.renewalLabel },
+  );
+}
+
 export function PlanUsageSummaryContent({ summary }: { summary: ResolvedPlanUsageSummary }) {
-  const planName = summary.activePlanName ?? "No active plan";
+  const intl = useIntl();
+  const planName =
+    summary.activePlanName ?? intl.formatMessage(planUsageSummaryMessages.noActivePlan);
+  const renewalCopy = formatRenewalCopy(summary, intl);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <TypographyP className="text-sm font-medium text-foreground">{planName}</TypographyP>
-        {summary.renewalCopy ? (
-          <TypographyP className="text-sm text-muted-foreground">{summary.renewalCopy}</TypographyP>
+        {renewalCopy ? (
+          <TypographyP className="text-sm text-muted-foreground">{renewalCopy}</TypographyP>
         ) : null}
       </div>
       {summary.usageProgressPercent !== null ? (
@@ -65,6 +89,7 @@ export function PlanUsageSummaryContent({ summary }: { summary: ResolvedPlanUsag
 }
 
 export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug: string }) {
+  const intl = useIntl();
   const { data: customer, isLoading: customerLoading, error: customerError } = useCustomer();
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
 
@@ -81,13 +106,36 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
   const isLoading = customerLoading || plansLoading;
   const hasError = Boolean(customerError || plansError);
   const hasActivePlan = Boolean(summary.activePlanName || hasPlanUsageMeter(summary));
-  const planName = isLoading ? "Loading plan" : (summary.activePlanName ?? "Choose a plan");
+  const planName = isLoading
+    ? intl.formatMessage(planUsageSummaryMessages.loadingPlan)
+    : (summary.activePlanName ?? intl.formatMessage(planUsageSummaryMessages.chooseAPlan));
+
+  const dialogTitle = isLoading ? (
+    <FormattedMessage {...planUsageSummaryMessages.loadingWorkspacePlanTitle} />
+  ) : hasActivePlan ? (
+    <FormattedMessage
+      {...planUsageSummaryMessages.activeWorkspacePlanTitle}
+      values={{
+        planName:
+          summary.activePlanName ??
+          intl.formatMessage(planUsageSummaryMessages.currentPlanFallback),
+      }}
+    />
+  ) : (
+    <FormattedMessage {...planUsageSummaryMessages.chooseWorkspacePlanTitle} />
+  );
 
   return (
     <Dialog>
       <DialogTrigger
         render={
-          <Button variant="outline" size="xs" aria-label={`Open plan usage: ${planName}`}>
+          <Button
+            variant="outline"
+            size="xs"
+            aria-label={intl.formatMessage(planUsageSummaryMessages.openPlanUsageAriaLabel, {
+              planName,
+            })}
+          >
             <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} data-icon="inline-start" />
             <span className="max-w-40 truncate">{planName}</span>
           </Button>
@@ -98,15 +146,9 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
           <div className="flex size-9 items-center justify-center rounded-full bg-muted text-foreground">
             <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-5" />
           </div>
-          <DialogTitle>
-            {isLoading
-              ? "Loading your workspace plan"
-              : hasActivePlan
-                ? `Your workspace is on the ${summary.activePlanName ?? "current"} plan`
-                : "Choose a plan for your workspace"}
-          </DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
-            Review current usage here or open billing for complete plan details.
+            <FormattedMessage {...planUsageSummaryMessages.dialogDescription} />
           </DialogDescription>
         </DialogHeader>
 
@@ -115,7 +157,7 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
         {isLoading ? <PlanUsageSummarySkeleton /> : null}
         {hasError ? (
           <TypographyP className="text-sm text-destructive">
-            Couldn&apos;t load plan usage. Open billing to try again.
+            <FormattedMessage {...planUsageSummaryMessages.loadError} />
           </TypographyP>
         ) : null}
         {!isLoading && !hasError ? <PlanUsageSummaryContent summary={summary} /> : null}
@@ -125,10 +167,10 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
             variant="ghost"
             render={<Link href={buildAvailablePlansHref(organizationSlug)} />}
           >
-            See all plans
+            <FormattedMessage {...planUsageSummaryMessages.seeAllPlans} />
           </Button>
           <Button render={<Link href={buildPlanUsageHref(organizationSlug)} />}>
-            Open billing
+            <FormattedMessage {...planUsageSummaryMessages.openBilling} />
           </Button>
         </DialogFooter>
       </DialogContent>
