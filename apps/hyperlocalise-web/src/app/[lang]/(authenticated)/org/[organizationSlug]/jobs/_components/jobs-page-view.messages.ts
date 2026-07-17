@@ -93,10 +93,10 @@ export const jobsPageViewMessages = defineMessages({
     id: "3n0F65flH2",
     description: "Fallback label when a job has no project name",
   },
-  dueSyncedMeta: {
-    defaultMessage: "Due {due} · Synced {synced}",
-    id: "7M3ajU1pAe",
-    description: "Relative due date and last sync time under job task details",
+  dueMeta: {
+    defaultMessage: "Due {due}",
+    id: "GvcjcKm7Sc",
+    description: "Relative due date under job task details",
   },
   viewModeAriaLabel: {
     defaultMessage: "Jobs view mode",
@@ -219,8 +219,8 @@ export const jobsPageViewMessages = defineMessages({
     description: "Project page section label for the jobs view",
   },
   projectSectionDescription: {
-    defaultMessage: "Translation, review, QA, and sync work from Hyperlocalise and your TMS.",
-    id: "v0xJPzewtL",
+    defaultMessage: "Translation, review, and QA work from Hyperlocalise and your TMS.",
+    id: "zjUiRNln1O",
     description: "Project page section description for the jobs view",
   },
   workspaceLabel: {

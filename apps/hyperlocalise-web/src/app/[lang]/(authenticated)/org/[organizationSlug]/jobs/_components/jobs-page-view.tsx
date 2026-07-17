@@ -494,10 +494,9 @@ function JobsList({
                   </TypographyP>
                   <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
                     <FormattedMessage
-                      {...jobsPageViewMessages.dueSyncedMeta}
+                      {...jobsPageViewMessages.dueMeta}
                       values={{
                         due: formatRelativeTime(job.externalDueDate, now),
-                        synced: formatRelativeTime(job.updatedAt, now),
                       }}
                     />
                   </TypographyP>

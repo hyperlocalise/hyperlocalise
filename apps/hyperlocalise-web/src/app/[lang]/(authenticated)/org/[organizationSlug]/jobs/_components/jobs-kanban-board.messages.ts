@@ -22,10 +22,10 @@ export const jobsKanbanBoardMessages = defineMessages({
     id: "mYcDqMLO3I",
     description: "Fallback project badge when a kanban job has no project name",
   },
-  dueSyncedMeta: {
-    defaultMessage: "Due {due} · Synced {synced}",
-    id: "WL/j4jcqMB",
-    description: "Relative due date and last sync time on a kanban job card",
+  dueMeta: {
+    defaultMessage: "Due {due}",
+    id: "kPJq84MgiE",
+    description: "Relative due date on a kanban job card",
   },
   noJobs: {
     defaultMessage: "No jobs",

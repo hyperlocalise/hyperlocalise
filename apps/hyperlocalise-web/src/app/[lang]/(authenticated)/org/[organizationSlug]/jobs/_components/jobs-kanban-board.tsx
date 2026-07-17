@@ -145,10 +145,9 @@ function JobKanbanCard({
       </TypographyP>
       <TypographyP className="mt-1 text-[11px] text-muted-foreground">
         <FormattedMessage
-          {...jobsKanbanBoardMessages.dueSyncedMeta}
+          {...jobsKanbanBoardMessages.dueMeta}
           values={{
             due: formatRelativeTime(job.externalDueDate, now),
-            synced: formatRelativeTime(job.updatedAt, now),
           }}
         />
       </TypographyP>
