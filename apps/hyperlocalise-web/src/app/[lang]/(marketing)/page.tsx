@@ -4,9 +4,9 @@ import { WebApplication } from "schema-dts";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { chapters, footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
+import { ChatDockMockSection } from "@/components/marketing/chat-dock-mock";
 import {
   ChapterSection,
-  ChatDockMockSection,
   FinalCtaSection,
   HeroSection,
   PrinciplesSection,

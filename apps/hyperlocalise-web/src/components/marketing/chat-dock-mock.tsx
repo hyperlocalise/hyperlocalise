@@ -13,7 +13,6 @@ import { cn } from "@/lib/primitives/cn";
 
 import { chatDockMockMessages } from "./chat-dock-mock.messages";
 
-const PREFILLED_PROMPT = `What's the context of "Save"?`;
 const STEP_MS = 720;
 const TOOL_RESOLVE_MS = 520;
 const EASE_OUT = [0.19, 1, 0.22, 1] as const;
@@ -110,6 +109,7 @@ export function ChatDockMockSection() {
   const [showAnswer, setShowAnswer] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const prefilledPrompt = intl.formatMessage(chatDockMockMessages.prefilledPrompt);
 
   const clearTimers = () => {
     for (const timer of timersRef.current) {
@@ -271,7 +271,7 @@ export function ChatDockMockSection() {
                 ) : (
                   <div className="flex flex-col gap-4 px-4 py-5">
                     <div className="ms-auto max-w-[90%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 text-foreground">
-                      {PREFILLED_PROMPT}
+                      {prefilledPrompt}
                     </div>
 
                     <div className="space-y-3">
@@ -294,6 +294,7 @@ export function ChatDockMockSection() {
                                   type="dynamic-tool"
                                   toolName={step.toolName}
                                   state={state}
+                                  detail={step.detail}
                                   input={step.input}
                                 />
                               </Tool>
@@ -341,7 +342,7 @@ export function ChatDockMockSection() {
                   <div className="flex items-end gap-2 px-3 py-3">
                     <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
                       {phase === "idle" ? (
-                        PREFILLED_PROMPT
+                        prefilledPrompt
                       ) : (
                         <span className="text-muted-foreground">
                           <FormattedMessage {...chatDockMockMessages.composerPlaceholder} />

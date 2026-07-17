@@ -1,5 +1,4 @@
 export { ChapterSection } from "./chapter-section";
-export { ChatDockMockSection } from "./chat-dock-mock";
 export { RecentBlogPostsSection } from "./recent-blog-posts-section";
 export { FinalCtaSection } from "./final-cta-section";
 export { HeroSection } from "./hero-section";

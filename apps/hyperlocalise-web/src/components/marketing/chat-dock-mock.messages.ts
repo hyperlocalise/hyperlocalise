@@ -59,6 +59,11 @@ export const chatDockMockMessages = defineMessages({
     id: "qHxiBnE/J7",
     description: "Empty-state subtitle inside the marketing chat dock mock",
   },
+  prefilledPrompt: {
+    defaultMessage: 'What\'s the context of "Save"?',
+    id: "kpb8SkGVO8",
+    description: "Prefilled prompt shown in the marketing chat dock mock composer and transcript",
+  },
   contextPill: {
     defaultMessage: "Save",
     id: "t92moi3waZ",
