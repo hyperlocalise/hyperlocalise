@@ -80,4 +80,23 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     const plan = buildWorkspaceOrchestratorPlan(automation());
     expect(plan.tools).toEqual([]);
   });
+
+  it("plans native TMS create then assign when translation workflow is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        triggerConfig: { mode: "source_upload" },
+        toolConfig: {
+          translation: {
+            enabled: true,
+            projectId: "project-1",
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["create_native_tms_job", "assign_translate_with_agent"]);
+  });
 });
+

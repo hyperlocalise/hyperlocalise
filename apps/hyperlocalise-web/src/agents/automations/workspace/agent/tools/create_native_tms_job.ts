@@ -4,21 +4,18 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { db, schema } from "@/lib/database";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
-import { enqueueFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-translation-job";
-import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
+import { createFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-translation-job";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import {
   mergeToolOutputSummaryIntoSessionRun,
-  readCreateTranslationJobs,
+  readCreateNativeTmsJob,
 } from "../workspace-orchestrator-output-summary";
 
-const jobQueue = createTranslationJobEventQueue();
-
-export function createTranslationJobsTool(session: WorkspaceOrchestratorSession) {
+export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Create file translation jobs for uploaded source files when this automation is triggered by a source upload.",
+      "Create a Hyperlocalise native TMS file translation job for an uploaded source file. Does not start translation.",
     inputSchema: z.object({
       summary: z
         .string()
@@ -31,12 +28,12 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
         throw new Error("translation_workflow_not_configured");
       }
 
-      const existingOutput = readCreateTranslationJobs(
+      const existingOutput = readCreateNativeTmsJob(
         session.run.outputSummary,
         session.stepResults,
       );
       if (existingOutput) {
-        session.stepResults.create_translation_jobs = existingOutput;
+        session.stepResults.create_native_tms_job = existingOutput;
         return existingOutput;
       }
 
@@ -75,13 +72,12 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
       }
 
       const sourceLocale = project.sourceLocale?.trim() || "en";
-      const result = await enqueueFileTranslationJob({
+      const result = await createFileTranslationJob({
         organizationId: session.organizationId,
         projectId,
         sourceFileId,
         sourceLocale,
         targetLocales: configuredLocales,
-        jobQueue,
       });
 
       if (!result.ok) {
@@ -90,24 +86,24 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
 
       const output = {
         jobId: result.jobId,
-        projectId,
+        projectId: result.projectId,
         sourceFileId,
-        sourceFileVersionId,
+        sourceFileVersionId: result.sourceFileVersionId ?? sourceFileVersionId,
         targetLocales: configuredLocales,
         summary: summary?.trim() || undefined,
       };
 
-      session.stepResults.create_translation_jobs = output;
+      session.stepResults.create_native_tms_job = output;
 
       await updateWorkspaceAutomationRun({
         runId: session.run.id,
         organizationId: session.organizationId,
         outputSummary: {
           ...session.run.outputSummary,
-          createTranslationJobs: output,
+          createNativeTmsJob: output,
         },
       });
-      mergeToolOutputSummaryIntoSessionRun(session, { createTranslationJobs: output });
+      mergeToolOutputSummaryIntoSessionRun(session, { createNativeTmsJob: output });
 
       return output;
     },

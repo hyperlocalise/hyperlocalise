@@ -78,8 +78,18 @@ vi.mock("@/lib/database", () => ({
     jobs: {
       id: "id",
       projectId: "projectId",
+      organizationId: "organizationId",
+      kind: "kind",
+      status: "status",
     },
-    translationJobDetails: {},
+    translationJobDetails: {
+      jobId: "jobId",
+      type: "type",
+    },
+    externalJobDetails: {
+      jobId: "jobId",
+      providerKind: "providerKind",
+    },
   },
 }));
 
