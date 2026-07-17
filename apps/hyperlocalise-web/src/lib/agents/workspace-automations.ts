@@ -126,6 +126,12 @@ const translationToolConfigSchema = z
   })
   .default({ enabled: false, useProjectTargetLocales: true, targetLocales: [] });
 
+const knowledgeToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
@@ -133,6 +139,7 @@ const toolConfigSchema = z
     email: emailToolConfigSchema.optional(),
     contentful: contentfulToolConfigSchema.optional(),
     translation: translationToolConfigSchema.optional(),
+    knowledge: knowledgeToolConfigSchema.optional(),
   })
   .default({});
 
@@ -152,6 +159,7 @@ export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTarge
 export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
+export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -234,6 +242,10 @@ export function hasWorkspaceAutomationTranslationWorkflow(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
   return Boolean(toolConfig.translation?.enabled);
+}
+
+export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.knowledge?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {

@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   Add01Icon,
   ArrowDown01Icon,
+  BrainCircuitIcon,
   FolderLibraryIcon,
   GitBranchIcon,
   SlackIcon,
@@ -25,6 +26,7 @@ import {
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
+import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +52,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -293,7 +302,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
     Number(form.contentfulEnabled) +
-    Number(form.translationEnabled)
+    Number(form.translationEnabled) +
+    Number(form.knowledgeEnabled)
   );
 }
 
@@ -1042,6 +1052,7 @@ function AddToolMenu({
   emailConnected,
   form,
   githubConnected,
+  knowledgeAvailable,
   onChange,
   repositories,
   slackConnected,
@@ -1051,6 +1062,7 @@ function AddToolMenu({
   emailConnected: boolean;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  knowledgeAvailable: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
   slackConnected: boolean;
@@ -1077,6 +1089,30 @@ function AddToolMenu({
           align="start"
           sideOffset={2}
         >
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              <FormattedMessage {...workspaceAutomationFormMessages.builtInTools} />
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              disabled={form.knowledgeEnabled || !knowledgeAvailable}
+              onClick={() => onChange({ ...form, knowledgeEnabled: true })}
+            >
+              <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.memories} />
+              {form.knowledgeEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !knowledgeAvailable ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage
+                    {...workspaceAutomationFormMessages.enableKnowledgeFirstShortcut}
+                  />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuLabel>
               <FormattedMessage {...workspaceAutomationFormMessages.supportedTools} />
@@ -1322,12 +1358,14 @@ function ContentfulTargetLocalesPicker({
 }
 
 function ToolsSettings({
+  canUpdateKnowledgeMemory,
   contentfulConnections,
   disabled,
   emailConnected,
   errors,
   form,
   githubConnected,
+  knowledgeAvailable,
   onChange,
   organizationSlug,
   projects,
@@ -1336,12 +1374,14 @@ function ToolsSettings({
   slackChannelsLoading,
   slackConnected,
 }: {
+  canUpdateKnowledgeMemory: boolean;
   contentfulConnections: ContentfulConnectionOption[];
   disabled?: boolean;
   emailConnected: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  knowledgeAvailable: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
   projects: ProjectOption[];
@@ -1363,10 +1403,42 @@ function ToolsSettings({
   const translationAvailableTargetLocales = selectedTranslationProject?.targetLocales ?? [];
   const translationTargetLocalesFieldId = "translation-target-locales";
   const intl = useIntl();
+  const [memoriesOpen, setMemoriesOpen] = useState(false);
 
   return (
     <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.toolsSection)}>
       <EditorPanel>
+        {form.knowledgeEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.memories} />}
+            description={
+              knowledgeAvailable
+                ? intl.formatMessage(workspaceAutomationFormMessages.memoriesDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.memoriesUnavailableDescription)
+            }
+            action={
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={disabled || !knowledgeAvailable}
+                  className="h-8 rounded-full px-3"
+                  onClick={() => setMemoriesOpen(true)}
+                >
+                  <FormattedMessage {...workspaceAutomationFormMessages.manageMemories} />
+                </Button>
+                <DeleteToolButton
+                  disabled={disabled}
+                  label={intl.formatMessage(workspaceAutomationFormMessages.removeMemoriesTool)}
+                  onClick={() => onChange({ ...form, knowledgeEnabled: false })}
+                />
+              </>
+            }
+          />
+        ) : null}
+
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
@@ -1911,11 +1983,34 @@ function ToolsSettings({
           emailConnected={emailConnected}
           form={form}
           githubConnected={githubConnected}
+          knowledgeAvailable={knowledgeAvailable}
           onChange={onChange}
           repositories={repositories}
           slackConnected={slackConnected}
         />
       </EditorPanel>
+
+      <Sheet open={memoriesOpen} onOpenChange={setMemoriesOpen}>
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-xl md:max-w-2xl"
+        >
+          <SheetHeader>
+            <SheetTitle>
+              <FormattedMessage {...workspaceAutomationFormMessages.manageMemoriesTitle} />
+            </SheetTitle>
+            <SheetDescription>
+              <FormattedMessage {...workspaceAutomationFormMessages.manageMemoriesDescription} />
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-6 pb-6">
+            <KnowledgeMemoryEditor
+              organizationSlug={organizationSlug}
+              canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </EditorSection>
   );
 }
@@ -2001,18 +2096,22 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
 
 export function WorkspaceAutomationEditor({
   actions,
+  canUpdateKnowledgeMemory = false,
   disabled,
   errors,
   form,
+  knowledgeAvailable = false,
   mode,
   onChange,
   organizationSlug,
   runHistory,
 }: {
   actions?: ReactNode;
+  canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
+  knowledgeAvailable?: boolean;
   mode: "create" | "detail";
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
@@ -2267,12 +2366,14 @@ export function WorkspaceAutomationEditor({
           </EditorSection>
 
           <ToolsSettings
+            canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             contentfulConnections={contentfulConnections}
             disabled={disabled}
             emailConnected={emailConnected}
             errors={errors}
             form={form}
             githubConnected={githubConnected}
+            knowledgeAvailable={knowledgeAvailable}
             onChange={onChange}
             organizationSlug={organizationSlug}
             projects={projectsQuery.data ?? []}
@@ -2298,6 +2399,8 @@ export function WorkspaceAutomationForm(props: {
   form: WorkspaceAutomationFormState;
   errors: Record<string, string | undefined>;
   disabled?: boolean;
+  knowledgeAvailable?: boolean;
+  canUpdateKnowledgeMemory?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   return <WorkspaceAutomationEditor mode="create" {...props} />;

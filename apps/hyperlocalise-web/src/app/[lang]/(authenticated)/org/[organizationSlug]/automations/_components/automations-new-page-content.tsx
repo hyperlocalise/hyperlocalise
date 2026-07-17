@@ -23,9 +23,13 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 export function AutomationsNewPageContent({
   organizationSlug,
   initialForm = createDefaultWorkspaceAutomationFormState(),
+  knowledgeAvailable = false,
+  canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
   initialForm?: WorkspaceAutomationFormState;
+  knowledgeAvailable?: boolean;
+  canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -80,6 +84,8 @@ export function AutomationsNewPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
+        knowledgeAvailable={knowledgeAvailable}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         actions={
           <>

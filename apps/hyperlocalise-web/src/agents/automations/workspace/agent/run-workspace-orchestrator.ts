@@ -19,6 +19,7 @@ import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
 import { buildWorkspaceOrchestratorPlan } from "./plan";
+import { resolveWorkspaceAutomationKnowledgeContext } from "./resolve-workspace-automation-knowledge";
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
 const logger = createLogger("workspace-orchestrator");
@@ -147,11 +148,17 @@ export async function runWorkspaceOrchestrator(input: {
 
   const templateSkillId = resolveTemplateSkillId(run.inputSnapshot);
   const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
+  const knowledgeMemory = await resolveWorkspaceAutomationKnowledgeContext({
+    organizationId: input.organizationId,
+    automation,
+  });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
     userOverride: automation.instructions,
     triggerMode: automation.triggerConfig.mode,
     plan,
+    knowledgeEnabled: Boolean(automation.toolConfig.knowledge?.enabled),
+    knowledgeMemory,
   });
 
   let repository: {
