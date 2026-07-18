@@ -4,8 +4,37 @@ import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/know
 
 import {
   getKnowledgeMemoryEditorState,
+  parseKnowledgeMemoryPreconditionFailure,
   shouldApplyKnowledgeMemoryRefresh,
 } from "./knowledge-memory-editor-state";
+
+const knowledgeMemory = {
+  revisionId: "11111111-1111-4111-8111-111111111111",
+  version: 2,
+  content: "Use sentence case.",
+  summary: "Clarify voice",
+  updatedAt: "2026-07-18T06:00:00.000Z",
+  updatedByUserId: "user-1",
+};
+
+describe("parseKnowledgeMemoryPreconditionFailure", () => {
+  it("returns the latest Knowledge Memory from a valid conflict response", () => {
+    expect(
+      parseKnowledgeMemoryPreconditionFailure({
+        details: { knowledgeMemory },
+      }),
+    ).toEqual(knowledgeMemory);
+  });
+
+  it("rejects missing or malformed conflict details", () => {
+    expect(parseKnowledgeMemoryPreconditionFailure({})).toBeNull();
+    expect(
+      parseKnowledgeMemoryPreconditionFailure({
+        details: { knowledgeMemory: { ...knowledgeMemory, version: "2" } },
+      }),
+    ).toBeNull();
+  });
+});
 
 describe("getKnowledgeMemoryEditorState", () => {
   it("tracks the character counter and allows saving changed content", () => {

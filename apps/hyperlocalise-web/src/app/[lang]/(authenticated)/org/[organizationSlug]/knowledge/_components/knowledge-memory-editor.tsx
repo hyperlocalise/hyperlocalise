@@ -23,6 +23,7 @@ import { KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH } from "@/lib/knowledge-memory/know
 
 import {
   getKnowledgeMemoryEditorState,
+  parseKnowledgeMemoryPreconditionFailure,
   shouldApplyKnowledgeMemoryRefresh,
 } from "./knowledge-memory-editor-state";
 import {
@@ -55,21 +56,6 @@ type LoadedKnowledgeMemory = {
   knowledgeMemory: KnowledgeMemoryRecord;
   etag: string;
 };
-
-function parsePreconditionFailure(body: unknown): KnowledgeMemoryRecord | null {
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("details" in body) ||
-    typeof body.details !== "object" ||
-    body.details === null ||
-    !("knowledgeMemory" in body.details)
-  ) {
-    return null;
-  }
-
-  return body.details.knowledgeMemory as KnowledgeMemoryRecord;
-}
 
 export function KnowledgeMemoryEditor({
   organizationSlug,
@@ -159,7 +145,9 @@ export function KnowledgeMemoryEditor({
       );
 
       if (response.status === 412) {
-        const latestKnowledgeMemory = parsePreconditionFailure(await response.json());
+        const latestKnowledgeMemory = parseKnowledgeMemoryPreconditionFailure(
+          await response.json(),
+        );
         if (latestKnowledgeMemory) {
           return {
             kind: "stale" as const,

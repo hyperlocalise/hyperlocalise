@@ -36,6 +36,8 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
+import { parseKnowledgeMemoryPreconditionFailure } from "./knowledge-memory-editor-state";
+
 const revisionPageSize = 20;
 
 const knowledgeMemoryRevisionQueryKey = (organizationSlug: string) => [
@@ -134,23 +136,6 @@ export function KnowledgeMemoryConflictView({
       </DialogFooter>
     </div>
   );
-}
-
-function parsePreconditionFailure(
-  body: unknown,
-): { knowledgeMemory: KnowledgeMemoryRecord } | null {
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("details" in body) ||
-    typeof body.details !== "object" ||
-    body.details === null ||
-    !("knowledgeMemory" in body.details)
-  ) {
-    return null;
-  }
-
-  return { knowledgeMemory: body.details.knowledgeMemory as KnowledgeMemoryRecord };
 }
 
 export function KnowledgeMemoryHistoryDialog({
@@ -253,11 +238,13 @@ export function KnowledgeMemoryHistoryDialog({
       );
 
       if (response.status === 412) {
-        const failure = parsePreconditionFailure(await response.json());
-        if (failure) {
+        const latestKnowledgeMemory = parseKnowledgeMemoryPreconditionFailure(
+          await response.json(),
+        );
+        if (latestKnowledgeMemory) {
           return {
             kind: "stale" as const,
-            knowledgeMemory: failure.knowledgeMemory,
+            knowledgeMemory: latestKnowledgeMemory,
             etag: response.headers.get("etag") ?? '"0"',
           };
         }

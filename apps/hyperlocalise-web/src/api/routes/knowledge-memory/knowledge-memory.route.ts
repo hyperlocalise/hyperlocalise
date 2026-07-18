@@ -127,7 +127,7 @@ function parseKnowledgeMemoryIfMatch(value: string | undefined): ParsedKnowledge
   }
 
   return knowledgeMemoryRevisionParamsSchema.shape.revisionId.safeParse(token).success
-    ? { kind: "valid", expectedRevisionId: token ?? null }
+    ? { kind: "valid", expectedRevisionId: token }
     : { kind: "invalid" };
 }
 
