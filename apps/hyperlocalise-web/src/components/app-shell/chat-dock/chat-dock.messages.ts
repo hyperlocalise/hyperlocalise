@@ -39,8 +39,8 @@ export const chatDockMessages = defineMessages({
     description: "Empty state title for a new chat dock conversation",
   },
   emptySubtitle: {
-    id: "l2MbFKxoMr",
-    defaultMessage: "Ask about strings, context, progress, or translations",
+    id: "w2b0cdIV3S",
+    defaultMessage: "Ask about strings, context, or anything else",
     description: "Empty state subtitle describing chat capabilities",
   },
   suggestionFindContext: {
