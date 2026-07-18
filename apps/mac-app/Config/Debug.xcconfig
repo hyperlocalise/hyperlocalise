@@ -1,0 +1,3 @@
+// Local / staging defaults. Override in the Xcode scheme if needed.
+HYPERLOCALISE_API_BASE_URL = http:/$()/localhost:3000
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG

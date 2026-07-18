@@ -19,6 +19,7 @@ import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
+import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
@@ -137,7 +138,10 @@ function createInternalRoutes() {
 }
 
 function createAuthRoutes() {
-  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
+  return new Hono()
+    .route("/native", createNativeAuthRoutes())
+    .route("/", authRoutes)
+    .route("/slack", createSlackOAuthRoutes());
 }
 
 function createOrgScopedAppRoutes(
