@@ -27,13 +27,15 @@ type ListedSandbox = {
   status: string;
 };
 
+type ListedSandboxIterable = AsyncIterable<ListedSandbox> | Iterable<ListedSandbox>;
+
 type SandboxCleanupDeps = {
   listSandboxes?: (params: {
     sortBy: "createdAt";
     sortOrder: "asc";
     limit: number;
     signal?: AbortSignal;
-  }) => Promise<AsyncIterable<ListedSandbox>>;
+  }) => Promise<ListedSandboxIterable>;
   deleteSandbox?: (name: string, signal?: AbortSignal) => Promise<void>;
   now?: Date;
 };
@@ -43,7 +45,7 @@ async function defaultListSandboxes(params: {
   sortOrder: "asc";
   limit: number;
   signal?: AbortSignal;
-}): Promise<AsyncIterable<ListedSandbox>> {
+}): Promise<ListedSandboxIterable> {
   return Sandbox.list({
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
