@@ -106,7 +106,9 @@ function encryptSecret(secret: McpServerAuthSecret) {
   return unwrapProviderCredentialCrypto(encryptProviderCredential(JSON.stringify(secret)));
 }
 
-function decryptSecret(row: McpServerConnectionRow): Result<McpServerAuthSecret, McpServerConnectionError> {
+function decryptSecret(
+  row: McpServerConnectionRow,
+): Result<McpServerAuthSecret, McpServerConnectionError> {
   const decrypted = decryptProviderCredential({
     algorithm: row.encryptionAlgorithm,
     keyVersion: row.keyVersion,
@@ -139,7 +141,7 @@ export function buildMcpServerAuthHeaders(input: {
   authKind: McpServerAuthKind;
   secret: McpServerAuthSecret;
 }): Record<string, string> {
-  const headers: Record<string, string> = { ...(input.secret.headers ?? {}) };
+  const headers: Record<string, string> = { ...input.secret.headers };
   if (input.authKind === "bearer" && input.secret.bearerToken) {
     headers.Authorization = `Bearer ${input.secret.bearerToken}`;
   }

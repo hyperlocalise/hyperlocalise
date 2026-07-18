@@ -341,22 +341,22 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   mcpServer: {
     defaultMessage: "MCP Server",
-    id: "mcpSrvTool1",
+    id: "j3sarok4E/",
     description: "Menu item and tool title for an external MCP server connection",
   },
   mcpServerDescription: {
     defaultMessage: "Call tools from a connected remote MCP server during this automation.",
-    id: "mcpSrvDesc1",
+    id: "p7RJtpKZ+J",
     description: "Description for the MCP Server automation tool when a connection exists",
   },
   mcpServerDisconnectedDescription: {
     defaultMessage: "Connect an MCP server in Integrations before using this tool.",
-    id: "mcpSrvDisc1",
+    id: "TuGOT1kPBK",
     description: "Description when no MCP server connection is available",
   },
   removeMcpServerTool: {
     defaultMessage: "Remove MCP Server tool",
-    id: "mcpSrvRm01",
+    id: "ykXAFysnC5",
     description: "Accessible label to remove the MCP Server tool",
   },
   comingSoon: {

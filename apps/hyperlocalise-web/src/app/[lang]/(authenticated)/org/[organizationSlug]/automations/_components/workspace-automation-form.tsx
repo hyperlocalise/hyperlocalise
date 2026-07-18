@@ -2049,7 +2049,9 @@ function ToolsSettings({
               >
                 <SelectTrigger className="w-full">
                   <SelectValue
-                    placeholder={intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.selectConnection,
+                    )}
                   >
                     {enabledMcpServerConnections.find(
                       (connection) => connection.id === form.mcpConnectionId,

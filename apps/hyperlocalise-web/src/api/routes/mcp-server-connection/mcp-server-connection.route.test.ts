@@ -3,6 +3,23 @@ import "dotenv/config";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const mocks = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db } from "@/lib/database";
@@ -36,6 +53,7 @@ describe("mcpServerConnectionRoutes", () => {
           transport: "http",
           authKind: "bearer",
           bearerToken: "lin_api_test_token",
+          enabled: true,
         },
       },
       { headers },
@@ -43,19 +61,29 @@ describe("mcpServerConnectionRoutes", () => {
 
     expect(createResponse.status).toBe(201);
     const created = await createResponse.json();
-    expect(created.mcpServerConnection.displayName).toBe("Linear MCP");
-    expect(created.mcpServerConnection.authKind).toBe("bearer");
+    expect(created).toMatchObject({
+      mcpServerConnection: {
+        displayName: "Linear MCP",
+        authKind: "bearer",
+      },
+    });
+    if (!("mcpServerConnection" in created)) {
+      throw new Error("expected mcpServerConnection in create response");
+    }
     expect(created.mcpServerConnection).not.toHaveProperty("bearerToken");
     expect(created.mcpServerConnection).not.toHaveProperty("ciphertext");
 
-    const listResponse = await client.api.orgs[":organizationSlug"][
-      "mcp-server-connections"
-    ].$get({ param: { organizationSlug } }, { headers });
+    const listResponse = await client.api.orgs[":organizationSlug"]["mcp-server-connections"].$get(
+      { param: { organizationSlug } },
+      { headers },
+    );
     expect(listResponse.status).toBe(200);
     const listed = await listResponse.json();
-    expect(listed.mcpServerConnections.some((entry) => entry.id === created.mcpServerConnection.id)).toBe(
-      true,
-    );
+    expect(listed).toMatchObject({
+      mcpServerConnections: expect.arrayContaining([
+        expect.objectContaining({ id: created.mcpServerConnection.id }),
+      ]),
+    });
 
     const deleteResponse = await client.api.orgs[":organizationSlug"]["mcp-server-connections"][
       ":connectionId"
@@ -82,6 +110,9 @@ describe("mcpServerConnectionRoutes", () => {
         json: {
           displayName: "",
           serverUrl: "not-a-url",
+          transport: "http",
+          authKind: "none",
+          enabled: true,
         },
       },
       { headers },

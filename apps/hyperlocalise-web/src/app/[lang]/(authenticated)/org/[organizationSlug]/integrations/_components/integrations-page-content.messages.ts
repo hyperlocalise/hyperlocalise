@@ -20,7 +20,7 @@ export const integrationsPageContentMessages = defineMessages({
   },
   mcpServersCategory: {
     defaultMessage: "MCP servers",
-    id: "intMcpCat1",
+    id: "D2ZrcxejKr",
     description: "Category label for MCP server connections on the Integrations page",
   },
   cmsCategory: {

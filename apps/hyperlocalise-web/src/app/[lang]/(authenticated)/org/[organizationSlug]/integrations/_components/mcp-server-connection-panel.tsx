@@ -244,7 +244,9 @@ export function McpServerConnectionPanel({
             <Input
               value={form.displayName}
               disabled={disabled || saveMutation.isPending}
-              onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, displayName: event.target.value }))
+              }
             />
           </Field>
           <Field>
@@ -255,7 +257,9 @@ export function McpServerConnectionPanel({
               value={form.serverUrl}
               disabled={disabled || saveMutation.isPending}
               placeholder="https://example.com/mcp"
-              onChange={(event) => setForm((current) => ({ ...current, serverUrl: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, serverUrl: event.target.value }))
+              }
             />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -340,7 +344,9 @@ export function McpServerConnectionPanel({
               <Textarea
                 value={form.headersJson}
                 disabled={disabled || saveMutation.isPending}
-                placeholder={intl.formatMessage(mcpServerConnectionPanelMessages.headersPlaceholder)}
+                placeholder={intl.formatMessage(
+                  mcpServerConnectionPanelMessages.headersPlaceholder,
+                )}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, headersJson: event.target.value }))
                 }
