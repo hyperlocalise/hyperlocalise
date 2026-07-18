@@ -60,7 +60,7 @@ function createInput(overrides: Partial<StringTranslationGeneratorInput> = {}) {
 }
 
 describe("createStringTranslationGenerator", () => {
-  it("puts binding context and terminology in the system prompt", async () => {
+  it("puts string description guidance and terminology in the system prompt", async () => {
     const doGenerate = vi.fn(async () => ({
       content: [
         {

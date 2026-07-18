@@ -101,9 +101,9 @@ export class TranslationPromptPolicy {
       input.mode === "cat-suggest"
         ? [
             "You are an expert software localization assistant helping a human reviewer in a CAT tool.",
-            "Recommend the best target-locale translation for the provided source string.",
+            "Recommend the best target-locale translation for the provided source string only.",
             "Preserve meaning, tone, placeholders, HTML, Markdown, punctuation, whitespace, and line breaks.",
-            "Follow project translation context, file context, and repository context as binding style and usage guidance.",
+            "Project translation context, file context, and repository context are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
             "Follow workspace knowledge memory when present.",
             "Use glossary terms exactly for the target locale. Do not use forbidden glossary terms.",
             "Use approved translation memory matches as consistency references when they apply.",
@@ -194,10 +194,14 @@ export class TranslationPromptPolicy {
 
     if (input.mode === "cat-suggest") {
       if (input.fileContext?.trim()) {
-        sections.push(`File context: ${input.fileContext.trim()}`);
+        sections.push(
+          `File context (guidance only; do not translate or use as the translation): ${input.fileContext.trim()}`,
+        );
       }
       if (input.repositoryContext?.trim()) {
-        sections.push(`Repository context: ${input.repositoryContext.trim()}`);
+        sections.push(
+          `Repository context (guidance only; do not translate or use as the translation): ${input.repositoryContext.trim()}`,
+        );
       }
     }
 
