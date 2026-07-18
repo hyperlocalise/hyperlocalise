@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 
@@ -119,19 +119,16 @@ export const InboxPageContent = observer(function InboxPageContent({
   const lastMessage = messages.at(-1);
   const isSparseInbox = !conversationsQuery.isLoading && conversations.length <= 1;
 
-  const autoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
     if (
       !selectedConversationId ||
       !messagesQuery.isSuccess ||
       lastMessage?.senderType !== "user" ||
-      streamManager.isStreaming(selectedConversationId) ||
-      autoTriggeredRef.current === lastMessage.id
+      !streamManager.shouldAutoTriggerResponse(selectedConversationId, lastMessage.id)
     ) {
       return;
     }
 
-    autoTriggeredRef.current = lastMessage.id;
     void streamManager.start({
       conversationId: selectedConversationId,
       responseToMessageId: lastMessage.id,
