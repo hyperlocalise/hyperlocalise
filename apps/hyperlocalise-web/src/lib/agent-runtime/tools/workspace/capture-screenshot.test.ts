@@ -440,6 +440,8 @@ describe("createCaptureScreenshotTool", () => {
     expect(captureScript).toContain("addInitScript");
     expect(captureScript).toContain("__STORYBOOK_ADDONS_CHANNEL__");
     expect(captureScript).toContain("storyRendered");
+    expect(captureScript).toContain("storyMissing");
+    expect(captureScript).not.toContain("storyFinished");
     expect(captureScript).toContain("sb-show-preparing-story");
     expect(captureScript).toContain('const waitForText = ["Save changes","Discard"]');
     expect(captureScript).toContain("texts.every((text) => haystack.includes(text))");

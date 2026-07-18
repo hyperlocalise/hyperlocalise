@@ -504,7 +504,7 @@ const waitForText = ${JSON.stringify(input.waitForText)};
       }
       channel.__hyperlocaliseHooked = true;
       channel.on("storyRendered", markReady);
-      channel.on("storyFinished", markReady);
+      channel.on("storyMissing", markError);
       channel.on("storyErrored", markError);
       channel.on("storyThrewException", markError);
       return true;
@@ -538,7 +538,7 @@ const waitForText = ${JSON.stringify(input.waitForText)};
   await page.goto(${JSON.stringify(input.url)}, { waitUntil: "load", timeout: ${STORYBOOK_READY_TIMEOUT_MS} });
   await page.waitForSelector("#storybook-root, #root", { state: "attached", timeout: ${STORYBOOK_READY_TIMEOUT_MS} });
 
-  // Prefer Storybook's private channel events (storyRendered / storyFinished).
+  // Prefer Storybook channel events (storyRendered / storyMissing / errors).
   // Fall back to: preparing overlays gone + #storybook-root has painted content.
   await page.waitForFunction(() => {
     if (window.__HYPERLOCALISE_STORY_ERROR__ || window.__HYPERLOCALISE_STORY_READY__) {
