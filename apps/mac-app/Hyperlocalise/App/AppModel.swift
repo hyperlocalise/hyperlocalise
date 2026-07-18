@@ -128,7 +128,6 @@ final class AppModel {
         guard !isStreaming else { return }
 
         errorMessage = nil
-        draft = ""
         isStreaming = true
         defer { isStreaming = false }
 
@@ -144,6 +143,7 @@ final class AppModel {
                 )
                 conversationId = existingID
                 userMessageId = created.id
+                draft = ""
                 messages.append(
                     ChatDisplayMessage(id: created.id, role: .user, text: text, isStreaming: false)
                 )
@@ -155,6 +155,7 @@ final class AppModel {
                 )
                 conversationId = created.conversation.id
                 userMessageId = created.message.id
+                draft = ""
                 selectedConversationID = conversationId
                 messages = [
                     ChatDisplayMessage(
