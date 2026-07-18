@@ -7,9 +7,12 @@ import {
   classifyScreenshotCaptureFailure,
   createCaptureScreenshotTool,
   detectPackageManager,
+  detectStorybookMajorVersion,
   detectStorybookScreenshotCommand,
+  parseDependencyMajorVersion,
   parsePackageJsonCandidatePaths,
   resolveStorybookPackage,
+  shouldOmitPackageScriptArgSeparator,
 } from "./capture-screenshot";
 import type { RepoToolContext } from "./types";
 
@@ -109,13 +112,74 @@ describe("detectPackageManager", () => {
   });
 });
 
+describe("parseDependencyMajorVersion", () => {
+  it("parses common semver ranges", () => {
+    expect(parseDependencyMajorVersion("10.4.6")).toBe(10);
+    expect(parseDependencyMajorVersion("^10.4.6")).toBe(10);
+    expect(parseDependencyMajorVersion("~8.0.0")).toBe(8);
+    expect(parseDependencyMajorVersion(">=9.1.0")).toBe(9);
+  });
+
+  it("returns null for unparseable versions", () => {
+    expect(parseDependencyMajorVersion("workspace:*")).toBeNull();
+    expect(parseDependencyMajorVersion("catalog:")).toBeNull();
+    expect(parseDependencyMajorVersion("latest")).toBeNull();
+    expect(parseDependencyMajorVersion(undefined)).toBeNull();
+  });
+
+  it("ignores digits that are not a semver major", () => {
+    expect(parseDependencyMajorVersion("file:../storybook-v10")).toBeNull();
+    expect(parseDependencyMajorVersion("catalog:storybook@10.0.0")).toBe(10);
+  });
+});
+
+describe("detectStorybookMajorVersion", () => {
+  it("prefers the storybook package version", () => {
+    expect(
+      detectStorybookMajorVersion({
+        dependencies: { "@storybook/react": "^8.6.0" },
+        devDependencies: { storybook: "^10.4.6" },
+      }),
+    ).toBe(10);
+  });
+
+  it("falls back to an @storybook/* package", () => {
+    expect(
+      detectStorybookMajorVersion({
+        devDependencies: { "@storybook/nextjs": "^8.2.0" },
+      }),
+    ).toBe(8);
+  });
+});
+
+describe("shouldOmitPackageScriptArgSeparator", () => {
+  it("omits the separator for pnpm on Storybook 10+ or unknown", () => {
+    expect(
+      shouldOmitPackageScriptArgSeparator({ packageManager: "pnpm", storybookMajor: 10 }),
+    ).toBe(true);
+    expect(
+      shouldOmitPackageScriptArgSeparator({ packageManager: "pnpm", storybookMajor: null }),
+    ).toBe(true);
+  });
+
+  it("keeps the separator for older Storybook on pnpm and for npm", () => {
+    expect(shouldOmitPackageScriptArgSeparator({ packageManager: "pnpm", storybookMajor: 8 })).toBe(
+      false,
+    );
+    expect(shouldOmitPackageScriptArgSeparator({ packageManager: "npm", storybookMajor: 10 })).toBe(
+      false,
+    );
+  });
+});
+
 describe("detectStorybookScreenshotCommand", () => {
-  it("builds a generic Storybook command from package metadata", () => {
+  it("builds a Storybook 10 pnpm command without a script arg separator", () => {
     expect(
       detectStorybookScreenshotCommand({
         packageJson: {
           packageManager: "pnpm@11.9.0",
           scripts: { storybook: "storybook dev" },
+          devDependencies: { storybook: "^10.4.6" },
         },
         port: 6123,
         packageDir: "apps/web",
@@ -124,8 +188,40 @@ describe("detectStorybookScreenshotCommand", () => {
       packageManager: "pnpm",
       scriptName: "storybook",
       command: "pnpm",
-      args: ["run", "storybook", "--", "--port", "6123", "--host", "127.0.0.1", "--ci"],
+      args: ["run", "storybook", "--port", "6123", "--host", "127.0.0.1", "--ci"],
       packageDir: "apps/web",
+    });
+  });
+
+  it("keeps the pnpm script arg separator for Storybook 8", () => {
+    expect(
+      detectStorybookScreenshotCommand({
+        packageJson: {
+          packageManager: "pnpm@11.9.0",
+          scripts: { storybook: "storybook dev" },
+          devDependencies: { storybook: "^8.6.14" },
+        },
+        port: 6123,
+      }),
+    ).toMatchObject({
+      packageManager: "pnpm",
+      args: ["run", "storybook", "--", "--port", "6123", "--host", "127.0.0.1", "--ci"],
+    });
+  });
+
+  it("keeps npm `--` separator so flags are not consumed by npm", () => {
+    expect(
+      detectStorybookScreenshotCommand({
+        packageJson: {
+          packageManager: "npm@10.9.0",
+          scripts: { storybook: "storybook dev" },
+          devDependencies: { storybook: "^10.4.6" },
+        },
+        port: 6123,
+      }),
+    ).toMatchObject({
+      packageManager: "npm",
+      args: ["run", "storybook", "--", "--port", "6123", "--host", "127.0.0.1", "--ci"],
     });
   });
 
@@ -345,7 +441,7 @@ describe("createCaptureScreenshotTool", () => {
       args: [
         "-lc",
         expect.stringContaining(
-          "(cd 'apps/hyperlocalise-web' && 'pnpm' 'run' 'storybook' '--' '--port' '6006' '--host' '127.0.0.1' '--ci')",
+          "(cd 'apps/hyperlocalise-web' && 'pnpm' 'run' 'storybook' '--port' '6006' '--host' '127.0.0.1' '--ci')",
         ),
       ],
     });

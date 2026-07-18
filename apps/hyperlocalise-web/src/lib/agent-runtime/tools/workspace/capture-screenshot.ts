@@ -39,6 +39,7 @@ type PackageJson = {
   scripts?: unknown;
   dependencies?: unknown;
   devDependencies?: unknown;
+  optionalDependencies?: unknown;
 };
 
 type PackageManager = "pnpm" | "yarn" | "bun" | "npm";
@@ -133,20 +134,99 @@ export function detectPackageManager(input: {
   return "npm";
 }
 
+/** Storybook 10+ uses a strict CLI that rejects unexpected positional args after `--`. */
+const STORYBOOK_STRICT_CLI_MAJOR = 10;
+
 function storybookArgs(port: number) {
   return ["--port", String(port), "--host", "127.0.0.1", "--ci"];
 }
 
-function buildRunArgs(packageManager: PackageManager, scriptName: string, port: number) {
-  const args = storybookArgs(port);
+/**
+ * Parse a major version from a package.json dependency range.
+ * Matches a semver-like major (`digits` + `.`), with an optional `~^>=` prefix —
+ * e.g. `10.4.6`, `^10.4.6`, `~8.0.0`, `>=9.1.0`, `catalog:storybook@10.0.0`.
+ * Returns null when no such major is present (`workspace:*`, `latest`, `file:../storybook-v10`, …).
+ */
+export function parseDependencyMajorVersion(version: unknown): number | null {
+  if (typeof version !== "string") {
+    return null;
+  }
 
-  switch (packageManager) {
+  const match = version.trim().match(/[~^>=]*(\d+)\./);
+  if (!match) {
+    return null;
+  }
+
+  const major = Number.parseInt(match[1]!, 10);
+  return Number.isFinite(major) ? major : null;
+}
+
+export function detectStorybookMajorVersion(packageJson: PackageJson): number | null {
+  const dependencyBlocks = [
+    asRecord(packageJson.dependencies),
+    asRecord(packageJson.devDependencies),
+    asRecord(packageJson.optionalDependencies),
+  ];
+
+  for (const block of dependencyBlocks) {
+    const direct = parseDependencyMajorVersion(block.storybook);
+    if (direct !== null) {
+      return direct;
+    }
+  }
+
+  for (const block of dependencyBlocks) {
+    for (const [name, version] of Object.entries(block)) {
+      if (!name.startsWith("@storybook/")) {
+        continue;
+      }
+      const major = parseDependencyMajorVersion(version);
+      if (major !== null) {
+        return major;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * pnpm forwards a literal `--` into the script argv. Storybook 10+ treats those
+ * tokens as unexpected positional args for `dev` and exits.
+ * When the major version is unknown, prefer the modern (no-separator) form.
+ */
+export function shouldOmitPackageScriptArgSeparator(input: {
+  packageManager: PackageManager;
+  storybookMajor: number | null;
+}): boolean {
+  if (input.packageManager !== "pnpm") {
+    return false;
+  }
+
+  return input.storybookMajor === null || input.storybookMajor >= STORYBOOK_STRICT_CLI_MAJOR;
+}
+
+function buildRunArgs(input: {
+  packageManager: PackageManager;
+  scriptName: string;
+  port: number;
+  storybookMajor: number | null;
+}) {
+  const args = storybookArgs(input.port);
+
+  switch (input.packageManager) {
     case "pnpm":
+      if (shouldOmitPackageScriptArgSeparator(input)) {
+        return ["run", input.scriptName, ...args];
+      }
+      return ["run", input.scriptName, "--", ...args];
     case "npm":
+      // npm requires `--` so flags like `--port` are not consumed by npm itself.
+      return ["run", input.scriptName, "--", ...args];
     case "bun":
-      return ["run", scriptName, "--", ...args];
+      return ["run", input.scriptName, "--", ...args];
     case "yarn":
-      return [scriptName, ...args];
+      return [input.scriptName, ...args];
   }
 }
 
@@ -167,11 +247,17 @@ export function detectStorybookScreenshotCommand(input: {
   }
 
   const packageManager = detectPackageManager(input);
+  const storybookMajor = detectStorybookMajorVersion(input.packageJson);
   return {
     packageManager,
     scriptName,
     command: packageManager,
-    args: buildRunArgs(packageManager, scriptName, input.port ?? STORYBOOK_PORT),
+    args: buildRunArgs({
+      packageManager,
+      scriptName,
+      port: input.port ?? STORYBOOK_PORT,
+      storybookMajor,
+    }),
     packageDir: input.packageDir ?? "",
   };
 }
