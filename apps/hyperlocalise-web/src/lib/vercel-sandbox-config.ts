@@ -8,7 +8,7 @@ export const sandboxHyperlocaliseReleaseVersion = "1.8.24";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
- * Keep in sync with `MANAGED_PLAYWRIGHT_VERSION` in capture-screenshot.ts.
+ * Also used as `MANAGED_PLAYWRIGHT_VERSION` in capture-screenshot.ts.
  */
 export const sandboxPlaywrightVersion = "1.61.1";
 
@@ -26,7 +26,7 @@ export const sandboxChromiumDnfPackages = [
   "cups-libs",
   "libdrm",
   "libxkbcommon",
-  "libgbm",
+  "mesa-libgbm",
   "libX11",
   "libXcomposite",
   "libXcursor",
