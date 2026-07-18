@@ -105,8 +105,9 @@ export const installRequiredSandboxToolsCommand = [
   "command -v hl >/dev/null 2>&1",
   // Playwright Chromium needs OS libs such as libnspr4.so; install during bootstrap
   // where sudo is available. Skip when already present (warm/reused images).
+  // Best-effort: capture-time retry handles missing deps if this fails.
   "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
-  "  install_chromium_system_dependencies",
+  "  install_chromium_system_dependencies || true",
   "fi",
 ].join("\n");
 

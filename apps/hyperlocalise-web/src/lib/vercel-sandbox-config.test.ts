@@ -15,7 +15,9 @@ describe("installRequiredSandboxToolsCommand", () => {
   });
 
   it("installs Chromium system libraries when libnspr4 is missing", () => {
-    expect(installRequiredSandboxToolsCommand).toContain("install_chromium_system_dependencies");
+    expect(installRequiredSandboxToolsCommand).toContain(
+      "install_chromium_system_dependencies || true",
+    );
     expect(installRequiredSandboxToolsCommand).toContain(
       `PW_VERSION="${sandboxPlaywrightVersion}"`,
     );

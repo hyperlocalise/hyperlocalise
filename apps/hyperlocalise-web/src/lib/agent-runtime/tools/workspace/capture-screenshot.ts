@@ -501,7 +501,8 @@ function managedBrowserRuntimeCommand() {
     "fi",
     `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install --with-deps chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
     // `--with-deps` may fail without root even when the browser binary itself installs; retry binary-only.
-    `  if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
+    // Append so the original `--with-deps` failure reason is preserved for debugging.
+    `  if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >>/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
     `    cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
     `    echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
     "    exit 88",
