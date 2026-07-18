@@ -8,6 +8,8 @@ import {
   createCaptureScreenshotTool,
   detectPackageManager,
   detectStorybookScreenshotCommand,
+  parsePackageJsonCandidatePaths,
+  resolveStorybookPackage,
 } from "./capture-screenshot";
 import type { RepoToolContext } from "./types";
 
@@ -34,21 +36,38 @@ function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
 }
 
 function createRepoContext(input: {
-  packageJson: Record<string, unknown>;
+  packageJsonByPath?: Record<string, Record<string, unknown>>;
+  packageJson?: Record<string, unknown>;
   lockfiles?: readonly string[];
+  findStdout?: string;
   execResult?: { exitCode: number; stdout: string; stderr: string };
 }) {
+  const packageJsonByPath = {
+    ...(input.packageJson ? { "package.json": input.packageJson } : {}),
+    ...(input.packageJsonByPath ?? {}),
+  };
   const lockfiles = new Set(input.lockfiles ?? []);
   const writtenFiles = new Map<string, string | Buffer>();
-  const exec = vi.fn(async () => ({
-    exitCode: input.execResult?.exitCode ?? 0,
-    stdout: input.execResult?.stdout ?? Buffer.from("png-bytes").toString("base64"),
-    stderr: input.execResult?.stderr ?? "",
-    env: {},
-  }));
+  const exec = vi.fn(async (command: string) => {
+    if (command === "find") {
+      return {
+        exitCode: 0,
+        stdout: input.findStdout ?? Object.keys(packageJsonByPath).join("\n"),
+        stderr: "",
+        env: {},
+      };
+    }
+
+    return {
+      exitCode: input.execResult?.exitCode ?? 0,
+      stdout: input.execResult?.stdout ?? Buffer.from("png-bytes").toString("base64"),
+      stderr: input.execResult?.stderr ?? "",
+      env: {},
+    };
+  });
   const readFile = vi.fn(async (path: string) => {
-    if (path === "package.json") {
-      return JSON.stringify(input.packageJson);
+    if (path in packageJsonByPath) {
+      return JSON.stringify(packageJsonByPath[path]);
     }
     if (lockfiles.has(path)) {
       return "";
@@ -79,8 +98,14 @@ describe("detectPackageManager", () => {
     ).toBe("pnpm");
   });
 
-  it("falls back to lockfiles", () => {
+  it("falls back to lockfiles, including nested lockfile paths", () => {
     expect(detectPackageManager({ packageJson: {}, lockfiles: ["yarn.lock"] })).toBe("yarn");
+    expect(
+      detectPackageManager({
+        packageJson: {},
+        lockfiles: ["apps/hyperlocalise-web/pnpm-lock.yaml"],
+      }),
+    ).toBe("pnpm");
   });
 });
 
@@ -93,12 +118,14 @@ describe("detectStorybookScreenshotCommand", () => {
           scripts: { storybook: "storybook dev" },
         },
         port: 6123,
+        packageDir: "apps/web",
       }),
     ).toMatchObject({
       packageManager: "pnpm",
       scriptName: "storybook",
       command: "pnpm",
       args: ["run", "storybook", "--", "--port", "6123", "--host", "127.0.0.1", "--ci"],
+      packageDir: "apps/web",
     });
   });
 
@@ -106,6 +133,66 @@ describe("detectStorybookScreenshotCommand", () => {
     expect(detectStorybookScreenshotCommand({ packageJson: { scripts: { dev: "vite" } } })).toEqual(
       { errorCode: "storybook_script_not_found" },
     );
+  });
+});
+
+describe("parsePackageJsonCandidatePaths", () => {
+  it("normalizes and prefers shallower package manifests", () => {
+    expect(
+      parsePackageJsonCandidatePaths(`
+./apps/hyperlocalise-web/package.json
+./package.json
+./docs/package.json
+`),
+    ).toEqual(["package.json", "docs/package.json", "apps/hyperlocalise-web/package.json"]);
+  });
+});
+
+describe("resolveStorybookPackage", () => {
+  it("uses a nested package when the repository root has no package.json", async () => {
+    const { repo } = createRepoContext({
+      packageJsonByPath: {
+        "apps/hyperlocalise-web/package.json": {
+          packageManager: "pnpm@11.12.0",
+          scripts: { storybook: "storybook dev -p 6006" },
+        },
+      },
+      lockfiles: ["apps/hyperlocalise-web/pnpm-lock.yaml"],
+      findStdout: "apps/hyperlocalise-web/package.json\n",
+    });
+
+    await expect(resolveStorybookPackage(repo)).resolves.toMatchObject({
+      packageDir: "apps/hyperlocalise-web",
+      packageJsonPath: "apps/hyperlocalise-web/package.json",
+      lockfiles: ["apps/hyperlocalise-web/pnpm-lock.yaml"],
+    });
+  });
+
+  it("skips nested packages without Storybook scripts", async () => {
+    const { repo } = createRepoContext({
+      packageJsonByPath: {
+        "docs/package.json": { scripts: { build: "vitepress build" } },
+        "apps/hyperlocalise-web/package.json": {
+          scripts: { storybook: "storybook dev" },
+        },
+      },
+      findStdout: "docs/package.json\napps/hyperlocalise-web/package.json\n",
+    });
+
+    await expect(resolveStorybookPackage(repo)).resolves.toMatchObject({
+      packageDir: "apps/hyperlocalise-web",
+      packageJsonPath: "apps/hyperlocalise-web/package.json",
+    });
+  });
+
+  it("returns package_json_unavailable when no manifests exist", async () => {
+    const { repo } = createRepoContext({
+      findStdout: "",
+    });
+
+    await expect(resolveStorybookPackage(repo)).resolves.toMatchObject({
+      errorCode: "package_json_unavailable",
+    });
   });
 });
 
@@ -203,6 +290,70 @@ describe("createCaptureScreenshotTool", () => {
           kind: "visual-mock",
           targetType: "storybook",
           storyId: "components-button--primary",
+          packageDir: ".",
+          packageJsonPath: "package.json",
+        }),
+      }),
+    );
+  });
+
+  it("captures from a nested Storybook package when root package.json is missing", async () => {
+    vi.mocked(createStoredFile).mockResolvedValueOnce({
+      id: "file_nested",
+      organizationId: "org_1",
+      projectId: "project_1",
+      createdByUserId: "user_1",
+      role: "reference",
+      sourceKind: "repository_file",
+      sourceInteractionId: "conv_1",
+      sourceJobId: null,
+      storageProvider: "vercel_blob",
+      storageKey: "organizations/org_1/files/file_nested/storybook.png",
+      storageUrl: "https://blob.example/storybook-nested.png",
+      downloadUrl: "https://download.example/storybook-nested.png",
+      filename: "storybook-app-project-overview-page--default.png",
+      contentType: "image/png",
+      byteSize: 9,
+      sha256: "hash",
+      etag: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const { exec, repo } = createRepoContext({
+      packageJsonByPath: {
+        "apps/hyperlocalise-web/package.json": {
+          packageManager: "pnpm@11.12.0",
+          scripts: { storybook: "storybook dev -p 6006" },
+        },
+      },
+      lockfiles: ["apps/hyperlocalise-web/pnpm-lock.yaml"],
+      findStdout: "apps/hyperlocalise-web/package.json\n",
+    });
+    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "app-project-overview-page--default" } },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      fileId: "file_nested",
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: [
+        "-lc",
+        expect.stringContaining(
+          "(cd 'apps/hyperlocalise-web' && 'pnpm' 'run' 'storybook' '--' '--port' '6006' '--host' '127.0.0.1' '--ci')",
+        ),
+      ],
+    });
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          packageDir: "apps/hyperlocalise-web",
+          packageJsonPath: "apps/hyperlocalise-web/package.json",
         }),
       }),
     );

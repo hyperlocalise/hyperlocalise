@@ -7,9 +7,9 @@ tools: grep,fuzzySearch,read,glob,todoWrite,write,applyPatch,captureScreenshot,f
 
 ## Visual mock
 
-Use this skill when the user asks the Hyperlocalise agent to create or reason from a mock UI screenshot, mocked visual context, generated UI state, wireframe, or screenshot-like preview for a connected repository.
+Use this skill when the user asks for visual context, a mock UI screenshot, mocked visual context, generated UI state, wireframe, or screenshot-like preview for a connected repository — including phrasing like "visual context for …", "show me the UI for …", or "screenshot of …".
 
-This is an agent workflow skill, not a screenshot product tool. Compose lower-level repository, coding, browser, and storage primitives when they are available.
+This is an agent workflow skill, not a screenshot product tool. Compose lower-level repository, coding, browser, and storage primitives when they are available. Do not answer visual-context requests with find-context's text-only "Where/how it shows" contract when this skill and `captureScreenshot` are available.
 
 ## Workflow
 
@@ -19,7 +19,7 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
 - When coding write primitives such as `write` or `apply_patch` are available, use them only for temporary preview scaffolding or narrowly scoped mock fixtures unless the user also asks for a production code change.
 - Do not commit changes, push branches, open pull requests, or publish repository changes. Visual mocks may mutate only the sandbox workspace.
 - When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file, and any assumptions.
-- Use `captureScreenshot` for Storybook stories. Provide the Storybook story id and viewport; do not ask for package-manager-specific commands.
+- Use `captureScreenshot` for Storybook stories. Provide the Storybook story id and viewport; do not ask for package-manager-specific commands. The tool discovers Storybook in the repo root or nested app packages.
 - When durable file attachment primitives are available, attach the screenshot as an agent artifact with metadata identifying it as `visual-mock`.
 - If write, render, screenshot, or attachment primitives are unavailable, do not claim a screenshot was created. Return a concise mock plan with the target component, data state, viewport, and exact next primitive needed.
 

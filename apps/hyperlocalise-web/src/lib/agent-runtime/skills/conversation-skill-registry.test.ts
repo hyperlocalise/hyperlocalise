@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { clearAgentManifestCache } from "@/agents/_runtime/loader";
+import { clearAgentManifestCache, loadAgentSkill } from "@/agents/_runtime/loader";
 import {
   buildConversationSkillPlan,
   filterAvailableConversationToolNames,
@@ -164,6 +164,24 @@ describe("conversation skill registry", () => {
         }),
       ),
     ).toBe(true);
+  });
+
+  it("routes visual context requests to visual-mock in conversation skill instructions", () => {
+    const conversationSkill = loadAgentSkill({
+      agentId: "hyperlocalise",
+      skillId: "conversation",
+    });
+    const visualMockSkill = loadAgentSkill({
+      agentId: "hyperlocalise",
+      skillId: "visual-mock",
+    });
+
+    expect(conversationSkill.body).toContain("Visual context / mock / screenshot");
+    expect(conversationSkill.body).toContain("use **visual-mock** when it is enabled");
+    expect(visualMockSkill.body).toContain("visual context for …");
+    expect(visualMockSkill.body).toContain(
+      "Do not answer visual-context requests with find-context",
+    );
   });
 
   it("activates visual-mock when a sandbox is available and the flag is enabled", () => {
