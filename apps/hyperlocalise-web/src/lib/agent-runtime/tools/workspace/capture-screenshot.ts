@@ -495,10 +495,13 @@ function buildCaptureCommand(input: {
   const storybookLaunch = packageDir
     ? `(cd ${shellQuote(packageDir)} && ${storybookCommand})`
     : storybookCommand;
+  const browsersPath = shellQuote(`${MANAGED_BROWSER_RUNTIME_DIR}/ms-playwright`);
 
   return [
     "set -euo pipefail",
     managedBrowserRuntimeCommand(),
+    // Must match the install path above; otherwise chromium.launch looks in the default cache.
+    `export PLAYWRIGHT_BROWSERS_PATH=${browsersPath}`,
     `${storybookLaunch} >/tmp/hyperlocalise-storybook.log 2>&1 &`,
     "SERVER_PID=$!",
     'cleanup() { kill "$SERVER_PID" >/dev/null 2>&1 || true; }',
