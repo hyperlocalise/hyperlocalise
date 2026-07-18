@@ -88,6 +88,22 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("maps knowledge memories tool into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Knowledge-aware sync",
+      instructions: "Follow brand guidance.",
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      knowledgeEnabled: true,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
+      enabled: true,
+    });
+  });
+
   it("prefills the Contentful translation template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-contentful-article",

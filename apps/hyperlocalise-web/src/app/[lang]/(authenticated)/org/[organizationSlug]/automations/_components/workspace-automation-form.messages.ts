@@ -258,10 +258,56 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "FCdijMuIQ9",
     description: "Button to open the add-tool menu",
   },
+  builtInTools: {
+    defaultMessage: "Built-in",
+    id: "8Ktyj8rNhr",
+    description: "Dropdown section label for built-in automation tools",
+  },
   supportedTools: {
     defaultMessage: "Supported tools",
     id: "WsiwWcs52J",
     description: "Dropdown section label for available automation tools",
+  },
+  memories: {
+    defaultMessage: "Memories",
+    id: "mLI55faX8v",
+    description: "Menu item and tool title for workspace knowledge memories",
+  },
+  memoriesDescription: {
+    defaultMessage: "Use organization knowledge memory as guidance for this automation.",
+    id: "rcdU5+Pv4r",
+    description: "Description for the knowledge memories automation tool",
+  },
+  memoriesUnavailableDescription: {
+    defaultMessage:
+      "Enable workspace knowledge for this organization before using memories in automations.",
+    id: "yl7Dzt+xE3",
+    description: "Description when knowledge memories cannot be used yet",
+  },
+  manageMemories: {
+    defaultMessage: "Manage",
+    id: "WNUkfqHAtJ",
+    description: "Button to open the knowledge memories editor from an automation",
+  },
+  manageMemoriesTitle: {
+    defaultMessage: "Knowledge memories",
+    id: "W9S7Ht69kS",
+    description: "Title for the knowledge memories management sheet",
+  },
+  manageMemoriesDescription: {
+    defaultMessage: "Edit the shared organization knowledge used by this automation.",
+    id: "WBqbSdV/u8",
+    description: "Description for the knowledge memories management sheet",
+  },
+  removeMemoriesTool: {
+    defaultMessage: "Remove memories tool",
+    id: "axtydiBtML",
+    description: "Accessible label to remove the knowledge memories tool",
+  },
+  enableKnowledgeFirstShortcut: {
+    defaultMessage: "Enable first",
+    id: "a51/Gtv+h4",
+    description: "Shortcut shown when workspace knowledge is not enabled for the organization",
   },
   useGithubRepo: {
     defaultMessage: "Use GitHub repo",

@@ -12,23 +12,28 @@ import {
   createDetailAutomationFormFixture,
   createEmptyAutomationFormFixture,
   createGithubAutomationFormFixture,
+  createMemoriesAutomationFormFixture,
 } from "./automation-editor.fixture";
 import { automationEditorMswHandlers } from "./automation-msw-handlers";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 function WorkspaceAutomationEditorStory({
   actions,
+  canUpdateKnowledgeMemory = true,
   disabled,
   errors: initialErrors = {},
   form: initialForm,
+  knowledgeAvailable = true,
   mode,
   organizationSlug = "acme",
   runHistory,
 }: {
   actions?: ReactNode;
+  canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors?: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
+  knowledgeAvailable?: boolean;
   mode: "create" | "detail";
   organizationSlug?: string;
   runHistory?: typeof automationRunsFixture;
@@ -40,9 +45,11 @@ function WorkspaceAutomationEditorStory({
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
         actions={actions}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         disabled={disabled}
         errors={errors}
         form={form}
+        knowledgeAvailable={knowledgeAvailable}
         mode={mode}
         onChange={(next) => {
           setForm(next);
@@ -115,6 +122,17 @@ export const CreateFromContentfulTemplate: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Translate Contentful article")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+  },
+};
+
+export const CreateWithMemories: Story = {
+  args: {
+    form: createMemoriesAutomationFormFixture(),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Memories")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    await expect(canvas.getByText("3 tools")).toBeInTheDocument();
   },
 };
 

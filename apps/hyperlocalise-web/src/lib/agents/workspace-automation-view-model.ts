@@ -54,6 +54,7 @@ export type WorkspaceAutomationFormState = {
   translationProjectId: string;
   translationUseProjectTargetLocales: boolean;
   translationTargetLocales: string[];
+  knowledgeEnabled: boolean;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -140,6 +141,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     translationProjectId: "",
     translationUseProjectTargetLocales: true,
     translationTargetLocales: [],
+    knowledgeEnabled: false,
   };
 }
 
@@ -151,6 +153,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
   const translation = automation.toolConfig.translation;
+  const knowledge = automation.toolConfig.knowledge;
 
   return {
     name: automation.name,
@@ -205,6 +208,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     translationProjectId: translation?.projectId ?? "",
     translationUseProjectTargetLocales: translation?.useProjectTargetLocales ?? true,
     translationTargetLocales: translation?.targetLocales ? [...translation.targetLocales] : [],
+    knowledgeEnabled: Boolean(knowledge?.enabled),
   };
 }
 
@@ -335,6 +339,13 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             targetLocales: form.translationUseProjectTargetLocales
               ? []
               : form.translationTargetLocales,
+          },
+        }
+      : {}),
+    ...(form.knowledgeEnabled
+      ? {
+          knowledge: {
+            enabled: true,
           },
         }
       : {}),
