@@ -39,59 +39,31 @@ export const chatDockMessages = defineMessages({
     description: "Empty state title for a new chat dock conversation",
   },
   emptySubtitle: {
-    id: "l2MbFKxoMr",
-    defaultMessage: "Ask about strings, context, progress, or translations",
+    id: "w2b0cdIV3S",
+    defaultMessage: "Ask about strings, context, or anything else",
     description: "Empty state subtitle describing chat capabilities",
   },
   suggestionFindContext: {
-    id: "vHurxfGj2i",
-    defaultMessage: "Find context for a string",
+    id: "pehDkakH9A",
+    defaultMessage: "What's the context of a string",
     description: "Suggested prompt chip to find localisation context",
   },
   suggestionSegmentContext: {
-    id: "tToS3qyu6G",
-    defaultMessage: "Context of {key}",
-    description: "Suggested prompt chip for the currently selected CAT segment",
-  },
-  suggestionRecentChanges: {
-    id: "EChSkkf+KW",
-    defaultMessage: "What changed recently",
-    description: "Suggested prompt chip for recent localisation changes",
-  },
-  suggestionProgress: {
-    id: "QpIX9JaUhS",
-    defaultMessage: "Check localisation progress",
-    description: "Suggested prompt chip for TMS localisation progress",
-  },
-  suggestionTranslate: {
-    id: "C1FbXuFTUH",
-    defaultMessage: "Start a translation",
-    description: "Suggested prompt chip to start a translation",
+    id: "01h5d0m29X",
+    defaultMessage: "Context of {source}",
+    description: "Suggested prompt chip for the currently selected CAT segment source string",
   },
   promptFindContext: {
-    id: "VKjWHU/QDH",
-    defaultMessage: "What does this string mean, and where is it used?",
-    description: "Prefilled prompt when choosing the find-context chip",
+    id: "FLl4UNTozx",
+    defaultMessage: "What's the context of",
+    description:
+      "Prefilled prompt stem when choosing the find-context chip without a selected string",
   },
   promptSegmentContext: {
-    id: "084ETvW6A4",
-    defaultMessage: 'What\'s the context of "{key}"?',
-    description: "Prefilled prompt when asking for context of the selected CAT segment",
-  },
-  promptRecentChanges: {
-    id: "N83FNjAdU2",
-    defaultMessage: "What localisation strings changed recently?",
-    description: "Prefilled prompt when choosing the recent-changes chip",
-  },
-  promptProgress: {
-    id: "W8paQ6RjZy",
-    defaultMessage: "How is localisation progress looking across linked TMS projects?",
-    description: "Prefilled prompt when choosing the progress chip",
-  },
-  promptTranslate: {
-    id: "homymlbTZo",
-    defaultMessage: "Translate the following text:",
-    description: "Prefilled prompt when choosing the translate chip",
+    id: "ERiH8D9Q+l",
+    defaultMessage: 'What\'s the context of "{source}"?',
+    description:
+      "Prefilled prompt when asking for context of the selected CAT segment source string",
   },
   streaming: {
     id: "pXpP8bdMfG",
