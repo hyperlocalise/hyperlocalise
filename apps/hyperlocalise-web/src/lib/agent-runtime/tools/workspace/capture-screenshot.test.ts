@@ -373,6 +373,14 @@ describe("createCaptureScreenshotTool", () => {
       ],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
+      args: [
+        "-lc",
+        expect.stringContaining(
+          "export PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
+        ),
+      ],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
       args: ["-lc", expect.stringContaining("'pnpm' 'run' 'storybook'")],
     });
     expect(createStoredFile).toHaveBeenCalledWith(
