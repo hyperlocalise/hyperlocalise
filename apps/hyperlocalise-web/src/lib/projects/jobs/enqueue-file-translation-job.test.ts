@@ -51,39 +51,58 @@ vi.mock("@/lib/billing/usage-control", () => ({
   usageFeatureIds: { translationJobs: "translation_jobs" },
 }));
 
-vi.mock("@/lib/database", () => ({
-  db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: selectLimitMock,
+vi.mock("@/lib/database", () => {
+  const createSelectBuilder = () => {
+    const builder = {
+      from: vi.fn(() => builder),
+      leftJoin: vi.fn(() => builder),
+      where: vi.fn(() => builder),
+      limit: selectLimitMock,
+    };
+    return builder;
+  };
+
+  return {
+    db: {
+      select: vi.fn(() => createSelectBuilder()),
+      transaction: (...args: unknown[]) => transactionMock(...args),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(),
         })),
       })),
-    })),
-    transaction: (...args: unknown[]) => transactionMock(...args),
-    update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(),
-      })),
-    })),
-  },
-  schema: {
-    projects: {
-      id: "id",
-      organizationId: "organizationId",
-      source: "source",
-      sourceLocale: "sourceLocale",
-      targetLocales: "targetLocales",
     },
-    jobs: {
-      id: "id",
-      projectId: "projectId",
+    schema: {
+      projects: {
+        id: "id",
+        organizationId: "organizationId",
+        source: "source",
+        sourceLocale: "sourceLocale",
+        targetLocales: "targetLocales",
+      },
+      jobs: {
+        id: "id",
+        projectId: "projectId",
+        organizationId: "organizationId",
+        kind: "kind",
+        status: "status",
+      },
+      translationJobDetails: {
+        jobId: "jobId",
+        type: "type",
+      },
+      externalJobDetails: {
+        jobId: "jobId",
+        providerKind: "providerKind",
+      },
     },
-    translationJobDetails: {},
-  },
-}));
+  };
+});
 
-import { enqueueFileTranslationJob } from "./enqueue-file-translation-job";
+import {
+  enqueueExistingFileTranslationJob,
+  enqueueFileTranslationJob,
+} from "./enqueue-file-translation-job";
 
 describe("enqueueFileTranslationJob", () => {
   beforeEach(() => {
@@ -175,5 +194,70 @@ describe("enqueueFileTranslationJob", () => {
       message: "Unsupported source file format.",
     });
     expect(jobQueueEnqueueMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("enqueueExistingFileTranslationJob", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    jobQueueEnqueueMock.mockResolvedValue(undefined);
+  });
+
+  it("rejects non-queued terminal job statuses", async () => {
+    selectLimitMock.mockResolvedValue([
+      {
+        id: "job_failed",
+        projectId: "project_1",
+        kind: "translation",
+        status: "failed",
+        type: "file",
+        externalProviderKind: null,
+      },
+    ]);
+
+    const result = await enqueueExistingFileTranslationJob({
+      organizationId: "org_1",
+      jobId: "job_failed",
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "job_not_enqueueable",
+      message: 'Job status "failed" cannot be assigned to the translation agent.',
+    });
+    expect(jobQueueEnqueueMock).not.toHaveBeenCalled();
+  });
+
+  it("enqueues queued native file translation jobs", async () => {
+    selectLimitMock.mockResolvedValue([
+      {
+        id: "job_queued",
+        projectId: "project_1",
+        kind: "translation",
+        status: "queued",
+        type: "file",
+        externalProviderKind: null,
+      },
+    ]);
+
+    const result = await enqueueExistingFileTranslationJob({
+      organizationId: "org_1",
+      jobId: "job_queued",
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      jobId: "job_queued",
+      projectId: "project_1",
+    });
+    expect(jobQueueEnqueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "translation",
+        type: "file",
+        jobId: "job_queued",
+      }),
+    );
   });
 });
