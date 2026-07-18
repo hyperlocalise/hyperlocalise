@@ -371,7 +371,7 @@ export const ToolOutput = ({
         </div>
       ) : null}
 
-      {serializedOutput && !errorText ? (
+      {serializedOutput ? (
         <ToolJsonSection
           label={<FormattedMessage {...toolMessages.result} />}
           code={serializedOutput}
@@ -379,7 +379,7 @@ export const ToolOutput = ({
         />
       ) : null}
 
-      {output && !serializedOutput && !imageOutput && !errorText ? (
+      {output && !serializedOutput && !imageOutput ? (
         <div className="overflow-x-auto rounded-md bg-muted/50 text-foreground text-xs">
           <div>{output as ReactNode}</div>
         </div>

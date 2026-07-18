@@ -448,6 +448,9 @@ describe("createCaptureScreenshotTool", () => {
     expect(captureScript).toContain('const waitForText = ["Save changes","Discard"]');
     expect(captureScript).toContain("texts.every((text) => haystack.includes(text))");
     expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("seq 1 120")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
         expect.stringContaining("npm --prefix '/tmp/hyperlocalise-browser-runtime' install"),
