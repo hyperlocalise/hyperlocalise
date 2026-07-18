@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import {
-  runSandboxCleanup,
-  SANDBOX_CLEANUP_MAX_AGE_MS,
-} from "./sandbox-cleanup";
+import { runSandboxCleanup, SANDBOX_CLEANUP_MAX_AGE_MS } from "./sandbox-cleanup";
 
 describe("runSandboxCleanup", () => {
   const now = new Date("2026-07-18T12:00:00.000Z");
