@@ -353,10 +353,6 @@ export async function updateMcpServerConnection(input: {
 
     encrypted = encryptSecret(secretResult.value);
     maskedTokenSuffix = maskSecret(nextAuthKind, secretResult.value);
-  } else if (nextAuthKind === "none" && existing.authKind !== "none") {
-    const emptySecret: McpServerAuthSecret = {};
-    encrypted = encryptSecret(emptySecret);
-    maskedTokenSuffix = maskSecret("none", emptySecret);
   }
 
   try {

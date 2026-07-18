@@ -242,8 +242,12 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Enabled MCP Server tools require an MCP server connection.";
     }
   | {
+      code: "mcp_connection_not_found";
+      message: "The selected MCP server connection was not found. Choose another connection.";
+    }
+  | {
       code: "mcp_not_connected";
-      message: "Connect an MCP server in Integrations before enabling the MCP Server tool.";
+      message: "Enable the selected MCP server connection in Integrations before using it.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -523,10 +527,17 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       )
       .limit(1);
 
-    if (!connection?.enabled) {
+    if (!connection) {
+      return err({
+        code: "mcp_connection_not_found",
+        message: "The selected MCP server connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled) {
       return err({
         code: "mcp_not_connected",
-        message: "Connect an MCP server in Integrations before enabling the MCP Server tool.",
+        message: "Enable the selected MCP server connection in Integrations before using it.",
       });
     }
   }
