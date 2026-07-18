@@ -7,6 +7,8 @@ requiresSandbox: true
 
 This skill applies when the user or product asks for translation context for source text, messages, localization keys, UI labels, or uploaded-file segments — either for one string/key or for every recently changed source entry in a time window.
 
+Do **not** use this skill as the primary path when the user asks for visual context, a UI screenshot, or a visual mock. Those requests belong to `visual-mock` when that skill is enabled. Use this skill only as a text fallback if visual-mock is unavailable, or when the user explicitly wants textual placement guidance without an image.
+
 Use the `repo-tools` skill to search and inspect the repository. This skill adds the localization-specific search priorities and final answer contract.
 
 In multi-turn conversations, treat the latest user message as the active lookup target. Previous source strings, keys, and labels are history only; do not include them in the answer unless the latest user message explicitly asks to compare, include both, revisit a previous string, or explain a relationship between strings.

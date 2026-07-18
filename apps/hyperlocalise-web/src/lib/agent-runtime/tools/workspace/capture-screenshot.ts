@@ -48,7 +48,31 @@ export type StorybookScreenshotCommand = {
   scriptName: string;
   command: string;
   args: string[];
+  /** Workspace-relative directory that contains the Storybook package.json. Empty string = repo root. */
+  packageDir: string;
 };
+
+export type StorybookPackageResolution =
+  | {
+      packageDir: string;
+      packageJsonPath: string;
+      packageJson: PackageJson;
+      lockfiles: string[];
+    }
+  | {
+      errorCode: "package_json_unavailable" | "storybook_script_not_found";
+      error: string;
+      checkedFiles: string[];
+    };
+
+const STORYBOOK_SCRIPT_NAMES = new Set(["storybook", "dev:storybook", "storybook:dev"]);
+const LOCKFILE_NAMES = [
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "bun.lockb",
+  "bun.lock",
+  "package-lock.json",
+] as const;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -77,6 +101,15 @@ function packageManagerFromPackageJson(packageJson: PackageJson): PackageManager
   return null;
 }
 
+function lockfileBasenames(lockfiles: readonly string[] | undefined): Set<string> {
+  return new Set(
+    (lockfiles ?? []).map((lockfile) => {
+      const segments = lockfile.replace(/\\/g, "/").split("/");
+      return segments[segments.length - 1] ?? lockfile;
+    }),
+  );
+}
+
 export function detectPackageManager(input: {
   packageJson: PackageJson;
   lockfiles?: readonly string[];
@@ -86,7 +119,7 @@ export function detectPackageManager(input: {
     return declared;
   }
 
-  const lockfiles = new Set(input.lockfiles ?? []);
+  const lockfiles = lockfileBasenames(input.lockfiles);
   if (lockfiles.has("pnpm-lock.yaml")) {
     return "pnpm";
   }
@@ -117,16 +150,18 @@ function buildRunArgs(packageManager: PackageManager, scriptName: string, port: 
   }
 }
 
+export function hasStorybookScript(packageJson: PackageJson): string | null {
+  const scripts = asRecord(packageJson.scripts);
+  return Object.keys(scripts).find((name) => STORYBOOK_SCRIPT_NAMES.has(name)) ?? null;
+}
+
 export function detectStorybookScreenshotCommand(input: {
   packageJson: PackageJson;
   lockfiles?: readonly string[];
   port?: number;
+  packageDir?: string;
 }): StorybookScreenshotCommand | { errorCode: "storybook_script_not_found" } {
-  const scripts = asRecord(input.packageJson.scripts);
-  const scriptName = Object.keys(scripts).find(
-    (name) => name === "storybook" || name === "dev:storybook" || name === "storybook:dev",
-  );
-
+  const scriptName = hasStorybookScript(input.packageJson);
   if (!scriptName) {
     return { errorCode: "storybook_script_not_found" };
   }
@@ -137,28 +172,160 @@ export function detectStorybookScreenshotCommand(input: {
     scriptName,
     command: packageManager,
     args: buildRunArgs(packageManager, scriptName, input.port ?? STORYBOOK_PORT),
+    packageDir: input.packageDir ?? "",
   };
 }
 
-async function readPackageJson(repo: RepoToolContext) {
-  const raw = await repo.bash.readFile("package.json");
+function sortPackageJsonCandidates(paths: readonly string[]) {
+  return [...paths].sort((left, right) => {
+    const leftDepth = left === "package.json" ? 0 : left.split("/").length;
+    const rightDepth = right === "package.json" ? 0 : right.split("/").length;
+    if (leftDepth !== rightDepth) {
+      return leftDepth - rightDepth;
+    }
+    return left.localeCompare(right);
+  });
+}
+
+export function parsePackageJsonCandidatePaths(stdout: string): string[] {
+  const candidates = stdout
+    .split("\n")
+    .map((line) => line.trim().replace(/^\.\//, ""))
+    .filter((line) => line.endsWith("package.json"))
+    .map((line) => normalizeWorkspacePath(line))
+    .filter((line): line is string => Boolean(line));
+
+  return sortPackageJsonCandidates([...new Set(candidates)]);
+}
+
+async function readPackageJsonAt(repo: RepoToolContext, packageJsonPath: string) {
+  const raw = await repo.bash.readFile(packageJsonPath);
   return JSON.parse(raw) as PackageJson;
 }
 
-async function detectLockfiles(repo: RepoToolContext) {
-  const lockfiles = ["pnpm-lock.yaml", "yarn.lock", "bun.lockb", "bun.lock", "package-lock.json"];
-  const existing: string[] = [];
+async function fileExists(repo: RepoToolContext, path: string) {
+  try {
+    await repo.bash.readFile(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  for (const lockfile of lockfiles) {
-    try {
-      await repo.bash.readFile(lockfile);
-      existing.push(lockfile);
-    } catch {
-      // Missing lockfiles are expected in generic repositories.
+async function detectLockfiles(repo: RepoToolContext, packageDir: string) {
+  const dirsToSearch = new Set<string>();
+  dirsToSearch.add(packageDir);
+
+  if (packageDir) {
+    const segments = packageDir.split("/");
+    for (let index = segments.length - 1; index >= 0; index -= 1) {
+      dirsToSearch.add(segments.slice(0, index).join("/"));
+    }
+  }
+
+  const existing: string[] = [];
+  for (const dir of dirsToSearch) {
+    for (const lockfile of LOCKFILE_NAMES) {
+      const path = dir ? `${dir}/${lockfile}` : lockfile;
+      if (await fileExists(repo, path)) {
+        existing.push(path);
+      }
     }
   }
 
   return existing;
+}
+
+async function listPackageJsonCandidates(repo: RepoToolContext): Promise<string[]> {
+  const result = await repo.bash.exec("find", {
+    args: [
+      ".",
+      "-name",
+      "package.json",
+      "-not",
+      "-path",
+      "*/node_modules/*",
+      "-not",
+      "-path",
+      "*/.git/*",
+      "-not",
+      "-path",
+      "*/.hyperlocalise-agent/*",
+      "-not",
+      "-path",
+      "*/dist/*",
+      "-not",
+      "-path",
+      "*/build/*",
+      "-not",
+      "-path",
+      "*/.next/*",
+      "-not",
+      "-path",
+      "*/coverage/*",
+    ],
+  });
+
+  if (result.exitCode !== 0) {
+    return [];
+  }
+
+  return parsePackageJsonCandidatePaths(result.stdout);
+}
+
+export async function resolveStorybookPackage(
+  repo: RepoToolContext,
+): Promise<StorybookPackageResolution> {
+  const checkedFiles: string[] = [];
+  const candidatePaths = new Set<string>(["package.json"]);
+
+  for (const path of await listPackageJsonCandidates(repo)) {
+    candidatePaths.add(path);
+  }
+
+  const orderedCandidates = sortPackageJsonCandidates([...candidatePaths]);
+  let sawAnyPackageJson = false;
+
+  for (const packageJsonPath of orderedCandidates) {
+    checkedFiles.push(packageJsonPath);
+    let packageJson: PackageJson;
+    try {
+      packageJson = await readPackageJsonAt(repo, packageJsonPath);
+      sawAnyPackageJson = true;
+    } catch {
+      continue;
+    }
+
+    if (!hasStorybookScript(packageJson)) {
+      continue;
+    }
+
+    const packageDir =
+      packageJsonPath === "package.json" ? "" : packageJsonPath.slice(0, -"/package.json".length);
+    const lockfiles = await detectLockfiles(repo, packageDir);
+
+    return {
+      packageDir,
+      packageJsonPath,
+      packageJson,
+      lockfiles,
+    };
+  }
+
+  if (!sawAnyPackageJson) {
+    return {
+      errorCode: "package_json_unavailable",
+      error: "No package.json was found at the repository root or in nested application packages.",
+      checkedFiles,
+    };
+  }
+
+  return {
+    errorCode: "storybook_script_not_found",
+    error:
+      "No supported Storybook script (storybook, dev:storybook, or storybook:dev) was found in package.json.",
+    checkedFiles,
+  };
 }
 
 function shellQuote(value: string) {
@@ -236,11 +403,15 @@ function buildCaptureCommand(input: {
   const storybookCommand = [input.storybookCommand.command, ...input.storybookCommand.args]
     .map(shellQuote)
     .join(" ");
+  const packageDir = input.storybookCommand.packageDir;
+  const storybookLaunch = packageDir
+    ? `(cd ${shellQuote(packageDir)} && ${storybookCommand})`
+    : storybookCommand;
 
   return [
     "set -euo pipefail",
     managedBrowserRuntimeCommand(),
-    `${storybookCommand} >/tmp/hyperlocalise-storybook.log 2>&1 &`,
+    `${storybookLaunch} >/tmp/hyperlocalise-storybook.log 2>&1 &`,
     "SERVER_PID=$!",
     'cleanup() { kill "$SERVER_PID" >/dev/null 2>&1 || true; }',
     "trap cleanup EXIT",
@@ -262,7 +433,7 @@ export function createCaptureScreenshotTool(ctx: ToolContext, repo: RepoToolCont
 Currently supported target:
 - Storybook stories by story id
 
-The tool detects the repository package manager and Storybook script, uses a Hyperlocalise-managed Playwright/Chromium runtime in the sandbox, captures a PNG, and stores it as a Hyperlocalise file artifact.
+The tool finds package.json at the repository root or in nested app packages, detects the package manager and Storybook script, runs Storybook from that package directory, uses a Hyperlocalise-managed Playwright/Chromium runtime in the sandbox, captures a PNG, and stores it as a Hyperlocalise file artifact.
 
 It does not commit, push, open pull requests, or publish repository changes.`,
     inputSchema: captureScreenshotInputSchema,
@@ -283,32 +454,27 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         };
       }
 
-      let packageJson: PackageJson;
-      try {
-        packageJson = await readPackageJson(repo);
-      } catch (error) {
+      const resolvedPackage = await resolveStorybookPackage(repo);
+      if ("errorCode" in resolvedPackage) {
         return {
           success: false as const,
-          errorCode: "package_json_unavailable" as const,
-          error: redact(error instanceof Error ? error.message : String(error)),
+          errorCode: resolvedPackage.errorCode,
+          error: resolvedPackage.error,
+          checkedFiles: resolvedPackage.checkedFiles,
         };
       }
 
-      const lockfiles = await detectLockfiles(repo);
-      const storybookCommand = detectStorybookScreenshotCommand({
-        packageJson,
-        lockfiles,
+      const detectedCommand = detectStorybookScreenshotCommand({
+        packageJson: resolvedPackage.packageJson,
+        lockfiles: resolvedPackage.lockfiles,
         port: STORYBOOK_PORT,
+        packageDir: resolvedPackage.packageDir,
       });
-
-      if ("errorCode" in storybookCommand) {
-        return {
-          success: false as const,
-          errorCode: storybookCommand.errorCode,
-          error: "No supported Storybook script was found in package.json.",
-          checkedFiles: ["package.json", ...lockfiles],
-        };
+      // Invariant: resolveStorybookPackage only returns packages with a Storybook script.
+      if ("errorCode" in detectedCommand) {
+        throw new Error("Invariant violated: Storybook script missing after package resolution");
       }
+      const storybookCommand = detectedCommand;
 
       const captureId = crypto.randomUUID();
       const baseDir = normalizeWorkspacePath(`.hyperlocalise-agent/screenshots/${captureId}`);
@@ -383,6 +549,8 @@ It does not commit, push, open pull requests, or publish repository changes.`,
           waitForMs,
           packageManager: storybookCommand.packageManager,
           scriptName: storybookCommand.scriptName,
+          packageDir: storybookCommand.packageDir || ".",
+          packageJsonPath: resolvedPackage.packageJsonPath,
         },
         db: ctx.db,
       });

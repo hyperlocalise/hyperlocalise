@@ -36,4 +36,11 @@ describe("buildFindContextSkillInstructions", () => {
     expect(instructions).toContain("one find-context section block per discovered entry");
     expect(instructions).toContain('mode: "changedFiles"');
   });
+
+  it("defers visual context and screenshot requests to visual-mock", () => {
+    const instructions = buildFindContextSkillInstructions({});
+
+    expect(instructions).toContain("visual context");
+    expect(instructions).toContain("visual-mock");
+  });
 });
