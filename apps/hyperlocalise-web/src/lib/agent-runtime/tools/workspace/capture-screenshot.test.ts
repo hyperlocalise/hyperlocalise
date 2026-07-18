@@ -394,6 +394,14 @@ describe("createCaptureScreenshotTool", () => {
       args: ["-lc", expect.stringContaining("install --with-deps chromium")],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
+      args: [
+        "-lc",
+        expect.stringContaining(
+          "sudo env PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
+        ),
+      ],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
       args: ["-lc", expect.stringContaining("'pnpm' 'run' 'storybook'")],
     });
     expect(createStoredFile).toHaveBeenCalledWith(

@@ -488,7 +488,7 @@ function managedBrowserRuntimeCommand() {
     "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
     "  DEPS_RC=1",
     "  if command -v sudo >/dev/null 2>&1; then",
-    `    sudo PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
+    `    sudo env PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
     "  fi",
     '  if [ "$DEPS_RC" -ne 0 ]; then',
     `    PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
