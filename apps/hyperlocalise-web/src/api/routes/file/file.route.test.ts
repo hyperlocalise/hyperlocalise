@@ -119,12 +119,9 @@ describe("file download route", () => {
     expect(response.headers.get("cache-control")).toBe("private, max-age=60");
     expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox;");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(response.headers.get("x-download-options")).toBeNull();
-    await expect(response.arrayBuffer()).resolves.toEqual(
-      imageContent.buffer.slice(
-        imageContent.byteOffset,
-        imageContent.byteOffset + imageContent.byteLength,
-      ),
+    expect(response.headers.get("x-download-options")).toBe("noopen");
+    await expect(response.arrayBuffer().then((body) => Buffer.from(body))).resolves.toEqual(
+      imageContent,
     );
   });
 
