@@ -362,6 +362,10 @@ describe("createCaptureScreenshotTool", () => {
         'require("/tmp/hyperlocalise-browser-runtime/node_modules/playwright")',
       ),
     );
+    const captureScript = String(writeWorkspaceFile.mock.calls[0]?.[1] ?? "");
+    expect(captureScript).toContain('waitUntil: "load"');
+    expect(captureScript).not.toMatch(/waitUntil:\s*"networkidle"/);
+    expect(captureScript).toContain('waitForSelector("#storybook-root, #root"');
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
