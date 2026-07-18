@@ -301,9 +301,7 @@ export async function resolveStorybookPackage(
     }
 
     const packageDir =
-      packageJsonPath === "package.json"
-        ? ""
-        : packageJsonPath.slice(0, -"/package.json".length);
+      packageJsonPath === "package.json" ? "" : packageJsonPath.slice(0, -"/package.json".length);
     const lockfiles = await detectLockfiles(repo, packageDir);
 
     return {
@@ -317,8 +315,7 @@ export async function resolveStorybookPackage(
   if (!sawAnyPackageJson) {
     return {
       errorCode: "package_json_unavailable",
-      error:
-        "No package.json was found at the repository root or in nested application packages.",
+      error: "No package.json was found at the repository root or in nested application packages.",
       checkedFiles,
     };
   }
