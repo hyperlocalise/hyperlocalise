@@ -1,13 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import {
-  AnalyticsUpIcon,
-  Chat01Icon,
-  Clock01Icon,
-  FileSearchIcon,
-  TranslateIcon,
-} from "@hugeicons/core-free-icons";
+import { Chat01Icon, FileSearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 
@@ -42,25 +36,6 @@ export function buildChatDockSuggestions(
   pageContext: ChatDockPageContext | null,
   formatMessage: FormatMessage,
 ): Suggestion[] {
-  const recentChanges: Suggestion = {
-    id: "recent-changes",
-    icon: Clock01Icon,
-    label: formatMessage(chatDockMessages.suggestionRecentChanges),
-    prompt: formatMessage(chatDockMessages.promptRecentChanges),
-  };
-  const progress: Suggestion = {
-    id: "progress",
-    icon: AnalyticsUpIcon,
-    label: formatMessage(chatDockMessages.suggestionProgress),
-    prompt: formatMessage(chatDockMessages.promptProgress),
-  };
-  const translate: Suggestion = {
-    id: "translate",
-    icon: TranslateIcon,
-    label: formatMessage(chatDockMessages.suggestionTranslate),
-    prompt: formatMessage(chatDockMessages.promptTranslate),
-  };
-
   if (pageContext?.kind === "cat-segment") {
     const keyLabel = truncateLabel(pageContext.key, KEY_LABEL_MAX_LENGTH);
     return [
@@ -70,9 +45,6 @@ export function buildChatDockSuggestions(
         label: formatMessage(chatDockMessages.suggestionSegmentContext, { key: keyLabel }),
         prompt: formatMessage(chatDockMessages.promptSegmentContext, { key: pageContext.key }),
       },
-      recentChanges,
-      progress,
-      translate,
     ];
   }
 
@@ -81,11 +53,9 @@ export function buildChatDockSuggestions(
       id: "find-context",
       icon: FileSearchIcon,
       label: formatMessage(chatDockMessages.suggestionFindContext),
-      prompt: formatMessage(chatDockMessages.promptFindContext),
+      // Trailing space lets the user finish typing the string key.
+      prompt: `${formatMessage(chatDockMessages.promptFindContext)} `,
     },
-    recentChanges,
-    progress,
-    translate,
   ];
 }
 

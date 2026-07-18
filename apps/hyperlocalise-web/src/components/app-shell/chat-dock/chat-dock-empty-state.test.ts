@@ -15,19 +15,15 @@ function formatMessage(descriptor: MessageDescriptor, values?: Record<string, st
 }
 
 describe("buildChatDockSuggestions", () => {
-  it("uses the generic find-context chip without page context", () => {
+  it("shows only the find-context chip without page context", () => {
     const suggestions = buildChatDockSuggestions(null, formatMessage);
 
-    expect(suggestions.map((suggestion) => suggestion.id)).toEqual([
-      "find-context",
-      "recent-changes",
-      "progress",
-      "translate",
-    ]);
-    expect(suggestions[0]?.prompt).toBe("What does this string mean, and where is it used?");
+    expect(suggestions.map((suggestion) => suggestion.id)).toEqual(["find-context"]);
+    expect(suggestions[0]?.label).toBe("What's the context of a string");
+    expect(suggestions[0]?.prompt).toBe("What's the context of ");
   });
 
-  it("replaces find-context with the selected segment chip", () => {
+  it("shows only the selected segment chip with page context", () => {
     const pageContext: ChatDockPageContext = {
       kind: "cat-segment",
       segmentId: "seg-02",
@@ -37,12 +33,7 @@ describe("buildChatDockSuggestions", () => {
 
     const suggestions = buildChatDockSuggestions(pageContext, formatMessage);
 
-    expect(suggestions.map((suggestion) => suggestion.id)).toEqual([
-      "segment-context",
-      "recent-changes",
-      "progress",
-      "translate",
-    ]);
+    expect(suggestions.map((suggestion) => suggestion.id)).toEqual(["segment-context"]);
     expect(suggestions[0]?.label).toBe("Context of checkout.submit");
     expect(suggestions[0]?.prompt).toBe('What\'s the context of "checkout.submit"?');
   });
