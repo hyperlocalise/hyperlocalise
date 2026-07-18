@@ -176,12 +176,10 @@ describe("conversation skill registry", () => {
       skillId: "visual-mock",
     });
 
-    expect(conversationSkill.body).toContain("Visual context / mock / screenshot");
-    expect(conversationSkill.body).toContain("use **visual-mock** when it is enabled");
-    expect(visualMockSkill.body).toContain("visual context for …");
-    expect(visualMockSkill.body).toContain(
-      "Do not answer visual-context requests with find-context",
-    );
+    expect(conversationSkill).toContain("Visual context / mock / screenshot");
+    expect(conversationSkill).toContain("use **visual-mock** when it is enabled");
+    expect(visualMockSkill).toContain("visual context for …");
+    expect(visualMockSkill).toContain("Do not answer visual-context requests with find-context");
   });
 
   it("activates visual-mock when a sandbox is available and the flag is enabled", () => {
