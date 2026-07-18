@@ -58,6 +58,15 @@ describe("extractToolInputDetail", () => {
     expect(extractToolInputDetail({ command: "npm test" })).toBe("npm test");
   });
 
+  it("extracts storyId from a Storybook target object", () => {
+    expect(
+      extractToolInputDetail({
+        target: { type: "storybook", storyId: "app-project-files-page--default" },
+        viewport: { width: 1440, height: 900 },
+      }),
+    ).toBe("app-project-files-page--default");
+  });
+
   it("returns null for empty or non-object input", () => {
     expect(extractToolInputDetail(undefined)).toBeNull();
     expect(extractToolInputDetail(null)).toBeNull();

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { cn } from "@/lib/primitives/cn";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
@@ -11,6 +12,7 @@ import {
   MultiplicationSignCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -18,7 +20,6 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { CodeBlock } from "./code-block";
 import { AiElementErrorBoundary } from "./ai-element-error-boundary";
 import { toolMessages } from "./tool.messages";
-import { TypographyH4 } from "@/components/ui/typography";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
 
@@ -113,6 +114,13 @@ export function extractToolInputDetail(input: unknown): string | null {
     const value = record[key];
     if (typeof value === "string" && value.trim()) {
       return truncateDetail(value.trim());
+    }
+    // Storybook screenshots pass `{ target: { type, storyId } }`.
+    if (key === "target" && value && typeof value === "object" && !Array.isArray(value)) {
+      const storyId = (value as Record<string, unknown>).storyId;
+      if (typeof storyId === "string" && storyId.trim()) {
+        return truncateDetail(storyId.trim());
+      }
     }
   }
 
@@ -209,6 +217,8 @@ export const ToolContent = ({ className, ...props }: ToolContentProps) => (
 
 export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolPart["input"];
+  /** When false, keep the JSON parameters collapsed (preferred for image tools). */
+  defaultOpen?: boolean;
 };
 
 /** `JSON.stringify(undefined)` returns `undefined`, which crashes CodeBlock's `.split`. */
@@ -225,19 +235,46 @@ export function serializeToolJson(value: unknown): string {
   }
 }
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
+function ToolJsonSection({
+  label,
+  code,
+  defaultOpen = false,
+  className,
+}: {
+  label: ReactNode;
+  code: string;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className={cn("overflow-hidden", className)}>
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 py-0.5 text-start">
+        <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+        <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          {label}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-2">
+        <div className="rounded-md bg-muted/50">
+          <AiElementErrorBoundary scope="code-block" resetKeys={[code]}>
+            <CodeBlock code={code} language="json" />
+          </AiElementErrorBoundary>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export const ToolInput = ({ className, input, defaultOpen = true, ...props }: ToolInputProps) => {
   const serializedInput = serializeToolJson(input);
 
   return (
-    <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
-      <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-        <FormattedMessage {...toolMessages.parameters} />
-      </TypographyH4>
-      <div className="rounded-md bg-muted/50">
-        <AiElementErrorBoundary scope="code-block" resetKeys={[serializedInput]}>
-          <CodeBlock code={serializedInput} language="json" />
-        </AiElementErrorBoundary>
-      </div>
+    <div className={cn(className)} {...props}>
+      <ToolJsonSection
+        label={<FormattedMessage {...toolMessages.parameters} />}
+        code={serializedInput}
+        defaultOpen={defaultOpen}
+      />
     </div>
   );
 };
@@ -245,6 +282,8 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
 export type ToolOutputProps = ComponentProps<"div"> & {
   output: ToolPart["output"];
   errorText: ToolPart["errorText"];
+  /** When false, keep the JSON result collapsed (preferred when an image is shown). */
+  defaultOpen?: boolean;
 };
 
 type ImageToolOutput = {
@@ -280,61 +319,71 @@ export function getImageToolOutput(output: unknown): ImageToolOutput | null {
   };
 }
 
-export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutputProps) => {
+export const ToolOutput = ({
+  className,
+  output,
+  errorText,
+  defaultOpen,
+  ...props
+}: ToolOutputProps) => {
   if (!(output || errorText)) {
     return null;
   }
 
   const imageOutput = getImageToolOutput(output);
-  let Output = <div>{output as ReactNode}</div>;
+  const jsonDefaultOpen = defaultOpen ?? !imageOutput;
+  let serializedOutput: string | null = null;
 
   if (typeof output === "object" && !isValidElement(output)) {
-    const serializedOutput = serializeToolJson(output);
-    Output = (
-      <AiElementErrorBoundary scope="code-block" resetKeys={[serializedOutput]}>
-        <CodeBlock code={serializedOutput} language="json" />
-      </AiElementErrorBoundary>
-    );
+    serializedOutput = serializeToolJson(output);
   } else if (typeof output === "string") {
-    Output = (
-      <AiElementErrorBoundary scope="code-block" resetKeys={[output]}>
-        <CodeBlock code={output} language="json" />
-      </AiElementErrorBoundary>
-    );
+    serializedOutput = output;
   }
 
   return (
-    <div className={cn("space-y-2", className)} {...props}>
-      <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-        {errorText ? (
-          <FormattedMessage {...toolMessages.error} />
-        ) : (
-          <FormattedMessage {...toolMessages.result} />
-        )}
-      </TypographyH4>
+    <div className={cn("space-y-3", className)} {...props}>
       {imageOutput ? (
-        <a
-          href={imageOutput.url}
-          target="_blank"
-          rel="noreferrer"
-          className="block overflow-hidden rounded-md border border-border bg-background"
-        >
-          <img
-            src={imageOutput.url}
-            alt={imageOutput.filename || "Tool result image"}
-            className="max-h-96 w-full object-contain"
-          />
-        </a>
+        <ImageLightbox
+          alt={imageOutput.filename || "Tool result image"}
+          imageUrl={imageOutput.url}
+          title={imageOutput.filename}
+          trigger={
+            <div className="group overflow-hidden rounded-md border border-border bg-background">
+              {/* eslint-disable-next-line @next/next/no-img-element -- tool screenshot URLs are session-authenticated app proxy paths */}
+              <img
+                src={imageOutput.url}
+                alt={imageOutput.filename || "Tool result image"}
+                className="max-h-96 w-full object-contain transition-opacity group-hover:opacity-95"
+              />
+            </div>
+          }
+        />
       ) : null}
-      <div
-        className={cn(
-          "overflow-x-auto rounded-md text-xs [&_table]:w-full",
-          errorText ? "bg-destructive/10 text-destructive" : "bg-muted/50 text-foreground",
-        )}
-      >
-        {errorText && <div>{errorText}</div>}
-        {Output}
-      </div>
+
+      {errorText ? (
+        <div className="space-y-2">
+          <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            <FormattedMessage {...toolMessages.error} />
+          </span>
+          <div className="overflow-x-auto rounded-md bg-destructive/10 p-3 text-destructive text-xs">
+            {errorText}
+          </div>
+        </div>
+      ) : null}
+
+      {serializedOutput && !errorText ? (
+        <ToolJsonSection
+          label={<FormattedMessage {...toolMessages.result} />}
+          code={serializedOutput}
+          defaultOpen={jsonDefaultOpen}
+        />
+      ) : null}
+
+      {output && !serializedOutput && !imageOutput && !errorText ? (
+        <div className="overflow-x-auto rounded-md bg-muted/50 text-foreground text-xs">
+          <div>{output as ReactNode}</div>
+        </div>
+      ) : null}
     </div>
   );
 };
