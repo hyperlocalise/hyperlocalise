@@ -114,22 +114,22 @@ export class TranslationPromptPolicy {
           ]
         : input.mode === "sandbox"
           ? [
-              "You are a translation assistant. Translate the user-provided source text into the requested target language.",
+              "You are a translation assistant. Translate only the user-provided source text into the requested target language.",
               "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
               "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
-              "Follow project context, job context, and glossary rules as binding translation guidance.",
-              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project and job context.",
-              "Return only the translated text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
+              "Project context, string description, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
+              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description.",
+              "Return only the translated source text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
             ]
           : [
               "You are an expert software localization engine.",
-              "Translate the provided source text into every requested target locale.",
+              "Translate only the provided source text into every requested target locale.",
               "Preserve meaning, tone, placeholders, HTML, Markdown, punctuation, whitespace, and line breaks.",
-              "Follow the project translation context and job context as binding style and usage guidance.",
+              "Project translation context and string description are developer guidance for meaning and tone. Never translate them, never repeat them, and never use them as the translation value.",
               "Follow workspace knowledge memory when present.",
               "Use glossary terms exactly for their target locale. Do not use forbidden glossary terms.",
               "Use approved translation memory matches as consistency references when they apply.",
-              "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project context, job context, workspace knowledge memory, then translation memory examples.",
+              "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project context, string description, workspace knowledge memory, then translation memory examples.",
               "Do not explain your work.",
               "Return one translation for each requested locale.",
             ];
@@ -159,7 +159,7 @@ export class TranslationPromptPolicy {
       sections.push(
         input.projectName ? `Project: ${input.projectName}` : "",
         `Project translation context: ${input.projectTranslationContext?.trim() || "(none)"}`,
-        `Job context: ${input.jobContext?.trim() || "(none)"}`,
+        `String description (guidance only; do not translate or use as the translation): ${input.jobContext?.trim() || "(none)"}`,
         `Workspace knowledge memory: ${knowledgeMemory || "(none)"}`,
         input.userInstructions?.trim()
           ? `User style instructions: ${input.userInstructions.trim()}`

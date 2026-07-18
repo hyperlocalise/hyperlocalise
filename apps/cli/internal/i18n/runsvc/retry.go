@@ -150,7 +150,7 @@ func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string
 		parts = append(parts, "Entry key: "+key)
 	}
 	if sanitizedContext := sanitizePromptContext(sourceContext, maxSourceContextLen); sanitizedContext != "" {
-		parts = append(parts, "Source context:\n"+sanitizedContext)
+		parts = append(parts, "String description (guidance only; do not translate or use as the translation):\n"+sanitizedContext)
 	}
 	if memory := strings.TrimSpace(sharedMemory); memory != "" {
 		parts = append(parts, "Shared memory:\n"+memory)
