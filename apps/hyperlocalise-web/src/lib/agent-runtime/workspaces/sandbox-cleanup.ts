@@ -10,6 +10,13 @@ export const SANDBOX_CLEANUP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Default max deletes per cron tick to stay within serverless time limits. */
 export const SANDBOX_CLEANUP_DEFAULT_LIMIT = 100;
 
+/**
+ * Page size for `Sandbox.list`. Kept separate from the delete cap and clamped to
+ * the Vercel `/v2/sandboxes` max (`limit` max 50). `sortBy`/`limit` are part of
+ * `@vercel/sandbox` `listSandboxes` and are forwarded in the SDK client query.
+ */
+const SANDBOX_LIST_PAGE_SIZE = 50;
+
 /** Bounded concurrency when calling the Vercel Sandbox delete API. */
 const SANDBOX_DELETE_CONCURRENCY = 5;
 
@@ -31,9 +38,8 @@ type ListedSandboxIterable = AsyncIterable<ListedSandbox> | Iterable<ListedSandb
 
 type SandboxCleanupDeps = {
   listSandboxes?: (params: {
-    sortBy: "createdAt";
     sortOrder: "asc";
-    limit: number;
+    pageSize: number;
     signal?: AbortSignal;
   }) => Promise<ListedSandboxIterable>;
   deleteSandbox?: (name: string, signal?: AbortSignal) => Promise<void>;
@@ -41,15 +47,14 @@ type SandboxCleanupDeps = {
 };
 
 async function defaultListSandboxes(params: {
-  sortBy: "createdAt";
   sortOrder: "asc";
-  limit: number;
+  pageSize: number;
   signal?: AbortSignal;
 }): Promise<ListedSandboxIterable> {
   return Sandbox.list({
-    sortBy: params.sortBy,
+    sortBy: "createdAt",
     sortOrder: params.sortOrder,
-    limit: params.limit,
+    limit: params.pageSize,
     signal: params.signal,
   });
 }
@@ -134,9 +139,8 @@ export async function runSandboxCleanup(input?: {
 
   const expiredNames: string[] = [];
   const listed = await listSandboxes({
-    sortBy: "createdAt",
     sortOrder: "asc",
-    limit,
+    pageSize: Math.min(limit, SANDBOX_LIST_PAGE_SIZE),
     signal: input?.signal,
   });
 
