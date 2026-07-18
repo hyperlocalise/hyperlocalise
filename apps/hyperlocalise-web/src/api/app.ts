@@ -25,6 +25,7 @@ import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-i
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
@@ -166,6 +167,7 @@ function createOrgScopedAppRoutes(
     )
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(

@@ -93,6 +93,12 @@ type GithubRepositoryOption = {
   defaultBranch: string | null;
 };
 type SlackChannelOption = { id: string; name: string; private: boolean };
+type McpServerConnectionOption = {
+  id: string;
+  displayName: string;
+  serverUrl: string;
+  enabled: boolean;
+};
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
@@ -303,7 +309,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.emailEnabled) +
     Number(form.contentfulEnabled) +
     Number(form.translationEnabled) +
-    Number(form.knowledgeEnabled)
+    Number(form.knowledgeEnabled) +
+    Number(form.mcpEnabled)
   );
 }
 
@@ -1053,6 +1060,7 @@ function AddToolMenu({
   form,
   githubConnected,
   knowledgeAvailable,
+  mcpConnected,
   onChange,
   repositories,
   slackConnected,
@@ -1063,6 +1071,7 @@ function AddToolMenu({
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
   knowledgeAvailable: boolean;
+  mcpConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
   slackConnected: boolean;
@@ -1253,6 +1262,22 @@ function AddToolMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.mcpEnabled || !mcpConnected}
+              onClick={() => onChange({ ...form, mcpEnabled: true })}
+            >
+              <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />
+              {form.mcpEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !mcpConnected ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -1366,6 +1391,7 @@ function ToolsSettings({
   form,
   githubConnected,
   knowledgeAvailable,
+  mcpServerConnections,
   onChange,
   organizationSlug,
   projects,
@@ -1382,6 +1408,7 @@ function ToolsSettings({
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
   knowledgeAvailable: boolean;
+  mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
   projects: ProjectOption[];
@@ -1391,6 +1418,10 @@ function ToolsSettings({
   slackConnected: boolean;
 }) {
   const contentfulConnected = contentfulConnections.length > 0;
+  const mcpConnected = mcpServerConnections.some((connection) => connection.enabled);
+  const enabledMcpServerConnections = mcpServerConnections.filter(
+    (connection) => connection.enabled,
+  );
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedContentfulProject = projects.find(
     (project) => project.id === form.contentfulProjectId,
@@ -1977,6 +2008,70 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.mcpEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />}
+            description={
+              mcpConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.mcpServerDescription)
+                : intl.formatMessage(
+                    workspaceAutomationFormMessages.mcpServerDisconnectedDescription,
+                  )
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeMcpServerTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    mcpEnabled: false,
+                    mcpConnectionId: "",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
+              </Label>
+              <Select
+                value={form.mcpConnectionId || undefined}
+                disabled={disabled || !mcpConnected}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, mcpConnectionId: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.selectConnection,
+                    )}
+                  >
+                    {enabledMcpServerConnections.find(
+                      (connection) => connection.id === form.mcpConnectionId,
+                    )?.displayName ??
+                      intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {enabledMcpServerConnections.map((connection) => (
+                    <SelectItem key={connection.id} value={connection.id}>
+                      {connection.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.mcpConnectionId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
         <AddToolMenu
           contentfulConnected={contentfulConnected}
           disabled={disabled}
@@ -1984,6 +2079,7 @@ function ToolsSettings({
           form={form}
           githubConnected={githubConnected}
           knowledgeAvailable={knowledgeAvailable}
+          mcpConnected={mcpConnected}
           onChange={onChange}
           repositories={repositories}
           slackConnected={slackConnected}
@@ -2222,6 +2318,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const mcpServerConnectionsQuery = useQuery({
+    queryKey: ["mcp-server-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["mcp-server-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load MCP server connections");
+      }
+      const body = await response.json();
+      return body.mcpServerConnections as McpServerConnectionOption[];
+    },
+  });
+
   const repositories = useMemo(
     () => (repositoriesQuery.data ?? []).filter((repository) => !repository.archived),
     [repositoriesQuery.data],
@@ -2231,6 +2341,7 @@ export function WorkspaceAutomationEditor({
   const emailConnected = Boolean(emailQuery.data?.enabled);
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
+  const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const hasHistory = mode === "detail";
 
   return (
@@ -2371,6 +2482,7 @@ export function WorkspaceAutomationEditor({
             form={form}
             githubConnected={githubConnected}
             knowledgeAvailable={knowledgeAvailable}
+            mcpServerConnections={mcpServerConnections}
             onChange={onChange}
             organizationSlug={organizationSlug}
             projects={projectsQuery.data ?? []}
