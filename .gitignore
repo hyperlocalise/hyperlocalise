@@ -58,3 +58,6 @@ completions
 bazel-*
 
 .hyperlocalise
+
+# Sparkle private keys (mac-app)
+apps/mac-app/.sparkle-keys/

@@ -8,6 +8,8 @@ Native SwiftUI macOS app. Licensed BSL 1.1 (`LICENSE`).
 - Do not commit `Hyperlocalise.xcodeproj` unless the team decides to vend it.
 - Prefer editing sources under `Hyperlocalise/` and `HyperlocaliseTests/`.
 - Keep auth on the WorkOS sealed session cookie channel — do not invent a parallel Bearer identity for org APIs.
+- Sparkle 2 is an SPM dependency in `project.yml`. Set `SU_PUBLIC_ED_KEY` after
+  `./Scripts/generate-sparkle-keys.sh`; never commit `.sparkle-keys/`.
 
 ## Before Finalizing
 

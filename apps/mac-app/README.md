@@ -11,6 +11,7 @@ Licensed under the Business Source License 1.1 — see [LICENSE](./LICENSE).
 - Sealed session stored in Keychain (`wos-session`, same channel as the web app)
 - Organization context bootstrap
 - Conversation list, create, reply, and AI SDK UIMessage streaming
+- Sparkle 2 in-app updates (**Hyperlocalise → Check for Updates…**)
 
 ## Requirements
 
@@ -62,17 +63,23 @@ Do not commit `Hyperlocalise.xcodeproj` or DerivedData; regenerate with
 | Debug (local) | `http://localhost:3000` |
 | Release | `https://hyperlocalise.com` |
 
+| Sparkle key | Default |
+|-------------|---------|
+| `SU_FEED_URL` | `https://updates.hyperlocalise.com/mac/appcast.xml` |
+| `SU_PUBLIC_ED_KEY` | `REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY` until keys are generated |
+
 Override in the Xcode scheme environment if you point at a preview deployment.
 
 ## Architecture
 
 ```
 Hyperlocalise/
-  App/          # SwiftUI shell, app model
+  App/          # SwiftUI shell, app model, Sparkle updater
   Auth/         # PKCE, ASWebAuthenticationSession, Keychain
   API/          # HTTP client, conversation + chat stream parsers
   Chat/         # Chat UI + view model
   Design/       # Colors, typography tokens
+Updates/        # Example appcast for Sparkle releases
 ```
 
 Auth bridge (server):
@@ -88,47 +95,84 @@ Chat APIs (existing org routes, cookie session):
 
 Design notes: [`docs/plans/2026-07-18-mac-app-mvp-design.md`](../../docs/plans/2026-07-18-mac-app-mvp-design.md).
 
-## Delivery and auto-update
+## Delivery and auto-update (Sparkle)
 
-The intended distribution path is **outside the Mac App Store**: a Developer
-ID–signed, notarized DMG (or ZIP) from GitHub Releases or
-`https://hyperlocalise.com`, with in-app updates via
-[Sparkle](https://sparkle-project.org/).
+Distribution is **outside the Mac App Store**: Developer ID–signed, notarized
+DMG/ZIP, with in-app updates via [Sparkle 2](https://sparkle-project.org/).
+
+The app already embeds Sparkle (`project.yml` SPM dependency) and exposes
+**Hyperlocalise → Check for Updates…** through `SPUStandardUpdaterController`.
+Sandbox support uses `SUEnableInstallerLauncherService` plus the
+`mach-lookup` temporary exceptions in `Hyperlocalise.entitlements`.
+
+Until `SU_PUBLIC_ED_KEY` is a real EdDSA public key, the updater does **not**
+start automatic checks (see `SparkleUpdater.makeForCurrentBundle()`), so local
+Debug builds stay quiet.
+
+### One-time key setup
+
+On a Mac, download a Sparkle release that includes `bin/generate_keys`, then:
+
+```bash
+cd apps/mac-app
+GENERATE_KEYS=/path/to/Sparkle/bin/generate_keys ./Scripts/generate-sparkle-keys.sh
+```
+
+1. Paste the **public** key into `SU_PUBLIC_ED_KEY` in `Config/Debug.xcconfig`
+   and `Config/Release.xcconfig` (or Release-only if you prefer).
+2. Store the **private** key in CI secrets. Never commit
+   `apps/mac-app/.sparkle-keys/`.
+3. Keep `SU_FEED_URL` pointed at the hosted appcast (default
+   `https://updates.hyperlocalise.com/mac/appcast.xml`).
 
 ### How users get the app
 
 1. Download a notarized `Hyperlocalise.app` archive (DMG/ZIP).
 2. Open it under Gatekeeper (Developer ID + notarization).
-3. Optional later: Homebrew Cask (`brew install --cask …`) for engineer installs.
+3. Optional later: Homebrew Cask for engineer installs.
 
-Mac App Store is a separate path (Apple-hosted updates, sandbox/review tradeoffs)
-and is not the MVP delivery plan.
+### Release an update
 
-### How “Check for Updates” works (Sparkle)
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`.
+2. Archive, sign with **Developer ID Application**, notarize, and upload the
+   DMG/ZIP (GitHub Releases or `https://hyperlocalise.com`).
+3. Sign the archive with Sparkle:
 
-1. CI archives the app, signs with **Developer ID Application**, notarizes, and
-   uploads the DMG/ZIP to a release.
-2. CI publishes an **appcast** (XML) at a stable URL, for example
-   `https://updates.hyperlocalise.com/mac/appcast.xml`, with version, download
-   URL, and an **EdDSA signature** of the archive.
-3. The app embeds Sparkle. On launch or when the user chooses **Check for
-   Updates…**, Sparkle fetches the appcast, compares
-   `CFBundleShortVersionString` / build number, downloads the new archive,
-   verifies the EdDSA signature, replaces the app bundle, and relaunches.
+```bash
+/path/to/Sparkle/bin/sign_update Hyperlocalise-0.2.0.dmg
+```
 
-Trust model: Apple code signature + notarization for first install; Sparkle
-EdDSA so a tampered appcast cannot ship a fake binary.
+4. Publish `appcast.xml` from `Updates/appcast.example.xml`: set
+   `sparkle:version`, `sparkle:shortVersionString`, `enclosure url`,
+   `length`, and `sparkle:edSignature` from `sign_update`.
+5. Host the appcast at `SU_FEED_URL`.
+
+Users choose **Check for Updates…**, or Sparkle checks in the background
+(about once per day when configured). Sparkle compares versions, downloads the
+archive, verifies the EdDSA signature, replaces the app, and relaunches.
 
 ### What release automation needs
 
 - Apple Developer Program (Developer ID Application certificate)
 - Notarization credentials (App Store Connect API key)
-- Sparkle EdDSA keypair (private key in CI secrets; public key embedded in the app)
-- Stable appcast URL that stays fixed across versions
-- A Mac CI runner for `xcodebuild archive` → notarize → upload → sign appcast
+- Sparkle EdDSA keypair (private in CI; public in `SU_PUBLIC_ED_KEY`)
+- Stable appcast URL
+- A Mac CI runner for `xcodebuild archive` → notarize → upload → `sign_update`
 
-Sparkle is not wired into the MVP sources yet; add it when the first public
-binary ships.
+### Testing updates locally
+
+1. Set a real `SU_PUBLIC_ED_KEY` and point `SU_FEED_URL` at a local or staging
+   appcast (HTTPS, or temporarily allow the host under ATS if needed).
+2. Install an older build, then serve a newer signed build via the appcast.
+3. Clear the last check time if needed:
+
+```bash
+defaults delete com.hyperlocalise.mac SULastCheckTime
+```
+
+4. Run **Check for Updates…**. If Xcode cannot attach to Sparkle XPC services,
+   disable **Debug XPC services used by app** in the scheme, or test a
+   notarized build outside the debugger.
 
 ## Tests
 

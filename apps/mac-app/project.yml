@@ -5,6 +5,10 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
   groupSortPosition: top
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.7.0"
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -23,6 +27,9 @@ targets:
     platform: macOS
     sources:
       - path: Hyperlocalise
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyperlocalise.mac
@@ -56,6 +63,8 @@ targets:
               - hyperlocalise
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        SUEnableAutomaticChecks: true
+        SUEnableInstallerLauncherService: true
     entitlements:
       path: Hyperlocalise/Hyperlocalise.entitlements
   HyperlocaliseTests:
