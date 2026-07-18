@@ -1,8 +1,10 @@
 import { tool } from "ai";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
+import { schema } from "@/lib/database";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import {
   installChromiumSystemDependenciesFunction,
@@ -16,9 +18,14 @@ import type { RepoToolContext } from "./types";
 const DEFAULT_VIEWPORT = { width: 1440, height: 1000 };
 const MIN_VIEWPORT_SIZE = 320;
 const MAX_VIEWPORT_SIZE = 3840;
-const DEFAULT_WAIT_FOR_MS = 500;
-const MAX_WAIT_FOR_MS = 5000;
+/** Extra settle time after Storybook reports the story is ready. */
+const DEFAULT_WAIT_FOR_MS = 250;
+const MAX_WAIT_FOR_MS = 15_000;
+const MAX_WAIT_FOR_TEXT_ITEMS = 12;
+const MAX_WAIT_FOR_TEXT_LENGTH = 200;
 const STORYBOOK_PORT = 6006;
+const STORYBOOK_READY_TIMEOUT_MS = 120_000;
+const STORYBOOK_SERVER_READY_SECONDS = 120;
 const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
 const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
 const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
@@ -36,6 +43,14 @@ const captureScreenshotInputSchema = z.object({
   }),
   viewport: viewportSchema.optional(),
   waitForMs: z.number().int().min(0).max(MAX_WAIT_FOR_MS).optional(),
+  waitForText: z
+    .array(z.string().trim().min(1).max(MAX_WAIT_FOR_TEXT_LENGTH))
+    .min(1)
+    .max(MAX_WAIT_FOR_TEXT_ITEMS)
+    .optional()
+    .describe(
+      "Visible UI strings that must appear in the story before capture (e.g. the source/target copy under review). Prefer exact substrings from the rendered mock.",
+    ),
 });
 
 type PackageJson = {
@@ -422,25 +437,151 @@ function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+export function buildScreenshotServeUrl(input: {
+  organizationSlug: string | null | undefined;
+  projectId: string | null | undefined;
+  fileId: string;
+  fallbackUrl: string;
+}) {
+  const organizationSlug = input.organizationSlug?.trim();
+  if (!organizationSlug) {
+    return input.fallbackUrl;
+  }
+
+  if (input.projectId) {
+    return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/assets/${encodeURIComponent(input.fileId)}`;
+  }
+
+  return `/api/orgs/${encodeURIComponent(organizationSlug)}/files/${encodeURIComponent(input.fileId)}`;
+}
+
+async function resolveOrganizationSlug(input: { organizationId: string; db: ToolContext["db"] }) {
+  const [organization] = await input.db
+    .select({ slug: schema.organizations.slug })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.id, input.organizationId))
+    .limit(1);
+
+  return organization?.slug ?? null;
+}
+
 function buildPlaywrightScript(input: {
   playwrightModulePath: string;
   url: string;
   outputPath: string;
   viewport: { width: number; height: number };
   waitForMs: number;
+  waitForText: string[];
 }) {
   return `
 const { chromium } = require(${JSON.stringify(input.playwrightModulePath)});
+const waitForText = ${JSON.stringify(input.waitForText)};
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     viewport: ${JSON.stringify(input.viewport)}
   });
+
+  // Install Storybook channel hooks before navigation so we do not miss storyRendered.
+  await page.addInitScript(() => {
+    window.__HYPERLOCALISE_STORY_READY__ = false;
+    window.__HYPERLOCALISE_STORY_ERROR__ = null;
+
+    const markReady = () => {
+      window.__HYPERLOCALISE_STORY_READY__ = true;
+    };
+    const markError = (error) => {
+      window.__HYPERLOCALISE_STORY_ERROR__ =
+        error && typeof error === "object" && "message" in error
+          ? String(error.message)
+          : String(error ?? "Storybook story failed");
+    };
+
+    const hookChannel = (channel) => {
+      if (!channel || channel.__hyperlocaliseHooked) {
+        return Boolean(channel);
+      }
+      channel.__hyperlocaliseHooked = true;
+      channel.on("storyRendered", markReady);
+      channel.on("storyFinished", markReady);
+      channel.on("storyErrored", markError);
+      channel.on("storyThrewException", markError);
+      return true;
+    };
+
+    const tryHook = () => {
+      if (hookChannel(window.__STORYBOOK_ADDONS_CHANNEL__)) {
+        return;
+      }
+      const preview = window.__STORYBOOK_PREVIEW__;
+      const channelFromPreview =
+        preview && typeof preview.channel === "object" ? preview.channel : null;
+      hookChannel(channelFromPreview);
+    };
+
+    tryHook();
+    const intervalId = setInterval(() => {
+      tryHook();
+      if (
+        window.__STORYBOOK_ADDONS_CHANNEL__?.__hyperlocaliseHooked ||
+        window.__HYPERLOCALISE_STORY_READY__ ||
+        window.__HYPERLOCALISE_STORY_ERROR__
+      ) {
+        clearInterval(intervalId);
+      }
+    }, 50);
+    setTimeout(() => clearInterval(intervalId), ${STORYBOOK_READY_TIMEOUT_MS});
+  });
+
   // Storybook keeps HMR/WebSocket traffic open, so "networkidle" often never settles.
-  await page.goto(${JSON.stringify(input.url)}, { waitUntil: "load", timeout: 60000 });
-  await page.waitForSelector("#storybook-root, #root", { state: "attached", timeout: 30000 });
-  await page.waitForTimeout(${input.waitForMs});
+  await page.goto(${JSON.stringify(input.url)}, { waitUntil: "load", timeout: ${STORYBOOK_READY_TIMEOUT_MS} });
+  await page.waitForSelector("#storybook-root, #root", { state: "attached", timeout: ${STORYBOOK_READY_TIMEOUT_MS} });
+
+  // Prefer Storybook's private channel events (storyRendered / storyFinished).
+  // Fall back to: preparing overlays gone + #storybook-root has painted content.
+  await page.waitForFunction(() => {
+    if (window.__HYPERLOCALISE_STORY_ERROR__ || window.__HYPERLOCALISE_STORY_READY__) {
+      return true;
+    }
+
+    const preparing =
+      document.body.classList.contains("sb-show-preparing-story") ||
+      document.body.classList.contains("sb-show-preparing-docs") ||
+      Boolean(document.querySelector(".sb-preparing-story, .sb-preparing-docs, .sb-nopreview"));
+    if (preparing) {
+      return false;
+    }
+
+    const root = document.querySelector("#storybook-root, #root");
+    if (!root) {
+      return false;
+    }
+
+    return root.childElementCount > 0 || Boolean((root.textContent || "").trim());
+  }, { timeout: ${STORYBOOK_READY_TIMEOUT_MS} });
+
+  const storyError = await page.evaluate(() => window.__HYPERLOCALISE_STORY_ERROR__);
+  if (storyError) {
+    throw new Error("Storybook story failed: " + storyError);
+  }
+
+  // Strongest readiness signal for localization mocks: expected copy is in the DOM.
+  if (waitForText.length > 0) {
+    await page.waitForFunction(
+      (texts) => {
+        const root = document.querySelector("#storybook-root, #root") || document.body;
+        const haystack = root?.innerText || root?.textContent || "";
+        return texts.every((text) => haystack.includes(text));
+      },
+      waitForText,
+      { timeout: ${STORYBOOK_READY_TIMEOUT_MS} },
+    );
+  }
+
+  if (${input.waitForMs} > 0) {
+    await page.waitForTimeout(${input.waitForMs});
+  }
   await page.screenshot({ path: ${JSON.stringify(input.outputPath)}, fullPage: true });
   await browser.close();
 })().catch((error) => {
@@ -532,7 +673,7 @@ function buildCaptureCommand(input: {
     "SERVER_PID=$!",
     'cleanup() { kill "$SERVER_PID" >/dev/null 2>&1 || true; }',
     "trap cleanup EXIT",
-    `for i in $(seq 1 60); do if curl -fsS ${shellQuote(
+    `for i in $(seq 1 ${STORYBOOK_SERVER_READY_SECONDS}); do if curl -fsS ${shellQuote(
       `http://127.0.0.1:${input.port}/iframe.html`,
     )} >/dev/null 2>&1; then break; fi; sleep 1; done`,
     `if ! curl -fsS ${shellQuote(`http://127.0.0.1:${input.port}/iframe.html`)} >/dev/null; then`,
@@ -632,6 +773,8 @@ Currently supported target:
 
 The tool finds package.json at the repository root or in nested app packages, detects the package manager and Storybook script, runs Storybook from that package directory, uses a Hyperlocalise-managed Playwright/Chromium runtime in the sandbox, captures a PNG, and stores it as a Hyperlocalise file artifact.
 
+Pass waitForText with the visible strings that must appear before capture (source/target copy under review). The tool waits for those substrings in the story DOM after Storybook reports ready.
+
 It does not commit, push, open pull requests, or publish repository changes.`,
     inputSchema: captureScreenshotInputSchema,
     toModelOutput: async ({ output }) => {
@@ -688,6 +831,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
       target,
       viewport = DEFAULT_VIEWPORT,
       waitForMs = DEFAULT_WAIT_FOR_MS,
+      waitForText = [],
     }): Promise<CaptureScreenshotResult> => {
       const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
       if (!gate.allowed) {
@@ -751,6 +895,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
           outputPath: screenshotPath,
           viewport,
           waitForMs,
+          waitForText,
         }),
       );
 
@@ -798,6 +943,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
           storyId: target.storyId,
           viewport,
           waitForMs,
+          waitForText,
           packageManager: storybookCommand.packageManager,
           scriptName: storybookCommand.scriptName,
           packageDir: storybookCommand.packageDir || ".",
@@ -806,10 +952,23 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         db: ctx.db,
       });
 
+      // Private Vercel Blob URLs are not browser-readable. Serve via the auth'd
+      // app proxy (project assets prefer inline disposition for <img>).
+      const organizationSlug = await resolveOrganizationSlug({
+        organizationId: ctx.organizationId,
+        db: ctx.db,
+      });
+      const serveUrl = buildScreenshotServeUrl({
+        organizationSlug,
+        projectId: ctx.projectId,
+        fileId: storedFile.id,
+        fallbackUrl: storedFile.downloadUrl ?? storedFile.storageUrl,
+      });
+
       return {
         success: true as const,
         fileId: storedFile.id,
-        url: storedFile.downloadUrl ?? storedFile.storageUrl,
+        url: serveUrl,
         filename: storedFile.filename,
         contentType: storedFile.contentType,
         byteSize: storedFile.byteSize,

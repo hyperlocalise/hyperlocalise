@@ -60,18 +60,20 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         return fileNotFoundResponse(c);
       }
 
-      c.header(
-        "Content-Type",
-        storedObject.contentType ?? file.contentType ?? "application/octet-stream",
-      );
+      const contentType =
+        storedObject.contentType ?? file.contentType ?? "application/octet-stream";
+      const isImage = contentType.toLowerCase().startsWith("image/");
+      c.header("Content-Type", contentType);
       c.header(
         "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+        `${isImage ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
       c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
       c.header("X-Content-Type-Options", "nosniff");
-      c.header("X-Download-Options", "noopen");
-      c.header("Cache-Control", "no-store");
+      if (!isImage) {
+        c.header("X-Download-Options", "noopen");
+      }
+      c.header("Cache-Control", isImage ? "private, max-age=60" : "no-store");
 
       return c.body(storedObject.body);
     });
