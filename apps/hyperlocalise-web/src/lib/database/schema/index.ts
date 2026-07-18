@@ -7,6 +7,7 @@ export * from "./translation-memory";
 export * from "./github";
 export * from "./integrations";
 export * from "./contentful";
+export * from "./mcp-server-connections";
 export * from "./canva";
 export * from "./crowdin-app";
 export * from "./jobs";

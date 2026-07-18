@@ -1,5 +1,6 @@
 import {
   buildAccessibleProjectsWhere,
+  canAccessProject,
   getVisibleTeamIds,
   hasOrganizationWideProjectAccess,
   ownedProjectWhere as teamOwnedProjectWhere,
@@ -227,21 +228,27 @@ export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string)
 }
 
 export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
-  const [project] = await db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(await ownedProjectWhere(auth, projectId))
-    .limit(1);
-
-  return project ?? null;
+  return canAccessProject(auth, projectId);
 }
 
 export async function getOwnedProjectRecord(auth: ApiAuthContext, projectId: string) {
-  const [project] = await db
+  const accessibleProject = await canAccessProject(auth, projectId);
+  if (!accessibleProject) {
+    return null;
+  }
+
+  // Access was already authorized (team scope for native, live TMS for
+  // provider ids). Load the org-scoped row without re-applying team filters.
+  const [organizationProject] = await db
     .select()
     .from(schema.projects)
-    .where(await ownedProjectWhere(auth, projectId))
+    .where(
+      and(
+        eq(schema.projects.organizationId, auth.organization.localOrganizationId),
+        eq(schema.projects.id, accessibleProject.id),
+      ),
+    )
     .limit(1);
 
-  return project ?? null;
+  return organizationProject ?? null;
 }

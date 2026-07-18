@@ -128,3 +128,8 @@ export const createContentfulAutomationFormFixture = () => {
 
 export const createDetailAutomationFormFixture = () =>
   createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
+
+export const createMemoriesAutomationFormFixture = () => ({
+  ...createGithubAutomationFormFixture(),
+  knowledgeEnabled: true,
+});

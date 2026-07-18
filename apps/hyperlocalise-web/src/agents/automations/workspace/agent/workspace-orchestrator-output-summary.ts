@@ -39,16 +39,16 @@ function readContentfulTranslationRunId(
   );
 }
 
-export function readCreateTranslationJobs(
+export function readCreateNativeTmsJob(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
 ): Record<string, unknown> | null {
-  const fromCurrentStep = stepResults.create_translation_jobs;
+  const fromCurrentStep = stepResults.create_native_tms_job;
   if (fromCurrentStep && readString(fromCurrentStep.jobId)) {
     return fromCurrentStep;
   }
 
-  const fromOutput = outputSummary.createTranslationJobs;
+  const fromOutput = outputSummary.createNativeTmsJob;
   if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
     const record = fromOutput as Record<string, unknown>;
     if (readString(record.jobId)) {
@@ -58,9 +58,37 @@ export function readCreateTranslationJobs(
 
   const fromPriorStep = readStepResult(
     outputSummary.orchestratorStepResults,
-    "create_translation_jobs",
+    "create_native_tms_job",
   );
   if (fromPriorStep && readString(fromPriorStep.jobId)) {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readAssignTranslateWithAgent(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.assign_translate_with_agent;
+  if (fromCurrentStep && readString(fromCurrentStep.jobId) && fromCurrentStep.enqueued === true) {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.assignTranslateWithAgent;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (readString(record.jobId) && record.enqueued === true) {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "assign_translate_with_agent",
+  );
+  if (fromPriorStep && readString(fromPriorStep.jobId) && fromPriorStep.enqueued === true) {
     return fromPriorStep;
   }
 
@@ -75,12 +103,14 @@ export function buildWorkspaceOrchestratorOutputSummary(
   },
 ): Record<string, unknown> {
   const contentfulTranslationRunId = readContentfulTranslationRunId(base, stepResults);
-  const createTranslationJobs = readCreateTranslationJobs(base, stepResults);
+  const createNativeTmsJob = readCreateNativeTmsJob(base, stepResults);
+  const assignTranslateWithAgent = readAssignTranslateWithAgent(base, stepResults);
 
   return {
     ...base,
     ...(contentfulTranslationRunId ? { contentfulTranslationRunId } : {}),
-    ...(createTranslationJobs ? { createTranslationJobs } : {}),
+    ...(createNativeTmsJob ? { createNativeTmsJob } : {}),
+    ...(assignTranslateWithAgent ? { assignTranslateWithAgent } : {}),
     orchestratorStepResults: stepResults,
     ...(options?.notificationWarnings && options.notificationWarnings.length > 0
       ? { notificationWarnings: options.notificationWarnings }

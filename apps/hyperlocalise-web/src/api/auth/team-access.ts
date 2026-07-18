@@ -4,10 +4,13 @@ import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   isLiveProviderGlossaryId,
   isLiveProviderMemoryId,
+  parseProviderProjectId,
 } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
@@ -74,6 +77,51 @@ export async function buildAccessibleProjectsWhere(auth: ApiAuthContext): Promis
 
 export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
   return and(eq(schema.projects.id, projectId), await buildAccessibleProjectsWhere(auth))!;
+}
+
+/**
+ * Resolve whether the caller may use a project id.
+ *
+ * Native projects stay team-scoped. External TMS project ids (`ext:…`) defer to
+ * the connected provider's live API with the caller's credentials — Crowdin and
+ * other TMS systems already enforce project membership, so Hyperlocalise must
+ * not re-apply team gates after a project is materialized locally.
+ */
+export async function canAccessProject(
+  auth: ApiAuthContext,
+  projectId: string,
+): Promise<{ id: string } | null> {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  if (typeof normalizedProjectId !== "string" || normalizedProjectId.length === 0) {
+    return null;
+  }
+
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(await ownedProjectWhere(auth, normalizedProjectId))
+    .limit(1);
+
+  if (project) {
+    return project;
+  }
+
+  const encodedProject = parseProviderProjectId(normalizedProjectId);
+  if (!encodedProject) {
+    return null;
+  }
+
+  const liveProject = await getTmsProviderLiveProject(
+    auth.organization.localOrganizationId,
+    encodedProject.externalProjectId,
+    { actorUserId: auth.user.localUserId },
+  ).catch(() => null);
+
+  if (!liveProject || liveProject.id !== normalizedProjectId) {
+    return null;
+  }
+
+  return { id: liveProject.id };
 }
 
 export async function getAccessibleProjectIds(auth: ApiAuthContext) {
@@ -310,12 +358,7 @@ export async function canAccessStoredFile(
   }
 
   if (input.projectId) {
-    const [project] = await db
-      .select({ id: schema.projects.id })
-      .from(schema.projects)
-      .where(await ownedProjectWhere(auth, input.projectId))
-      .limit(1);
-
+    const project = await canAccessProject(auth, input.projectId);
     return Boolean(project);
   }
 

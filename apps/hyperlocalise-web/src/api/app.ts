@@ -19,12 +19,14 @@ import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
+import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
@@ -136,7 +138,10 @@ function createInternalRoutes() {
 }
 
 function createAuthRoutes() {
-  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
+  return new Hono()
+    .route("/native", createNativeAuthRoutes())
+    .route("/", authRoutes)
+    .route("/slack", createSlackOAuthRoutes());
 }
 
 function createOrgScopedAppRoutes(
@@ -166,6 +171,7 @@ function createOrgScopedAppRoutes(
     )
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(

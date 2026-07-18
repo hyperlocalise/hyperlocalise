@@ -1,0 +1,7 @@
+// Local / staging defaults. Override in the Xcode scheme if needed.
+HYPERLOCALISE_API_BASE_URL = http:/$()/localhost:3000
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+
+// Sparkle: leave the public key unset for local builds (updater stays idle).
+SU_FEED_URL = https:/$()/updates.hyperlocalise.com/mac/appcast.xml
+SU_PUBLIC_ED_KEY = REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY

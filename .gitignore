@@ -32,6 +32,13 @@ go.work.sum
 # macOS
 .DS_Store
 
+# Xcode / Mac app
+apps/mac-app/Hyperlocalise.xcodeproj/
+apps/mac-app/DerivedData/
+apps/mac-app/*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+
 # Editor/IDE
 .idea/
 .vscode/
@@ -51,3 +58,6 @@ completions
 bazel-*
 
 .hyperlocalise
+
+# Sparkle private keys (mac-app)
+apps/mac-app/.sparkle-keys/

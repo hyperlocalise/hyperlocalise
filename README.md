@@ -223,9 +223,9 @@ The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/) is
 licensed separately under the Business Source License 1.1. See
 [`apps/hyperlocalise-web/LICENSE`](apps/hyperlocalise-web/LICENSE).
 
-The Canva app in [`apps/canva-app/`](apps/canva-app/) is also licensed
-separately under the Business Source License 1.1. See
-[`apps/canva-app/LICENSE`](apps/canva-app/LICENSE).
+The Canva app in [`apps/canva-app/`](apps/canva-app/) and the Mac app in
+[`apps/mac-app/`](apps/mac-app/) are also licensed separately under the
+Business Source License 1.1. See each directory's `LICENSE` file.
 
 ## Contributing
 

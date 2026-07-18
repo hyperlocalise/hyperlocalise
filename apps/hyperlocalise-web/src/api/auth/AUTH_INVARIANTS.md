@@ -49,6 +49,10 @@ full WorkOS identity model.
    still loads WorkOS-authoritative membership and capabilities for that
    user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
    as org API auth by themselves.
+   9b. **Native Mac clients use the same WorkOS sealed session.** The Mac app
+   obtains a sealed `wos-session` via `/api/auth/native/*` (AuthKit PKCE) and
+   presents it as a `Cookie` header. Do not mint a separate native identity
+   channel that bypasses WorkOS session verification.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable

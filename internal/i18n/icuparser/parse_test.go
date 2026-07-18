@@ -93,6 +93,62 @@ func TestParseASTPluralNegativeSelector(t *testing.T) {
 	}
 }
 
+func TestParseSelfClosingTagsWithAttributes(t *testing.T) {
+	tests := []struct {
+		name        string
+		msg         string
+		expectedTag string
+	}{
+		{
+			name:        "simple self-closing with double quotes attribute",
+			msg:         `Hello<img src="foo.png"/>world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "space before slash and single quotes attribute",
+			msg:         `Hello<img src='foo.png' />world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "space after slash and multiple attributes",
+			msg:         `Hello<img class="img-fluid" src="foo.png" / >world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "boolean attribute, spaces around slash",
+			msg:         `Hello<input disabled   /   >world`,
+			expectedTag: "input",
+		},
+		{
+			name:        "namespaced tag with mixed attributes",
+			msg:         `Hello<ui:image path='btn' disabled / >world`,
+			expectedTag: "ui:image",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.msg, err)
+			}
+			if len(elems) != 3 {
+				t.Fatalf("expected 3 elements, got %d: %+v", len(elems), elems)
+			}
+			tag, ok := elems[1].(TagElement)
+			if !ok {
+				t.Fatalf("expected tag element, got %T", elems[1])
+			}
+			if tag.Value != tt.expectedTag {
+				t.Errorf("expected tag name %q, got %q", tt.expectedTag, tag.Value)
+			}
+			if !tag.SelfClosing {
+				t.Errorf("expected tag to be self-closing")
+			}
+		})
+	}
+}
+
 func TestParseSelfClosingTagsWithWhitespace(t *testing.T) {
 	tests := []struct {
 		name string

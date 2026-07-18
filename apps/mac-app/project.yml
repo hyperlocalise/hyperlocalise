@@ -1,0 +1,91 @@
+name: Hyperlocalise
+options:
+  bundleIdPrefix: com.hyperlocalise
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.7.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: true
+    STRING_CATALOG_GENERATE_SYMBOLS: true
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+targets:
+  Hyperlocalise:
+    type: application
+    platform: macOS
+    sources:
+      - path: Hyperlocalise
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hyperlocalise.mac
+        PRODUCT_NAME: Hyperlocalise
+        INFOPLIST_FILE: Hyperlocalise/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Hyperlocalise/Hyperlocalise.entitlements
+        COMBINE_HIDPI_IMAGES: true
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        GENERATE_INFOPLIST_FILE: false
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
+        ENABLE_HARDENED_RUNTIME: true
+        SWIFT_STRICT_CONCURRENCY: complete
+        ENABLE_TESTABILITY: YES
+    info:
+      path: Hyperlocalise/Info.plist
+      properties:
+        CFBundleName: Hyperlocalise
+        CFBundleDisplayName: Hyperlocalise
+        CFBundleIdentifier: com.hyperlocalise.mac
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.developer-tools
+        NSPrincipalClass: NSApplication
+        CFBundleURLTypes:
+          - CFBundleURLName: com.hyperlocalise.mac.auth
+            CFBundleURLSchemes:
+              - hyperlocalise
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        SUEnableAutomaticChecks: true
+        SUEnableInstallerLauncherService: true
+    entitlements:
+      path: Hyperlocalise/Hyperlocalise.entitlements
+  HyperlocaliseTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: HyperlocaliseTests
+    dependencies:
+      - target: Hyperlocalise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hyperlocalise.mac.tests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Hyperlocalise.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Hyperlocalise"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  Hyperlocalise:
+    build:
+      targets:
+        Hyperlocalise: all
+        HyperlocaliseTests: [test]
+    test:
+      targets:
+        - HyperlocaliseTests

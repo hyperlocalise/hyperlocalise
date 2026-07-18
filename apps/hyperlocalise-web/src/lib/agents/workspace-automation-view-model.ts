@@ -54,6 +54,9 @@ export type WorkspaceAutomationFormState = {
   translationProjectId: string;
   translationUseProjectTargetLocales: boolean;
   translationTargetLocales: string[];
+  knowledgeEnabled: boolean;
+  mcpEnabled: boolean;
+  mcpConnectionId: string;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -72,6 +75,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "contentfulEntryId"
     | "translationProjectId"
     | "translationTargetLocales"
+    | "mcpConnectionId"
     | "form",
     string
   >
@@ -97,6 +101,10 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   translation_project_required: "Choose a Hyperlocalise project for translation jobs.",
   translation_target_locales_required: "Add at least one target locale for translation jobs.",
   source_upload_workflow_required: "Source upload triggers require translation jobs to be enabled.",
+  mcp_connection_required: "Choose an MCP server connection.",
+  mcp_connection_not_found:
+    "The selected MCP server connection was not found. Choose another connection.",
+  mcp_not_connected: "Enable the selected MCP server connection in Integrations before using it.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -140,6 +148,9 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     translationProjectId: "",
     translationUseProjectTargetLocales: true,
     translationTargetLocales: [],
+    knowledgeEnabled: false,
+    mcpEnabled: false,
+    mcpConnectionId: "",
   };
 }
 
@@ -151,6 +162,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
   const translation = automation.toolConfig.translation;
+  const knowledge = automation.toolConfig.knowledge;
+  const mcp = automation.toolConfig.mcp;
 
   return {
     name: automation.name,
@@ -205,6 +218,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
     translationProjectId: translation?.projectId ?? "",
     translationUseProjectTargetLocales: translation?.useProjectTargetLocales ?? true,
     translationTargetLocales: translation?.targetLocales ? [...translation.targetLocales] : [],
+    knowledgeEnabled: Boolean(knowledge?.enabled),
+    mcpEnabled: Boolean(mcp?.enabled),
+    mcpConnectionId: mcp?.connectionId ?? "",
   };
 }
 
@@ -338,6 +354,21 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.knowledgeEnabled
+      ? {
+          knowledge: {
+            enabled: true,
+          },
+        }
+      : {}),
+    ...(form.mcpEnabled
+      ? {
+          mcp: {
+            enabled: true,
+            connectionId: form.mcpConnectionId || undefined,
+          },
+        }
+      : {}),
   };
 
   return {
@@ -423,6 +454,10 @@ export function validateWorkspaceAutomationFormState(
     errors.trigger = "Source upload triggers require translation jobs to be enabled.";
   }
 
+  if (form.mcpEnabled && !form.mcpConnectionId) {
+    errors.mcpConnectionId = "Choose an MCP server connection.";
+  }
+
   return errors;
 }
 
@@ -467,6 +502,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { translationProjectId: message };
     case "translation_target_locales_required":
       return { translationTargetLocales: message };
+    case "mcp_connection_required":
+    case "mcp_connection_not_found":
+    case "mcp_not_connected":
+      return { mcpConnectionId: message };
     default:
       return { form: message };
   }
@@ -478,6 +517,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.slackEnabled ||
     form.emailEnabled ||
     form.contentfulEnabled ||
-    form.translationEnabled
+    form.translationEnabled ||
+    form.mcpEnabled
   );
 }

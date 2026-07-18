@@ -21,9 +21,13 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 export function AutomationDetailPageContent({
   organizationSlug,
   automationId,
+  knowledgeAvailable = false,
+  canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
   automationId: string;
+  knowledgeAvailable?: boolean;
+  canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -148,6 +152,8 @@ export function AutomationDetailPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
+        knowledgeAvailable={knowledgeAvailable}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         runHistory={recentRuns}
         actions={
