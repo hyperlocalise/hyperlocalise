@@ -162,7 +162,7 @@ export const ToolHeader = ({
       ? toolName
       : typeof type === "string"
         ? type.split("-").slice(1).join("-")
-        : "tool";
+        : intl.formatMessage(toolMessages.fallbackName);
 
   const name = title ?? derivedName;
   const inputDetail = detail ?? extractToolInputDetail(input);

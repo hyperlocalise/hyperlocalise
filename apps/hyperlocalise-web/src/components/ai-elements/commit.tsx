@@ -68,9 +68,11 @@ export const CommitMetadata = ({ className, children, ...props }: CommitMetadata
 
 export type CommitSeparatorProps = HTMLAttributes<HTMLSpanElement>;
 
+const COMMIT_SEPARATOR = "•";
+
 export const CommitSeparator = ({ className, children, ...props }: CommitSeparatorProps) => (
   <span className={className} {...props}>
-    {children ?? "•"}
+    {children ?? COMMIT_SEPARATOR}
   </span>
 );
 

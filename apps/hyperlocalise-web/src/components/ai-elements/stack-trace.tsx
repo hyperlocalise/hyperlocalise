@@ -412,6 +412,17 @@ interface FilePathButtonProps {
   onFilePathClick?: (filePath: string, lineNumber?: number, columnNumber?: number) => void;
 }
 
+const formatStackFrameLocation = (frame: StackFrame): string => {
+  let location = frame.filePath ?? "";
+  if (frame.lineNumber !== null) {
+    location = `${location}:${String(frame.lineNumber)}`;
+  }
+  if (frame.columnNumber !== null) {
+    location = `${location}:${String(frame.columnNumber)}`;
+  }
+  return location;
+};
+
 const FilePathButton = memo(({ frame, onFilePathClick }: FilePathButtonProps) => {
   const handleClick = useCallback(() => {
     if (frame.filePath) {
@@ -433,9 +444,7 @@ const FilePathButton = memo(({ frame, onFilePathClick }: FilePathButtonProps) =>
       onClick={handleClick}
       type="button"
     >
-      {frame.filePath}
-      {frame.lineNumber !== null && `:${frame.lineNumber}`}
-      {frame.columnNumber !== null && `:${frame.columnNumber}`}
+      {formatStackFrameLocation(frame)}
     </button>
   );
 });
@@ -444,40 +453,48 @@ FilePathButton.displayName = "FilePathButton";
 
 export const StackTraceFrames = memo(
   ({ className, showInternalFrames = true, ...props }: StackTraceFramesProps) => {
+    const intl = useIntl();
     const { trace, onFilePathClick } = useStackTrace();
 
     const framesToShow = showInternalFrames
       ? trace.frames
       : trace.frames.filter((f) => !f.isInternal);
 
+    const framePrefix = intl.formatMessage(stackTraceMessages.framePrefix);
+
     return (
       <div className={cn("space-y-1 p-3", className)} {...props}>
-        {framesToShow.map((frame) => (
-          <div
-            className={cn(
-              "text-xs",
-              frame.isInternal ? "text-muted-foreground" : "text-foreground",
-            )}
-            key={frame.raw}
-          >
-            <span className="text-muted-foreground">at </span>
-            {frame.functionName && (
-              <span className={frame.isInternal ? "" : "text-foreground"}>
-                {frame.functionName}{" "}
-              </span>
-            )}
-            {frame.filePath && (
-              <>
-                <span className="text-muted-foreground">(</span>
-                <FilePathButton frame={frame} onFilePathClick={onFilePathClick} />
-                <span className="text-muted-foreground">)</span>
-              </>
-            )}
-            {!(frame.filePath || frame.functionName) && (
-              <span>{frame.raw.replace(AT_PREFIX_REGEX, "")}</span>
-            )}
-          </div>
-        ))}
+        {framesToShow.map((frame) => {
+          const prefixLabel = `${framePrefix} `;
+          const functionLabel = frame.functionName ? `${frame.functionName} ` : "";
+          const openParen = "(";
+          const closeParen = ")";
+
+          return (
+            <div
+              className={cn(
+                "text-xs",
+                frame.isInternal ? "text-muted-foreground" : "text-foreground",
+              )}
+              key={frame.raw}
+            >
+              <span className="text-muted-foreground">{prefixLabel}</span>
+              {frame.functionName ? (
+                <span className={frame.isInternal ? "" : "text-foreground"}>{functionLabel}</span>
+              ) : null}
+              {frame.filePath ? (
+                <>
+                  <span className="text-muted-foreground">{openParen}</span>
+                  <FilePathButton frame={frame} onFilePathClick={onFilePathClick} />
+                  <span className="text-muted-foreground">{closeParen}</span>
+                </>
+              ) : null}
+              {!(frame.filePath || frame.functionName) ? (
+                <span>{frame.raw.replace(AT_PREFIX_REGEX, "")}</span>
+              ) : null}
+            </div>
+          );
+        })}
         {framesToShow.length === 0 && (
           <div className="text-muted-foreground text-xs">
             <FormattedMessage {...stackTraceMessages.noStackFrames} />

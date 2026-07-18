@@ -1,10 +1,20 @@
 // @vitest-environment happy-dom
 
 import { act, renderHook } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createProjectFileRecord, providerProjectFilesFixture } from "./project-files.fixture";
 import { useProjectFileActions } from "./use-project-file-actions";
+
+function IntlWrapper({ children }: { children: ReactNode }) {
+  return (
+    <IntlProvider locale="en" messages={{}}>
+      {children}
+    </IntlProvider>
+  );
+}
 
 function renderProjectFileActions({
   file = createProjectFileRecord(),
@@ -12,17 +22,19 @@ function renderProjectFileActions({
   projectTargetLocales = ["vi", "fr-FR"],
   branch = "main",
 }: Partial<Parameters<typeof useProjectFileActions>[0]> = {}) {
-  return renderHook(() =>
-    useProjectFileActions({
-      organizationSlug: "acme",
-      projectId: "project_website",
-      file,
-      highlightLocale,
-      projectTargetLocales,
-      sourceLocale: "en-US",
-      nativeSourcePaths: ["marketing/home.json", "marketing/pricing.json"],
-      branch,
-    }),
+  return renderHook(
+    () =>
+      useProjectFileActions({
+        organizationSlug: "acme",
+        projectId: "project_website",
+        file,
+        highlightLocale,
+        projectTargetLocales,
+        sourceLocale: "en-US",
+        nativeSourcePaths: ["marketing/home.json", "marketing/pricing.json"],
+        branch,
+      }),
+    { wrapper: IntlWrapper },
   );
 }
 

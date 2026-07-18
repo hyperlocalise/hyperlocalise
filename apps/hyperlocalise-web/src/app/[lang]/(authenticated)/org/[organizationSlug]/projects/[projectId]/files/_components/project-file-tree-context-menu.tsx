@@ -6,10 +6,13 @@ import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-fre
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
 
+import { FormattedMessage } from "react-intl";
+
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ContextMenuOpenContext } from "@pierre/trees";
 import { Button } from "@/components/ui/button";
 
+import { projectFileTreeContextMenuMessages as messages } from "./project-file-tree-context-menu.messages";
 import type { ProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export type ProjectFileTreeActionsConfig = {
@@ -140,7 +143,7 @@ export function ProjectFileTreeContextMenu({
         }}
       >
         <ListIcon />
-        View strings
+        <FormattedMessage {...messages.viewStrings} />
       </Button>
       {capabilities.isNativeFile ? (
         <>
@@ -156,7 +159,7 @@ export function ProjectFileTreeContextMenu({
             }}
           >
             <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-            Translate with agent
+            <FormattedMessage {...messages.translateWithAgent} />
           </Button>
           <Button
             type="button"
@@ -169,7 +172,7 @@ export function ProjectFileTreeContextMenu({
             }}
           >
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
-            Import translations
+            <FormattedMessage {...messages.importTranslations} />
           </Button>
           <Button
             type="button"
@@ -182,7 +185,7 @@ export function ProjectFileTreeContextMenu({
             }}
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-            Download
+            <FormattedMessage {...messages.download} />
           </Button>
         </>
       ) : null}

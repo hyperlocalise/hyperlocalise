@@ -21,4 +21,10 @@ export const stackTraceMessages = defineMessages({
     defaultMessage: "No stack frames",
     description: "Empty state when a stack trace has no frames to display",
   },
+  framePrefix: {
+    id: "bxdlmS/zEn",
+
+    defaultMessage: "at",
+    description: "Prefix before a stack frame location in the stack trace display",
+  },
 });

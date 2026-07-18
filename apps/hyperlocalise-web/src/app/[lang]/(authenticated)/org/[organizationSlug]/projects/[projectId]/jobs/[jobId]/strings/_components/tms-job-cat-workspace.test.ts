@@ -98,7 +98,7 @@ describe("requireProviderExternalResourceId", () => {
   it("throws a clear error when a CAT save has no provider file identifier", () => {
     const file = { ...catFile(), provider: null };
 
-    expect(() => requireProviderExternalResourceId(file)).toThrow(
+    expect(() => requireProviderExternalResourceId(file, testIntl)).toThrow(
       "Cannot save translation because the provider file identifier is missing.",
     );
   });

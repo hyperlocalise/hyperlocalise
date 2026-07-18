@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
 import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
+import { projectFilesTreePanelMessages as messages } from "./project-files-tree-panel.messages";
 import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
 
 export const PROJECT_FILES_PAGE_SIZE = 500;
@@ -78,6 +80,7 @@ export async function fetchProjectFiles(
   projectId: string,
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
+  loadFailedMessage = "Failed to load project files",
 ) {
   const params = new URLSearchParams({ limit: String(limit) });
   const trimmedBranch = branch?.trim();
@@ -90,7 +93,7 @@ export async function fetchProjectFiles(
   });
 
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load project files");
+    throw await readApiResponseError(response, loadFailedMessage);
   }
 
   const body = (await response.json()) as { files: ProjectFileRecord[] };
@@ -130,11 +133,15 @@ function ProjectFilesTreeBody({
   if (files.length === 0) {
     return (
       <div className="flex flex-col gap-2 p-4">
-        <TypographyP className="text-sm font-medium text-foreground">No files yet</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          <FormattedMessage {...messages.noFilesYet} />
+        </TypographyP>
         <TypographyP className="text-sm text-muted-foreground">
-          {isProviderProject
-            ? "No provider files were found for this project."
-            : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
+          {isProviderProject ? (
+            <FormattedMessage {...messages.noProviderFiles} />
+          ) : (
+            <FormattedMessage {...messages.noNativeFiles} />
+          )}
         </TypographyP>
       </div>
     );
@@ -222,14 +229,17 @@ export function ProjectFilesTreePanel({
   fileActions?: ProjectFileTreeActionsConfig;
   branch?: string | null;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
   const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
   const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
   const queryKey = projectFilesQueryKey(organizationSlug, projectId, fetchLimit, branch);
+  const loadFailedMessage = intl.formatMessage(messages.loadFailed);
   const filesQuery = useQuery({
     queryKey,
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch),
+    queryFn: () =>
+      fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch, loadFailedMessage),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
 
@@ -292,15 +302,19 @@ export function ProjectFilesTreePanel({
     <>
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="min-w-0">
-          <ProjectSectionTitle>Project files</ProjectSectionTitle>
+          <ProjectSectionTitle>
+            <FormattedMessage {...messages.projectFilesTitle} />
+          </ProjectSectionTitle>
           <TypographyP className="mt-0.5 text-sm text-muted-foreground">
-            {filesQuery.isLoading
-              ? "Loading…"
-              : filesQuery.isError
-                ? "Could not load files"
-                : hasMoreFiles
-                  ? `${files.length}+ files`
-                  : `${files.length} file${files.length === 1 ? "" : "s"}`}
+            {filesQuery.isLoading ? (
+              <FormattedMessage {...messages.loading} />
+            ) : filesQuery.isError ? (
+              <FormattedMessage {...messages.couldNotLoad} />
+            ) : hasMoreFiles ? (
+              <FormattedMessage {...messages.fileCountMore} values={{ count: files.length }} />
+            ) : (
+              <FormattedMessage {...messages.fileCount} values={{ count: files.length }} />
+            )}
           </TypographyP>
         </div>
         {headerActions ? (
@@ -313,7 +327,9 @@ export function ProjectFilesTreePanel({
       </header>
 
       {filesQuery.isLoading ? (
-        <TypographyP className="p-4 text-sm text-muted-foreground">Loading files…</TypographyP>
+        <TypographyP className="p-4 text-sm text-muted-foreground">
+          <FormattedMessage {...messages.loadingFiles} />
+        </TypographyP>
       ) : (
         <ProjectFilesErrorBoundary
           organizationSlug={organizationSlug}
@@ -349,10 +365,10 @@ export function ProjectFilesTreePanel({
                 {filesQuery.isFetching ? (
                   <>
                     <Spinner />
-                    Loading more…
+                    <FormattedMessage {...messages.loadingMore} />
                   </>
                 ) : (
-                  "Load more files"
+                  <FormattedMessage {...messages.loadMore} />
                 )}
               </Button>
             </div>

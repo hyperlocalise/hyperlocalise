@@ -2,10 +2,19 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactElement, type ReactNode } from "react";
+import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "./project-files.fixture";
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      {ui}
+    </IntlProvider>,
+  );
+}
 
 const enUsFile = createProjectFileRecord({
   sourcePath: "en-US.json",
@@ -150,7 +159,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   it("opens CAT when a project file is double-clicked", async () => {
     const user = userEvent.setup();
 
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
@@ -163,7 +172,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     const user = userEvent.setup();
     searchParamsMock.mockReturnValue("sourcePath=en-US.json");
 
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
@@ -173,7 +182,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   });
 
   it("shows double-click guidance when a file is selected", () => {
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     expect(
       screen.getByText(/Double-click a file or use View strings to open the CAT workspace for vi/i),
@@ -181,7 +190,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   });
 
   it("does not show selection-dependent header action buttons", () => {
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     expect(screen.queryByRole("button", { name: "Translate with agent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Import translations" })).not.toBeInTheDocument();
@@ -191,7 +200,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   it("opens the download dialog for the context-menu file without selecting it first", async () => {
     const user = userEvent.setup();
 
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await user.click(screen.getByRole("button", { name: "Download pricing from context menu" }));
 
@@ -205,7 +214,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   it("opens translate and import dialogs from the context menu for the clicked file", async () => {
     const user = userEvent.setup();
 
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     await user.click(screen.getByRole("button", { name: "Translate pricing from context menu" }));
     await waitFor(() => {
@@ -221,7 +230,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
   it("shows when a requested native locale will fall back to a project locale", () => {
     searchParamsMock.mockReturnValue("sourcePath=en-US.json&locale=ja-JP");
 
-    render(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
+    renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     expect(
       screen.getByText(

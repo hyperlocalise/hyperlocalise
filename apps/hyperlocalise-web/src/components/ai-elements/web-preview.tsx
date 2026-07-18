@@ -259,22 +259,25 @@ export const WebPreviewConsole = ({
               <FormattedMessage {...webPreviewMessages.noConsoleOutput} />
             </TypographyP>
           ) : (
-            logs.map((log) => (
-              <div
-                className={cn(
-                  "text-xs",
-                  log.level === "error" && "text-destructive",
-                  log.level === "warn" && "text-yellow-600",
-                  log.level === "log" && "text-foreground",
-                )}
-                key={`${log.timestamp.getTime()}-${log.level}-${log.message}`}
-              >
-                <span className="text-muted-foreground">
-                  {TIME_FORMATTER.format(log.timestamp)}
-                </span>{" "}
-                {log.message}
-              </div>
-            ))
+            logs.map((log) => {
+              const timestampLabel = TIME_FORMATTER.format(log.timestamp);
+              const messageLabel = ` ${log.message}`;
+
+              return (
+                <div
+                  className={cn(
+                    "text-xs",
+                    log.level === "error" && "text-destructive",
+                    log.level === "warn" && "text-yellow-600",
+                    log.level === "log" && "text-foreground",
+                  )}
+                  key={`${log.timestamp.getTime()}-${log.level}-${log.message}`}
+                >
+                  <span className="text-muted-foreground">{timestampLabel}</span>
+                  {messageLabel}
+                </div>
+              );
+            })
           )}
           {children}
         </div>

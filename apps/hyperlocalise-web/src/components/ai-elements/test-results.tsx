@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
 
 import { testResultsMessages } from "./test-results.messages";
@@ -150,6 +150,7 @@ export const TestResultsProgress = ({
   children,
   ...props
 }: TestResultsProgressProps) => {
+  const intl = useIntl();
   const { summary } = useContext(TestResultsContext);
 
   if (!summary) {
@@ -158,6 +159,9 @@ export const TestResultsProgress = ({
 
   const passedPercent = (summary.passed / summary.total) * 100;
   const failedPercent = (summary.failed / summary.total) * 100;
+  const percentLabel = intl.formatMessage(testResultsMessages.percentLabel, {
+    percent: passedPercent.toFixed(0),
+  });
 
   return (
     <div className={cn("space-y-2", className)} {...props}>
@@ -174,7 +178,7 @@ export const TestResultsProgress = ({
                 values={{ passed: summary.passed, total: summary.total }}
               />
             </span>
-            <span>{passedPercent.toFixed(0)}%</span>
+            <span>{percentLabel}</span>
           </div>
         </>
       )}
@@ -272,10 +276,20 @@ export const TestSuiteStats = ({
   <div className={cn("ms-auto flex items-center gap-2 text-xs", className)} {...props}>
     {children ?? (
       <>
-        {passed > 0 && <span className="text-green-600 dark:text-green-400">{passed} passed</span>}
-        {failed > 0 && <span className="text-red-600 dark:text-red-400">{failed} failed</span>}
+        {passed > 0 && (
+          <span className="text-green-600 dark:text-green-400">
+            <FormattedMessage {...testResultsMessages.passedCount} values={{ count: passed }} />
+          </span>
+        )}
+        {failed > 0 && (
+          <span className="text-red-600 dark:text-red-400">
+            <FormattedMessage {...testResultsMessages.failedCount} values={{ count: failed }} />
+          </span>
+        )}
         {skipped > 0 && (
-          <span className="text-yellow-600 dark:text-yellow-400">{skipped} skipped</span>
+          <span className="text-yellow-600 dark:text-yellow-400">
+            <FormattedMessage {...testResultsMessages.skippedCount} values={{ count: skipped }} />
+          </span>
         )}
       </>
     )}
@@ -316,6 +330,7 @@ export const TestName = ({ className, children, ...props }: TestNameProps) => {
 export type TestDurationProps = HTMLAttributes<HTMLSpanElement>;
 
 export const TestDuration = ({ className, children, ...props }: TestDurationProps) => {
+  const intl = useIntl();
   const { duration } = useContext(TestContext);
 
   if (duration === undefined) {
@@ -324,7 +339,7 @@ export const TestDuration = ({ className, children, ...props }: TestDurationProp
 
   return (
     <span className={cn("ms-auto text-muted-foreground text-xs", className)} {...props}>
-      {children ?? `${duration}ms`}
+      {children ?? intl.formatMessage(testResultsMessages.durationMs, { duration })}
     </span>
   );
 };

@@ -5,12 +5,14 @@ import { forwardRef, useImperativeHandle } from "react";
 import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProjectFileActionDialogs } from "./project-file-action-dialogs";
+import { projectFileSelectionActionsMessages as messages } from "./project-file-selection-actions.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
 
 const EMPTY_STRING_ARRAY: readonly string[] = [];
@@ -79,7 +81,7 @@ export const ProjectFileSelectionActions = forwardRef<
         render={actions.canOpenCat && actions.catHref ? <Link href={actions.catHref} /> : undefined}
       >
         <ListIcon />
-        View strings
+        <FormattedMessage {...messages.viewStrings} />
       </Button>
       {actions.isNativeFile ? (
         <>
@@ -92,7 +94,7 @@ export const ProjectFileSelectionActions = forwardRef<
             onClick={() => actions.setTranslateDialogOpen(true)}
           >
             <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-            Translate with agent
+            <FormattedMessage {...messages.translateWithAgent} />
           </Button>
           <Button
             type="button"
@@ -102,7 +104,7 @@ export const ProjectFileSelectionActions = forwardRef<
             onClick={() => actions.setImportDialogOpen(true)}
           >
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
-            Import translations
+            <FormattedMessage {...messages.importTranslations} />
           </Button>
           <Button
             type="button"
@@ -112,7 +114,7 @@ export const ProjectFileSelectionActions = forwardRef<
             onClick={() => actions.setDownloadDialogOpen(true)}
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-            Download
+            <FormattedMessage {...messages.download} />
           </Button>
         </>
       ) : null}
@@ -137,9 +139,11 @@ export const ProjectFileSelectionActions = forwardRef<
             {file.sourcePath}
           </TypographyP>
           <TypographyP className="text-xs text-muted-foreground">
-            {actions.canOpenCat
-              ? "Open this file in the CAT workspace to review and edit translations."
-              : "The CAT workspace is not available for this file yet."}
+            {actions.canOpenCat ? (
+              <FormattedMessage {...messages.catAvailableHint} />
+            ) : (
+              <FormattedMessage {...messages.catUnavailableHint} />
+            )}
           </TypographyP>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actionButtons}</div>

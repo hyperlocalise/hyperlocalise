@@ -39,4 +39,19 @@ export const contextMessages = defineMessages({
     defaultMessage: "Cache",
     description: "Label for cached input token usage in the context hover card",
   },
+  usedOfTotal: {
+    defaultMessage: "{used} / {total}",
+    id: "8HqELsDVf0",
+    description: "Context usage fraction showing tokens used out of the model context window",
+  },
+  tokensUnavailable: {
+    defaultMessage: "—",
+    id: "LDOufEL34i",
+    description: "Placeholder shown when a token count is unavailable",
+  },
+  costSuffix: {
+    defaultMessage: "• {cost}",
+    id: "JmNB19hrDA",
+    description: "Suffix showing estimated cost next to a token count",
+  },
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+
+import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
@@ -41,6 +44,7 @@ export function ImportTranslationsDialog({
   sourcePath,
   targetLocales,
 }: ImportTranslationsDialogProps) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
@@ -56,13 +60,13 @@ export function ImportTranslationsDialog({
   const importTranslations = useMutation({
     mutationFn: async () => {
       if (!locale) {
-        throw new Error("Select a target locale.");
+        throw new Error(intl.formatMessage(messages.selectLocale));
       }
       if (!selectedFile) {
-        throw new Error("Choose a translation file to import.");
+        throw new Error(intl.formatMessage(messages.chooseFileRequired));
       }
       if (!inferSupportedFileTranslationFileFormat(sourcePath)) {
-        throw new Error("This file format is not supported for translation import.");
+        throw new Error(intl.formatMessage(messages.unsupportedFormat));
       }
 
       const formData = new FormData();
@@ -76,7 +80,7 @@ export function ImportTranslationsDialog({
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to import translations");
+        throw await readApiResponseError(response, intl.formatMessage(messages.importFailed));
       }
     },
     onSuccess: async () => {
@@ -86,11 +90,13 @@ export function ImportTranslationsDialog({
           queryKey: ["project-file-detail", organizationSlug, projectId, sourcePath],
         }),
       ]);
-      toast.success("Import started — translations will appear once processing completes.");
+      toast.success(intl.formatMessage(messages.importSuccess));
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to import translations");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.importFailed),
+      );
     },
   });
 
@@ -98,22 +104,29 @@ export function ImportTranslationsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Import translations</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...messages.title} />
+          </DialogTitle>
           <DialogDescription>
-            Upload an already-translated file for{" "}
-            <span className="font-mono text-foreground">{sourcePath}</span>. Keys are matched to the
-            source file and imported as approved.
+            <FormattedMessage
+              {...messages.description}
+              values={{
+                path: <span className="font-mono text-foreground">{sourcePath}</span>,
+              }}
+            />
           </DialogDescription>
         </DialogHeader>
 
         {targetLocales.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Add target locales in project settings before importing translations.
+            <FormattedMessage {...messages.noTargetLocales} />
           </p>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Target locale</p>
+              <p className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.targetLocaleLabel} />
+              </p>
               <div className="space-y-2">
                 {targetLocales.map((targetLocale) => (
                   <label
@@ -134,7 +147,9 @@ export function ImportTranslationsDialog({
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Translation file</p>
+              <p className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.translationFileLabel} />
+              </p>
               <input
                 ref={inputRef}
                 type="file"
@@ -153,10 +168,14 @@ export function ImportTranslationsDialog({
                   onClick={() => inputRef.current?.click()}
                   disabled={importTranslations.isPending}
                 >
-                  Choose file
+                  <FormattedMessage {...messages.chooseFile} />
                 </Button>
                 <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-                  {selectedFile ? selectedFile.name : "No file selected"}
+                  {selectedFile ? (
+                    selectedFile.name
+                  ) : (
+                    <FormattedMessage {...messages.noFileSelected} />
+                  )}
                 </span>
               </div>
             </div>
@@ -165,7 +184,7 @@ export function ImportTranslationsDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            <FormattedMessage {...messages.cancel} />
           </Button>
           <Button
             type="button"
@@ -175,7 +194,7 @@ export function ImportTranslationsDialog({
             onClick={() => importTranslations.mutate()}
           >
             {importTranslations.isPending ? <Spinner className="size-4" /> : null}
-            Import
+            <FormattedMessage {...messages.import} />
           </Button>
         </DialogFooter>
       </DialogContent>

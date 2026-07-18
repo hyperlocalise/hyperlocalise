@@ -5,6 +5,7 @@ import type { FileTreeRowDecorationContext } from "@pierre/trees";
 import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
@@ -12,6 +13,7 @@ import {
   ProjectFileTreeContextMenu,
   type ProjectFileTreeActionsConfig,
 } from "./project-file-tree-context-menu";
+import { projectFilesTreeMessages as messages } from "./project-files-tree.messages";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
@@ -53,19 +55,21 @@ function formatNullableDate(value: string | null | undefined) {
   return DATE_FORMATTER.format(date);
 }
 
-function fileListMetadata(file: ProjectFileRecord) {
+function fileListMetadata(file: ProjectFileRecord, intl: IntlShape) {
   const uploadedAt = formatNullableDate(file.uploadedAt);
   if (file.provider && file.byteSize === null) {
     return [
       file.provider.format,
-      file.provider.resourceType === "file" ? "Provider file" : "Provider key",
+      file.provider.resourceType === "file"
+        ? intl.formatMessage(messages.providerFile)
+        : intl.formatMessage(messages.providerKey),
       uploadedAt,
     ]
       .filter(Boolean)
       .join(" · ");
   }
 
-  return [formatBytes(file.byteSize), uploadedAt].filter(Boolean).join(" · ");
+  return [formatBytes(file.byteSize, intl), uploadedAt].filter(Boolean).join(" · ");
 }
 
 export function ProjectFilesTree({
@@ -74,7 +78,7 @@ export function ProjectFilesTree({
   onSelectFile,
   onActivateFile,
   fileActions,
-  ariaLabel = "Project files",
+  ariaLabel,
   fillHeight = false,
 }: {
   files: ProjectFileRecord[];
@@ -118,7 +122,7 @@ function ProjectFilesTreeView({
   onSelectFile,
   onActivateFile,
   fileActions,
-  ariaLabel = "Project files",
+  ariaLabel,
   fillHeight = false,
 }: {
   files: ProjectFileRecord[];
@@ -129,6 +133,8 @@ function ProjectFilesTreeView({
   ariaLabel?: string;
   fillHeight?: boolean;
 }) {
+  const intl = useIntl();
+  const resolvedAriaLabel = ariaLabel ?? intl.formatMessage(messages.ariaLabel);
   const containerRef = useRef<HTMLDivElement>(null);
   const treeStyle = useMemo(() => buildProjectFilesTreeStyle(fillHeight), [fillHeight]);
   const displayFiles = useMemo(() => dedupeProjectFilesBySourcePath(files), [files]);
@@ -142,6 +148,7 @@ function ProjectFilesTreeView({
   const latestStateRef = useRef({
     fileActions,
     fileByPath,
+    intl,
     onSelectFile,
     onActivateFile,
   });
@@ -162,10 +169,11 @@ function ProjectFilesTreeView({
     latestStateRef.current = {
       fileActions,
       fileByPath,
+      intl,
       onActivateFile,
       onSelectFile,
     };
-  }, [fileActions, fileByPath, onActivateFile, onSelectFile]);
+  }, [fileActions, fileByPath, intl, onActivateFile, onSelectFile]);
 
   useEffect(() => {
     if (!onActivateFile) {
@@ -226,8 +234,9 @@ function ProjectFilesTreeView({
       }
 
       return {
-        text: file.latestJob?.status ?? "Uploaded",
-        title: fileListMetadata(file),
+        text:
+          file.latestJob?.status ?? latestStateRef.current.intl.formatMessage(messages.uploaded),
+        title: fileListMetadata(file, latestStateRef.current.intl),
       };
     },
     onSelectionChange: (nextSelectedPaths) => {
@@ -259,9 +268,9 @@ function ProjectFilesTreeView({
     const host = containerRef.current?.querySelector("file-tree-container");
     const searchInput = host?.shadowRoot?.querySelector("[data-file-tree-search-input]");
     if (searchInput instanceof HTMLInputElement) {
-      searchInput.setAttribute("aria-label", "Search files");
+      searchInput.setAttribute("aria-label", intl.formatMessage(messages.searchFiles));
     }
-  }, [model, paths.length]);
+  }, [intl, model, paths.length]);
 
   if (paths.length === 0) {
     return null;
@@ -275,7 +284,7 @@ function ProjectFilesTreeView({
       }
     >
       <PierreFileTree
-        aria-label={ariaLabel}
+        aria-label={resolvedAriaLabel}
         className="w-full min-w-0 border-0 bg-transparent"
         id="project-files-tree"
         model={model}
@@ -300,6 +309,7 @@ function ProjectFilesTreeView({
                   highlightLocale: actions.highlightLocale,
                   projectTargetLocales: actions.projectTargetLocales,
                   branch: actions.branch,
+                  intl: latestStateRef.current.intl,
                 });
 
                 return (

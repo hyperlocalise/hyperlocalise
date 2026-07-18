@@ -1,9 +1,19 @@
 // @vitest-environment happy-dom
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { DownloadTranslationsDialog } from "./download-translations-dialog";
+
+function renderDialog(ui: ReactElement) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      {ui}
+    </IntlProvider>,
+  );
+}
 
 describe("DownloadTranslationsDialog", () => {
   afterEach(() => {
@@ -34,7 +44,7 @@ describe("DownloadTranslationsDialog", () => {
         expect(this.isConnected).toBe(true);
       });
 
-    render(
+    renderDialog(
       <DownloadTranslationsDialog
         open
         onOpenChange={() => undefined}

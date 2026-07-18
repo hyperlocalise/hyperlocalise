@@ -6,6 +6,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/primitives/cn";
 import { ChevronDownIcon, PaperclipIcon } from "lucide-react";
 import type { ComponentProps } from "react";
+import { useIntl } from "react-intl";
+
+import { queueMessages } from "./queue.messages";
 
 export interface QueueMessagePart {
   type: string;
@@ -201,15 +204,21 @@ export const QueueSectionLabel = ({
   icon,
   className,
   ...props
-}: QueueSectionLabelProps) => (
-  <span className={cn("flex items-center gap-2", className)} {...props}>
-    <ChevronDownIcon className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
-    {icon}
-    <span>
-      {count} {label}
+}: QueueSectionLabelProps) => {
+  const intl = useIntl();
+
+  return (
+    <span className={cn("flex items-center gap-2", className)} {...props}>
+      <ChevronDownIcon className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
+      {icon}
+      <span>
+        {count === undefined
+          ? label
+          : intl.formatMessage(queueMessages.sectionLabel, { count, label })}
+      </span>
     </span>
-  </span>
-);
+  );
+};
 
 // QueueSectionContent - collapsible content area
 export type QueueSectionContentProps = ComponentProps<typeof CollapsibleContent>;

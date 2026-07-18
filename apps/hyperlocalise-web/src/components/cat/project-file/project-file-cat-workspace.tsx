@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type {
@@ -54,6 +54,7 @@ import {
 import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
+import { projectFileCatWorkspaceMessages } from "./project-file-cat-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-cat-validation";
 import { useCatMutations } from "./use-cat-mutations";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
@@ -210,6 +211,7 @@ export function ProjectFileCatWorkspace({
         sourcePath,
         maxLength: segment.maxLength,
         signal: options?.signal,
+        intl,
       });
 
       if (!validation.ok) {
@@ -222,7 +224,7 @@ export function ProjectFileCatWorkspace({
         return [
           {
             id: "validation-unavailable",
-            label: "Validation unavailable",
+            label: intl.formatMessage(projectFileCatWorkspaceMessages.validationUnavailableLabel),
             status: "warn" as const,
             message: validation.error.message,
             category: "qa" as const,
@@ -244,7 +246,9 @@ export function ProjectFileCatWorkspace({
   const handleApprove = useCallback(
     async (segmentId: string, targetText: string) => {
       if (!catFile?.canEditTranslations) {
-        throw new Error("Your role cannot write translations back.");
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
       }
 
       const segment = catFile.segments.find((entry) => entry.externalStringId === segmentId);
@@ -260,7 +264,12 @@ export function ProjectFileCatWorkspace({
           },
         });
         if (!response.ok) {
-          throw new Error(await readApiError(response, "Failed to approve image"));
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(projectFileCatWorkspaceMessages.failedToApproveImage),
+            ),
+          );
         }
         return "reviewed" as const;
       }
@@ -275,6 +284,7 @@ export function ProjectFileCatWorkspace({
     [
       catFile?.canEditTranslations,
       catFile?.segments,
+      intl,
       isNativeProject,
       organizationSlug,
       projectId,
@@ -287,7 +297,9 @@ export function ProjectFileCatWorkspace({
   const handleSaveDraft = useCallback(
     async (segmentId: string, targetText: string) => {
       if (!catFile?.canEditTranslations) {
-        throw new Error("Your role cannot write translations back.");
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
       }
 
       await saveTranslation({
@@ -297,13 +309,13 @@ export function ProjectFileCatWorkspace({
       });
       return "needs_review" as const;
     },
-    [catFile?.canEditTranslations, saveTranslation],
+    [catFile?.canEditTranslations, intl, saveTranslation],
   );
 
   const handleAddComment = useCallback(
     async (segmentId: string, input: CatSegmentCommentInput) => {
       if (!catFile?.canEditTranslations) {
-        throw new Error("Your role cannot post comments to the provider.");
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.cannotPostComments));
       }
 
       await postComment({
@@ -313,25 +325,25 @@ export function ProjectFileCatWorkspace({
         issueType: input.issueType,
       });
     },
-    [catFile?.canEditTranslations, postComment],
+    [catFile?.canEditTranslations, intl, postComment],
   );
 
   const handleResolveComment = useCallback(
     async (segmentId: string, commentId: string) => {
       if (!catFile?.canEditTranslations) {
-        throw new Error("Your role cannot resolve issues in the provider.");
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.cannotResolveIssues));
       }
 
       await resolveComment({ externalStringId: segmentId, externalCommentId: commentId });
     },
-    [catFile?.canEditTranslations, resolveComment],
+    [catFile?.canEditTranslations, intl, resolveComment],
   );
 
   const handleAddToIssueSheet = useCallback(
     async (segmentId: string) => {
       const segment = catFile?.segments.find((item) => item.externalStringId === segmentId);
       if (!segment) {
-        throw new Error("Segment not found.");
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.segmentNotFound));
       }
 
       const issueSheetUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
@@ -350,14 +362,16 @@ export function ProjectFileCatWorkspace({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: `Context needed: ${segment.key}`,
+            title: intl.formatMessage(projectFileCatWorkspaceMessages.contextNeededIssueTitle, {
+              key: segment.key,
+            }),
             description: segment.sourceText,
             issueType: "context_request",
             targetLocale,
             sourcePath,
             segmentId,
             linkKind: "cat_segment",
-            linkLabel: "Open in CAT",
+            linkLabel: intl.formatMessage(projectFileCatWorkspaceMessages.openInCatLinkLabel),
             linkUrl: linkUrl ?? undefined,
             externalRef: `cat:${projectId}:${sourcePath}:${targetLocale}:${segmentId}`,
             priority: "P2",
@@ -366,19 +380,24 @@ export function ProjectFileCatWorkspace({
       );
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to add to Issue Sheet"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(projectFileCatWorkspaceMessages.failedToAddToIssueSheet),
+          ),
+        );
       }
 
-      toast.success("Added to Issue Sheet", {
+      toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
         action: {
-          label: "View row",
+          label: intl.formatMessage(projectFileCatWorkspaceMessages.viewIssueSheetRow),
           onClick: () => {
             window.location.href = issueSheetUrl;
           },
         },
       });
     },
-    [catFile?.segments, organizationSlug, projectId, sourcePath, targetLocale],
+    [catFile?.segments, intl, organizationSlug, projectId, sourcePath, targetLocale],
   );
 
   const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
@@ -414,13 +433,18 @@ export function ProjectFileCatWorkspace({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to look up repository context"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(projectFileCatWorkspaceMessages.failedToLookUpContext),
+          ),
+        );
       }
 
       const body = (await response.json()) as { stringContext: { summary: string | null } };
       return body.stringContext.summary;
     },
-    [organizationSlug, projectId, repositoryFullName, sourcePath],
+    [intl, organizationSlug, projectId, repositoryFullName, sourcePath],
   );
 
   const lookupSegmentConcordance = useCallback(
@@ -437,13 +461,18 @@ export function ProjectFileCatWorkspace({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to search glossary and TM"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(projectFileCatWorkspaceMessages.failedToSearchConcordance),
+          ),
+        );
       }
 
       const body = (await response.json()) as ProjectFileCatConcordanceResponse;
       return body.concordance;
     },
-    [organizationSlug, projectId],
+    [intl, organizationSlug, projectId],
   );
 
   const lookupSegmentVisualContext = useCallback(
@@ -459,13 +488,18 @@ export function ProjectFileCatWorkspace({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to load in-context preview"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(projectFileCatWorkspaceMessages.failedToLoadVisualContext),
+          ),
+        );
       }
 
       const body = (await response.json()) as ProjectFileCatVisualContextResponse;
       return body.visualContext;
     },
-    [organizationSlug, projectId, sourcePath],
+    [intl, organizationSlug, projectId, sourcePath],
   );
 
   const generateAiRecommendation = useCallback(
@@ -504,19 +538,24 @@ export function ProjectFileCatWorkspace({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to generate AI recommendation"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(projectFileCatWorkspaceMessages.failedToGenerateRecommendation),
+          ),
+        );
       }
 
       const body = (await response.json()) as ProjectFileCatRecommendationResponse;
       return body.recommendation;
     },
-    [intl.locale, organizationSlug, projectId, sourcePath, targetLocale],
+    [intl, organizationSlug, projectId, sourcePath, targetLocale],
   );
 
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
     return (
       <TypographyP className="text-sm text-muted-foreground">
-        No target locales are available for this file.
+        <FormattedMessage {...projectFileCatWorkspaceMessages.noTargetLocales} />
       </TypographyP>
     );
   }
@@ -544,7 +583,7 @@ export function ProjectFileCatWorkspace({
         <TypographyP className="text-sm">
           {catQuery.error instanceof Error
             ? catQuery.error.message
-            : "Failed to load CAT workspace."}
+            : intl.formatMessage(projectFileCatWorkspaceMessages.failedToLoadWorkspace)}
         </TypographyP>
       </div>
     );
@@ -565,7 +604,7 @@ export function ProjectFileCatWorkspace({
       {showLocaleSelector ? (
         <div className="flex w-full flex-col gap-1.5 sm:max-w-44">
           <TypographyP className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            Target locale
+            <FormattedMessage {...projectFileCatWorkspaceMessages.targetLocaleLabel} />
           </TypographyP>
           <Select
             value={targetLocale}
@@ -580,7 +619,11 @@ export function ProjectFileCatWorkspace({
             }}
           >
             <SelectTrigger className="h-9 w-full text-xs">
-              <SelectValue placeholder="Select locale" />
+              <SelectValue
+                placeholder={intl.formatMessage(
+                  projectFileCatWorkspaceMessages.selectLocalePlaceholder,
+                )}
+              />
             </SelectTrigger>
             <SelectContent
               align="start"
@@ -594,7 +637,12 @@ export function ProjectFileCatWorkspace({
                   label={formatLocaleOptionLabel(intl, locale)}
                 >
                   <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
-                  <span className="font-mono text-muted-foreground">({locale})</span>
+                  <span className="font-mono text-muted-foreground">
+                    <FormattedMessage
+                      {...projectFileCatWorkspaceMessages.localeCodeInParens}
+                      values={{ locale }}
+                    />
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

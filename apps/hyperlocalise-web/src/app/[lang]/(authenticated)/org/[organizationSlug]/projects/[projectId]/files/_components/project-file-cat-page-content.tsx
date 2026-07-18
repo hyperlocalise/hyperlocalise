@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -45,6 +46,7 @@ import {
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
+import { projectFileCatPageContentMessages as messages } from "./project-file-cat-page-content.messages";
 import {
   CatFileTreePicker,
   CatLocaleSelect,
@@ -86,6 +88,7 @@ export function ProjectFileCatPageContent({
   branch?: string | null;
   sourcePaths?: string | null;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
@@ -117,7 +120,14 @@ export function ProjectFileCatPageContent({
 
   const filesQuery = useQuery({
     queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+    queryFn: () =>
+      fetchProjectFiles(
+        organizationSlug,
+        projectId,
+        PROJECT_FILES_MAX_LIMIT,
+        branch,
+        intl.formatMessage(messages.unableToLoad),
+      ),
     enabled: hasFileReference,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
@@ -134,7 +144,7 @@ export function ProjectFileCatPageContent({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to load GitHub repositories");
+        throw new Error(intl.formatMessage(messages.loadRepositoriesFailed));
       }
 
       const body = (await response.json()) as { repositories: ProjectFileCatGithubRepository[] };
@@ -253,11 +263,11 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            Choose a source file from the project files list to open it in the CAT workspace.
+            <FormattedMessage {...messages.chooseSourceFile} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
-            Files
+            <FormattedMessage {...messages.files} />
           </Button>
         </div>
       </ProjectPageShell>
@@ -269,7 +279,9 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.loadingFile} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -284,11 +296,11 @@ export function ProjectFileCatPageContent({
               ? projectQuery.error.message
               : filesQuery.error instanceof Error
                 ? filesQuery.error.message
-                : "Unable to load project files."}
+                : intl.formatMessage(messages.unableToLoad)}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
-            Files
+            <FormattedMessage {...messages.files} />
           </Button>
         </div>
       </ProjectPageShell>
@@ -313,11 +325,11 @@ export function ProjectFileCatPageContent({
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
-            This source file is not in the project file list anymore.
+            <FormattedMessage {...messages.sourceFileMissing} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
-            Files
+            <FormattedMessage {...messages.files} />
           </Button>
         </div>
       </ProjectPageShell>
@@ -329,11 +341,11 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            The CAT workspace is not available for this provider file type yet.
+            <FormattedMessage {...messages.providerTypeUnsupported} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
-            Files
+            <FormattedMessage {...messages.files} />
           </Button>
         </div>
       </ProjectPageShell>
@@ -370,7 +382,10 @@ export function ProjectFileCatPageContent({
     targetLocaleResolution.status === "fallback" &&
     targetLocaleResolution.requestedLocale &&
     targetLocaleResolution.requestedLocale !== targetLocale
-      ? `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Showing ${targetLocale} instead.`
+      ? intl.formatMessage(messages.localeFallback, {
+          requestedLocale: targetLocaleResolution.requestedLocale,
+          targetLocale,
+        })
       : null;
 
   if (!targetLocale) {
@@ -378,11 +393,11 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            Choose a target locale to open this file in the CAT workspace.
+            <FormattedMessage {...messages.chooseTargetLocale} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
             <ArrowLeftIcon />
-            Files
+            <FormattedMessage {...messages.files} />
           </Button>
         </div>
       </ProjectPageShell>
@@ -395,7 +410,7 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            This project does not have a source locale.
+            <FormattedMessage {...messages.missingSourceLocale} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -407,7 +422,9 @@ export function ProjectFileCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.loadingFile} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -545,7 +562,13 @@ export function ProjectFileCatPageContent({
 
         {file?.provider ? (
           <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
-            {file.provider.kind} · {file.provider.format ?? "file"}
+            <FormattedMessage
+              {...messages.providerKindAndFormat}
+              values={{
+                kind: file.provider.kind,
+                format: file.provider.format ?? intl.formatMessage(messages.providerFormatFallback),
+              }}
+            />
           </TypographyP>
         ) : null}
       </div>
@@ -555,11 +578,11 @@ export function ProjectFileCatPageContent({
         <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
           {repositoriesQuery.isError ? (
             <TypographyP className="text-xs text-muted-foreground">
-              GitHub repositories could not be loaded. Repository context lookup is unavailable.
+              <FormattedMessage {...messages.repositoriesLoadFailed} />
             </TypographyP>
           ) : (
             <TypographyP className="text-xs text-muted-foreground">
-              Select a GitHub repository to look up string context.
+              <FormattedMessage {...messages.selectRepositoryForContext} />
             </TypographyP>
           )}
         </div>

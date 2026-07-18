@@ -1,4 +1,11 @@
+"use client";
+
 import type { UIMessage } from "ai";
+import type { IntlShape } from "react-intl";
+
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+
+import { inboxTypesMessages } from "./inbox-types.messages";
 
 export type Conversation = {
   id: string;
@@ -70,23 +77,44 @@ export function initialsFor(value: string) {
 export function getConversationParticipantAvatar(
   participantEmail: string | null,
   currentUser: InboxCurrentUser,
+  intl: IntlShape,
 ) {
   const isCurrentUser = !participantEmail || participantEmail === currentUser.email;
   const displayName = isCurrentUser ? currentUser.name : participantEmail;
+  const userFallback = intl.formatMessage(inboxTypesMessages.userFallback);
 
   return {
-    alt: displayName ?? "User",
+    alt: displayName ?? userFallback,
     imageUrl: isCurrentUser ? currentUser.avatarUrl : null,
-    label: initialsFor(displayName ?? "User"),
+    label: initialsFor(displayName ?? userFallback),
   };
 }
 
-export const sourceLabel: Record<Conversation["source"], string> = {
-  chat_ui: "Chat",
-  email_agent: "Email",
-  github_agent: "GitHub",
-  slack_agent: "Slack",
-};
+export function getSourceLabel(source: Conversation["source"], intl: IntlShape) {
+  switch (source) {
+    case "chat_ui":
+      return intl.formatMessage(inboxTypesMessages.sourceChat);
+    case "email_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceEmail);
+    case "github_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceGitHub);
+    case "slack_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceSlack);
+    default:
+      return assertNever(source);
+  }
+}
+
+export function getStatusLabel(status: Conversation["status"], intl: IntlShape) {
+  switch (status) {
+    case "active":
+      return intl.formatMessage(inboxTypesMessages.statusActive);
+    case "archived":
+      return intl.formatMessage(inboxTypesMessages.statusArchived);
+    default:
+      return assertNever(status);
+  }
+}
 
 export const statusStyles: Record<Conversation["status"], string> = {
   active:
@@ -101,11 +129,13 @@ export const statusStyles: Record<Conversation["status"], string> = {
  */
 const DATE_FORMATTER = new Intl.DateTimeFormat();
 
-export function formatRelativeTime(value: string | Date | null) {
-  if (!value) return "n/a";
+export function formatRelativeTime(value: string | Date | null, intl: IntlShape) {
+  if (!value) return intl.formatMessage(inboxTypesMessages.relativeUnavailable);
 
   const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "n/a";
+  if (Number.isNaN(date.getTime())) {
+    return intl.formatMessage(inboxTypesMessages.relativeUnavailable);
+  }
 
   const now = new Date();
   const diffMs = Math.max(0, now.getTime() - date.getTime());
@@ -113,9 +143,15 @@ export function formatRelativeTime(value: string | Date | null) {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffMin < 1) return "now";
-  if (diffMin < 60) return `${diffMin}m`;
-  if (diffHour < 24) return `${diffHour}h`;
-  if (diffDay < 7) return `${diffDay}d`;
+  if (diffMin < 1) return intl.formatMessage(inboxTypesMessages.relativeNow);
+  if (diffMin < 60) {
+    return intl.formatMessage(inboxTypesMessages.relativeMinutes, { count: diffMin });
+  }
+  if (diffHour < 24) {
+    return intl.formatMessage(inboxTypesMessages.relativeHours, { count: diffHour });
+  }
+  if (diffDay < 7) {
+    return intl.formatMessage(inboxTypesMessages.relativeDays, { count: diffDay });
+  }
   return DATE_FORMATTER.format(date);
 }
