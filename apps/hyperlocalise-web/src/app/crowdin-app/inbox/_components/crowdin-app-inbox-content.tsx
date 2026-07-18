@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { observer } from "mobx-react-lite";
@@ -111,8 +111,8 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
 
   useEffect(() => {
     streamManager.setOnStreamFinished(async (conversationId) => {
-      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
-      await queryClient.invalidateQueries({
+      await queryClient.refetchQueries({ queryKey: messagesQueryKey(conversationId) });
+      await queryClient.refetchQueries({
         queryKey: conversationsQueryKey(session.organizationSlug, session.projectId),
       });
       store.clearStreamSnapshot(conversationId);
@@ -173,19 +173,16 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
   const lastMessage = messages.at(-1);
   const isSparseInbox = !conversationsQuery.isLoading && conversations.length <= 1;
 
-  const autoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
     if (
       !effectiveConversationId ||
       !messagesQuery.isSuccess ||
       lastMessage?.senderType !== "user" ||
-      streamManager.isStreaming(effectiveConversationId) ||
-      autoTriggeredRef.current === lastMessage.id
+      !streamManager.shouldAutoTriggerResponse(effectiveConversationId, lastMessage.id)
     ) {
       return;
     }
 
-    autoTriggeredRef.current = lastMessage.id;
     void streamManager.start({
       conversationId: effectiveConversationId,
       responseToMessageId: lastMessage.id,

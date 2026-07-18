@@ -72,7 +72,6 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   const tab = store.activeTab;
   const queryClient = useQueryClient();
   const streamManager = getChatStreamManager(organizationSlug, store);
-  const autoTriggeredRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLElement>(null);
 
   const conversationId = tab && !tab.isPending ? tab.id : "";
@@ -137,13 +136,11 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       !conversationId ||
       !messagesQuery.isSuccess ||
       lastMessage?.senderType !== "user" ||
-      streamManager.isStreaming(conversationId) ||
-      autoTriggeredRef.current === lastMessage.id
+      !streamManager.shouldAutoTriggerResponse(conversationId, lastMessage.id)
     ) {
       return;
     }
 
-    autoTriggeredRef.current = lastMessage.id;
     void startStreamForMessage({
       conversationId,
       responseToMessageId: lastMessage.id,

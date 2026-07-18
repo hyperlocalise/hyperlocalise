@@ -69,8 +69,8 @@ export const ChatDockBridge = observer(function ChatDockBridge({
     chatDock.setOrganizationSlug(organizationSlug);
     const streamManager = getChatStreamManager(organizationSlug, chatDock);
     streamManager.setOnStreamFinished(async (conversationId) => {
-      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
-      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
+      await queryClient.refetchQueries({ queryKey: messagesQueryKey(conversationId) });
+      await queryClient.refetchQueries({ queryKey: conversationsQueryKey(organizationSlug) });
       chatDock.clearStreamSnapshot(conversationId);
     });
 

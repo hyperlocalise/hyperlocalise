@@ -33,6 +33,8 @@ export class ChatStreamManager {
   private readonly store: ChatDockStore;
   private readonly requestHeaders: Record<string, string> | undefined;
   private readonly activeStreams = new Map<string, ActiveStream>();
+  /** User message ids that already received a successful assistant response. */
+  private readonly respondedToUserMessageIds = new Map<string, string>();
   private onStreamFinished: ((conversationId: string) => void | Promise<void>) | null = null;
 
   constructor(
@@ -59,6 +61,27 @@ export class ChatStreamManager {
 
   getSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
     return this.store.getStreamSnapshot(conversationId);
+  }
+
+  hasRespondedToUserMessage(conversationId: string, userMessageId: string) {
+    return this.respondedToUserMessageIds.get(conversationId) === userMessageId;
+  }
+
+  markRespondedToUserMessage(conversationId: string, userMessageId: string) {
+    this.respondedToUserMessageIds.set(conversationId, userMessageId);
+  }
+
+  shouldAutoTriggerResponse(conversationId: string, userMessageId: string) {
+    if (this.isStreaming(conversationId)) {
+      return false;
+    }
+
+    if (this.hasRespondedToUserMessage(conversationId, userMessageId)) {
+      return false;
+    }
+
+    const snapshot = this.getSnapshot(conversationId);
+    return snapshot?.responseToMessageId !== userMessageId;
   }
 
   stop(conversationId: string) {
@@ -144,6 +167,7 @@ export class ChatStreamManager {
       }
 
       finishedSuccessfully = true;
+      this.markRespondedToUserMessage(conversationId, responseToMessageId);
       this.store.setStreamSnapshot(conversationId, {
         conversationId,
         responseToMessageId,
@@ -209,4 +233,11 @@ export function disposeChatStreamManager(organizationSlug: string) {
 
   manager.stopAll();
   managers.delete(organizationSlug);
+}
+
+/** Test-only: reset module-level manager cache between cases. */
+export function resetChatStreamManagersForTests() {
+  for (const slug of Array.from(managers.keys())) {
+    disposeChatStreamManager(slug);
+  }
 }

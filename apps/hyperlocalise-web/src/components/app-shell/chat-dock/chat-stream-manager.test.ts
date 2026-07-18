@@ -167,6 +167,49 @@ describe("ChatStreamManager", () => {
     consoleError.mockRestore();
   });
 
+  it("blocks auto-trigger after a successful response even when the snapshot is cleared", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    manager.markRespondedToUserMessage("conv_1", "msg_1");
+    store.clearStreamSnapshot("conv_1");
+
+    expect(manager.shouldAutoTriggerResponse("conv_1", "msg_1")).toBe(false);
+  });
+
+  it("allows auto-trigger retry after a failed response", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    store.setStreamSnapshot("conv_retry", {
+      conversationId: "conv_retry",
+      responseToMessageId: "msg_retry",
+      message: { id: "stream-msg_retry", role: "assistant", parts: [] },
+      status: "error",
+    });
+
+    expect(manager.shouldAutoTriggerResponse("conv_retry", "msg_retry")).toBe(false);
+    store.clearStreamSnapshot("conv_retry");
+    expect(manager.shouldAutoTriggerResponse("conv_retry", "msg_retry")).toBe(true);
+  });
+
+  it("blocks auto-trigger while a snapshot is still tied to the user message", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    store.setStreamSnapshot("conv_1", {
+      conversationId: "conv_1",
+      responseToMessageId: "msg_1",
+      message: { id: "stream-msg_1", role: "assistant", parts: [] },
+      status: "complete",
+    });
+
+    expect(manager.shouldAutoTriggerResponse("conv_1", "msg_1")).toBe(false);
+  });
+
   it("replaces a cached manager when a different store is passed", () => {
     const firstStore = new ChatDockStore();
     const secondStore = new ChatDockStore();
