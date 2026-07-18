@@ -304,6 +304,16 @@ describe("classifyScreenshotCaptureFailure", () => {
         "chromium failed\nHYPERLOCALISE_SCREENSHOT_ERROR_CODE=browser_binary_unavailable",
       ),
     ).toBe("browser_binary_unavailable");
+    expect(
+      classifyScreenshotCaptureFailure(
+        "deps failed\nHYPERLOCALISE_SCREENSHOT_ERROR_CODE=browser_system_deps_unavailable",
+      ),
+    ).toBe("browser_system_deps_unavailable");
+    expect(
+      classifyScreenshotCaptureFailure(
+        "error while loading shared libraries: libnspr4.so: cannot open shared object file",
+      ),
+    ).toBe("browser_system_deps_unavailable");
     expect(classifyScreenshotCaptureFailure("storybook failed")).toBe("screenshot_capture_failed");
   });
 });
@@ -377,6 +387,17 @@ describe("createCaptureScreenshotTool", () => {
         "-lc",
         expect.stringContaining(
           "export PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
+        ),
+      ],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("install --with-deps chromium")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: [
+        "-lc",
+        expect.stringContaining(
+          "sudo env PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
         ),
       ],
     });
