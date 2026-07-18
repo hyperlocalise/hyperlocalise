@@ -4,6 +4,7 @@ import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 
 import {
+  buildScreenshotServeUrl,
   classifyScreenshotCaptureFailure,
   clearScreenshotBase64CacheForTests,
   createCaptureScreenshotTool,
@@ -24,6 +25,18 @@ vi.mock("@/lib/file-storage/records", () => ({
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
 
+function createMockDb(organizationSlug = "acme") {
+  return {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [{ slug: organizationSlug }]),
+        })),
+      })),
+    })),
+  } as never;
+}
+
 function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
     conversationId: "conv_1",
@@ -31,7 +44,7 @@ function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     localUserId: "user_1",
     membershipRole: "admin",
     projectId: "project_1",
-    db: {} as never,
+    db: createMockDb(),
     workMode: "write",
     repositorySource: "chat_ui",
     actor: { sourceUserId: "user_1", role: "admin" },
@@ -294,6 +307,41 @@ describe("resolveStorybookPackage", () => {
   });
 });
 
+describe("buildScreenshotServeUrl", () => {
+  it("prefers the auth'd project assets proxy for in-app <img> rendering", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: "acme",
+        projectId: "project_1",
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("/api/orgs/acme/projects/project_1/assets/file_1");
+  });
+
+  it("falls back to the org files proxy when there is no project", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: "acme",
+        projectId: null,
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("/api/orgs/acme/files/file_1");
+  });
+
+  it("keeps the storage URL when the organization slug is unavailable", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: null,
+        projectId: "project_1",
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("https://blob.example/private.png");
+  });
+});
+
 describe("classifyScreenshotCaptureFailure", () => {
   it("maps managed browser runtime sentinels to structured error codes", () => {
     expect(
@@ -357,6 +405,7 @@ describe("createCaptureScreenshotTool", () => {
       {
         target: { type: "storybook", storyId: "components-button--primary" },
         viewport: { width: 1280, height: 720 },
+        waitForText: ["Save changes", "Discard"],
       },
       toolCallInfo,
     );
@@ -364,7 +413,7 @@ describe("createCaptureScreenshotTool", () => {
     expect(result).toMatchObject({
       success: true,
       fileId: "file_1",
-      url: "https://download.example/storybook.png",
+      url: "/api/orgs/acme/projects/project_1/assets/file_1",
       target: { type: "storybook", storyId: "components-button--primary" },
       viewport: { width: 1280, height: 720 },
       workspacePath: expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\//),
@@ -388,6 +437,14 @@ describe("createCaptureScreenshotTool", () => {
     expect(captureScript).toContain('waitUntil: "load"');
     expect(captureScript).not.toMatch(/waitUntil:\s*"networkidle"/);
     expect(captureScript).toContain('waitForSelector("#storybook-root, #root"');
+    expect(captureScript).toContain("addInitScript");
+    expect(captureScript).toContain("__STORYBOOK_ADDONS_CHANNEL__");
+    expect(captureScript).toContain("storyRendered");
+    expect(captureScript).toContain("storyMissing");
+    expect(captureScript).not.toContain("storyFinished");
+    expect(captureScript).toContain("sb-show-preparing-story");
+    expect(captureScript).toContain('const waitForText = ["Save changes","Discard"]');
+    expect(captureScript).toContain("texts.every((text) => haystack.includes(text))");
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
@@ -429,6 +486,7 @@ describe("createCaptureScreenshotTool", () => {
           kind: "visual-mock",
           targetType: "storybook",
           storyId: "components-button--primary",
+          waitForText: ["Save changes", "Discard"],
           packageDir: ".",
           packageJsonPath: "package.json",
         }),

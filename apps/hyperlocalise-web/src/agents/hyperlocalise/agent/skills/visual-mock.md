@@ -21,13 +21,13 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
   1. Use repository write tools (`write` / `applyPatch`) to create a temporary CSF story next to the component (or in the repo's usual stories location), following existing Storybook conventions in that package.
   2. Supply realistic mock props/args so the target string is visible in a representative state. Prefer fixtures and patterns from sibling stories or tests; invent only what is missing.
   3. Derive the Storybook `storyId` from the new story's `title` + export name (CSF id form, e.g. `components-button--primary`).
-  4. Call `captureScreenshot` with that `storyId`.
+  4. Call `captureScreenshot` with that `storyId` and `waitForText` set to the visible strings that must appear in the mock (the source/target copy under review, button labels, headings). Exact substrings from the rendered UI work best.
   5. Keep the generated story disposable sandbox scaffolding unless the user also asked for a production Storybook addition.
 - If Storybook is **not** present in the repo, do not invent a Storybook setup. Tell the user to add Storybook and implement visual regression testing with it so component screenshots can be captured for localization context. Include a short mock plan (target component, data state, viewport) and that Storybook is the missing capability. Do not claim a screenshot was created.
 - When coding write primitives such as `write` or `applyPatch` are available, use them only for temporary preview scaffolding, missing Storybook stories for capture, or narrowly scoped mock fixtures unless the user also asks for a production code change.
 - Do not commit changes, push branches, open pull requests, or publish repository changes. Visual mocks may mutate only the sandbox workspace.
 - When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file / story id, and any assumptions.
-- Use `captureScreenshot` for Storybook stories. Provide the Storybook story id and viewport; do not ask for package-manager-specific commands. The tool discovers Storybook in the repo root or nested app packages.
+- Use `captureScreenshot` for Storybook stories. Provide the Storybook story id, viewport, and `waitForText` with the copy that should be visible before capture; do not ask for package-manager-specific commands. The tool discovers Storybook in the repo root or nested app packages and waits until those strings appear in the story DOM.
 - When durable file attachment primitives are available, attach the screenshot as an agent artifact with metadata identifying it as `visual-mock`.
 - If write, render, screenshot, or attachment primitives are unavailable, do not claim a screenshot was created. Return a concise mock plan with the target component, data state, viewport, and exact next primitive needed.
 

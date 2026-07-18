@@ -186,7 +186,9 @@ describe("conversation skill registry", () => {
     expect(visualMockSkill).toContain("Do not answer visual-context requests with find-context");
     expect(visualMockSkill).toContain("When the component has no Storybook story");
     expect(visualMockSkill).toContain("create a temporary CSF story");
-    expect(visualMockSkill).toContain("Call `captureScreenshot` with that `storyId`");
+    expect(visualMockSkill).toContain(
+      "Call `captureScreenshot` with that `storyId` and `waitForText`",
+    );
     expect(visualMockSkill).toContain("do not invent a Storybook setup");
     expect(visualMockSkill).toContain(
       "implement visual regression testing with it so component screenshots can be captured",
