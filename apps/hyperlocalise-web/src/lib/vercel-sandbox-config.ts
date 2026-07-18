@@ -6,6 +6,13 @@ export const sandboxRipgrepReleaseVersion = "14.1.1";
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
 export const sandboxHyperlocaliseReleaseVersion = "1.8.24";
 
+/**
+ * Pinned Playwright release used to install Chromium OS libraries
+ * (e.g. libnspr4.so) via `playwright install-deps`. Keep in sync with
+ * `MANAGED_PLAYWRIGHT_VERSION` in capture-screenshot.ts.
+ */
+export const sandboxPlaywrightVersion = "1.61.1";
+
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
 export const defaultVercelSandboxRuntime = "node26";
@@ -59,9 +66,26 @@ const installHyperlocaliseFromGithubRelease = [
   "}",
 ].join("\n");
 
+const installChromiumSystemDependencies = [
+  "install_chromium_system_dependencies() {",
+  `  PW_VERSION="${sandboxPlaywrightVersion}"`,
+  "  if command -v npm >/dev/null 2>&1; then",
+  '    npx --yes "playwright@${PW_VERSION}" install-deps chromium',
+  "    return $?",
+  "  fi",
+  "  if command -v apt-get >/dev/null 2>&1; then",
+  "    apt-get update && apt-get install -y libnspr4 libnss3",
+  "    return $?",
+  "  fi",
+  '  echo "Unable to install Chromium system dependencies (npm/apt-get unavailable)." >&2',
+  "  return 1",
+  "}",
+].join("\n");
+
 export const installRequiredSandboxToolsCommand = [
   installRipgrepFromGithubRelease,
   installHyperlocaliseFromGithubRelease,
+  installChromiumSystemDependencies,
   "if ! command -v rg >/dev/null 2>&1; then",
   "  if command -v apt-get >/dev/null 2>&1; then",
   "    apt-get update && apt-get install -y ripgrep",
@@ -79,6 +103,11 @@ export const installRequiredSandboxToolsCommand = [
   "  install_hyperlocalise_from_github_release",
   "fi",
   "command -v hl >/dev/null 2>&1",
+  // Playwright Chromium needs OS libs such as libnspr4.so; install during bootstrap
+  // where sudo is available. Skip when already present (warm/reused images).
+  "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
+  "  install_chromium_system_dependencies",
+  "fi",
 ].join("\n");
 
 export async function createConfiguredVercelSandbox(

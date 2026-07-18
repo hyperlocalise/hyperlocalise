@@ -11,7 +11,7 @@
     "db:migrate": "bun scripts/check-drizzle-migration-collisions.ts && drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "dev": "next dev",
-    "e2e:install": "playwright install chromium",
+    "e2e:install": "playwright install --with-deps chromium",
     "start": "next start",
     "storybook": "storybook dev -p 6006",
     "test:e2e": "vp test run --config vite.e2e.config.ts",

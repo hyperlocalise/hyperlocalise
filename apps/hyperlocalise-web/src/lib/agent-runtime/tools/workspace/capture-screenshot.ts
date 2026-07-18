@@ -9,12 +9,13 @@ import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
-const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
+const DEFAULT_VIEWPORT = { width: 1440, height: 1000 };
 const MIN_VIEWPORT_SIZE = 320;
 const MAX_VIEWPORT_SIZE = 3840;
 const DEFAULT_WAIT_FOR_MS = 500;
 const MAX_WAIT_FOR_MS = 5000;
 const STORYBOOK_PORT = 6006;
+/** Keep in sync with `sandboxPlaywrightVersion` in vercel-sandbox-config.ts. */
 const MANAGED_PLAYWRIGHT_VERSION = "1.61.1";
 const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
 const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
@@ -448,9 +449,19 @@ const { chromium } = require(${JSON.stringify(input.playwrightModulePath)});
 
 export function classifyScreenshotCaptureFailure(output: string) {
   const match = output.match(
-    /HYPERLOCALISE_SCREENSHOT_ERROR_CODE=(package_manager_unavailable|browser_runtime_install_failed|browser_binary_unavailable)\b/,
+    /HYPERLOCALISE_SCREENSHOT_ERROR_CODE=(package_manager_unavailable|browser_runtime_install_failed|browser_binary_unavailable|browser_system_deps_unavailable)\b/,
   );
-  return match?.[1] ?? "screenshot_capture_failed";
+  if (match?.[1]) {
+    return match[1];
+  }
+  // Chromium linked against libnspr4/libnss3; surface a structured code when the OS libs are missing.
+  if (
+    /libnspr4\.so|libnss3\.so|error while loading shared libraries/i.test(output) ||
+    /Host system is missing dependencies/i.test(output)
+  ) {
+    return "browser_system_deps_unavailable";
+  }
+  return "screenshot_capture_failed";
 }
 
 function managedBrowserRuntimeCommand() {
@@ -473,10 +484,28 @@ function managedBrowserRuntimeCommand() {
     "    exit 87",
     "  fi",
     "fi",
-    `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
-    `  cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
-    `  echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
-    "  exit 88",
+    // Prefer OS deps from sandbox bootstrap; retry here when Linux libs are missing.
+    "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
+    "  DEPS_RC=1",
+    "  if command -v sudo >/dev/null 2>&1; then",
+    `    sudo PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
+    "  fi",
+    '  if [ "$DEPS_RC" -ne 0 ]; then',
+    `    PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
+    "  fi",
+    '  if [ "$DEPS_RC" -ne 0 ]; then',
+    "    cat /tmp/hyperlocalise-chromium-deps.log >&2 || true",
+    `    echo "${ERROR_CODE_PREFIX}browser_system_deps_unavailable" >&2`,
+    "    exit 89",
+    "  fi",
+    "fi",
+    `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install --with-deps chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
+    // `--with-deps` may fail without root even when the browser binary itself installs; retry binary-only.
+    `  if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
+    `    cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
+    `    echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
+    "    exit 88",
+    "  fi",
     "fi",
   ].join("\n");
 }
