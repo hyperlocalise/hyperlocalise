@@ -10,6 +10,7 @@ import type {
 } from "ai";
 import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { memo, type ReactNode } from "react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
@@ -39,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
 
+import { conversationMessageListMessages } from "./conversation-message-list.messages";
 import {
   formatRelativeTime,
   initialsFor,
@@ -47,6 +49,7 @@ import {
   type InboxCurrentUser,
   type StreamedAssistantMessage,
 } from "./inbox-types";
+import { inboxTypesMessages } from "./inbox-types.messages";
 
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
 type ToolPart = ToolUIPart | DynamicToolUIPart;
@@ -79,6 +82,7 @@ export function ConversationMessageList({
   messages: ConversationMessage[];
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
+  const intl = useIntl();
   const activeStream =
     streamedAssistant?.conversationId === conversationId ? streamedAssistant : null;
   let renderedStream = false;
@@ -100,8 +104,8 @@ export function ConversationMessageList({
               <MessageScrollerItem messageId="empty">
                 <ConversationEmptyState
                   className="min-h-96"
-                  title="No messages yet"
-                  description="Conversation messages will appear here."
+                  title={intl.formatMessage(conversationMessageListMessages.emptyTitle)}
+                  description={intl.formatMessage(conversationMessageListMessages.emptyDescription)}
                 />
               </MessageScrollerItem>
             ) : (
@@ -181,8 +185,10 @@ const PersistedMessage = memo(function PersistedMessage({
   currentUser: InboxCurrentUser;
   message: ConversationMessage;
 }) {
+  const intl = useIntl();
   const role = message.senderType === "user" ? "user" : "assistant";
-  const userAvatar = message.senderType === "user" ? getUserAvatar({ currentUser, message }) : null;
+  const userAvatar =
+    message.senderType === "user" ? getUserAvatar({ currentUser, intl, message }) : null;
 
   return (
     <MessageFrame
@@ -292,7 +298,10 @@ function MessageFrame({
   createdAt: string | null;
   role: "user" | "assistant";
 }) {
-  const timestamp = createdAt ? formatRelativeTime(createdAt) : "now";
+  const intl = useIntl();
+  const timestamp = createdAt
+    ? formatRelativeTime(createdAt, intl)
+    : intl.formatMessage(inboxTypesMessages.relativeNow);
 
   if (role === "assistant") {
     return (
@@ -333,17 +342,20 @@ function MessageFrame({
 
 function getUserAvatar({
   currentUser,
+  intl,
   message,
 }: {
   currentUser: InboxCurrentUser;
+  intl: IntlShape;
   message: ConversationMessage;
 }) {
   const isCurrentUser = !message.senderEmail || message.senderEmail === currentUser.email;
   const displayName = isCurrentUser ? currentUser.name : message.senderEmail;
-  const label = initialsFor(displayName ?? "User");
+  const userFallback = intl.formatMessage(inboxTypesMessages.userFallback);
+  const label = initialsFor(displayName ?? userFallback);
 
   return {
-    alt: displayName ?? "User",
+    alt: displayName ?? userFallback,
     imageUrl: isCurrentUser ? currentUser.avatarUrl : null,
     label,
   };
@@ -417,7 +429,9 @@ function AssistantMessageParts({
           <MarkerIcon>
             <Spinner />
           </MarkerIcon>
-          <MarkerContent>Hyperlocalise is working…</MarkerContent>
+          <MarkerContent>
+            <FormattedMessage {...conversationMessageListMessages.workingMarker} />
+          </MarkerContent>
         </Marker>
       ) : null}
     </>
@@ -449,6 +463,9 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
 }
 
 function AssistantSources({ parts }: { parts: SourcePart[] }) {
+  const intl = useIntl();
+  const documentFallback = intl.formatMessage(conversationMessageListMessages.documentFallback);
+
   return (
     <Sources className="mb-3 text-muted-foreground">
       <SourcesTrigger count={parts.length} />
@@ -462,7 +479,7 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
               className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-xs"
             >
               <TypographySmall className="text-xs">
-                {part.title || part.filename || "Document"}
+                {part.title || part.filename || documentFallback}
               </TypographySmall>
               <span className="text-muted-foreground">{part.mediaType}</span>
             </div>

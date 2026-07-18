@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type {
   ProjectFileCatComment,
@@ -19,6 +20,7 @@ import {
   useInvalidateCatSegmentTarget,
   useSyncCatSegmentTargetAfterSave,
 } from "./use-cat-segment-target";
+import { useCatMutationsMessages } from "./use-cat-mutations.messages";
 
 function resolveCatMutationFileIdentity(
   input: {
@@ -26,6 +28,7 @@ function resolveCatMutationFileIdentity(
     catFile: ProjectFileCatQueueFile | null | undefined;
   },
   externalStringId: string,
+  intl: IntlShape,
 ) {
   const segment = input.catFile?.segments.find(
     (entry) => entry.externalStringId === externalStringId,
@@ -35,13 +38,13 @@ function resolveCatMutationFileIdentity(
     (isCatAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
 
   if (!sourcePath) {
-    throw new Error("Cannot save because the segment source file is missing.");
+    throw new Error(intl.formatMessage(useCatMutationsMessages.missingSegmentSourceFile));
   }
 
   const externalResourceId = segment?.externalResourceId
     ? segment.externalResourceId
     : input.catFile?.provider
-      ? requireProviderExternalResourceId(input.catFile)
+      ? requireProviderExternalResourceId(input.catFile, intl)
       : undefined;
   const resourceType = segment?.resourceType ?? input.catFile?.provider?.resourceType;
 
@@ -57,6 +60,7 @@ export function useCatMutations(input: {
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
+  const intl = useIntl();
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
@@ -70,6 +74,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
+        intl,
       );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -90,7 +95,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to save translation"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToSaveTranslation),
+          ),
+        );
       }
 
       const body = (await response.json()) as { translation: ProjectFileCatTranslation };
@@ -105,6 +115,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
+        intl,
       );
 
       const segmentTargetInput = {
@@ -134,6 +145,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
+        intl,
       );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -155,7 +167,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to post comment"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToPostComment),
+          ),
+        );
       }
 
       const body = (await response.json()) as { comment: ProjectFileCatComment };
@@ -165,6 +182,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
+        intl,
       );
 
       await Promise.all([
@@ -196,6 +214,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
+        intl,
       );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -213,7 +232,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to resolve issue"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToResolveIssue),
+          ),
+        );
       }
 
       const body = (await response.json()) as { comment: ProjectFileCatComment };
@@ -223,6 +247,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
+        intl,
       );
 
       await Promise.all([
@@ -253,6 +278,7 @@ export function useCatMutations(input: {
     const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
       input,
       externalStringId,
+      intl,
     );
 
     await Promise.all([
@@ -275,7 +301,11 @@ export function useCatMutations(input: {
       instructions?: string;
       force?: boolean;
     }) => {
-      const { sourcePath } = resolveCatMutationFileIdentity(input, mutationInput.externalStringId);
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.images.regenerate.$post({
@@ -293,7 +323,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to regenerate image"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToRegenerateImage),
+          ),
+        );
       }
 
       return response.json();
@@ -309,7 +344,11 @@ export function useCatMutations(input: {
       file: File;
       force?: boolean;
     }) => {
-      const { sourcePath } = resolveCatMutationFileIdentity(input, mutationInput.externalStringId);
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
       const formData = new FormData();
       formData.set("sourcePath", sourcePath);
       formData.set("targetLocale", input.targetLocale);
@@ -318,7 +357,7 @@ export function useCatMutations(input: {
         formData.set("force", "true");
       }
       if (input.catFile?.provider) {
-        formData.set("externalResourceId", requireProviderExternalResourceId(input.catFile));
+        formData.set("externalResourceId", requireProviderExternalResourceId(input.catFile, intl));
       }
       formData.set("file", mutationInput.file);
 
@@ -331,7 +370,12 @@ export function useCatMutations(input: {
       );
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to upload image"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUploadImage),
+          ),
+        );
       }
 
       return response.json();
@@ -346,6 +390,7 @@ export function useCatMutations(input: {
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
+        intl,
       );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -366,7 +411,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to update image mode"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateImageMode),
+          ),
+        );
       }
 
       return response.json();

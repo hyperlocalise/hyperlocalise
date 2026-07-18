@@ -27,4 +27,14 @@ export const testResultsMessages = defineMessages({
     defaultMessage: "{passed}/{total} tests passed",
     description: "Progress summary showing passed tests out of total",
   },
+  percentLabel: {
+    defaultMessage: "{percent}%",
+    id: "fT5jl51yo3",
+    description: "Percentage of tests passed in the test results summary",
+  },
+  durationMs: {
+    defaultMessage: "{duration}ms",
+    id: "F7cCgYXVec",
+    description: "Test duration shown in milliseconds",
+  },
 });

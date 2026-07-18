@@ -6,6 +6,9 @@ import { cn } from "@/lib/primitives/cn";
 import { MicIcon, SquareIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIntl } from "react-intl";
+
+import { speechInputMessages } from "./speech-input.messages";
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -94,8 +97,10 @@ export const SpeechInput = ({
   onTranscriptionChange,
   onAudioRecorded,
   lang = "en-US",
+  "aria-label": ariaLabelProp,
   ...props
 }: SpeechInputProps) => {
+  const intl = useIntl();
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode] = useState<SpeechInputMode>(detectSpeechInputMode);
@@ -335,6 +340,14 @@ export const SpeechInput = ({
     (mode === "media-recorder" && !onAudioRecorded) ||
     isProcessing;
 
+  const ariaLabel =
+    ariaLabelProp ??
+    (isProcessing
+      ? intl.formatMessage(speechInputMessages.processingAria)
+      : isListening
+        ? intl.formatMessage(speechInputMessages.stopListeningAria)
+        : intl.formatMessage(speechInputMessages.startListeningAria));
+
   return (
     <div className="relative inline-flex items-center justify-center">
       {/* Animated pulse rings */}
@@ -362,6 +375,7 @@ export const SpeechInput = ({
         disabled={isDisabled}
         onClick={toggleListening}
         {...props}
+        aria-label={ariaLabel}
       >
         {isProcessing && <Spinner />}
         {!isProcessing && isListening && <SquareIcon className="size-4" />}

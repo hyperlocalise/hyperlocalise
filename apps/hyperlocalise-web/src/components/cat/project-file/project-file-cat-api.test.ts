@@ -7,6 +7,9 @@ import {
   errorResponse,
   jsonResponse,
 } from "@/components/cat/shared/cat-api.fixture";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
+const testIntl = getIntlShape("en");
 
 const { catQueueGetMock, catSegmentTargetGetMock, catSegmentCommentsGetMock } = vi.hoisted(() => ({
   catQueueGetMock: vi.fn(),
@@ -71,6 +74,7 @@ describe("fetchProjectFileCatQueuePage", () => {
       queueFilter: "all",
       limit: 50,
       offset: 0,
+      intl: testIntl,
     });
 
     expect(result).toEqual(queue);
@@ -101,6 +105,7 @@ describe("fetchProjectFileCatQueuePage", () => {
       offset: 50,
       phraseScanPage: 2,
       phraseScanSkip: 10,
+      intl: testIntl,
     });
 
     expect(catQueueGetMock).toHaveBeenCalledWith(
@@ -131,6 +136,7 @@ describe("fetchProjectFileCatQueuePage", () => {
         queueFilter: "all",
         limit: 50,
         offset: 0,
+        intl: testIntl,
       }),
     ).rejects.toThrow("CAT queue is unavailable.");
   });
@@ -150,6 +156,7 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       externalResourceId: "101",
       resourceType: "file",
       externalStringId: "segment-42",
+      intl: testIntl,
     });
 
     expect(result).toEqual(target);
@@ -179,6 +186,7 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       fetchProjectFileCatSegmentTarget({
         ...catApiTestContext,
         externalStringId: "missing",
+        intl: testIntl,
       }),
     ).rejects.toThrow("Segment was not found.");
   });
@@ -194,6 +202,7 @@ describe("fetchProjectFileCatSegmentComments", () => {
       externalResourceId: "101",
       resourceType: "file",
       externalStringId: "segment-1",
+      intl: testIntl,
     });
 
     expect(result).toEqual(comments);
@@ -218,6 +227,7 @@ describe("fetchProjectFileCatSegmentComments", () => {
       fetchProjectFileCatSegmentComments({
         ...catApiTestContext,
         externalStringId: "segment-1",
+        intl: testIntl,
       }),
     ).rejects.toThrow("Failed to load comments.");
   });

@@ -1,13 +1,31 @@
+"use client";
+
+import type { IntlShape } from "react-intl";
+
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { dedupeLiveFilesBySourcePath } from "@/lib/providers/jobs/tms-provider-live-file-dedupe";
 
-export function formatBytes(bytes: number | null) {
-  if (bytes === null) return "Unknown size";
-  if (bytes === 0) return "0 B";
+import { projectFilesSharedMessages } from "./project-files-shared.messages";
 
-  const units = ["B", "KB", "MB", "GB"];
+export function formatBytes(bytes: number | null, intl: IntlShape) {
+  if (bytes === null) {
+    return intl.formatMessage(projectFilesSharedMessages.unknownSize);
+  }
+  if (bytes === 0) {
+    return intl.formatMessage(projectFilesSharedMessages.zeroBytes);
+  }
+
+  const units = [
+    projectFilesSharedMessages.unitB,
+    projectFilesSharedMessages.unitKB,
+    projectFilesSharedMessages.unitMB,
+    projectFilesSharedMessages.unitGB,
+  ] as const;
   const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
+  return intl.formatMessage(projectFilesSharedMessages.byteSize, {
+    value: Number((bytes / 1024 ** unitIndex).toFixed(1)),
+    unit: intl.formatMessage(units[unitIndex]),
+  });
 }
 
 export function dedupeProjectFilesBySourcePath(files: ProjectFileRecord[]): ProjectFileRecord[] {

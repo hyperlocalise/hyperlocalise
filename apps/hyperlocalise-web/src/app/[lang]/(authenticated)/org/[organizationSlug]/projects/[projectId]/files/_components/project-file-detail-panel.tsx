@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import type {
   ProjectFileDetailResponse,
@@ -18,6 +19,7 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
+import { projectFileDetailPanelMessages as messages } from "./project-file-detail-panel.messages";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
@@ -62,11 +64,14 @@ function fileMetadataLine(
   byteSize: number | null,
   revision: string | null | undefined,
   uploadedAt: string,
+  intl: IntlShape,
 ) {
   return [
-    formatBytes(byteSize),
-    revision ? `revision ${revision}` : null,
-    `Updated ${DATE_FORMATTER.format(new Date(uploadedAt))}`,
+    formatBytes(byteSize, intl),
+    revision ? intl.formatMessage(messages.revision, { revision }) : null,
+    intl.formatMessage(messages.updatedAt, {
+      date: DATE_FORMATTER.format(new Date(uploadedAt)),
+    }),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -87,8 +92,11 @@ export function ProjectFileDetailPanel({
   highlightLocale: string | null;
   encodedJobId?: string | null;
 }) {
+  const intl = useIntl();
   const sourcePath = file?.sourcePath ?? null;
   const externalResourceId = file?.provider?.externalResourceId ?? null;
+  const loadDetailsFailed = intl.formatMessage(messages.loadDetailsFailedShort);
+  const loadProjectFailed = intl.formatMessage(messages.loadProjectFailed);
 
   const detailQuery = useQuery({
     queryKey: projectFileDetailQueryKey(
@@ -108,7 +116,7 @@ export function ProjectFileDetailPanel({
         });
 
         if (!response.ok) {
-          throw new Error(await readApiError(response, "Failed to load file details"));
+          throw new Error(await readApiError(response, loadDetailsFailed));
         }
 
         const body = (await response.json()) as ProjectFileDetailResponse;
@@ -126,7 +134,7 @@ export function ProjectFileDetailPanel({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to load file details"));
+        throw new Error(await readApiError(response, loadDetailsFailed));
       }
 
       const body = (await response.json()) as ProjectFileDetailResponse;
@@ -143,7 +151,7 @@ export function ProjectFileDetailPanel({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to load project"));
+        throw new Error(await readApiError(response, loadProjectFailed));
       }
 
       const body = (await response.json()) as {
@@ -194,6 +202,7 @@ export function ProjectFileDetailPanelView({
   error?: unknown;
   detail?: ProjectFileDetail;
 }) {
+  const intl = useIntl();
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const sourcePath = file?.sourcePath ?? null;
@@ -202,13 +211,14 @@ export function ProjectFileDetailPanelView({
     if (requestedSourcePath) {
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-          <TypographyP className="text-sm font-medium text-foreground">File not found</TypographyP>
+          <TypographyP className="text-sm font-medium text-foreground">
+            <FormattedMessage {...messages.fileNotFound} />
+          </TypographyP>
           <TypographyP className="max-w-sm font-mono text-sm text-muted-foreground">
             {requestedSourcePath}
           </TypographyP>
           <TypographyP className="max-w-sm text-sm text-muted-foreground">
-            This path is not in the project file list. It may have been removed or the link is
-            outdated.
+            <FormattedMessage {...messages.fileNotFoundDescription} />
           </TypographyP>
         </div>
       );
@@ -216,9 +226,11 @@ export function ProjectFileDetailPanelView({
 
     return (
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-        <TypographyP className="text-sm font-medium text-foreground">Select a file</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          <FormattedMessage {...messages.selectFile} />
+        </TypographyP>
         <TypographyP className="max-w-sm text-sm text-muted-foreground">
-          Choose a file from the list to view its metadata and related jobs.
+          <FormattedMessage {...messages.selectFileDescription} />
         </TypographyP>
       </div>
     );
@@ -228,7 +240,9 @@ export function ProjectFileDetailPanelView({
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 px-6 py-10">
         <Spinner />
-        <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
+        <TypographyP className="text-sm text-muted-foreground">
+          <FormattedMessage {...messages.loadingFile} />
+        </TypographyP>
       </div>
     );
   }
@@ -237,7 +251,7 @@ export function ProjectFileDetailPanelView({
     return (
       <div className="flex h-full min-h-48 flex-col justify-center gap-2 px-6 py-10">
         <TypographyP className="text-sm text-flame-100">
-          {error instanceof Error ? error.message : "Failed to load file details."}
+          {error instanceof Error ? error.message : intl.formatMessage(messages.loadDetailsFailed)}
         </TypographyP>
       </div>
     );
@@ -297,37 +311,46 @@ export function ProjectFileDetailPanelView({
             </Badge>
           ) : file.latestJob ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              Latest job · {file.latestJob.status}
+              <FormattedMessage
+                {...messages.latestJob}
+                values={{ status: file.latestJob.status }}
+              />
             </Badge>
           ) : (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              Uploaded
+              <FormattedMessage {...messages.uploaded} />
             </Badge>
           )}
           <TypographyP className="text-xs text-muted-foreground">
-            {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt)}
+            {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt, intl)}
           </TypographyP>
         </div>
         {latestVersion?.sourceHash ? (
           <TypographyP className="font-mono text-xs text-muted-foreground">
-            Hash {latestVersion.sourceHash}
+            <FormattedMessage {...messages.hash} values={{ hash: latestVersion.sourceHash }} />
           </TypographyP>
         ) : null}
         {provider ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
             {provider.format ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Format {provider.format}
+                <FormattedMessage {...messages.format} values={{ format: provider.format }} />
               </TypographyP>
             ) : null}
             {provider.sourceLocale ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Source {provider.sourceLocale}
+                <FormattedMessage
+                  {...messages.sourceLocale}
+                  values={{ locale: provider.sourceLocale }}
+                />
               </TypographyP>
             ) : null}
             {provider.targetLocales.length > 0 ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Targets {provider.targetLocales.join(", ")}
+                <FormattedMessage
+                  {...messages.targets}
+                  values={{ locales: provider.targetLocales.join(", ") }}
+                />
               </TypographyP>
             ) : null}
           </div>
@@ -339,7 +362,7 @@ export function ProjectFileDetailPanelView({
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-              Translate with agent
+              <FormattedMessage {...messages.translateWithAgent} />
             </Button>
             <Button
               type="button"
@@ -348,7 +371,7 @@ export function ProjectFileDetailPanelView({
               onClick={() => setImportDialogOpen(true)}
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
-              Import translations
+              <FormattedMessage {...messages.importTranslations} />
             </Button>
             {downloadableLocales.length > 0
               ? downloadableLocales.map((locale) => (
@@ -360,7 +383,7 @@ export function ProjectFileDetailPanelView({
                     onClick={() => downloadTranslation(locale)}
                   >
                     <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-                    Download {locale}
+                    <FormattedMessage {...messages.downloadLocale} values={{ locale }} />
                   </Button>
                 ))
               : null}
@@ -371,7 +394,7 @@ export function ProjectFileDetailPanelView({
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
           <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Jobs by locale
+            <FormattedMessage {...messages.jobsByLocale} />
           </TypographyP>
           <div className="flex flex-col gap-3">
             {orderedJobsByLocale.map((group) => (

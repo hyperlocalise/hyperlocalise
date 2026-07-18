@@ -24,6 +24,8 @@ import type {
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
 
+import { projectFileCatMapperMessages } from "./project-file-cat-mapper.messages";
+
 type CatFile = ProjectFileCatQueueFile;
 
 export function mapSegmentComments(comments: ProjectFileCatComment[]): CatSegmentComment[] {
@@ -89,12 +91,15 @@ export function formatCheckForSegment(
   if (parityIssues.length === 0) {
     checks.push({
       id: "format-parity",
-      label: sourceAnalysis.tokens.length > 0 ? "Placeholders & ICU" : "Format",
+      label:
+        sourceAnalysis.tokens.length > 0
+          ? intl.formatMessage(projectFileCatMapperMessages.placeholdersAndIcuLabel)
+          : intl.formatMessage(projectFileCatMapperMessages.formatLabel),
       status: "pass",
       message:
         sourceAnalysis.tokens.length > 0
-          ? "Target keeps the required placeholders and ICU structure."
-          : "No placeholders or ICU blocks detected.",
+          ? intl.formatMessage(projectFileCatMapperMessages.placeholdersPassMessage)
+          : intl.formatMessage(projectFileCatMapperMessages.noPlaceholdersMessage),
       category: "placeholder",
     });
   } else {
@@ -106,9 +111,11 @@ export function formatCheckForSegment(
   if (segment.maxLength && value.length > segment.maxLength) {
     checks.unshift({
       id: "length",
-      label: "Length",
+      label: intl.formatMessage(projectFileCatMapperMessages.lengthLabel),
       status: "fail",
-      message: `Translation exceeds ${segment.maxLength} characters.`,
+      message: intl.formatMessage(projectFileCatMapperMessages.lengthExceededMessage, {
+        maxLength: segment.maxLength,
+      }),
       category: "length",
     });
   }
@@ -129,20 +136,25 @@ export async function validateSegmentFormat(
   return formatCheckForSegment(segment, value, intl, glossaryTerms);
 }
 
-function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
+function intelligenceFor(catFile: CatFile, intl: CatFormatMessageIntl): CatSegmentIntelligence {
   const providerKind = catFile.provider?.kind;
 
   return {
-    intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
+    intent: intl.formatMessage(projectFileCatMapperMessages.fileIntent, {
+      filename: catFile.filename,
+      targetLocale: catFile.targetLocale,
+    }),
     locationBreadcrumb: catFile.sourcePath,
     filePath: catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
-        ? "Approve writes the current target text back to the provider."
-        : "Approve saves the current target text."
-      : "This role can inspect strings but cannot write translations back.",
-    constraints: catFile.truncated ? "More strings are available beyond this page." : undefined,
+        ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)
+        : intl.formatMessage(projectFileCatMapperMessages.approveSavesTarget)
+      : intl.formatMessage(projectFileCatMapperMessages.readOnlyRolePreference),
+    constraints: catFile.truncated
+      ? intl.formatMessage(projectFileCatMapperMessages.moreStringsAvailable)
+      : undefined,
     glossaryTerms: [],
     translationMemoryMatches: [],
   };
@@ -151,6 +163,7 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
 function segmentIntelligenceFor(
   catFile: CatFile,
   segment: CatFile["segments"][number],
+  intl: CatFormatMessageIntl,
 ): CatSegmentIntelligence {
   const context = segment.context?.trim();
   const providerKind = catFile.provider?.kind;
@@ -161,7 +174,10 @@ function segmentIntelligenceFor(
   const segmentFormat = segment.format?.trim() || undefined;
 
   return {
-    intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
+    intent: intl.formatMessage(projectFileCatMapperMessages.segmentIntent, {
+      key: segment.key,
+      targetLocale: catFile.targetLocale,
+    }),
     locationBreadcrumb: segment.key,
     filePath: segment.sourcePath ?? catFile.sourcePath,
     componentName:
@@ -171,10 +187,12 @@ function segmentIntelligenceFor(
     ...(maxLength != null ? { maxLength } : {}),
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
-        ? "Approve writes the current target text back to the provider."
-        : "Approve saves the current target text."
-      : "This role can inspect strings but cannot write translations back.",
-    constraints: catFile.truncated ? "More strings are available beyond this page." : undefined,
+        ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)
+        : intl.formatMessage(projectFileCatMapperMessages.approveSavesTarget)
+      : intl.formatMessage(projectFileCatMapperMessages.readOnlyRolePreference),
+    constraints: catFile.truncated
+      ? intl.formatMessage(projectFileCatMapperMessages.moreStringsAvailable)
+      : undefined,
     glossaryTerms: [],
     translationMemoryMatches: [],
   };
@@ -198,7 +216,7 @@ function fileContextFor(catFile: CatFile, sourceLocale: string): CatFileContext 
 export function projectFileCatToWorkspaceState(
   catFile: CatFile,
   sourceLocale: string,
-  _intl: CatFormatMessageIntl,
+  intl: CatFormatMessageIntl,
 ): CatWorkspaceState {
   const fileContext = fileContextFor(catFile, sourceLocale);
   const segmentOffset = catFile.pagination?.offset ?? 0;
@@ -225,25 +243,30 @@ export function projectFileCatToWorkspaceState(
     selectedSegmentId: segments[0]?.id ?? "",
     formatChecks: [],
     segmentFormatChecks: {},
-    intelligence: intelligenceFor(catFile),
+    intelligence: intelligenceFor(catFile, intl),
     segmentIntelligence: Object.fromEntries(
       catFile.segments.map((segment) => [
         segment.externalStringId,
-        segmentIntelligenceFor(catFile, segment),
+        segmentIntelligenceFor(catFile, segment, intl),
       ]),
     ),
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
-    primaryActionLabel: catFile.provider ? "Save to provider" : "Approve",
+    primaryActionLabel: catFile.provider
+      ? intl.formatMessage(projectFileCatMapperMessages.saveToProvider)
+      : intl.formatMessage(projectFileCatMapperMessages.approve),
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(catFile.canEditTranslations),
     providerKind: fileContext.providerKind,
   };
 }
 
-export function requireProviderExternalResourceId(catFile: CatFile | null | undefined) {
+export function requireProviderExternalResourceId(
+  catFile: CatFile | null | undefined,
+  intl: CatFormatMessageIntl,
+) {
   const externalResourceId = catFile?.provider?.externalResourceId;
   if (!externalResourceId) {
-    throw new Error("Cannot save translation because the provider file identifier is missing.");
+    throw new Error(intl.formatMessage(projectFileCatMapperMessages.missingProviderFileId));
   }
 
   return externalResourceId;

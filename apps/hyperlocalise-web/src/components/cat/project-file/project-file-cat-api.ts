@@ -3,8 +3,11 @@ import type {
   ProjectFileCatQueueResponse,
 } from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
+import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { projectFileCatApiMessages } from "./project-file-cat-api.messages";
 
 export type ProjectFileCatQueuePage = ProjectFileCatQueueResponse["catQueue"];
 
@@ -84,6 +87,7 @@ export async function fetchProjectFileCatQueuePage(input: {
   phraseScanPage?: number;
   phraseScanSkip?: number;
   sourcePaths?: string | null;
+  intl: CatFormatMessageIntl;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -105,7 +109,12 @@ export async function fetchProjectFileCatQueuePage(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load CAT queue"));
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+      ),
+    );
   }
 
   const body = (await response.json()) as ProjectFileCatQueueResponse;

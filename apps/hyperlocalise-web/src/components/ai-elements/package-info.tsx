@@ -5,12 +5,20 @@ import { cn } from "@/lib/primitives/cn";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
 
 import { packageInfoMessages } from "./package-info.messages";
 
 type ChangeType = "major" | "minor" | "patch" | "added" | "removed";
+
+const changeTypeMessageKeys = {
+  added: "changeTypeAdded",
+  major: "changeTypeMajor",
+  minor: "changeTypeMinor",
+  patch: "changeTypePatch",
+  removed: "changeTypeRemoved",
+} as const satisfies Record<ChangeType, keyof typeof packageInfoMessages>;
 
 interface PackageInfoContextType {
   name: string;
@@ -67,6 +75,7 @@ export const PackageInfoChangeType = ({
   children,
   ...props
 }: PackageInfoChangeTypeProps) => {
+  const intl = useIntl();
   const { changeType } = useContext(PackageInfoContext);
 
   if (!changeType) {
@@ -75,12 +84,12 @@ export const PackageInfoChangeType = ({
 
   return (
     <Badge
-      className={cn("gap-1 text-xs capitalize", changeTypeStyles[changeType], className)}
+      className={cn("gap-1 text-xs", changeTypeStyles[changeType], className)}
       variant="secondary"
       {...props}
     >
       {changeTypeIcons[changeType]}
-      {children ?? changeType}
+      {children ?? intl.formatMessage(packageInfoMessages[changeTypeMessageKeys[changeType]])}
     </Badge>
   );
 };

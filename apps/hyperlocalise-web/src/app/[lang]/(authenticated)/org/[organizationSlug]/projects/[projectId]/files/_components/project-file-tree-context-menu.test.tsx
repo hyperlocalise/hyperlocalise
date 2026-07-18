@@ -3,6 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ContextMenuOpenContext } from "@pierre/trees";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "./project-files.fixture";
@@ -19,25 +20,27 @@ describe("ProjectFileTreeContextMenu", () => {
     });
 
     render(
-      <ProjectFileTreeContextMenu
-        file={file}
-        context={{ close } as unknown as ContextMenuOpenContext}
-        fileActions={{
-          organizationSlug: "acme",
-          projectId: "proj_1",
-          highlightLocale: null,
-          projectTargetLocales: ["fr"],
-          onViewStrings: vi.fn(),
-          onTranslateFile,
-        }}
-        capabilities={{
-          canOpenCat: true,
-          canTranslateWithAgent: true,
-          catHref: "/cat",
-          isNativeFile: true,
-          translateDisabledTitle: undefined,
-        }}
-      />,
+      <IntlProvider locale="en" messages={{}}>
+        <ProjectFileTreeContextMenu
+          file={file}
+          context={{ close } as unknown as ContextMenuOpenContext}
+          fileActions={{
+            organizationSlug: "acme",
+            projectId: "proj_1",
+            highlightLocale: null,
+            projectTargetLocales: ["fr"],
+            onViewStrings: vi.fn(),
+            onTranslateFile,
+          }}
+          capabilities={{
+            canOpenCat: true,
+            canTranslateWithAgent: true,
+            catHref: "/cat",
+            isNativeFile: true,
+            translateDisabledTitle: undefined,
+          }}
+        />
+      </IntlProvider>,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));

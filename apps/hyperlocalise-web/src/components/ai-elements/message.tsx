@@ -289,7 +289,10 @@ export const MessageBranchPage = ({ className, ...props }: MessageBranchPageProp
       className={cn("border-none bg-transparent text-muted-foreground shadow-none", className)}
       {...props}
     >
-      {currentBranch + 1} of {totalBranches}
+      <FormattedMessage
+        {...messageMessages.branchPage}
+        values={{ current: currentBranch + 1, total: totalBranches }}
+      />
     </ButtonGroupText>
   );
 };

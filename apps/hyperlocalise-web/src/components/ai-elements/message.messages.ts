@@ -13,4 +13,9 @@ export const messageMessages = defineMessages({
     id: "p5GCpw9x8C",
     description: "Accessible label and tooltip for navigating to the next message branch",
   },
+  branchPage: {
+    defaultMessage: "{current} of {total}",
+    id: "Wh0P2263Np",
+    description: "Message branch pager showing the current branch index and total branches",
+  },
 });

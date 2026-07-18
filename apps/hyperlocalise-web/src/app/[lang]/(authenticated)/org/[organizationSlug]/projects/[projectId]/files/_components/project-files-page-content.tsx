@@ -7,6 +7,7 @@ import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
@@ -38,6 +39,7 @@ import {
 } from "./project-files-tree-panel";
 import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
+import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
 
 const FILE_ACCEPT =
@@ -153,10 +155,12 @@ function defaultRenderFilesTree({
   );
 }
 
-function defaultRenderFilesError({
+function DefaultRenderFilesError({
   organizationSlug,
   error,
 }: Parameters<ProjectFilesErrorRenderer>[0]) {
+  const intl = useIntl();
+
   if (isTmsUserConnectionRequiredError(error)) {
     return (
       <TmsUserConnectionErrorPanel
@@ -170,13 +174,17 @@ function defaultRenderFilesError({
   return (
     <>
       <TypographyP className="text-sm font-medium text-flame-100">
-        Files failed to load.
+        <FormattedMessage {...messages.filesFailedToLoad} />
       </TypographyP>
       <TypographyP className="mt-1 text-sm text-muted-foreground">
-        {error instanceof Error ? error.message : "Failed to load files."}
+        {error instanceof Error ? error.message : intl.formatMessage(messages.loadFailedFallback)}
       </TypographyP>
     </>
   );
+}
+
+function defaultRenderFilesError(props: Parameters<ProjectFilesErrorRenderer>[0]) {
+  return <DefaultRenderFilesError {...props} />;
 }
 
 export function ProjectFilesPageContent({
@@ -186,6 +194,7 @@ export function ProjectFilesPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -239,7 +248,12 @@ export function ProjectFilesPageContent({
         });
 
         if (!response.ok) {
-          throw await readApiResponseError(response, `Failed to upload ${sourcePathForFile(file)}`);
+          throw await readApiResponseError(
+            response,
+            intl.formatMessage(messages.uploadFileFailed, {
+              sourcePath: sourcePathForFile(file),
+            }),
+          );
         }
       }
     },
@@ -252,10 +266,12 @@ export function ProjectFilesPageContent({
       if (lastUploadedPath) {
         setSelectedSourcePath(lastUploadedPath);
       }
-      toast.success(files.length === 1 ? "File uploaded" : `${files.length} files uploaded`);
+      toast.success(intl.formatMessage(messages.uploadSuccess, { count: files.length }));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to upload files");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.uploadFailed),
+      );
     },
   });
 
@@ -296,8 +312,8 @@ export function ProjectFilesPageContent({
       if (!canOpenProjectFileCat(file) || !targetLocale) {
         toast.error(
           targetLocale
-            ? "This file can't be opened in the CAT workspace."
-            : "No target locale is available for this file.",
+            ? intl.formatMessage(messages.cannotOpenCat)
+            : intl.formatMessage(messages.noTargetLocale),
         );
         return;
       }
@@ -308,7 +324,10 @@ export function ProjectFilesPageContent({
         targetLocaleResolution.requestedLocale !== targetLocale
       ) {
         toast.warning(
-          `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Opening ${targetLocale} instead.`,
+          intl.formatMessage(messages.localeFallbackToast, {
+            requestedLocale: targetLocaleResolution.requestedLocale,
+            targetLocale,
+          }),
         );
       }
 
@@ -326,6 +345,7 @@ export function ProjectFilesPageContent({
     },
     [
       highlightLocale,
+      intl,
       organizationSlug,
       projectId,
       projectTargetLocales,
@@ -357,13 +377,16 @@ export function ProjectFilesPageContent({
             targetLocaleResolution.requestedLocale &&
             targetLocaleResolution.requestedLocale !== targetLocale
           ) {
-            return `${targetLocaleResolution.requestedLocale} is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
+            return intl.formatMessage(messages.localeFallbackHint, {
+              requestedLocale: targetLocaleResolution.requestedLocale,
+              targetLocale,
+            });
           }
 
-          return `Double-click a file or use View strings to open the CAT workspace for ${targetLocale}.`;
+          return intl.formatMessage(messages.openCatHint, { targetLocale });
         }
 
-        return "No target locale is available for this file.";
+        return intl.formatMessage(messages.noTargetLocale);
       })()
     : null;
 
@@ -521,6 +544,7 @@ export function ProjectFilesPageContentView({
   renderFilesTree?: ProjectFilesTreeRenderer;
   filesTree?: (selectedFile: ProjectFileRecord | null) => ReactNode;
 }) {
+  const intl = useIntl();
   const inputRef = useRef<HTMLInputElement>(null);
   const displayFiles = filesTree ? (resolvedFiles ?? files) : files;
   const selectedFile = useMemo(
@@ -535,12 +559,10 @@ export function ProjectFilesPageContentView({
     <ProjectPageShell className="gap-8">
       <ProjectSectionHeader
         icon={File01Icon}
-        section="Files"
-        description={
-          isProviderProject
-            ? "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported."
-            : "Upload source files, then open one in the CAT workspace to review and edit translations."
-        }
+        section={intl.formatMessage(messages.sectionTitle)}
+        description={intl.formatMessage(
+          isProviderProject ? messages.descriptionProvider : messages.descriptionNative,
+        )}
         actions={
           canUploadFiles ? (
             <Button
@@ -550,7 +572,7 @@ export function ProjectFilesPageContentView({
               className="w-full sm:w-fit"
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
-              Add files
+              <FormattedMessage {...messages.addFiles} />
             </Button>
           ) : null
         }
@@ -575,10 +597,14 @@ export function ProjectFilesPageContentView({
         <section className="rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <ProjectSectionTitle>Ready to upload</ProjectSectionTitle>
+              <ProjectSectionTitle>
+                <FormattedMessage {...messages.readyToUpload} />
+              </ProjectSectionTitle>
               <TypographyP className="mt-1 text-sm text-muted-foreground">
-                {selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected (max{" "}
-                {MAX_UPLOAD_FILES}).
+                <FormattedMessage
+                  {...messages.filesSelected}
+                  values={{ count: selectedFiles.length, max: MAX_UPLOAD_FILES }}
+                />
               </TypographyP>
             </div>
             <Button
@@ -588,7 +614,11 @@ export function ProjectFilesPageContentView({
               className="w-full sm:w-fit"
             >
               {isUploading ? <Spinner /> : <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />}
-              {isUploading ? "Uploading…" : "Upload"}
+              {isUploading ? (
+                <FormattedMessage {...messages.uploading} />
+              ) : (
+                <FormattedMessage {...messages.upload} />
+              )}
             </Button>
           </div>
           <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-background">
@@ -599,7 +629,7 @@ export function ProjectFilesPageContentView({
                     {sourcePathForFile(file)}
                   </TypographyP>
                   <TypographyP className="text-xs text-muted-foreground">
-                    {formatBytes(file.size)}
+                    {formatBytes(file.size, intl)}
                   </TypographyP>
                 </div>
                 <Button
@@ -609,7 +639,7 @@ export function ProjectFilesPageContentView({
                   disabled={isUploading}
                   onClick={() => onRemoveSelectedFile(file)}
                 >
-                  Remove
+                  <FormattedMessage {...messages.remove} />
                 </Button>
               </li>
             ))}
@@ -624,13 +654,17 @@ export function ProjectFilesPageContentView({
           <>
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
-                <ProjectSectionTitle>Project files</ProjectSectionTitle>
+                <ProjectSectionTitle>
+                  <FormattedMessage {...messages.projectFilesTitle} />
+                </ProjectSectionTitle>
                 <TypographyP className="mt-0.5 text-sm text-muted-foreground">
-                  {isFilesLoading
-                    ? "Loading…"
-                    : filesError
-                      ? "Could not load files"
-                      : `${files.length} file${files.length === 1 ? "" : "s"}`}
+                  {isFilesLoading ? (
+                    <FormattedMessage {...messages.loading} />
+                  ) : filesError ? (
+                    <FormattedMessage {...messages.couldNotLoad} />
+                  ) : (
+                    <FormattedMessage {...messages.fileCount} values={{ count: files.length }} />
+                  )}
                 </TypographyP>
               </div>
               {isFilesFetching && !isFilesLoading ? <Spinner /> : null}
@@ -639,19 +673,21 @@ export function ProjectFilesPageContentView({
             <div className="flex min-h-0 flex-1 flex-col">
               {isFilesLoading ? (
                 <TypographyP className="p-4 text-sm text-muted-foreground">
-                  Loading files…
+                  <FormattedMessage {...messages.loadingFiles} />
                 </TypographyP>
               ) : filesError ? (
                 <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
               ) : files.length === 0 ? (
                 <div className="flex flex-col gap-2 p-4">
                   <TypographyP className="text-sm font-medium text-foreground">
-                    No files yet
+                    <FormattedMessage {...messages.noFilesYet} />
                   </TypographyP>
                   <TypographyP className="text-sm text-muted-foreground">
-                    {isProviderProject
-                      ? "No provider files were found for this project."
-                      : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
+                    {isProviderProject ? (
+                      <FormattedMessage {...messages.noProviderFiles} />
+                    ) : (
+                      <FormattedMessage {...messages.noNativeFiles} />
+                    )}
                   </TypographyP>
                 </div>
               ) : (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { readApiResponseError } from "@/lib/api-error";
 
-import { issueTypes } from "./issue-sheet-constants";
+import { issueTypeValues, type IssueTypeValue } from "./issue-sheet-constants";
+import { issueSheetCreateIssueDialogMessages as messages } from "./issue-sheet-create-issue-dialog.messages";
+import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
 
 const priorities = [
   { value: "P0", label: "P0" },
@@ -41,12 +44,29 @@ function formString(formData: FormData, key: string, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
-async function readJsonOrThrow<T>(response: Response): Promise<T> {
+async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
-    const error = await readApiResponseError(response, "Request failed");
-    throw new Error(error.message || "Request failed");
+    const error = await readApiResponseError(response, fallbackMessage);
+    throw new Error(error.message || fallbackMessage);
   }
   return (await response.json()) as T;
+}
+
+function issueTypeLabel(intl: ReturnType<typeof useIntl>, value: IssueTypeValue) {
+  switch (value) {
+    case "general_question":
+      return intl.formatMessage(sharedMessages.issueTypeGeneralQuestion);
+    case "translation_mistake":
+      return intl.formatMessage(sharedMessages.issueTypeTranslationMistake);
+    case "context_request":
+      return intl.formatMessage(sharedMessages.issueTypeContextRequest);
+    case "source_mistake":
+      return intl.formatMessage(sharedMessages.issueTypeSourceMistake);
+    case "glossary_violation":
+      return intl.formatMessage(sharedMessages.issueTypeGlossaryViolation);
+    case "qa_failure":
+      return intl.formatMessage(sharedMessages.issueTypeQaFailure);
+  }
 }
 
 export function IssueSheetCreateIssueDialog({
@@ -64,6 +84,7 @@ export function IssueSheetCreateIssueDialog({
   projects?: { id: string; name: string }[];
   onCreated: () => Promise<void>;
 }) {
+  const intl = useIntl();
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? "");
 
   useEffect(() => {
@@ -82,10 +103,15 @@ export function IssueSheetCreateIssueDialog({
 
   const resolvedProjectId = projectId ?? selectedProjectId;
 
+  const issueTypeItems = issueTypeValues.map((value) => ({
+    value,
+    label: issueTypeLabel(intl, value),
+  }));
+
   const createIssue = useMutation({
     mutationFn: async (formData: FormData) => {
       if (!resolvedProjectId) {
-        throw new Error("Select a project");
+        throw new Error(intl.formatMessage(messages.selectProject));
       }
       const response = await fetch(issueSheetPath(organizationSlug, resolvedProjectId), {
         method: "POST",
@@ -102,14 +128,20 @@ export function IssueSheetCreateIssueDialog({
           priority: formString(formData, "priority", "P2"),
         }),
       });
-      return readJsonOrThrow<{ issue: { id: string } }>(response);
+      return readJsonOrThrow<{ issue: { id: string } }>(
+        response,
+        intl.formatMessage(messages.requestFailed),
+      );
     },
     onSuccess: async () => {
-      toast.success("Issue added");
+      toast.success(intl.formatMessage(messages.issueAdded));
       onOpenChange(false);
       await onCreated();
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Issue create failed"),
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.createFailed),
+      ),
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -125,9 +157,11 @@ export function IssueSheetCreateIssueDialog({
       <DialogContent>
         <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Add issue</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...messages.title} />
+            </DialogTitle>
             <DialogDescription>
-              Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful.
+              <FormattedMessage {...messages.description} />
             </DialogDescription>
           </DialogHeader>
           {projects && projects.length > 0 ? (
@@ -137,7 +171,7 @@ export function IssueSheetCreateIssueDialog({
               onValueChange={(value) => setSelectedProjectId(value ?? "")}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Project" />
+                <SelectValue placeholder={intl.formatMessage(messages.projectPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
@@ -148,24 +182,31 @@ export function IssueSheetCreateIssueDialog({
               </SelectContent>
             </Select>
           ) : null}
-          <Input name="title" placeholder="Short issue title" required />
-          <Textarea name="description" placeholder="What needs context, review, or a fix?" />
+          <Input
+            name="title"
+            placeholder={intl.formatMessage(messages.titlePlaceholder)}
+            required
+          />
+          <Textarea
+            name="description"
+            placeholder={intl.formatMessage(messages.descriptionPlaceholder)}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
-            <Select name="issueType" defaultValue="general_question" items={issueTypes}>
+            <Select name="issueType" defaultValue="general_question" items={issueTypeItems}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Issue type" />
+                <SelectValue placeholder={intl.formatMessage(messages.issueTypePlaceholder)} />
               </SelectTrigger>
               <SelectContent>
-                {issueTypes.map((type) => (
+                {issueTypeItems.map((type) => (
                   <SelectItem key={type.value} value={type.value} label={type.label}>
                     {type.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select name="priority" defaultValue="P2" items={priorities}>
+            <Select name="priority" defaultValue="P2" items={[...priorities]}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Priority" />
+                <SelectValue placeholder={intl.formatMessage(messages.priorityPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
                 {priorities.map((priority) => (
@@ -177,16 +218,25 @@ export function IssueSheetCreateIssueDialog({
             </Select>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input name="targetLocale" placeholder="Locale, e.g. de-DE" />
-            <Input name="sourcePath" placeholder="Source path" />
+            <Input
+              name="targetLocale"
+              placeholder={intl.formatMessage(messages.localePlaceholder)}
+            />
+            <Input
+              name="sourcePath"
+              placeholder={intl.formatMessage(messages.sourcePathPlaceholder)}
+            />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input name="linkLabel" placeholder="Link label" />
-            <Input name="linkUrl" placeholder="https://..." />
+            <Input
+              name="linkLabel"
+              placeholder={intl.formatMessage(messages.linkLabelPlaceholder)}
+            />
+            <Input name="linkUrl" placeholder={intl.formatMessage(messages.linkUrlPlaceholder)} />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={createIssue.isPending || !resolvedProjectId}>
-              Add issue
+              <FormattedMessage {...messages.submit} />
             </Button>
           </DialogFooter>
         </form>

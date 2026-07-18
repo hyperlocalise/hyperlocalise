@@ -2,10 +2,14 @@
 
 import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 
 import type { ProjectFileCatTranslation } from "@/api/routes/project/project.schema";
+import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { projectFileCatApiMessages } from "./project-file-cat-api.messages";
 
 export function projectFileCatSegmentTargetQueryKey(input: {
   organizationSlug: string;
@@ -36,6 +40,7 @@ export async function fetchProjectFileCatSegmentTarget(input: {
   resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
+  intl: CatFormatMessageIntl;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -54,7 +59,12 @@ export async function fetchProjectFileCatSegmentTarget(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load segment translation"));
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadSegmentTranslation),
+      ),
+    );
   }
 
   const body = (await response.json()) as { target: ProjectFileCatTranslation | null };
@@ -70,6 +80,7 @@ function catSegmentTargetQueryOptions(input: {
   targetLocale: string;
   externalStringId: string;
   enabled?: boolean;
+  intl: CatFormatMessageIntl;
 }) {
   return {
     queryKey: projectFileCatSegmentTargetQueryKey(input),
@@ -93,6 +104,7 @@ export function useCatSegmentTarget(input: {
   externalStringId: string | null;
   enabled?: boolean;
 }) {
+  const intl = useIntl();
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery(
@@ -105,6 +117,7 @@ export function useCatSegmentTarget(input: {
       targetLocale: input.targetLocale,
       externalStringId,
       enabled: input.enabled,
+      intl,
     }),
   );
 }
@@ -125,6 +138,7 @@ export function useCatSegmentTargets(input: {
   }>;
   enabled?: boolean;
 }) {
+  const intl = useIntl();
   const segments = useMemo(() => {
     const seen = new Set<string>();
     const unique: typeof input.segments = [];
@@ -151,6 +165,7 @@ export function useCatSegmentTargets(input: {
         targetLocale: input.targetLocale,
         externalStringId: segment.externalStringId,
         enabled: input.enabled,
+        intl,
       }),
     ),
   });

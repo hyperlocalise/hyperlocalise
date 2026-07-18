@@ -1,10 +1,14 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
+import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { projectFileCatApiMessages } from "./project-file-cat-api.messages";
 
 export function projectFileCatSegmentCommentsQueryKey(input: {
   organizationSlug: string;
@@ -35,6 +39,7 @@ export async function fetchProjectFileCatSegmentComments(input: {
   resourceType?: "file" | "key";
   targetLocale: string;
   externalStringId: string;
+  intl: CatFormatMessageIntl;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -53,7 +58,12 @@ export async function fetchProjectFileCatSegmentComments(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load segment comments"));
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadSegmentComments),
+      ),
+    );
   }
 
   const body = (await response.json()) as { comments: ProjectFileCatComment[] };
@@ -70,6 +80,7 @@ export function useCatSegmentComments(input: {
   externalStringId: string | null;
   enabled?: boolean;
 }) {
+  const intl = useIntl();
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery({
@@ -97,6 +108,7 @@ export function useCatSegmentComments(input: {
         resourceType: input.resourceType,
         targetLocale: input.targetLocale,
         externalStringId,
+        intl,
       }),
   });
 }
