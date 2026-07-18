@@ -60,6 +60,9 @@ final class AuthService: NSObject {
     private let apiBaseURL: URL
     private let session: URLSession
     private var presentationAnchor: ASPresentationAnchor?
+    /// Retained for the lifetime of the browser flow; Apple requires a strong
+    /// reference so the session is not deallocated before the callback fires.
+    private var webAuthSession: ASWebAuthenticationSession?
 
     init(apiBaseURL: URL, session: URLSession = .shared) {
         self.apiBaseURL = apiBaseURL
@@ -147,10 +150,11 @@ final class AuthService: NSObject {
 
     private func startWebAuthentication(url: URL) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(
+            let authSession = ASWebAuthenticationSession(
                 url: url,
                 callbackURLScheme: "hyperlocalise"
-            ) { callbackURL, error in
+            ) { [weak self] callbackURL, error in
+                self?.webAuthSession = nil
                 if let error {
                     let nsError = error as NSError
                     if nsError.domain == ASWebAuthenticationSessionError.errorDomain,
@@ -168,9 +172,11 @@ final class AuthService: NSObject {
                 }
                 continuation.resume(returning: callbackURL)
             }
-            session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false
-            if !session.start() {
+            authSession.presentationContextProvider = self
+            authSession.prefersEphemeralWebBrowserSession = false
+            webAuthSession = authSession
+            if !authSession.start() {
+                webAuthSession = nil
                 continuation.resume(throwing: AuthServiceError.server("Unable to start sign-in session."))
             }
         }
