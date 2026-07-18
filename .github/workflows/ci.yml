@@ -90,9 +90,6 @@ jobs:
   bazel-build-test:
     name: Bazel Build/Test
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    env:
-      BUILDBUDDY_ENDPOINT: grpcs://remote.buildbuddy.io
-      BUILDBUDDY_RESULTS_URL: https://app.buildbuddy.io/invocation/
 
     steps:
       - name: Checkout
@@ -101,32 +98,13 @@ jobs:
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@b39c379c82683a5f25d34f0d062761f62693e0b2 # v3
 
-      - name: Configure BuildBuddy
-        id: buildbuddy
-        shell: bash
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          rc_path="$RUNNER_TEMP/buildbuddy.bazelrc"
-          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
-            printf '%s\n' \
-              "common --bes_backend=${BUILDBUDDY_ENDPOINT}" \
-              "common --bes_results_url=${BUILDBUDDY_RESULTS_URL}" \
-              "common --remote_cache=${BUILDBUDDY_ENDPOINT}" \
-              "common --remote_timeout=10m" \
-              "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" \
-              >"${rc_path}"
-            echo "extra_bazelrc=--bazelrc=${rc_path}" >>"${GITHUB_OUTPUT}"
-          else
-            echo "extra_bazelrc=" >>"${GITHUB_OUTPUT}"
-            echo "BuildBuddy secret unavailable; continuing with local-only Bazel execution."
-          fi
-
+      # Blacksmith injects --remote_cache when Bazel Build Caching is enabled.
+      # Do not set an explicit --remote_cache here; it would take precedence.
       - name: Bazel build
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli
+        run: bazel build --config=ci //:cli
 
       - name: Bazel test
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test
+        run: bazel test --config=ci //apps/cli/cmd:cmd_test
 
   go-quality:
     name: Go Quality
