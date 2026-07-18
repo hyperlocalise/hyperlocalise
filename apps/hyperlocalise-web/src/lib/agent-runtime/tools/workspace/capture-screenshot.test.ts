@@ -158,12 +158,12 @@ describe("shouldOmitPackageScriptArgSeparator", () => {
   });
 
   it("keeps the separator for older Storybook on pnpm and for npm", () => {
-    expect(
-      shouldOmitPackageScriptArgSeparator({ packageManager: "pnpm", storybookMajor: 8 }),
-    ).toBe(false);
-    expect(
-      shouldOmitPackageScriptArgSeparator({ packageManager: "npm", storybookMajor: 10 }),
-    ).toBe(false);
+    expect(shouldOmitPackageScriptArgSeparator({ packageManager: "pnpm", storybookMajor: 8 })).toBe(
+      false,
+    );
+    expect(shouldOmitPackageScriptArgSeparator({ packageManager: "npm", storybookMajor: 10 })).toBe(
+      false,
+    );
   });
 });
 
