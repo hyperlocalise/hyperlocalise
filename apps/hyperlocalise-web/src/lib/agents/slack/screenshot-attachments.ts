@@ -29,9 +29,10 @@ export type SlackScreenshotFileUpload = {
 };
 
 function collectToolResults(result: GenerateResultWithToolSteps): ToolResultLike[] {
-  const fromSteps = (result.steps ?? []).flatMap((step) => step.toolResults ?? []);
-  if (fromSteps.length > 0) {
-    return fromSteps;
+  // Prefer steps whenever present (including empty / text-only steps). Fall back
+  // to top-level toolResults only for callers/mocks that omit steps entirely.
+  if (result.steps !== undefined) {
+    return result.steps.flatMap((step) => step.toolResults ?? []);
   }
   return result.toolResults ?? [];
 }
@@ -54,31 +55,38 @@ export async function buildSlackScreenshotFileUploads(input: {
   organizationId: string;
   projectId: string | null;
 }): Promise<SlackScreenshotFileUpload[]> {
-  const uploads: SlackScreenshotFileUpload[] = [];
-
-  for (const screenshot of input.screenshots) {
-    try {
-      const { content } = await getStoredFileContent({
+  const results = await Promise.allSettled(
+    input.screenshots.map((screenshot) =>
+      getStoredFileContent({
         fileId: screenshot.fileId,
         organizationId: input.organizationId,
         projectId: input.projectId,
-      });
-      uploads.push({
+      }).then(({ content }) => ({
         data: content,
         filename: screenshot.filename,
         mimeType: screenshot.contentType || "image/png",
-      });
-    } catch (error) {
-      log.warn(
-        {
-          err: serializeErrorForLog(error),
-          fileId: screenshot.fileId,
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-        },
-        "failed to load captureScreenshot artifact for Slack upload",
-      );
+      })),
+    ),
+  );
+
+  const uploads: SlackScreenshotFileUpload[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "fulfilled") {
+      uploads.push(result.value);
+      continue;
     }
+
+    const screenshot = input.screenshots[i];
+    log.warn(
+      {
+        err: serializeErrorForLog(result.reason),
+        fileId: screenshot?.fileId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      },
+      "failed to load captureScreenshot artifact for Slack upload",
+    );
   }
 
   return uploads;

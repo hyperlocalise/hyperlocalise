@@ -102,7 +102,7 @@ describe("extractSuccessfulCaptureScreenshots", () => {
     expect(screenshots.map((screenshot) => screenshot.fileId)).toEqual(["file_a", "file_b"]);
   });
 
-  it("falls back to top-level toolResults when steps are empty", () => {
+  it("falls back to top-level toolResults only when steps are omitted", () => {
     const screenshot = successfulScreenshot({ fileId: "file_top" });
 
     const screenshots = extractSuccessfulCaptureScreenshots({
@@ -119,6 +119,20 @@ describe("extractSuccessfulCaptureScreenshots", () => {
     });
 
     expect(screenshots).toEqual([screenshot]);
+  });
+
+  it("does not fall back to toolResults when steps are present but empty of tools", () => {
+    const screenshots = extractSuccessfulCaptureScreenshots({
+      steps: [{ toolResults: [] }, {}],
+      toolResults: [
+        {
+          toolName: "captureScreenshot",
+          output: successfulScreenshot({ fileId: "file_should_ignore" }),
+        },
+      ],
+    });
+
+    expect(screenshots).toEqual([]);
   });
 
   it("returns an empty list when no captureScreenshot tools ran", () => {
