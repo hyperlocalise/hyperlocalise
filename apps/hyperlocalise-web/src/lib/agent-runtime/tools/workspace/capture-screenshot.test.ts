@@ -126,6 +126,11 @@ describe("parseDependencyMajorVersion", () => {
     expect(parseDependencyMajorVersion("latest")).toBeNull();
     expect(parseDependencyMajorVersion(undefined)).toBeNull();
   });
+
+  it("ignores digits that are not a semver major", () => {
+    expect(parseDependencyMajorVersion("file:../storybook-v10")).toBeNull();
+    expect(parseDependencyMajorVersion("catalog:storybook@10.0.0")).toBe(10);
+  });
 });
 
 describe("detectStorybookMajorVersion", () => {

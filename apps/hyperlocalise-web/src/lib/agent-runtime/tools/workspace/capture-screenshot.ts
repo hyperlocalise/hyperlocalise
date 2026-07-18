@@ -143,15 +143,16 @@ function storybookArgs(port: number) {
 
 /**
  * Parse a major version from a package.json dependency range.
- * Handles forms like `10.4.6`, `^10.4.6`, `~8.0.0`, `>=9.1.0`.
- * Returns null for unparseable values (`workspace:*`, `catalog:`, `latest`, …).
+ * Matches a semver-like major (`digits` + `.`), with an optional `~^>=` prefix —
+ * e.g. `10.4.6`, `^10.4.6`, `~8.0.0`, `>=9.1.0`, `catalog:storybook@10.0.0`.
+ * Returns null when no such major is present (`workspace:*`, `latest`, `file:../storybook-v10`, …).
  */
 export function parseDependencyMajorVersion(version: unknown): number | null {
   if (typeof version !== "string") {
     return null;
   }
 
-  const match = version.trim().match(/(\d+)/);
+  const match = version.trim().match(/[~^>=]*(\d+)\./);
   if (!match) {
     return null;
   }
