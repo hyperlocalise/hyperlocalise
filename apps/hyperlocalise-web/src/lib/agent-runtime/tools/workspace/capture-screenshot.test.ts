@@ -42,9 +42,9 @@ function createRepoContext(input: {
   findStdout?: string;
   execResult?: { exitCode: number; stdout: string; stderr: string };
 }) {
-  const packageJsonByPath = {
+  const packageJsonByPath: Record<string, Record<string, unknown>> = {
     ...(input.packageJson ? { "package.json": input.packageJson } : {}),
-    ...(input.packageJsonByPath ?? {}),
+    ...input.packageJsonByPath,
   };
   const lockfiles = new Set(input.lockfiles ?? []);
   const writtenFiles = new Map<string, string | Buffer>();
