@@ -178,6 +178,10 @@ describe("conversation skill registry", () => {
 
     expect(conversationSkill).toContain("Visual context / mock / screenshot");
     expect(conversationSkill).toContain("use **visual-mock** when it is enabled");
+    expect(conversationSkill).toContain("for text-only context without an image request");
+    expect(conversationSkill).not.toContain(
+      "Prefer **visual-mock** instead when the user also asks",
+    );
     expect(visualMockSkill).toContain("visual context for …");
     expect(visualMockSkill).toContain("Do not answer visual-context requests with find-context");
   });

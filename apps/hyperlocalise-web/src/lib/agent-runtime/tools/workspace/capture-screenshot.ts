@@ -464,22 +464,17 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         };
       }
 
-      const storybookCommand = detectStorybookScreenshotCommand({
+      const detectedCommand = detectStorybookScreenshotCommand({
         packageJson: resolvedPackage.packageJson,
         lockfiles: resolvedPackage.lockfiles,
         port: STORYBOOK_PORT,
         packageDir: resolvedPackage.packageDir,
       });
-
-      if ("errorCode" in storybookCommand) {
-        return {
-          success: false as const,
-          errorCode: storybookCommand.errorCode,
-          error:
-            "No supported Storybook script was found in package.json at the repository root or nested packages.",
-          checkedFiles: [resolvedPackage.packageJsonPath, ...resolvedPackage.lockfiles],
-        };
+      // Invariant: resolveStorybookPackage only returns packages with a Storybook script.
+      if ("errorCode" in detectedCommand) {
+        throw new Error("Invariant violated: Storybook script missing after package resolution");
       }
+      const storybookCommand = detectedCommand;
 
       const captureId = crypto.randomUUID();
       const baseDir = normalizeWorkspacePath(`.hyperlocalise-agent/screenshots/${captureId}`);
