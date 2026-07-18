@@ -79,7 +79,51 @@ describe("file download route", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/json");
-    expect(response.headers.get("content-disposition")).toContain("source.json");
+    expect(response.headers.get("content-disposition")).toBe(
+      "attachment; filename*=UTF-8''source.json",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox;");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("x-download-options")).toBe("noopen");
+  });
+
+  it("serves images inline with private cache headers", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const headers = await authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const orgId = auth.activeOrganization.localOrganizationId;
+    const imageContent = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+    const file = await createStoredFile({
+      organizationId: orgId,
+      createdByUserId: auth.user.localUserId,
+      role: "source",
+      sourceKind: "chat_upload",
+      filename: "screen shot.png",
+      contentType: "image/png",
+      content: imageContent,
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/files/${file.id}`, {
+      method: "GET",
+      headers,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("content-disposition")).toBe(
+      "inline; filename*=UTF-8''screen%20shot.png",
+    );
+    expect(response.headers.get("cache-control")).toBe("private, max-age=60");
+    expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox;");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    // Images skip the route-level X-Download-Options; this comes from global secureHeaders().
+    expect(response.headers.get("x-download-options")).toBe("noopen");
+    await expect(response.arrayBuffer().then((body) => Buffer.from(body))).resolves.toEqual(
+      imageContent,
+    );
   });
 
   it("returns 404 when the file does not exist", async () => {
