@@ -4,6 +4,10 @@ import { z } from "zod";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createStoredFile } from "@/lib/file-storage/records";
+import {
+  installChromiumSystemDependenciesFunction,
+  sandboxPlaywrightVersion,
+} from "@/lib/vercel-sandbox-config";
 
 import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
@@ -15,8 +19,7 @@ const MAX_VIEWPORT_SIZE = 3840;
 const DEFAULT_WAIT_FOR_MS = 500;
 const MAX_WAIT_FOR_MS = 5000;
 const STORYBOOK_PORT = 6006;
-/** Keep in sync with `sandboxPlaywrightVersion` in vercel-sandbox-config.ts. */
-const MANAGED_PLAYWRIGHT_VERSION = "1.61.1";
+const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
 const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
 const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
 const ERROR_CODE_PREFIX = "HYPERLOCALISE_SCREENSHOT_ERROR_CODE=";
@@ -485,28 +488,21 @@ function managedBrowserRuntimeCommand() {
     "  fi",
     "fi",
     // Prefer OS deps from sandbox bootstrap; retry here when Linux libs are missing.
+    // On Amazon Linux (Vercel Sandbox), Playwright install-deps cannot use apt-get.
+    installChromiumSystemDependenciesFunction,
     "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
-    "  DEPS_RC=1",
-    "  if command -v sudo >/dev/null 2>&1; then",
-    `    sudo env PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
-    "  fi",
-    '  if [ "$DEPS_RC" -ne 0 ]; then',
-    `    PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install-deps chromium >/tmp/hyperlocalise-chromium-deps.log 2>&1 && DEPS_RC=0`,
-    "  fi",
-    '  if [ "$DEPS_RC" -ne 0 ]; then',
+    "  if ! install_chromium_system_dependencies >/tmp/hyperlocalise-chromium-deps.log 2>&1; then",
     "    cat /tmp/hyperlocalise-chromium-deps.log >&2 || true",
     `    echo "${ERROR_CODE_PREFIX}browser_system_deps_unavailable" >&2`,
     "    exit 89",
     "  fi",
     "fi",
-    `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install --with-deps chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
-    // `--with-deps` may fail without root even when the browser binary itself installs; retry binary-only.
-    // Append so the original `--with-deps` failure reason is preserved for debugging.
-    `  if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >>/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
-    `    cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
-    `    echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
-    "    exit 88",
-    "  fi",
+    // Install the browser binary only. System libs are handled above (dnf/apt);
+    // `--with-deps` fails on Amazon Linux because Playwright shells out to apt-get.
+    `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
+    `  cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
+    `  echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
+    "  exit 88",
     "fi",
   ].join("\n");
 }

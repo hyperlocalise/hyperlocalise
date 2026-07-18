@@ -391,15 +391,13 @@ describe("createCaptureScreenshotTool", () => {
       ],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
-      args: ["-lc", expect.stringContaining("install --with-deps chromium")],
+      args: ["-lc", expect.stringContaining("install chromium")],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
-      args: [
-        "-lc",
-        expect.stringContaining(
-          "sudo env PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
-        ),
-      ],
+      args: ["-lc", expect.stringContaining("install_chromium_system_dependencies")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("run_as_root dnf install -y")],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
       args: ["-lc", expect.stringContaining("'pnpm' 'run' 'storybook'")],
