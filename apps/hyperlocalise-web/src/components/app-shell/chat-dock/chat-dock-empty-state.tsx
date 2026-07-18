@@ -21,7 +21,7 @@ type Suggestion = {
 
 type FormatMessage = (descriptor: MessageDescriptor, values?: Record<string, string>) => string;
 
-const KEY_LABEL_MAX_LENGTH = 36;
+const SOURCE_LABEL_MAX_LENGTH = 36;
 
 function truncateLabel(value: string, maxLength: number) {
   const trimmed = value.trim();
@@ -37,13 +37,17 @@ export function buildChatDockSuggestions(
   formatMessage: FormatMessage,
 ): Suggestion[] {
   if (pageContext?.kind === "cat-segment") {
-    const keyLabel = truncateLabel(pageContext.key, KEY_LABEL_MAX_LENGTH);
+    const sourceLabel = truncateLabel(pageContext.sourceText, SOURCE_LABEL_MAX_LENGTH);
     return [
       {
         id: "segment-context",
         icon: FileSearchIcon,
-        label: formatMessage(chatDockMessages.suggestionSegmentContext, { key: keyLabel }),
-        prompt: formatMessage(chatDockMessages.promptSegmentContext, { key: pageContext.key }),
+        label: formatMessage(chatDockMessages.suggestionSegmentContext, {
+          source: sourceLabel,
+        }),
+        prompt: formatMessage(chatDockMessages.promptSegmentContext, {
+          source: pageContext.sourceText,
+        }),
       },
     ];
   }
@@ -53,7 +57,7 @@ export function buildChatDockSuggestions(
       id: "find-context",
       icon: FileSearchIcon,
       label: formatMessage(chatDockMessages.suggestionFindContext),
-      // Trailing space lets the user finish typing the string key.
+      // Trailing space lets the user finish typing the string.
       prompt: `${formatMessage(chatDockMessages.promptFindContext)} `,
     },
   ];
