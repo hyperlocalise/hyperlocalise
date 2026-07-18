@@ -15,10 +15,18 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
 
 - Clarify the target screen, state, viewport, and purpose only when they cannot be inferred from the request or repository context.
 - Inspect the repository for the relevant route, component, design system, fixtures, stories, test data, and styling before inventing UI.
-- Prefer existing UI code, Storybook stories, route fixtures, or small temporary preview files over freehand descriptions.
-- When coding write primitives such as `write` or `apply_patch` are available, use them only for temporary preview scaffolding or narrowly scoped mock fixtures unless the user also asks for a production code change.
+- Locate the component that renders the target string/key (usage site, parent screen, or leaf UI). Prefer capturing that component's UI over freehand descriptions.
+- Prefer an **existing** Storybook story for that component when one already exists. Reuse nearby fixtures, test data, or story args when possible.
+- **When the component has no Storybook story** and the workspace has Storybook (a `storybook` / `dev:storybook` / `storybook:dev` script or a `storybook` / `@storybook/*` dependency in `package.json`, including nested app packages):
+  1. Use repository write tools (`write` / `applyPatch`) to create a temporary CSF story next to the component (or in the repo's usual stories location), following existing Storybook conventions in that package.
+  2. Supply realistic mock props/args so the target string is visible in a representative state. Prefer fixtures and patterns from sibling stories or tests; invent only what is missing.
+  3. Derive the Storybook `storyId` from the new story's `title` + export name (CSF id form, e.g. `components-button--primary`).
+  4. Call `captureScreenshot` with that `storyId`.
+  5. Keep the generated story disposable sandbox scaffolding unless the user also asked for a production Storybook addition.
+- If Storybook is **not** present in the repo, do not invent a Storybook setup. Tell the user to add Storybook and implement visual regression testing with it so component screenshots can be captured for localization context. Include a short mock plan (target component, data state, viewport) and that Storybook is the missing capability. Do not claim a screenshot was created.
+- When coding write primitives such as `write` or `applyPatch` are available, use them only for temporary preview scaffolding, missing Storybook stories for capture, or narrowly scoped mock fixtures unless the user also asks for a production code change.
 - Do not commit changes, push branches, open pull requests, or publish repository changes. Visual mocks may mutate only the sandbox workspace.
-- When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file, and any assumptions.
+- When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file / story id, and any assumptions.
 - Use `captureScreenshot` for Storybook stories. Provide the Storybook story id and viewport; do not ask for package-manager-specific commands. The tool discovers Storybook in the repo root or nested app packages.
 - When durable file attachment primitives are available, attach the screenshot as an agent artifact with metadata identifying it as `visual-mock`.
 - If write, render, screenshot, or attachment primitives are unavailable, do not claim a screenshot was created. Return a concise mock plan with the target component, data state, viewport, and exact next primitive needed.
@@ -39,4 +47,4 @@ When a screenshot is created, respond with:
 - viewport
 - assumptions or missing fidelity
 
-When a screenshot cannot be created, respond with the mock plan and the missing capability.
+When a screenshot cannot be created, respond with the mock plan and the missing capability. If Storybook is missing from the repo, explicitly recommend adding Storybook for visual regression testing so future visual-context requests can capture component screenshots.
