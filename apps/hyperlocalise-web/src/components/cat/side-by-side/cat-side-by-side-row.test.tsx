@@ -101,8 +101,22 @@ describe("CatSideBySideRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides approve actions when the focused row is clean", () => {
+  it("shows approve actions when the focused row has a target and is clean", () => {
     renderRow({ isDirty: false });
+
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Save as draft/i })).toBeInTheDocument();
+  });
+
+  it("hides approve actions when the focused row has no target text", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      status: "pending" as const,
+      targetText: "",
+    };
+
+    renderRow({ segment, isDirty: false });
 
     expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
@@ -160,16 +174,16 @@ describe("CatSideBySideRow", () => {
     expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
   });
 
-  it("disables approve when the target is empty", () => {
+  it("hides approve when the target is empty even if the row is dirty", () => {
     const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
     const segment = {
       ...state.segments!.find((item) => item.id === "seg-02")!,
       targetText: "",
     };
 
-    renderRow({ segment });
+    renderRow({ segment, isDirty: true });
 
-    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
   });
 
   it("shows copy source and clear for focused text rows", async () => {
@@ -408,7 +422,7 @@ describe("CatSideBySideRow", () => {
 
     renderRow({ isDirty: false, onAddToIssueSheet });
 
-    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Add to issue sheet/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
@@ -432,7 +446,7 @@ describe("CatSideBySideRow", () => {
     });
 
     expect(screen.getByText(/Upload/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
   });
 
