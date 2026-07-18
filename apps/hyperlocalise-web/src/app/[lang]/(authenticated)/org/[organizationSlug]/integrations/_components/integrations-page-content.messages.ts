@@ -18,6 +18,11 @@ export const integrationsPageContentMessages = defineMessages({
     id: "AvXpNmaez+",
     description: "Integrations page section heading for TMS providers",
   },
+  mcpServersCategory: {
+    defaultMessage: "MCP servers",
+    id: "intMcpCat1",
+    description: "Category label for MCP server connections on the Integrations page",
+  },
   cmsCategory: {
     defaultMessage: "Content Management System",
     id: "dWHU+zjwUO",

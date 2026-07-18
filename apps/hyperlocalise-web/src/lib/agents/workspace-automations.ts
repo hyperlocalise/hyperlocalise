@@ -132,6 +132,13 @@ const knowledgeToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const mcpToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
@@ -140,6 +147,7 @@ const toolConfigSchema = z
     contentful: contentfulToolConfigSchema.optional(),
     translation: translationToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
+    mcp: mcpToolConfigSchema.optional(),
   })
   .default({});
 
@@ -160,6 +168,7 @@ export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigS
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
+export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -227,6 +236,14 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "source_upload_workflow_required";
       message: "Source upload triggers require translation jobs to be enabled.";
+    }
+  | {
+      code: "mcp_connection_required";
+      message: "Enabled MCP Server tools require an MCP server connection.";
+    }
+  | {
+      code: "mcp_not_connected";
+      message: "Connect an MCP server in Integrations before enabling the MCP Server tool.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -246,6 +263,10 @@ export function hasWorkspaceAutomationTranslationWorkflow(
 
 export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.knowledge?.enabled);
+}
+
+export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.mcp?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -424,6 +445,14 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  const mcpTools = input.toolConfig.mcp;
+  if (mcpTools?.enabled && !mcpTools.connectionId) {
+    return err({
+      code: "mcp_connection_required",
+      message: "Enabled MCP Server tools require an MCP server connection.",
+    });
+  }
+
   return ok(undefined);
 }
 
@@ -467,6 +496,37 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "email_not_connected",
         message: "Enable the email agent before using email notifications.",
+      });
+    }
+  }
+
+  if (input.toolConfig.mcp?.enabled) {
+    const connectionId = input.toolConfig.mcp.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "mcp_connection_required",
+        message: "Enabled MCP Server tools require an MCP server connection.",
+      });
+    }
+
+    const [connection] = await db
+      .select({
+        id: schema.mcpServerConnections.id,
+        enabled: schema.mcpServerConnections.enabled,
+      })
+      .from(schema.mcpServerConnections)
+      .where(
+        and(
+          eq(schema.mcpServerConnections.organizationId, input.organizationId),
+          eq(schema.mcpServerConnections.id, connectionId),
+        ),
+      )
+      .limit(1);
+
+    if (!connection?.enabled) {
+      return err({
+        code: "mcp_not_connected",
+        message: "Connect an MCP server in Integrations before enabling the MCP Server tool.",
       });
     }
   }

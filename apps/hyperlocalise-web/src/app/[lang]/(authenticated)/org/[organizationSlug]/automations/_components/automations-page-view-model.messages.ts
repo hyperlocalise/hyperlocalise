@@ -43,4 +43,9 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "6QqDATp4yt",
     description: "Tool badge when an automation uses email",
   },
+  toolMcpServer: {
+    defaultMessage: "MCP Server",
+    id: "toolMcpSrv",
+    description: "Tool badge when an automation uses an MCP server",
+  },
 });
