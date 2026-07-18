@@ -119,9 +119,9 @@ export default async function Home({ params }: HomePageProps) {
             <PrinciplesSection />
           </section>
 
-          <section className="border-t border-border">
+          <div className="border-t border-border">
             <TourfinderTestimonialSection />
-          </section>
+          </div>
 
           <section id="workflow">
             {chapters.map((chapter) => (
