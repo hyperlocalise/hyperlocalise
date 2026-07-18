@@ -521,6 +521,189 @@ describe("handleNewConversation", () => {
     );
   });
 
+  it("attaches all successful captureScreenshot artifacts to the Slack reply", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the button story" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
+    vi.mocked(createInteraction).mockResolvedValue({
+      id: "interaction-123",
+      title: "Show the button story",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent)
+      .mockResolvedValueOnce({
+        file: { id: "file_shot_a" },
+        content: Buffer.from("shot-a"),
+      } as never)
+      .mockResolvedValueOnce({
+        file: { id: "file_shot_b" },
+        content: Buffer.from("shot-b"),
+      } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "Here are the screenshots.",
+      steps: [
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_a",
+                url: "https://app.example/files/file_shot_a",
+                filename: "button-primary.png",
+                contentType: "image/png",
+                byteSize: 6,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/a.png",
+                target: { type: "storybook", storyId: "button--primary" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: false,
+                errorCode: "story_not_found",
+                error: "missing",
+              },
+            },
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_b",
+                url: "https://app.example/files/file_shot_b",
+                filename: "button-secondary.png",
+                contentType: "image/png",
+                byteSize: 6,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/b.png",
+                target: { type: "storybook", storyId: "button--secondary" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_shot_a",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_shot_b",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        markdown: "Here are the screenshots.",
+        files: [
+          {
+            data: Buffer.from("shot-a"),
+            filename: "button-primary.png",
+            mimeType: "image/png",
+          },
+          {
+            data: Buffer.from("shot-b"),
+            filename: "button-secondary.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("posts screenshot files when the agent reply text is empty", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Screenshot the story" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
+    vi.mocked(createInteraction).mockResolvedValue({
+      id: "interaction-123",
+      title: "Screenshot the story",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: { id: "file_shot_only" },
+      content: Buffer.from("shot-only"),
+    } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "   ",
+      steps: [
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_only",
+                url: "https://app.example/files/file_shot_only",
+                filename: "story.png",
+                contentType: "image/png",
+                byteSize: 9,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/story.png",
+                target: { type: "storybook", storyId: "story--default" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        files: [
+          {
+            data: Buffer.from("shot-only"),
+            filename: "story.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("skips GitHub context discovery for ordinary chat without attachments", async () => {
     const { thread } = createThread();
     const message = createMessage({ text: "Translate this to French" });

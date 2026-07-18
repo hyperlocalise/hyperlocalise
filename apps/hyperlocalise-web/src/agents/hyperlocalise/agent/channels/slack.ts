@@ -53,6 +53,10 @@ import {
 } from "@/lib/agents/slack/image-attachments";
 import { threadHasStoredSlackImages } from "@/lib/agents/slack/image-session";
 import { type SlackBotThreadState } from "@/lib/agents/slack/repository-session";
+import {
+  buildSlackScreenshotFileUploads,
+  extractSuccessfulCaptureScreenshots,
+} from "@/lib/agents/slack/screenshot-attachments";
 
 type SlackBotState = SlackBotThreadState;
 
@@ -470,9 +474,18 @@ async function processSlackMessage(
       operationKey: usageOperationKey,
       dimensions: usageDimensions,
     });
+
+    const screenshots = extractSuccessfulCaptureScreenshots(result);
+    const screenshotFiles = await buildSlackScreenshotFileUploads({
+      screenshots,
+      organizationId,
+      projectId,
+    });
     log.info(
       {
         hasReplyText: result.text.trim().length > 0,
+        screenshotCount: screenshots.length,
+        screenshotUploadCount: screenshotFiles.length,
       },
       "slack conversation agent completed",
     );
@@ -480,8 +493,11 @@ async function processSlackMessage(
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     const replyText = result.text.trim();
-    if (replyText) {
-      await thread.post({ markdown: replyText });
+    if (replyText || screenshotFiles.length > 0) {
+      await thread.post({
+        ...(replyText ? { markdown: replyText } : {}),
+        ...(screenshotFiles.length > 0 ? { files: screenshotFiles } : {}),
+      });
     }
   } catch (error) {
     log.error({ err: serializeErrorForLog(error) }, "slack agent message processing failed");

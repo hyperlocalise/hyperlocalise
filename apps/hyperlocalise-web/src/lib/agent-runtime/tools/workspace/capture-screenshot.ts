@@ -695,7 +695,7 @@ function buildCaptureCommand(input: {
   ].join("\n");
 }
 
-type CaptureScreenshotSuccess = {
+export type CaptureScreenshotSuccess = {
   success: true;
   fileId: string;
   url: string;
@@ -719,7 +719,7 @@ type CaptureScreenshotFailure = {
 
 export type CaptureScreenshotResult = CaptureScreenshotSuccess | CaptureScreenshotFailure;
 
-function isCaptureScreenshotSuccess(output: unknown): output is CaptureScreenshotSuccess {
+export function isCaptureScreenshotSuccess(output: unknown): output is CaptureScreenshotSuccess {
   return (
     Boolean(output) &&
     typeof output === "object" &&
