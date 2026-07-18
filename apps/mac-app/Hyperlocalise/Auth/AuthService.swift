@@ -33,6 +33,7 @@ enum AuthServiceError: Error, LocalizedError {
     case invalidAPIBaseURL
     case authorizationCancelled
     case missingAuthorizationCode
+    case invalidOAuthState
     case invalidAuthorizationURL
     case server(String)
 
@@ -44,6 +45,8 @@ enum AuthServiceError: Error, LocalizedError {
             return "Sign-in was cancelled."
         case .missingAuthorizationCode:
             return "WorkOS did not return an authorization code."
+        case .invalidOAuthState:
+            return "Sign-in callback failed state validation."
         case .invalidAuthorizationURL:
             return "WorkOS returned an invalid authorization URL."
         case .server(let message):
@@ -82,7 +85,7 @@ final class AuthService: NSObject {
         )
 
         let callbackURL = try await startWebAuthentication(url: authorizeURL)
-        let code = try extractCode(from: callbackURL)
+        let code = try extractCode(from: callbackURL, expectedState: state)
         let token = try await exchangeToken(
             code: code,
             codeVerifier: pkce.verifier
@@ -173,8 +176,12 @@ final class AuthService: NSObject {
         }
     }
 
-    private func extractCode(from url: URL) throws -> String {
+    private func extractCode(from url: URL, expectedState: String) throws -> String {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        let returnedState = items?.first(where: { $0.name == "state" })?.value
+        guard let returnedState, returnedState == expectedState else {
+            throw AuthServiceError.invalidOAuthState
+        }
         if let code = items?.first(where: { $0.name == "code" })?.value, !code.isEmpty {
             return code
         }

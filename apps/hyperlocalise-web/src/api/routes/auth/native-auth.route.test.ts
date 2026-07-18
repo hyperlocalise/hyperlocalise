@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-import { Hono } from "hono";
-import { evlog } from "evlog/hono";
 import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -25,14 +23,12 @@ vi.mock("@/lib/workos/config", () => ({
   getWorkosAuthKitConfig: getWorkosAuthKitConfigMock,
 }));
 
-import { createNativeAuthRoutes } from "./native-auth.route";
+import { createApp } from "@/api/app";
 
 const VALID_CHALLENGE = "a".repeat(43);
 const VALID_VERIFIER = "b".repeat(43);
 
-function createClient() {
-  return testClient(new Hono().use("*", evlog()).route("/", createNativeAuthRoutes()));
-}
+const client = testClient(createApp());
 
 describe("nativeAuthRoutes", () => {
   afterEach(() => {
@@ -53,8 +49,7 @@ describe("nativeAuthRoutes", () => {
       userManagement: { getAuthorizationUrl: getAuthorizationUrlMock },
     });
 
-    const client = createClient();
-    const response = await client.authorize.$get({
+    const response = await client.api.auth.native.authorize.$get({
       query: {
         codeChallenge: VALID_CHALLENGE,
         codeChallengeMethod: "S256",
@@ -79,8 +74,7 @@ describe("nativeAuthRoutes", () => {
       userManagement: { getAuthorizationUrl: getAuthorizationUrlMock },
     });
 
-    const client = createClient();
-    const response = await client.authorize.$get({
+    const response = await client.api.auth.native.authorize.$get({
       query: {
         codeChallenge: VALID_CHALLENGE,
         codeChallengeMethod: "S256",
@@ -128,8 +122,7 @@ describe("nativeAuthRoutes", () => {
       userManagement: { authenticateWithCode: authenticateWithCodeMock },
     });
 
-    const client = createClient();
-    const response = await client.token.$post({
+    const response = await client.api.auth.native.token.$post({
       json: {
         code: "auth_code",
         codeVerifier: VALID_VERIFIER,
@@ -175,8 +168,7 @@ describe("nativeAuthRoutes", () => {
       userManagement: { authenticateWithCode: authenticateWithCodeMock },
     });
 
-    const client = createClient();
-    const response = await client.token.$post({
+    const response = await client.api.auth.native.token.$post({
       json: {
         code: "bad_code",
         codeVerifier: VALID_VERIFIER,

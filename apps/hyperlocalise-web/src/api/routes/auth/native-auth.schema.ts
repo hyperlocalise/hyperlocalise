@@ -18,7 +18,7 @@ export const nativeAuthorizeQuerySchema = z.object({
 });
 
 export const nativeTokenBodySchema = z.object({
-  code: z.string().min(1),
+  code: z.string().min(1).max(512),
   codeVerifier: z.string().min(43).max(128),
   redirectUri: nativeRedirectUriSchema,
 });

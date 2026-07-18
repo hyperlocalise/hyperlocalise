@@ -181,6 +181,7 @@ actor APIClient {
             if line.hasPrefix("data:") {
                 let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
                 if payload == "[DONE]" { break }
+                if !dataBuffer.isEmpty { dataBuffer += "\n" }
                 dataBuffer += payload
                 continue
             }
