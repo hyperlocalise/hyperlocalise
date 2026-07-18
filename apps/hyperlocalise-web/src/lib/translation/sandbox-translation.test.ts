@@ -475,7 +475,12 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("  file:");
     expect(config).toContain("Project: Marketing Site");
     expect(config).toContain("Project translation context: Use concise product-marketing copy.");
-    expect(config).toContain("Job context: Homepage launch banner.");
+    expect(config).toContain(
+      "String description (guidance only; do not translate or use as the translation): Homepage launch banner.",
+    );
+    expect(config).toContain(
+      "Never translate them, never repeat them, and never use them as the translation value.",
+    );
     expect(config).toContain("User style instructions: Keep it formal.");
     expect(config).toContain("workspace -> espace de travail (fr-FR)");
     expect(config).toContain("Approved product term.");

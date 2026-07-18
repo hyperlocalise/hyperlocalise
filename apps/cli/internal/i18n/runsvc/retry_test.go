@@ -88,7 +88,7 @@ func TestTranslateWithRetryBuildsRequestWithSourceContext(t *testing.T) {
 		t.Fatalf("translateWithRetry returned error: %v", err)
 	}
 
-	wantRuntime := "Entry key: checkout.title\n\nSource context:\nCheckout submit button"
+	wantRuntime := "Entry key: checkout.title\n\nString description (guidance only; do not translate or use as the translation):\nCheckout submit button"
 	if got.RuntimeContext != wantRuntime {
 		t.Fatalf("request runtime context = %q, want %q", got.RuntimeContext, wantRuntime)
 	}
@@ -115,7 +115,7 @@ func TestTranslateWithRetryBuildsRequestWithContextMemory(t *testing.T) {
 		t.Fatalf("translateWithRetry returned error: %v", err)
 	}
 
-	wantRuntime := "Entry key: checkout.title\n\nSource context:\nCheckout submit button\n\nShared memory:\nShared context"
+	wantRuntime := "Entry key: checkout.title\n\nString description (guidance only; do not translate or use as the translation):\nCheckout submit button\n\nShared memory:\nShared context"
 	if got.SystemPrompt != "" {
 		t.Fatalf("request system prompt = %q, want empty string", got.SystemPrompt)
 	}
