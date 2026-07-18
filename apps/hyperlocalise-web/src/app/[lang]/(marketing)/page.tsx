@@ -5,6 +5,7 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { chapters, footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
 import { ChatDockMockSection } from "@/components/marketing/chat-dock-mock";
+import { TourfinderTestimonialSection } from "@/components/marketing/tourfinder-testimonial-section";
 import {
   ChapterSection,
   FinalCtaSection,
@@ -116,6 +117,10 @@ export default async function Home({ params }: HomePageProps) {
 
           <section className="px-5 py-16 sm:px-8 lg:px-10">
             <PrinciplesSection />
+          </section>
+
+          <section className="border-t border-border">
+            <TourfinderTestimonialSection />
           </section>
 
           <section id="workflow">
