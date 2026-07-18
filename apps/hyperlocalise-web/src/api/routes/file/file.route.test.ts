@@ -119,6 +119,7 @@ describe("file download route", () => {
     expect(response.headers.get("cache-control")).toBe("private, max-age=60");
     expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox;");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    // Images skip the route-level X-Download-Options; this comes from global secureHeaders().
     expect(response.headers.get("x-download-options")).toBe("noopen");
     await expect(response.arrayBuffer().then((body) => Buffer.from(body))).resolves.toEqual(
       imageContent,
