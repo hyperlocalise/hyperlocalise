@@ -10,7 +10,7 @@ export const tourfinderTestimonialSectionMessages = defineMessages({
   },
   quote: {
     defaultMessage: "Tourfinder launched Vietnamese and Japanese marketing in days, not months.",
-    id: '58cCDSy73h',
+    id: "58cCDSy73h",
     description: "Marketing homepage Tourfinder customer quote",
   },
   featuresLabel: {
