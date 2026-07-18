@@ -1,3 +1,5 @@
+import type { IntlShape } from "react-intl";
+
 import {
   providerQaReportSchema,
   providerReviewReportSchema,
@@ -15,6 +17,8 @@ import type {
   ProviderReviewThreadKind,
   ProviderReviewThreadState,
 } from "@/lib/providers/provider-job-review/types";
+
+import { jobQaFindingsModelMessages as modelMessages } from "./job-qa-findings-model.messages";
 
 export { buildFindingId };
 
@@ -203,6 +207,7 @@ export function filterFindings(
 export function groupFindings(
   findings: QaFindingWithId[],
   groupBy: QaFindingGroupBy,
+  intl: IntlShape,
 ): QaFindingGroup[] {
   const groups = new Map<string, QaFindingWithId[]>();
 
@@ -240,7 +245,7 @@ export function groupFindings(
   return [...groups.entries()]
     .map(([key, bucket]) => ({
       key,
-      label: bucket[0] ? groupFindingsLabel(bucket[0], groupBy) : key,
+      label: bucket[0] ? groupFindingsLabel(bucket[0], groupBy, intl) : key,
       findings: bucket,
     }))
     .sort((left, right) => {
@@ -253,10 +258,10 @@ export function groupFindings(
     });
 }
 
-function groupFindingsLabel(finding: QaFindingWithId, groupBy: QaFindingGroupBy) {
+function groupFindingsLabel(finding: QaFindingWithId, groupBy: QaFindingGroupBy, intl: IntlShape) {
   switch (groupBy) {
     case "locale":
-      return finding.item.locale ?? "Unknown locale";
+      return finding.item.locale ?? intl.formatMessage(modelMessages.unknownLocale);
     case "checkType":
       return formatCheckTypeLabel(finding.checkType);
     case "key":
@@ -379,14 +384,15 @@ export function isProviderCommentWriteBackComplete(
 
 export function formatProviderCommentWriteBackLabel(
   writeBack: ProviderCommentWriteBackStatus | undefined,
+  intl: IntlShape,
 ) {
   switch (writeBack?.status) {
     case "posted":
-      return "Comment posted";
+      return intl.formatMessage(modelMessages.commentPosted);
     case "skipped":
-      return "Already in TMS";
+      return intl.formatMessage(modelMessages.alreadyInTms);
     case "failed":
-      return "Comment failed";
+      return intl.formatMessage(modelMessages.commentFailed);
     default:
       return null;
   }

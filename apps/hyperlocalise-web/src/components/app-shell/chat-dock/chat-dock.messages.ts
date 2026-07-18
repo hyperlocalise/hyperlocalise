@@ -18,6 +18,12 @@ export const chatDockMessages = defineMessages({
     defaultMessage: "Collapse chat",
     description: "Accessible label for collapsing the chat dock panel",
   },
+  tabListAriaLabel: {
+    defaultMessage: "Chat conversations",
+    id: "vuJalRUhn9",
+    description: "Accessible label for the chat dock tab list",
+  },
+
   expandPanel: {
     id: "GmObeT3Tn1",
     defaultMessage: "Expand chat",

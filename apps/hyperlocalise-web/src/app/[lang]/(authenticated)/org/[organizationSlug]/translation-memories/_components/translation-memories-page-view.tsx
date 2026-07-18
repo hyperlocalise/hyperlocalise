@@ -2,6 +2,7 @@
 
 import { Add01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import {
   Dialog,
@@ -37,22 +38,9 @@ import {
   TranslationMemoriesEmptyAction,
   TranslationMemoriesTable,
 } from "./translation-memories-table";
+import { translationMemoriesPageViewMessages } from "./translation-memories-page-view.messages";
 
 export const MEMORIES_PAGE_SIZE = 100;
-
-const sourceFilterLabels = {
-  all: "All sources",
-  native: "Workspace",
-  external_tms: "Provider",
-} as const;
-
-const syncFilterLabels = {
-  all: "All sync states",
-  synced: "Synced",
-  stale: "Stale",
-  syncing: "Syncing",
-  error: "Sync error",
-} as const;
 
 export type MemoryCreateForm = {
   name: string;
@@ -138,29 +126,47 @@ export function TranslationMemoriesPageView({
   isCreating: boolean;
   onSubmitCreateMemory: () => void;
 }) {
+  const intl = useIntl();
   const liveProjectSelectionRequired = useLiveProviderMemories && !selectedExternalProjectId;
 
+  const sourceFilterLabels = {
+    all: intl.formatMessage(translationMemoriesPageViewMessages.sourceAll),
+    native: intl.formatMessage(translationMemoriesPageViewMessages.sourceNative),
+    external_tms: intl.formatMessage(translationMemoriesPageViewMessages.sourceExternalTms),
+  } as const;
+
+  const syncFilterLabels = {
+    all: intl.formatMessage(translationMemoriesPageViewMessages.syncAll),
+    synced: intl.formatMessage(translationMemoriesPageViewMessages.syncSynced),
+    stale: intl.formatMessage(translationMemoriesPageViewMessages.syncStale),
+    syncing: intl.formatMessage(translationMemoriesPageViewMessages.syncSyncing),
+    error: intl.formatMessage(translationMemoriesPageViewMessages.syncError),
+  } as const;
+
   const emptyTitle = hasConnectedProvider
-    ? "No translation memories yet"
-    : "Connect a TMS provider";
+    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyTitle)
+    : intl.formatMessage(translationMemoriesPageViewMessages.emptyTitleConnectProvider);
   const emptyDescription = hasConnectedProvider
-    ? "Provider translation memories appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
-    : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.";
+    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionWithProvider)
+    : intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionWithoutProvider);
 
   const memoryCountLabel =
     isSuccess && memoryTotal > 0
-      ? `${memoryTotal} ${memoryTotal === 1 ? "memory" : "memories"}`
+      ? intl.formatMessage(translationMemoriesPageViewMessages.memoryCount, {
+          count: memoryTotal,
+        })
       : undefined;
 
   const memoriesQuery = { isLoading, isError, isSuccess, error };
+  const allProvidersLabel = intl.formatMessage(translationMemoriesPageViewMessages.providerAll);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={DatabaseSyncIcon}
-        label="Workspace"
-        title="Translation Memories"
-        description="Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only."
+        label={intl.formatMessage(translationMemoriesPageViewMessages.pageLabel)}
+        title={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
+        description={intl.formatMessage(translationMemoriesPageViewMessages.pageDescription)}
         statusLabel={memoryCountLabel}
         actions={
           allowCreateMemories ? (
@@ -170,7 +176,7 @@ export function TranslationMemoriesPageView({
               className="w-full sm:w-fit"
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create memory
+              <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
             </Button>
           ) : null
         }
@@ -188,15 +194,23 @@ export function TranslationMemoriesPageView({
 
       {isSuccess && hasMemories ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
+          <WorkspaceFilterField
+            label={intl.formatMessage(translationMemoriesPageViewMessages.searchLabel)}
+            className="w-full sm:max-w-xs"
+          >
             <Input
-              placeholder="Name, project, or external ID..."
+              placeholder={intl.formatMessage(
+                translationMemoriesPageViewMessages.searchPlaceholder,
+              )}
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               className="w-full"
             />
           </WorkspaceFilterField>
-          <WorkspaceFilterField label="Source" className="w-full sm:w-40">
+          <WorkspaceFilterField
+            label={intl.formatMessage(translationMemoriesPageViewMessages.sourceLabel)}
+            className="w-full sm:w-40"
+          >
             <Select
               value={sourceFilter}
               onValueChange={(value) => {
@@ -228,19 +242,22 @@ export function TranslationMemoriesPageView({
           </WorkspaceFilterField>
 
           {hasExternalMemories && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Provider" className="w-full sm:w-40">
+            <WorkspaceFilterField
+              label={intl.formatMessage(translationMemoriesPageViewMessages.providerLabel)}
+              className="w-full sm:w-40"
+            >
               <Select
                 value={providerFilter}
                 onValueChange={(value) => onProviderFilterChange(value ?? "all")}
               >
                 <SelectTrigger className={workspaceFilterTriggerClassName}>
                   <SelectValue>
-                    {providerFilter === "all" ? "All providers" : providerLabel(providerFilter)}
+                    {providerFilter === "all" ? allProvidersLabel : providerLabel(providerFilter)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" label="All providers">
-                    All providers
+                  <SelectItem value="all" label={allProvidersLabel}>
+                    {allProvidersLabel}
                   </SelectItem>
                   {providerKinds.map((kind) => (
                     <SelectItem key={kind} value={kind} label={providerLabel(kind)}>
@@ -253,7 +270,10 @@ export function TranslationMemoriesPageView({
           ) : null}
 
           {hasExternalMemories && sourceFilter !== "native" && !useLiveProviderMemories ? (
-            <WorkspaceFilterField label="Sync" className="w-full sm:w-40">
+            <WorkspaceFilterField
+              label={intl.formatMessage(translationMemoriesPageViewMessages.syncLabel)}
+              className="w-full sm:w-40"
+            >
               <Select
                 value={syncFilter}
                 onValueChange={(value) => onSyncFilterChange(value ?? "all")}
@@ -286,7 +306,7 @@ export function TranslationMemoriesPageView({
 
           {activeFilterCount > 0 ? (
             <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-              Clear filters
+              <FormattedMessage {...translationMemoriesPageViewMessages.clearFilters} />
             </Button>
           ) : null}
         </div>
@@ -294,24 +314,32 @@ export function TranslationMemoriesPageView({
 
       {showNoFilterMatches ? (
         <div className="text-sm text-muted-foreground">
-          No translation memories match your filters.{" "}
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="text-subtle-foreground underline hover:text-foreground"
-          >
-            Clear filters
-          </button>
+          <FormattedMessage
+            {...translationMemoriesPageViewMessages.noFilterMatches}
+            values={{
+              clear: (chunks) => (
+                <button
+                  type="button"
+                  onClick={onClearFilters}
+                  className="text-subtle-foreground underline hover:text-foreground"
+                >
+                  {chunks}
+                </button>
+              ),
+            }}
+          />
         </div>
       ) : null}
 
       {liveProjectSelectionRequired ? (
         <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">
-            Choose a TMS project
+            <FormattedMessage {...translationMemoriesPageViewMessages.chooseTmsProjectTitle} />
           </TypographyP>
           <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
-            Select a project above to load live translation memories from your connected provider.
+            <FormattedMessage
+              {...translationMemoriesPageViewMessages.chooseTmsProjectDescription}
+            />
           </TypographyP>
         </div>
       ) : (
@@ -319,16 +347,20 @@ export function TranslationMemoriesPageView({
           memories={memories}
           memoriesQuery={memoriesQuery}
           organizationSlug={organizationSlug}
-          emptyTitle={allowCreateMemories ? "No translation memories yet" : emptyTitle}
+          emptyTitle={
+            allowCreateMemories
+              ? intl.formatMessage(translationMemoriesPageViewMessages.emptyTitle)
+              : emptyTitle
+          }
           emptyDescription={
             allowCreateMemories
-              ? "Create a workspace memory, import entries, then assign it to the projects that should use it."
+              ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionCreate)
               : emptyDescription
           }
           emptyAction={
             allowCreateMemories ? (
               <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                Create memory
+                <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
               </Button>
             ) : (
               <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
@@ -340,7 +372,10 @@ export function TranslationMemoriesPageView({
       {!liveProjectSelectionRequired && isSuccess && memoryTotal > MEMORIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories
+            <FormattedMessage
+              {...translationMemoriesPageViewMessages.paginationSummary}
+              values={{ pageStart, pageEnd, memoryTotal }}
+            />
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -350,10 +385,13 @@ export function TranslationMemoriesPageView({
               disabled={page <= 1}
               onClick={() => onPageChange(Math.max(1, page - 1))}
             >
-              Previous
+              <FormattedMessage {...translationMemoriesPageViewMessages.previousPage} />
             </Button>
             <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
+              <FormattedMessage
+                {...translationMemoriesPageViewMessages.paginationPage}
+                values={{ page, totalPages }}
+              />
             </p>
             <Button
               type="button"
@@ -362,7 +400,7 @@ export function TranslationMemoriesPageView({
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
             >
-              Next
+              <FormattedMessage {...translationMemoriesPageViewMessages.nextPage} />
             </Button>
           </div>
         </div>
@@ -371,35 +409,45 @@ export function TranslationMemoriesPageView({
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create translation memory</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...translationMemoriesPageViewMessages.createDialogTitle} />
+            </DialogTitle>
             <DialogDescription>
-              Add a first-party memory library. You can import and edit entries after creation.
+              <FormattedMessage {...translationMemoriesPageViewMessages.createDialogDescription} />
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <Field className="gap-1.5">
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...translationMemoriesPageViewMessages.nameLabel} />
+              </FieldLabel>
               <Input
                 value={createForm.name}
                 onChange={(event) =>
                   onCreateFormChange({ ...createForm, name: event.target.value })
                 }
                 disabled={isCreating}
-                placeholder="Marketing launch memory"
+                placeholder={intl.formatMessage(
+                  translationMemoriesPageViewMessages.namePlaceholder,
+                )}
               />
               <FieldError
                 errors={createErrors.name ? [{ message: createErrors.name }] : undefined}
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Description</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...translationMemoriesPageViewMessages.descriptionLabel} />
+              </FieldLabel>
               <Textarea
                 value={createForm.description}
                 onChange={(event) =>
                   onCreateFormChange({ ...createForm, description: event.target.value })
                 }
                 disabled={isCreating}
-                placeholder="When this memory should be used"
+                placeholder={intl.formatMessage(
+                  translationMemoriesPageViewMessages.descriptionPlaceholder,
+                )}
               />
             </Field>
           </div>
@@ -409,11 +457,11 @@ export function TranslationMemoriesPageView({
               onClick={() => onCreateDialogOpenChange(false)}
               disabled={isCreating}
             >
-              Cancel
+              <FormattedMessage {...translationMemoriesPageViewMessages.cancel} />
             </Button>
             <Button onClick={onSubmitCreateMemory} disabled={isCreating}>
               {isCreating ? <Spinner /> : null}
-              Create memory
+              <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
             </Button>
           </DialogFooter>
         </DialogContent>

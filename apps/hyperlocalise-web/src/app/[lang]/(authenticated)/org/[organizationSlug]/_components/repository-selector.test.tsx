@@ -1,11 +1,21 @@
 // @vitest-environment happy-dom
 
+import type { ReactElement } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { GithubRepository } from "./github-repository";
 import { RepositorySelector } from "./repository-selector";
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      {ui}
+    </IntlProvider>,
+  );
+}
 
 function createRepository(overrides: Partial<GithubRepository> = {}): GithubRepository {
   const name = overrides.name ?? "web";
@@ -29,7 +39,7 @@ describe("RepositorySelector", () => {
     const user = userEvent.setup();
     const onSelectRepository = vi.fn();
 
-    render(
+    renderWithIntl(
       <RepositorySelector
         repositories={[
           createRepository({ name: "web", fullName: "acme/web" }),

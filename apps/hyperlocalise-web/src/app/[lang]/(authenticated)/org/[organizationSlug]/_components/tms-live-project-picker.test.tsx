@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { render, screen } from "@testing-library/react";
+import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { TmsLiveProjectPicker } from "./tms-live-project-picker";
@@ -30,11 +31,13 @@ describe("TmsLiveProjectPicker", () => {
     });
 
     render(
-      <TmsLiveProjectPicker
-        organizationSlug="acme"
-        value="902807"
-        onValueChange={() => undefined}
-      />,
+      <IntlProvider locale="en" messages={{}}>
+        <TmsLiveProjectPicker
+          organizationSlug="acme"
+          value="902807"
+          onValueChange={() => undefined}
+        />
+      </IntlProvider>,
     );
 
     expect(screen.getByText("Marketing website")).toBeInTheDocument();

@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { carouselMessages } from "@/components/ui/carousel.messages";
 
 type CarouselApi = UseEmblaCarouselType[1];
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
@@ -104,6 +106,8 @@ function Carousel({
     };
   }, [api, onSelect]);
 
+  const intl = useIntl();
+
   return (
     <CarouselContext.Provider
       value={{
@@ -121,7 +125,7 @@ function Carousel({
         onKeyDownCapture={handleKeyDown}
         className={cn("relative", className)}
         role="region"
-        aria-roledescription="carousel"
+        aria-roledescription={intl.formatMessage(carouselMessages.regionRoleDescription)}
         data-slot="carousel"
         {...props}
       >
@@ -146,11 +150,12 @@ function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
 
 function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   const { orientation } = useCarousel();
+  const intl = useIntl();
 
   return (
     <div
       role="group"
-      aria-roledescription="slide"
+      aria-roledescription={intl.formatMessage(carouselMessages.slideRoleDescription)}
       data-slot="carousel-item"
       className={cn(
         "min-w-0 shrink-0 grow-0 basis-full",
@@ -187,7 +192,9 @@ function CarouselPrevious({
       {...props}
     >
       <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="rtl:rotate-180" />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">
+        <FormattedMessage {...carouselMessages.previousSlide} />
+      </span>
     </Button>
   );
 }
@@ -217,7 +224,9 @@ function CarouselNext({
       {...props}
     >
       <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="rtl:rotate-180" />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">
+        <FormattedMessage {...carouselMessages.nextSlide} />
+      </span>
     </Button>
   );
 }

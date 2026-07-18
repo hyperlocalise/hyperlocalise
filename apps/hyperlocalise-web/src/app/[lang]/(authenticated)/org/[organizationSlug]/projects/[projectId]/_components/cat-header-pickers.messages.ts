@@ -48,6 +48,12 @@ export const catHeaderPickersMessages = defineMessages({
     id: "YOYL3H2qOe",
     description: "Placeholder for the CAT header target locale select when empty",
   },
+  localeCode: {
+    defaultMessage: "({locale})",
+    id: "ZBPKpZ5WZT",
+    description: "Locale code shown in parentheses next to the locale display name",
+  },
+
   githubRepositoryAriaLabel: {
     defaultMessage: "GitHub repository",
     id: "nRa4VGuM7T",

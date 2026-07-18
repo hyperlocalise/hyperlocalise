@@ -1,5 +1,7 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import { Badge } from "@/components/ui/badge";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/translation/translation-memory-match";
 import {
@@ -9,6 +11,7 @@ import {
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
+import { jobAgentRunTranslationMemoryMessages as messages } from "./job-agent-run-translation-memory.messages";
 
 function matchSourceTone(matchSource: AgentRunTranslationMemoryMatchUsage["matchSource"]) {
   return matchSource === "synced_database" ? "safe" : "info";
@@ -21,6 +24,8 @@ export function TranslationMemoryMatchBadges({
   matches: AgentRunTranslationMemoryMatchUsage[];
   className?: string;
 }) {
+  const intl = useIntl();
+
   if (matches.length === 0) {
     return null;
   }
@@ -32,12 +37,31 @@ export function TranslationMemoryMatchBadges({
           key={`${match.memoryId}:${match.targetLocale}:${index}`}
           variant="outline"
           className={cn("rounded-full", toneClass(matchSourceTone(match.matchSource)))}
-          title={`${match.memoryName} · ${match.sourceText} → ${match.targetText}${
-            match.matchScore !== null ? ` (${match.matchScore}%)` : ""
-          }`}
+          title={
+            match.matchScore !== null
+              ? intl.formatMessage(messages.tmMatchTitleWithScore, {
+                  memoryName: match.memoryName,
+                  sourceText: match.sourceText,
+                  targetText: match.targetText,
+                  matchScore: match.matchScore,
+                })
+              : intl.formatMessage(messages.tmMatchTitle, {
+                  memoryName: match.memoryName,
+                  sourceText: match.sourceText,
+                  targetText: match.targetText,
+                })
+          }
         >
-          {formatTranslationMemoryMatchSourceLabel(match)} · {match.memoryName}
-          {match.matchScore !== null ? ` · ${match.matchScore}%` : ""}
+          {match.matchScore !== null
+            ? intl.formatMessage(messages.tmBadgeLabelWithScore, {
+                source: formatTranslationMemoryMatchSourceLabel(match),
+                memoryName: match.memoryName,
+                matchScore: match.matchScore,
+              })
+            : intl.formatMessage(messages.tmBadgeLabel, {
+                source: formatTranslationMemoryMatchSourceLabel(match),
+                memoryName: match.memoryName,
+              })}
         </Badge>
       ))}
     </div>
@@ -49,6 +73,8 @@ export function TranslationMemoryMatchesDetail({
 }: {
   matches: AgentRunTranslationMemoryMatchUsage[];
 }) {
+  const intl = useIntl();
+
   if (matches.length === 0) {
     return null;
   }
@@ -56,7 +82,7 @@ export function TranslationMemoryMatchesDetail({
   return (
     <div className="space-y-2 rounded-md border border-border bg-muted p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Translation memory used
+        {intl.formatMessage(messages.translationMemoryUsed)}
       </p>
       <ul className="space-y-2">
         {matches.map((match, index) => (
@@ -73,11 +99,18 @@ export function TranslationMemoryMatchesDetail({
                 {formatTranslationMemoryResourceLabel(match)}
               </Badge>
               {match.matchScore !== null ? (
-                <span className="text-xs text-muted-foreground">{match.matchScore}% match</span>
+                <span className="text-xs text-muted-foreground">
+                  {intl.formatMessage(messages.matchScorePercent, {
+                    matchScore: match.matchScore,
+                  })}
+                </span>
               ) : null}
             </div>
             <p className="text-xs whitespace-pre-wrap text-muted-foreground">
-              {match.sourceText} → {match.targetText}
+              {intl.formatMessage(messages.tmTextPair, {
+                sourceText: match.sourceText,
+                targetText: match.targetText,
+              })}
             </p>
           </li>
         ))}

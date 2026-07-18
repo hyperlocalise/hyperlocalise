@@ -22,6 +22,8 @@ import { chatDockMockMessages } from "./chat-dock-mock.messages";
 const STEP_MS = 720;
 const TOOL_RESOLVE_MS = 520;
 const EASE_OUT = [0.19, 1, 0.22, 1] as const;
+const COLLAPSE_GLYPH = "−";
+const MENTION_GLYPH = "@";
 
 type ToolStep = {
   kind: "tool";
@@ -32,15 +34,7 @@ type ToolStep = {
   resultLines: string[];
 };
 
-type AnswerStep = {
-  kind: "answer";
-  id: string;
-  sections: Array<{ label: string; body: string }>;
-};
-
-type DemoStep = ToolStep | AnswerStep;
-
-const DEMO_STEPS: DemoStep[] = [
+const TOOL_DEMO_STEPS: ToolStep[] = [
   {
     kind: "tool",
     id: "grep-save",
@@ -72,25 +66,22 @@ const DEMO_STEPS: DemoStep[] = [
       "85  </div>",
     ],
   },
-  {
-    kind: "answer",
-    id: "final-answer",
-    sections: [
-      {
-        label: "What it is",
-        body: "Primary submit label for the account settings form. It commits profile edits the user already made on the page.",
-      },
-      {
-        label: "Where/how it shows",
-        body: "Bottom-right of Settings → Account, beside Cancel. Evidence: account-form.tsx:84 and account.settings.save.",
-      },
-      {
-        label: "Translation guidance",
-        body: "Keep it a short verb, not “Save changes.” Match Cancel’s brevity so the pair stays balanced in tight toolbars.",
-      },
-    ],
-  },
 ];
+
+const ANSWER_SECTION_KEYS = [
+  {
+    labelKey: "answerWhatItIsLabel",
+    bodyKey: "answerWhatItIsBody",
+  },
+  {
+    labelKey: "answerWhereLabel",
+    bodyKey: "answerWhereBody",
+  },
+  {
+    labelKey: "answerGuidanceLabel",
+    bodyKey: "answerGuidanceBody",
+  },
+] as const;
 
 const FEATURE_KEYS = [
   "featureContextDiscovery",
@@ -148,7 +139,7 @@ export function ChatDockMockSection() {
     setToolStates({});
     setShowAnswer(false);
 
-    const toolSteps = DEMO_STEPS.filter((step): step is ToolStep => step.kind === "tool");
+    const toolSteps = TOOL_DEMO_STEPS;
     let elapsed = shouldReduceMotion ? 0 : 180;
 
     toolSteps.forEach((step, index) => {
@@ -184,8 +175,11 @@ export function ChatDockMockSection() {
     transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
   }, [visibleToolCount, toolStates, showAnswer]);
 
-  const toolSteps = DEMO_STEPS.filter((step): step is ToolStep => step.kind === "tool");
-  const answerStep = DEMO_STEPS.find((step): step is AnswerStep => step.kind === "answer");
+  const toolSteps = TOOL_DEMO_STEPS;
+  const answerSections = ANSWER_SECTION_KEYS.map((section) => ({
+    label: intl.formatMessage(chatDockMockMessages[section.labelKey]),
+    body: intl.formatMessage(chatDockMockMessages[section.bodyKey]),
+  }));
   const isBusy = phase === "playing";
 
   return (
@@ -245,7 +239,7 @@ export function ChatDockMockSection() {
                   aria-label={intl.formatMessage(chatDockMockMessages.collapseLabel)}
                 >
                   <span aria-hidden className="text-base leading-none">
-                    −
+                    {COLLAPSE_GLYPH}
                   </span>
                 </Button>
                 <Button
@@ -314,14 +308,14 @@ export function ChatDockMockSection() {
                         })}
                       </AnimatePresence>
 
-                      {showAnswer && answerStep ? (
+                      {showAnswer ? (
                         <motion.div
                           initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: EASE_OUT }}
                           className="space-y-4 text-sm leading-6 text-foreground"
                         >
-                          {answerStep.sections.map((section) => (
+                          {answerSections.map((section) => (
                             <div key={section.label} className="space-y-1">
                               <p className="font-medium text-foreground">{section.label}</p>
                               <p className="text-muted-foreground">{section.body}</p>
@@ -338,7 +332,7 @@ export function ChatDockMockSection() {
                 <div className="overflow-hidden rounded-xl border border-border bg-muted/30 shadow-sm">
                   <div className="flex flex-wrap gap-1.5 px-3 pt-3">
                     <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-                      @
+                      {MENTION_GLYPH}
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
                       <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />

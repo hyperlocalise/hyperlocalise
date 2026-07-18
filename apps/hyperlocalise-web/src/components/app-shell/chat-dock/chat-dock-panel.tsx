@@ -29,6 +29,7 @@ import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore } from "./chat-dock-store";
 import { getChatStreamManager } from "./chat-stream-manager";
 
+const COLLAPSE_GLYPH = "−";
 const inboxApi = createInboxApi(apiClient);
 
 function messagesQueryKey(conversationId: string) {
@@ -311,7 +312,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           onClick={() => store.setPanelOpen(false)}
         >
           <span aria-hidden className="text-base leading-none">
-            −
+            {COLLAPSE_GLYPH}
           </span>
         </Button>
         <Button

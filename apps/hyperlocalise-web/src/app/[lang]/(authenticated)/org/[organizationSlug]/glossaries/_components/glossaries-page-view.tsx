@@ -2,6 +2,7 @@
 
 import { BookOpenTextIcon, Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -34,32 +35,13 @@ import {
 import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
+import { glossariesPageViewMessages } from "./glossaries-page-view.messages";
 import {
   ProjectSourceLocalePicker,
   ProjectTargetLocalesPicker,
 } from "../../projects/_components/project-locale-picker";
 
 export const GLOSSARIES_PAGE_SIZE = 100;
-
-const sourceFilterLabels = {
-  all: "All sources",
-  native: "Workspace",
-  external_tms: "Provider",
-} as const;
-
-const resourceTypeFilterLabels = {
-  all: "All resource types",
-  glossary: "Glossary",
-  term_base: "Term base",
-} as const;
-
-const syncFilterLabels = {
-  all: "All sync states",
-  synced: "Synced",
-  stale: "Stale",
-  syncing: "Syncing",
-  error: "Sync error",
-} as const;
 
 export type GlossaryCreateForm = {
   name: string;
@@ -151,27 +133,53 @@ export function GlossariesPageView({
   isCreating: boolean;
   onSubmitCreateGlossary: () => void;
 }) {
+  const intl = useIntl();
   const liveProjectSelectionRequired = useLiveProviderGlossaries && !selectedExternalProjectId;
 
-  const emptyTitle = hasConnectedProvider ? "No glossaries yet" : "Connect a TMS provider";
+  const sourceFilterLabels = {
+    all: intl.formatMessage(glossariesPageViewMessages.sourceAll),
+    native: intl.formatMessage(glossariesPageViewMessages.sourceNative),
+    external_tms: intl.formatMessage(glossariesPageViewMessages.sourceExternalTms),
+  } as const;
+
+  const resourceTypeFilterLabels = {
+    all: intl.formatMessage(glossariesPageViewMessages.resourceAll),
+    glossary: intl.formatMessage(glossariesPageViewMessages.resourceGlossary),
+    term_base: intl.formatMessage(glossariesPageViewMessages.resourceTermBase),
+  } as const;
+
+  const syncFilterLabels = {
+    all: intl.formatMessage(glossariesPageViewMessages.syncAll),
+    synced: intl.formatMessage(glossariesPageViewMessages.syncSynced),
+    stale: intl.formatMessage(glossariesPageViewMessages.syncStale),
+    syncing: intl.formatMessage(glossariesPageViewMessages.syncSyncing),
+    error: intl.formatMessage(glossariesPageViewMessages.syncError),
+  } as const;
+
+  const emptyTitle = hasConnectedProvider
+    ? intl.formatMessage(glossariesPageViewMessages.emptyTitle)
+    : intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider);
   const emptyDescription = hasConnectedProvider
-    ? "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
-    : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace.";
+    ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider)
+    : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider);
 
   const glossaryCountLabel =
     isSuccess && glossaryTotal > 0
-      ? `${glossaryTotal} ${glossaryTotal === 1 ? "glossary" : "glossaries"}`
+      ? intl.formatMessage(glossariesPageViewMessages.glossaryCount, {
+          count: glossaryTotal,
+        })
       : undefined;
 
   const glossariesQuery = { isLoading, isError, isSuccess, error };
+  const allProvidersLabel = intl.formatMessage(glossariesPageViewMessages.providerAll);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={BookOpenTextIcon}
-        label="Workspace"
-        title="Glossaries"
-        description="Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only."
+        label={intl.formatMessage(glossariesPageViewMessages.pageLabel)}
+        title={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
+        description={intl.formatMessage(glossariesPageViewMessages.pageDescription)}
         statusLabel={glossaryCountLabel}
         actions={
           allowCreateGlossaries ? (
@@ -181,7 +189,7 @@ export function GlossariesPageView({
               className="w-full sm:w-fit"
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create glossary
+              <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
             </Button>
           ) : null
         }
@@ -199,15 +207,21 @@ export function GlossariesPageView({
 
       {isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
+          <WorkspaceFilterField
+            label={intl.formatMessage(glossariesPageViewMessages.searchLabel)}
+            className="w-full sm:max-w-xs"
+          >
             <Input
-              placeholder="Name, project, or external ID..."
+              placeholder={intl.formatMessage(glossariesPageViewMessages.searchPlaceholder)}
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               className="w-full"
             />
           </WorkspaceFilterField>
-          <WorkspaceFilterField label="Source" className="w-full sm:w-40">
+          <WorkspaceFilterField
+            label={intl.formatMessage(glossariesPageViewMessages.sourceLabel)}
+            className="w-full sm:w-40"
+          >
             <Select
               value={sourceFilter}
               onValueChange={(value) => {
@@ -240,19 +254,22 @@ export function GlossariesPageView({
           </WorkspaceFilterField>
 
           {hasExternalGlossaries && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Provider" className="w-full sm:w-40">
+            <WorkspaceFilterField
+              label={intl.formatMessage(glossariesPageViewMessages.providerLabel)}
+              className="w-full sm:w-40"
+            >
               <Select
                 value={providerFilter}
                 onValueChange={(value) => onProviderFilterChange(value ?? "all")}
               >
                 <SelectTrigger className={workspaceFilterTriggerClassName}>
                   <SelectValue>
-                    {providerFilter === "all" ? "All providers" : providerLabel(providerFilter)}
+                    {providerFilter === "all" ? allProvidersLabel : providerLabel(providerFilter)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" label="All providers">
-                    All providers
+                  <SelectItem value="all" label={allProvidersLabel}>
+                    {allProvidersLabel}
                   </SelectItem>
                   {providerKinds.map((kind) => (
                     <SelectItem key={kind} value={kind} label={providerLabel(kind)}>
@@ -265,7 +282,10 @@ export function GlossariesPageView({
           ) : null}
 
           {hasResourceTypes && sourceFilter !== "native" ? (
-            <WorkspaceFilterField label="Resource" className="w-full sm:w-44">
+            <WorkspaceFilterField
+              label={intl.formatMessage(glossariesPageViewMessages.resourceLabel)}
+              className="w-full sm:w-44"
+            >
               <Select
                 value={resourceTypeFilter}
                 onValueChange={(value) => onResourceTypeFilterChange(value ?? "all")}
@@ -293,7 +313,10 @@ export function GlossariesPageView({
           ) : null}
 
           {hasExternalGlossaries && sourceFilter !== "native" && !useLiveProviderGlossaries ? (
-            <WorkspaceFilterField label="Sync" className="w-full sm:w-40">
+            <WorkspaceFilterField
+              label={intl.formatMessage(glossariesPageViewMessages.syncLabel)}
+              className="w-full sm:w-40"
+            >
               <Select
                 value={syncFilter}
                 onValueChange={(value) => onSyncFilterChange(value ?? "all")}
@@ -326,7 +349,7 @@ export function GlossariesPageView({
 
           {activeFilterCount > 0 ? (
             <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-              Clear filters
+              <FormattedMessage {...glossariesPageViewMessages.clearFilters} />
             </Button>
           ) : null}
         </div>
@@ -334,25 +357,30 @@ export function GlossariesPageView({
 
       {isSuccess && hasActiveFilters && glossaryTotal === 0 ? (
         <div className="text-sm text-muted-foreground">
-          No glossaries match your filters.{" "}
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="text-subtle-foreground underline hover:text-foreground"
-          >
-            Clear filters
-          </button>
+          <FormattedMessage
+            {...glossariesPageViewMessages.noFilterMatches}
+            values={{
+              clear: (chunks) => (
+                <button
+                  type="button"
+                  onClick={onClearFilters}
+                  className="text-subtle-foreground underline hover:text-foreground"
+                >
+                  {chunks}
+                </button>
+              ),
+            }}
+          />
         </div>
       ) : null}
 
       {liveProjectSelectionRequired ? (
         <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">
-            Choose a TMS project
+            <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectTitle} />
           </TypographyP>
           <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
-            Select a project above to load live glossaries and term bases from your connected
-            provider.
+            <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectDescription} />
           </TypographyP>
         </div>
       ) : (
@@ -360,16 +388,20 @@ export function GlossariesPageView({
           glossaries={glossaries}
           glossariesQuery={glossariesQuery}
           organizationSlug={organizationSlug}
-          emptyTitle={allowCreateGlossaries ? "No glossaries yet" : emptyTitle}
+          emptyTitle={
+            allowCreateGlossaries
+              ? intl.formatMessage(glossariesPageViewMessages.emptyTitle)
+              : emptyTitle
+          }
           emptyDescription={
             allowCreateGlossaries
-              ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
+              ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionCreate)
               : emptyDescription
           }
           emptyAction={
             allowCreateGlossaries ? (
               <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                Create glossary
+                <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
               </Button>
             ) : (
               <GlossariesEmptyAction organizationSlug={organizationSlug} />
@@ -381,7 +413,10 @@ export function GlossariesPageView({
       {!liveProjectSelectionRequired && isSuccess && glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries
+            <FormattedMessage
+              {...glossariesPageViewMessages.paginationSummary}
+              values={{ pageStart, pageEnd, glossaryTotal }}
+            />
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -391,10 +426,13 @@ export function GlossariesPageView({
               disabled={page <= 1}
               onClick={() => onPageChange(Math.max(1, page - 1))}
             >
-              Previous
+              <FormattedMessage {...glossariesPageViewMessages.previousPage} />
             </Button>
             <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
+              <FormattedMessage
+                {...glossariesPageViewMessages.paginationPage}
+                values={{ page, totalPages }}
+              />
             </p>
             <Button
               type="button"
@@ -403,7 +441,7 @@ export function GlossariesPageView({
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
             >
-              Next
+              <FormattedMessage {...glossariesPageViewMessages.nextPage} />
             </Button>
           </div>
         </div>
@@ -412,21 +450,25 @@ export function GlossariesPageView({
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="max-h-[min(85dvh,42rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create glossary</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...glossariesPageViewMessages.createDialogTitle} />
+            </DialogTitle>
             <DialogDescription>
-              Add a first-party terminology library. You can import and edit terms after creation.
+              <FormattedMessage {...glossariesPageViewMessages.createDialogDescription} />
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <Field className="gap-1.5">
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...glossariesPageViewMessages.nameLabel} />
+              </FieldLabel>
               <Input
                 value={createForm.name}
                 onChange={(event) =>
                   onCreateFormChange({ ...createForm, name: event.target.value })
                 }
                 disabled={isCreating}
-                placeholder="Product terminology"
+                placeholder={intl.formatMessage(glossariesPageViewMessages.namePlaceholder)}
               />
               <FieldError
                 errors={createErrors.name ? [{ message: createErrors.name }] : undefined}
@@ -450,14 +492,16 @@ export function GlossariesPageView({
               error={createErrors.targetLocales}
             />
             <Field className="gap-1.5">
-              <FieldLabel>Description</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...glossariesPageViewMessages.descriptionLabel} />
+              </FieldLabel>
               <Textarea
                 value={createForm.description}
                 onChange={(event) =>
                   onCreateFormChange({ ...createForm, description: event.target.value })
                 }
                 disabled={isCreating}
-                placeholder="Where this glossary should be used"
+                placeholder={intl.formatMessage(glossariesPageViewMessages.descriptionPlaceholder)}
               />
             </Field>
           </div>
@@ -467,11 +511,11 @@ export function GlossariesPageView({
               onClick={() => onCreateDialogOpenChange(false)}
               disabled={isCreating}
             >
-              Cancel
+              <FormattedMessage {...glossariesPageViewMessages.cancel} />
             </Button>
             <Button onClick={onSubmitCreateGlossary} disabled={isCreating}>
               {isCreating ? <Spinner /> : null}
-              Create glossary
+              <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
             </Button>
           </DialogFooter>
         </DialogContent>

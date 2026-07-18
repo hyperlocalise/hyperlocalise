@@ -67,7 +67,7 @@ function NavigationMenuTrigger({
       className={cn(navigationMenuTriggerStyle(), "group", className)}
       {...props}
     >
-      {children}{" "}
+      {children}
       <HugeiconsIcon
         icon={ArrowDown01Icon}
         strokeWidth={2}

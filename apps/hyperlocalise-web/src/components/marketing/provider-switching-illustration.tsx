@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { FormattedMessage } from "react-intl";
 
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+
+import { providerSwitchingIllustrationMessages } from "./provider-switching-illustration.messages";
 
 type ProviderCard = {
   id: string;
@@ -94,7 +97,7 @@ export function ProviderSwitchingIllustration() {
     <div className="rounded-[1.5rem] border border-border bg-background p-4 shadow-[0_18px_56px_var(--color-gray-alpha-300)] sm:rounded-[1.8rem] sm:p-7 sm:shadow-[0_24px_80px_var(--color-gray-alpha-300)] mask-radial-from-65% mask-radial-at-top">
       <div className="flex items-center justify-between gap-3">
         <TypographyH4 className="text-[1.05rem] font-semibold tracking-[-0.02em] sm:text-inherit sm:tracking-[inherit]">
-          Providers
+          <FormattedMessage {...providerSwitchingIllustrationMessages.title} />
         </TypographyH4>
       </div>
 

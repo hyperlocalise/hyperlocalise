@@ -208,7 +208,9 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
     <div className="flex h-svh min-h-0 flex-col">
       <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">Hyperlocalise</p>
+          <p className="truncate text-sm font-medium">
+            <FormattedMessage {...crowdinAppInboxMessages.brandName} />
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             <FormattedMessage
               {...crowdinAppInboxMessages.projectLabel}

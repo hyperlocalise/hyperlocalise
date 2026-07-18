@@ -109,4 +109,37 @@ export const chatDockMockMessages = defineMessages({
     id: "0s28QK0gJ3",
     description: "Meta line on the background document peek behind the chat dock",
   },
+  answerWhatItIsLabel: {
+    defaultMessage: "What it is",
+    id: "MhMxp1C3z+",
+    description: "Section label in the chat dock mock final answer",
+  },
+  answerWhatItIsBody: {
+    defaultMessage:
+      "Primary submit label for the account settings form. It commits profile edits the user already made on the page.",
+    id: "OoS6vfJVMn",
+    description: "Body of the What it is section in the chat dock mock answer",
+  },
+  answerWhereLabel: {
+    defaultMessage: "Where/how it shows",
+    id: "g/8r2PHmy4",
+    description: "Section label for placement guidance in the chat dock mock answer",
+  },
+  answerWhereBody: {
+    defaultMessage:
+      "Bottom-right of Settings → Account, beside Cancel. Evidence: account-form.tsx:84 and account.settings.save.",
+    id: "BZlqrTwEjY",
+    description: "Body of the placement section in the chat dock mock answer",
+  },
+  answerGuidanceLabel: {
+    defaultMessage: "Translation guidance",
+    id: "v2pt3KFC6s",
+    description: "Section label for translation guidance in the chat dock mock answer",
+  },
+  answerGuidanceBody: {
+    defaultMessage:
+      "Keep it a short verb, not “Save changes.” Match Cancel’s brevity so the pair stays balanced in tight toolbars.",
+    id: "jBW+LURvnY",
+    description: "Body of the translation guidance section in the chat dock mock answer",
+  },
 });

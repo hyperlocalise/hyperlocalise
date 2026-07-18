@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { readApiError, readApiResponseError } from "@/lib/api-error";
@@ -32,6 +33,7 @@ import {
   GLOSSARIES_PAGE_SIZE,
   type GlossaryCreateForm,
 } from "./glossaries-page-view";
+import { glossariesPageContentMessages } from "./glossaries-page-content.messages";
 
 type GlossaryListFilters = {
   searchQuery: string;
@@ -181,6 +183,7 @@ export function GlossariesPageContent({
   organizationSlug: string;
   canCreateGlossaries: boolean;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -220,7 +223,10 @@ export function GlossariesPageContent({
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load projects");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(glossariesPageContentMessages.loadProjectsFailed),
+        );
       }
 
       const body = await response.json();
@@ -239,7 +245,11 @@ export function GlossariesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load provider credentials (${response.status})`);
+        throw new Error(
+          intl.formatMessage(glossariesPageContentMessages.loadCredentialsFailed, {
+            status: response.status,
+          }),
+        );
       }
 
       const body = await response.json();
@@ -266,12 +276,16 @@ export function GlossariesPageContent({
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load provider glossaries (${response.status})`);
+          throw new Error(
+            intl.formatMessage(glossariesPageContentMessages.loadProviderGlossariesFailed, {
+              status: response.status,
+            }),
+          );
         }
 
         const body = (await response.json()) as { glossaries: TmsProviderLiveGlossary[] };
         const rows = body.glossaries.map((glossary: TmsProviderLiveGlossary) =>
-          mapLiveTmsProviderGlossaryToListRow(glossary, activeTmsProvider.providerKind),
+          mapLiveTmsProviderGlossaryToListRow(glossary, activeTmsProvider.providerKind, intl),
         );
         const normalizedSearch = filters.searchQuery.trim().toLowerCase();
         const filtered = rows.filter((row: GlossaryListRow) => {
@@ -304,7 +318,11 @@ export function GlossariesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load glossaries (${response.status})`);
+        throw new Error(
+          intl.formatMessage(glossariesPageContentMessages.loadGlossariesFailed, {
+            status: response.status,
+          }),
+        );
       }
 
       const body = await response.json();
@@ -327,7 +345,12 @@ export function GlossariesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Unable to create glossary"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(glossariesPageContentMessages.createGlossaryFailed),
+          ),
+        );
       }
 
       return response.json();
@@ -336,7 +359,7 @@ export function GlossariesPageContent({
       await queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyGlossaryForm());
-      toast.success("Glossary created");
+      toast.success(intl.formatMessage(glossariesPageContentMessages.glossaryCreated));
       router.push(`/org/${organizationSlug}/glossaries/${body.glossary.id}`);
     },
     onError: (error) => {
@@ -355,11 +378,12 @@ export function GlossariesPageContent({
     }
 
     return (glossariesQuery.data?.glossaries ?? []).map((glossary) =>
-      mapGlossaryToListRow(glossary, projectIdByExternalKey),
+      mapGlossaryToListRow(glossary, projectIdByExternalKey, intl),
     );
   }, [
     glossariesQuery.data?.glossaries,
     glossariesQuery.data?.liveRows,
+    intl,
     projectIdByExternalKey,
     useLiveProviderGlossaries,
   ]);
@@ -406,10 +430,10 @@ export function GlossariesPageContent({
   function submitCreateGlossary() {
     const errors: { name?: string; targetLocales?: string } = {};
     if (!createForm.name.trim()) {
-      errors.name = "Glossary name is required.";
+      errors.name = intl.formatMessage(glossariesPageContentMessages.nameRequired);
     }
     if (createForm.targetLocales.length === 0) {
-      errors.targetLocales = "Select one target locale.";
+      errors.targetLocales = intl.formatMessage(glossariesPageContentMessages.targetLocaleRequired);
     }
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) {

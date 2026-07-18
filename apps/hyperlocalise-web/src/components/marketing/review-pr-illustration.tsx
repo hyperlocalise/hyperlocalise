@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { DotFlow } from "dot-anime-react";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
+import { FormattedMessage, useIntl } from "react-intl";
+
+import { reviewPrIllustrationMessages } from "./review-pr-illustration.messages";
 
 const beforeLines = [
   { left: "42", right: "", prefix: "-", code: '  "pricing.trialCta": "Start your free trial",' },
@@ -31,9 +34,6 @@ const interactiveLine = {
   prefix: "+",
   fixingCode: '  "pricing.launchMarkets": "Publiez sur 12 marches en quelques minutes",',
   resolvedCode: '  "pricing.launchMarkets": "Publiez sur 12 marchés en quelques minutes",',
-  reviewTitle: "Missing accent changes the French noun",
-  reviewBody:
-    "French requires “marchés” with an acute accent. Without it, the line reads like the verb “marches” instead of “markets” in customer-facing pricing copy.",
 };
 
 const remainingAfterLines = [
@@ -57,21 +57,23 @@ const remainingAfterLines = [
   },
 ];
 
-const dotItems = [
-  {
-    title: "Fixing",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
+const dotFrames = [
+  [0, 4, 7, 8, 10, 11, 15],
+  [0, 4, 5, 7, 8, 11, 15],
+  [4, 5, 7, 8, 11, 12, 15],
+  [3, 4, 5, 7, 8, 11, 12],
+  [2, 3, 4, 7, 8, 11, 12],
+  [3, 4, 7, 8, 11, 12, 13],
+  [4, 7, 8, 11, 12, 13, 15],
+  [4, 7, 8, 10, 11, 12, 15],
 ];
+
+const PR_FILE_PATH = "apps/web/messages/fr.json";
+const BRAND_NAME = "Hyperlocalise";
+const COMMENT_LINE_REF = "R44";
+const DIFF_OPEN_BRACE = "{";
+const DIFF_CLOSE_BRACE = "}";
+const WORD_SPACE = " ";
 
 const EASE_OUT = [0.19, 1, 0.22, 1] as const;
 const EASE_IN_OUT = [0.645, 0.045, 0.355, 1] as const;
@@ -80,6 +82,7 @@ const RESOLVE_DELAY_MS = 1890;
 type IllustrationStep = "draft" | "fixing" | "resolved";
 
 export function ReviewPrIllustration() {
+  const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
   const [step, setStep] = useState<IllustrationStep>("draft");
   const replyTimeoutRef = useRef<number | null>(null);
@@ -131,10 +134,10 @@ export function ReviewPrIllustration() {
 
   const statusLabel =
     step === "resolved"
-      ? "Changes committed"
+      ? intl.formatMessage(reviewPrIllustrationMessages.statusChangesCommitted)
       : step === "fixing"
-        ? "Agent fixing"
-        : "Review required";
+        ? intl.formatMessage(reviewPrIllustrationMessages.statusAgentFixing)
+        : intl.formatMessage(reviewPrIllustrationMessages.statusReviewRequired);
   const statusClassName =
     step === "resolved"
       ? "border-[color:var(--color-success)] bg-[color:color-mix(in_srgb,var(--color-success)_18%,var(--color-card))] text-[color:var(--color-success)]"
@@ -144,6 +147,13 @@ export function ReviewPrIllustration() {
   const displayedInteractiveCode =
     step === "resolved" ? interactiveLine.resolvedCode : interactiveLine.fixingCode;
   const showComposer = step === "draft";
+  const logoAlt = intl.formatMessage(reviewPrIllustrationMessages.logoAlt);
+  const dotItems = [
+    {
+      title: intl.formatMessage(reviewPrIllustrationMessages.fixingDotTitle),
+      frames: dotFrames,
+    },
+  ];
 
   return (
     <div className="relative overflow-hidden rounded-xl mask-radial-from-85% mask-radial-at-top bg-background border border-border">
@@ -163,14 +173,18 @@ export function ReviewPrIllustration() {
                   : { duration: 1.8, ease: EASE_IN_OUT, repeat: Infinity }
               }
             />
-            apps/web/messages/fr.json
+            {PR_FILE_PATH}
           </div>
-          <div className="mt-1 text-sm text-foreground">review translation updates</div>
+          <div className="mt-1 text-sm text-foreground">
+            <FormattedMessage {...reviewPrIllustrationMessages.prSubtitle} />
+          </div>
           <div className="mt-3">
             <div className="mt-1 text-sm text-muted-foreground">
-              {step === "resolved"
-                ? "3 strings changed, 1 French typo corrected directly from the PR thread"
-                : "3 strings changed, 1 translation issue called out before merge"}
+              {step === "resolved" ? (
+                <FormattedMessage {...reviewPrIllustrationMessages.summaryResolved} />
+              ) : (
+                <FormattedMessage {...reviewPrIllustrationMessages.summaryDraft} />
+              )}
             </div>
           </div>
         </div>
@@ -189,20 +203,26 @@ export function ReviewPrIllustration() {
       <div className="relative p-2.5 sm:p-5">
         <div className="overflow-hidden rounded-[1.35rem] border border-border bg-card">
           <div className="grid grid-cols-[1fr] border-b border-border bg-muted/60 px-2.5 py-1.5 text-[0.62rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase sm:grid-cols-[4.25rem_4.25rem_1fr] sm:px-3 sm:py-2 sm:text-[0.68rem] sm:tracking-[0.18em]">
-            <span className="hidden sm:inline">Old</span>
-            <span className="hidden sm:inline">New</span>
-            <span className="sm:pl-0 pl-2">Diff</span>
+            <span className="hidden sm:inline">
+              <FormattedMessage {...reviewPrIllustrationMessages.columnOld} />
+            </span>
+            <span className="hidden sm:inline">
+              <FormattedMessage {...reviewPrIllustrationMessages.columnNew} />
+            </span>
+            <span className="sm:pl-0 pl-2">
+              <FormattedMessage {...reviewPrIllustrationMessages.columnDiff} />
+            </span>
           </div>
 
           <div className="border-b border-border bg-card px-2.5 py-2 font-mono text-[0.74rem] leading-6 text-card-foreground sm:px-3 sm:text-[0.8rem] sm:leading-7">
             <div className="grid grid-cols-[2rem_2rem_1fr] md:grid-cols-[4rem_4rem_1fr] gap-0 rounded-t-lg bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]">
               <div className="border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
-                41
+                {41}
               </div>
               <div className="border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
-                41
+                {41}
               </div>
-              <div className="px-2.5 text-card-foreground sm:px-3">{`{`}</div>
+              <div className="px-2.5 text-card-foreground sm:px-3">{DIFF_OPEN_BRACE}</div>
             </div>
 
             {beforeLines.map((line) => (
@@ -264,11 +284,20 @@ export function ReviewPrIllustration() {
                   <div className="overflow-hidden rounded-[1rem] border border-border bg-background shadow-[0_10px_30px_color-mix(in_srgb,var(--foreground)_10%,transparent)]">
                     <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5 text-sm text-muted-foreground sm:px-4 sm:py-3">
                       <div>
-                        Comment on line <span className="font-semibold text-foreground">R44</span>
+                        <FormattedMessage
+                          {...reviewPrIllustrationMessages.commentOnLine}
+                          values={{
+                            line: () => (
+                              <span className="font-semibold text-foreground">
+                                {COMMENT_LINE_REF}
+                              </span>
+                            ),
+                          }}
+                        />
                       </div>
                       {step === "resolved" ? (
                         <div className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground">
-                          Resolved
+                          <FormattedMessage {...reviewPrIllustrationMessages.resolvedBadge} />
                         </div>
                       ) : null}
                     </div>
@@ -279,23 +308,30 @@ export function ReviewPrIllustration() {
                           <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-muted">
                             <Image
                               src="/images/logo.png"
-                              alt="Hyperlocalise logo"
+                              alt={logoAlt}
                               width={32}
                               height={32}
                               className="size-full object-cover"
                             />
                           </div>
                           <div className="min-w-0 text-sm text-foreground">
-                            <span className="font-semibold">Hyperlocalise</span>{" "}
-                            <span className="text-muted-foreground">requested changes</span>
+                            <span className="font-semibold">{BRAND_NAME}</span>
+                            {WORD_SPACE}
+                            <span className="text-muted-foreground">
+                              <FormattedMessage
+                                {...reviewPrIllustrationMessages.requestedChanges}
+                              />
+                            </span>
                           </div>
                         </div>
 
                         <div className="mt-2.5 border-l-2 border-(--color-error) bg-[color-mix(in_srgb,var(--color-error)_10%,var(--color-card))] px-3 py-2 text-sm leading-6 text-foreground sm:mt-3 sm:py-2.5">
                           <div className="font-semibold text-(--color-error)">
-                            {interactiveLine.reviewTitle}
+                            <FormattedMessage {...reviewPrIllustrationMessages.reviewTitle} />
                           </div>
-                          <div className="mt-1">{interactiveLine.reviewBody}</div>
+                          <div className="mt-1">
+                            <FormattedMessage {...reviewPrIllustrationMessages.reviewBody} />
+                          </div>
                         </div>
                       </div>
 
@@ -309,7 +345,7 @@ export function ReviewPrIllustration() {
                             />
                             <div className="flex items-center justify-between gap-2.5 border-t border-border bg-background px-3 py-2 sm:gap-3 sm:py-2.5">
                               <div className="text-xs text-muted-foreground">
-                                Mention Hyperlocalise to patch the diff in-thread.
+                                <FormattedMessage {...reviewPrIllustrationMessages.mentionHint} />
                               </div>
                               <motion.button
                                 type="button"
@@ -317,7 +353,7 @@ export function ReviewPrIllustration() {
                                 className="rounded-md border border-(--color-success) bg-(--color-success) px-3 py-1.5 text-sm font-semibold text-(--color-success-foreground) shadow-[0_0_0_1px_color-mix(in_srgb,var(--background)_3%,transparent)_inset] transition-colors hover:bg-[color:color-mix(in_srgb,var(--color-success)_90%,black)] disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground"
                                 whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                               >
-                                Comment
+                                <FormattedMessage {...reviewPrIllustrationMessages.commentButton} />
                               </motion.button>
                             </div>
                           </div>
@@ -343,16 +379,23 @@ export function ReviewPrIllustration() {
                             <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-(--color-info)">
                               <Image
                                 src="/images/logo.png"
-                                alt="Hyperlocalise logo"
+                                alt={logoAlt}
                                 width={32}
                                 height={32}
                                 className="size-full object-cover"
                               />
                             </div>
                             <div className="min-w-0 text-sm text-foreground">
-                              <span className="font-semibold">Hyperlocalise</span>{" "}
+                              <span className="font-semibold">{BRAND_NAME}</span>
+                              {WORD_SPACE}
                               <span className="text-muted-foreground">
-                                {step === "resolved" ? "resolved the thread" : "is replying"}
+                                {step === "resolved" ? (
+                                  <FormattedMessage
+                                    {...reviewPrIllustrationMessages.resolvedTheThread}
+                                  />
+                                ) : (
+                                  <FormattedMessage {...reviewPrIllustrationMessages.isReplying} />
+                                )}
                               </span>
                             </div>
                           </div>
@@ -376,27 +419,39 @@ export function ReviewPrIllustration() {
                                   }}
                                 />
                                 <div>
-                                  <div className="font-medium text-(--color-info)">Fixing</div>
+                                  <div className="font-medium text-(--color-info)">
+                                    <FormattedMessage
+                                      {...reviewPrIllustrationMessages.fixingTitle}
+                                    />
+                                  </div>
                                   <div className="text-muted-foreground">
-                                    Updating the string to use the correct accented French noun.
+                                    <FormattedMessage
+                                      {...reviewPrIllustrationMessages.fixingBody}
+                                    />
                                   </div>
                                 </div>
                               </div>
                             ) : step === "resolved" ? (
                               <div className="space-y-2.5 sm:space-y-3">
                                 <div className="font-medium text-(--color-success)">
-                                  Fixed and committed to this branch.
+                                  <FormattedMessage {...reviewPrIllustrationMessages.fixedTitle} />
                                 </div>
                                 <div className="text-muted-foreground">
-                                  Replaced{" "}
-                                  <code className="rounded bg-muted px-1 py-0.5 text-foreground">
-                                    marches
-                                  </code>{" "}
-                                  with{" "}
-                                  <code className="rounded bg-muted px-1 py-0.5 text-foreground">
-                                    marchés
-                                  </code>{" "}
-                                  so the French pricing copy is spelled correctly.
+                                  <FormattedMessage
+                                    {...reviewPrIllustrationMessages.fixedBody}
+                                    values={{
+                                      wrong: (chunks) => (
+                                        <code className="rounded bg-muted px-1 py-0.5 text-foreground">
+                                          {chunks}
+                                        </code>
+                                      ),
+                                      right: (chunks) => (
+                                        <code className="rounded bg-muted px-1 py-0.5 text-foreground">
+                                          {chunks}
+                                        </code>
+                                      ),
+                                    }}
+                                  />
                                 </div>
                                 <div>
                                   <button
@@ -404,7 +459,9 @@ export function ReviewPrIllustration() {
                                     onClick={handleReset}
                                     className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                                   >
-                                    Reset
+                                    <FormattedMessage
+                                      {...reviewPrIllustrationMessages.resetButton}
+                                    />
                                   </button>
                                 </div>
                               </div>
@@ -440,12 +497,12 @@ export function ReviewPrIllustration() {
 
             <div className="grid grid-cols-[1fr] sm:grid-cols-[4.25rem_4.25rem_1fr]">
               <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
-                46
+                {46}
               </div>
               <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
-                46
+                {46}
               </div>
-              <div className="px-2.5 text-card-foreground sm:px-3">{`}`}</div>
+              <div className="px-2.5 text-card-foreground sm:px-3">{DIFF_CLOSE_BRACE}</div>
             </div>
           </div>
         </div>

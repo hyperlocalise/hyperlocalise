@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { IntlProvider } from "react-intl";
 import { SidebarTrigger, SidebarProvider } from "./sidebar";
 import { TooltipProvider } from "./tooltip";
 
@@ -8,9 +9,13 @@ describe("SidebarTrigger Accessibility", () => {
   it("SidebarTrigger renders with icons inside the button", () => {
     const markup = renderToStaticMarkup(
       React.createElement(
-        SidebarProvider,
-        {},
-        React.createElement(TooltipProvider, {}, React.createElement(SidebarTrigger, {})),
+        IntlProvider,
+        { locale: "en", messages: {} },
+        React.createElement(
+          SidebarProvider,
+          {},
+          React.createElement(TooltipProvider, {}, React.createElement(SidebarTrigger, {})),
+        ),
       ),
     );
 

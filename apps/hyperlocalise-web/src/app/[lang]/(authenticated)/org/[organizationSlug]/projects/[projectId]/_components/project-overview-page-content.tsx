@@ -117,7 +117,7 @@ function formatJobStatusLine(intl: IntlShape, job: ApiJob) {
 
 function formatFileStatusLine(intl: IntlShape, file: ProjectFileRecord) {
   const readiness = resolveFileLocaleReadiness(file);
-  const summary = summarizeLocaleReadiness(readiness);
+  const summary = summarizeLocaleReadiness(readiness, intl);
   return summary ?? intl.formatMessage(messages.needsAttention);
 }
 

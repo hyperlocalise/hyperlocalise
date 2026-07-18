@@ -1,10 +1,12 @@
 "use client";
 
+import { FormattedMessage } from "react-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
-import { formatPendingActionCount } from "./overview-attention";
+import { overviewSectionHeaderMessages as messages } from "./overview-section-header.messages";
 
 export function OverviewSectionHeader({
   title,
@@ -23,7 +25,7 @@ export function OverviewSectionHeader({
           variant="outline"
           className="size-5 justify-center rounded-full border-beam-500/30 bg-beam-500/15 p-0 text-xs font-medium text-beam-100"
         >
-          {formatPendingActionCount(count)}
+          {count > 9 ? <FormattedMessage {...messages.cappedCount} /> : count}
         </Badge>
       ) : null}
     </div>

@@ -2,9 +2,19 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectFileRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      {ui}
+    </IntlProvider>,
+  );
+}
 
 const { routerPushMock, lastTreePropsRef } = vi.hoisted(() => ({
   routerPushMock: vi.fn(),
@@ -52,7 +62,7 @@ const nativeFile = createProjectFileRecord({
 
 describe("JobSourceFilesPanel CAT entry UX", () => {
   it("shows View strings when files are selected from the task detail panel", () => {
-    render(
+    renderWithIntl(
       <JobSourceFilesPanel
         organizationSlug="acme"
         projectId="proj_1"
@@ -76,7 +86,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
     const user = userEvent.setup();
     routerPushMock.mockClear();
 
-    render(
+    renderWithIntl(
       <JobSourceFilesPanel
         organizationSlug="acme"
         projectId="proj_1"
@@ -94,7 +104,7 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
   });
 
   it("wires onActivateFile for double-click navigation", () => {
-    render(
+    renderWithIntl(
       <JobSourceFilesPanel
         organizationSlug="acme"
         projectId="proj_1"

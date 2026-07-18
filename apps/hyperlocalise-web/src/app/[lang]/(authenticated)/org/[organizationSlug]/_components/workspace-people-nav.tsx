@@ -2,26 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 import { cn } from "@/lib/primitives/cn";
+
+import { workspacePeopleNavMessages as messages } from "./workspace-people-nav.messages";
 
 type WorkspacePeopleSection = "teams" | "members";
 
 const peopleSections: readonly {
   id: WorkspacePeopleSection;
-  label: string;
-  description: string;
+  labelMessage: typeof messages.teams;
 }[] = [
   {
     id: "teams",
-    label: "Teams",
-    description: "Group workspace members into teams for project access.",
+    labelMessage: messages.teams,
   },
   {
     id: "members",
-    label: "Members",
-    description: "Invite people and manage workspace roles.",
+    labelMessage: messages.members,
   },
 ] as const;
 
@@ -45,10 +45,11 @@ function resolveActiveSection(
 
 export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: string }) {
   const pathname = usePathname();
+  const intl = useIntl();
   const activeSection = resolveActiveSection(pathname, organizationSlug);
 
   return (
-    <nav aria-label="Workspace people" className="border-b border-border">
+    <nav aria-label={intl.formatMessage(messages.navAriaLabel)} className="border-b border-border">
       <div className="flex flex-wrap gap-1">
         {peopleSections.map((section) => {
           const href = `/org/${organizationSlug}/${section.id}`;
@@ -67,7 +68,7 @@ export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: str
                   : "text-muted-foreground hover:text-foreground after:opacity-0",
               )}
             >
-              {section.label}
+              <FormattedMessage {...section.labelMessage} />
             </Link>
           );
         })}
