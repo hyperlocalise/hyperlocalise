@@ -139,10 +139,8 @@ export function CatSideBySideRow({
     isImageBusy;
   // Show Approve whenever the focused row has a target to approve — including clean
   // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
-  const canTriggerApprove =
-    Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked;
-  const showReviewActions =
-    isFocused && canEdit && Boolean(onApprove) && hasApprovingTarget;
+  const canTriggerApprove = Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked;
+  const showReviewActions = isFocused && canEdit && Boolean(onApprove) && hasApprovingTarget;
   const showIssueSheetAction =
     isFocused && canEdit && !isImageSegment && Boolean(onAddToIssueSheet);
   const canEditTarget = canEdit && !isImageBusy;
