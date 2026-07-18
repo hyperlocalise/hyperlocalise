@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import {
   installChromiumSystemDependenciesFunction,
   sandboxPlaywrightVersion,
@@ -545,10 +545,44 @@ function buildCaptureCommand(input: {
     "  tail -n 40 /tmp/hyperlocalise-storybook.log >&2 || true",
     "  exit 1",
     "fi",
+    // Keep the workspace screenshot directory for sandbox debugging. The durable
+    // artifact is stored via createStoredFile; this folder is disposable scaffolding.
     `SCREENSHOT_B64=$(base64 -w 0 ${shellQuote(input.screenshotPath)})`,
-    `rm -rf ${shellQuote(input.baseDir)}`,
     'printf "%s" "$SCREENSHOT_B64"',
   ].join("\n");
+}
+
+type CaptureScreenshotSuccess = {
+  success: true;
+  fileId: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  byteSize: number;
+  workspacePath: string;
+  screenshotPath: string;
+  target: { type: "storybook"; storyId: string };
+  viewport: { width: number; height: number };
+  storybookUrl: string;
+};
+
+type CaptureScreenshotFailure = {
+  success: false;
+  errorCode: string;
+  error: string;
+  checkedFiles?: string[];
+  truncated?: boolean;
+};
+
+export type CaptureScreenshotResult = CaptureScreenshotSuccess | CaptureScreenshotFailure;
+
+function isCaptureScreenshotSuccess(output: unknown): output is CaptureScreenshotSuccess {
+  return (
+    Boolean(output) &&
+    typeof output === "object" &&
+    (output as CaptureScreenshotSuccess).success === true &&
+    typeof (output as CaptureScreenshotSuccess).fileId === "string"
+  );
 }
 
 export function createCaptureScreenshotTool(ctx: ToolContext, repo: RepoToolContext) {
@@ -562,7 +596,61 @@ The tool finds package.json at the repository root or in nested app packages, de
 
 It does not commit, push, open pull requests, or publish repository changes.`,
     inputSchema: captureScreenshotInputSchema,
-    execute: async ({ target, viewport = DEFAULT_VIEWPORT, waitForMs = DEFAULT_WAIT_FOR_MS }) => {
+    toModelOutput: async ({ output }) => {
+      if (!isCaptureScreenshotSuccess(output)) {
+        return { type: "json", value: output as CaptureScreenshotFailure };
+      }
+
+      try {
+        const { content } = await getStoredFileContent({
+          fileId: output.fileId,
+          organizationId: ctx.organizationId,
+          projectId: ctx.projectId,
+          db: ctx.db,
+        });
+
+        return {
+          type: "content",
+          value: [
+            {
+              type: "text",
+              text: [
+                `Screenshot captured for Storybook story ${output.target.storyId}.`,
+                `Stored file: ${output.filename} (${output.fileId}).`,
+                `URL: ${output.url}`,
+                `Workspace path (sandbox debug): ${output.screenshotPath}`,
+                `Viewport: ${output.viewport.width}×${output.viewport.height}`,
+              ].join("\n"),
+            },
+            {
+              type: "image-data",
+              data: content.toString("base64"),
+              mediaType: output.contentType || "image/png",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          type: "content",
+          value: [
+            {
+              type: "text",
+              text: [
+                `Screenshot metadata for ${output.target.storyId}: file ${output.fileId} at ${output.url}.`,
+                `Failed to load image bytes for the model: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              ].join("\n"),
+            },
+          ],
+        };
+      }
+    },
+    execute: async ({
+      target,
+      viewport = DEFAULT_VIEWPORT,
+      waitForMs = DEFAULT_WAIT_FOR_MS,
+    }): Promise<CaptureScreenshotResult> => {
       const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
       if (!gate.allowed) {
         return {
@@ -687,6 +775,8 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         filename: storedFile.filename,
         contentType: storedFile.contentType,
         byteSize: storedFile.byteSize,
+        workspacePath: baseDir,
+        screenshotPath,
         target,
         viewport,
         storybookUrl: storyUrl,

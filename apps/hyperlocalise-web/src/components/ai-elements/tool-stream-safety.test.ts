@@ -1,7 +1,36 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { normalizeCodeBlockSource } from "./code-block";
-import { extractToolInputDetail, serializeToolJson } from "./tool";
+import { extractToolInputDetail, getImageToolOutput, serializeToolJson } from "./tool";
+
+describe("getImageToolOutput", () => {
+  it("extracts image urls from successful screenshot tool output", () => {
+    expect(
+      getImageToolOutput({
+        success: true,
+        url: "https://download.example/story.png",
+        contentType: "image/png",
+        filename: "story.png",
+      }),
+    ).toEqual({
+      url: "https://download.example/story.png",
+      contentType: "image/png",
+      filename: "story.png",
+    });
+  });
+
+  it("ignores non-image tool output", () => {
+    expect(
+      getImageToolOutput({
+        success: true,
+        url: "https://example.com/notes.txt",
+        contentType: "text/plain",
+        filename: "notes.txt",
+      }),
+    ).toBeNull();
+    expect(getImageToolOutput({ success: false, error: "failed" })).toBeNull();
+  });
+});
 
 describe("serializeToolJson", () => {
   it("returns {} when input is undefined (streaming tool args)", () => {

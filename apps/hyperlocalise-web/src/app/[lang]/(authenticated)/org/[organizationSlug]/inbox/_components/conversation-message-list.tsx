@@ -18,6 +18,7 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import {
+  getImageToolOutput,
   serializeToolJson,
   Tool,
   ToolContent,
@@ -450,9 +451,10 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
         type: part.type,
         state: part.state,
       };
+  const hasImageOutput = Boolean(getImageToolOutput(part.output));
 
   return (
-    <Tool>
+    <Tool defaultOpen={hasImageOutput}>
       <ToolHeader {...headerProps} input={part.input} />
       <ToolContent>
         <ToolInput input={part.input} />

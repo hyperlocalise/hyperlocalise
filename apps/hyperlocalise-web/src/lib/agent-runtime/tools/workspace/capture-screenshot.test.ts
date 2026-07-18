@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 
 import {
   classifyScreenshotCaptureFailure,
@@ -18,6 +18,7 @@ import type { RepoToolContext } from "./types";
 
 vi.mock("@/lib/file-storage/records", () => ({
   createStoredFile: vi.fn(),
+  getStoredFileContent: vi.fn(),
 }));
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
@@ -365,6 +366,10 @@ describe("createCaptureScreenshotTool", () => {
       url: "https://download.example/storybook.png",
       target: { type: "storybook", storyId: "components-button--primary" },
       viewport: { width: 1280, height: 720 },
+      workspacePath: expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\//),
+      screenshotPath: expect.stringMatching(
+        /^\.hyperlocalise-agent\/screenshots\/.+\/screenshot\.png$/,
+      ),
     });
     expect(writeWorkspaceFile).toHaveBeenCalledWith(
       expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\/.+\/capture\.cjs$/),
@@ -372,6 +377,12 @@ describe("createCaptureScreenshotTool", () => {
         'require("/tmp/hyperlocalise-browser-runtime/node_modules/playwright")',
       ),
     );
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("base64 -w 0")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.not.stringMatching(/rm -rf ['"]?\.hyperlocalise-agent\/screenshots\//)],
+    });
     const captureScript = String(writeWorkspaceFile.mock.calls[0]?.[1] ?? "");
     expect(captureScript).toContain('waitUntil: "load"');
     expect(captureScript).not.toMatch(/waitUntil:\s*"networkidle"/);
@@ -507,6 +518,82 @@ describe("createCaptureScreenshotTool", () => {
     expect(result).toMatchObject({
       success: false,
       errorCode: "browser_binary_unavailable",
+    });
+  });
+
+  it("maps stored screenshot bytes to multimodal model output", async () => {
+    vi.mocked(createStoredFile).mockResolvedValueOnce({
+      id: "file_vision",
+      organizationId: "org_1",
+      projectId: "project_1",
+      createdByUserId: "user_1",
+      role: "reference",
+      sourceKind: "repository_file",
+      sourceInteractionId: "conv_1",
+      sourceJobId: null,
+      storageProvider: "vercel_blob",
+      storageKey: "organizations/org_1/files/file_vision/storybook.png",
+      storageUrl: "https://blob.example/storybook-vision.png",
+      downloadUrl: "https://download.example/storybook-vision.png",
+      filename: "storybook-components-button--primary.png",
+      contentType: "image/png",
+      byteSize: 9,
+      sha256: "hash",
+      etag: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: {
+        id: "file_vision",
+        contentType: "image/png",
+      } as never,
+      content: Buffer.from("png-bytes"),
+    });
+    const { repo } = createRepoContext({
+      packageJson: {
+        packageManager: "pnpm@11.9.0",
+        scripts: { storybook: "storybook dev" },
+      },
+      lockfiles: ["pnpm-lock.yaml"],
+    });
+    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "components-button--primary" } },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: true, fileId: "file_vision" });
+    if (!result || typeof result !== "object" || !("success" in result) || !result.success) {
+      throw new Error("expected successful screenshot capture");
+    }
+
+    const modelOutput = await captureScreenshot.toModelOutput!({
+      toolCallId: "test-tool-call",
+      input: { target: { type: "storybook", storyId: "components-button--primary" } },
+      output: result,
+    });
+
+    expect(getStoredFileContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileId: "file_vision",
+        organizationId: "org_1",
+        projectId: "project_1",
+      }),
+    );
+    expect(modelOutput).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "text",
+          text: expect.stringContaining("components-button--primary"),
+        },
+        {
+          type: "image-data",
+          data: Buffer.from("png-bytes").toString("base64"),
+          mediaType: "image/png",
+        },
+      ],
     });
   });
 
