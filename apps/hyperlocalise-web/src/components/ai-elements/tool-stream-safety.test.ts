@@ -29,6 +29,13 @@ describe("getImageToolOutput", () => {
       }),
     ).toBeNull();
     expect(getImageToolOutput({ success: false, error: "failed" })).toBeNull();
+    expect(
+      getImageToolOutput({
+        url: "https://download.example/legacy.png",
+        contentType: "image/png",
+        filename: "legacy.png",
+      }),
+    ).toBeNull();
   });
 });
 

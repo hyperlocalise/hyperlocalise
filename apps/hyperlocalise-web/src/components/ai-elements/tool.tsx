@@ -259,7 +259,7 @@ export function getImageToolOutput(output: unknown): ImageToolOutput | null {
   }
 
   const record = output as Record<string, unknown>;
-  if (record.success === false || typeof record.url !== "string" || !record.url) {
+  if (record.success !== true || typeof record.url !== "string" || !record.url) {
     return null;
   }
 

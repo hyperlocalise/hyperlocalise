@@ -5,6 +5,7 @@ import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/recor
 
 import {
   classifyScreenshotCaptureFailure,
+  clearScreenshotBase64CacheForTests,
   createCaptureScreenshotTool,
   detectPackageManager,
   detectStorybookMajorVersion,
@@ -522,6 +523,7 @@ describe("createCaptureScreenshotTool", () => {
   });
 
   it("maps stored screenshot bytes to multimodal model output", async () => {
+    clearScreenshotBase64CacheForTests();
     vi.mocked(createStoredFile).mockResolvedValueOnce({
       id: "file_vision",
       organizationId: "org_1",
@@ -574,6 +576,7 @@ describe("createCaptureScreenshotTool", () => {
       output: result,
     });
 
+    expect(getStoredFileContent).toHaveBeenCalledTimes(1);
     expect(getStoredFileContent).toHaveBeenCalledWith(
       expect.objectContaining({
         fileId: "file_vision",
@@ -595,6 +598,13 @@ describe("createCaptureScreenshotTool", () => {
         },
       ],
     });
+
+    await captureScreenshot.toModelOutput!({
+      toolCallId: "test-tool-call-replay",
+      input: { target: { type: "storybook", storyId: "components-button--primary" } },
+      output: result,
+    });
+    expect(getStoredFileContent).toHaveBeenCalledTimes(1);
   });
 
   it("denies capture when the repository write gate rejects the actor", async () => {

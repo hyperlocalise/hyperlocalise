@@ -585,6 +585,44 @@ function isCaptureScreenshotSuccess(output: unknown): output is CaptureScreensho
   );
 }
 
+/** Process-local cache so multi-turn toModelOutput replays avoid re-fetching storage. */
+const screenshotBase64Cache = new Map<string, string>();
+const SCREENSHOT_BASE64_CACHE_LIMIT = 32;
+
+async function loadScreenshotBase64ForModel(input: {
+  fileId: string;
+  organizationId: string;
+  projectId: string | null;
+  db: ToolContext["db"];
+}) {
+  const cached = screenshotBase64Cache.get(input.fileId);
+  if (cached) {
+    return cached;
+  }
+
+  const { content } = await getStoredFileContent({
+    fileId: input.fileId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    db: input.db,
+  });
+  const base64 = content.toString("base64");
+
+  if (screenshotBase64Cache.size >= SCREENSHOT_BASE64_CACHE_LIMIT) {
+    const oldestKey = screenshotBase64Cache.keys().next().value;
+    if (oldestKey) {
+      screenshotBase64Cache.delete(oldestKey);
+    }
+  }
+  screenshotBase64Cache.set(input.fileId, base64);
+  return base64;
+}
+
+/** Test helper: clear the in-process screenshot base64 cache. */
+export function clearScreenshotBase64CacheForTests() {
+  screenshotBase64Cache.clear();
+}
+
 export function createCaptureScreenshotTool(ctx: ToolContext, repo: RepoToolContext) {
   return tool({
     description: `Capture a screenshot from the connected repository workspace.
@@ -602,7 +640,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
       }
 
       try {
-        const { content } = await getStoredFileContent({
+        const base64 = await loadScreenshotBase64ForModel({
           fileId: output.fileId,
           organizationId: ctx.organizationId,
           projectId: ctx.projectId,
@@ -624,7 +662,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
             },
             {
               type: "image-data",
-              data: content.toString("base64"),
+              data: base64,
               mediaType: output.contentType || "image/png",
             },
           ],

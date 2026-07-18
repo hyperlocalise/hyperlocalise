@@ -9,7 +9,7 @@ import type {
   UIMessage,
 } from "ai";
 import { DownloadIcon, FileTextIcon } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
@@ -452,9 +452,12 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
         state: part.state,
       };
   const hasImageOutput = Boolean(getImageToolOutput(part.output));
+  // null = follow hasImageOutput; once the user toggles, keep their choice.
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = userOpen ?? hasImageOutput;
 
   return (
-    <Tool defaultOpen={hasImageOutput}>
+    <Tool open={open} onOpenChange={setUserOpen}>
       <ToolHeader {...headerProps} input={part.input} />
       <ToolContent>
         <ToolInput input={part.input} />
