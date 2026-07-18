@@ -34,6 +34,11 @@ func validateWhitespaceProfile(source, translated string) error {
 	sourceNorm := normalizeProfileText(source)
 	targetNorm := normalizeProfileText(translated)
 
+	// BOLT OPTIMIZATION: If the normalized strings are identical, their whitespace profiles are guaranteed to be identical.
+	if sourceNorm == targetNorm {
+		return nil
+	}
+
 	sourceLeading, sourceTrailing := profileEdgeWhitespace(sourceNorm)
 	targetLeading, targetTrailing := profileEdgeWhitespace(targetNorm)
 
