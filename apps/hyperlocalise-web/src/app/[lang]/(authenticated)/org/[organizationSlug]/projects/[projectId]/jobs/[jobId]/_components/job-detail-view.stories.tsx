@@ -7,6 +7,9 @@ import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 import { buildJobCatHref } from "@/lib/projects/job-cat-routing";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
@@ -41,6 +44,7 @@ type Story = StoryObj<typeof meta>;
 
 const organizationSlug = "acme";
 const projectId = "project_website";
+const storyIntl = getIntlShape("en") as IntlShape;
 
 const nativeJob = createNativeJobDetail();
 const failedJob = createNativeJobDetail({
@@ -108,7 +112,7 @@ function syncedProviderMain({
 }
 
 function taskViewArgsFromRecord(job: JobDetailRecord) {
-  const layout = jobDetailTaskLayoutFromRecord(job);
+  const layout = jobDetailTaskLayoutFromRecord(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,
@@ -122,7 +126,7 @@ function taskViewArgsFromRecord(job: JobDetailRecord) {
 }
 
 function taskViewArgsFromLiveJob(job: typeof liveJob) {
-  const layout = jobDetailTaskLayoutFromLiveJob(job);
+  const layout = jobDetailTaskLayoutFromLiveJob(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,

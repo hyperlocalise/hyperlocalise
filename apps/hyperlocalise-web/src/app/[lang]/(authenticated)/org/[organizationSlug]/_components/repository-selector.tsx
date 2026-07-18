@@ -3,6 +3,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { siGithub } from "simple-icons";
 
 import { PromptInputButton } from "@/components/ai-elements/prompt-input";
@@ -18,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { SimpleBrandIcon } from "../integrations/_components/simple-brand-icon";
 import type { GithubRepository } from "./github-repository";
+import { repositorySelectorMessages as messages } from "./repository-selector.messages";
 
 type RepositorySelectorTriggerStyle = "button" | "prompt-input";
 
@@ -75,6 +77,7 @@ export function RepositorySelector({
   selectedRepositoryFullName: string;
   triggerStyle: RepositorySelectorTriggerStyle;
 }) {
+  const intl = useIntl();
   const disabledTriggerClassName =
     triggerStyle === "prompt-input"
       ? "inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
@@ -109,7 +112,7 @@ export function RepositorySelector({
         disabled
       >
         <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        Repos unavailable
+        <FormattedMessage {...messages.reposUnavailable} />
       </RepositorySelectorTrigger>
     );
   }
@@ -122,7 +125,7 @@ export function RepositorySelector({
         disabled
       >
         <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        No GitHub repos
+        <FormattedMessage {...messages.noGithubRepos} />
       </RepositorySelectorTrigger>
     );
   }
@@ -149,7 +152,9 @@ export function RepositorySelector({
             className={interactiveTriggerClassName}
           >
             <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
-            <span className="max-w-44 truncate">{selectedRepositoryFullName || "GitHub repo"}</span>
+            <span className="max-w-44 truncate">
+              {selectedRepositoryFullName || intl.formatMessage(messages.githubRepoPlaceholder)}
+            </span>
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
           </RepositorySelectorTrigger>
         }

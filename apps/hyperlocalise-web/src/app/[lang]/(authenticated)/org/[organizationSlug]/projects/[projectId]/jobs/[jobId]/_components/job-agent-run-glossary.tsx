@@ -1,5 +1,7 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import { Badge } from "@/components/ui/badge";
 import type { AgentRunGlossaryMatchUsage } from "@/lib/translation/glossary-match";
 import {
@@ -10,6 +12,7 @@ import {
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
+import { jobAgentRunGlossaryMessages as messages } from "./job-agent-run-glossary.messages";
 
 function matchSourceTone(matchSource: AgentRunGlossaryMatchUsage["matchSource"]) {
   return matchSource === "synced_database" ? "safe" : "info";
@@ -34,6 +37,8 @@ export function GlossaryMatchBadges({
   matches: AgentRunGlossaryMatchUsage[];
   className?: string;
 }) {
+  const intl = useIntl();
+
   if (matches.length === 0) {
     return null;
   }
@@ -45,10 +50,18 @@ export function GlossaryMatchBadges({
           key={`${match.glossaryId}:${match.targetLocale}:${index}`}
           variant="outline"
           className={cn("rounded-full", toneClass(matchSourceTone(match.matchSource)))}
-          title={`${match.glossaryName} · ${match.sourceTerm} → ${match.targetTerm} · ${formatGlossaryTermStatusLabel(match)}`}
+          title={intl.formatMessage(messages.glossaryMatchTitle, {
+            glossaryName: match.glossaryName,
+            sourceTerm: match.sourceTerm,
+            targetTerm: match.targetTerm,
+            status: formatGlossaryTermStatusLabel(match),
+          })}
         >
-          {formatGlossaryMatchSourceLabel(match)} · {match.glossaryName} ·{" "}
-          {formatGlossaryTermStatusLabel(match)}
+          {intl.formatMessage(messages.glossaryBadgeLabel, {
+            source: formatGlossaryMatchSourceLabel(match),
+            glossaryName: match.glossaryName,
+            status: formatGlossaryTermStatusLabel(match),
+          })}
         </Badge>
       ))}
     </div>
@@ -56,6 +69,8 @@ export function GlossaryMatchBadges({
 }
 
 export function GlossaryMatchesDetail({ matches }: { matches: AgentRunGlossaryMatchUsage[] }) {
+  const intl = useIntl();
+
   if (matches.length === 0) {
     return null;
   }
@@ -63,7 +78,7 @@ export function GlossaryMatchesDetail({ matches }: { matches: AgentRunGlossaryMa
   return (
     <div className="space-y-2 rounded-md border border-border bg-muted p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Glossary terms used
+        {intl.formatMessage(messages.glossaryTermsUsed)}
       </p>
       <ul className="space-y-2">
         {matches.map((match, index) => (
@@ -87,7 +102,11 @@ export function GlossaryMatchesDetail({ matches }: { matches: AgentRunGlossaryMa
               </Badge>
             </div>
             <p className="text-xs whitespace-pre-wrap text-muted-foreground">
-              {match.sourceTerm} → {match.targetTerm} ({match.targetLocale})
+              {intl.formatMessage(messages.glossaryTermPair, {
+                sourceTerm: match.sourceTerm,
+                targetTerm: match.targetTerm,
+                targetLocale: match.targetLocale,
+              })}
             </p>
           </li>
         ))}

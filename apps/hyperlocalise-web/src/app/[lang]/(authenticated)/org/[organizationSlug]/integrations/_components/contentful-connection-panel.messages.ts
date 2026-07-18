@@ -137,6 +137,16 @@ export const contentfulConnectionPanelMessages = defineMessages({
     id: "8vYRLImWYG",
     description: "Label prefix for webhook registration status",
   },
+  registrationStatus: {
+    defaultMessage: "Registration: {status}",
+    id: "3nF563bLtD",
+    description: "Webhook registration status line with localized status value",
+  },
+  spaceEnvironmentBadge: {
+    defaultMessage: "{spaceId}/{environmentId}",
+    id: "lPmc7tHCkL",
+    description: "Badge showing Contentful space and environment IDs",
+  },
   registrationRegistered: {
     defaultMessage: "Registered in Contentful",
     id: "GRJxQXl5PH",

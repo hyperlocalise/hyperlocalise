@@ -15,6 +15,7 @@ type BlogPostCardProps = {
 export function BlogPostCard({ post, lang }: BlogPostCardProps) {
   const intl = useIntl();
   const href = getBlogPostPath(lang, post.slug);
+  const metaLine = [post.category, formatBlogPostDate(intl, post.date)].join(" · ");
 
   if (!href) {
     return null;
@@ -34,9 +35,7 @@ export function BlogPostCard({ post, lang }: BlogPostCardProps) {
         <h2 className="text-lg font-medium tracking-tight text-foreground transition-colors group-hover:text-foreground">
           {post.title}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {post.category} · {formatBlogPostDate(intl, post.date)}
-        </p>
+        <p className="text-sm text-muted-foreground">{metaLine}</p>
       </div>
     </Link>
   );

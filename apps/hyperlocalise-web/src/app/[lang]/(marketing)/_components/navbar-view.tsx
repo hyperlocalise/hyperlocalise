@@ -193,7 +193,9 @@ function Logo() {
         height={32}
         alt={intl.formatMessage(navbarMessages.logoAlt)}
       />
-      <span className="font-sans text-base font-semibold tracking-tight">Hyperlocalise</span>
+      <span className="font-sans text-base font-semibold tracking-tight">
+        <FormattedMessage {...navbarMessages.brandName} />
+      </span>
     </Link>
   );
 }

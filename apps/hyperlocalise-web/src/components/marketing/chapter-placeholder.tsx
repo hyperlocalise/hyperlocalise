@@ -1,5 +1,8 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
+import { chapterPlaceholderMessages } from "./chapter-placeholder.messages";
 import { IntakeSourcesIllustration } from "./intake-sources-illustration";
 import { type MarketingChapter } from "./marketing-page-content";
 import { MonitorO11yBento } from "./monitor-o11y-bento";
@@ -10,33 +13,36 @@ import {
   TranslationFlowIllustration,
 } from "./translation-flow-illustration";
 
-const translationFlowAssignmentTargets: readonly AssignmentTarget[] = [
-  {
-    name: "OpenAI",
-    role: "Agent",
-    avatarUrl: "/images/openai-old-logo.webp",
-  },
-  {
-    name: "Claude",
-    role: "Agent",
-    avatarUrl: "/images/claude.png",
-  },
-  {
-    name: "Gemini",
-    role: "Agent",
-    avatarUrl: "/images/gemini.webp",
-  },
-  {
-    name: "Michael",
-    avatarUrl: "/images/profile/michael.png",
-  },
-  {
-    name: "Bella",
-    avatarUrl: "/images/profile/bella.png",
-  },
-] as const;
-
 export function ChapterPlaceholder({ chapter }: { chapter: MarketingChapter }) {
+  const intl = useIntl();
+  const agentRole = intl.formatMessage(chapterPlaceholderMessages.agentRole);
+
+  const translationFlowAssignmentTargets: readonly AssignmentTarget[] = [
+    {
+      name: "OpenAI",
+      role: agentRole,
+      avatarUrl: "/images/openai-old-logo.webp",
+    },
+    {
+      name: "Claude",
+      role: agentRole,
+      avatarUrl: "/images/claude.png",
+    },
+    {
+      name: "Gemini",
+      role: agentRole,
+      avatarUrl: "/images/gemini.webp",
+    },
+    {
+      name: "Michael",
+      avatarUrl: "/images/profile/michael.png",
+    },
+    {
+      name: "Bella",
+      avatarUrl: "/images/profile/bella.png",
+    },
+  ];
+
   if (chapter.id === "01") {
     return <IntakeSourcesIllustration />;
   }

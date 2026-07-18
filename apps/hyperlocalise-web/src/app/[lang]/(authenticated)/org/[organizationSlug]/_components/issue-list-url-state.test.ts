@@ -91,11 +91,11 @@ describe("issue list URL state", () => {
       },
     );
 
-    expect(chips.map((chip) => chip.label)).toEqual([
-      "Status: Open",
-      "Assignee: Unassigned",
-      "Project: Website",
-      "Search: hero",
+    expect(chips).toEqual([
+      { key: "status", value: "open" },
+      { key: "assignee", value: "unassigned" },
+      { key: "projectId", value: "proj_1", projectName: "Website" },
+      { key: "search", value: "hero" },
     ]);
   });
 

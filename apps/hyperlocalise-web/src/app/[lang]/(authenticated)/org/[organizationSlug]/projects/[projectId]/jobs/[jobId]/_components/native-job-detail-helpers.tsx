@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
 import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
+import { nativeJobDetailHelpersMessages as messages } from "./native-job-detail-helpers.messages";
 import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
 import { nativeJobToProjectFileRecord } from "./tms/job-source-file-mappers";
@@ -42,18 +44,18 @@ export function isNativeFileTranslationJob(job: JobDetailRecord) {
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailTitle(job: JobDetailRecord) {
-  return jobDetailTaskLayoutFromRecord(job).title;
+export function nativeJobDetailTitle(job: JobDetailRecord, intl: IntlShape) {
+  return jobDetailTaskLayoutFromRecord(job, intl).title;
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailMetrics(job: JobDetailRecord) {
-  return jobDetailTaskLayoutFromRecord(job).metrics;
+export function nativeJobDetailMetrics(job: JobDetailRecord, intl: IntlShape) {
+  return jobDetailTaskLayoutFromRecord(job, intl).metrics;
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailProperties(job: JobDetailRecord) {
-  const layout = jobDetailTaskLayoutFromRecord(job);
+export function nativeJobDetailProperties(job: JobDetailRecord, intl: IntlShape) {
+  const layout = jobDetailTaskLayoutFromRecord(job, intl);
   return {
     properties: layout.properties,
     secondaryProperties: layout.secondaryProperties,
@@ -75,6 +77,7 @@ export function NativeJobSourceFilesSection({
   projectId: string;
   job: JobDetailRecord;
 }) {
+  const intl = useIntl();
   const file = useMemo(() => buildNativeJobFileRecord(job), [job]);
   const targetLocales = getInputPayloadStringArray(job, "targetLocales");
   const highlightLocale = targetLocales[0] ?? null;
@@ -92,7 +95,7 @@ export function NativeJobSourceFilesSection({
       files={[file]}
       highlightLocale={highlightLocale}
       queueFilter={queueFilter}
-      emptyMessage="No source file linked to this job."
+      emptyMessage={intl.formatMessage(messages.noSourceFileLinked)}
     />
   );
 }

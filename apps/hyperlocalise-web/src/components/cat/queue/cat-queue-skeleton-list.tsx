@@ -1,7 +1,11 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
+
+import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 
 const DEFAULT_SKELETON_ROWS = 8;
 
@@ -12,9 +16,15 @@ export function CatQueueSkeletonList({
   rowCount?: number;
   className?: string;
 }) {
+  const intl = useIntl();
+
   return (
     <div className={cn("min-h-0 flex-1 overflow-hidden px-4 pb-3", className)}>
-      <ul className="space-y-2" aria-busy="true" aria-label="Loading segments">
+      <ul
+        className="space-y-2"
+        aria-busy="true"
+        aria-label={intl.formatMessage(catQueuePanelMessages.loadingSegmentsAria)}
+      >
         {Array.from({ length: rowCount }, (_, index) => (
           <li
             key={`cat-queue-skeleton-${index}`}

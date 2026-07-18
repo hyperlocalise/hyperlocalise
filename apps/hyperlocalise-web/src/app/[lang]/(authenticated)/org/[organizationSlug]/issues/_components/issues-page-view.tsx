@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "@hugeicons/core-free-icons";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
+import { issuesPageViewMessages } from "./issues-page-view.messages";
 
 export const ISSUES_PAGE_SIZE = 50;
 
@@ -101,6 +103,8 @@ export function IssuesPageView({
   filterBar: ReactNode;
   onLoadMore: () => void;
 }) {
+  const intl = useIntl();
+
   return (
     <WorkspacePageShell>
       <PageHeader
@@ -115,13 +119,37 @@ export function IssuesPageView({
 
       {summary ? (
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{summary.total} total</Badge>
-          <Badge variant="secondary">{summary.open} open</Badge>
-          <Badge variant="warning">{summary.inProgress} in progress</Badge>
-          <Badge variant="success">{summary.resolved} resolved</Badge>
+          <Badge variant="secondary">
+            <FormattedMessage
+              {...issuesPageViewMessages.summaryTotal}
+              values={{ count: summary.total }}
+            />
+          </Badge>
+          <Badge variant="secondary">
+            <FormattedMessage
+              {...issuesPageViewMessages.summaryOpen}
+              values={{ count: summary.open }}
+            />
+          </Badge>
+          <Badge variant="warning">
+            <FormattedMessage
+              {...issuesPageViewMessages.summaryInProgress}
+              values={{ count: summary.inProgress }}
+            />
+          </Badge>
+          <Badge variant="success">
+            <FormattedMessage
+              {...issuesPageViewMessages.summaryResolved}
+              values={{ count: summary.resolved }}
+            />
+          </Badge>
         </div>
       ) : isLoading ? (
-        <div className="flex flex-wrap gap-2" aria-busy="true" aria-label="Loading issue summary">
+        <div
+          className="flex flex-wrap gap-2"
+          aria-busy="true"
+          aria-label={intl.formatMessage(issuesPageViewMessages.loadingSummaryAria)}
+        >
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton key={index} className="h-6 w-20 rounded-full" />
           ))}
@@ -132,12 +160,24 @@ export function IssuesPageView({
         <table className="min-w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="w-56 px-4 py-3 font-medium">Issue</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Project</th>
-              <th className="px-4 py-3 font-medium">Locale</th>
-              <th className="px-4 py-3 font-medium">Updated</th>
+              <th className="w-56 px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnIssue} />
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnStatus} />
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnType} />
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnProject} />
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnLocale} />
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnUpdated} />
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -146,13 +186,13 @@ export function IssuesPageView({
             ) : isError ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  Issues could not be loaded.
+                  <FormattedMessage {...issuesPageViewMessages.loadError} />
                 </td>
               </tr>
             ) : issues.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  No issues match this view.
+                  <FormattedMessage {...issuesPageViewMessages.empty} />
                 </td>
               </tr>
             ) : (
@@ -166,7 +206,9 @@ export function IssuesPageView({
                       {issue.title}
                     </Link>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {issue.description || issue.sourcePath || "No details yet"}
+                      {issue.description ||
+                        issue.sourcePath ||
+                        intl.formatMessage(issuesPageViewMessages.noDetailsYet)}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -188,7 +230,9 @@ export function IssuesPageView({
                       {issue.projectName}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{issue.targetLocale ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {issue.targetLocale ?? intl.formatMessage(issuesPageViewMessages.emptyValue)}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatRelativeTimestamp(issue.updatedAt)}
                   </td>
@@ -213,7 +257,11 @@ export function IssuesPageView({
             disabled={isFetchingMore}
             className="rounded-full"
           >
-            {isFetchingMore ? "Loading..." : "Load more"}
+            {isFetchingMore ? (
+              <FormattedMessage {...issuesPageViewMessages.loadingMore} />
+            ) : (
+              <FormattedMessage {...issuesPageViewMessages.loadMore} />
+            )}
           </Button>
         </div>
       ) : null}

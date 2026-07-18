@@ -1,26 +1,29 @@
 "use client";
 
 import Image from "next/image";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
+import { ChapterPlaceholder } from "./chapter-placeholder";
+import { chapterSectionMessages } from "./chapter-section.messages";
 import { type MarketingChapter } from "./marketing-page-content";
 import { marketingPageMessages } from "./marketing-page-content.messages";
-import { ChapterPlaceholder } from "./chapter-placeholder";
 
-type TmsLogo = { id: string; src: string };
+type TmsLogo = { id: string; src: string; altKey: keyof typeof chapterSectionMessages };
 
 const tmsLogos: readonly TmsLogo[] = [
-  { id: "crowdin", src: "/images/tms/crowdin.png" },
-  { id: "lokalise", src: "/images/tms/lokalise.webp" },
-  { id: "phrase", src: "/images/tms/phrase.png" },
-  { id: "smartling", src: "/images/tms/smartling.png" },
+  { id: "crowdin", src: "/images/tms/crowdin.png", altKey: "crowdinAlt" },
+  { id: "lokalise", src: "/images/tms/lokalise.webp", altKey: "lokaliseAlt" },
+  { id: "phrase", src: "/images/tms/phrase.png", altKey: "phraseAlt" },
+  { id: "smartling", src: "/images/tms/smartling.png", altKey: "smartlingAlt" },
 ] as const;
 
 function TmsLogoMarquee() {
+  const intl = useIntl();
+
   return (
     <div className="mt-12 overflow-hidden">
       <InfiniteSlider gap={12} speed={60}>
@@ -28,7 +31,7 @@ function TmsLogoMarquee() {
           tmsLogos.map((logo) => (
             <Image
               key={`${logo.id}-${i}`}
-              alt={logo.id}
+              alt={intl.formatMessage(chapterSectionMessages[logo.altKey])}
               className="h-8 md:h-12 w-auto rounded object-cover"
               height={32}
               src={logo.src}
@@ -66,7 +69,7 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
               <FormattedMessage {...marketingPageMessages[chapter.cta.labelKey]} />
             </Button>
           </div>
-        ) : null}{" "}
+        ) : null}
       </div>
 
       <div className="mt-10">

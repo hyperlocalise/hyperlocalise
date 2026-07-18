@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { dialogMessages } from "@/components/ui/dialog.messages";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -67,14 +69,16 @@ function DialogContent({
                   render={
                     <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
                       <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                      <span className="sr-only">Close</span>
+                      <span className="sr-only">
+                        <FormattedMessage {...dialogMessages.close} />
+                      </span>
                     </Button>
                   }
                 />
               }
             />
             <TooltipContent side="bottom" align="end">
-              Close
+              <FormattedMessage {...dialogMessages.close} />
             </TooltipContent>
           </Tooltip>
         )}
@@ -105,7 +109,9 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>Close</DialogPrimitive.Close>
+        <DialogPrimitive.Close render={<Button variant="outline" />}>
+          <FormattedMessage {...dialogMessages.close} />
+        </DialogPrimitive.Close>
       )}
     </div>
   );

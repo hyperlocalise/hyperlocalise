@@ -6,6 +6,8 @@ import { RepositoryAutomationSettingsPanel } from "../../../../_components/repos
 import { hasCapability } from "@/api/auth/policy";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { db, schema } from "@/lib/database";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -16,6 +18,7 @@ export default async function GithubRepositoryAutomationPage({
 }) {
   const { organizationSlug, githubRepositoryId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
+  const intl = getIntlShape(await getAppLocale());
 
   if (!hasCapability(auth.membership.role, "integrations:write")) {
     notFound();
@@ -55,13 +58,32 @@ export default async function GithubRepositoryAutomationPage({
           nativeButton={false}
           render={<Link href={integrationsHref} />}
         >
-          Back to integrations
+          {intl.formatMessage({
+            defaultMessage: "Back to integrations",
+            id: "MKqk5CAbrB",
+            description: "Link back to the integrations page from repository automation",
+          })}
         </Button>
-        <TypographyH1>Repository automation</TypographyH1>
+        <TypographyH1>
+          {intl.formatMessage({
+            defaultMessage: "Repository automation",
+            id: "wqDhnuIkS0",
+            description: "Page heading for GitHub repository automation settings",
+          })}
+        </TypographyH1>
         <TypographyP className="text-muted-foreground">
-          Configure translation automation for{" "}
-          <span className="text-foreground">{repo.fullName}</span>. This is separate from refreshing
-          repository metadata from GitHub.
+          {intl.formatMessage(
+            {
+              defaultMessage:
+                "Configure translation automation for {repositoryFullName}. This is separate from refreshing repository metadata from GitHub.",
+              id: "T2Xmxy54ip",
+              description:
+                "Page description for GitHub repository automation settings, including the repository full name",
+            },
+            {
+              repositoryFullName: repo.fullName,
+            },
+          )}
         </TypographyP>
       </div>
 

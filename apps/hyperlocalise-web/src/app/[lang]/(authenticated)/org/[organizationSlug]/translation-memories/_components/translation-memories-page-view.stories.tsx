@@ -187,7 +187,9 @@ export const NoFilterMatches: Story = {
   },
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByText("No translation memories match your filters."),
+      canvas.getByText((content) =>
+        content.includes("No translation memories match your filters."),
+      ),
     ).toBeInTheDocument();
   },
 };

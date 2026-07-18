@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FloppyDiskIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { KnowledgeMemoryPreviewResponse } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
+import { knowledgeMemoryEditorMessages } from "./knowledge-memory-editor.messages";
 import { getKnowledgeMemoryEditorState } from "./knowledge-memory-editor-state";
 import {
   formatMemoryReductionPercent,
@@ -27,9 +29,9 @@ const knowledgeMemoryQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
-function formatUpdatedAt(value: string | null) {
+function formatUpdatedAt(value: string | null, notSavedYet: string) {
   if (!value) {
-    return "Not saved yet";
+    return notSavedYet;
   }
 
   return new Intl.DateTimeFormat(undefined, {
@@ -47,6 +49,7 @@ export function KnowledgeMemoryEditor({
   organizationSlug: string;
   canUpdateKnowledgeMemory: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
@@ -155,14 +158,23 @@ export function KnowledgeMemoryEditor({
     <section className="space-y-5 rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-sm font-medium text-foreground">Organization memory</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            <FormattedMessage {...knowledgeMemoryEditorMessages.title} />
+          </h2>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            One markdown document for localization rules, glossary notes, brand guidance, and things
-            to avoid.
+            <FormattedMessage {...knowledgeMemoryEditorMessages.description} />
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Last updated {formatUpdatedAt(knowledgeMemoryQuery.data?.updatedAt ?? null)}
+          <FormattedMessage
+            {...knowledgeMemoryEditorMessages.lastUpdated}
+            values={{
+              timestamp: formatUpdatedAt(
+                knowledgeMemoryQuery.data?.updatedAt ?? null,
+                intl.formatMessage(knowledgeMemoryEditorMessages.notSavedYet),
+              ),
+            }}
+          />
         </p>
       </div>
 
@@ -181,7 +193,9 @@ export function KnowledgeMemoryEditor({
           }}
         >
           <Field data-invalid={currentEditorState.isOverLimit}>
-            <FieldLabel htmlFor="knowledge-memory-content">Memory.md</FieldLabel>
+            <FieldLabel htmlFor="knowledge-memory-content">
+              <FormattedMessage {...knowledgeMemoryEditorMessages.memoryLabel} />
+            </FieldLabel>
             <Textarea
               id="knowledge-memory-content"
               value={content}
@@ -193,34 +207,51 @@ export function KnowledgeMemoryEditor({
             />
             {currentEditorState.isOverLimit ? (
               <FieldError>
-                Knowledge memory must be {currentEditorState.characterLimit} characters or less.
+                <FormattedMessage
+                  {...knowledgeMemoryEditorMessages.overLimitError}
+                  values={{ limit: currentEditorState.characterLimit }}
+                />
               </FieldError>
             ) : null}
           </Field>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              {currentEditorState.characterCount}/{currentEditorState.characterLimit} characters
+              <FormattedMessage
+                {...knowledgeMemoryEditorMessages.characterCount}
+                values={{
+                  count: currentEditorState.characterCount,
+                  limit: currentEditorState.characterLimit,
+                }}
+              />
             </p>
             {canUpdateKnowledgeMemory ? (
               <Button type="submit" disabled={!currentEditorState.canSave}>
                 <HugeiconsIcon icon={FloppyDiskIcon} strokeWidth={1.8} />
-                {saveKnowledgeMemory.isPending ? "Saving" : "Save"}
+                {saveKnowledgeMemory.isPending ? (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.saving} />
+                ) : (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.save} />
+                )}
               </Button>
             ) : null}
           </div>
 
           <div className="space-y-4 border-t border-border pt-5">
             <div className="space-y-1">
-              <h3 className="text-sm font-medium text-foreground">Retrieval preview</h3>
+              <h3 className="text-sm font-medium text-foreground">
+                <FormattedMessage {...knowledgeMemoryEditorMessages.previewTitle} />
+              </h3>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Test what saved Memory.md guidance would be loaded for a translation query.
+                <FormattedMessage {...knowledgeMemoryEditorMessages.previewDescription} />
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
               <Field>
-                <FieldLabel htmlFor="knowledge-memory-preview-locale">Target locale</FieldLabel>
+                <FieldLabel htmlFor="knowledge-memory-preview-locale">
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.targetLocaleLabel} />
+                </FieldLabel>
                 <Input
                   id="knowledge-memory-preview-locale"
                   value={previewTargetLocale}
@@ -233,7 +264,9 @@ export function KnowledgeMemoryEditor({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="knowledge-memory-preview-source">Source text</FieldLabel>
+                <FieldLabel htmlFor="knowledge-memory-preview-source">
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.sourceTextLabel} />
+                </FieldLabel>
                 <Textarea
                   id="knowledge-memory-preview-source"
                   value={previewSourceText}
@@ -250,9 +283,11 @@ export function KnowledgeMemoryEditor({
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">
-                {currentEditorState.hasChanges
-                  ? "Save changes before previewing updated memory."
-                  : "Preview uses the saved markdown memory."}
+                {currentEditorState.hasChanges ? (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.saveBeforePreview} />
+                ) : (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.previewUsesSaved} />
+                )}
               </p>
               <Button
                 type="button"
@@ -261,7 +296,11 @@ export function KnowledgeMemoryEditor({
                 onClick={() => previewKnowledgeMemory.mutate()}
               >
                 <HugeiconsIcon icon={SearchIcon} strokeWidth={1.8} />
-                {previewKnowledgeMemory.isPending ? "Previewing" : "Preview"}
+                {previewKnowledgeMemory.isPending ? (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.previewing} />
+                ) : (
+                  <FormattedMessage {...knowledgeMemoryEditorMessages.preview} />
+                )}
               </Button>
             </div>
 
@@ -269,11 +308,19 @@ export function KnowledgeMemoryEditor({
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline">
-                    {memoryPreview.metrics.selectedMemoryCount} selected
+                    <FormattedMessage
+                      {...knowledgeMemoryEditorMessages.selectedCount}
+                      values={{ count: memoryPreview.metrics.selectedMemoryCount }}
+                    />
                   </Badge>
                   <Badge variant="outline">
-                    {memoryPreview.metrics.selectedMemoryChars}/
-                    {memoryPreview.metrics.wholeMemoryChars} chars
+                    <FormattedMessage
+                      {...knowledgeMemoryEditorMessages.charsSelected}
+                      values={{
+                        selected: memoryPreview.metrics.selectedMemoryChars,
+                        total: memoryPreview.metrics.wholeMemoryChars,
+                      }}
+                    />
                   </Badge>
                   <Badge variant="outline">
                     {formatMemoryReductionPercent(memoryPreview.metrics.reductionPercent)}
@@ -282,12 +329,15 @@ export function KnowledgeMemoryEditor({
                 </div>
 
                 <pre className="max-h-64 overflow-auto rounded-md border border-border bg-background p-3 text-sm leading-6 whitespace-pre-wrap text-foreground">
-                  {memoryPreview.compactText || "(no memory selected)"}
+                  {memoryPreview.compactText ||
+                    intl.formatMessage(knowledgeMemoryEditorMessages.noMemorySelected)}
                 </pre>
 
                 {memoryPreview.metrics.matchedHeadingPaths.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Matched headings</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      <FormattedMessage {...knowledgeMemoryEditorMessages.matchedHeadings} />
+                    </p>
                     <ul className="space-y-1 text-xs text-muted-foreground">
                       {memoryPreview.metrics.matchedHeadingPaths.map((headingPath) => (
                         <li key={headingPath}>{headingPath}</li>

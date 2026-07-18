@@ -8,12 +8,15 @@ import {
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { IntlShape } from "@formatjs/intl";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { cn } from "@/lib/primitives/cn";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
@@ -38,30 +41,66 @@ type SettingsRowProps = {
   icon: ComponentProps<typeof HugeiconsIcon>["icon"];
   isLast: boolean;
   label: string;
+  openLabel: string;
 };
 
-const settingsRows = [
-  {
-    label: "Account",
-    description: "Profile details and workspace identity.",
-    href: "account",
-    icon: AiUserIcon,
-  },
-  {
-    label: "API Keys",
-    description: "Manage API keys for programmatic access to translation jobs and workspace data.",
-    href: "api-keys",
-    icon: Key01Icon,
-    requiredCapability: "api_keys:read" as const,
-  },
-  {
-    label: "Billing",
-    description: "Plan usage, payment method, invoices, and billing contacts.",
-    href: "billing",
-    icon: CreditCardIcon,
-    requiredCapability: "billing:read" as const,
-  },
-] as const;
+type SettingsRowConfig = {
+  description: string;
+  href: string;
+  icon: ComponentProps<typeof HugeiconsIcon>["icon"];
+  label: string;
+  requiredCapability?: OrganizationCapability;
+};
+
+function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
+  return [
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Account",
+        id: "318/PLILOK",
+        description: "Settings hub row label for account settings",
+      }),
+      description: intl.formatMessage({
+        defaultMessage: "Profile details and workspace identity.",
+        id: "PnVI3u5zSd",
+        description: "Settings hub row description for account settings",
+      }),
+      href: "account",
+      icon: AiUserIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "API Keys",
+        id: "Wzlq8Ew/Ii",
+        description: "Settings hub row label for API keys",
+      }),
+      description: intl.formatMessage({
+        defaultMessage:
+          "Manage API keys for programmatic access to translation jobs and workspace data.",
+        id: "5qiaSV4RG8",
+        description: "Settings hub row description for API keys",
+      }),
+      href: "api-keys",
+      icon: Key01Icon,
+      requiredCapability: "api_keys:read",
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Billing",
+        id: "OmGkdjrtzD",
+        description: "Settings hub row label for billing",
+      }),
+      description: intl.formatMessage({
+        defaultMessage: "Plan usage, payment method, invoices, and billing contacts.",
+        id: "K0I+hdjpXe",
+        description: "Settings hub row description for billing",
+      }),
+      href: "billing",
+      icon: CreditCardIcon,
+      requiredCapability: "billing:read",
+    },
+  ];
+}
 
 function SettingsHeader({
   description,
@@ -105,7 +144,7 @@ function SurfaceCard({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-function SettingsRow({ description, href, icon, isLast, label }: SettingsRowProps) {
+function SettingsRow({ description, href, icon, isLast, label, openLabel }: SettingsRowProps) {
   return (
     <div className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-border")}>
       <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 p-2 text-muted-foreground">
@@ -119,7 +158,7 @@ function SettingsRow({ description, href, icon, isLast, label }: SettingsRowProp
 
       <div className="shrink-0">
         <Button variant="outline" size="sm" nativeButton={false} render={<Link href={href} />}>
-          Open
+          {openLabel}
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Button>
       </div>
@@ -140,29 +179,52 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
+export async function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
+  const intl = getIntlShape(await getAppLocale());
   const baseHref = `/org/${organizationSlug}/settings`;
+  const settingsRows = buildSettingsRows(intl);
   const visibleRows = settingsRows.filter(
-    (row) => !("requiredCapability" in row) || capabilities.includes(row.requiredCapability),
+    (row) => !row.requiredCapability || capabilities.includes(row.requiredCapability),
   );
+  const openLabel = intl.formatMessage({
+    defaultMessage: "Open",
+    id: "PEy6fPw+25",
+    description: "Button to open a settings section from the settings hub",
+  });
 
   return (
     <main className="space-y-5">
       <SettingsHeader
-        eyebrow="Settings"
+        eyebrow={intl.formatMessage({
+          defaultMessage: "Settings",
+          id: "UbpdTjGg1W",
+          description: "Eyebrow label above the workspace settings hub title",
+        })}
         icon={Settings01Icon}
-        title="Settings"
-        description="Review the core controls for this workspace and jump into the area you need to update."
+        title={intl.formatMessage({
+          defaultMessage: "Settings",
+          id: "vE3/OjUVJq",
+          description: "Workspace settings hub page heading",
+        })}
+        description={intl.formatMessage({
+          defaultMessage:
+            "Review the core controls for this workspace and jump into the area you need to update.",
+          id: "JmbIxnhLVK",
+          description: "Workspace settings hub page description",
+        })}
       />
 
       <section>
         <SurfaceCard className="gap-0 overflow-hidden">
           {visibleRows.map((row, index) => (
             <SettingsRow
-              key={row.label}
-              {...row}
+              key={row.href}
+              description={row.description}
               href={`${baseHref}/${row.href}`}
+              icon={row.icon}
               isLast={index === visibleRows.length - 1}
+              label={row.label}
+              openLabel={openLabel}
             />
           ))}
         </SurfaceCard>
@@ -171,40 +233,89 @@ export function SettingsPageContent({ organizationSlug, capabilities }: Settings
   );
 }
 
-export function AccountSettingsPageContent({
+export async function AccountSettingsPageContent({
   canUpdateWorkspace,
   organizationName,
   organizationSlug,
   userEmail,
   userName,
 }: AccountPageProps) {
+  const intl = getIntlShape(await getAppLocale());
+
   return (
     <main className="mx-auto w-full max-w-3xl space-y-8">
       <SettingsHeader
-        eyebrow="Account settings"
+        eyebrow={intl.formatMessage({
+          defaultMessage: "Account settings",
+          id: "K2pfDUwhXq",
+          description: "Eyebrow label above the account settings page title",
+        })}
         icon={AiUserIcon}
-        title="Account"
-        description="Keep the signed-in user and workspace identity easy to verify before agents act on releases."
+        title={intl.formatMessage({
+          defaultMessage: "Account",
+          id: "LRlVY40lAz",
+          description: "Account settings page heading",
+        })}
+        description={intl.formatMessage({
+          defaultMessage:
+            "Keep the signed-in user and workspace identity easy to verify before agents act on releases.",
+          id: "6qCT8hQ6y+",
+          description: "Account settings page description",
+        })}
       />
 
       <section className="space-y-4">
         <div>
-          <TypographyP className="text-sm font-medium text-foreground">Profile</TypographyP>
+          <TypographyP className="text-sm font-medium text-foreground">
+            {intl.formatMessage({
+              defaultMessage: "Profile",
+              id: "dwrrquikgT",
+              description: "Section heading for the signed-in user profile on account settings",
+            })}
+          </TypographyP>
           <TypographyP className="mt-1 text-sm text-muted-foreground">
-            These details come from your WorkOS session.
+            {intl.formatMessage({
+              defaultMessage: "These details come from your WorkOS session.",
+              id: "nYeBrRESbk",
+              description: "Helper text under the profile section on account settings",
+            })}
           </TypographyP>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <ReadonlyField label="Name" value={userName} />
-          <ReadonlyField label="Email" value={userEmail} />
+          <ReadonlyField
+            label={intl.formatMessage({
+              defaultMessage: "Name",
+              id: "AfaXCvPHA0",
+              description: "Label for the readonly user name field on account settings",
+            })}
+            value={userName}
+          />
+          <ReadonlyField
+            label={intl.formatMessage({
+              defaultMessage: "Email",
+              id: "2ynzQ185js",
+              description: "Label for the readonly user email field on account settings",
+            })}
+            value={userEmail}
+          />
         </div>
       </section>
 
       <section className="space-y-4 border-t border-border pt-8">
         <div>
-          <TypographyP className="text-sm font-medium text-foreground">Workspace</TypographyP>
+          <TypographyP className="text-sm font-medium text-foreground">
+            {intl.formatMessage({
+              defaultMessage: "Workspace",
+              id: "P8r9mJcX86",
+              description: "Section heading for workspace identity on account settings",
+            })}
+          </TypographyP>
           <TypographyP className="mt-1 text-sm text-muted-foreground">
-            Public workspace identifiers used in app navigation.
+            {intl.formatMessage({
+              defaultMessage: "Public workspace identifiers used in app navigation.",
+              id: "Gb58W+mbDk",
+              description: "Helper text under the workspace section on account settings",
+            })}
           </TypographyP>
         </div>
         <WorkspaceSettingsForm

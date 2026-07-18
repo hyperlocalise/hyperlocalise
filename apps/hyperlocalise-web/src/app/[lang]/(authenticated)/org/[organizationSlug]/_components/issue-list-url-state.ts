@@ -147,47 +147,46 @@ export function clearIssueListFilters(state: IssueListUrlState): IssueListUrlSta
   };
 }
 
+export type IssueFilterChip =
+  | { key: "status"; value: IssueStatusFilter }
+  | { key: "issueType"; value: IssueTypeFilter }
+  | { key: "priority"; value: IssuePriority }
+  | { key: "locale"; value: string }
+  | { key: "assignee"; value: IssueAssigneeFilter }
+  | { key: "projectId"; value: string; projectName: string }
+  | { key: "search"; value: string };
+
 export function getActiveIssueFilterChips(
   state: IssueListUrlState,
   options?: {
     includeProject?: boolean;
     projectNameById?: Record<string, string>;
   },
-) {
-  const chips: Array<{ key: keyof IssueListUrlState; label: string }> = [];
+): IssueFilterChip[] {
+  const chips: IssueFilterChip[] = [];
   if (state.status) {
-    chips.push({ key: "status", label: `Status: ${formatIssueFilterLabel(state.status)}` });
+    chips.push({ key: "status", value: state.status });
   }
   if (state.issueType) {
-    chips.push({ key: "issueType", label: `Type: ${formatIssueFilterLabel(state.issueType)}` });
+    chips.push({ key: "issueType", value: state.issueType });
   }
   if (state.priority) {
-    chips.push({ key: "priority", label: `Priority: ${state.priority}` });
+    chips.push({ key: "priority", value: state.priority });
   }
   if (state.locale) {
-    chips.push({ key: "locale", label: `Locale: ${state.locale}` });
+    chips.push({ key: "locale", value: state.locale });
   }
   if (state.assignee) {
-    chips.push({
-      key: "assignee",
-      label: state.assignee === "me" ? "Assignee: Me" : "Assignee: Unassigned",
-    });
+    chips.push({ key: "assignee", value: state.assignee });
   }
   if (options?.includeProject && state.projectId) {
     const projectName = options.projectNameById?.[state.projectId] ?? state.projectId;
-    chips.push({ key: "projectId", label: `Project: ${projectName}` });
+    chips.push({ key: "projectId", value: state.projectId, projectName });
   }
   if (state.search.trim()) {
-    chips.push({ key: "search", label: `Search: ${state.search.trim()}` });
+    chips.push({ key: "search", value: state.search.trim() });
   }
   return chips;
-}
-
-export function formatIssueFilterLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 export function defaultSortDirForField(sort: IssueListSortField): IssueListSortDirection {

@@ -9,9 +9,11 @@ import {
   useMessageScrollerVisibility,
 } from "@shadcn/react/message-scroller";
 import type { ComponentProps } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
+import { messageScrollerMessages } from "@/components/ui/message-scroller.messages";
 
 export function MessageScrollerProvider(
   props: ComponentProps<typeof MessageScrollerPrimitive.Provider>,
@@ -110,7 +112,11 @@ export function MessageScrollerButton({
         <>
           <HugeiconsIcon icon={ArrowDown02Icon} strokeWidth={2} />
           <span className="sr-only">
-            {direction === "end" ? "Scroll to end" : "Scroll to start"}
+            {direction === "end" ? (
+              <FormattedMessage {...messageScrollerMessages.scrollToEnd} />
+            ) : (
+              <FormattedMessage {...messageScrollerMessages.scrollToStart} />
+            )}
           </span>
         </>
       )}

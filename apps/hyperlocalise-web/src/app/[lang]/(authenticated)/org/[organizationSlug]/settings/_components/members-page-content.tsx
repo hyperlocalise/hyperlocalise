@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Add01Icon, Delete01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import { cn } from "@/lib/primitives/cn";
 import { WorkspacePeopleNav } from "../../_components/workspace-people-nav";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
+import { membersPageContentMessages } from "./members-page-content.messages";
 import {
   getMembershipStatusLabel,
   getRoleBadgeClassName,
@@ -43,6 +45,7 @@ import {
   getRoleLabel,
   resolveMembersPageState,
   type MembersListResponse,
+  type MembersSettingsIntl,
 } from "./members-settings-view-model";
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
@@ -91,23 +94,35 @@ async function readMemberError(response: Response, fallback: string) {
   return fallback;
 }
 
-function RoleSelectItem({ role }: { role: OrganizationMembershipRole }) {
+function RoleSelectItem({
+  role,
+  intl,
+}: {
+  role: OrganizationMembershipRole;
+  intl: MembersSettingsIntl;
+}) {
   return (
     <SelectItem
       value={role}
       className="items-start py-2 [&>:first-child]:w-full [&>:first-child]:min-w-0 [&>:first-child]:shrink [&>:first-child]:whitespace-normal"
     >
       <div className="flex min-w-0 flex-col gap-0.5 text-start">
-        <span className="font-medium">{getRoleLabel(role)}</span>
+        <span className="font-medium">{getRoleLabel(role, intl)}</span>
         <p className="text-pretty text-xs leading-5 wrap-break-word text-muted-foreground">
-          {getRoleDescription(role)}
+          {getRoleDescription(role, intl)}
         </p>
       </div>
     </SelectItem>
   );
 }
 
-function StatusBadge({ status }: { status: MembersListResponse["members"][number]["status"] }) {
+function StatusBadge({
+  status,
+  intl,
+}: {
+  status: MembersListResponse["members"][number]["status"];
+  intl: MembersSettingsIntl;
+}) {
   const isPending = status === "invited";
 
   return (
@@ -120,7 +135,7 @@ function StatusBadge({ status }: { status: MembersListResponse["members"][number
           : "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
       )}
     >
-      {getMembershipStatusLabel(status ?? "active")}
+      {getMembershipStatusLabel(status ?? "active", intl)}
     </Badge>
   );
 }
@@ -131,17 +146,24 @@ function MembersTableHeader() {
       role="row"
       className="hidden grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid"
     >
-      <div role="columnheader">Member</div>
-      <div role="columnheader">Status</div>
-      <div role="columnheader">Role</div>
-      <div role="columnheader" className="text-right">
-        Actions
+      <div role="columnheader">
+        <FormattedMessage {...membersPageContentMessages.columnMember} />
+      </div>
+      <div role="columnheader">
+        <FormattedMessage {...membersPageContentMessages.columnStatus} />
+      </div>
+      <div role="columnheader">
+        <FormattedMessage {...membersPageContentMessages.columnRole} />
+      </div>
+      <div role="columnheader" className="text-end">
+        <FormattedMessage {...membersPageContentMessages.columnActions} />
       </div>
     </div>
   );
 }
 
 export function MembersPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -157,13 +179,18 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         param: { organizationSlug },
       });
       if (!response.ok) {
-        throw new Error(await readMemberError(response, "Failed to load members"));
+        throw new Error(
+          await readMemberError(
+            response,
+            intl.formatMessage(membersPageContentMessages.loadFailed),
+          ),
+        );
       }
       return (await response.json()) as MembersListResponse;
     },
   });
 
-  const pageState = resolveMembersPageState(membersQuery.data);
+  const pageState = resolveMembersPageState(membersQuery.data, intl);
   const { members, assignableRoles, canInvite } = pageState;
 
   const inviteMember = useMutation({
@@ -173,7 +200,12 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         json: input,
       });
       if (!response.ok) {
-        throw new Error(await readMemberError(response, "Failed to invite member"));
+        throw new Error(
+          await readMemberError(
+            response,
+            intl.formatMessage(membersPageContentMessages.inviteFailed),
+          ),
+        );
       }
       return response.json();
     },
@@ -182,7 +214,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       setInviteRole("member");
       setIsInviteOpen(false);
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
-      toast.success("Invitation sent");
+      toast.success(intl.formatMessage(membersPageContentMessages.invitationSentToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -198,13 +230,18 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         json: { role: input.role },
       });
       if (!response.ok) {
-        throw new Error(await readMemberError(response, "Failed to update role"));
+        throw new Error(
+          await readMemberError(
+            response,
+            intl.formatMessage(membersPageContentMessages.updateRoleFailed),
+          ),
+        );
       }
       return response.json();
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
-      toast.success("Role updated");
+      toast.success(intl.formatMessage(membersPageContentMessages.roleUpdatedToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -219,14 +256,25 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         param: { organizationSlug, workosUserId },
       });
       if (response.status !== 204 && !response.ok) {
-        throw new Error(await readMemberError(response, "Failed to remove member"));
+        throw new Error(
+          await readMemberError(
+            response,
+            intl.formatMessage(membersPageContentMessages.removeFailed),
+          ),
+        );
       }
     },
     onSuccess: async () => {
       const wasInvited = removingMember?.status === "invited";
       setRemovingMember(null);
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
-      toast.success(wasInvited ? "Invitation revoked" : "Member removed");
+      toast.success(
+        intl.formatMessage(
+          wasInvited
+            ? membersPageContentMessages.invitationRevokedToast
+            : membersPageContentMessages.memberRemovedToast,
+        ),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -248,9 +296,9 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
       <PageHeader
         icon={UserGroupIcon}
-        label="Workspace"
-        title="Members"
-        description="Manage workspace access, invitations, and localization roles."
+        label={intl.formatMessage(membersPageContentMessages.pageLabel)}
+        title={intl.formatMessage(membersPageContentMessages.pageTitle)}
+        description={intl.formatMessage(membersPageContentMessages.pageDescription)}
         actions={
           canInvite ? (
             <Button
@@ -260,36 +308,38 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
               disabled={inviteMember.isPending}
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Invite member
+              <FormattedMessage {...membersPageContentMessages.inviteMember} />
             </Button>
           ) : null
         }
       />
 
-      <section aria-label="Workspace members" className="min-w-0">
+      <section
+        aria-label={intl.formatMessage(membersPageContentMessages.sectionAriaLabel)}
+        className="min-w-0"
+      >
         {membersQuery.isLoading ? (
           <TypographyP className="py-8 text-sm text-muted-foreground">
-            Loading members...
+            <FormattedMessage {...membersPageContentMessages.loading} />
           </TypographyP>
         ) : membersQuery.isError ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
-              Members failed to load.
+              <FormattedMessage {...membersPageContentMessages.loadErrorTitle} />
             </TypographyP>
             <TypographyP className="mt-1 text-xs text-muted-foreground">
               {membersQuery.error instanceof Error
                 ? membersQuery.error.message
-                : "Refresh the page to try again."}
+                : intl.formatMessage(membersPageContentMessages.loadErrorFallback)}
             </TypographyP>
           </div>
         ) : members.length === 0 ? (
           <div className="py-10">
             <TypographyP className="text-sm font-medium text-foreground">
-              No workspace members yet
+              <FormattedMessage {...membersPageContentMessages.emptyTitle} />
             </TypographyP>
             <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Invite teammates to assign localization ownership before work moves through the
-              workspace.
+              <FormattedMessage {...membersPageContentMessages.emptyDescription} />
             </TypographyP>
           </div>
         ) : (
@@ -298,7 +348,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
             {members.map((member) => {
               const status = member.status ?? "active";
               const isPending = status === "invited";
-              const roleDescription = getRoleDescription(member.role);
+              const roleDescription = getRoleDescription(member.role, intl);
 
               return (
                 <div
@@ -315,7 +365,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                         </TypographyP>
                         {member.isCurrentUser ? (
                           <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                            You
+                            <FormattedMessage {...membersPageContentMessages.youBadge} />
                           </span>
                         ) : null}
                       </div>
@@ -328,16 +378,16 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
                       <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
-                        Status
+                        <FormattedMessage {...membersPageContentMessages.columnStatus} />
                       </span>
-                      <StatusBadge status={status} />
+                      <StatusBadge status={status} intl={intl} />
                     </div>
                   </div>
 
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
                       <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
-                        Role
+                        <FormattedMessage {...membersPageContentMessages.columnRole} />
                       </span>
                       {member.canUpdateRole ? (
                         <Select
@@ -355,11 +405,11 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                           disabled={updateRole.isPending}
                         >
                           <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
-                            <SelectValue>{getRoleLabel(member.role)}</SelectValue>
+                            <SelectValue>{getRoleLabel(member.role, intl)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent className="max-w-sm">
                             {assignableRoles.map((role) => (
-                              <RoleSelectItem key={role} role={role} />
+                              <RoleSelectItem key={role} role={role} intl={intl} />
                             ))}
                           </SelectContent>
                         </Select>
@@ -374,7 +424,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                                   getRoleBadgeClassName(member.role),
                                 )}
                               >
-                                {getRoleLabel(member.role)}
+                                {getRoleLabel(member.role, intl)}
                               </Badge>
                             }
                           />
@@ -405,8 +455,16 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                               disabled={removeMember.isPending}
                               aria-label={
                                 isPending
-                                  ? `Revoke invitation for ${member.displayName}`
-                                  : `Remove ${member.displayName}`
+                                  ? intl.formatMessage(
+                                      membersPageContentMessages.revokeInvitationAria,
+                                      { name: member.displayName },
+                                    )
+                                  : intl.formatMessage(
+                                      membersPageContentMessages.removeMemberAria,
+                                      {
+                                        name: member.displayName,
+                                      },
+                                    )
                               }
                             >
                               <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
@@ -414,7 +472,11 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                           }
                         />
                         <TooltipContent side="bottom" align="end">
-                          {isPending ? "Revoke invitation" : "Remove member"}
+                          {isPending ? (
+                            <FormattedMessage {...membersPageContentMessages.revokeInvitation} />
+                          ) : (
+                            <FormattedMessage {...membersPageContentMessages.removeMember} />
+                          )}
                         </TooltipContent>
                       </Tooltip>
                     ) : null}
@@ -429,46 +491,52 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Invite member</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...membersPageContentMessages.inviteDialogTitle} />
+            </DialogTitle>
             <DialogDescription>
-              Send an invitation by email. They join after accepting through your identity provider.
+              <FormattedMessage {...membersPageContentMessages.inviteDialogDescription} />
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleInviteSubmit} className="grid gap-4">
             <Field>
-              <FieldLabel>Email</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...membersPageContentMessages.emailLabel} />
+              </FieldLabel>
               <Input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="name@company.com"
+                placeholder={intl.formatMessage(membersPageContentMessages.emailPlaceholder)}
                 className="border-border bg-muted"
                 required
               />
             </Field>
             <Field>
-              <FieldLabel>Role</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...membersPageContentMessages.roleLabel} />
+              </FieldLabel>
               <Select
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as OrganizationMembershipRole)}
               >
                 <SelectTrigger className="border-border bg-muted">
-                  <SelectValue>{getRoleLabel(inviteRole)}</SelectValue>
+                  <SelectValue>{getRoleLabel(inviteRole, intl)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-w-sm">
                   {assignableRoles.map((role) => (
-                    <RoleSelectItem key={role} role={role} />
+                    <RoleSelectItem key={role} role={role} intl={intl} />
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription>{getRoleDescription(inviteRole)}</FieldDescription>
+              <FieldDescription>{getRoleDescription(inviteRole, intl)}</FieldDescription>
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
-                Cancel
+                <FormattedMessage {...membersPageContentMessages.cancel} />
               </Button>
               <Button type="submit" disabled={inviteMember.isPending}>
-                Send invitation
+                <FormattedMessage {...membersPageContentMessages.sendInvitation} />
               </Button>
             </DialogFooter>
           </form>
@@ -482,19 +550,27 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {removingMember?.status === "invited" ? "Revoke invitation" : "Remove member"}
+              {removingMember?.status === "invited" ? (
+                <FormattedMessage {...membersPageContentMessages.revokeInvitation} />
+              ) : (
+                <FormattedMessage {...membersPageContentMessages.removeMember} />
+              )}
             </DialogTitle>
             <DialogDescription>
               {removingMember
                 ? removingMember.status === "invited"
-                  ? `${removingMember.email} will no longer be able to accept this workspace invitation.`
-                  : `${removingMember.displayName} will lose access to this workspace.`
+                  ? intl.formatMessage(membersPageContentMessages.revokeDialogDescription, {
+                      email: removingMember.email,
+                    })
+                  : intl.formatMessage(membersPageContentMessages.removeDialogDescription, {
+                      name: removingMember.displayName,
+                    })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setRemovingMember(null)}>
-              Cancel
+              <FormattedMessage {...membersPageContentMessages.cancel} />
             </Button>
             <Button
               type="button"
@@ -506,7 +582,11 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
                 }
               }}
             >
-              {removingMember?.status === "invited" ? "Revoke invitation" : "Remove member"}
+              {removingMember?.status === "invited" ? (
+                <FormattedMessage {...membersPageContentMessages.revokeInvitation} />
+              ) : (
+                <FormattedMessage {...membersPageContentMessages.removeMember} />
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

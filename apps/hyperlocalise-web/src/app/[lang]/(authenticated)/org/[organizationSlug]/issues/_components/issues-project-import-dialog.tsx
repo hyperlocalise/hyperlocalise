@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueSheetImportDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-dialog";
+import { issuesProjectImportDialogMessages } from "./issues-project-import-dialog.messages";
 
 type IssueSheetColumn = {
   id: string;
@@ -102,14 +104,16 @@ export function IssuesProjectImportDialog({
       <Dialog open={open && !importOpen} onOpenChange={(next) => !next && closePicker()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import issues</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...issuesProjectImportDialogMessages.title} />
+            </DialogTitle>
             <DialogDescription>
-              Choose which project should receive the imported Issue Sheet rows.
+              <FormattedMessage {...issuesProjectImportDialogMessages.description} />
             </DialogDescription>
           </DialogHeader>
           {projects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Create a project first, then import issues into its Issue Sheet.
+              <FormattedMessage {...issuesProjectImportDialogMessages.emptyProjects} />
             </p>
           ) : (
             <Select
@@ -131,10 +135,10 @@ export function IssuesProjectImportDialog({
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closePicker}>
-              Cancel
+              <FormattedMessage {...issuesProjectImportDialogMessages.cancel} />
             </Button>
             <Button type="button" onClick={startImport} disabled={!selectedProjectId}>
-              Continue
+              <FormattedMessage {...issuesProjectImportDialogMessages.continue} />
             </Button>
           </DialogFooter>
         </DialogContent>

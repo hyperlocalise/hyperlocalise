@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 
 import { apiClient } from "@/lib/api-client-instance";
 import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
@@ -8,6 +9,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live
 import { tmsLiveFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { tmsLiveJobFilesSectionMessages as messages } from "./tms-live-job-files-section.messages";
 
 function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
   return ["tms-provider-job-files", organizationSlug, encodedJobId] as const;
@@ -26,6 +28,7 @@ export function TmsLiveJobFilesSection({
   highlightLocale?: string | null;
   queueFilter?: CatQueueFilter;
 }) {
+  const intl = useIntl();
   const filesQuery = useQuery({
     queryKey: tmsLiveJobFilesQueryKey(organizationSlug, encodedJobId),
     queryFn: async () => {
@@ -36,7 +39,9 @@ export function TmsLiveJobFilesSection({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load task files (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToLoadTaskFiles, { status: response.status }),
+        );
       }
 
       const body = (await response.json()) as { files: TmsProviderLiveFile[] };
@@ -55,9 +60,11 @@ export function TmsLiveJobFilesSection({
       isLoading={filesQuery.isLoading}
       isError={filesQuery.isError}
       errorMessage={
-        filesQuery.error instanceof Error ? filesQuery.error.message : "Unable to load task files"
+        filesQuery.error instanceof Error
+          ? filesQuery.error.message
+          : intl.formatMessage(messages.unableToLoadTaskFiles)
       }
-      emptyMessage="No files are linked to this task."
+      emptyMessage={intl.formatMessage(messages.noFilesLinked)}
       highlightLocale={highlightLocale ?? null}
       queueFilter={queueFilter}
     />

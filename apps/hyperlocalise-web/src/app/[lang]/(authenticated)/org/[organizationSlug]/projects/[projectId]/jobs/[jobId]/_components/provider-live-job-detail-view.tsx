@@ -5,6 +5,7 @@ import { type ReactNode } from "react";
 import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
@@ -25,6 +26,7 @@ import {
 } from "./job-detail-task-view";
 import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailTaskLayoutFromLiveJob } from "./job-detail-layout-helpers";
+import { providerLiveJobDetailViewMessages as messages } from "./provider-live-job-detail-view.messages";
 
 export type ProviderLiveDescriptionFieldRenderer = JobDetailTaskDescriptionRenderer;
 
@@ -78,6 +80,7 @@ export function ProviderLiveJobDetailView({
   renderFilesSection?: ProviderLiveFilesSectionRenderer;
   showComments?: boolean;
 }) {
+  const intl = useIntl();
   const providerDescription = job
     ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
     : "";
@@ -87,7 +90,7 @@ export function ProviderLiveJobDetailView({
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
   const showViewStrings = job ? canOpenJobCat(job) && Boolean(catHref) : false;
   const layout = job
-    ? jobDetailTaskLayoutFromLiveJob(job, {
+    ? jobDetailTaskLayoutFromLiveJob(job, intl, {
         localeReadinessLoading,
         localeReadinessOverride,
       })
@@ -99,7 +102,9 @@ export function ProviderLiveJobDetailView({
         renderExternalLink ? (
           renderExternalLink({
             href: job.externalUrl,
-            label: `Open in ${job.externalProviderKind}`,
+            label: intl.formatMessage(messages.openInProvider, {
+              providerKind: job.externalProviderKind,
+            }),
           })
         ) : (
           <Button
@@ -107,7 +112,10 @@ export function ProviderLiveJobDetailView({
             render={
               <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
                 <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
-                Open in {job.externalProviderKind}
+                <FormattedMessage
+                  {...messages.openInProvider}
+                  values={{ providerKind: job.externalProviderKind }}
+                />
               </a>
             }
             size="sm"
@@ -123,7 +131,11 @@ export function ProviderLiveJobDetailView({
           onClick={onRefresh}
         >
           <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
+          {isRefreshing ? (
+            <FormattedMessage {...messages.refreshing} />
+          ) : (
+            <FormattedMessage {...messages.refresh} />
+          )}
         </Button>
       ) : null}
       {onDelete ? (
@@ -133,13 +145,17 @@ export function ProviderLiveJobDetailView({
           disabled={isRefreshing || isDeleting}
           onClick={onDelete}
         >
-          {isDeleting ? "Deleting..." : "Delete task"}
+          {isDeleting ? (
+            <FormattedMessage {...messages.deleting} />
+          ) : (
+            <FormattedMessage {...messages.deleteTask} />
+          )}
         </Button>
       ) : null}
       {showViewStrings && catHref ? (
         <Button size="sm" render={<Link href={catHref} />}>
           <ListIcon />
-          View strings
+          <FormattedMessage {...messages.viewStrings} />
         </Button>
       ) : null}
     </>

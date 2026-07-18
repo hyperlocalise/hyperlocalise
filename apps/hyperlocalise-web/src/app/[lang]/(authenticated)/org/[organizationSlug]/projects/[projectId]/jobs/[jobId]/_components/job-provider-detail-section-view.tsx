@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ import {
   type ProviderActionAvailability,
   type ProviderBackedJobFields,
 } from "./job-detail-types";
+import { jobProviderDetailSectionViewMessages as messages } from "./job-provider-detail-section-view.messages";
 
 export type JobProviderExternalLinkRenderer = (props: { href: string; label: string }) => ReactNode;
 
@@ -64,10 +66,14 @@ export type JobProviderDiffReviewRenderer = (props: {
 }) => ReactNode;
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  const intl = useIntl();
+
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-subtle-foreground">{value ?? "—"}</dd>
+      <dd className="min-w-0 wrap-break-word text-sm text-subtle-foreground">
+        {value ?? intl.formatMessage(messages.emptyValue)}
+      </dd>
     </div>
   );
 }
@@ -145,6 +151,7 @@ export function JobProviderDetailSectionView({
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
+  const intl = useIntl();
   const visibleActions = (job.providerActions ?? []).filter(
     (action) => action.visible && action.id !== "translate_with_agent",
   );
@@ -158,23 +165,32 @@ export function JobProviderDetailSectionView({
         <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-              Provider Details
+              <FormattedMessage {...messages.providerDetailsHeading} />
             </TypographyH2>
             <Badge variant="outline" className="rounded-full capitalize">
               {job.externalProviderKind}
             </Badge>
           </div>
           <dl className="mt-3 divide-y divide-border">
-            <DetailRow label="Provider title" value={job.externalTitle} />
-            <DetailRow label="Provider status" value={job.externalStatus} />
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderTitle)}
+              value={job.externalTitle}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderStatus)}
+              value={job.externalStatus}
+            />
             {job.externalProviderKind === "crowdin" ? (
               <>
                 <DetailRow
-                  label="Language"
-                  value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+                  label={intl.formatMessage(messages.labelLanguage)}
+                  value={
+                    getCrowdinLanguageLabel(job.externalProviderPayload) ??
+                    intl.formatMessage(messages.emptyValue)
+                  }
                 />
                 <DetailRow
-                  label="Target locales"
+                  label={intl.formatMessage(messages.labelTargetLocales)}
                   value={formatLocaleList(
                     getCrowdinTargetLocales(
                       job.externalProviderPayload,
@@ -183,7 +199,9 @@ export function JobProviderDetailSectionView({
                   )}
                 />
                 <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-sm text-muted-foreground">Description</dt>
+                  <dt className="text-sm text-muted-foreground">
+                    <FormattedMessage {...messages.labelDescription} />
+                  </dt>
                   <dd className="min-w-0 text-sm text-subtle-foreground">
                     {crowdinDescription ? (
                       <MarkdownDescriptionPreview
@@ -191,30 +209,47 @@ export function JobProviderDetailSectionView({
                         className="border-border bg-transparent"
                       />
                     ) : (
-                      "—"
+                      intl.formatMessage(messages.emptyValue)
                     )}
                   </dd>
                 </div>
               </>
             ) : (
-              <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
+              <DetailRow
+                label={intl.formatMessage(messages.labelTargetLocales)}
+                value={job.externalTargetLocales?.join(", ")}
+              />
             )}
-            <DetailRow label="Assignees" value={job.externalAssignedUsers?.join(", ")} />
-            <DetailRow label="Deadline" value={formatJobDetailDate(job.externalDueDate)} />
-            <DetailRow label="External job ID" value={job.externalJobId} />
-            <DetailRow label="External task ID" value={job.externalTaskId} />
             <DetailRow
-              label="Provider link"
+              label={intl.formatMessage(messages.labelAssignees)}
+              value={job.externalAssignedUsers?.join(", ")}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelDeadline)}
+              value={formatJobDetailDate(job.externalDueDate)}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelExternalJobId)}
+              value={job.externalJobId}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelExternalTaskId)}
+              value={job.externalTaskId}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderLink)}
               value={
                 job.externalUrl
                   ? renderExternalLink({
                       href: job.externalUrl,
-                      label: `Open in ${job.externalProviderKind}`,
+                      label: intl.formatMessage(messages.openInProvider, {
+                        providerKind: job.externalProviderKind,
+                      }),
                     })
-                  : "—"
+                  : intl.formatMessage(messages.emptyValue)
               }
             />
-            <DetailRow label="Raw error" value={job.lastError} />
+            <DetailRow label={intl.formatMessage(messages.labelRawError)} value={job.lastError} />
           </dl>
         </section>
       ) : null}
@@ -223,11 +258,11 @@ export function JobProviderDetailSectionView({
         <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-              Source files
+              <FormattedMessage {...messages.sourceFilesHeading} />
             </TypographyH2>
             {!sourceFilesExpanded ? (
               <Button size="sm" variant="outline" onClick={() => setSourceFilesExpanded(true)}>
-                Show source files
+                <FormattedMessage {...messages.showSourceFiles} />
               </Button>
             ) : null}
           </div>
@@ -235,7 +270,7 @@ export function JobProviderDetailSectionView({
             renderSourceFiles({ job, organizationSlug, projectId })
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
-              Load linked source files when you are ready to review or open them.
+              <FormattedMessage {...messages.sourceFilesCollapsedHint} />
             </p>
           )}
         </section>
@@ -244,7 +279,7 @@ export function JobProviderDetailSectionView({
       {showAgentActions && visibleActions.length > 0 ? (
         <section className="rounded-lg border border-border bg-muted p-5">
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            Agent Actions
+            <FormattedMessage {...messages.agentActionsHeading} />
           </TypographyH2>
           <div className="mt-4 flex flex-wrap gap-2">
             {visibleActions.map((action: ProviderActionAvailability) => (
@@ -257,7 +292,11 @@ export function JobProviderDetailSectionView({
                 onClick={() => onStartAgentRun?.(action.id)}
               >
                 <HugeiconsIcon icon={actionIcon(action.id)} strokeWidth={1.8} />
-                {pendingActionId === action.id ? "Starting..." : action.label}
+                {pendingActionId === action.id ? (
+                  <FormattedMessage {...messages.starting} />
+                ) : (
+                  action.label
+                )}
               </Button>
             ))}
           </div>
@@ -286,12 +325,16 @@ export function JobProviderDetailSectionView({
 
       <section className="rounded-lg border border-border bg-muted p-5">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-          Agent Activity
+          <FormattedMessage {...messages.agentActivityHeading} />
         </TypographyH2>
         {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-skeleton" /> : null}
         {agentRunsError ? (
           <p className="mt-4 text-sm text-flame-100">
-            {agentRunsError instanceof Error ? agentRunsError.message : "Unable to load agent runs"}
+            {agentRunsError instanceof Error ? (
+              agentRunsError.message
+            ) : (
+              <FormattedMessage {...messages.unableToLoadAgentRuns} />
+            )}
           </p>
         ) : null}
         {agentRuns && agentRuns.length > 0 ? (
@@ -324,20 +367,34 @@ export function JobProviderDetailSectionView({
                       {run.kind.replaceAll("_", " ")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Started {formatJobDetailDate(run.createdAt)}
-                      {hasProposals ? ` · ${proposedCount} proposals` : null}
-                      {translationMemoryMatchCount > 0
-                        ? ` · ${translationMemoryMatchCount} TM match${translationMemoryMatchCount === 1 ? "" : "es"}`
-                        : null}
-                      {glossaryMatchCount > 0
-                        ? ` · ${glossaryMatchCount} glossary match${glossaryMatchCount === 1 ? "" : "es"}`
-                        : null}
+                      {[
+                        intl.formatMessage(messages.startedAt, {
+                          date: formatJobDetailDate(run.createdAt),
+                        }),
+                        hasProposals
+                          ? intl.formatMessage(messages.proposalsCount, {
+                              count: proposedCount,
+                            })
+                          : null,
+                        translationMemoryMatchCount > 0
+                          ? intl.formatMessage(messages.tmMatchesCount, {
+                              count: translationMemoryMatchCount,
+                            })
+                          : null,
+                        glossaryMatchCount > 0
+                          ? intl.formatMessage(messages.glossaryMatchesCount, {
+                              count: glossaryMatchCount,
+                            })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {hasProposals ? (
                       <Badge variant="outline" className="rounded-full">
-                        Review proposals
+                        <FormattedMessage {...messages.reviewProposals} />
                       </Badge>
                     ) : null}
                     <Badge
@@ -353,7 +410,9 @@ export function JobProviderDetailSectionView({
           </ul>
         ) : null}
         {agentRuns && agentRuns.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No agent runs yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <FormattedMessage {...messages.noAgentRunsYet} />
+          </p>
         ) : null}
       </section>
     </>

@@ -1,13 +1,18 @@
+"use client";
+
+import type { IntlShape } from "@formatjs/intl";
+
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
-  getMembershipStatusLabel,
-  getMembershipStatusDescription,
   getRoleBadgeClassName,
   getRoleBadgeVariant,
-  getRoleDescription,
-  getRoleLabel,
-  MANUAL_LOCALIZATION_ACCESS_NOTICE,
+  type MemberApiStatus,
 } from "@/lib/members/member-management";
+import { resolveMessage } from "@/lib/app-i18n/resolve-message";
+
+import { membersSettingsViewModelMessages } from "./members-settings-view-model.messages";
+
+export type MembersSettingsIntl = Pick<IntlShape, "formatMessage">;
 
 export type MembersListMember = {
   workosUserId: string;
@@ -29,7 +34,65 @@ export type MembersListResponse = {
   };
 };
 
-export function resolveMembersPageState(response: MembersListResponse | undefined) {
+const roleLabelMessages = {
+  admin: membersSettingsViewModelMessages.roleAdmin,
+  localization_manager: membersSettingsViewModelMessages.roleLocalizationManager,
+  developer: membersSettingsViewModelMessages.roleDeveloper,
+  reviewer: membersSettingsViewModelMessages.roleReviewer,
+  translator: membersSettingsViewModelMessages.roleTranslator,
+  member: membersSettingsViewModelMessages.roleMember,
+} as const;
+
+const roleDescriptionMessages = {
+  admin: membersSettingsViewModelMessages.roleAdminDescription,
+  localization_manager: membersSettingsViewModelMessages.roleLocalizationManagerDescription,
+  developer: membersSettingsViewModelMessages.roleDeveloperDescription,
+  reviewer: membersSettingsViewModelMessages.roleReviewerDescription,
+  translator: membersSettingsViewModelMessages.roleTranslatorDescription,
+  member: membersSettingsViewModelMessages.roleMemberDescription,
+} as const;
+
+export function getRoleLabel(role: OrganizationMembershipRole, intl?: MembersSettingsIntl) {
+  const descriptor = roleLabelMessages[role];
+  if (!descriptor) {
+    return role;
+  }
+
+  return resolveMessage(intl, descriptor);
+}
+
+export function getRoleDescription(role: OrganizationMembershipRole, intl?: MembersSettingsIntl) {
+  const descriptor = roleDescriptionMessages[role];
+  if (!descriptor) {
+    return "";
+  }
+
+  return resolveMessage(intl, descriptor);
+}
+
+export function getMembershipStatusLabel(status: MemberApiStatus, intl?: MembersSettingsIntl) {
+  if (status === "invited") {
+    return resolveMessage(intl, membersSettingsViewModelMessages.statusPending);
+  }
+
+  return resolveMessage(intl, membersSettingsViewModelMessages.statusActive);
+}
+
+export function getMembershipStatusDescription(
+  status: MemberApiStatus,
+  intl?: MembersSettingsIntl,
+) {
+  if (status === "invited") {
+    return resolveMessage(intl, membersSettingsViewModelMessages.statusPendingDescription);
+  }
+
+  return resolveMessage(intl, membersSettingsViewModelMessages.statusActiveDescription);
+}
+
+export function resolveMembersPageState(
+  response: MembersListResponse | undefined,
+  intl?: MembersSettingsIntl,
+) {
   const members = response?.members ?? [];
   const memberManagement = response?.memberManagement;
   const assignableRoles = memberManagement?.assignableRoles ?? [];
@@ -39,15 +102,11 @@ export function resolveMembersPageState(response: MembersListResponse | undefine
     members,
     assignableRoles,
     canInvite,
-    manualAccessNotice: MANUAL_LOCALIZATION_ACCESS_NOTICE,
+    manualAccessNotice: resolveMessage(
+      intl,
+      membersSettingsViewModelMessages.manualLocalizationAccessNotice,
+    ),
   };
 }
 
-export {
-  getMembershipStatusDescription,
-  getMembershipStatusLabel,
-  getRoleBadgeClassName,
-  getRoleBadgeVariant,
-  getRoleDescription,
-  getRoleLabel,
-};
+export { getRoleBadgeClassName, getRoleBadgeVariant };

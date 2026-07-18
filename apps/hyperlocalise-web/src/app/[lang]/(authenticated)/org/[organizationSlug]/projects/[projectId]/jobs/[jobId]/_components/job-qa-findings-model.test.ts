@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
 import {
   attachFindingIds,
   buildFindingId,
@@ -15,6 +19,8 @@ import {
   parseProviderReviewReportFromOutputSummary,
   parseQaReportFromOutputSummary,
 } from "./job-qa-findings-model";
+
+const intl = getIntlShape("en") as IntlShape;
 
 const sampleFinding = {
   checkType: "placeholder_mismatch" as const,
@@ -112,7 +118,7 @@ describe("job-qa-findings-model", () => {
 
   it("groups findings by locale", () => {
     const findings = attachFindingIds([sampleFinding]);
-    const groups = groupFindings(findings, "locale");
+    const groups = groupFindings(findings, "locale", intl);
 
     expect(groups).toHaveLength(1);
     expect(groups[0]?.label).toBe("fr");
@@ -157,7 +163,7 @@ describe("job-qa-findings-model", () => {
       externalCommentUid: "comment-42",
       providerUrl: "https://crowdin.com/project/demo/comments/42",
     });
-    expect(formatProviderCommentWriteBackLabel(writeBack)).toBe("Comment posted");
+    expect(formatProviderCommentWriteBackLabel(writeBack, intl)).toBe("Comment posted");
     expect(isProviderCommentWriteBackComplete(writeBack)).toBe(true);
   });
 

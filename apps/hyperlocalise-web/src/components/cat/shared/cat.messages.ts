@@ -31,6 +31,12 @@ export const catQueuePanelMessages = defineMessages({
     id: "EUZbcVhX5v",
     description: "Heading for the CAT segment queue panel",
   },
+  loadingSegmentsAria: {
+    defaultMessage: "Loading segments",
+    id: "XUGFGcmuvI",
+    description: "Accessible label while the CAT segment queue skeleton is shown",
+  },
+
   filterQueueAria: {
     defaultMessage: "Filter queue",
     id: "qSH0vWKsTL",

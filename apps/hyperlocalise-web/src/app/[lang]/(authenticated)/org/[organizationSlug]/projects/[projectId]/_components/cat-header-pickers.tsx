@@ -235,7 +235,9 @@ export function CatLocaleSelect({
           <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
             <LocaleIcon className="size-4 text-muted-foreground" />
             <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
-            <span className="font-mono text-muted-foreground">({locale})</span>
+            <span className="font-mono text-muted-foreground">
+              {intl.formatMessage(catHeaderPickersMessages.localeCode, { locale })}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

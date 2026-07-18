@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import {
   Bar,
@@ -20,90 +21,76 @@ import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
-const readinessColumns = [
-  { key: "quality", label: "Quality" },
-  { key: "coverage", label: "Review" },
-  { key: "drift", label: "Drift" },
-  { key: "freshness", label: "Sync" },
-] as const;
+import { monitorO11yBentoMessages } from "./monitor-o11y-bento.messages";
 
-const readinessRows = [
+const readinessRowDefs = [
   {
     locale: "fr-FR",
-    summary: "Ship-safe",
-    summaryTone: "safe",
+    summaryKey: "summaryShipSafe" as const,
+    summaryTone: "safe" as const,
     cells: [
-      { key: "quality", score: 96, tone: "safe" },
-      { key: "coverage", score: 94, tone: "safe" },
-      { key: "drift", score: 91, tone: "safe" },
-      { key: "freshness", score: 95, tone: "safe" },
+      { key: "quality", score: 96, tone: "safe" as const },
+      { key: "coverage", score: 94, tone: "safe" as const },
+      { key: "drift", score: 91, tone: "safe" as const },
+      { key: "freshness", score: 95, tone: "safe" as const },
     ],
   },
   {
     locale: "de-DE",
-    summary: "Ship-safe",
-    summaryTone: "safe",
+    summaryKey: "summaryShipSafe" as const,
+    summaryTone: "safe" as const,
     cells: [
-      { key: "quality", score: 93, tone: "safe" },
-      { key: "coverage", score: 91, tone: "safe" },
-      { key: "drift", score: 89, tone: "watch" },
-      { key: "freshness", score: 92, tone: "safe" },
+      { key: "quality", score: 93, tone: "safe" as const },
+      { key: "coverage", score: 91, tone: "safe" as const },
+      { key: "drift", score: 89, tone: "watch" as const },
+      { key: "freshness", score: 92, tone: "safe" as const },
     ],
   },
   {
     locale: "es-ES",
-    summary: "Review due",
-    summaryTone: "watch",
+    summaryKey: "summaryReviewDue" as const,
+    summaryTone: "watch" as const,
     cells: [
-      { key: "quality", score: 90, tone: "watch" },
-      { key: "coverage", score: 78, tone: "watch" },
-      { key: "drift", score: 88, tone: "watch" },
-      { key: "freshness", score: 91, tone: "safe" },
+      { key: "quality", score: 90, tone: "watch" as const },
+      { key: "coverage", score: 78, tone: "watch" as const },
+      { key: "drift", score: 88, tone: "watch" as const },
+      { key: "freshness", score: 91, tone: "safe" as const },
     ],
   },
   {
     locale: "ja-JP",
-    summary: "Review due",
-    summaryTone: "watch",
+    summaryKey: "summaryReviewDue" as const,
+    summaryTone: "watch" as const,
     cells: [
-      { key: "quality", score: 88, tone: "watch" },
-      { key: "coverage", score: 80, tone: "watch" },
-      { key: "drift", score: 82, tone: "watch" },
-      { key: "freshness", score: 89, tone: "watch" },
+      { key: "quality", score: 88, tone: "watch" as const },
+      { key: "coverage", score: 80, tone: "watch" as const },
+      { key: "drift", score: 82, tone: "watch" as const },
+      { key: "freshness", score: 89, tone: "watch" as const },
     ],
   },
   {
     locale: "pt-BR",
-    summary: "Blocked",
-    summaryTone: "risk",
+    summaryKey: "summaryBlocked" as const,
+    summaryTone: "risk" as const,
     cells: [
-      { key: "quality", score: 81, tone: "risk" },
-      { key: "coverage", score: 64, tone: "risk" },
-      { key: "drift", score: 76, tone: "risk" },
-      { key: "freshness", score: 83, tone: "watch" },
+      { key: "quality", score: 81, tone: "risk" as const },
+      { key: "coverage", score: 64, tone: "risk" as const },
+      { key: "drift", score: 76, tone: "risk" as const },
+      { key: "freshness", score: 83, tone: "watch" as const },
     ],
   },
   {
     locale: "ko-KR",
-    summary: "Ship-safe",
-    summaryTone: "safe",
+    summaryKey: "summaryShipSafe" as const,
+    summaryTone: "safe" as const,
     cells: [
-      { key: "quality", score: 94, tone: "safe" },
-      { key: "coverage", score: 92, tone: "safe" },
-      { key: "drift", score: 90, tone: "safe" },
-      { key: "freshness", score: 94, tone: "safe" },
+      { key: "quality", score: 94, tone: "safe" as const },
+      { key: "coverage", score: 92, tone: "safe" as const },
+      { key: "drift", score: 90, tone: "safe" as const },
+      { key: "freshness", score: 94, tone: "safe" as const },
     ],
   },
-] as const;
-
-const qualityTrendData = [
-  { run: "R-18", score: 89 },
-  { run: "R-12", score: 91 },
-  { run: "R-9", score: 86 },
-  { run: "R-6", score: 84 },
-  { run: "R-3", score: 90 },
-  { run: "Today", score: 92 },
-] as const;
+];
 
 const reviewCoverageData = [
   { locale: "fr", drafted: 18, reviewed: 72, blocked: 10 },
@@ -112,20 +99,6 @@ const reviewCoverageData = [
   { locale: "ja", drafted: 20, reviewed: 56, blocked: 24 },
   { locale: "pt", drafted: 24, reviewed: 46, blocked: 30 },
   { locale: "ko", drafted: 14, reviewed: 74, blocked: 12 },
-] as const;
-
-const issueBreakdownData = [
-  { issue: "Terminology", count: 18 },
-  { issue: "ICU", count: 11 },
-  { issue: "Brand voice", count: 9 },
-  { issue: "Length", count: 7 },
-  { issue: "Context", count: 5 },
-] as const;
-
-const releasePulse = [
-  { label: "Ship-safe locales", value: "92%" },
-  { label: "Review SLA", value: "4.1h" },
-  { label: "Critical blockers", value: "1" },
 ] as const;
 
 function getReadinessCellClassName(tone: "safe" | "watch" | "risk") {
@@ -158,8 +131,8 @@ function MonitorCard({
   children,
   className,
 }: {
-  title: string;
-  eyebrow: string;
+  title: ReactNode;
+  eyebrow: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -183,7 +156,61 @@ function MonitorCard({
   );
 }
 
+const CURRENT_COVERAGE_VALUE = "92%";
+
 export function MonitorO11yBento() {
+  const intl = useIntl();
+
+  const readinessColumns = [
+    { key: "quality", label: intl.formatMessage(monitorO11yBentoMessages.columnQuality) },
+    { key: "coverage", label: intl.formatMessage(monitorO11yBentoMessages.columnReview) },
+    { key: "drift", label: intl.formatMessage(monitorO11yBentoMessages.columnDrift) },
+    { key: "freshness", label: intl.formatMessage(monitorO11yBentoMessages.columnSync) },
+  ] as const;
+
+  const readinessRows = readinessRowDefs.map((row) => ({
+    ...row,
+    summary: intl.formatMessage(monitorO11yBentoMessages[row.summaryKey]),
+  }));
+
+  const qualityTrendData = [
+    { run: "R-18", score: 89 },
+    { run: "R-12", score: 91 },
+    { run: "R-9", score: 86 },
+    { run: "R-6", score: 84 },
+    { run: "R-3", score: 90 },
+    { run: intl.formatMessage(monitorO11yBentoMessages.runToday), score: 92 },
+  ];
+
+  const issueBreakdownData = [
+    {
+      issue: intl.formatMessage(monitorO11yBentoMessages.issueTerminology),
+      count: 18,
+    },
+    { issue: intl.formatMessage(monitorO11yBentoMessages.issueIcu), count: 11 },
+    {
+      issue: intl.formatMessage(monitorO11yBentoMessages.issueBrandVoice),
+      count: 9,
+    },
+    { issue: intl.formatMessage(monitorO11yBentoMessages.issueLength), count: 7 },
+    { issue: intl.formatMessage(monitorO11yBentoMessages.issueContext), count: 5 },
+  ];
+
+  const releasePulse = [
+    {
+      label: intl.formatMessage(monitorO11yBentoMessages.pulseShipSafe),
+      value: "92%",
+    },
+    {
+      label: intl.formatMessage(monitorO11yBentoMessages.pulseReviewSla),
+      value: "4.1h",
+    },
+    {
+      label: intl.formatMessage(monitorO11yBentoMessages.pulseCriticalBlockers),
+      value: "1",
+    },
+  ];
+
   return (
     <div className="relative overflow-hidden rounded-[1.8rem] border border-border bg-[linear-gradient(180deg,var(--color-card),color-mix(in_srgb,var(--color-card)_72%,var(--color-muted)))] shadow-[0_30px_90px_color-mix(in_srgb,var(--foreground)_16%,transparent)] mask-radial-from-65% mask-radial-at-top">
       <div
@@ -199,13 +226,15 @@ export function MonitorO11yBento() {
         <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <TypographyH4 className="text-foreground">Locale ops observability</TypographyH4>
+              <TypographyH4 className="text-foreground">
+                <FormattedMessage {...monitorO11yBentoMessages.pageTitle} />
+              </TypographyH4>
               <Badge className="rounded-full border-(--color-success) bg-[color-mix(in_srgb,var(--color-success)_14%,var(--color-card))] px-3 text-(--color-success)">
-                Release window active
+                <FormattedMessage {...monitorO11yBentoMessages.releaseWindowBadge} />
               </Badge>
             </div>
             <TypographyMuted className="mt-2 max-w-2xl text-muted-foreground">
-              Ship confidence across eval health, review debt, and failure modes.
+              <FormattedMessage {...monitorO11yBentoMessages.pageSubtitle} />
             </TypographyMuted>
           </div>
 
@@ -229,8 +258,8 @@ export function MonitorO11yBento() {
 
       <div className="relative grid gap-4 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-background)_50%,transparent),color-mix(in_srgb,var(--color-muted)_45%,transparent))] p-4 sm:p-5 lg:grid-cols-[1.15fr_0.85fr]">
         <MonitorCard
-          eyebrow="Release Readiness"
-          title="Locale readiness heatmap"
+          eyebrow={<FormattedMessage {...monitorO11yBentoMessages.readinessEyebrow} />}
+          title={<FormattedMessage {...monitorO11yBentoMessages.readinessTitle} />}
           className="lg:row-span-1"
         >
           <div className="grid grid-cols-[auto_repeat(4,minmax(0,1fr))_auto] gap-2 text-xs text-muted-foreground">
@@ -244,7 +273,7 @@ export function MonitorO11yBento() {
               </div>
             ))}
             <div className="pb-1 text-right text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Status
+              <FormattedMessage {...monitorO11yBentoMessages.columnStatus} />
             </div>
 
             {readinessRows.map((row) => (
@@ -279,18 +308,21 @@ export function MonitorO11yBento() {
           </div>
         </MonitorCard>
 
-        <MonitorCard eyebrow="Eval Trend" title="Quality score over recent runs">
+        <MonitorCard
+          eyebrow={<FormattedMessage {...monitorO11yBentoMessages.evalEyebrow} />}
+          title={<FormattedMessage {...monitorO11yBentoMessages.evalTitle} />}
+        >
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
               <div className="text-3xl font-semibold tracking-[-0.04em] text-foreground tabular-nums">
-                92%
+                {CURRENT_COVERAGE_VALUE}
               </div>
               <TypographyMuted className="text-muted-foreground">
-                current ship-safe coverage
+                <FormattedMessage {...monitorO11yBentoMessages.currentCoverage} />
               </TypographyMuted>
             </div>
             <Badge className="rounded-full border-(--color-success) bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] px-3 text-(--color-success)">
-              +8 pts recovery
+              <FormattedMessage {...monitorO11yBentoMessages.recoveryBadge} />
             </Badge>
           </div>
 
@@ -336,19 +368,22 @@ export function MonitorO11yBento() {
           </div>
         </MonitorCard>
 
-        <MonitorCard eyebrow="Coverage Mix" title="Review coverage by locale">
+        <MonitorCard
+          eyebrow={<FormattedMessage {...monitorO11yBentoMessages.coverageEyebrow} />}
+          title={<FormattedMessage {...monitorO11yBentoMessages.coverageTitle} />}
+        >
           <div className="mb-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-chart-4" />
-              AI drafted
+              <FormattedMessage {...monitorO11yBentoMessages.legendAiDrafted} />
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-chart-1" />
-              Human reviewed
+              <FormattedMessage {...monitorO11yBentoMessages.legendHumanReviewed} />
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-(--color-error)" />
-              Blocked
+              <FormattedMessage {...monitorO11yBentoMessages.legendBlocked} />
             </div>
           </div>
 
@@ -398,12 +433,17 @@ export function MonitorO11yBento() {
           </div>
         </MonitorCard>
 
-        <MonitorCard eyebrow="Failure Modes" title="Issue breakdown">
+        <MonitorCard
+          eyebrow={<FormattedMessage {...monitorO11yBentoMessages.failureEyebrow} />}
+          title={<FormattedMessage {...monitorO11yBentoMessages.failureTitle} />}
+        >
           <div className="mb-4 flex items-center justify-between gap-4">
             <TypographyMuted className="text-muted-foreground">
-              Ranked by impact across current release checks
+              <FormattedMessage {...monitorO11yBentoMessages.failureCaption} />
             </TypographyMuted>
-            <TypographySmall className="text-foreground">50 total findings</TypographySmall>
+            <TypographySmall className="text-foreground">
+              <FormattedMessage {...monitorO11yBentoMessages.totalFindings} />
+            </TypographySmall>
           </div>
 
           <div className="h-52 sm:h-56">

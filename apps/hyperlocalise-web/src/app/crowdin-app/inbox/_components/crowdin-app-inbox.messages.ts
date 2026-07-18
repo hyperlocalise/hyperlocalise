@@ -3,11 +3,17 @@
 import { defineMessages } from "react-intl";
 
 export const crowdinAppInboxMessages = defineMessages({
+  brandName: {
+    defaultMessage: "Hyperlocalise",
+    id: "wueVNaKGWk",
+    description: "Brand name in the Crowdin App inbox header",
+  },
   loading: {
     id: "si5HssHaNU",
     defaultMessage: "Loading Hyperlocalise…",
     description: "Loading state while Crowdin App inbox bootstraps",
   },
+
   unauthorizedTitle: {
     id: "/2wzw7IAoz",
     defaultMessage: "Unable to open Hyperlocalise",

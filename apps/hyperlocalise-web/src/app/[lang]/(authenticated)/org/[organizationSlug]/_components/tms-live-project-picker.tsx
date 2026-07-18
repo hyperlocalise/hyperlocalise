@@ -1,5 +1,7 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import {
   Select,
   SelectContent,
@@ -9,6 +11,7 @@ import {
 } from "@/components/ui/select";
 
 import { useTmsLiveProjects } from "../_hooks/use-tms-live-projects";
+import { tmsLiveProjectPickerMessages as messages } from "./tms-live-project-picker.messages";
 import { WorkspaceFilterField, workspaceFilterTriggerClassName } from "./workspace-resource-shared";
 
 export function TmsLiveProjectPicker({
@@ -22,6 +25,7 @@ export function TmsLiveProjectPicker({
   onValueChange: (externalProjectId: string) => void;
   disabled?: boolean;
 }) {
+  const intl = useIntl();
   const tmsProjectsQuery = useTmsLiveProjects(organizationSlug);
   const projects = (tmsProjectsQuery.data ?? []).filter(
     (project) => project.isActive !== false && project.externalProjectId,
@@ -32,7 +36,10 @@ export function TmsLiveProjectPicker({
   }));
 
   return (
-    <WorkspaceFilterField label="TMS project" className="w-full sm:max-w-sm">
+    <WorkspaceFilterField
+      label={intl.formatMessage(messages.fieldLabel)}
+      className="w-full sm:max-w-sm"
+    >
       <Select
         value={value || null}
         items={projectItems}
@@ -41,7 +48,11 @@ export function TmsLiveProjectPicker({
       >
         <SelectTrigger className={workspaceFilterTriggerClassName}>
           <SelectValue
-            placeholder={tmsProjectsQuery.isLoading ? "Loading projects…" : "Select a project"}
+            placeholder={
+              tmsProjectsQuery.isLoading
+                ? intl.formatMessage(messages.loadingProjects)
+                : intl.formatMessage(messages.selectProject)
+            }
           />
         </SelectTrigger>
         <SelectContent>
