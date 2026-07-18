@@ -247,11 +247,45 @@ export type ToolOutputProps = ComponentProps<"div"> & {
   errorText: ToolPart["errorText"];
 };
 
+type ImageToolOutput = {
+  url: string;
+  filename?: string;
+  contentType?: string;
+};
+
+export function getImageToolOutput(output: unknown): ImageToolOutput | null {
+  if (!output || typeof output !== "object" || isValidElement(output)) {
+    return null;
+  }
+
+  const record = output as Record<string, unknown>;
+  if (record.success !== true || typeof record.url !== "string" || !record.url) {
+    return null;
+  }
+
+  const contentType = typeof record.contentType === "string" ? record.contentType : "";
+  const filename = typeof record.filename === "string" ? record.filename : undefined;
+  const looksLikeImage =
+    contentType.toLowerCase().startsWith("image/") ||
+    Boolean(filename && /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(filename));
+
+  if (!looksLikeImage) {
+    return null;
+  }
+
+  return {
+    url: record.url,
+    filename,
+    contentType: contentType || undefined,
+  };
+}
+
 export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutputProps) => {
   if (!(output || errorText)) {
     return null;
   }
 
+  const imageOutput = getImageToolOutput(output);
   let Output = <div>{output as ReactNode}</div>;
 
   if (typeof output === "object" && !isValidElement(output)) {
@@ -278,6 +312,20 @@ export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutpu
           <FormattedMessage {...toolMessages.result} />
         )}
       </TypographyH4>
+      {imageOutput ? (
+        <a
+          href={imageOutput.url}
+          target="_blank"
+          rel="noreferrer"
+          className="block overflow-hidden rounded-md border border-border bg-background"
+        >
+          <img
+            src={imageOutput.url}
+            alt={imageOutput.filename || "Tool result image"}
+            className="max-h-96 w-full object-contain"
+          />
+        </a>
+      ) : null}
       <div
         className={cn(
           "overflow-x-auto rounded-md text-xs [&_table]:w-full",
