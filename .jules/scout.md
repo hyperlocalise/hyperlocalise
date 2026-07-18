@@ -147,3 +147,7 @@
 ## 2025-07-20 - [Comprehensive Printf Placeholder Detection]
 **Learning:** Naive printf placeholder detection (e.g., matching only %s, %d) misses common specifiers like %i, %x, %u and modifiers like width (%02d), precision (%.2f), or length (%ld). This allows critical placeholders to be omitted from translations without triggering validation failures.
 **Action:** Use a comprehensive regex that supports the full range of standard printf specifiers, flags, width, precision, and length modifiers to ensure structural parity is strictly enforced for all placeholder types.
+
+## 2026-07-18 - [HTML Tag Name Extraction and Space Leniency]
+**Learning:** The HTML tag name extraction helper (`extractTagName`) does not skip whitespace following a closing slash (e.g., `</ strong >` or `< / div>`). Instead, the scanning loop terminates at the space and returns `/`. Since `isLikelyMarkupTag` ignores `/`, such spaced structures are not recognized as markup.
+**Action:** When unit testing tag parsing helper functions, match the precise behavior of the underlying parsing state-machine regarding spaces around structural markers like slashes.
