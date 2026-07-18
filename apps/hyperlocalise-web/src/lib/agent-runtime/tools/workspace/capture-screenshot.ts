@@ -433,7 +433,9 @@ const { chromium } = require(${JSON.stringify(input.playwrightModulePath)});
   const page = await browser.newPage({
     viewport: ${JSON.stringify(input.viewport)}
   });
-  await page.goto(${JSON.stringify(input.url)}, { waitUntil: "networkidle", timeout: 60000 });
+  // Storybook keeps HMR/WebSocket traffic open, so "networkidle" often never settles.
+  await page.goto(${JSON.stringify(input.url)}, { waitUntil: "load", timeout: 60000 });
+  await page.waitForSelector("#storybook-root, #root", { state: "attached", timeout: 30000 });
   await page.waitForTimeout(${input.waitForMs});
   await page.screenshot({ path: ${JSON.stringify(input.outputPath)}, fullPage: true });
   await browser.close();
@@ -504,8 +506,16 @@ function buildCaptureCommand(input: {
     `for i in $(seq 1 60); do if curl -fsS ${shellQuote(
       `http://127.0.0.1:${input.port}/iframe.html`,
     )} >/dev/null 2>&1; then break; fi; sleep 1; done`,
-    `curl -fsS ${shellQuote(`http://127.0.0.1:${input.port}/iframe.html`)} >/dev/null`,
-    `node ${shellQuote(input.scriptPath)}`,
+    `if ! curl -fsS ${shellQuote(`http://127.0.0.1:${input.port}/iframe.html`)} >/dev/null; then`,
+    '  echo "Storybook did not become ready on the expected port." >&2',
+    "  tail -n 80 /tmp/hyperlocalise-storybook.log >&2 || true",
+    "  exit 1",
+    "fi",
+    `if ! node ${shellQuote(input.scriptPath)}; then`,
+    '  echo "Playwright screenshot capture failed." >&2',
+    "  tail -n 40 /tmp/hyperlocalise-storybook.log >&2 || true",
+    "  exit 1",
+    "fi",
     `SCREENSHOT_B64=$(base64 -w 0 ${shellQuote(input.screenshotPath)})`,
     `rm -rf ${shellQuote(input.baseDir)}`,
     'printf "%s" "$SCREENSHOT_B64"',
