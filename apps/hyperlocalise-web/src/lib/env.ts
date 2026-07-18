@@ -49,6 +49,13 @@ export const env = createEnv({
     /** Password for encrypting WorkOS session cookies. Must be at least 32 characters. */
     WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
 
+    /**
+     * Comma-separated AuthKit redirect URIs allowed for native clients (Mac app).
+     * Always merged with the default `hyperlocalise://auth/callback` scheme.
+     * Example: `http://127.0.0.1:53682/callback`
+     */
+    WORKOS_NATIVE_REDIRECT_URIS: z.string().min(1).optional(),
+
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
 
@@ -210,6 +217,7 @@ export const env = createEnv({
     WORKOS_COOKIE_PASSWORD:
       process.env.WORKOS_COOKIE_PASSWORD ??
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
+    WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     FLAGS_SECRET:
