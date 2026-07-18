@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import {
@@ -11,6 +12,8 @@ import {
   inferSupportedFileTranslationFileFormat,
   isSupportedSourceUploadFormat,
 } from "@/lib/translation/file-formats";
+
+import { useProjectFileActionsMessages } from "./use-project-file-actions.messages";
 
 const EMPTY_STRING_ARRAY: readonly string[] = [];
 
@@ -29,6 +32,7 @@ export function buildProjectFileActionCapabilities({
   highlightLocale,
   projectTargetLocales,
   branch = null,
+  intl,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -36,6 +40,7 @@ export function buildProjectFileActionCapabilities({
   highlightLocale: string | null;
   projectTargetLocales?: readonly string[] | null;
   branch?: string | null;
+  intl: IntlShape;
 }): ProjectFileActionCapabilities {
   const isNativeFile = !file.provider;
   const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
@@ -56,7 +61,7 @@ export function buildProjectFileActionCapabilities({
   );
   const translateDisabledTitle = canTranslateWithAgent
     ? undefined
-    : "Upload a supported file and add target locales in project settings to translate with agent.";
+    : intl.formatMessage(useProjectFileActionsMessages.translateDisabledTitle);
 
   return {
     canOpenCat,
@@ -86,6 +91,7 @@ export function useProjectFileActions({
   nativeSourcePaths?: readonly string[];
   branch?: string | null;
 }) {
+  const intl = useIntl();
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
@@ -98,6 +104,7 @@ export function useProjectFileActions({
       highlightLocale,
       projectTargetLocales,
       branch,
+      intl,
     });
   const targetLocales = projectTargetLocales ?? EMPTY_STRING_ARRAY;
   const stableTargetLocales = useMemo(() => [...targetLocales], [targetLocales]);

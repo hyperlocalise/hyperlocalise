@@ -137,15 +137,10 @@ export function CatSideBySideRow({
     isFormatChecksLoading ||
     isTargetLoading ||
     isImageBusy;
-  // Image uploads update assets without a text dirty flag; show Approve whenever focused.
-  const canTriggerApprove =
-    Boolean(onApprove) &&
-    canEdit &&
-    hasApprovingTarget &&
-    !isActionBlocked &&
-    (isImageSegment || isDirty);
-  const showReviewActions =
-    isFocused && canEdit && Boolean(onApprove) && (isImageSegment || isDirty);
+  // Show Approve whenever the focused row has a target to approve — including clean
+  // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
+  const canTriggerApprove = Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked;
+  const showReviewActions = isFocused && canEdit && Boolean(onApprove) && hasApprovingTarget;
   const showIssueSheetAction =
     isFocused && canEdit && !isImageSegment && Boolean(onAddToIssueSheet);
   const canEditTarget = canEdit && !isImageBusy;

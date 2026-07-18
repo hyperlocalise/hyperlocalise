@@ -5,6 +5,7 @@ import { memo, useEffect, useState } from "react";
 import { FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import {
   PromptInput,
@@ -29,6 +30,7 @@ import { apiClient } from "@/lib/api-client-instance";
 
 import { RepositorySelector } from "../../_components/repository-selector";
 import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
+import { replyComposerMessages } from "./reply-composer.messages";
 
 const inboxApi = createInboxApi(apiClient);
 
@@ -76,12 +78,15 @@ export function ReplyComposerView({
   repositoriesIsLoading,
   variant = "default",
 }: ReplyComposerViewProps) {
+  const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
   const promptInputController = usePromptInputController();
   // Stable across keystrokes; the controller object itself is recreated whenever
   // textInput changes, so it must not be an effect dependency.
   const setInput = promptInputController.textInput.setInput;
+  const addAttachmentsLabel = intl.formatMessage(replyComposerMessages.addAttachments);
+  const sendReplyLabel = intl.formatMessage(replyComposerMessages.sendReply);
 
   // Sync only when the external draft prop changes (e.g. suggestion chips).
   // Depending on the controller identity or local replyText re-ran this on every
@@ -110,7 +115,11 @@ export function ReplyComposerView({
     if ((!trimmedText && files.length === 0) || disabled) return;
 
     const fileObjects = files.map((file) =>
-      dataUrlToFile(file.url, file.filename || "untitled", file.mediaType),
+      dataUrlToFile(
+        file.url,
+        file.filename || intl.formatMessage(replyComposerMessages.untitledFile),
+        file.mediaType,
+      ),
     );
 
     await onSend(trimmedText, fileObjects, {
@@ -169,7 +178,9 @@ export function ReplyComposerView({
                   : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
               }
               placeholder={
-                isStreaming ? "Agent is responding..." : (placeholder ?? "Ask Hyperlocalise…")
+                isStreaming
+                  ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
+                  : (placeholder ?? intl.formatMessage(replyComposerMessages.defaultPlaceholder))
               }
               rows={1}
             />
@@ -185,8 +196,8 @@ export function ReplyComposerView({
               <PromptInputButton
                 className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
                 size="icon-sm"
-                aria-label="Add photos and files"
-                tooltip="Add photos and files"
+                aria-label={addAttachmentsLabel}
+                tooltip={addAttachmentsLabel}
                 onClick={() => attachments.openFileDialog()}
               >
                 <HugeiconsIcon icon={FileAttachmentIcon} strokeWidth={1.8} className="size-4" />
@@ -206,14 +217,14 @@ export function ReplyComposerView({
                 size="sm"
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                aria-label="Send reply"
+                aria-label={sendReplyLabel}
                 tooltip={{
-                  content: "Send reply",
+                  content: sendReplyLabel,
                   shortcut: "Enter",
                 }}
               >
                 <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
-                Send
+                <FormattedMessage {...replyComposerMessages.send} />
               </PromptInputSubmit>
             </PromptInputTools>
           </PromptInputFooter>

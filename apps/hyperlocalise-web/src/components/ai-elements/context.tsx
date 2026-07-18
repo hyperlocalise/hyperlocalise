@@ -150,11 +150,13 @@ export const ContextContentHeader = ({
   className,
   ...props
 }: ContextContentHeaderProps) => {
+  const intl = useIntl();
   const { usedTokens, maxTokens } = useContextValue();
   const usedPercent = usedTokens / maxTokens;
   const displayPct = PERCENT_FORMATTER.format(usedPercent);
   const used = COMPACT_NUMBER_FORMATTER.format(usedTokens);
   const total = COMPACT_NUMBER_FORMATTER.format(maxTokens);
+  const usedOfTotal = intl.formatMessage(contextMessages.usedOfTotal, { used, total });
 
   return (
     <div className={cn("w-full space-y-2 p-3", className)} {...props}>
@@ -162,9 +164,7 @@ export const ContextContentHeader = ({
         <>
           <div className="flex items-center justify-between gap-3 text-xs">
             <TypographyP>{displayPct}</TypographyP>
-            <TypographyP className="font-mono text-muted-foreground">
-              {used} / {total}
-            </TypographyP>
+            <TypographyP className="font-mono text-muted-foreground">{usedOfTotal}</TypographyP>
           </div>
           <div className="space-y-2">
             <Progress className="bg-muted" value={usedPercent * PERCENT_MAX} />
@@ -222,12 +222,23 @@ export const ContextContentFooter = ({
   );
 };
 
-const TokensWithCost = ({ tokens, costText }: { tokens?: number; costText?: string }) => (
-  <span>
-    {tokens === undefined ? "—" : COMPACT_NUMBER_FORMATTER.format(tokens)}
-    {costText ? <span className="ms-2 text-muted-foreground">• {costText}</span> : null}
-  </span>
-);
+const TokensWithCost = ({ tokens, costText }: { tokens?: number; costText?: string }) => {
+  const intl = useIntl();
+  const tokensLabel =
+    tokens === undefined
+      ? intl.formatMessage(contextMessages.tokensUnavailable)
+      : COMPACT_NUMBER_FORMATTER.format(tokens);
+  const costSuffix = costText
+    ? intl.formatMessage(contextMessages.costSuffix, { cost: costText })
+    : null;
+
+  return (
+    <span>
+      {tokensLabel}
+      {costSuffix ? <span className="ms-2 text-muted-foreground">{costSuffix}</span> : null}
+    </span>
+  );
+};
 
 export type ContextInputUsageProps = ComponentProps<"div">;
 

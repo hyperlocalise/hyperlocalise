@@ -317,11 +317,12 @@ export const MicSelectorLabel = ({ device, className, ...props }: MicSelectorLab
 
   const [, deviceId] = matches;
   const name = device.label.replace(deviceIdRegex, "");
+  const deviceIdLabel = ` (${deviceId})`;
 
   return (
     <span className={className} {...props}>
       <span>{name}</span>
-      <span className="text-muted-foreground"> ({deviceId})</span>
+      <span className="text-muted-foreground">{deviceIdLabel}</span>
     </span>
   );
 };
@@ -329,13 +330,14 @@ export const MicSelectorLabel = ({ device, className, ...props }: MicSelectorLab
 export type MicSelectorValueProps = ComponentProps<"span">;
 
 export const MicSelectorValue = ({ className, ...props }: MicSelectorValueProps) => {
+  const intl = useIntl();
   const { data, value } = useContext(MicSelectorContext);
   const currentDevice = data.find((d) => d.deviceId === value);
 
   if (!currentDevice) {
     return (
       <span className={cn("flex-1 text-start", className)} {...props}>
-        Select microphone...
+        {intl.formatMessage(micSelectorMessages.selectMicrophone)}
       </span>
     );
   }

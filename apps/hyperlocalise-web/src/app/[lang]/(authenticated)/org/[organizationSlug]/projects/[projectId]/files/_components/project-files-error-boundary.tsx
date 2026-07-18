@@ -3,12 +3,15 @@
 import { AlertCircleIcon } from "lucide-react";
 import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { cn } from "@/lib/primitives/cn";
+
+import { projectFilesErrorBoundaryMessages as messages } from "./project-files-error-boundary.messages";
 
 function logProjectFilesPanelError(scope: "tree" | "detail", error: Error, info: ErrorInfo) {
   console.error(`[project-files:${scope}]`, {
@@ -30,6 +33,8 @@ function ProjectFilesPanelFallback({
   scope: "tree" | "detail";
   className?: string;
 }) {
+  const intl = useIntl();
+
   if (isTmsUserConnectionRequiredError(error)) {
     return (
       <div className={cn("p-4", className)}>
@@ -42,7 +47,8 @@ function ProjectFilesPanelFallback({
     );
   }
 
-  const errorMessage = error instanceof Error ? error.message : "Failed to load files.";
+  const errorMessage =
+    error instanceof Error ? error.message : intl.formatMessage(messages.loadFailedFallback);
 
   return (
     <div className={cn("flex min-h-48 flex-col justify-center gap-3 p-4", className)} role="alert">
@@ -50,7 +56,11 @@ function ProjectFilesPanelFallback({
         <AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-flame-100" aria-hidden />
         <div className="space-y-1">
           <TypographyP className="text-sm font-medium text-flame-100">
-            {scope === "tree" ? "Files failed to load." : "File preview failed to load."}
+            {scope === "tree" ? (
+              <FormattedMessage {...messages.treeFailed} />
+            ) : (
+              <FormattedMessage {...messages.detailFailed} />
+            )}
           </TypographyP>
           <TypographyP className="text-sm text-muted-foreground">{errorMessage}</TypographyP>
         </div>
@@ -62,7 +72,7 @@ function ProjectFilesPanelFallback({
         className="w-fit"
         onClick={resetErrorBoundary}
       >
-        Try again
+        <FormattedMessage {...messages.tryAgain} />
       </Button>
     </div>
   );

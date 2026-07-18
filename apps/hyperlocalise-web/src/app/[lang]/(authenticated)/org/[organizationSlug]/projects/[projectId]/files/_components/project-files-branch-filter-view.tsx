@@ -1,5 +1,7 @@
 "use client";
 
+import { FormattedMessage, useIntl } from "react-intl";
+
 import {
   Select,
   SelectContent,
@@ -8,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
+
+import { projectFilesBranchFilterViewMessages as messages } from "./project-files-branch-filter-view.messages";
 
 export type ProviderProjectBranchOption = {
   name: string;
@@ -25,8 +29,14 @@ export function ProjectFilesBranchFilterView({
   onSelectedBranchChange: (branch: string | null) => void;
   isLoading?: boolean;
 }) {
+  const intl = useIntl();
+
   if (isLoading) {
-    return <TypographyP className="text-xs text-muted-foreground">Loading branches…</TypographyP>;
+    return (
+      <TypographyP className="text-xs text-muted-foreground">
+        <FormattedMessage {...messages.loadingBranches} />
+      </TypographyP>
+    );
   }
 
   if (branches.length === 0) {
@@ -35,7 +45,9 @@ export function ProjectFilesBranchFilterView({
 
   return (
     <div className="flex items-center gap-2">
-      <TypographyP className="shrink-0 text-xs text-muted-foreground">Branch</TypographyP>
+      <TypographyP className="shrink-0 text-xs text-muted-foreground">
+        <FormattedMessage {...messages.branchLabel} />
+      </TypographyP>
       <Select
         value={selectedBranch ?? "__all__"}
         onValueChange={(value) => {
@@ -43,13 +55,20 @@ export function ProjectFilesBranchFilterView({
         }}
       >
         <SelectTrigger size="sm" className="h-8 w-36 max-w-full">
-          <SelectValue placeholder="All branches" />
+          <SelectValue placeholder={intl.formatMessage(messages.allBranches)} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">All branches</SelectItem>
+          <SelectItem value="__all__">
+            <FormattedMessage {...messages.allBranches} />
+          </SelectItem>
           {branches.map((branch) => (
             <SelectItem key={branch.name} value={branch.name}>
-              {branch.title?.trim() ? `${branch.title} (${branch.name})` : branch.name}
+              {branch.title?.trim()
+                ? intl.formatMessage(messages.branchWithTitle, {
+                    title: branch.title,
+                    name: branch.name,
+                  })
+                : branch.name}
             </SelectItem>
           ))}
         </SelectContent>

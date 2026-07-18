@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
+
+import { downloadTranslationsDialogMessages as messages } from "./download-translations-dialog.messages";
 
 type DownloadTranslationsDialogProps = {
   open: boolean;
@@ -63,12 +66,13 @@ async function downloadTranslationFile(
   projectId: string,
   sourcePath: string,
   locale: string,
+  failedMessage: string,
 ) {
   const href = buildDownloadHref(organizationSlug, projectId, sourcePath, locale);
   const response = await fetch(href);
 
   if (!response.ok) {
-    throw await readApiResponseError(response, `Failed to download ${sourcePath}`);
+    throw await readApiResponseError(response, failedMessage);
   }
 
   const blob = await response.blob();
@@ -98,6 +102,7 @@ export function DownloadTranslationsDialog({
   initialSourcePath,
   targetLocales,
 }: DownloadTranslationsDialogProps) {
+  const intl = useIntl();
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
   const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -123,12 +128,12 @@ export function DownloadTranslationsDialog({
 
   const handleDownload = async () => {
     if (!locale) {
-      toast.error("Select a target locale.");
+      toast.error(intl.formatMessage(messages.selectLocale));
       return;
     }
 
     if (selectedSourcePaths.length === 0) {
-      toast.error("Select at least one source file.");
+      toast.error(intl.formatMessage(messages.selectSourceFile));
       return;
     }
 
@@ -136,17 +141,23 @@ export function DownloadTranslationsDialog({
 
     try {
       for (const sourcePath of selectedSourcePaths) {
-        await downloadTranslationFile(organizationSlug, projectId, sourcePath, locale);
+        await downloadTranslationFile(
+          organizationSlug,
+          projectId,
+          sourcePath,
+          locale,
+          intl.formatMessage(messages.downloadFileFailed, { sourcePath }),
+        );
       }
 
       toast.success(
-        selectedSourcePaths.length === 1
-          ? "Translation file downloaded."
-          : `${selectedSourcePaths.length} translation files downloaded.`,
+        intl.formatMessage(messages.downloadSuccess, { count: selectedSourcePaths.length }),
       );
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to download translations");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.downloadFailed),
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -159,24 +170,28 @@ export function DownloadTranslationsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Download translations</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...messages.title} />
+          </DialogTitle>
           <DialogDescription>
-            Choose source files and a target locale to export translated content.
+            <FormattedMessage {...messages.description} />
           </DialogDescription>
         </DialogHeader>
 
         {!hasSourcePaths ? (
           <p className="text-sm text-muted-foreground">
-            No source files are available to download.
+            <FormattedMessage {...messages.noSourceFiles} />
           </p>
         ) : targetLocales.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Add target locales in project settings before downloading translations.
+            <FormattedMessage {...messages.noTargetLocales} />
           </p>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Source files</p>
+              <p className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.sourceFilesLabel} />
+              </p>
               <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
                 {sourcePaths.map((sourcePath) => {
                   const checked = selectedSourcePaths.includes(sourcePath);
@@ -202,7 +217,9 @@ export function DownloadTranslationsDialog({
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Target locale</p>
+              <p className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.targetLocaleLabel} />
+              </p>
               <div className="space-y-2">
                 {targetLocales.map((targetLocale) => (
                   <label
@@ -226,11 +243,11 @@ export function DownloadTranslationsDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            <FormattedMessage {...messages.cancel} />
           </Button>
           <Button type="button" disabled={!canDownload || isDownloading} onClick={handleDownload}>
             {isDownloading ? <Spinner className="size-4" /> : null}
-            Download
+            <FormattedMessage {...messages.download} />
           </Button>
         </DialogFooter>
       </DialogContent>

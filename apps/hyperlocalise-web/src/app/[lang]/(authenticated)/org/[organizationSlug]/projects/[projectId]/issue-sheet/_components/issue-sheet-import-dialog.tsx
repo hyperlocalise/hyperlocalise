@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +27,17 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import {
-  issueSheetSystemFieldLabel,
   issueSheetSystemFields,
   parseIssueSheetImportCsv,
   suggestIssueSheetImportMappings,
   type IssueSheetImportColumnMapping,
   type IssueSheetImportColumnType,
   type IssueSheetSuggestedMapping,
+  type IssueSheetSystemField,
 } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
+
+import { issueSheetImportDialogMessages as messages } from "./issue-sheet-import-dialog.messages";
+import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
 
 type IssueSheetColumn = {
   id: string;
@@ -57,33 +61,69 @@ type ImportResponse = {
 
 type ImportStep = "upload" | "map" | "preview" | "done";
 
-const createTypes: { value: IssueSheetImportColumnType; label: string }[] = [
-  { value: "text", label: "Text" },
-  { value: "long_text", label: "Long text" },
-  { value: "select", label: "Select" },
-];
+const createTypeValues: IssueSheetImportColumnType[] = ["text", "long_text", "select"];
 
 function issueSheetImportPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/import`;
 }
 
-async function readJsonOrThrow<T>(response: Response): Promise<T> {
+async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
-    const error = await readApiResponseError(response, "Import failed");
-    throw new Error(error.message || "Import failed");
+    const error = await readApiResponseError(response, fallbackMessage);
+    throw new Error(error.message || fallbackMessage);
   }
   return (await response.json()) as T;
 }
 
-function buildMappingOptions(columns: IssueSheetColumn[]) {
+function systemFieldLabel(intl: IntlShape, field: IssueSheetSystemField) {
+  switch (field) {
+    case "title":
+      return intl.formatMessage(messages.systemFieldTitle);
+    case "description":
+      return intl.formatMessage(messages.systemFieldDescription);
+    case "status":
+      return intl.formatMessage(messages.systemFieldStatus);
+    case "issue_type":
+      return intl.formatMessage(messages.systemFieldType);
+    case "target_locale":
+      return intl.formatMessage(messages.systemFieldLocale);
+    case "source_path":
+      return intl.formatMessage(messages.systemFieldSourcePath);
+    case "segment_id":
+      return intl.formatMessage(messages.systemFieldSegmentId);
+    case "external_ref":
+      return intl.formatMessage(messages.systemFieldExternalId);
+    case "link_url":
+      return intl.formatMessage(messages.systemFieldLinkUrl);
+    case "assignee":
+      return intl.formatMessage(messages.systemFieldAssignee);
+  }
+}
+
+function createTypeLabel(intl: IntlShape, type: IssueSheetImportColumnType) {
+  switch (type) {
+    case "text":
+      return intl.formatMessage(sharedMessages.columnTypeText);
+    case "long_text":
+      return intl.formatMessage(sharedMessages.columnTypeLongText);
+    case "select":
+      return intl.formatMessage(sharedMessages.columnTypeSelect);
+  }
+}
+
+function buildMappingOptions(columns: IssueSheetColumn[], intl: IntlShape) {
   const options: { value: string; label: string; target: IssueSheetImportColumnMapping }[] = [
-    { value: "skip", label: "Skip", target: { kind: "skip" } },
+    {
+      value: "skip",
+      label: intl.formatMessage(messages.skipMapping),
+      target: { kind: "skip" },
+    },
   ];
 
   for (const field of issueSheetSystemFields()) {
     options.push({
       value: `system:${field}`,
-      label: issueSheetSystemFieldLabel(field),
+      label: systemFieldLabel(intl, field),
       target: { kind: "system", field },
     });
   }
@@ -130,6 +170,7 @@ export function IssueSheetImportDialog({
   columns: IssueSheetColumn[];
   onImported: () => Promise<void>;
 }) {
+  const intl = useIntl();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<ImportStep>("upload");
   const [csvContent, setCsvContent] = useState("");
@@ -138,7 +179,15 @@ export function IssueSheetImportDialog({
   const [mappings, setMappings] = useState<IssueSheetSuggestedMapping[]>([]);
   const [previewResult, setPreviewResult] = useState<ImportResponse["import"] | null>(null);
 
-  const mappingOptions = useMemo(() => buildMappingOptions(columns), [columns]);
+  const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
+  const importFailed = intl.formatMessage(messages.importFailed);
+
+  const mappingOptions = useMemo(() => buildMappingOptions(columns, intl), [columns, intl]);
+
+  const createTypeItems = createTypeValues.map((value) => ({
+    value,
+    label: createTypeLabel(intl, value),
+  }));
 
   const reset = () => {
     setStep("upload");
@@ -172,14 +221,14 @@ export function IssueSheetImportDialog({
           options: { skipInvalidRows: true },
         }),
       });
-      return readJsonOrThrow<ImportResponse>(response);
+      return readJsonOrThrow<ImportResponse>(response, importFailed);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Import failed"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : importFailed),
   });
 
   const handleFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      toast.error("Upload a UTF-8 CSV file");
+      toast.error(intl.formatMessage(messages.uploadCsvRequired));
       return;
     }
 
@@ -202,7 +251,9 @@ export function IssueSheetImportDialog({
       setPreviewResult(null);
       setStep("map");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not parse CSV");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.parseCsvFailed),
+      );
     }
   };
 
@@ -245,7 +296,7 @@ export function IssueSheetImportDialog({
     const result = await importMutation.mutateAsync(false);
     setPreviewResult(result.import);
     await onImported();
-    toast.success(`Imported ${result.import.created} issues`);
+    toast.success(intl.formatMessage(messages.importSuccess, { count: result.import.created }));
     setStep("done");
   };
 
@@ -262,10 +313,11 @@ export function IssueSheetImportDialog({
     >
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import issues from CSV</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...messages.title} />
+          </DialogTitle>
           <DialogDescription>
-            Upload a spreadsheet export, map columns to Issue Sheet fields, preview the result, then
-            import.
+            <FormattedMessage {...messages.description} />
           </DialogDescription>
         </DialogHeader>
 
@@ -278,9 +330,11 @@ export function IssueSheetImportDialog({
             >
               <HugeiconsIcon icon={Upload01Icon} className="size-8 text-muted-foreground" />
               <div>
-                <TypographyP className="font-medium">Choose a CSV file</TypographyP>
+                <TypographyP className="font-medium">
+                  <FormattedMessage {...messages.chooseCsvFile} />
+                </TypographyP>
                 <TypographyP className="text-sm text-muted-foreground">
-                  UTF-8 CSV up to 2 MB and 2,000 rows
+                  <FormattedMessage {...messages.csvLimits} />
                 </TypographyP>
               </div>
             </button>
@@ -302,16 +356,29 @@ export function IssueSheetImportDialog({
         {step === "map" ? (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{headers.length} columns</Badge>
-              <Badge variant="secondary">{previewRows.length} preview rows</Badge>
+              <Badge variant="secondary">
+                <FormattedMessage {...messages.columnsBadge} values={{ count: headers.length }} />
+              </Badge>
+              <Badge variant="secondary">
+                <FormattedMessage
+                  {...messages.previewRowsBadge}
+                  values={{ count: previewRows.length }}
+                />
+              </Badge>
             </div>
             <div className="overflow-x-auto rounded-xl border">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 font-medium">CSV column</th>
-                    <th className="px-3 py-2 font-medium">Maps to</th>
-                    <th className="px-3 py-2 font-medium">Sample</th>
+                    <th className="px-3 py-2 font-medium">
+                      <FormattedMessage {...messages.csvColumnHeader} />
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <FormattedMessage {...messages.mapsToHeader} />
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <FormattedMessage {...messages.sampleHeader} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -320,7 +387,13 @@ export function IssueSheetImportDialog({
                     const sample =
                       previewRows
                         .map((row) => row[columnIndex] ?? "")
-                        .find((value) => value.trim()) ?? "—";
+                        .find((value) => value.trim()) ?? emptyValue;
+                    const createLabel =
+                      entry.target.kind === "create"
+                        ? intl.formatMessage(messages.createMapping, {
+                            label: entry.target.label,
+                          })
+                        : null;
                     return (
                       <tr key={entry.csvHeader}>
                         <td className="px-3 py-3 font-medium">{entry.csvHeader}</td>
@@ -333,7 +406,9 @@ export function IssueSheetImportDialog({
                               }
                             >
                               <SelectTrigger className="w-full min-w-48">
-                                <SelectValue placeholder="Choose mapping" />
+                                <SelectValue
+                                  placeholder={intl.formatMessage(messages.chooseMapping)}
+                                />
                               </SelectTrigger>
                               <SelectContent>
                                 {mappingOptions.map((option) => (
@@ -345,12 +420,12 @@ export function IssueSheetImportDialog({
                                     {option.label}
                                   </SelectItem>
                                 ))}
-                                {entry.target.kind === "create" ? (
+                                {entry.target.kind === "create" && createLabel ? (
                                   <SelectItem
                                     value={`create:${entry.target.key}`}
-                                    label={`Create: ${entry.target.label}`}
+                                    label={createLabel}
                                   >
-                                    Create: {entry.target.label}
+                                    {createLabel}
                                   </SelectItem>
                                 ) : null}
                               </SelectContent>
@@ -366,10 +441,12 @@ export function IssueSheetImportDialog({
                                 }
                               >
                                 <SelectTrigger className="w-full min-w-48">
-                                  <SelectValue placeholder="Column type" />
+                                  <SelectValue
+                                    placeholder={intl.formatMessage(messages.columnTypePlaceholder)}
+                                  />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {createTypes.map((type) => (
+                                  {createTypeItems.map((type) => (
                                     <SelectItem
                                       key={type.value}
                                       value={type.value}
@@ -398,24 +475,55 @@ export function IssueSheetImportDialog({
         {step === "preview" && previewResult ? (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{previewResult.totalRows} rows</Badge>
-              <Badge variant="success">{previewResult.created} to import</Badge>
-              <Badge variant="outline">{previewResult.skippedDuplicates} duplicates skipped</Badge>
-              <Badge variant="warning">{previewResult.skippedInvalid} invalid skipped</Badge>
+              <Badge variant="secondary">
+                <FormattedMessage
+                  {...messages.rowsBadge}
+                  values={{ count: previewResult.totalRows }}
+                />
+              </Badge>
+              <Badge variant="success">
+                <FormattedMessage
+                  {...messages.toImportBadge}
+                  values={{ count: previewResult.created }}
+                />
+              </Badge>
+              <Badge variant="outline">
+                <FormattedMessage
+                  {...messages.duplicatesSkippedBadge}
+                  values={{ count: previewResult.skippedDuplicates }}
+                />
+              </Badge>
+              <Badge variant="warning">
+                <FormattedMessage
+                  {...messages.invalidSkippedBadge}
+                  values={{ count: previewResult.skippedInvalid }}
+                />
+              </Badge>
             </div>
             {previewResult.columnsCreated.length > 0 ? (
               <TypographyP className="text-sm text-muted-foreground">
-                New columns: {previewResult.columnsCreated.map((column) => column.label).join(", ")}
+                <FormattedMessage
+                  {...messages.newColumns}
+                  values={{
+                    columns: previewResult.columnsCreated.map((column) => column.label).join(", "),
+                  }}
+                />
               </TypographyP>
             ) : null}
             {previewResult.warnings.length > 0 ? (
               <div className="rounded-xl border bg-muted/20 p-3 text-sm">
-                <p className="font-medium">Warnings</p>
+                <p className="font-medium">
+                  <FormattedMessage {...messages.warningsTitle} />
+                </p>
                 <ul className="mt-2 space-y-1 text-muted-foreground">
                   {previewResult.warnings.slice(0, 8).map((warning, index) => (
                     <li key={`${warning.row}-${index}`}>
-                      {warning.row > 0 ? `Row ${warning.row}: ` : ""}
-                      {warning.message}
+                      {warning.row > 0
+                        ? intl.formatMessage(messages.rowMessage, {
+                            row: warning.row,
+                            message: warning.message,
+                          })
+                        : warning.message}
                     </li>
                   ))}
                 </ul>
@@ -423,11 +531,16 @@ export function IssueSheetImportDialog({
             ) : null}
             {previewResult.errors.length > 0 ? (
               <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
-                <p className="font-medium text-destructive">Errors</p>
+                <p className="font-medium text-destructive">
+                  <FormattedMessage {...messages.errorsTitle} />
+                </p>
                 <ul className="mt-2 space-y-1 text-muted-foreground">
                   {previewResult.errors.slice(0, 8).map((error, index) => (
                     <li key={`${error.row}-${index}`}>
-                      Row {error.row}: {error.message}
+                      {intl.formatMessage(messages.rowMessage, {
+                        row: error.row,
+                        message: error.message,
+                      })}
                     </li>
                   ))}
                 </ul>
@@ -439,41 +552,57 @@ export function IssueSheetImportDialog({
         {step === "done" && previewResult ? (
           <div className="space-y-3">
             <TypographyP className="text-sm">
-              Imported {previewResult.created} issues. Skipped {previewResult.skippedDuplicates}{" "}
-              duplicates and {previewResult.skippedInvalid} invalid rows.
+              {[
+                intl.formatMessage(messages.importSummaryCreated, {
+                  count: previewResult.created,
+                }),
+                intl.formatMessage(messages.importSummaryDuplicates, {
+                  count: previewResult.skippedDuplicates,
+                }),
+                intl.formatMessage(messages.importSummaryInvalid, {
+                  count: previewResult.skippedInvalid,
+                }),
+              ].join(" ")}
             </TypographyP>
           </div>
         ) : null}
 
         <DialogFooter className="gap-2 sm:justify-between">
           <Button variant="ghost" onClick={close}>
-            Close
+            <FormattedMessage {...messages.close} />
           </Button>
           <div className="flex flex-wrap gap-2">
             {step === "map" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("upload")}>
-                  Back
+                  <FormattedMessage {...messages.back} />
                 </Button>
                 <Button onClick={() => void runPreview()} disabled={importMutation.isPending}>
-                  Preview import
+                  <FormattedMessage {...messages.previewImport} />
                 </Button>
               </>
             ) : null}
             {step === "preview" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("map")}>
-                  Back
+                  <FormattedMessage {...messages.back} />
                 </Button>
                 <Button
                   onClick={() => void runImport()}
                   disabled={importMutation.isPending || previewResult?.created === 0}
                 >
-                  Import {previewResult?.created ?? 0} issues
+                  <FormattedMessage
+                    {...messages.importIssues}
+                    values={{ count: previewResult?.created ?? 0 }}
+                  />
                 </Button>
               </>
             ) : null}
-            {step === "done" ? <Button onClick={close}>Done</Button> : null}
+            {step === "done" ? (
+              <Button onClick={close}>
+                <FormattedMessage {...messages.done} />
+              </Button>
+            ) : null}
           </div>
         </DialogFooter>
       </DialogContent>

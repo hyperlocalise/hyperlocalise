@@ -63,4 +63,9 @@ export const toolMessages = defineMessages({
     defaultMessage: "Error",
     description: "Section heading for tool error output",
   },
+  fallbackName: {
+    id: "Kph9F7aQfL",
+    defaultMessage: "Tool",
+    description: "Fallback tool name when the tool type cannot be derived",
+  },
 });

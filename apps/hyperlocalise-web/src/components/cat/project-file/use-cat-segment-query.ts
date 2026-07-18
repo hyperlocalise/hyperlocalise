@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIntl } from "react-intl";
 
 import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
@@ -47,6 +48,7 @@ export function useCatSegmentQuery(input: {
   pageLimit?: number;
   sourcePaths?: string | null;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>(
@@ -131,6 +133,7 @@ export function useCatSegmentQuery(input: {
         phraseScanPage: pageParam.phraseScanPage,
         phraseScanSkip: pageParam.phraseScanSkip,
         sourcePaths: input.sourcePaths,
+        intl,
       }),
   });
 

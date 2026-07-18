@@ -16,7 +16,7 @@ export function Message({
       data-align={align}
       data-slot="message"
       className={cn(
-        "group/message relative flex w-full min-w-0 gap-2 text-sm data-[align=end]:flex-row-reverse",
+        "group/message relative flex w-full min-w-0 gap-2 text-sm data-[align=end]:ms-auto data-[align=end]:flex-row-reverse",
         className,
       )}
       {...props}

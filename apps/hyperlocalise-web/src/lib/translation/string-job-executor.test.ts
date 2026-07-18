@@ -60,7 +60,7 @@ function createInput(overrides: Partial<StringTranslationGeneratorInput> = {}) {
 }
 
 describe("createStringTranslationGenerator", () => {
-  it("puts binding context and terminology in the system prompt", async () => {
+  it("puts string description guidance and terminology in the system prompt", async () => {
     const doGenerate = vi.fn(async () => ({
       content: [
         {
@@ -125,6 +125,12 @@ describe("createStringTranslationGenerator", () => {
     const systemMessage = generateOptions.prompt?.find((message) => message.role === "system");
     const systemContent = JSON.stringify(systemMessage?.content);
     expect(systemContent).toContain("Use concise product-marketing language.");
+    expect(systemContent).toContain(
+      "String description (guidance only; do not translate or use as the translation): Homepage hero title",
+    );
+    expect(systemContent).toContain(
+      "Never translate them, never repeat them, and never use them as the translation value.",
+    );
     expect(systemContent).toContain("workspace");
     expect(systemContent).toContain("espace de travail");
     expect(systemContent).toContain("Hello workspace");

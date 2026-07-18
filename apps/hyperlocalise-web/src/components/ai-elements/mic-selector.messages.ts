@@ -15,4 +15,9 @@ export const micSelectorMessages = defineMessages({
     defaultMessage: "No microphone found.",
     description: "Empty state when no microphones match the search",
   },
+  selectMicrophone: {
+    defaultMessage: "Select microphone...",
+    id: "pcjLSSIwsF",
+    description: "Placeholder shown when no microphone is selected",
+  },
 });

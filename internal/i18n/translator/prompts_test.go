@@ -21,10 +21,10 @@ func TestBuildSystemPromptUsesDefaultPolicyWhenNoPromptProvided(t *testing.T) {
 	t.Parallel()
 
 	got := buildSystemPrompt(Request{TargetLanguage: "vi-VN"})
-	if !strings.Contains(got, "Return only the translated text") {
+	if !strings.Contains(got, "Return only the translated source text") {
 		t.Fatalf("expected default policy suffix, got %q", got)
 	}
-	if !strings.Contains(got, "Translate the user-provided source text") {
+	if !strings.Contains(got, "Translate only the user-provided source text") {
 		t.Fatalf("expected default translation instruction, got %q", got)
 	}
 	if !strings.Contains(got, "Do not translate programmatic identifiers inside placeholders or ICU message syntax") {
@@ -42,7 +42,7 @@ func TestBuildSystemPromptUsesDefaultPolicyWhenSystemPromptIsWhitespace(t *testi
 	t.Parallel()
 
 	got := buildSystemPrompt(Request{SystemPrompt: "   \n\t  "})
-	if !strings.Contains(got, "Return only the translated text") {
+	if !strings.Contains(got, "Return only the translated source text") {
 		t.Fatalf("expected default policy suffix for whitespace prompt, got %q", got)
 	}
 }
@@ -82,8 +82,11 @@ func TestBuildSystemPromptAppendsRuntimeContextWithDefaultPrompt(t *testing.T) {
 	if !strings.Contains(got, "Target language: fr") {
 		t.Fatalf("expected target language in default system prompt, got %q", got)
 	}
-	if !strings.Contains(got, "Runtime translation context (do not translate or repeat):\nEntry key: common.hello") {
+	if !strings.Contains(got, "Runtime translation context (guidance only; never translate, repeat, or use as the translation value):\nEntry key: common.hello") {
 		t.Fatalf("expected runtime context block in system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "never use it as the translation value") {
+		t.Fatalf("expected default system prompt to forbid using runtime context as the translation, got %q", got)
 	}
 }
 
@@ -94,7 +97,7 @@ func TestBuildSystemPromptAppendsRuntimeContextWithCustomSystemPrompt(t *testing
 		SystemPrompt:   "custom system",
 		RuntimeContext: "Entry key: common.hello",
 	})
-	if !strings.HasPrefix(got, "custom system\n\nRuntime translation context (do not translate or repeat):") {
+	if !strings.HasPrefix(got, "custom system\n\nRuntime translation context (guidance only; never translate, repeat, or use as the translation value):") {
 		t.Fatalf("expected runtime context appended to custom system prompt, got %q", got)
 	}
 }

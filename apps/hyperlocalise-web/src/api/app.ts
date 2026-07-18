@@ -61,6 +61,7 @@ import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
+import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createE2eAuthRoutes } from "./routes/e2e/e2e-auth.route";
 import {
   createProviderAgentCommentQueue,
@@ -134,7 +135,8 @@ function createInternalRoutes() {
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
-    );
+    )
+    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes());
 }
 
 function createAuthRoutes() {

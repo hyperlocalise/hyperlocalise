@@ -1,8 +1,11 @@
 import { z } from "zod";
 
+import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import type { CatFormatCheck } from "@/components/cat/shared/types";
 import { readApiError } from "@/lib/api-error";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+import { projectFileCatValidationMessages } from "./project-file-cat-validation.messages";
 
 const catFormatCheckSchema = z.object({
   id: z.string(),
@@ -36,12 +39,17 @@ export async function fetchCatSegmentValidation(
     sourcePath: string;
     maxLength?: number;
     signal?: AbortSignal;
+    intl: CatFormatMessageIntl;
   },
   fetcher: typeof fetch = fetch,
 ): Promise<Result<CatFormatCheck[], CatSegmentValidationError>> {
   if (!CAT_SEGMENT_VALIDATION_ENABLED) {
     return ok([]);
   }
+
+  const requestFailedMessage = input.intl.formatMessage(
+    projectFileCatValidationMessages.requestFailed,
+  );
 
   const responseResult = await fromThrowableAsync(
     fetcher("/api/go-svc/v1/validate/segment", {
@@ -69,9 +77,7 @@ export async function fetchCatSegmentValidation(
     return err({
       code: "service_error",
       message:
-        responseResult.error instanceof Error
-          ? responseResult.error.message
-          : "Segment validation request failed.",
+        responseResult.error instanceof Error ? responseResult.error.message : requestFailedMessage,
     });
   }
 
@@ -79,7 +85,7 @@ export async function fetchCatSegmentValidation(
   if (!response.ok) {
     return err({
       code: "service_error",
-      message: await readApiError(response, "Segment validation request failed"),
+      message: await readApiError(response, requestFailedMessage),
     });
   }
 
@@ -87,7 +93,7 @@ export async function fetchCatSegmentValidation(
   if (isErr(bodyResult)) {
     return err({
       code: "invalid_response",
-      message: "Segment validation returned invalid JSON.",
+      message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
     });
   }
 
@@ -95,7 +101,7 @@ export async function fetchCatSegmentValidation(
   if (!parsed.success) {
     return err({
       code: "invalid_response",
-      message: "Segment validation returned an invalid response.",
+      message: input.intl.formatMessage(projectFileCatValidationMessages.invalidResponse),
     });
   }
 

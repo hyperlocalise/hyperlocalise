@@ -48,7 +48,7 @@ export const Streaming: Story = {
     disabled: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByPlaceholderText("Agent is responding...")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Agent is responding…")).toBeInTheDocument();
   },
 };
 

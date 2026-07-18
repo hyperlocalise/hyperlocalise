@@ -53,7 +53,7 @@ export const Loading: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Issue Sheet")).toBeInTheDocument();
-    await expect(canvas.getByText("Loading issues...")).toBeInTheDocument();
+    await expect(canvas.getByText("Loading issues…")).toBeInTheDocument();
   },
 };
 
