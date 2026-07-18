@@ -24,7 +24,9 @@ const MAX_WAIT_FOR_MS = 15_000;
 const MAX_WAIT_FOR_TEXT_ITEMS = 12;
 const MAX_WAIT_FOR_TEXT_LENGTH = 200;
 const STORYBOOK_PORT = 6006;
-const STORYBOOK_READY_TIMEOUT_MS = 120_000;
+/** Bound for Playwright navigation / story-render / waitForText. */
+const STORYBOOK_READY_TIMEOUT_MS = 30_000;
+/** Server cold-start (deps + bundling) is slower than story render; keep a longer poll. */
 const STORYBOOK_SERVER_READY_SECONDS = 120;
 const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
 const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";

@@ -460,8 +460,17 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
     <Tool open={open} onOpenChange={setUserOpen}>
       <ToolHeader {...headerProps} input={part.input} />
       <ToolContent>
-        <ToolInput input={part.input} />
-        <ToolOutput output={part.output} errorText={part.errorText} />
+        {hasImageOutput ? (
+          <>
+            <ToolOutput output={part.output} errorText={part.errorText} defaultOpen={false} />
+            <ToolInput input={part.input} defaultOpen={false} />
+          </>
+        ) : (
+          <>
+            <ToolInput input={part.input} />
+            <ToolOutput output={part.output} errorText={part.errorText} />
+          </>
+        )}
       </ToolContent>
     </Tool>
   );

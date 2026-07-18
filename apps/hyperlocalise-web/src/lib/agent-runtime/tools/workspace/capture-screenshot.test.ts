@@ -443,8 +443,13 @@ describe("createCaptureScreenshotTool", () => {
     expect(captureScript).toContain("storyMissing");
     expect(captureScript).not.toContain("storyFinished");
     expect(captureScript).toContain("sb-show-preparing-story");
+    expect(captureScript).toContain("30000");
+    expect(captureScript).not.toContain("120000");
     expect(captureScript).toContain('const waitForText = ["Save changes","Discard"]');
     expect(captureScript).toContain("texts.every((text) => haystack.includes(text))");
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("seq 1 120")],
+    });
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
