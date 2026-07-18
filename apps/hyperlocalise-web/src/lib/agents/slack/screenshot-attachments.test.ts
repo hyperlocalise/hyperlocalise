@@ -11,6 +11,14 @@ vi.mock("@/lib/file-storage/records", () => ({
   getStoredFileContent: vi.fn(),
 }));
 
+vi.mock("@/lib/agent-runtime/tools/workspace/capture-screenshot", () => ({
+  isCaptureScreenshotSuccess: (output: unknown) =>
+    Boolean(output) &&
+    typeof output === "object" &&
+    (output as { success?: boolean }).success === true &&
+    typeof (output as { fileId?: unknown }).fileId === "string",
+}));
+
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({
     warn: vi.fn(),

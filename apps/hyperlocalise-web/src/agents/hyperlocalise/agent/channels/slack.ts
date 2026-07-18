@@ -493,11 +493,12 @@ async function processSlackMessage(
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     const replyText = result.text.trim();
-    if (replyText || screenshotFiles.length > 0) {
-      await thread.post({
-        ...(replyText ? { markdown: replyText } : {}),
-        ...(screenshotFiles.length > 0 ? { files: screenshotFiles } : {}),
-      });
+    if (replyText && screenshotFiles.length > 0) {
+      await thread.post({ markdown: replyText, files: screenshotFiles });
+    } else if (replyText) {
+      await thread.post({ markdown: replyText });
+    } else if (screenshotFiles.length > 0) {
+      await thread.post({ markdown: "", files: screenshotFiles });
     }
   } catch (error) {
     log.error({ err: serializeErrorForLog(error) }, "slack agent message processing failed");

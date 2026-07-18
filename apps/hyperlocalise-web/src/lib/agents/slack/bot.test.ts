@@ -693,6 +693,7 @@ describe("handleNewConversation", () => {
     expect(posts).toEqual([
       SLACK_PROCESSING_ACK_POST,
       {
+        markdown: "",
         files: [
           {
             data: Buffer.from("shot-only"),
