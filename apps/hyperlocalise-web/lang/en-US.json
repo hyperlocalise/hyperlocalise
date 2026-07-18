@@ -267,13 +267,13 @@
     "defaultMessage": "API key created",
     "description": "Title of the create API key dialog after the key is generated"
   },
+  "01h5d0m29X": {
+    "defaultMessage": "Context of {source}",
+    "description": "Suggested prompt chip for the currently selected CAT segment source string"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "Product image placeholder",
     "description": "Marketing homepage workflow chapter placeholder title"
-  },
-  "084ETvW6A4": {
-    "defaultMessage": "What's the context of \"{key}\"?",
-    "description": "Prefilled prompt when asking for context of the selected CAT segment"
   },
   "087Hwu4wFp": {
     "defaultMessage": "Built for support content at scale",
@@ -354,6 +354,10 @@
   "0ZnjVna/1A": {
     "defaultMessage": "Manage",
     "description": "Link label to manage a connected integration"
+  },
+  "0a0+8rBPeu": {
+    "defaultMessage": "Server URL",
+    "description": "Label for MCP server URL field"
   },
   "0bdrX6gjre": {
     "defaultMessage": "Workspace",
@@ -555,6 +559,10 @@
     "defaultMessage": "Output Schema",
     "description": "Section label for agent output schema"
   },
+  "2+doJ4Hdy3": {
+    "defaultMessage": "Headers (JSON object)",
+    "description": "Label for MCP custom headers JSON field"
+  },
   "2/tGcgvmb8": {
     "defaultMessage": "No projects match your search. <clear>Clear search</clear>",
     "description": "Empty state when the project search returns no results, with clear action"
@@ -610,6 +618,10 @@
   "2KWST6Vvto": {
     "defaultMessage": "Pull product context from where work happens",
     "description": "Capability 1 title for the product-localisation use case"
+  },
+  "2OwyLgvXmq": {
+    "defaultMessage": "Add server",
+    "description": "Button to add a new MCP server connection"
   },
   "2Oxmu0zqx8": {
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
@@ -786,6 +798,10 @@
   "3iZn32bnuU": {
     "defaultMessage": "Team members",
     "description": "Accessible label for the team members section"
+  },
+  "3jvYXfkLHR": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding MCP server connection"
   },
   "3kjfANjxLP": {
     "defaultMessage": "Triggers",
@@ -1323,6 +1339,10 @@
     "defaultMessage": "You can add up to {max} branch patterns.",
     "description": "Validation error when the branch pattern limit is reached"
   },
+  "8BNWbIB542": {
+    "defaultMessage": "Failed to load MCP server connections.",
+    "description": "Error when MCP server connections cannot be loaded"
+  },
   "8BeERYABTz": {
     "defaultMessage": "Glossary compliance",
     "description": "CAT format check label for glossary compliance summary"
@@ -1342,6 +1362,10 @@
   "8HNfmSDv7C": {
     "defaultMessage": "Jobs",
     "description": "Project sidebar navigation item for project jobs"
+  },
+  "8Ktyj8rNhr": {
+    "defaultMessage": "Built-in",
+    "description": "Dropdown section label for built-in automation tools"
   },
   "8L0EFFuXJa": {
     "defaultMessage": "{count} jobs created",
@@ -1390,6 +1414,10 @@
   "8VhTVN2EZZ": {
     "defaultMessage": "GitHub changes",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "8YwlZNuV6a": {
+    "defaultMessage": "Bearer token",
+    "description": "Label for MCP bearer token field"
   },
   "8bSWL8zHiO": {
     "defaultMessage": "Review & approval",
@@ -1695,6 +1723,10 @@
     "defaultMessage": "Change language",
     "description": "Accessible label and tooltip for the app language toggle button"
   },
+  "AK+FWYZO89": {
+    "defaultMessage": "MCP server connection saved.",
+    "description": "Toast when MCP server connection is saved"
+  },
   "AKtzAy5jSx": {
     "defaultMessage": "Route",
     "description": "Automation product visual destination column label"
@@ -1879,10 +1911,6 @@
     "defaultMessage": "Could not start this chat. Try again.",
     "description": "Error when creating a conversation from the chat dock fails"
   },
-  "C1FbXuFTUH": {
-    "defaultMessage": "Start a translation",
-    "description": "Suggested prompt chip to start a translation"
-  },
   "C1WvaRKpWU": {
     "defaultMessage": "Connect Crowdin in Hyperlocalise",
     "description": "Title when no Hyperlocalise org maps to this Crowdin org"
@@ -1890,6 +1918,10 @@
   "C31IoV3z9k": {
     "defaultMessage": "Load more",
     "description": "Button to load more projects in the list"
+  },
+  "C3tn66TqXh": {
+    "defaultMessage": "Paste a JSON object of header names to values",
+    "description": "Placeholder for MCP custom headers JSON field"
   },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
@@ -2019,6 +2051,10 @@
     "defaultMessage": "Saturday",
     "description": "Weekday option for scheduled automation"
   },
+  "CvJnbfBP5e": {
+    "defaultMessage": "Failed to delete MCP server connection.",
+    "description": "Error when MCP server connection delete fails"
+  },
   "CvYNnC7KYY": {
     "defaultMessage": "We could not load jobs for this project.",
     "description": "Empty-state description when project jobs fail to load"
@@ -2034,6 +2070,10 @@
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels...",
     "description": "Placeholder while Slack channels are loading"
+  },
+  "D2ZrcxejKr": {
+    "defaultMessage": "MCP servers",
+    "description": "Category label for MCP server connections on the Integrations page"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
@@ -2215,10 +2255,6 @@
     "defaultMessage": "Markdown content",
     "description": "Default accessible label for read-only rendered markdown content"
   },
-  "EChSkkf+KW": {
-    "defaultMessage": "What changed recently",
-    "description": "Suggested prompt chip for recent localisation changes"
-  },
   "ECw5CTvkCi": {
     "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
     "description": "Capability 4 description for the github-release-localisation use case"
@@ -2254,6 +2290,10 @@
   "EQuzSP+RiS": {
     "defaultMessage": "Unable to save Contentful connection",
     "description": "Fallback error when saving a Contentful connection fails"
+  },
+  "ERiH8D9Q+l": {
+    "defaultMessage": "What's the context of \"{source}\"?",
+    "description": "Prefilled prompt when asking for context of the selected CAT segment source string"
   },
   "ESaaPFjV43": {
     "defaultMessage": "Hyperlocalise",
@@ -2394,6 +2434,10 @@
   "FKwIhQa4ff": {
     "defaultMessage": "Quality issues surface after launch, not before",
     "description": "Problem section title for the localisation-quality-monitoring use case"
+  },
+  "FLl4UNTozx": {
+    "defaultMessage": "What's the context of",
+    "description": "Prefilled prompt stem when choosing the find-context chip without a selected string"
   },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · in progress",
@@ -2767,6 +2811,10 @@
     "defaultMessage": "Thought for a few seconds",
     "description": "Label when reasoning completed without a measured duration"
   },
+  "IWQH2bHvzr": {
+    "defaultMessage": "No MCP servers connected yet.",
+    "description": "Empty state when no MCP server connections exist"
+  },
   "IarSQrZ6vP": {
     "defaultMessage": "Copy value",
     "description": "Tooltip for copying an environment variable value"
@@ -3015,6 +3063,10 @@
     "defaultMessage": "Global campaigns break when context stays in the brief",
     "description": "Problem section title for the marketing-localisation use case"
   },
+  "KXnH/FP4XN": {
+    "defaultMessage": "HTTP",
+    "description": "MCP transport option: streamable HTTP"
+  },
   "Ka+dKs8Zz9": {
     "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
     "description": "CTA section description for the github-release-localisation use case"
@@ -3146,6 +3198,10 @@
   "LWxfVFhHEJ": {
     "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list.",
     "description": "Error when the project file list was truncated before the CAT source file could be found"
+  },
+  "LgRbsjVF3G": {
+    "defaultMessage": "Connect remote MCP servers for automation tools.",
+    "description": "Description for the MCP server integrations row"
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack",
@@ -3338,10 +3394,6 @@
   "N564Eak7tL": {
     "defaultMessage": "Installed on {workspace}",
     "description": "Slack integration description when a workspace is linked"
-  },
-  "N83FNjAdU2": {
-    "defaultMessage": "What localisation strings changed recently?",
-    "description": "Prefilled prompt when choosing the recent-changes chip"
   },
   "N9BYBbfFW0": {
     "defaultMessage": "Succeeded",
@@ -3639,6 +3691,10 @@
     "defaultMessage": "Loading progress...",
     "description": "Placeholder while Crowdin locale readiness is loading"
   },
+  "Pe5Th0pOzu": {
+    "defaultMessage": "Authentication",
+    "description": "Label for MCP auth kind select"
+  },
   "Pele5LgqUl": {
     "defaultMessage": "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches.",
     "description": "Meta description for the marketing-localisation use case"
@@ -3827,10 +3883,6 @@
     "defaultMessage": "A pricing page refactor opens a pull request on Tuesday",
     "description": "Scenario section title for the github-release-localisation use case"
   },
-  "QpIX9JaUhS": {
-    "defaultMessage": "Check localisation progress",
-    "description": "Suggested prompt chip for TMS localisation progress"
-  },
   "Qr6HIhIqfm": {
     "defaultMessage": "Sync only",
     "description": "Shortcut hint when GitHub push is unavailable because agent mode is enabled"
@@ -3878,6 +3930,10 @@
   "RKI1ij45Ie": {
     "defaultMessage": "No messages yet",
     "description": "Empty state title when a conversation has no messages"
+  },
+  "RLPdxshxAq": {
+    "defaultMessage": "MCP Server",
+    "description": "Tool badge when an automation uses an MCP server"
   },
   "RQv/LERmVL": {
     "defaultMessage": "Create job",
@@ -4007,6 +4063,10 @@
     "defaultMessage": "Collect work from GitHub, Slack, CMS, and TMS",
     "description": "Workflow step 1 description for the localisation-operations use case"
   },
+  "SINqXFqnkL": {
+    "defaultMessage": "Bearer token",
+    "description": "MCP auth kind option: bearer"
+  },
   "SKW9qV8rtN": {
     "defaultMessage": "No TMS jobs found for this project.",
     "description": "Empty state for TMS jobs in a project"
@@ -4087,6 +4147,10 @@
     "defaultMessage": "Connect GitHub to choose a repository",
     "description": "Placeholder when GitHub is not connected so repositories cannot be chosen"
   },
+  "StgM1dze9o": {
+    "defaultMessage": "MCP server connection deleted.",
+    "description": "Toast when MCP server connection is deleted"
+  },
   "SusA/f3CfU": {
     "defaultMessage": "No Hyperlocalise jobs found for this project yet.",
     "description": "Empty state for native jobs in a project"
@@ -4106,6 +4170,10 @@
   "T+85xLIwTA": {
     "defaultMessage": "{translatedPercent}% translated · {approvedPercent}% approved",
     "description": "Crowdin readiness with both translation and approval progress"
+  },
+  "T+lSNezp+m": {
+    "defaultMessage": "Delete",
+    "description": "Delete MCP server connection button"
   },
   "T+wQxH/IG1": {
     "defaultMessage": "Knowledge",
@@ -4179,6 +4247,10 @@
     "defaultMessage": "Hourly",
     "description": "Scheduled cadence option for hourly runs"
   },
+  "TRXXor6TdH": {
+    "defaultMessage": "Display name",
+    "description": "Label for MCP server display name field"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise",
     "description": "Deep link to the same conversation in the main app"
@@ -4250,6 +4322,10 @@
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account.",
     "description": "Empty state for native jobs in personal workspace scope"
+  },
+  "TuGOT1kPBK": {
+    "defaultMessage": "Connect an MCP server in Integrations before using this tool.",
+    "description": "Description when no MCP server connection is available"
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Enforce terminology, character limits, and product voice before drafts reach human reviewers.",
@@ -4435,10 +4511,6 @@
     "defaultMessage": "Create API key",
     "description": "Button to open the create API key dialog"
   },
-  "VKjWHU/QDH": {
-    "defaultMessage": "What does this string mean, and where is it used?",
-    "description": "Prefilled prompt when choosing the find-context chip"
-  },
   "VMLVh0fGup": {
     "defaultMessage": "Workspace",
     "description": "Sidebar group label for workspace-level navigation items"
@@ -4511,6 +4583,10 @@
     "defaultMessage": "New Request",
     "description": "Sidebar navigation item to start a new localisation request"
   },
+  "VucfHYKoo9": {
+    "defaultMessage": "MCP servers",
+    "description": "Category label for MCP server connections on Integrations"
+  },
   "VwOY5uI6LH": {
     "defaultMessage": "GitHub",
     "description": "Automation product visual integration source name"
@@ -4551,13 +4627,17 @@
     "defaultMessage": "Optional notes for translators",
     "description": "Placeholder for the optional job description field"
   },
-  "W8paQ6RjZy": {
-    "defaultMessage": "How is localisation progress looking across linked TMS projects?",
-    "description": "Prefilled prompt when choosing the progress chip"
+  "W9S7Ht69kS": {
+    "defaultMessage": "Knowledge memories",
+    "description": "Title for the knowledge memories management sheet"
   },
   "WA49vhY6w5": {
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
     "description": "Tooltip for the refresh repository list button"
+  },
+  "WBqbSdV/u8": {
+    "defaultMessage": "Edit the shared organization knowledge used by this automation.",
+    "description": "Description for the knowledge memories management sheet"
   },
   "WCzohOaFyx": {
     "defaultMessage": "Tuesday",
@@ -4575,6 +4655,10 @@
     "defaultMessage": "Loading intelligence",
     "description": "Accessible label while the CAT intelligence panel skeleton is shown"
   },
+  "WNUkfqHAtJ": {
+    "defaultMessage": "Manage",
+    "description": "Button to open the knowledge memories editor from an automation"
+  },
   "WPbNdWbmRX": {
     "defaultMessage": "Vietnamese (Vietnam)",
     "description": "Display name for BCP-47 locale vi-VN"
@@ -4582,6 +4666,10 @@
   "WSbyg2v11q": {
     "defaultMessage": "Native",
     "description": "Source label for Hyperlocalise-native projects on the dashboard"
+  },
+  "WUqvqtUFLC": {
+    "defaultMessage": "Transport",
+    "description": "Label for MCP transport select"
   },
   "WX/L/z1wMm": {
     "defaultMessage": "{percent}% translated",
@@ -5091,6 +5179,10 @@
     "defaultMessage": "Translate by vendor",
     "description": "Crowdin task type label for vendor translation"
   },
+  "a51/Gtv+h4": {
+    "defaultMessage": "Enable first",
+    "description": "Shortcut shown when workspace knowledge is not enabled for the organization"
+  },
   "a5J/Q0J1lX": {
     "defaultMessage": "Malay (Malaysia)",
     "description": "Display name for BCP-47 locale ms-MY"
@@ -5106,6 +5198,10 @@
   "a5wP5u9Iqr": {
     "defaultMessage": "Reasoning",
     "description": "Label for reasoning token usage in the context hover card"
+  },
+  "a6VlArjU8i": {
+    "defaultMessage": "None",
+    "description": "MCP auth kind option: none"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name",
@@ -5194,6 +5290,10 @@
   "avoSAOCHz4": {
     "defaultMessage": "Unknown project",
     "description": "Label when a selected project id is not in the loaded list"
+  },
+  "axtydiBtML": {
+    "defaultMessage": "Remove memories tool",
+    "description": "Accessible label to remove the knowledge memories tool"
   },
   "ayMjHyvmox": {
     "defaultMessage": "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
@@ -5655,6 +5755,10 @@
     "defaultMessage": "Glossary guidance",
     "description": "Section heading for glossary term guidance in the intelligence panel"
   },
+  "ekU8Q0suHQ": {
+    "defaultMessage": "Custom headers",
+    "description": "MCP auth kind option: headers"
+  },
   "el3lsLK/XT": {
     "defaultMessage": "Hyperlocalise is not a replacement for your TMS or i18n library. It adds an AI-native layer that connects GitHub change signals, translation drafting, and release gates.",
     "description": "Differentiator section description for the github-release-localisation use case"
@@ -6063,10 +6167,6 @@
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
   },
-  "homymlbTZo": {
-    "defaultMessage": "Translate the following text:",
-    "description": "Prefilled prompt when choosing the translate chip"
-  },
   "hpOVndgWkJ": {
     "defaultMessage": "Read the repository and follow your instructions. GitHub skills apply automatically.",
     "description": "Description for the GitHub agent repository tool"
@@ -6110,6 +6210,10 @@
   "iL0uh6nGuj": {
     "defaultMessage": "Branch patterns",
     "description": "Dropdown label for branch pattern management"
+  },
+  "iMi751w5KI": {
+    "defaultMessage": "Failed to save MCP server connection.",
+    "description": "Error when MCP server connection save fails"
   },
   "iNt/60shfS": {
     "defaultMessage": "Make missed localisation work harder to miss.",
@@ -6214,6 +6318,10 @@
   "j15+hzs1N1": {
     "defaultMessage": "CMS",
     "description": "Automation product visual integration source name"
+  },
+  "j3sarok4E/": {
+    "defaultMessage": "MCP Server",
+    "description": "Menu item and tool title for an external MCP server connection"
   },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel",
@@ -6535,9 +6643,9 @@
     "defaultMessage": "Google Gemini",
     "description": "Google Gemini BYOK provider name on the integrations page"
   },
-  "l2MbFKxoMr": {
-    "defaultMessage": "Ask about strings, context, progress, or translations",
-    "description": "Empty state subtitle describing chat capabilities"
+  "l1pfctOYid": {
+    "defaultMessage": "Save",
+    "description": "Save MCP server connection button"
   },
   "l5r0xPEJDX": {
     "defaultMessage": "Add at least one branch pattern for push triggers.",
@@ -6678,6 +6786,10 @@
   "mLGYrHY7eO": {
     "defaultMessage": "Provider switching",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "mLI55faX8v": {
+    "defaultMessage": "Memories",
+    "description": "Menu item and tool title for workspace knowledge memories"
   },
   "mMp/zOre+X": {
     "defaultMessage": "Private",
@@ -7007,6 +7119,10 @@
     "defaultMessage": "Next branch",
     "description": "Accessible label and tooltip for navigating to the next message branch"
   },
+  "p7RJtpKZ+J": {
+    "defaultMessage": "Call tools from a connected remote MCP server during this automation.",
+    "description": "Description for the MCP Server automation tool when a connection exists"
+  },
   "p83H7uOHst": {
     "defaultMessage": "Translation mistake",
     "description": "Crowdin issue type for translation mistakes"
@@ -7047,6 +7163,10 @@
     "defaultMessage": "Passed",
     "description": "Label for a CAT format check that passed"
   },
+  "pWz7w78j0z": {
+    "defaultMessage": "MCP Server",
+    "description": "Name shown for the MCP server integrations row"
+  },
   "pXpP8bdMfG": {
     "defaultMessage": "Generating response",
     "description": "Accessible label for a streaming chat tab indicator"
@@ -7066,6 +7186,10 @@
   "peYw3ULGLY": {
     "defaultMessage": "Supported triggers",
     "description": "Dropdown section label for available automation triggers"
+  },
+  "pehDkakH9A": {
+    "defaultMessage": "What's the context of a string",
+    "description": "Suggested prompt chip to find localisation context"
   },
   "pfwX+wkDSM": {
     "defaultMessage": "Connecting…",
@@ -7314,6 +7438,10 @@
   "ra0EyftjV0": {
     "defaultMessage": "Recently opened",
     "description": "Heading above the recently opened projects strip"
+  },
+  "rcdU5+Pv4r": {
+    "defaultMessage": "Use organization knowledge memory as guidance for this automation.",
+    "description": "Description for the knowledge memories automation tool"
   },
   "ree/WWv9H5": {
     "defaultMessage": "Get your workspace ready",
@@ -7567,10 +7695,6 @@
     "defaultMessage": "Previous",
     "description": "Desktop navigation button to the previous segment"
   },
-  "tToS3qyu6G": {
-    "defaultMessage": "Context of {key}",
-    "description": "Suggested prompt chip for the currently selected CAT segment"
-  },
   "tUtjQfuwWO": {
     "defaultMessage": "Members",
     "description": "Workspace members link in the user menu"
@@ -7799,10 +7923,6 @@
     "defaultMessage": "Failed to create API key",
     "description": "Error when creating an API key fails"
   },
-  "vHurxfGj2i": {
-    "defaultMessage": "Find context for a string",
-    "description": "Suggested prompt chip to find localisation context"
-  },
   "vJGZC1FhAF": {
     "defaultMessage": "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
     "description": "Proof point 1 body for the agents automation product page"
@@ -7826,6 +7946,10 @@
   "vRHN9vcIJA": {
     "defaultMessage": "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools.",
     "description": "CTA section description for the localisation-operations use case"
+  },
+  "vSUdGKQLPt": {
+    "defaultMessage": "SSE",
+    "description": "MCP transport option: SSE"
   },
   "vTmDsNkKes": {
     "defaultMessage": "Support tickets spike in non-English locales when guidance is outdated or missing.",
@@ -7914,6 +8038,10 @@
   "w1elWLFsW9": {
     "defaultMessage": "Release readiness",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "w2b0cdIV3S": {
+    "defaultMessage": "Ask about strings, context, or anything else",
+    "description": "Empty state subtitle describing chat capabilities"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Loading plan",
@@ -8247,6 +8375,10 @@
     "defaultMessage": "Source message syntax",
     "description": "CAT format check label for invalid source message syntax"
   },
+  "yV9kjoqQN1": {
+    "defaultMessage": "Secret ending in {suffix}",
+    "description": "Hint that an MCP auth secret is already stored"
+  },
   "yX53I7eVol": {
     "defaultMessage": "Workspace setup · {completedCount} of {totalCount} complete",
     "description": "Dashboard setup hero progress summary"
@@ -8275,9 +8407,17 @@
     "defaultMessage": "Connected",
     "description": "Badge when an integration is connected"
   },
+  "ykXAFysnC5": {
+    "defaultMessage": "Remove MCP Server tool",
+    "description": "Accessible label to remove the MCP Server tool"
+  },
   "ykrA6Q/ZFk": {
     "defaultMessage": "Publish localized articles without manual copy-paste between your TMS and help center.",
     "description": "Capability 5 description for the help-center-localisation use case"
+  },
+  "yl7Dzt+xE3": {
+    "defaultMessage": "Enable workspace knowledge for this organization before using memories in automations.",
+    "description": "Description when knowledge memories cannot be used yet"
   },
   "yn7Eufu4t+": {
     "defaultMessage": "Comment",
@@ -8414,6 +8554,10 @@
   "zjfCQW7GjW": {
     "defaultMessage": "Replace token",
     "description": "Button to start replacing a stored Contentful token"
+  },
+  "zjsy1cdZoN": {
+    "defaultMessage": "Headers must be a JSON object of string values.",
+    "description": "Validation error for MCP headers JSON"
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job",

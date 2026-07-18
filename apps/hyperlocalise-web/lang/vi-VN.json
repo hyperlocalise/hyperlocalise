@@ -209,6 +209,9 @@
   "0+lekb0oBh": {
     "defaultMessage": "Đã tạo khóa API"
   },
+  "01h5d0m29X": {
+    "defaultMessage": "Context of {source}"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "Hình ảnh sản phẩm thay thế"
   },
@@ -274,6 +277,9 @@
   },
   "0ZnjVna/1A": {
     "defaultMessage": "Quản lý"
+  },
+  "0a0+8rBPeu": {
+    "defaultMessage": "Server URL"
   },
   "0bdrX6gjre": {
     "defaultMessage": "Không gian làm việc"
@@ -428,6 +434,9 @@
   "1zjzxzctS5": {
     "defaultMessage": "Sơ đồ đầu ra"
   },
+  "2+doJ4Hdy3": {
+    "defaultMessage": "Headers (JSON object)"
+  },
   "2/tGcgvmb8": {
     "defaultMessage": "No projects match your search. <clear>Clear search</clear>"
   },
@@ -472,6 +481,9 @@
   },
   "2O/RojUz55": {
     "defaultMessage": "Rời khỏi đoạn có thay đổi chưa được lưu?"
+  },
+  "2OwyLgvXmq": {
+    "defaultMessage": "Add server"
   },
   "2Oxmu0zqx8": {
     "defaultMessage": "Lấy ý định thông điệp, ghi chú về đối tượng và định hướng sáng tạo từ các công cụ mà các đội ngũ marketing đã sử dụng."
@@ -607,6 +619,9 @@
   },
   "3iZn32bnuU": {
     "defaultMessage": "Team members"
+  },
+  "3jvYXfkLHR": {
+    "defaultMessage": "Cancel"
   },
   "3kjfANjxLP": {
     "defaultMessage": "Triggers"
@@ -1013,6 +1028,9 @@
   "88mR250rV4": {
     "defaultMessage": "Bạn có thể thêm tối đa {max} mẫu nhánh."
   },
+  "8BNWbIB542": {
+    "defaultMessage": "Failed to load MCP server connections."
+  },
   "8BeERYABTz": {
     "defaultMessage": "Tuân thủ bảng thuật ngữ"
   },
@@ -1027,6 +1045,9 @@
   },
   "8HNfmSDv7C": {
     "defaultMessage": "Công việc"
+  },
+  "8Ktyj8rNhr": {
+    "defaultMessage": "Built-in"
   },
   "8L0EFFuXJa": {
     "defaultMessage": "{count} jobs created"
@@ -1063,6 +1084,9 @@
   },
   "8VhTVN2EZZ": {
     "defaultMessage": "Các thay đổi trên GitHub"
+  },
+  "8YwlZNuV6a": {
+    "defaultMessage": "Bearer token"
   },
   "8bSWL8zHiO": {
     "defaultMessage": "Xem xét & phê duyệt"
@@ -1295,6 +1319,9 @@
   "AHsrowfXdB": {
     "defaultMessage": "Change language"
   },
+  "AK+FWYZO89": {
+    "defaultMessage": "MCP server connection saved."
+  },
   "AKtzAy5jSx": {
     "defaultMessage": "Tuyến đường"
   },
@@ -1445,6 +1472,9 @@
   "C31IoV3z9k": {
     "defaultMessage": "Load more"
   },
+  "C3tn66TqXh": {
+    "defaultMessage": "Paste a JSON object of header names to values"
+  },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Phrase của bạn để tiếp tục."
   },
@@ -1541,6 +1571,9 @@
   "Cv5dtJ6iTe": {
     "defaultMessage": "Thứ Bảy"
   },
+  "CvJnbfBP5e": {
+    "defaultMessage": "Failed to delete MCP server connection."
+  },
   "CvYNnC7KYY": {
     "defaultMessage": "We could not load jobs for this project."
   },
@@ -1552,6 +1585,9 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels..."
+  },
+  "D2ZrcxejKr": {
+    "defaultMessage": "MCP servers"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Phân công các tác nhân AI để dịch, rà soát và đ��ng bộ nội dung, đồng thời vẫn đặt việc duyệt của con người lên hàng đầu."
@@ -1718,6 +1754,9 @@
   "EQuzSP+RiS": {
     "defaultMessage": "Không thể lưu kết nối Contentful"
   },
+  "ERiH8D9Q+l": {
+    "defaultMessage": "What's the context of \"{source}\"?"
+  },
   "ESaaPFjV43": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -1822,6 +1861,9 @@
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Các vấn đề về chất lượng chỉ lộ ra sau khi ra mắt, không phải trước đó"
+  },
+  "FLl4UNTozx": {
+    "defaultMessage": "What's the context of"
   },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · đang thực hiện"
@@ -2102,6 +2144,9 @@
   "IW+967m+1e": {
     "defaultMessage": "Suy nghĩ trong vài giây"
   },
+  "IWQH2bHvzr": {
+    "defaultMessage": "No MCP servers connected yet."
+  },
   "IarSQrZ6vP": {
     "defaultMessage": "Sao chép giá trị"
   },
@@ -2288,6 +2333,9 @@
   "KTaKMa7YoM": {
     "defaultMessage": "Chiến dịch toàn cầu bị gián đoạn khi bối cảnh vẫn chỉ nằm trong bản brief"
   },
+  "KXnH/FP4XN": {
+    "defaultMessage": "HTTP"
+  },
   "Ka+dKs8Zz9": {
     "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và đưa các kiểm tra bản địa hóa vào quy trình phát hành của bạn."
   },
@@ -2386,6 +2434,9 @@
   },
   "LWxfVFhHEJ": {
     "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list."
+  },
+  "LgRbsjVF3G": {
+    "defaultMessage": "Connect remote MCP servers for automation tools."
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack"
@@ -2756,6 +2807,9 @@
   "PapSWiA4OI": {
     "defaultMessage": "Loading progress..."
   },
+  "Pe5Th0pOzu": {
+    "defaultMessage": "Authentication"
+  },
   "Pele5LgqUl": {
     "defaultMessage": "Biến brief chiến dịch thành nội dung marketing an toàn cho thương hiệu, được bản địa hóa theo từng ngôn ngữ với quy trình rà soát và khả năng bàn giao tài sản được tích hợp sẵn. Duy trì thông điệp toàn cầu nhất quán mà không làm chậm tiến độ ra mắt."
   },
@@ -2936,6 +2990,9 @@
   "RKI1ij45Ie": {
     "defaultMessage": "Chưa có tin nhắn nào"
   },
+  "RLPdxshxAq": {
+    "defaultMessage": "MCP Server"
+  },
   "RQv/LERmVL": {
     "defaultMessage": "Create job"
   },
@@ -3032,6 +3089,9 @@
   "SIFIPtlpE9": {
     "defaultMessage": "Thu thập công việc từ GitHub, Slack, CMS và TMS"
   },
+  "SINqXFqnkL": {
+    "defaultMessage": "Bearer token"
+  },
   "SKW9qV8rtN": {
     "defaultMessage": "No TMS jobs found for this project."
   },
@@ -3092,6 +3152,9 @@
   "StXIOq7nWw": {
     "defaultMessage": "Connect GitHub to choose a repository"
   },
+  "StgM1dze9o": {
+    "defaultMessage": "MCP server connection deleted."
+  },
   "SusA/f3CfU": {
     "defaultMessage": "No Hyperlocalise jobs found for this project yet."
   },
@@ -3106,6 +3169,9 @@
   },
   "T+85xLIwTA": {
     "defaultMessage": "{translatedPercent}% translated · {approvedPercent}% approved"
+  },
+  "T+lSNezp+m": {
+    "defaultMessage": "Delete"
   },
   "T+wQxH/IG1": {
     "defaultMessage": "Kiến thức"
@@ -3161,6 +3227,9 @@
   "TR2IFwpfx/": {
     "defaultMessage": "Hàng giờ"
   },
+  "TRXXor6TdH": {
+    "defaultMessage": "Display name"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise"
   },
@@ -3214,6 +3283,9 @@
   },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account."
+  },
+  "TuGOT1kPBK": {
+    "defaultMessage": "Connect an MCP server in Integrations before using this tool."
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Thực thi thuật ngữ, giới hạn ký tự và giọng điệu sản phẩm trước khi bản nháp đến tay người rà soát."
@@ -3410,6 +3482,9 @@
   "VtO24sqmBM": {
     "defaultMessage": "Yêu cầu mới"
   },
+  "VucfHYKoo9": {
+    "defaultMessage": "MCP servers"
+  },
   "VwOY5uI6LH": {
     "defaultMessage": "GitHub"
   },
@@ -3443,8 +3518,14 @@
   "W8paQ6RjZy": {
     "defaultMessage": "Tiến độ bản địa hóa trên các dự án TMS được liên kết hiện ra sao?"
   },
+  "W9S7Ht69kS": {
+    "defaultMessage": "Knowledge memories"
+  },
   "WA49vhY6w5": {
     "defaultMessage": "Làm mới danh sách kho lưu trữ và siêu dữ liệu từ GitHub. Việc này không đẩy lên hoặc tải xuống bản dịch."
+  },
+  "WBqbSdV/u8": {
+    "defaultMessage": "Edit the shared organization knowledge used by this automation."
   },
   "WCzohOaFyx": {
     "defaultMessage": "Thứ Ba"
@@ -3461,11 +3542,17 @@
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
   },
+  "WNUkfqHAtJ": {
+    "defaultMessage": "Manage"
+  },
   "WPbNdWbmRX": {
     "defaultMessage": "Tiếng Việt (Việt Nam)"
   },
   "WSbyg2v11q": {
     "defaultMessage": "Gốc"
+  },
+  "WUqvqtUFLC": {
+    "defaultMessage": "Transport"
   },
   "WX/L/z1wMm": {
     "defaultMessage": "{percent}% translated"
@@ -3851,6 +3938,9 @@
   "a0yFgx40Tg": {
     "defaultMessage": "Translate by vendor"
   },
+  "a51/Gtv+h4": {
+    "defaultMessage": "Enable first"
+  },
   "a5J/Q0J1lX": {
     "defaultMessage": "Tiếng Mã Lai (Malaysia)"
   },
@@ -3862,6 +3952,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "Suy luận"
+  },
+  "a6VlArjU8i": {
+    "defaultMessage": "None"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
@@ -3928,6 +4021,9 @@
   },
   "avoSAOCHz4": {
     "defaultMessage": "Unknown project"
+  },
+  "axtydiBtML": {
+    "defaultMessage": "Remove memories tool"
   },
   "ayMjHyvmox": {
     "defaultMessage": "TMS tích hợp sẵn cho dự án, công việc, tệp và bộ nhớ dịch. Không cần nhà cung cấp bên ngoài."
@@ -4273,6 +4369,9 @@
   },
   "ee60kiAN7Z": {
     "defaultMessage": "Hướng dẫn bảng thuật ngữ"
+  },
+  "ekU8Q0suHQ": {
+    "defaultMessage": "Custom headers"
   },
   "el3lsLK/XT": {
     "defaultMessage": "Hyperlocalise không phải là sự thay thế cho TMS hoặc thư viện i18n của bạn. Nó bổ sung một lớp native AI kết nối tín hiệu thay đổi từ GitHub, soạn thảo bản dịch và các cổng phát hành."
@@ -4622,6 +4721,9 @@
   "iL0uh6nGuj": {
     "defaultMessage": "Branch patterns"
   },
+  "iMi751w5KI": {
+    "defaultMessage": "Failed to save MCP server connection."
+  },
   "iNt/60shfS": {
     "defaultMessage": "Để những nội dung bản địa hóa bị bỏ lỡ trở nên khó bị bỏ lỡ hơn."
   },
@@ -4699,6 +4801,9 @@
   },
   "j15+hzs1N1": {
     "defaultMessage": "CMS"
+  },
+  "j3sarok4E/": {
+    "defaultMessage": "MCP Server"
   },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel"
@@ -4943,6 +5048,9 @@
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini"
   },
+  "l1pfctOYid": {
+    "defaultMessage": "Save"
+  },
   "l2MbFKxoMr": {
     "defaultMessage": "Hỏi về chuỗi, ngữ cảnh, tiến độ hoặc bản dịch"
   },
@@ -5050,6 +5158,9 @@
   },
   "mLGYrHY7eO": {
     "defaultMessage": "Chuyển đổi nhà cung cấp"
+  },
+  "mLI55faX8v": {
+    "defaultMessage": "Memories"
   },
   "mMp/zOre+X": {
     "defaultMessage": "Riêng tư"
@@ -5303,6 +5414,9 @@
   "p5GCpw9x8C": {
     "defaultMessage": "Nhánh tiếp theo"
   },
+  "p7RJtpKZ+J": {
+    "defaultMessage": "Call tools from a connected remote MCP server during this automation."
+  },
   "p83H7uOHst": {
     "defaultMessage": "Lỗi dịch thuật"
   },
@@ -5333,6 +5447,9 @@
   "pV6OSYt6fC": {
     "defaultMessage": "Đã đạt"
   },
+  "pWz7w78j0z": {
+    "defaultMessage": "MCP Server"
+  },
   "pXpP8bdMfG": {
     "defaultMessage": "Đang tạo phản hồi"
   },
@@ -5347,6 +5464,9 @@
   },
   "peYw3ULGLY": {
     "defaultMessage": "Supported triggers"
+  },
+  "pehDkakH9A": {
+    "defaultMessage": "What's the context of a string"
   },
   "pfwX+wkDSM": {
     "defaultMessage": "Đang kết nối…"
@@ -5533,6 +5653,9 @@
   },
   "ra0EyftjV0": {
     "defaultMessage": "Recently opened"
+  },
+  "rcdU5+Pv4r": {
+    "defaultMessage": "Use organization knowledge memory as guidance for this automation."
   },
   "ree/WWv9H5": {
     "defaultMessage": "Get your workspace ready"
@@ -5921,6 +6044,9 @@
   "vRHN9vcIJA": {
     "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và xem cách đội ngũ vận hành của bạn có thể điều phối hoạt động bản địa hóa mà không cần thay thế các công cụ hiện có của bạn."
   },
+  "vSUdGKQLPt": {
+    "defaultMessage": "SSE"
+  },
   "vTmDsNkKes": {
     "defaultMessage": "Số lượng phiếu hỗ trợ tăng vọt ở các ngôn ngữ không phải tiếng Anh khi hướng dẫn đã lỗi thời hoặc bị thiếu."
   },
@@ -5992,6 +6118,9 @@
   },
   "w1elWLFsW9": {
     "defaultMessage": "Sẵn sàng phát hành"
+  },
+  "w2b0cdIV3S": {
+    "defaultMessage": "Ask about strings, context, or anything else"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Loading plan"
@@ -6245,6 +6374,9 @@
   "yRRevnNvnn": {
     "defaultMessage": "Cú pháp thông báo nguồn"
   },
+  "yV9kjoqQN1": {
+    "defaultMessage": "Secret ending in {suffix}"
+  },
   "yX53I7eVol": {
     "defaultMessage": "Thiết lập không gian làm việc · Đã hoàn thành {completedCount} trên tổng số {totalCount} mục"
   },
@@ -6266,8 +6398,14 @@
   "ykK86HWH4K": {
     "defaultMessage": "Đã kết nối"
   },
+  "ykXAFysnC5": {
+    "defaultMessage": "Remove MCP Server tool"
+  },
   "ykrA6Q/ZFk": {
     "defaultMessage": "Xuất bản các bài viết đã được bản địa hóa mà không cần sao chép-dán thủ công giữa TMS và trung tâm trợ giúp của bạn."
+  },
+  "yl7Dzt+xE3": {
+    "defaultMessage": "Enable workspace knowledge for this organization before using memories in automations."
   },
   "yn7Eufu4t+": {
     "defaultMessage": "Bình luận"
@@ -6370,6 +6508,9 @@
   },
   "zjfCQW7GjW": {
     "defaultMessage": "Thay thế token"
+  },
+  "zjsy1cdZoN": {
+    "defaultMessage": "Headers must be a JSON object of string values."
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"

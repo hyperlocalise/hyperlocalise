@@ -209,6 +209,9 @@
   "0+lekb0oBh": {
     "defaultMessage": "API 密钥已创建"
   },
+  "01h5d0m29X": {
+    "defaultMessage": "Context of {source}"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "产品图片占位符"
   },
@@ -274,6 +277,9 @@
   },
   "0ZnjVna/1A": {
     "defaultMessage": "管理"
+  },
+  "0a0+8rBPeu": {
+    "defaultMessage": "Server URL"
   },
   "0bdrX6gjre": {
     "defaultMessage": "工作区"
@@ -428,6 +434,9 @@
   "1zjzxzctS5": {
     "defaultMessage": "输出模式"
   },
+  "2+doJ4Hdy3": {
+    "defaultMessage": "Headers (JSON object)"
+  },
   "2/tGcgvmb8": {
     "defaultMessage": "No projects match your search. <clear>Clear search</clear>"
   },
@@ -472,6 +481,9 @@
   },
   "2O/RojUz55": {
     "defaultMessage": "离开包含未保存更改的分段？"
+  },
+  "2OwyLgvXmq": {
+    "defaultMessage": "Add server"
   },
   "2Oxmu0zqx8": {
     "defaultMessage": "从营销团队已经使用的工具中提取消息意图、受众备注和创意方向。"
@@ -607,6 +619,9 @@
   },
   "3iZn32bnuU": {
     "defaultMessage": "Team members"
+  },
+  "3jvYXfkLHR": {
+    "defaultMessage": "Cancel"
   },
   "3kjfANjxLP": {
     "defaultMessage": "Triggers"
@@ -1013,6 +1028,9 @@
   "88mR250rV4": {
     "defaultMessage": "您最多可以添加 {max} 个分支模式。"
   },
+  "8BNWbIB542": {
+    "defaultMessage": "Failed to load MCP server connections."
+  },
   "8BeERYABTz": {
     "defaultMessage": "术语表合规性"
   },
@@ -1027,6 +1045,9 @@
   },
   "8HNfmSDv7C": {
     "defaultMessage": "任务"
+  },
+  "8Ktyj8rNhr": {
+    "defaultMessage": "Built-in"
   },
   "8L0EFFuXJa": {
     "defaultMessage": "{count} jobs created"
@@ -1063,6 +1084,9 @@
   },
   "8VhTVN2EZZ": {
     "defaultMessage": "GitHub 更改"
+  },
+  "8YwlZNuV6a": {
+    "defaultMessage": "Bearer token"
   },
   "8bSWL8zHiO": {
     "defaultMessage": "审核与批准"
@@ -1295,6 +1319,9 @@
   "AHsrowfXdB": {
     "defaultMessage": "切换语言"
   },
+  "AK+FWYZO89": {
+    "defaultMessage": "MCP server connection saved."
+  },
   "AKtzAy5jSx": {
     "defaultMessage": "路由"
   },
@@ -1445,6 +1472,9 @@
   "C31IoV3z9k": {
     "defaultMessage": "Load more"
   },
+  "C3tn66TqXh": {
+    "defaultMessage": "Paste a JSON object of header names to values"
+  },
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} 已保存。连接你的 Phrase 账户以继续。"
   },
@@ -1541,6 +1571,9 @@
   "Cv5dtJ6iTe": {
     "defaultMessage": "星期六"
   },
+  "CvJnbfBP5e": {
+    "defaultMessage": "Failed to delete MCP server connection."
+  },
   "CvYNnC7KYY": {
     "defaultMessage": "We could not load jobs for this project."
   },
@@ -1552,6 +1585,9 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels..."
+  },
+  "D2ZrcxejKr": {
+    "defaultMessage": "MCP servers"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "分配 AI 代理来翻译、审校和同步内容，同时保持人工审校处于首要地位。"
@@ -1718,6 +1754,9 @@
   "EQuzSP+RiS": {
     "defaultMessage": "无法保存 Contentful 连接"
   },
+  "ERiH8D9Q+l": {
+    "defaultMessage": "What's the context of \"{source}\"?"
+  },
   "ESaaPFjV43": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -1822,6 +1861,9 @@
   },
   "FKwIhQa4ff": {
     "defaultMessage": "质量问题会在发布后暴露，而不是在发布前"
+  },
+  "FLl4UNTozx": {
+    "defaultMessage": "What's the context of"
   },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · 进行中"
@@ -2102,6 +2144,9 @@
   "IW+967m+1e": {
     "defaultMessage": "思考了几秒钟"
   },
+  "IWQH2bHvzr": {
+    "defaultMessage": "No MCP servers connected yet."
+  },
   "IarSQrZ6vP": {
     "defaultMessage": "复制值"
   },
@@ -2288,6 +2333,9 @@
   "KTaKMa7YoM": {
     "defaultMessage": "当背景仍停留在简报中时，全球营销活动就会出问题"
   },
+  "KXnH/FP4XN": {
+    "defaultMessage": "HTTP"
+  },
   "Ka+dKs8Zz9": {
     "defaultMessage": "加入 Hyperlocalise 等候名单，将本地化检查纳入您的发布流程。"
   },
@@ -2386,6 +2434,9 @@
   },
   "LWxfVFhHEJ": {
     "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list."
+  },
+  "LgRbsjVF3G": {
+    "defaultMessage": "Connect remote MCP servers for automation tools."
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack"
@@ -2756,6 +2807,9 @@
   "PapSWiA4OI": {
     "defaultMessage": "Loading progress..."
   },
+  "Pe5Th0pOzu": {
+    "defaultMessage": "Authentication"
+  },
   "Pele5LgqUl": {
     "defaultMessage": "将活动简报转化为符合品牌规范、适配本地市场的营销文案，并内置审核流程和素材交付。确保全球信息一致，同时不拖慢上线节奏。"
   },
@@ -2936,6 +2990,9 @@
   "RKI1ij45Ie": {
     "defaultMessage": "暂无消息"
   },
+  "RLPdxshxAq": {
+    "defaultMessage": "MCP Server"
+  },
   "RQv/LERmVL": {
     "defaultMessage": "Create job"
   },
@@ -3032,6 +3089,9 @@
   "SIFIPtlpE9": {
     "defaultMessage": "从 GitHub、Slack、CMS 和 TMS 收集工作"
   },
+  "SINqXFqnkL": {
+    "defaultMessage": "Bearer token"
+  },
   "SKW9qV8rtN": {
     "defaultMessage": "No TMS jobs found for this project."
   },
@@ -3092,6 +3152,9 @@
   "StXIOq7nWw": {
     "defaultMessage": "Connect GitHub to choose a repository"
   },
+  "StgM1dze9o": {
+    "defaultMessage": "MCP server connection deleted."
+  },
   "SusA/f3CfU": {
     "defaultMessage": "No Hyperlocalise jobs found for this project yet."
   },
@@ -3106,6 +3169,9 @@
   },
   "T+85xLIwTA": {
     "defaultMessage": "{translatedPercent}% translated · {approvedPercent}% approved"
+  },
+  "T+lSNezp+m": {
+    "defaultMessage": "Delete"
   },
   "T+wQxH/IG1": {
     "defaultMessage": "知识"
@@ -3161,6 +3227,9 @@
   "TR2IFwpfx/": {
     "defaultMessage": "每小时"
   },
+  "TRXXor6TdH": {
+    "defaultMessage": "Display name"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise"
   },
@@ -3214,6 +3283,9 @@
   },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account."
+  },
+  "TuGOT1kPBK": {
+    "defaultMessage": "Connect an MCP server in Integrations before using this tool."
   },
   "TvKxxMeDL1": {
     "defaultMessage": "在草稿提交给人工审核之前，强制执行术语、字符限制和产品语调。"
@@ -3410,6 +3482,9 @@
   "VtO24sqmBM": {
     "defaultMessage": "新请求"
   },
+  "VucfHYKoo9": {
+    "defaultMessage": "MCP servers"
+  },
   "VwOY5uI6LH": {
     "defaultMessage": "GitHub"
   },
@@ -3443,8 +3518,14 @@
   "W8paQ6RjZy": {
     "defaultMessage": "关联的 TMS 项目本地化进度如何？"
   },
+  "W9S7Ht69kS": {
+    "defaultMessage": "Knowledge memories"
+  },
   "WA49vhY6w5": {
     "defaultMessage": "从 GitHub 刷新仓库列表和元数据。这不会推送或拉取翻译。"
+  },
+  "WBqbSdV/u8": {
+    "defaultMessage": "Edit the shared organization knowledge used by this automation."
   },
   "WCzohOaFyx": {
     "defaultMessage": "星期二"
@@ -3461,11 +3542,17 @@
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
   },
+  "WNUkfqHAtJ": {
+    "defaultMessage": "Manage"
+  },
   "WPbNdWbmRX": {
     "defaultMessage": "越南语（越南）"
   },
   "WSbyg2v11q": {
     "defaultMessage": "原生"
+  },
+  "WUqvqtUFLC": {
+    "defaultMessage": "Transport"
   },
   "WX/L/z1wMm": {
     "defaultMessage": "{percent}% translated"
@@ -3851,6 +3938,9 @@
   "a0yFgx40Tg": {
     "defaultMessage": "Translate by vendor"
   },
+  "a51/Gtv+h4": {
+    "defaultMessage": "Enable first"
+  },
   "a5J/Q0J1lX": {
     "defaultMessage": "马来语（马来西亚）"
   },
@@ -3862,6 +3952,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "推理"
+  },
+  "a6VlArjU8i": {
+    "defaultMessage": "None"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
@@ -3928,6 +4021,9 @@
   },
   "avoSAOCHz4": {
     "defaultMessage": "Unknown project"
+  },
+  "axtydiBtML": {
+    "defaultMessage": "Remove memories tool"
   },
   "ayMjHyvmox": {
     "defaultMessage": "用于项目、任务、文件和翻译记忆库的内置 TMS。无需外部提供商。"
@@ -4273,6 +4369,9 @@
   },
   "ee60kiAN7Z": {
     "defaultMessage": "术语表指南"
+  },
+  "ekU8Q0suHQ": {
+    "defaultMessage": "Custom headers"
   },
   "el3lsLK/XT": {
     "defaultMessage": "Hyperlocalise 不是您 TMS 或 i18n 库的替代品。它添加了一个 AI 原生层，用于连接 GitHub 变更信号、翻译草稿和发布门控。"
@@ -4622,6 +4721,9 @@
   "iL0uh6nGuj": {
     "defaultMessage": "Branch patterns"
   },
+  "iMi751w5KI": {
+    "defaultMessage": "Failed to save MCP server connection."
+  },
   "iNt/60shfS": {
     "defaultMessage": "让错过的本地化更难被错过。"
   },
@@ -4699,6 +4801,9 @@
   },
   "j15+hzs1N1": {
     "defaultMessage": "CMS"
+  },
+  "j3sarok4E/": {
+    "defaultMessage": "MCP Server"
   },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel"
@@ -4943,6 +5048,9 @@
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini"
   },
+  "l1pfctOYid": {
+    "defaultMessage": "Save"
+  },
   "l2MbFKxoMr": {
     "defaultMessage": "询问字符串、上下文、进度或翻译"
   },
@@ -5050,6 +5158,9 @@
   },
   "mLGYrHY7eO": {
     "defaultMessage": "提供商切换"
+  },
+  "mLI55faX8v": {
+    "defaultMessage": "Memories"
   },
   "mMp/zOre+X": {
     "defaultMessage": "私有"
@@ -5303,6 +5414,9 @@
   "p5GCpw9x8C": {
     "defaultMessage": "下一分支"
   },
+  "p7RJtpKZ+J": {
+    "defaultMessage": "Call tools from a connected remote MCP server during this automation."
+  },
   "p83H7uOHst": {
     "defaultMessage": "翻译错误"
   },
@@ -5333,6 +5447,9 @@
   "pV6OSYt6fC": {
     "defaultMessage": "已通过"
   },
+  "pWz7w78j0z": {
+    "defaultMessage": "MCP Server"
+  },
   "pXpP8bdMfG": {
     "defaultMessage": "正在生成回复"
   },
@@ -5347,6 +5464,9 @@
   },
   "peYw3ULGLY": {
     "defaultMessage": "Supported triggers"
+  },
+  "pehDkakH9A": {
+    "defaultMessage": "What's the context of a string"
   },
   "pfwX+wkDSM": {
     "defaultMessage": "正在连接…"
@@ -5533,6 +5653,9 @@
   },
   "ra0EyftjV0": {
     "defaultMessage": "Recently opened"
+  },
+  "rcdU5+Pv4r": {
+    "defaultMessage": "Use organization knowledge memory as guidance for this automation."
   },
   "ree/WWv9H5": {
     "defaultMessage": "准备好您的工作区"
@@ -5921,6 +6044,9 @@
   "vRHN9vcIJA": {
     "defaultMessage": "加入 Hyperlocalise 等候名单，了解你的运营团队如何在不替换现有工具的情况下协调本地化。"
   },
+  "vSUdGKQLPt": {
+    "defaultMessage": "SSE"
+  },
   "vTmDsNkKes": {
     "defaultMessage": "当指导过时或缺失时，非英语地区的支持工单会激增。"
   },
@@ -5992,6 +6118,9 @@
   },
   "w1elWLFsW9": {
     "defaultMessage": "发布准备"
+  },
+  "w2b0cdIV3S": {
+    "defaultMessage": "Ask about strings, context, or anything else"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Loading plan"
@@ -6245,6 +6374,9 @@
   "yRRevnNvnn": {
     "defaultMessage": "源消息语法"
   },
+  "yV9kjoqQN1": {
+    "defaultMessage": "Secret ending in {suffix}"
+  },
   "yX53I7eVol": {
     "defaultMessage": "工作��设置 · 已完成 {completedCount}/{totalCount}"
   },
@@ -6266,8 +6398,14 @@
   "ykK86HWH4K": {
     "defaultMessage": "已连接"
   },
+  "ykXAFysnC5": {
+    "defaultMessage": "Remove MCP Server tool"
+  },
   "ykrA6Q/ZFk": {
     "defaultMessage": "无需在你的 TMS 和帮助中心之间手动复制粘贴，即可发布本地化文章。"
+  },
+  "yl7Dzt+xE3": {
+    "defaultMessage": "Enable workspace knowledge for this organization before using memories in automations."
   },
   "yn7Eufu4t+": {
     "defaultMessage": "评论"
@@ -6370,6 +6508,9 @@
   },
   "zjfCQW7GjW": {
     "defaultMessage": "替换令牌"
+  },
+  "zjsy1cdZoN": {
+    "defaultMessage": "Headers must be a JSON object of string values."
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"
