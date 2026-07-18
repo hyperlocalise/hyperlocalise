@@ -111,8 +111,10 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
 
   useEffect(() => {
     streamManager.setOnStreamFinished(async (conversationId) => {
-      await queryClient.refetchQueries({ queryKey: messagesQueryKey(conversationId) });
-      await queryClient.refetchQueries({
+      // invalidateQueries marks cache stale even when observers are unmounted; refetchQueries
+      // (type: 'active') would silently skip and leave pre-stream messages until staleTime.
+      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+      await queryClient.invalidateQueries({
         queryKey: conversationsQueryKey(session.organizationSlug, session.projectId),
       });
       store.clearStreamSnapshot(conversationId);

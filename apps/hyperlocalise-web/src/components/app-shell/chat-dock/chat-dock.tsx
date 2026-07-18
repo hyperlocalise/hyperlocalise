@@ -69,8 +69,10 @@ export const ChatDockBridge = observer(function ChatDockBridge({
     chatDock.setOrganizationSlug(organizationSlug);
     const streamManager = getChatStreamManager(organizationSlug, chatDock);
     streamManager.setOnStreamFinished(async (conversationId) => {
-      await queryClient.refetchQueries({ queryKey: messagesQueryKey(conversationId) });
-      await queryClient.refetchQueries({ queryKey: conversationsQueryKey(organizationSlug) });
+      // invalidateQueries marks cache stale even when observers are unmounted; refetchQueries
+      // (type: 'active') would silently skip and leave pre-stream messages until staleTime.
+      await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+      await queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
       chatDock.clearStreamSnapshot(conversationId);
     });
 

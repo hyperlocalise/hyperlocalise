@@ -33,8 +33,11 @@ export class ChatStreamManager {
   private readonly store: ChatDockStore;
   private readonly requestHeaders: Record<string, string> | undefined;
   private readonly activeStreams = new Map<string, ActiveStream>();
-  /** User message ids that already received a successful assistant response. */
-  private readonly respondedToUserMessageIds = new Map<string, string>();
+  /**
+   * User message ids that already triggered an assistant stream attempt.
+   * Survives remounts so success and error both block unbounded auto-retry.
+   */
+  private readonly attemptedUserMessageIds = new Map<string, string>();
   private onStreamFinished: ((conversationId: string) => void | Promise<void>) | null = null;
 
   constructor(
@@ -63,12 +66,12 @@ export class ChatStreamManager {
     return this.store.getStreamSnapshot(conversationId);
   }
 
-  hasRespondedToUserMessage(conversationId: string, userMessageId: string) {
-    return this.respondedToUserMessageIds.get(conversationId) === userMessageId;
+  hasAttemptedUserMessage(conversationId: string, userMessageId: string) {
+    return this.attemptedUserMessageIds.get(conversationId) === userMessageId;
   }
 
-  markRespondedToUserMessage(conversationId: string, userMessageId: string) {
-    this.respondedToUserMessageIds.set(conversationId, userMessageId);
+  markAttemptedUserMessage(conversationId: string, userMessageId: string) {
+    this.attemptedUserMessageIds.set(conversationId, userMessageId);
   }
 
   shouldAutoTriggerResponse(conversationId: string, userMessageId: string) {
@@ -76,7 +79,7 @@ export class ChatStreamManager {
       return false;
     }
 
-    if (this.hasRespondedToUserMessage(conversationId, userMessageId)) {
+    if (this.hasAttemptedUserMessage(conversationId, userMessageId)) {
       return false;
     }
 
@@ -118,6 +121,8 @@ export class ChatStreamManager {
     const controller = new AbortController();
     const messageId = `stream-${responseToMessageId}`;
     this.activeStreams.set(conversationId, { conversationId, controller });
+    // Mark before the network call so remounts cannot auto-retry after errors/aborts.
+    this.markAttemptedUserMessage(conversationId, responseToMessageId);
 
     const initialSnapshot: ChatDockStreamSnapshot = {
       conversationId,
@@ -167,7 +172,6 @@ export class ChatStreamManager {
       }
 
       finishedSuccessfully = true;
-      this.markRespondedToUserMessage(conversationId, responseToMessageId);
       this.store.setStreamSnapshot(conversationId, {
         conversationId,
         responseToMessageId,
