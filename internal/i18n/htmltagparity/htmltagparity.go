@@ -117,12 +117,16 @@ func extractTagName(tag string) string {
 		i++
 	}
 
-	start := i
-	// Handle closing tag prefix
+	isClosing := false
 	if i < len(tag) && tag[i] == '/' {
+		isClosing = true
 		i++
+		for i < len(tag) && isHTMLWhitespace(tag[i]) {
+			i++
+		}
 	}
 
+	start := i
 	// Scan name characters
 	for i < len(tag) {
 		ch := tag[i]
@@ -136,7 +140,11 @@ func extractTagName(tag string) string {
 		return ""
 	}
 
-	return strings.ToLower(tag[start:i])
+	name := strings.ToLower(tag[start:i])
+	if isClosing {
+		return "/" + name
+	}
+	return name
 }
 
 func normalizedMarkupTagNames(tags []string) []string {

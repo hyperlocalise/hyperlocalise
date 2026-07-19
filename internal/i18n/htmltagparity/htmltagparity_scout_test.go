@@ -124,14 +124,14 @@ func TestExtractTagName_Direct(t *testing.T) {
 			want: "div",
 		},
 		{
-			name: "closing tag with space inside parses as slash only",
+			name: "closing tag with space inside parses correctly",
 			tag:  "</ strong >",
-			want: "/",
+			want: "/strong",
 		},
 		{
-			name: "closing tag with space before slash parses as slash only",
+			name: "closing tag with space before slash parses correctly",
 			tag:  "< / div>",
-			want: "/",
+			want: "/div",
 		},
 		{
 			name: "self-closing tag",
@@ -154,9 +154,9 @@ func TestExtractTagName_Direct(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "just closing brace parses as slash only",
+			name: "just closing brace parses as empty",
 			tag:  "</>",
-			want: "/",
+			want: "",
 		},
 	}
 

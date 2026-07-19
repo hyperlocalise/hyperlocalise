@@ -149,5 +149,5 @@
 **Action:** Use a comprehensive regex that supports the full range of standard printf specifiers, flags, width, precision, and length modifiers to ensure structural parity is strictly enforced for all placeholder types.
 
 ## 2026-07-18 - [HTML Tag Name Extraction and Space Leniency]
-**Learning:** The HTML tag name extraction helper (`extractTagName`) does not skip whitespace following a closing slash (e.g., `</ strong >` or `< / div>`). Instead, the scanning loop terminates at the space and returns `/`. Since `isLikelyMarkupTag` ignores `/`, such spaced structures are not recognized as markup.
-**Action:** When unit testing tag parsing helper functions, match the precise behavior of the underlying parsing state-machine regarding spaces around structural markers like slashes.
+**Learning:** Real-world localization and translation files often introduce flexible spacing around HTML structural delimiters (e.g., `</ strong >` or `< / div>`). Traditional strict scanners treat the slash followed by space as an incomplete token or fail to extract the proper tag name. By tracking closing-tag state independently of name scanning and skipping whitespace after the closing slash, we can accurately extract tag names and maintain full structural tag parity checks across space-varying targets.
+**Action:** When parsing tag structures, always allow flexible whitespace around slashes and tags. Update existing tests to assert fully normalized closing tag names (e.g. `"/strong"`, `"/div"`) instead of falling back to partial tokens.
