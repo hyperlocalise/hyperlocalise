@@ -1563,7 +1563,6 @@ describe("handleSubscribedMessage", () => {
       projectId: "project-123",
     });
     expect(posts).toEqual([
-      SLACK_PROCESSING_ACK_POST,
       {
         markdown: "Here is the updated mock.",
         files: [
@@ -1615,7 +1614,6 @@ describe("handleSubscribedMessage", () => {
     await handleSubscribedMessage(thread, message);
 
     expect(posts).toEqual([
-      SLACK_PROCESSING_ACK_POST,
       { markdown: "I captured the mock, but could not attach the image." },
     ]);
   });
@@ -1657,7 +1655,7 @@ describe("handleSubscribedMessage", () => {
 
     await handleSubscribedMessage(thread, message);
 
-    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST]);
+    expect(posts).toEqual([]);
   });
 
   it("treats prior thread file uploads as attachments on follow-up messages", async () => {
