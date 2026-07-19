@@ -310,6 +310,28 @@ function createThread(initialState?: Record<string, unknown>) {
   };
 }
 
+function createSuccessfulCaptureScreenshotToolResult(input: {
+  fileId: string;
+  filename?: string;
+}) {
+  return {
+    toolName: "captureScreenshot",
+    output: {
+      success: true,
+      fileId: input.fileId,
+      url: `https://app.example/files/${input.fileId}`,
+      filename: input.filename ?? `${input.fileId}.png`,
+      contentType: "image/png",
+      byteSize: 12,
+      workspacePath: "/tmp",
+      screenshotPath: `/tmp/${input.fileId}.png`,
+      target: { type: "storybook", storyId: "button--primary" },
+      viewport: { width: 1280, height: 720 },
+      storybookUrl: "http://localhost:6006",
+    },
+  };
+}
+
 describe("extractTeamId", () => {
   it("returns team_id from message raw", () => {
     const message = createMessage({ raw: { team_id: "T456" } });
@@ -1493,6 +1515,149 @@ describe("handleSubscribedMessage", () => {
       senderType: "agent",
       text: "AI response",
     });
+  });
+
+  it("attaches successful captureScreenshot artifacts on subscribed message replies", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the updated mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: { id: "file_subscribed_shot" },
+      content: Buffer.from("subscribed-shot"),
+    } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "Here is the updated mock.",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_subscribed_shot",
+              filename: "updated-mock.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_subscribed_shot",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        markdown: "Here is the updated mock.",
+        files: [
+          {
+            data: Buffer.from("subscribed-shot"),
+            filename: "updated-mock.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("falls back to a text-only Slack reply when screenshot uploads fail", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockRejectedValueOnce(new Error("missing screenshot"));
+
+    agentGenerateMock.mockResolvedValue({
+      text: "I captured the mock, but could not attach the image.",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_missing_shot",
+              filename: "missing-mock.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      { markdown: "I captured the mock, but could not attach the image." },
+    ]);
+  });
+
+  it("does not send an empty final Slack reply when text and screenshot uploads are both absent", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockRejectedValueOnce(new Error("missing screenshot"));
+
+    agentGenerateMock.mockResolvedValue({
+      text: "   ",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_missing_empty",
+              filename: "missing-empty.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST]);
   });
 
   it("treats prior thread file uploads as attachments on follow-up messages", async () => {
