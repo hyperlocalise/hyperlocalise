@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -9,6 +10,8 @@ const apiMocks = vi.hoisted(() => ({
   listRevisions: vi.fn(),
   getRevision: vi.fn(),
   restoreRevision: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("@/lib/api-client-instance", () => ({
@@ -28,6 +31,13 @@ vi.mock("@/lib/api-client-instance", () => ({
         },
       },
     },
+  },
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: apiMocks.toastError,
+    success: apiMocks.toastSuccess,
   },
 }));
 
@@ -98,11 +108,70 @@ function jsonResponse(value: unknown, headers?: HeadersInit) {
   });
 }
 
+function mockRevisionHistoryRequests() {
+  apiMocks.listRevisions.mockResolvedValue(
+    jsonResponse({
+      knowledgeMemoryRevisions: [secondRevision, firstRevision].map(
+        ({ content: _content, ...revision }) => revision,
+      ),
+      nextCursor: null,
+    }),
+  );
+  apiMocks.getRevision.mockImplementation(({ param }: { param: { revisionId: string } }) =>
+    Promise.resolve(
+      jsonResponse(
+        param.revisionId === firstRevision.revisionId
+          ? {
+              knowledgeMemoryRevision: firstRevision,
+              previousKnowledgeMemoryRevision: null,
+            }
+          : {
+              knowledgeMemoryRevision: secondRevision,
+              previousKnowledgeMemoryRevision: firstRevision,
+            },
+      ),
+    ),
+  );
+}
+
+function renderHistoryDialog(
+  overrides: Partial<ComponentProps<typeof KnowledgeMemoryHistoryDialog>> = {},
+) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      <QueryClientProvider client={queryClient}>
+        <KnowledgeMemoryHistoryDialog
+          organizationSlug="test-org"
+          open
+          onOpenChange={vi.fn()}
+          canUpdateKnowledgeMemory
+          hasUnsavedChanges={false}
+          currentEtag='"revision-2"'
+          currentRevisionId={secondRevision.revisionId}
+          conflict={null}
+          isCommittingConflict={false}
+          onCommitConflict={vi.fn()}
+          onReloadLatest={vi.fn()}
+          onPreconditionFailed={vi.fn()}
+          onRestored={vi.fn()}
+          {...overrides}
+        />
+      </QueryClientProvider>
+    </IntlProvider>,
+  );
+}
+
 describe("KnowledgeMemory history UI", () => {
   beforeEach(() => {
     apiMocks.listRevisions.mockReset();
     apiMocks.getRevision.mockReset();
     apiMocks.restoreRevision.mockReset();
+    apiMocks.toastError.mockReset();
+    apiMocks.toastSuccess.mockReset();
   });
 
   it("builds a Markdown diff without changing either revision", () => {
@@ -142,29 +211,7 @@ describe("KnowledgeMemory history UI", () => {
   });
 
   it("selects a revision, renders its diff, and restores it with the current ETag", async () => {
-    apiMocks.listRevisions.mockResolvedValue(
-      jsonResponse({
-        knowledgeMemoryRevisions: [secondRevision, firstRevision].map(
-          ({ content: _content, ...revision }) => revision,
-        ),
-        nextCursor: null,
-      }),
-    );
-    apiMocks.getRevision.mockImplementation(({ param }: { param: { revisionId: string } }) =>
-      Promise.resolve(
-        jsonResponse(
-          param.revisionId === firstRevision.revisionId
-            ? {
-                knowledgeMemoryRevision: firstRevision,
-                previousKnowledgeMemoryRevision: null,
-              }
-            : {
-                knowledgeMemoryRevision: secondRevision,
-                previousKnowledgeMemoryRevision: firstRevision,
-              },
-        ),
-      ),
-    );
+    mockRevisionHistoryRequests();
 
     const restoredMemory = {
       revisionId: "8d943c2c-c58d-4426-900f-8877d01545f0",
@@ -179,31 +226,7 @@ describe("KnowledgeMemory history UI", () => {
     );
 
     const onRestored = vi.fn();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-
-    render(
-      <IntlProvider locale="en" messages={{}}>
-        <QueryClientProvider client={queryClient}>
-          <KnowledgeMemoryHistoryDialog
-            organizationSlug="test-org"
-            open
-            onOpenChange={vi.fn()}
-            canUpdateKnowledgeMemory
-            hasUnsavedChanges={false}
-            currentEtag='"revision-2"'
-            currentRevisionId={secondRevision.revisionId}
-            conflict={null}
-            isCommittingConflict={false}
-            onCommitConflict={vi.fn()}
-            onReloadLatest={vi.fn()}
-            onPreconditionFailed={vi.fn()}
-            onRestored={onRestored}
-          />
-        </QueryClientProvider>
-      </IntlProvider>,
-    );
+    renderHistoryDialog({ onRestored });
 
     fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
     await waitFor(() => {
@@ -226,5 +249,31 @@ describe("KnowledgeMemory history UI", () => {
       );
       expect(onRestored).toHaveBeenCalledWith(restoredMemory, '"revision-3"');
     });
+  });
+
+  it("reports a malformed stale restore response without reading it twice", async () => {
+    mockRevisionHistoryRequests();
+    apiMocks.restoreRevision.mockResolvedValue(
+      new Response(JSON.stringify({ error: "stale" }), {
+        status: 412,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const onPreconditionFailed = vi.fn();
+    const onRestored = vi.fn();
+    renderHistoryDialog({ onPreconditionFailed, onRestored });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore version" }));
+
+    await waitFor(() => {
+      expect(apiMocks.toastError).toHaveBeenCalledWith(
+        "Knowledge Memory changed after it was loaded",
+      );
+    });
+    expect(onPreconditionFailed).not.toHaveBeenCalled();
+    expect(onRestored).not.toHaveBeenCalled();
   });
 });

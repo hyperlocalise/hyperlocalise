@@ -248,6 +248,7 @@ export function KnowledgeMemoryHistoryDialog({
             etag: response.headers.get("etag") ?? '"0"',
           };
         }
+        throw new Error("Knowledge Memory changed after it was loaded");
       }
 
       if (!response.ok) {
