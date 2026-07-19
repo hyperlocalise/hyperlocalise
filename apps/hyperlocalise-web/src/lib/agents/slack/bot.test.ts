@@ -310,10 +310,7 @@ function createThread(initialState?: Record<string, unknown>) {
   };
 }
 
-function createSuccessfulCaptureScreenshotToolResult(input: {
-  fileId: string;
-  filename?: string;
-}) {
+function createSuccessfulCaptureScreenshotToolResult(input: { fileId: string; filename?: string }) {
   return {
     toolName: "captureScreenshot",
     output: {
@@ -1613,9 +1610,7 @@ describe("handleSubscribedMessage", () => {
 
     await handleSubscribedMessage(thread, message);
 
-    expect(posts).toEqual([
-      { markdown: "I captured the mock, but could not attach the image." },
-    ]);
+    expect(posts).toEqual([{ markdown: "I captured the mock, but could not attach the image." }]);
   });
 
   it("does not send an empty final Slack reply when text and screenshot uploads are both absent", async () => {

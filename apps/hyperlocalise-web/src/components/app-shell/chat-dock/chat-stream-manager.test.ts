@@ -238,16 +238,26 @@ describe("ChatStreamManager", () => {
       signal: input.abortSignal,
     }));
     readUIMessageStreamMock.mockImplementationOnce(
-      ({ stream }: { stream: { signal: AbortSignal } }) =>
-        (async function* () {
-          streamStarted();
-          await new Promise<void>((resolve) => {
-            stream.signal.addEventListener("abort", () => resolve(), { once: true });
-          });
-          const abortError = new Error("aborted");
-          abortError.name = "AbortError";
-          throw abortError;
-        })(),
+      ({ stream }: { stream: { signal: AbortSignal } }) => {
+        let didStart = false;
+        return {
+          [Symbol.asyncIterator]() {
+            return this;
+          },
+          async next(): Promise<IteratorResult<UIMessage>> {
+            if (!didStart) {
+              didStart = true;
+              streamStarted();
+            }
+            await new Promise<void>((resolve) => {
+              stream.signal.addEventListener("abort", () => resolve(), { once: true });
+            });
+            const abortError = new Error("aborted");
+            abortError.name = "AbortError";
+            throw abortError;
+          },
+        };
+      },
     );
 
     const startPromise = manager.start({
