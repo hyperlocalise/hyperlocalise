@@ -176,6 +176,7 @@ export function KnowledgeMemoryEditor({
       if (result.kind === "stale") {
         setConflict({
           draftContent: input.content,
+          draftSummary: input.summary,
           latestEtag: result.latestEtag,
           latestKnowledgeMemory: result.latestKnowledgeMemory,
         });
@@ -473,7 +474,7 @@ export function KnowledgeMemoryEditor({
           }
           saveKnowledgeMemory.mutate({
             content: conflict.draftContent,
-            summary: summary.trim() || undefined,
+            summary: conflict.draftSummary,
             expectedEtag: conflict.latestEtag,
           });
         }}
@@ -484,9 +485,10 @@ export function KnowledgeMemoryEditor({
           applyLoadedKnowledgeMemory(conflict.latestKnowledgeMemory, conflict.latestEtag);
           setHistoryOpen(false);
         }}
-        onPreconditionFailed={(knowledgeMemory, etag) => {
+        onPreconditionFailed={(revision, knowledgeMemory, etag) => {
           setConflict({
-            draftContent: content,
+            draftContent: revision.content,
+            draftSummary: `Restored version ${revision.version}`,
             latestEtag: etag,
             latestKnowledgeMemory: knowledgeMemory,
           });

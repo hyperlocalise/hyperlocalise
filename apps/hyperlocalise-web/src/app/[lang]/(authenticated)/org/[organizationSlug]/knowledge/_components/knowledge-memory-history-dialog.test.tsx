@@ -276,4 +276,46 @@ describe("KnowledgeMemory history UI", () => {
     expect(onPreconditionFailed).not.toHaveBeenCalled();
     expect(onRestored).not.toHaveBeenCalled();
   });
+
+  it("preserves the selected revision when a restore conflicts", async () => {
+    mockRevisionHistoryRequests();
+    const latestKnowledgeMemory = {
+      revisionId: "8d943c2c-c58d-4426-900f-8877d01545f0",
+      version: 3,
+      content: "Concurrent guidance",
+      summary: "Concurrent update",
+      updatedAt: "2026-07-17T02:00:00.000Z",
+      updatedByUserId: null,
+    };
+    apiMocks.restoreRevision.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "knowledge_memory_precondition_failed",
+          details: { knowledgeMemory: latestKnowledgeMemory },
+        }),
+        {
+          status: 412,
+          headers: {
+            "Content-Type": "application/json",
+            ETag: '"revision-3"',
+          },
+        },
+      ),
+    );
+
+    const onPreconditionFailed = vi.fn();
+    renderHistoryDialog({ onPreconditionFailed });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore version" }));
+
+    await waitFor(() => {
+      expect(onPreconditionFailed).toHaveBeenCalledWith(
+        firstRevision,
+        latestKnowledgeMemory,
+        '"revision-3"',
+      );
+    });
+  });
 });

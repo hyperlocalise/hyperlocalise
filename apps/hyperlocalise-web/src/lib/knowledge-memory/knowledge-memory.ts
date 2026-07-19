@@ -74,6 +74,7 @@ export async function commitKnowledgeMemoryForOrganization(input: {
   summary?: string;
   updatedByUserId: string;
   expectedRevisionId: string | null;
+  forceNewRevision?: boolean;
 }): Promise<Result<KnowledgeMemoryCommitResult, KnowledgeMemoryCommitError>> {
   const content = normalizeKnowledgeMemoryContent(input.content);
 
@@ -124,7 +125,7 @@ export async function commitKnowledgeMemoryForOrganization(input: {
       return err({ code: "precondition_failed", current: toKnowledgeMemoryRecord(current) });
     }
 
-    if (current.content === content) {
+    if (current.content === content && input.forceNewRevision !== true) {
       return ok({ knowledgeMemory: toKnowledgeMemoryRecord(current), changed: false });
     }
 

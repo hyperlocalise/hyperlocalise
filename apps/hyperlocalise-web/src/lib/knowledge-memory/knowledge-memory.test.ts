@@ -235,6 +235,22 @@ describe("knowledge memory version history", () => {
       summary: "Restored version 1",
     });
 
+    const restoredAgain = await restoreKnowledgeMemoryRevisionForOrganization({
+      organizationId: scope.organizationId,
+      revisionId: first.value.knowledgeMemory.revisionId!,
+      restoredByUserId: scope.userId,
+      expectedRevisionId: restored.value.knowledgeMemory.revisionId,
+    });
+    expect(isOk(restoredAgain)).toBe(true);
+    if (!isOk(restoredAgain)) {
+      return;
+    }
+    expect(restoredAgain.value.knowledgeMemory).toMatchObject({
+      version: 4,
+      content: "Version one",
+      summary: "Restored version 1",
+    });
+
     const archived = await db
       .select({ version: schema.knowledgeMemoryRevisions.version })
       .from(schema.knowledgeMemoryRevisions)

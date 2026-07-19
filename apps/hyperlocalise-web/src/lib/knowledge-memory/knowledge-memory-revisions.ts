@@ -67,25 +67,32 @@ export async function listKnowledgeMemoryRevisions(input: {
     .orderBy(desc(schema.knowledgeMemoryRevisions.version))
     .limit(input.limit + 1);
 
+  const currentRevisions = currentRows.map((row) => ({
+    revisionId: row.revisionId,
+    version: row.version,
+    summary: row.summary,
+    createdAt: row.createdAt.toISOString(),
+    createdByUserId: row.createdByUserId,
+    createdByName: createdByName(row),
+    isCurrent: true,
+  }));
+  const archivedRevisions = archivedRows.map((row) => ({
+    revisionId: row.revisionId,
+    version: row.version,
+    summary: row.summary,
+    createdAt: row.createdAt.toISOString(),
+    createdByUserId: row.createdByUserId,
+    createdByName: createdByName(row),
+    isCurrent: false,
+  }));
+
+  // A revision can move to the archive between these reads; current metadata wins.
   const revisions = [
-    ...currentRows.map((row) => ({
-      revisionId: row.revisionId,
-      version: row.version,
-      summary: row.summary,
-      createdAt: row.createdAt.toISOString(),
-      createdByUserId: row.createdByUserId,
-      createdByName: createdByName(row),
-      isCurrent: true,
-    })),
-    ...archivedRows.map((row) => ({
-      revisionId: row.revisionId,
-      version: row.version,
-      summary: row.summary,
-      createdAt: row.createdAt.toISOString(),
-      createdByUserId: row.createdByUserId,
-      createdByName: createdByName(row),
-      isCurrent: false,
-    })),
+    ...new Map(
+      [...archivedRevisions, ...currentRevisions].map(
+        (revision) => [revision.revisionId, revision] as const,
+      ),
+    ).values(),
   ].sort((left, right) => right.version - left.version);
 
   const knowledgeMemoryRevisions = revisions.slice(0, input.limit);
@@ -242,5 +249,6 @@ export async function restoreKnowledgeMemoryRevisionForOrganization(input: {
     summary: `Restored version ${revision.version}`,
     updatedByUserId: input.restoredByUserId,
     expectedRevisionId: input.expectedRevisionId,
+    forceNewRevision: true,
   });
 }

@@ -47,6 +47,7 @@ const knowledgeMemoryRevisionQueryKey = (organizationSlug: string) => [
 
 export type KnowledgeMemoryConflict = {
   draftContent: string;
+  draftSummary?: string;
   latestEtag: string;
   latestKnowledgeMemory: KnowledgeMemoryRecord;
 };
@@ -164,7 +165,11 @@ export function KnowledgeMemoryHistoryDialog({
   isCommittingConflict: boolean;
   onCommitConflict: () => void;
   onReloadLatest: () => void;
-  onPreconditionFailed: (knowledgeMemory: KnowledgeMemoryRecord, etag: string) => void;
+  onPreconditionFailed: (
+    revision: KnowledgeMemoryRevision,
+    knowledgeMemory: KnowledgeMemoryRecord,
+    etag: string,
+  ) => void;
   onRestored: (knowledgeMemory: KnowledgeMemoryRecord, etag: string) => void;
 }) {
   const queryClient = useQueryClient();
@@ -264,10 +269,10 @@ export function KnowledgeMemoryHistoryDialog({
         etag: response.headers.get("etag") ?? '"0"',
       };
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, revision) => {
       setRestoreRevision(null);
       if (result.kind === "stale") {
-        onPreconditionFailed(result.knowledgeMemory, result.etag);
+        onPreconditionFailed(revision, result.knowledgeMemory, result.etag);
         return;
       }
 
