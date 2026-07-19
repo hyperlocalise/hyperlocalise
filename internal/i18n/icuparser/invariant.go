@@ -55,7 +55,22 @@ func ParseInvariant(s string) (Invariant, error) {
 	return inv, nil
 }
 
+func isSortedAndUnique(s []string) bool {
+	for i := 1; i < len(s); i++ {
+		if s[i-1] >= s[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func SamePlaceholderSet(a, b []string) bool {
+	// BOLT OPTIMIZATION: If both slices are already sorted and unique (which is true
+	// for inv.Placeholders returned by ParseInvariant), we can compare them directly
+	// without allocations or sorting.
+	if isSortedAndUnique(a) && isSortedAndUnique(b) {
+		return slicesEqual(a, b)
+	}
 	return slicesEqual(uniqueStrings(a), uniqueStrings(b))
 }
 
@@ -279,7 +294,13 @@ func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 		selector string
 		pounds   int
 	}
-	sigs := make([]optionSig, 0, len(opts))
+	// BOLT OPTIMIZATION: Use a stack-allocated backing array for sigs
+	// to avoid heap allocation for the common case (where len(opts) <= 8).
+	var localSigs [8]optionSig
+	sigs := localSigs[:0]
+	if len(opts) > 8 {
+		sigs = make([]optionSig, 0, len(opts))
+	}
 	for _, o := range opts {
 		sigs = append(sigs, optionSig{selector: o.Selector, pounds: countPounds(o.Value)})
 	}
@@ -339,6 +360,11 @@ func hasNonZeroPounds(values []int) bool {
 func uniqueStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
+	}
+	// BOLT OPTIMIZATION: If the slice is already sorted and unique, we can return it
+	// directly without copying, allocating, or sorting.
+	if isSortedAndUnique(values) {
+		return values
 	}
 	sorted := append([]string(nil), values...)
 	slices.Sort(sorted)

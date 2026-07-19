@@ -84,6 +84,28 @@ func TestSameICUBlocks(t *testing.T) {
 	}
 }
 
+func BenchmarkSamePlaceholderSet_Production(b *testing.B) {
+	// Simulate the production path where slices are returned by ParseInvariant and are already sorted and unique.
+	s1 := []string{"count", "session[5].time", "user.id"}
+	s2 := []string{"count", "session[5].time", "user.id"}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = SamePlaceholderSet(s1, s2)
+	}
+}
+
+func BenchmarkSamePlaceholderSet_Fallback(b *testing.B) {
+	// Simulate the arbitrary path with unsorted/duplicate slices.
+	s1 := []string{"user.id", "count", "session[5].time", "count"}
+	s2 := []string{"count", "session[5].time", "user.id"}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = SamePlaceholderSet(s1, s2)
+	}
+}
+
 func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 	tests := []struct {
 		name string
