@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { observer } from "mobx-react-lite";
@@ -111,6 +111,8 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
 
   useEffect(() => {
     streamManager.setOnStreamFinished(async (conversationId) => {
+      // invalidateQueries marks cache stale even when observers are unmounted; refetchQueries
+      // (type: 'active') would silently skip and leave pre-stream messages until staleTime.
       await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
       await queryClient.invalidateQueries({
         queryKey: conversationsQueryKey(session.organizationSlug, session.projectId),
@@ -173,19 +175,16 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
   const lastMessage = messages.at(-1);
   const isSparseInbox = !conversationsQuery.isLoading && conversations.length <= 1;
 
-  const autoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
     if (
       !effectiveConversationId ||
       !messagesQuery.isSuccess ||
       lastMessage?.senderType !== "user" ||
-      streamManager.isStreaming(effectiveConversationId) ||
-      autoTriggeredRef.current === lastMessage.id
+      !streamManager.shouldAutoTriggerResponse(effectiveConversationId, lastMessage.id)
     ) {
       return;
     }
 
-    autoTriggeredRef.current = lastMessage.id;
     void streamManager.start({
       conversationId: effectiveConversationId,
       responseToMessageId: lastMessage.id,
@@ -208,7 +207,9 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
     <div className="flex h-svh min-h-0 flex-col">
       <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">Hyperlocalise</p>
+          <p className="truncate text-sm font-medium">
+            <FormattedMessage {...crowdinAppInboxMessages.brandName} />
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             <FormattedMessage
               {...crowdinAppInboxMessages.projectLabel}

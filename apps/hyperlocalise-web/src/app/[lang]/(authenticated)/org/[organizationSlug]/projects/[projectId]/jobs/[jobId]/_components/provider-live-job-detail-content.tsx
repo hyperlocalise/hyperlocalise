@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import {
@@ -24,6 +25,7 @@ import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing"
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
 import { useProviderJobLocaleReadiness } from "../../../../../_hooks/use-provider-job-locale-readiness";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
+import { providerLiveJobDetailContentMessages as messages } from "./provider-live-job-detail-content.messages";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 import { buildJobsListHref } from "./job-detail-types";
 
@@ -39,6 +41,7 @@ export function ProviderLiveJobDetailContent({
   canEditProviderJobDescription: boolean;
 }) {
   const router = useRouter();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
@@ -57,7 +60,9 @@ export function ProviderLiveJobDetailContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load provider job (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToLoadProviderJob, { status: response.status }),
+        );
       }
 
       const body = (await response.json()) as { job: TmsProviderLiveJobDetail };
@@ -73,17 +78,23 @@ export function ProviderLiveJobDetailContent({
         param: { organizationSlug, encodedJobId: jobId },
       });
       if (response.status !== 204 && !response.ok) {
-        throw new Error(`Failed to delete job (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToDeleteJob, { status: response.status }),
+        );
       }
     },
     onSuccess: async () => {
       setDeleteDialogOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Crowdin task deleted");
+      toast.success(intl.formatMessage(messages.crowdinTaskDeleted));
       router.push(buildJobsListHref(organizationSlug, projectId));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to delete job");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(messages.failedToDeleteJobFallback),
+      );
     },
   });
 
@@ -157,20 +168,27 @@ export function ProviderLiveJobDetailContent({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Crowdin task?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.deleteCrowdinTaskTitle} />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the task in Crowdin. This cannot be undone from
-              Hyperlocalise.
+              <FormattedMessage {...messages.deleteCrowdinTaskDescription} />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteJob.isPending}>Keep task</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteJob.isPending}>
+              <FormattedMessage {...messages.keepTask} />
+            </AlertDialogCancel>
             <Button
               variant="destructive"
               disabled={deleteJob.isPending}
               onClick={() => deleteJob.mutate()}
             >
-              {deleteJob.isPending ? "Deleting..." : "Delete task"}
+              {deleteJob.isPending ? (
+                <FormattedMessage {...messages.deleting} />
+              ) : (
+                <FormattedMessage {...messages.deleteTask} />
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -45,6 +45,7 @@ import { createApiClient } from "@/lib/api-client";
 import type { GithubRepositoryAutomationSettings } from "@/lib/agents/github/github-repository-automation-settings";
 import { cn } from "@/lib/primitives/cn";
 
+const MULTIPLICATION_SIGN = "×";
 const api = createApiClient();
 
 type ProjectOption = {
@@ -694,7 +695,7 @@ export function RepositoryAutomationSettingsPanel({
                           })
                         }
                       >
-                        ×
+                        {MULTIPLICATION_SIGN}
                       </button>
                     </Badge>
                   ))}

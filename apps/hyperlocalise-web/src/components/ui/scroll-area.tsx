@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { useIntl } from "react-intl";
 
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 
 import { cn } from "@/lib/primitives/cn";
 
 import { useTouchPrimary } from "@/components/ui/use-has-primary-touch";
+import { scrollAreaMessages } from "@/components/ui/scroll-area.messages";
 
 type Mask = {
   top: boolean;
@@ -60,6 +62,7 @@ const ScrollArea = React.forwardRef<
 
     const viewportRef = React.useRef<HTMLDivElement>(null);
     const isTouch = useTouchPrimary();
+    const intl = useIntl();
     const touchRootProps = props as React.HTMLAttributes<HTMLDivElement>;
     const touchRootRef = ref as React.Ref<HTMLDivElement>;
 
@@ -110,7 +113,7 @@ const ScrollArea = React.forwardRef<
             {...touchRootProps}
             role="group"
             data-slot="scroll-area"
-            aria-roledescription="scroll area"
+            aria-roledescription={intl.formatMessage(scrollAreaMessages.roleDescription)}
             className={cn("relative overflow-hidden", className)}
           >
             <div

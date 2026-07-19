@@ -1,7 +1,12 @@
+"use client";
+
 import Image from "next/image";
+import { FormattedMessage } from "react-intl";
 
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { TypographyP } from "@/components/ui/typography";
+
+import { logoStripSectionMessages } from "./logo-strip-section.messages";
 
 type Provider = {
   id: string;
@@ -82,10 +87,10 @@ export function LogoStripSection() {
           id="supported-llm-providers"
           className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
         >
-          Supported LLM providers
+          <FormattedMessage {...logoStripSectionMessages.title} />
         </TypographyP>
         <TypographyP className="hidden text-xs text-muted-foreground sm:block">
-          Bring your own model stack
+          <FormattedMessage {...logoStripSectionMessages.subtitle} />
         </TypographyP>
       </div>
 

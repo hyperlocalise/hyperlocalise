@@ -163,8 +163,54 @@ describe("ChatStreamManager", () => {
     expect(store.getStreamSnapshot("conv_orphan_error")).toBeNull();
     expect(manager.isStreaming("conv_orphan_error")).toBe(false);
     expect(store.hasTabs).toBe(false);
+    // Failed attempts still count so remounts do not auto-retry the same user message.
+    expect(manager.shouldAutoTriggerResponse("conv_orphan_error", "msg_1")).toBe(false);
 
     consoleError.mockRestore();
+  });
+
+  it("blocks auto-trigger after a successful response even when the snapshot is cleared", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    manager.markAttemptedUserMessage("conv_1", "msg_1");
+    store.clearStreamSnapshot("conv_1");
+
+    expect(manager.shouldAutoTriggerResponse("conv_1", "msg_1")).toBe(false);
+  });
+
+  it("blocks auto-trigger after a failed response even when the snapshot is cleared", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    manager.markAttemptedUserMessage("conv_retry", "msg_retry");
+    store.setStreamSnapshot("conv_retry", {
+      conversationId: "conv_retry",
+      responseToMessageId: "msg_retry",
+      message: { id: "stream-msg_retry", role: "assistant", parts: [] },
+      status: "error",
+    });
+
+    expect(manager.shouldAutoTriggerResponse("conv_retry", "msg_retry")).toBe(false);
+    store.clearStreamSnapshot("conv_retry");
+    expect(manager.shouldAutoTriggerResponse("conv_retry", "msg_retry")).toBe(false);
+  });
+
+  it("blocks auto-trigger while a snapshot is still tied to the user message", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    store.setStreamSnapshot("conv_1", {
+      conversationId: "conv_1",
+      responseToMessageId: "msg_1",
+      message: { id: "stream-msg_1", role: "assistant", parts: [] },
+      status: "complete",
+    });
+
+    expect(manager.shouldAutoTriggerResponse("conv_1", "msg_1")).toBe(false);
   });
 
   it("replaces a cached manager when a different store is passed", () => {

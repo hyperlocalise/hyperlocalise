@@ -1,14 +1,25 @@
+"use client";
+
 import * as React from "react";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowRight01Icon, MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons";
+import { breadcrumbMessages } from "@/components/ui/breadcrumb.messages";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+  const intl = useIntl();
+
   return (
-    <nav aria-label="breadcrumb" data-slot="breadcrumb" className={cn(className)} {...props} />
+    <nav
+      aria-label={intl.formatMessage(breadcrumbMessages.navLabel)}
+      data-slot="breadcrumb"
+      className={cn(className)}
+      {...props}
+    />
   );
 }
 
@@ -90,7 +101,9 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span"
       {...props}
     >
       <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} />
-      <span className="sr-only">More</span>
+      <span className="sr-only">
+        <FormattedMessage {...breadcrumbMessages.more} />
+      </span>
     </span>
   );
 }

@@ -156,6 +156,62 @@ describe("nativeAuthRoutes", () => {
     );
   });
 
+  it("rejects disallowed redirect URIs on token exchange before calling WorkOS", async () => {
+    const response = await client.api.auth.native.token.$post({
+      json: {
+        code: "auth_code",
+        codeVerifier: VALID_VERIFIER,
+        redirectUri: "https://evil.example/callback",
+      },
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "redirect_uri_not_allowed" });
+    expect(getWorkosAuthKitConfigMock).not.toHaveBeenCalled();
+    expect(getWorkosServerClientMock).not.toHaveBeenCalled();
+    expect(authenticateWithCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 when WorkOS does not seal a native session", async () => {
+    getWorkosAuthKitConfigMock.mockReturnValue({
+      clientId: "client_test",
+      apiKey: "sk_test",
+      redirectUri: "http://localhost:3000/auth/callback",
+      cookiePassword: "test-workos-cookie-password-at-least-32-chars",
+    });
+    authenticateWithCodeMock.mockResolvedValue({
+      sealedSession: null,
+      user: {
+        id: "user_123",
+        email: "dev@example.com",
+      },
+    });
+    getWorkosServerClientMock.mockReturnValue({
+      userManagement: { authenticateWithCode: authenticateWithCodeMock },
+    });
+
+    const response = await client.api.auth.native.token.$post({
+      json: {
+        code: "auth_code",
+        codeVerifier: VALID_VERIFIER,
+        redirectUri: "hyperlocalise://auth/callback",
+      },
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "session_seal_failed" });
+    expect(authenticateWithCodeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "auth_code",
+        codeVerifier: VALID_VERIFIER,
+        session: {
+          sealSession: true,
+          cookiePassword: "test-workos-cookie-password-at-least-32-chars",
+        },
+      }),
+    );
+  });
+
   it("returns 401 when WorkOS token exchange fails", async () => {
     getWorkosAuthKitConfigMock.mockReturnValue({
       clientId: "client_test",

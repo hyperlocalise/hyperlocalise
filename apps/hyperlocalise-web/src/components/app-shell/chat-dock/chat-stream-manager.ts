@@ -33,6 +33,11 @@ export class ChatStreamManager {
   private readonly store: ChatDockStore;
   private readonly requestHeaders: Record<string, string> | undefined;
   private readonly activeStreams = new Map<string, ActiveStream>();
+  /**
+   * User message ids that already triggered an assistant stream attempt.
+   * Survives remounts so success and error both block unbounded auto-retry.
+   */
+  private readonly attemptedUserMessageIds = new Map<string, string>();
   private onStreamFinished: ((conversationId: string) => void | Promise<void>) | null = null;
 
   constructor(
@@ -59,6 +64,27 @@ export class ChatStreamManager {
 
   getSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
     return this.store.getStreamSnapshot(conversationId);
+  }
+
+  hasAttemptedUserMessage(conversationId: string, userMessageId: string) {
+    return this.attemptedUserMessageIds.get(conversationId) === userMessageId;
+  }
+
+  markAttemptedUserMessage(conversationId: string, userMessageId: string) {
+    this.attemptedUserMessageIds.set(conversationId, userMessageId);
+  }
+
+  shouldAutoTriggerResponse(conversationId: string, userMessageId: string) {
+    if (this.isStreaming(conversationId)) {
+      return false;
+    }
+
+    if (this.hasAttemptedUserMessage(conversationId, userMessageId)) {
+      return false;
+    }
+
+    const snapshot = this.getSnapshot(conversationId);
+    return snapshot?.responseToMessageId !== userMessageId;
   }
 
   stop(conversationId: string) {
@@ -95,6 +121,8 @@ export class ChatStreamManager {
     const controller = new AbortController();
     const messageId = `stream-${responseToMessageId}`;
     this.activeStreams.set(conversationId, { conversationId, controller });
+    // Mark before the network call so remounts cannot auto-retry after errors/aborts.
+    this.markAttemptedUserMessage(conversationId, responseToMessageId);
 
     const initialSnapshot: ChatDockStreamSnapshot = {
       conversationId,
@@ -209,4 +237,11 @@ export function disposeChatStreamManager(organizationSlug: string) {
 
   manager.stopAll();
   managers.delete(organizationSlug);
+}
+
+/** Test-only: reset module-level manager cache between cases. */
+export function resetChatStreamManagersForTests() {
+  for (const slug of Array.from(managers.keys())) {
+    disposeChatStreamManager(slug);
+  }
 }

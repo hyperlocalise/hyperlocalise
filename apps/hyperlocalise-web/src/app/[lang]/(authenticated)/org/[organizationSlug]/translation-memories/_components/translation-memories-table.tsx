@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,17 +17,26 @@ import { ProviderKindBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
+import { translationMemoriesTableMessages } from "./translation-memories-table.messages";
 
 function SourceLabel({ memory }: { memory: MemoryListRow }) {
   if (memory.source === "native") {
-    return <span className="text-xs text-muted-foreground">Workspace</span>;
+    return (
+      <span className="text-xs text-muted-foreground">
+        <FormattedMessage {...translationMemoriesTableMessages.sourceWorkspace} />
+      </span>
+    );
   }
 
   if (memory.externalProviderKind) {
     return <ProviderKindBadge kind={memory.externalProviderKind} />;
   }
 
-  return <span className="text-xs text-muted-foreground">External TMS</span>;
+  return (
+    <span className="text-xs text-muted-foreground">
+      <FormattedMessage {...translationMemoriesTableMessages.sourceExternalTms} />
+    </span>
+  );
 }
 
 function CapabilityBadge({ memory }: { memory: MemoryListRow }) {
@@ -51,12 +61,21 @@ function MemoryRow({
   memory: MemoryListRow;
   organizationSlug: string;
 }) {
+  const intl = useIntl();
   const sourceDetail =
     memory.source === "native"
-      ? `Updated ${memory.updatedAt}`
+      ? intl.formatMessage(translationMemoriesTableMessages.updatedAt, {
+          timestamp: memory.updatedAt,
+        })
       : [
-          memory.externalProviderKind ? providerLabel(memory.externalProviderKind) : "Provider",
-          memory.externalProjectId ? `Project ${memory.externalProjectId}` : null,
+          memory.externalProviderKind
+            ? providerLabel(memory.externalProviderKind)
+            : intl.formatMessage(translationMemoriesTableMessages.providerFallback),
+          memory.externalProjectId
+            ? intl.formatMessage(translationMemoriesTableMessages.projectId, {
+                projectId: memory.externalProjectId,
+              })
+            : null,
         ]
           .filter(Boolean)
           .join(" · ");
@@ -89,11 +108,14 @@ function MemoryRow({
               href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
               className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              View linked project
+              <FormattedMessage {...translationMemoriesTableMessages.viewLinkedProject} />
             </Link>
           ) : memory.externalProjectId ? (
             <span className="text-xs text-muted-foreground">
-              External project {memory.externalProjectId}
+              <FormattedMessage
+                {...translationMemoriesTableMessages.externalProject}
+                values={{ projectId: memory.externalProjectId }}
+              />
             </span>
           ) : null}
           {memory.externalUrl ? (
@@ -103,7 +125,7 @@ function MemoryRow({
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              Open in provider
+              <FormattedMessage {...translationMemoriesTableMessages.openInProvider} />
               <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.7} className="size-3.5" />
             </a>
           ) : null}
@@ -111,7 +133,10 @@ function MemoryRow({
       </div>
       <TypographyP className="text-sm text-muted-foreground">{memory.localeSummary}</TypographyP>
       <TypographyP className="text-sm text-muted-foreground">
-        {memory.segmentCountLabel} segments
+        <FormattedMessage
+          {...translationMemoriesTableMessages.segmentCount}
+          values={{ countLabel: memory.segmentCountLabel }}
+        />
       </TypographyP>
       <div className="flex flex-wrap gap-2">
         <CapabilityBadge memory={memory} />
@@ -138,23 +163,28 @@ export function TranslationMemoriesTable({
   emptyDescription: string;
   emptyAction?: ReactNode;
 }) {
+  const intl = useIntl();
+
   return (
-    <section aria-label="Translation memories" className="min-w-0">
+    <section
+      aria-label={intl.formatMessage(translationMemoriesTableMessages.sectionLabel)}
+      className="min-w-0"
+    >
       {memoriesQuery.isLoading ? (
         <TypographyP className="py-8 text-sm text-muted-foreground">
-          Loading translation memories...
+          <FormattedMessage {...translationMemoriesTableMessages.loading} />
         </TypographyP>
       ) : null}
 
       {memoriesQuery.isError ? (
         <div className="py-8">
           <TypographyP className="text-sm font-medium text-flame-100">
-            Translation memories failed to load.
+            <FormattedMessage {...translationMemoriesTableMessages.loadFailed} />
           </TypographyP>
           <TypographyP className="mt-1 text-xs text-muted-foreground">
             {memoriesQuery.error instanceof Error
               ? memoriesQuery.error.message
-              : "Try refreshing the page."}
+              : intl.formatMessage(translationMemoriesTableMessages.loadFailedFallback)}
           </TypographyP>
         </div>
       ) : null}
@@ -185,7 +215,7 @@ export function TranslationMemoriesTable({
 
 export function TranslationMemoriesEmptyAction({
   organizationSlug,
-  label = "Connect a provider",
+  label,
 }: {
   organizationSlug: string;
   label?: string;
@@ -197,7 +227,7 @@ export function TranslationMemoriesEmptyAction({
       variant="outline"
       size="sm"
     >
-      {label}
+      {label ?? <FormattedMessage {...translationMemoriesTableMessages.connectProvider} />}
     </Button>
   );
 }

@@ -9,7 +9,7 @@ import type {
   UIMessage,
 } from "ai";
 import { DownloadIcon, FileTextIcon } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
@@ -18,6 +18,7 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import {
+  getImageToolOutput,
   serializeToolJson,
   Tool,
   ToolContent,
@@ -450,13 +451,26 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
         type: part.type,
         state: part.state,
       };
+  const hasImageOutput = Boolean(getImageToolOutput(part.output));
+  // null = follow hasImageOutput; once the user toggles, keep their choice.
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = userOpen ?? hasImageOutput;
 
   return (
-    <Tool>
+    <Tool open={open} onOpenChange={setUserOpen}>
       <ToolHeader {...headerProps} input={part.input} />
       <ToolContent>
-        <ToolInput input={part.input} />
-        <ToolOutput output={part.output} errorText={part.errorText} />
+        {hasImageOutput ? (
+          <>
+            <ToolOutput output={part.output} errorText={part.errorText} defaultOpen={false} />
+            <ToolInput input={part.input} defaultOpen={false} />
+          </>
+        ) : (
+          <>
+            <ToolInput input={part.input} />
+            <ToolOutput output={part.output} errorText={part.errorText} />
+          </>
+        )}
       </ToolContent>
     </Tool>
   );

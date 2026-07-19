@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useIntl } from "react-intl";
 
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -8,6 +9,7 @@ import type { ProviderSourceFile } from "../job-provider-detail-section";
 import { providerSourceFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { syncedJobSourceFilesSectionMessages as messages } from "./synced-job-source-files-section.messages";
 
 export function SyncedJobSourceFilesSection({
   organizationSlug,
@@ -26,6 +28,7 @@ export function SyncedJobSourceFilesSection({
   highlightLocale?: string | null;
   queueFilter?: CatQueueFilter;
 }) {
+  const intl = useIntl();
   const encodedProjectId = parseProviderProjectId(projectId);
   const externalProjectId = encodedProjectId?.externalProjectId ?? projectId;
 
@@ -44,7 +47,7 @@ export function SyncedJobSourceFilesSection({
       projectId={projectId}
       encodedJobId={encodedJobId}
       files={files}
-      emptyMessage="No source files linked to this job."
+      emptyMessage={intl.formatMessage(messages.noSourceFilesLinked)}
       highlightLocale={highlightLocale ?? null}
       queueFilter={queueFilter}
     />

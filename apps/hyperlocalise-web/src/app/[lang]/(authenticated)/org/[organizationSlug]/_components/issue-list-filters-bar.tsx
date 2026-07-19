@@ -2,6 +2,7 @@
 
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,38 +14,61 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ISSUE_LIST_SORT_DIRECTIONS,
+  ISSUE_LIST_SORT_FIELDS,
+  ISSUE_LIST_VIEWS,
+  ISSUE_PRIORITIES,
+} from "@/lib/projects/issue-sheet/issue-list-constants";
 
 import {
-  formatIssueFilterLabel,
+  getIssueAssigneeFilterMessage,
+  getIssueListSortDirMessage,
+  getIssueListSortMessage,
+  getIssueListViewMessage,
+  getIssueStatusFilterMessage,
+  getIssueTypeFilterMessage,
+  issueListFiltersBarMessages as messages,
+} from "./issue-list-filters-bar.messages";
+import {
   getActiveIssueFilterChips,
   ISSUE_ASSIGNEE_FILTERS,
   ISSUE_STATUS_FILTERS,
   ISSUE_TYPE_FILTERS,
+  type IssueFilterChip,
   type IssueListUrlState,
 } from "./issue-list-url-state";
 import { WorkspaceFilterField, workspaceFilterTriggerClassName } from "./workspace-resource-shared";
-import { ISSUE_PRIORITIES } from "@/lib/projects/issue-sheet/issue-list-constants";
-
-const viewOptions = [
-  { value: "all_open", label: "All open" },
-  { value: "my_work", label: "My work" },
-  { value: "qa_triage", label: "QA triage" },
-  { value: "source_context", label: "Source & context" },
-] as const;
-
-const sortOptions = [
-  { value: "updated_at", label: "Updated" },
-  { value: "created_at", label: "Created" },
-  { value: "priority", label: "Priority" },
-  { value: "status", label: "Status" },
-] as const;
-
-const sortDirOptions = [
-  { value: "asc", label: "Ascending" },
-  { value: "desc", label: "Descending" },
-] as const;
 
 type ProjectOption = { id: string; name: string };
+
+function formatIssueFilterChipLabel(
+  intl: ReturnType<typeof useIntl>,
+  chip: IssueFilterChip,
+): string {
+  switch (chip.key) {
+    case "status":
+      return intl.formatMessage(messages.chipStatus, {
+        value: intl.formatMessage(getIssueStatusFilterMessage(chip.value)),
+      });
+    case "issueType":
+      return intl.formatMessage(messages.chipType, {
+        value: intl.formatMessage(getIssueTypeFilterMessage(chip.value)),
+      });
+    case "priority":
+      return intl.formatMessage(messages.chipPriority, { value: chip.value });
+    case "locale":
+      return intl.formatMessage(messages.chipLocale, { value: chip.value });
+    case "assignee":
+      return intl.formatMessage(messages.chipAssignee, {
+        value: intl.formatMessage(getIssueAssigneeFilterMessage(chip.value)),
+      });
+    case "projectId":
+      return intl.formatMessage(messages.chipProject, { value: chip.projectName });
+    case "search":
+      return intl.formatMessage(messages.chipSearch, { value: chip.value });
+  }
+}
 
 export function IssueListFiltersBar({
   state,
@@ -53,7 +77,7 @@ export function IssueListFiltersBar({
   onStateChange,
   onClearFilters,
   projects,
-  searchPlaceholder = "Search title, description, or source path",
+  searchPlaceholder,
 }: {
   state: IssueListUrlState;
   searchDraft: string;
@@ -63,6 +87,9 @@ export function IssueListFiltersBar({
   projects?: ProjectOption[];
   searchPlaceholder?: string;
 }) {
+  const intl = useIntl();
+  const resolvedSearchPlaceholder =
+    searchPlaceholder ?? intl.formatMessage(messages.searchPlaceholder);
   const projectNameById = Object.fromEntries(
     (projects ?? []).map((project) => [project.id, project.name]),
   );
@@ -72,10 +99,23 @@ export function IssueListFiltersBar({
   });
   const hasActiveFilters = chips.length > 0;
 
+  const viewOptions = ISSUE_LIST_VIEWS.map((value) => ({
+    value,
+    label: intl.formatMessage(getIssueListViewMessage(value)),
+  }));
+  const sortOptions = ISSUE_LIST_SORT_FIELDS.map((value) => ({
+    value,
+    label: intl.formatMessage(getIssueListSortMessage(value)),
+  }));
+  const sortDirOptions = ISSUE_LIST_SORT_DIRECTIONS.map((value) => ({
+    value,
+    label: intl.formatMessage(getIssueListSortDirMessage(value)),
+  }));
+
   return (
     <div className="space-y-3 rounded-2xl border bg-card p-4">
       <div className="grid gap-3 md:grid-cols-[200px_minmax(0,1fr)_160px_140px]">
-        <WorkspaceFilterField label="View">
+        <WorkspaceFilterField label={intl.formatMessage(messages.viewLabel)}>
           <Select
             value={state.view}
             items={viewOptions}
@@ -86,7 +126,7 @@ export function IssueListFiltersBar({
             }
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
-              <SelectValue placeholder="View" />
+              <SelectValue placeholder={intl.formatMessage(messages.viewLabel)} />
             </SelectTrigger>
             <SelectContent>
               {viewOptions.map((item) => (
@@ -98,15 +138,15 @@ export function IssueListFiltersBar({
           </Select>
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Search">
+        <WorkspaceFilterField label={intl.formatMessage(messages.searchLabel)}>
           <Input
             value={searchDraft}
             onChange={(event) => onSearchDraftChange(event.currentTarget.value)}
-            placeholder={searchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
           />
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Sort by">
+        <WorkspaceFilterField label={intl.formatMessage(messages.sortByLabel)}>
           <Select
             value={state.sort}
             items={sortOptions}
@@ -117,7 +157,7 @@ export function IssueListFiltersBar({
             }
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
-              <SelectValue placeholder="Sort" />
+              <SelectValue placeholder={intl.formatMessage(messages.sortPlaceholder)} />
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((item) => (
@@ -129,7 +169,7 @@ export function IssueListFiltersBar({
           </Select>
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Order">
+        <WorkspaceFilterField label={intl.formatMessage(messages.orderLabel)}>
           <Select
             value={state.sortDir}
             items={sortDirOptions}
@@ -140,7 +180,7 @@ export function IssueListFiltersBar({
             }
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
-              <SelectValue placeholder="Order" />
+              <SelectValue placeholder={intl.formatMessage(messages.orderLabel)} />
             </SelectTrigger>
             <SelectContent>
               {sortDirOptions.map((item) => (
@@ -154,7 +194,7 @@ export function IssueListFiltersBar({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <WorkspaceFilterField label="Status">
+        <WorkspaceFilterField label={intl.formatMessage(messages.statusLabel)}>
           <Select
             value={state.status ?? "all"}
             onValueChange={(value) =>
@@ -168,23 +208,28 @@ export function IssueListFiltersBar({
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
               <SelectValue>
-                {state.status ? formatIssueFilterLabel(state.status) : "All statuses"}
+                {state.status
+                  ? intl.formatMessage(getIssueStatusFilterMessage(state.status))
+                  : intl.formatMessage(messages.allStatuses)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" label="All statuses">
-                All statuses
+              <SelectItem value="all" label={intl.formatMessage(messages.allStatuses)}>
+                <FormattedMessage {...messages.allStatuses} />
               </SelectItem>
-              {ISSUE_STATUS_FILTERS.map((status) => (
-                <SelectItem key={status} value={status} label={formatIssueFilterLabel(status)}>
-                  {formatIssueFilterLabel(status)}
-                </SelectItem>
-              ))}
+              {ISSUE_STATUS_FILTERS.map((status) => {
+                const label = intl.formatMessage(getIssueStatusFilterMessage(status));
+                return (
+                  <SelectItem key={status} value={status} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Type">
+        <WorkspaceFilterField label={intl.formatMessage(messages.typeLabel)}>
           <Select
             value={state.issueType ?? "all"}
             onValueChange={(value) =>
@@ -198,23 +243,28 @@ export function IssueListFiltersBar({
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
               <SelectValue>
-                {state.issueType ? formatIssueFilterLabel(state.issueType) : "All types"}
+                {state.issueType
+                  ? intl.formatMessage(getIssueTypeFilterMessage(state.issueType))
+                  : intl.formatMessage(messages.allTypes)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" label="All types">
-                All types
+              <SelectItem value="all" label={intl.formatMessage(messages.allTypes)}>
+                <FormattedMessage {...messages.allTypes} />
               </SelectItem>
-              {ISSUE_TYPE_FILTERS.map((type) => (
-                <SelectItem key={type} value={type} label={formatIssueFilterLabel(type)}>
-                  {formatIssueFilterLabel(type)}
-                </SelectItem>
-              ))}
+              {ISSUE_TYPE_FILTERS.map((type) => {
+                const label = intl.formatMessage(getIssueTypeFilterMessage(type));
+                return (
+                  <SelectItem key={type} value={type} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Priority">
+        <WorkspaceFilterField label={intl.formatMessage(messages.priorityLabel)}>
           <Select
             value={state.priority ?? "all"}
             onValueChange={(value) =>
@@ -227,11 +277,13 @@ export function IssueListFiltersBar({
             }
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
-              <SelectValue>{state.priority ?? "All priorities"}</SelectValue>
+              <SelectValue>
+                {state.priority ?? intl.formatMessage(messages.allPriorities)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" label="All priorities">
-                All priorities
+              <SelectItem value="all" label={intl.formatMessage(messages.allPriorities)}>
+                <FormattedMessage {...messages.allPriorities} />
               </SelectItem>
               {ISSUE_PRIORITIES.map((priority) => (
                 <SelectItem key={priority} value={priority} label={priority}>
@@ -242,7 +294,7 @@ export function IssueListFiltersBar({
           </Select>
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Locale">
+        <WorkspaceFilterField label={intl.formatMessage(messages.localeLabel)}>
           <Input
             defaultValue={state.locale ?? ""}
             key={state.locale ?? "locale-empty"}
@@ -250,11 +302,11 @@ export function IssueListFiltersBar({
               const value = event.currentTarget.value.trim();
               onStateChange({ locale: value || undefined });
             }}
-            placeholder="e.g. de-DE"
+            placeholder={intl.formatMessage(messages.localePlaceholder)}
           />
         </WorkspaceFilterField>
 
-        <WorkspaceFilterField label="Assignee">
+        <WorkspaceFilterField label={intl.formatMessage(messages.assigneeLabel)}>
           <Select
             value={state.assignee ?? "all"}
             onValueChange={(value) =>
@@ -268,32 +320,29 @@ export function IssueListFiltersBar({
           >
             <SelectTrigger className={workspaceFilterTriggerClassName}>
               <SelectValue>
-                {state.assignee === "me"
-                  ? "Me"
-                  : state.assignee === "unassigned"
-                    ? "Unassigned"
-                    : "Anyone"}
+                {state.assignee
+                  ? intl.formatMessage(getIssueAssigneeFilterMessage(state.assignee))
+                  : intl.formatMessage(messages.assigneeAnyone)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" label="Anyone">
-                Anyone
+              <SelectItem value="all" label={intl.formatMessage(messages.assigneeAnyone)}>
+                <FormattedMessage {...messages.assigneeAnyone} />
               </SelectItem>
-              {ISSUE_ASSIGNEE_FILTERS.map((assignee) => (
-                <SelectItem
-                  key={assignee}
-                  value={assignee}
-                  label={assignee === "me" ? "Me" : "Unassigned"}
-                >
-                  {assignee === "me" ? "Me" : "Unassigned"}
-                </SelectItem>
-              ))}
+              {ISSUE_ASSIGNEE_FILTERS.map((assignee) => {
+                const label = intl.formatMessage(getIssueAssigneeFilterMessage(assignee));
+                return (
+                  <SelectItem key={assignee} value={assignee} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </WorkspaceFilterField>
 
         {projects ? (
-          <WorkspaceFilterField label="Project">
+          <WorkspaceFilterField label={intl.formatMessage(messages.projectLabel)}>
             <Select
               value={state.projectId ?? "all"}
               onValueChange={(value) =>
@@ -306,12 +355,12 @@ export function IssueListFiltersBar({
                 <SelectValue>
                   {state.projectId
                     ? (projectNameById[state.projectId] ?? state.projectId)
-                    : "All projects"}
+                    : intl.formatMessage(messages.allProjects)}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" label="All projects">
-                  All projects
+                <SelectItem value="all" label={intl.formatMessage(messages.allProjects)}>
+                  <FormattedMessage {...messages.allProjects} />
                 </SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id} label={project.name}>
@@ -326,26 +375,29 @@ export function IssueListFiltersBar({
 
       {hasActiveFilters ? (
         <div className="flex flex-wrap items-center gap-2">
-          {chips.map((chip) => (
-            <Badge key={chip.key} variant="secondary" className="gap-1 rounded-full pr-1">
-              <span>{chip.label}</span>
-              <button
-                type="button"
-                className="rounded-full p-0.5 hover:bg-muted"
-                aria-label={`Remove ${chip.label}`}
-                onClick={() => {
-                  if (chip.key === "search") {
-                    onSearchDraftChange("");
-                  }
-                  onStateChange({ [chip.key]: chip.key === "search" ? "" : undefined });
-                }}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
-              </button>
-            </Badge>
-          ))}
+          {chips.map((chip) => {
+            const label = formatIssueFilterChipLabel(intl, chip);
+            return (
+              <Badge key={chip.key} variant="secondary" className="gap-1 rounded-full pe-1">
+                <span>{label}</span>
+                <button
+                  type="button"
+                  className="rounded-full p-0.5 hover:bg-muted"
+                  aria-label={intl.formatMessage(messages.removeChipAriaLabel, { label })}
+                  onClick={() => {
+                    if (chip.key === "search") {
+                      onSearchDraftChange("");
+                    }
+                    onStateChange({ [chip.key]: chip.key === "search" ? "" : undefined });
+                  }}
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+                </button>
+              </Badge>
+            );
+          })}
           <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-            Clear filters
+            <FormattedMessage {...messages.clearFilters} />
           </Button>
         </div>
       ) : null}

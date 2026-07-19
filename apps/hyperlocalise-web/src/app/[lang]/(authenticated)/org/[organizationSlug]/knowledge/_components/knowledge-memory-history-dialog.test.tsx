@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const apiMocks = vi.hoisted(() => ({
@@ -183,23 +184,25 @@ describe("KnowledgeMemory history UI", () => {
     });
 
     render(
-      <QueryClientProvider client={queryClient}>
-        <KnowledgeMemoryHistoryDialog
-          organizationSlug="test-org"
-          open
-          onOpenChange={vi.fn()}
-          canUpdateKnowledgeMemory
-          hasUnsavedChanges={false}
-          currentEtag='"revision-2"'
-          currentRevisionId={secondRevision.revisionId}
-          conflict={null}
-          isCommittingConflict={false}
-          onCommitConflict={vi.fn()}
-          onReloadLatest={vi.fn()}
-          onPreconditionFailed={vi.fn()}
-          onRestored={onRestored}
-        />
-      </QueryClientProvider>,
+      <IntlProvider locale="en" messages={{}}>
+        <QueryClientProvider client={queryClient}>
+          <KnowledgeMemoryHistoryDialog
+            organizationSlug="test-org"
+            open
+            onOpenChange={vi.fn()}
+            canUpdateKnowledgeMemory
+            hasUnsavedChanges={false}
+            currentEtag='"revision-2"'
+            currentRevisionId={secondRevision.revisionId}
+            conflict={null}
+            isCommittingConflict={false}
+            onCommitConflict={vi.fn()}
+            onReloadLatest={vi.fn()}
+            onPreconditionFailed={vi.fn()}
+            onRestored={onRestored}
+          />
+        </QueryClientProvider>
+      </IntlProvider>,
     );
 
     fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));

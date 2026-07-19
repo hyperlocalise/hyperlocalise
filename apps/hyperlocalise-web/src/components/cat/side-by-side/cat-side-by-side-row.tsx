@@ -383,7 +383,7 @@ export function CatSideBySideRow({
               </div>
             ) : null}
           </div>
-        )}{" "}
+        )}
       </div>
 
       <div className={cn("min-w-0 px-4", isFocused ? "py-4" : "py-2.5")}>

@@ -4,11 +4,13 @@ import { useState } from "react";
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueSheetCreateIssueDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
+import { issuesActionsMessages } from "./issues-actions.messages";
 import { IssuesProjectImportDialog } from "./issues-project-import-dialog";
 
 type ProjectOption = {
@@ -53,7 +55,7 @@ export function IssuesActions({
           onClick={() => setImportOpen(true)}
           disabled={projectsQuery.isLoading}
         >
-          Import CSV
+          <FormattedMessage {...issuesActionsMessages.importCsv} />
         </Button>
         <Button
           type="button"
@@ -61,7 +63,7 @@ export function IssuesActions({
           disabled={projectsQuery.isLoading}
         >
           <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
-          Issue
+          <FormattedMessage {...issuesActionsMessages.issue} />
         </Button>
       </div>
 

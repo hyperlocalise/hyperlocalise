@@ -3,8 +3,9 @@
 import type { MarketingFooterColumn } from "@/components/marketing/marketing-page-content";
 import Image from "next/image";
 import Link from "next/link";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
+import { marketingFooterMessages } from "./marketing-footer.messages";
 import { marketingPageMessages } from "./marketing-page-content.messages";
 import type { MarketingPageMessageKey } from "./marketing-page-content.messages";
 import { productPageMessages } from "./product/product-page-content.messages";
@@ -43,6 +44,7 @@ function FooterLinkLabel({
 }
 
 export function MarketingFooter({ columns }: MarketingFooterProps) {
+  const intl = useIntl();
   const isExternalHref = (href: string) =>
     href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:");
 
@@ -50,7 +52,12 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
     <footer className="grid gap-12 lg:grid-cols-[160px_1fr]">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <div className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-          <Image src="/images/logo.png" width={32} height={32} alt="Hyperlocalise logo" />
+          <Image
+            src="/images/logo.png"
+            width={32}
+            height={32}
+            alt={intl.formatMessage(marketingFooterMessages.logoAlt)}
+          />
         </div>
       </div>
 

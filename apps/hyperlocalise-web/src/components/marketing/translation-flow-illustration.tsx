@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DotFlow } from "dot-anime-react";
 import { useInView } from "react-intersection-observer";
 import { motion, useReducedMotion } from "motion/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -17,29 +18,7 @@ import {
 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
-const consoleLines = [
-  {
-    label: "Started cloud agent",
-    showAgentModel: true,
-    tone: "text-muted-foreground",
-  },
-  {
-    label: "Translating en/pricing.json for 38 locales",
-    tone: "text-muted-foreground",
-  },
-  {
-    label: "Gathering glossary, translation memory, and release context",
-    tone: "text-muted-foreground",
-  },
-  {
-    label: "Reviewing translated strings with legal and market nuance",
-    tone: "text-muted-foreground",
-  },
-  {
-    label: "Syncing to your TMS",
-    tone: "text-muted-foreground",
-  },
-];
+import { translationFlowIllustrationMessages } from "./translation-flow-illustration.messages";
 
 const flagshipModelsByAgent: Record<string, string> = {
   OpenAI: "GPT 5.4",
@@ -57,33 +36,15 @@ export type AssignmentTarget = {
   avatarUrl: string;
 };
 
-const flipDotItems = [
-  {
-    title: "Working ...",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
-  {
-    title: "Thinking",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
+const flipDotFrames = [
+  [0, 4, 7, 8, 10, 11, 15],
+  [0, 4, 5, 7, 8, 11, 15],
+  [4, 5, 7, 8, 11, 12, 15],
+  [3, 4, 5, 7, 8, 11, 12],
+  [2, 3, 4, 7, 8, 11, 12],
+  [3, 4, 7, 8, 11, 12, 13],
+  [4, 7, 8, 11, 12, 13, 15],
+  [4, 7, 8, 10, 11, 12, 15],
 ];
 
 function SelectorAvatar({ target }: { target: AssignmentTarget }) {
@@ -100,8 +61,45 @@ export function TranslationFlowIllustration({
 }: {
   assignmentTargets: readonly AssignmentTarget[];
 }) {
+  const intl = useIntl();
   const [activeAgent, setActiveAgent] = useState(assignmentTargets[0]?.name ?? "");
   const shouldReduceMotion = useReducedMotion();
+
+  const consoleLines = [
+    {
+      label: intl.formatMessage(translationFlowIllustrationMessages.consoleStarted),
+      showAgentModel: true,
+      tone: "text-muted-foreground",
+    },
+    {
+      label: intl.formatMessage(translationFlowIllustrationMessages.consoleTranslating),
+      tone: "text-muted-foreground",
+    },
+    {
+      label: intl.formatMessage(translationFlowIllustrationMessages.consoleGathering),
+      tone: "text-muted-foreground",
+    },
+    {
+      label: intl.formatMessage(translationFlowIllustrationMessages.consoleReviewing),
+      tone: "text-muted-foreground",
+    },
+    {
+      label: intl.formatMessage(translationFlowIllustrationMessages.consoleSyncing),
+      tone: "text-muted-foreground",
+    },
+  ];
+
+  const flipDotItems = [
+    {
+      title: intl.formatMessage(translationFlowIllustrationMessages.workingTitle),
+      frames: flipDotFrames,
+    },
+    {
+      title: intl.formatMessage(translationFlowIllustrationMessages.thinkingTitle),
+      frames: flipDotFrames,
+    },
+  ];
+
   const [visibleLineCount, setVisibleLineCount] = useState(
     shouldReduceMotion ? consoleLines.length : 0,
   );
@@ -151,7 +149,7 @@ export function TranslationFlowIllustration({
         clearTimeout(timeoutId);
       }
     };
-  }, [activeAgent, shouldReduceMotion, inView]);
+  }, [activeAgent, shouldReduceMotion, inView, consoleLines.length]);
 
   return (
     <div
@@ -165,14 +163,16 @@ export function TranslationFlowIllustration({
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-5" />
             </div>
             <div>
-              <TypographyH4 className="text-foreground">Translate Task</TypographyH4>
+              <TypographyH4 className="text-foreground">
+                <FormattedMessage {...translationFlowIllustrationMessages.taskTitle} />
+              </TypographyH4>
               <TypographyMuted className="text-muted-foreground">
-                Localise Pricing Messages
+                <FormattedMessage {...translationFlowIllustrationMessages.taskSubtitle} />
               </TypographyMuted>
             </div>
           </div>
           <Badge variant="secondary" className="rounded-full px-3">
-            Agentic workflow
+            <FormattedMessage {...translationFlowIllustrationMessages.agenticWorkflowBadge} />
           </Badge>
         </div>
 
@@ -235,7 +235,7 @@ export function TranslationFlowIllustration({
                       <span>{line.label}</span>
                       {line.showAgentModel ? (
                         <span className="text-[0.98rem] text-muted-foreground">
-                          {activeAgent} - {flagshipModelsByAgent[activeAgent] ?? ""}
+                          {[activeAgent, flagshipModelsByAgent[activeAgent] ?? ""].join(" - ")}
                         </span>
                       ) : null}
                     </TypographyP>
@@ -250,7 +250,7 @@ export function TranslationFlowIllustration({
               <div className="flex flex-col gap-2.5 rounded-4xl bg-popover p-1 text-popover-foreground">
                 <div className="p-1 pb-0">
                   <div className="flex h-9 items-center rounded-[1.1rem] bg-input/30 px-3 text-sm text-muted-foreground">
-                    Assign to...
+                    <FormattedMessage {...translationFlowIllustrationMessages.assignPlaceholder} />
                   </div>
                 </div>
 

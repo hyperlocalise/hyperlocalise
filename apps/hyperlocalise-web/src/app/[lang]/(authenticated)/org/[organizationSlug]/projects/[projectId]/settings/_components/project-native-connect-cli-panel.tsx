@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { CopyIcon } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
+
+import { projectNativeConnectCliPanelMessages } from "./project-native-connect-cli-panel.messages";
 
 function buildSampleI18nYaml(projectId: string) {
   return `hyperlocalise:
@@ -40,16 +43,17 @@ export function ProjectNativeConnectCliPanel({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <div>
-        <TypographyP className="text-sm font-medium text-foreground">Connect CLI & CI</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.title} />
+        </TypographyP>
         <TypographyP className="mt-1 text-sm text-muted-foreground">
-          Use native sync to push source files and pull translations without creating jobs from the
-          CLI.
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.description} />
         </TypographyP>
       </div>
 
       <div className="space-y-2">
         <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-          Project ID
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.projectIdLabel} />
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
           <code className="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs">
@@ -62,7 +66,11 @@ export function ProjectNativeConnectCliPanel({
             onClick={() => copyValue(projectId, "projectId")}
           >
             <CopyIcon className="size-3.5" />
-            {copiedField === "projectId" ? "Copied" : "Copy"}
+            {copiedField === "projectId" ? (
+              <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
+            ) : (
+              <FormattedMessage {...projectNativeConnectCliPanelMessages.copy} />
+            )}
           </Button>
         </div>
       </div>
@@ -70,7 +78,7 @@ export function ProjectNativeConnectCliPanel({
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-            Sample i18n.yml
+            <FormattedMessage {...projectNativeConnectCliPanelMessages.sampleConfigLabel} />
           </TypographyP>
           <Button
             type="button"
@@ -79,7 +87,11 @@ export function ProjectNativeConnectCliPanel({
             onClick={() => copyValue(sampleConfig, "config")}
           >
             <CopyIcon className="size-3.5" />
-            {copiedField === "config" ? "Copied" : "Copy config"}
+            {copiedField === "config" ? (
+              <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
+            ) : (
+              <FormattedMessage {...projectNativeConnectCliPanelMessages.copyConfig} />
+            )}
           </Button>
         </div>
         <pre className="overflow-x-auto rounded-md border border-border bg-background p-3 text-xs leading-6 text-subtle-foreground">
@@ -101,7 +113,7 @@ export function ProjectNativeConnectCliPanel({
             />
           }
         >
-          sync push docs
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.syncPushDocs} />
         </Button>
         <Button
           type="button"
@@ -116,7 +128,7 @@ export function ProjectNativeConnectCliPanel({
             />
           }
         >
-          sync pull docs
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.syncPullDocs} />
         </Button>
         <Button
           type="button"
@@ -125,7 +137,7 @@ export function ProjectNativeConnectCliPanel({
           nativeButton={false}
           render={<a href={`/org/${organizationSlug}/settings/api-keys`} />}
         >
-          API keys
+          <FormattedMessage {...projectNativeConnectCliPanelMessages.apiKeys} />
         </Button>
       </div>
     </section>

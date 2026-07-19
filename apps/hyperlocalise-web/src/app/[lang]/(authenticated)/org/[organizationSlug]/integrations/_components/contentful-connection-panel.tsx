@@ -406,7 +406,10 @@ export function ContentfulConnectionPanel({
             })}
           </Badge>
           <Badge variant="outline">
-            {connection.spaceId}/{connection.environmentId}
+            {intl.formatMessage(contentfulConnectionPanelMessages.spaceEnvironmentBadge, {
+              spaceId: connection.spaceId,
+              environmentId: connection.environmentId,
+            })}
           </Badge>
         </div>
       ) : null}
@@ -521,14 +524,15 @@ export function ContentfulConnectionPanel({
           </p>
           <div className="mt-3 grid gap-2 rounded-lg bg-muted/50 p-3 text-xs">
             <span>
-              {intl.formatMessage(contentfulConnectionPanelMessages.registrationLabel)}{" "}
-              {intl.formatMessage(
-                connection.webhook.providerWebhookId
-                  ? contentfulConnectionPanelMessages.registrationRegistered
-                  : connection.webhook.lastError
-                    ? contentfulConnectionPanelMessages.registrationNotRegistered
-                    : contentfulConnectionPanelMessages.registrationPending,
-              )}
+              {intl.formatMessage(contentfulConnectionPanelMessages.registrationStatus, {
+                status: intl.formatMessage(
+                  connection.webhook.providerWebhookId
+                    ? contentfulConnectionPanelMessages.registrationRegistered
+                    : connection.webhook.lastError
+                      ? contentfulConnectionPanelMessages.registrationNotRegistered
+                      : contentfulConnectionPanelMessages.registrationPending,
+                ),
+              })}
             </span>
             <span className="font-mono break-all">
               {intl.formatMessage(contentfulConnectionPanelMessages.webhookUrl, {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { readApiError, readApiResponseError } from "@/lib/api-error";
@@ -32,6 +33,7 @@ import {
   MEMORIES_PAGE_SIZE,
   type MemoryCreateForm,
 } from "./translation-memories-page-view";
+import { translationMemoriesPageContentMessages } from "./translation-memories-page-content.messages";
 
 const memoriesQueryKey = (organizationSlug: string, page: number) => [
   "translation-memories",
@@ -115,6 +117,7 @@ export function TranslationMemoriesPageContent({
   organizationSlug: string;
   canCreateMemories: boolean;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -136,7 +139,10 @@ export function TranslationMemoriesPageContent({
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load projects");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+        );
       }
 
       const body = await response.json();
@@ -155,7 +161,11 @@ export function TranslationMemoriesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load provider credentials (${response.status})`);
+        throw new Error(
+          intl.formatMessage(translationMemoriesPageContentMessages.loadCredentialsFailed, {
+            status: response.status,
+          }),
+        );
       }
 
       const body = await response.json();
@@ -182,14 +192,18 @@ export function TranslationMemoriesPageContent({
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load provider translation memories (${response.status})`);
+          throw new Error(
+            intl.formatMessage(translationMemoriesPageContentMessages.loadProviderMemoriesFailed, {
+              status: response.status,
+            }),
+          );
         }
 
         const body = (await response.json()) as {
           translationMemories: TmsProviderLiveTranslationMemory[];
         };
         const liveRows = body.translationMemories.map((memory) =>
-          mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider.providerKind),
+          mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider.providerKind, intl),
         );
 
         return {
@@ -208,7 +222,11 @@ export function TranslationMemoriesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load translation memories (${response.status})`);
+        throw new Error(
+          intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+            status: response.status,
+          }),
+        );
       }
 
       const body = await response.json();
@@ -230,7 +248,12 @@ export function TranslationMemoriesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Unable to create translation memory"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(translationMemoriesPageContentMessages.createMemoryFailed),
+          ),
+        );
       }
 
       return response.json();
@@ -239,7 +262,7 @@ export function TranslationMemoriesPageContent({
       await queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyMemoryForm());
-      toast.success("Translation memory created");
+      toast.success(intl.formatMessage(translationMemoriesPageContentMessages.memoryCreated));
       router.push(`/org/${organizationSlug}/translation-memories/${body.memory.id}`);
     },
     onError: (error) => {
@@ -258,9 +281,10 @@ export function TranslationMemoriesPageContent({
     }
 
     return (memoriesQuery.data?.memories ?? []).map((memory) =>
-      mapMemoryToListRow(memory, projectIdByExternalKey),
+      mapMemoryToListRow(memory, projectIdByExternalKey, intl),
     );
   }, [
+    intl,
     memoriesQuery.data?.liveRows,
     memoriesQuery.data?.memories,
     projectIdByExternalKey,
@@ -330,7 +354,7 @@ export function TranslationMemoriesPageContent({
   function submitCreateMemory() {
     const errors: { name?: string } = {};
     if (!createForm.name.trim()) {
-      errors.name = "Translation memory name is required.";
+      errors.name = intl.formatMessage(translationMemoriesPageContentMessages.nameRequired);
     }
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) {

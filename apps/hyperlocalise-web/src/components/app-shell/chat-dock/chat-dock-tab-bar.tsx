@@ -30,7 +30,7 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
     <div
       className="flex min-w-0 max-w-md items-center gap-1"
       role="tablist"
-      aria-label="Chat conversations"
+      aria-label={intl.formatMessage(chatDockMessages.tabListAriaLabel)}
     >
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {tabs.map((tab) => {

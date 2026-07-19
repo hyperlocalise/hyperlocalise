@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 
 import {
+  buildScreenshotServeUrl,
   classifyScreenshotCaptureFailure,
+  clearScreenshotBase64CacheForTests,
   createCaptureScreenshotTool,
   detectPackageManager,
   detectStorybookMajorVersion,
@@ -18,9 +20,22 @@ import type { RepoToolContext } from "./types";
 
 vi.mock("@/lib/file-storage/records", () => ({
   createStoredFile: vi.fn(),
+  getStoredFileContent: vi.fn(),
 }));
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+
+function createMockDb(organizationSlug = "acme") {
+  return {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [{ slug: organizationSlug }]),
+        })),
+      })),
+    })),
+  } as never;
+}
 
 function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
@@ -29,7 +44,7 @@ function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     localUserId: "user_1",
     membershipRole: "admin",
     projectId: "project_1",
-    db: {} as never,
+    db: createMockDb(),
     workMode: "write",
     repositorySource: "chat_ui",
     actor: { sourceUserId: "user_1", role: "admin" },
@@ -292,6 +307,41 @@ describe("resolveStorybookPackage", () => {
   });
 });
 
+describe("buildScreenshotServeUrl", () => {
+  it("prefers the auth'd project assets proxy for in-app <img> rendering", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: "acme",
+        projectId: "project_1",
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("/api/orgs/acme/projects/project_1/assets/file_1");
+  });
+
+  it("falls back to the org files proxy when there is no project", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: "acme",
+        projectId: null,
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("/api/orgs/acme/files/file_1");
+  });
+
+  it("keeps the storage URL when the organization slug is unavailable", () => {
+    expect(
+      buildScreenshotServeUrl({
+        organizationSlug: null,
+        projectId: "project_1",
+        fileId: "file_1",
+        fallbackUrl: "https://blob.example/private.png",
+      }),
+    ).toBe("https://blob.example/private.png");
+  });
+});
+
 describe("classifyScreenshotCaptureFailure", () => {
   it("maps managed browser runtime sentinels to structured error codes", () => {
     expect(
@@ -304,6 +354,16 @@ describe("classifyScreenshotCaptureFailure", () => {
         "chromium failed\nHYPERLOCALISE_SCREENSHOT_ERROR_CODE=browser_binary_unavailable",
       ),
     ).toBe("browser_binary_unavailable");
+    expect(
+      classifyScreenshotCaptureFailure(
+        "deps failed\nHYPERLOCALISE_SCREENSHOT_ERROR_CODE=browser_system_deps_unavailable",
+      ),
+    ).toBe("browser_system_deps_unavailable");
+    expect(
+      classifyScreenshotCaptureFailure(
+        "error while loading shared libraries: libnspr4.so: cannot open shared object file",
+      ),
+    ).toBe("browser_system_deps_unavailable");
     expect(classifyScreenshotCaptureFailure("storybook failed")).toBe("screenshot_capture_failed");
   });
 });
@@ -345,6 +405,7 @@ describe("createCaptureScreenshotTool", () => {
       {
         target: { type: "storybook", storyId: "components-button--primary" },
         viewport: { width: 1280, height: 720 },
+        waitForText: ["Save changes", "Discard"],
       },
       toolCallInfo,
     );
@@ -352,9 +413,13 @@ describe("createCaptureScreenshotTool", () => {
     expect(result).toMatchObject({
       success: true,
       fileId: "file_1",
-      url: "https://download.example/storybook.png",
+      url: "/api/orgs/acme/projects/project_1/assets/file_1",
       target: { type: "storybook", storyId: "components-button--primary" },
       viewport: { width: 1280, height: 720 },
+      workspacePath: expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\//),
+      screenshotPath: expect.stringMatching(
+        /^\.hyperlocalise-agent\/screenshots\/.+\/screenshot\.png$/,
+      ),
     });
     expect(writeWorkspaceFile).toHaveBeenCalledWith(
       expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\/.+\/capture\.cjs$/),
@@ -362,10 +427,29 @@ describe("createCaptureScreenshotTool", () => {
         'require("/tmp/hyperlocalise-browser-runtime/node_modules/playwright")',
       ),
     );
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("base64 -w 0")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.not.stringMatching(/rm -rf ['"]?\.hyperlocalise-agent\/screenshots\//)],
+    });
     const captureScript = String(writeWorkspaceFile.mock.calls[0]?.[1] ?? "");
     expect(captureScript).toContain('waitUntil: "load"');
     expect(captureScript).not.toMatch(/waitUntil:\s*"networkidle"/);
     expect(captureScript).toContain('waitForSelector("#storybook-root, #root"');
+    expect(captureScript).toContain("addInitScript");
+    expect(captureScript).toContain("__STORYBOOK_ADDONS_CHANNEL__");
+    expect(captureScript).toContain("storyRendered");
+    expect(captureScript).toContain("storyMissing");
+    expect(captureScript).not.toContain("storyFinished");
+    expect(captureScript).toContain("sb-show-preparing-story");
+    expect(captureScript).toContain("30000");
+    expect(captureScript).not.toContain("120000");
+    expect(captureScript).toContain('const waitForText = ["Save changes","Discard"]');
+    expect(captureScript).toContain("texts.every((text) => haystack.includes(text))");
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("seq 1 120")],
+    });
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
@@ -379,6 +463,15 @@ describe("createCaptureScreenshotTool", () => {
           "export PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
         ),
       ],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("install chromium")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("install_chromium_system_dependencies")],
+    });
+    expect(exec).toHaveBeenCalledWith("bash", {
+      args: ["-lc", expect.stringContaining("run_as_root dnf install -y")],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
       args: ["-lc", expect.stringContaining("'pnpm' 'run' 'storybook'")],
@@ -398,6 +491,7 @@ describe("createCaptureScreenshotTool", () => {
           kind: "visual-mock",
           targetType: "storybook",
           storyId: "components-button--primary",
+          waitForText: ["Save changes", "Discard"],
           packageDir: ".",
           packageJsonPath: "package.json",
         }),
@@ -489,6 +583,91 @@ describe("createCaptureScreenshotTool", () => {
       success: false,
       errorCode: "browser_binary_unavailable",
     });
+  });
+
+  it("maps stored screenshot bytes to multimodal model output", async () => {
+    clearScreenshotBase64CacheForTests();
+    vi.mocked(createStoredFile).mockResolvedValueOnce({
+      id: "file_vision",
+      organizationId: "org_1",
+      projectId: "project_1",
+      createdByUserId: "user_1",
+      role: "reference",
+      sourceKind: "repository_file",
+      sourceInteractionId: "conv_1",
+      sourceJobId: null,
+      storageProvider: "vercel_blob",
+      storageKey: "organizations/org_1/files/file_vision/storybook.png",
+      storageUrl: "https://blob.example/storybook-vision.png",
+      downloadUrl: "https://download.example/storybook-vision.png",
+      filename: "storybook-components-button--primary.png",
+      contentType: "image/png",
+      byteSize: 9,
+      sha256: "hash",
+      etag: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: {
+        id: "file_vision",
+        contentType: "image/png",
+      } as never,
+      content: Buffer.from("png-bytes"),
+    });
+    const { repo } = createRepoContext({
+      packageJson: {
+        packageManager: "pnpm@11.9.0",
+        scripts: { storybook: "storybook dev" },
+      },
+      lockfiles: ["pnpm-lock.yaml"],
+    });
+    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "components-button--primary" } },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: true, fileId: "file_vision" });
+    if (!result || typeof result !== "object" || !("success" in result) || !result.success) {
+      throw new Error("expected successful screenshot capture");
+    }
+
+    const modelOutput = await captureScreenshot.toModelOutput!({
+      toolCallId: "test-tool-call",
+      input: { target: { type: "storybook", storyId: "components-button--primary" } },
+      output: result,
+    });
+
+    expect(getStoredFileContent).toHaveBeenCalledTimes(1);
+    expect(getStoredFileContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileId: "file_vision",
+        organizationId: "org_1",
+        projectId: "project_1",
+      }),
+    );
+    expect(modelOutput).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "text",
+          text: expect.stringContaining("components-button--primary"),
+        },
+        {
+          type: "image-data",
+          data: Buffer.from("png-bytes").toString("base64"),
+          mediaType: "image/png",
+        },
+      ],
+    });
+
+    await captureScreenshot.toModelOutput!({
+      toolCallId: "test-tool-call-replay",
+      input: { target: { type: "storybook", storyId: "components-button--primary" } },
+      output: result,
+    });
+    expect(getStoredFileContent).toHaveBeenCalledTimes(1);
   });
 
   it("denies capture when the repository write gate rejects the actor", async () => {

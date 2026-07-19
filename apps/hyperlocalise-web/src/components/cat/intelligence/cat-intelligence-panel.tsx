@@ -45,6 +45,8 @@ import { containsGlossaryTerm } from "./cat-glossary-checks";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { CatVisualContextPanel } from "./cat-visual-context-panel";
 
+const RIGHT_ARROW = "→";
+
 function PanelSection({
   title,
   action,
@@ -126,7 +128,7 @@ function GlossaryTermRow({ term, targetText }: { term: CatGlossaryTerm; targetTe
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="min-w-0 truncate text-sm text-foreground">{term.source}</span>
-          <span className="shrink-0 text-xs text-muted-foreground">→</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{RIGHT_ARROW}</span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
             {term.target}
           </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
@@ -12,6 +13,7 @@ import {
 import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
+import { jobProviderDetailSectionMessages as messages } from "./job-provider-detail-section.messages";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 import type { AgentRunRecord, ProviderBackedJobFields } from "./job-detail-types";
@@ -53,6 +55,7 @@ export function JobProviderDetailSection({
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId ?? "workspace", jobId] as const;
   const agentRunsQueryKey = ["job-agent-runs", organizationSlug, jobId] as const;
@@ -67,7 +70,9 @@ export function JobProviderDetailSection({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load agent runs (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToLoadAgentRuns, { status: response.status }),
+        );
       }
 
       const body = (await response.json()) as { agentRuns: AgentRunRecord[] };
@@ -94,7 +99,9 @@ export function JobProviderDetailSection({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent run"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToStartAgentRun)),
+        );
       }
 
       const body = (await response.json()) as { agentRun: AgentRunRecord };
@@ -106,11 +113,17 @@ export function JobProviderDetailSection({
         queryClient.invalidateQueries({ queryKey: jobQueryKey }),
       ]);
       toast.success(
-        action === "translate_with_agent" ? "Translation agent is running" : "Agent run queued",
+        intl.formatMessage(
+          action === "translate_with_agent"
+            ? messages.translationAgentRunning
+            : messages.agentRunQueued,
+        ),
       );
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent run");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToStartAgentRun),
+      );
     },
   });
 

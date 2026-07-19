@@ -6,6 +6,42 @@ export const sandboxRipgrepReleaseVersion = "14.1.1";
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
 export const sandboxHyperlocaliseReleaseVersion = "1.8.24";
 
+/**
+ * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
+ * Also used as `MANAGED_PLAYWRIGHT_VERSION` in capture-screenshot.ts.
+ */
+export const sandboxPlaywrightVersion = "1.61.1";
+
+/**
+ * Amazon Linux 2023 packages required to run Playwright's Ubuntu Chromium
+ * build. Vercel Sandbox is AL2023 (`dnf`); Playwright's `install-deps` assumes
+ * `apt-get` and fails there.
+ */
+export const sandboxChromiumDnfPackages = [
+  "nspr",
+  "nss",
+  "atk",
+  "at-spi2-atk",
+  "at-spi2-core",
+  "cups-libs",
+  "libdrm",
+  "libxkbcommon",
+  "mesa-libgbm",
+  "libX11",
+  "libXcomposite",
+  "libXcursor",
+  "libXdamage",
+  "libXext",
+  "libXi",
+  "libXrandr",
+  "libXScrnSaver",
+  "libXtst",
+  "gtk3",
+  "pango",
+  "alsa-lib",
+  "xorg-x11-server-Xvfb",
+] as const;
+
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
 export const defaultVercelSandboxRuntime = "node26";
@@ -59,9 +95,42 @@ const installHyperlocaliseFromGithubRelease = [
   "}",
 ].join("\n");
 
+/** Shell function used by sandbox bootstrap and screenshot capture-time retry. */
+export const installChromiumSystemDependenciesFunction = [
+  "install_chromium_system_dependencies() {",
+  "  run_as_root() {",
+  '    if [ "$(id -u)" -eq 0 ]; then',
+  '      "$@"',
+  "    elif command -v sudo >/dev/null 2>&1; then",
+  '      sudo "$@"',
+  "    else",
+  '      "$@"',
+  "    fi",
+  "  }",
+  // Prefer dnf: Vercel Sandbox is Amazon Linux 2023. Playwright install-deps
+  // falls back to ubuntu packages and shells out to apt-get (missing here).
+  "  if command -v dnf >/dev/null 2>&1; then",
+  `    run_as_root dnf install -y ${sandboxChromiumDnfPackages.join(" ")}`,
+  "    return $?",
+  "  fi",
+  `  PW_VERSION="${sandboxPlaywrightVersion}"`,
+  "  if command -v npm >/dev/null 2>&1; then",
+  '    run_as_root npx --yes "playwright@${PW_VERSION}" install-deps chromium',
+  "    return $?",
+  "  fi",
+  "  if command -v apt-get >/dev/null 2>&1; then",
+  "    run_as_root apt-get update && run_as_root apt-get install -y libnspr4 libnss3",
+  "    return $?",
+  "  fi",
+  '  echo "Unable to install Chromium system dependencies (dnf/npm/apt-get unavailable)." >&2',
+  "  return 1",
+  "}",
+].join("\n");
+
 export const installRequiredSandboxToolsCommand = [
   installRipgrepFromGithubRelease,
   installHyperlocaliseFromGithubRelease,
+  installChromiumSystemDependenciesFunction,
   "if ! command -v rg >/dev/null 2>&1; then",
   "  if command -v apt-get >/dev/null 2>&1; then",
   "    apt-get update && apt-get install -y ripgrep",
@@ -79,6 +148,12 @@ export const installRequiredSandboxToolsCommand = [
   "  install_hyperlocalise_from_github_release",
   "fi",
   "command -v hl >/dev/null 2>&1",
+  // Playwright Chromium needs OS libs such as libnspr4.so; install during bootstrap
+  // where sudo is available. Skip when already present (warm/reused images).
+  // Best-effort: capture-time retry handles missing deps if this fails.
+  "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
+  "  install_chromium_system_dependencies || true",
+  "fi",
 ].join("\n");
 
 export async function createConfiguredVercelSandbox(

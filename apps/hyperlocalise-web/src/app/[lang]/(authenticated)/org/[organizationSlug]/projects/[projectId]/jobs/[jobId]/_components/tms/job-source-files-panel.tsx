@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ListIcon } from "lucide-react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -12,9 +14,9 @@ import { TypographyH4, TypographyP } from "@/components/ui/typography";
 import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
-import { toast } from "sonner";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
+import { jobSourceFilesPanelMessages as messages } from "./job-source-files-panel.messages";
 
 function sortFilesByPath(files: ProjectFileRecord[]) {
   return [...files].toSorted((a, b) =>
@@ -82,12 +84,12 @@ function canOpenFileInCat(
   return isNativeCatFile;
 }
 
-function catOpenUnavailableMessage(targetLocale: string | null) {
+function catOpenUnavailableMessage(targetLocale: string | null, intl: IntlShape) {
   if (!targetLocale) {
-    return "No target locale is available for this task file.";
+    return intl.formatMessage(messages.noTargetLocaleForTaskFile);
   }
 
-  return "This file can't be opened in the CAT workspace.";
+  return intl.formatMessage(messages.fileCantOpenInCat);
 }
 
 export function JobSourceFilesPanel({
@@ -98,7 +100,7 @@ export function JobSourceFilesPanel({
   isLoading,
   isError,
   errorMessage,
-  emptyMessage = "No source files linked to this job.",
+  emptyMessage,
   highlightLocale = null,
   queueFilter,
 }: {
@@ -113,6 +115,8 @@ export function JobSourceFilesPanel({
   highlightLocale?: string | null;
   queueFilter?: CatQueueFilter;
 }) {
+  const intl = useIntl();
+  const resolvedEmptyMessage = emptyMessage ?? intl.formatMessage(messages.defaultEmptyMessage);
   const router = useRouter();
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
   const [selectedSourcePath, setSelectedSourcePath] = useState<string | null>(null);
@@ -133,7 +137,7 @@ export function JobSourceFilesPanel({
 
       const targetLocale = resolveTargetLocale(file, highlightLocale);
       if (!canOpenFileInCat(file, sourcePath, encodedJobId, targetLocale)) {
-        toast.error(catOpenUnavailableMessage(targetLocale));
+        toast.error(catOpenUnavailableMessage(targetLocale, intl));
         return;
       }
 
@@ -150,7 +154,16 @@ export function JobSourceFilesPanel({
         }),
       );
     },
-    [encodedJobId, highlightLocale, organizationSlug, projectId, queueFilter, router, sortedFiles],
+    [
+      encodedJobId,
+      highlightLocale,
+      intl,
+      organizationSlug,
+      projectId,
+      queueFilter,
+      router,
+      sortedFiles,
+    ],
   );
 
   const handleSelectFile = useCallback((sourcePath: string) => {
@@ -181,7 +194,9 @@ export function JobSourceFilesPanel({
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
-      <TypographyH4>Source files</TypographyH4>
+      <TypographyH4>
+        <FormattedMessage {...messages.sourceFilesHeading} />
+      </TypographyH4>
 
       {isLoading ? (
         <div className="mt-4">
@@ -191,12 +206,12 @@ export function JobSourceFilesPanel({
 
       {isError ? (
         <p className="mt-4 text-sm text-flame-100">
-          {errorMessage ?? "Unable to load source files."}
+          {errorMessage ?? intl.formatMessage(messages.unableToLoadSourceFiles)}
         </p>
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{emptyMessage}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
@@ -208,9 +223,14 @@ export function JobSourceFilesPanel({
                   {selectedFile?.sourcePath}
                 </TypographyP>
                 <TypographyP className="text-xs text-muted-foreground">
-                  {selectedTargetLocale
-                    ? `Double-click a file or use View strings to open the CAT workspace for ${selectedTargetLocale}.`
-                    : "No target locale is available for this task file."}
+                  {selectedTargetLocale ? (
+                    <FormattedMessage
+                      {...messages.catWorkspaceHintWithLocale}
+                      values={{ targetLocale: selectedTargetLocale }}
+                    />
+                  ) : (
+                    <FormattedMessage {...messages.noTargetLocaleForTaskFile} />
+                  )}
                 </TypographyP>
               </div>
               <Button
@@ -221,13 +241,13 @@ export function JobSourceFilesPanel({
                 render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
               >
                 <ListIcon />
-                View strings
+                <FormattedMessage {...messages.viewStrings} />
               </Button>
             </div>
           ) : null}
           <div className="overflow-hidden rounded-lg border border-border bg-background p-2">
             <ProjectFilesTree
-              ariaLabel="Job source files"
+              ariaLabel={intl.formatMessage(messages.jobSourceFilesAriaLabel)}
               files={sortedFiles}
               selectedSourcePath={activeSourcePath}
               onSelectFile={handleSelectFile}
