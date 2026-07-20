@@ -355,9 +355,7 @@ export function IssueDetailPanel({
               <FormattedMessage {...messages.openInCatUnavailable} />
             </TypographyP>
           )}
-          {issue.linkUrl &&
-          issue.linkUrl !== catHref &&
-          isHttpOrHttpsUrl(issue.linkUrl) ? (
+          {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
             <Button
               variant="ghost"
               size="sm"
