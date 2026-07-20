@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import type { UIMessage } from "ai";
 
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import { ChatDockStore } from "./chat-dock-store";
@@ -8,7 +9,10 @@ import {
   getChatStreamManager,
 } from "./chat-stream-manager";
 
-const sendMessagesMock = vi.hoisted(() => vi.fn());
+const { readUIMessageStreamMock, sendMessagesMock } = vi.hoisted(() => ({
+  readUIMessageStreamMock: vi.fn(),
+  sendMessagesMock: vi.fn(),
+}));
 
 vi.mock("ai", async (importOriginal) => {
   const mod = await importOriginal<typeof import("ai")>();
@@ -19,10 +23,29 @@ vi.mock("ai", async (importOriginal) => {
         return sendMessagesMock(...args);
       }
     },
+    readUIMessageStream: readUIMessageStreamMock,
   };
 });
 
+async function* createMessageStream(messages: UIMessage[]) {
+  for (const message of messages) {
+    yield message;
+  }
+}
+
+function createAssistantMessage(id: string, text: string): UIMessage {
+  return {
+    id,
+    role: "assistant",
+    parts: [{ type: "text", text, state: "done" }],
+  };
+}
+
 describe("ChatStreamManager", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("refuses a fourth concurrent stream before calling the network", async () => {
     const store = new ChatDockStore();
     store.setOrganizationSlug("acme");
@@ -169,6 +192,90 @@ describe("ChatStreamManager", () => {
     consoleError.mockRestore();
   });
 
+  it("calls onStreamFinished after a successful stream so callers can refresh and clear", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+      expect(store.getStreamSnapshot(conversationId)?.status).toBe("complete");
+      store.clearStreamSnapshot(conversationId);
+    });
+
+    const finalMessage = createAssistantMessage("stream-msg_1", "Done");
+    sendMessagesMock.mockResolvedValueOnce(createMessageStream([]));
+    readUIMessageStreamMock.mockReturnValueOnce(createMessageStream([finalMessage]));
+
+    const result = await manager.start({
+      conversationId: "conv_success",
+      responseToMessageId: "msg_1",
+      text: "hello",
+    });
+
+    expect(result).toEqual({ started: true });
+    expect(finished).toEqual(["conv_success"]);
+    expect(manager.isStreaming("conv_success")).toBe(false);
+    expect(store.getStreamSnapshot("conv_success")).toBeNull();
+    expect(manager.shouldAutoTriggerResponse("conv_success", "msg_1")).toBe(false);
+  });
+
+  it("does not call onStreamFinished after a user-initiated stop aborts the stream", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+    });
+
+    let streamStarted!: () => void;
+    const streamStartedPromise = new Promise<void>((resolve) => {
+      streamStarted = resolve;
+    });
+
+    sendMessagesMock.mockImplementationOnce(async (input: { abortSignal: AbortSignal }) => ({
+      signal: input.abortSignal,
+    }));
+    readUIMessageStreamMock.mockImplementationOnce(
+      ({ stream }: { stream: { signal: AbortSignal } }) => {
+        let didStart = false;
+        return {
+          [Symbol.asyncIterator]() {
+            return this;
+          },
+          async next(): Promise<IteratorResult<UIMessage>> {
+            if (!didStart) {
+              didStart = true;
+              streamStarted();
+            }
+            await new Promise<void>((resolve) => {
+              stream.signal.addEventListener("abort", () => resolve(), { once: true });
+            });
+            const abortError = new Error("aborted");
+            abortError.name = "AbortError";
+            throw abortError;
+          },
+        };
+      },
+    );
+
+    const startPromise = manager.start({
+      conversationId: "conv_abort",
+      responseToMessageId: "msg_abort",
+      text: "stop please",
+    });
+    await streamStartedPromise;
+
+    manager.stop("conv_abort");
+    await expect(startPromise).resolves.toEqual({ started: true });
+
+    expect(finished).toEqual([]);
+    expect(manager.isStreaming("conv_abort")).toBe(false);
+    expect(store.getStreamSnapshot("conv_abort")).toBeNull();
+    expect(manager.shouldAutoTriggerResponse("conv_abort", "msg_abort")).toBe(false);
+  });
+
   it("blocks auto-trigger after a successful response even when the snapshot is cleared", () => {
     const store = new ChatDockStore();
     store.setOrganizationSlug("acme");
@@ -178,6 +285,17 @@ describe("ChatStreamManager", () => {
     store.clearStreamSnapshot("conv_1");
 
     expect(manager.shouldAutoTriggerResponse("conv_1", "msg_1")).toBe(false);
+  });
+
+  it("allows auto-trigger for a new user message after a prior attempted response", () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+
+    manager.markAttemptedUserMessage("conv_1", "msg_1");
+    store.clearStreamSnapshot("conv_1");
+
+    expect(manager.shouldAutoTriggerResponse("conv_1", "msg_2")).toBe(true);
   });
 
   it("blocks auto-trigger after a failed response even when the snapshot is cleared", () => {
