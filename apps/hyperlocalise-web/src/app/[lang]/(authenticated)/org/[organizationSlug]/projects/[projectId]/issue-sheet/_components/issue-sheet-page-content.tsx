@@ -435,8 +435,7 @@ export function IssueSheetPageContent({
                   <tr
                     key={issue.id}
                     tabIndex={0}
-                    role="button"
-                    aria-selected={state.issue === issue.id}
+                    aria-current={state.issue === issue.id ? "true" : undefined}
                     className={cn(
                       "align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       state.issue === issue.id && "bg-muted/40",
