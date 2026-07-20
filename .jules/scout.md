@@ -151,3 +151,7 @@
 ## 2026-07-18 - [HTML Tag Name Extraction and Space Leniency]
 **Learning:** The HTML tag name extraction helper (`extractTagName`) does not skip whitespace following a closing slash (e.g., `</ strong >` or `< / div>`). Instead, the scanning loop terminates at the space and returns `/`. Since `isLikelyMarkupTag` ignores `/`, such spaced structures are not recognized as markup.
 **Action:** When unit testing tag parsing helper functions, match the precise behavior of the underlying parsing state-machine regarding spaces around structural markers like slashes.
+
+## 2026-08-25 - [Testing Uncleaned and Relative Paths for Containment]
+**Learning:** Testing path containment/directory traversal logic with pre-cleaned paths (e.g., using `filepath.Join` inside the test assertions) can mask issues. To properly verify containment defenses, test inputs must include raw uncleaned relative traversal strings (such as `path/../outside`) and relative paths (like `.` or `../`) to ensure the system handles dynamic resolving and absolute normalization correctly.
+**Action:** When testing path guards or canonicalization logic, avoid pre-cleaning test candidates, and explicitly test both absolute and relative inputs across existence and non-existence boundaries.
