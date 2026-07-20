@@ -296,6 +296,8 @@ func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 	}
 	// BOLT OPTIMIZATION: Use a stack-allocated backing array for sigs
 	// to avoid heap allocation for the common case (where len(opts) <= 8).
+	// Verified with `go build -gcflags="-m"`: localSigs is not reported as
+	// escaping or moved to heap through append / slices.SortFunc.
 	var localSigs [8]optionSig
 	sigs := localSigs[:0]
 	if len(opts) > 8 {

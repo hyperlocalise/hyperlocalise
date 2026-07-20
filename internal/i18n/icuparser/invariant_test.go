@@ -106,6 +106,23 @@ func BenchmarkSamePlaceholderSet_Fallback(b *testing.B) {
 	}
 }
 
+func BenchmarkSortedPluralOptionSignatures(b *testing.B) {
+	// Common ICU plural shape (≤8 options): localSigs stays on the stack
+	// (confirmed via escape analysis). Remaining allocs are the returned slices.
+	opts := []PluralOption{
+		{Selector: "zero", Value: []Element{LiteralElement{Value: "none"}}},
+		{Selector: "one", Value: []Element{PoundElement{}, LiteralElement{Value: " item"}}},
+		{Selector: "two", Value: []Element{PoundElement{}, LiteralElement{Value: " items"}}},
+		{Selector: "few", Value: []Element{PoundElement{}, LiteralElement{Value: " items"}}},
+		{Selector: "many", Value: []Element{PoundElement{}, LiteralElement{Value: " items"}}},
+		{Selector: "other", Value: []Element{PoundElement{}, LiteralElement{Value: " items"}}},
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _ = sortedPluralOptionSignatures(opts)
+	}
+}
+
 func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 	tests := []struct {
 		name string
