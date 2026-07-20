@@ -68,13 +68,15 @@ export function IssueDetailDrawer({
       <SheetContent
         side="right"
         className={cn(
-          "w-full overflow-y-auto",
-          isMobile ? "max-w-none sm:max-w-none" : "sm:max-w-xl md:max-w-2xl",
+          "w-full overflow-y-auto p-0",
+          isMobile
+            ? "max-w-none data-[side=right]:sm:max-w-none"
+            : "data-[side=right]:sm:max-w-3xl data-[side=right]:md:max-w-4xl",
         )}
       >
-        <div ref={contentRef}>
-          <SheetHeader>
-            <SheetTitle>
+        <div ref={contentRef} className="flex min-h-full flex-col">
+          <SheetHeader className="border-b border-border px-6 py-4 pe-14">
+            <SheetTitle className="text-sm font-medium text-muted-foreground">
               <FormattedMessage {...messages.sheetTitle} />
             </SheetTitle>
             <SheetDescription className="sr-only">

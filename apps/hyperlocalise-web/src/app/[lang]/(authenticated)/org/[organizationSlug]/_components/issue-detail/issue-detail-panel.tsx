@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Calendar03Icon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+  File01Icon,
+  Flag01Icon,
+  LanguageCircleIcon,
+  LinkSquare02Icon,
+  Tag01Icon,
+  TranslateIcon,
+  User02Icon,
+  UserCircleIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,43 +56,75 @@ type WorkspaceMember = {
   status: "active" | "invited";
 };
 
-function DetailField({
+type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
+
+function PropertyRow({
+  icon,
   label,
   children,
-  className,
 }: {
-  label: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
+  icon: PropertyIcon;
+  label: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <Field className={cn("gap-1.5", className)}>
-      <FieldLabel className="text-xs text-muted-foreground">{label}</FieldLabel>
-      {children}
-    </Field>
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <dt className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+        <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
+      </dt>
+      <dd className="flex min-w-0 max-w-[55%] justify-end text-end">{children}</dd>
+    </div>
   );
 }
 
-function ReadOnlyValue({ value, empty }: { value: string | null; empty: string }) {
+function ReadOnlyValue({
+  value,
+  empty,
+  className,
+}: {
+  value: string | null;
+  empty: string;
+  className?: string;
+}) {
   return (
-    <TypographyP className="text-sm text-foreground">{value?.trim() ? value : empty}</TypographyP>
+    <TypographyP className={cn("text-sm leading-5 text-foreground", className)}>
+      {value?.trim() ? value : empty}
+    </TypographyP>
+  );
+}
+
+function LinkedContextRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="text-sm text-foreground">{children}</div>
+    </div>
   );
 }
 
 function IssueDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-4 px-6 pb-6">
-      <Skeleton className="h-8 w-3/4" />
-      <Skeleton className="h-24 w-full" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+    <div className="grid flex-1 md:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="flex flex-col gap-4 px-6 py-5">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full" />
       </div>
+      <aside className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="ml-auto h-7 w-24" />
+        <Skeleton className="ml-auto h-7 w-20" />
+        <Skeleton className="ml-auto h-7 w-28" />
+        <Skeleton className="ml-auto h-7 w-16" />
+        <Skeleton className="mt-2 ml-auto h-7 w-24" />
+      </aside>
     </div>
   );
 }
+
+const ghostSelectTriggerClassName =
+  "h-8 max-w-full justify-end border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
 
 export function IssueDetailPanel({
   organizationSlug,
@@ -172,7 +217,7 @@ export function IssueDetailPanel({
 
   if (issueQuery.isLoading) {
     return (
-      <div aria-busy="true" aria-live="polite">
+      <div aria-busy="true" aria-live="polite" className="flex flex-1 flex-col">
         <TypographyP className="sr-only">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
@@ -183,7 +228,7 @@ export function IssueDetailPanel({
 
   if (issueQuery.isError) {
     return (
-      <div className="px-6 pb-6">
+      <div className="px-6 py-5">
         <TypographyP className="text-sm text-destructive">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
@@ -193,7 +238,7 @@ export function IssueDetailPanel({
 
   if (!issue) {
     return (
-      <div className="px-6 pb-6">
+      <div className="px-6 py-5">
         <TypographyP className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.notFound} />
         </TypographyP>
@@ -203,6 +248,9 @@ export function IssueDetailPanel({
 
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
   const priority = typeof issue.values.priority === "string" ? issue.values.priority : "";
+  const hasLinkedContext = Boolean(
+    issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
+  );
 
   const saveTitle = () => {
     const next = titleDraft.trim();
@@ -220,224 +268,268 @@ export function IssueDetailPanel({
   };
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-6" aria-busy={isSaving}>
-      {showSaved ? (
-        <TypographyP className="text-xs text-muted-foreground" aria-live="polite">
-          <FormattedMessage {...messages.saved} />
-        </TypographyP>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {catHref ? (
-          <Button variant="default" size="sm" render={<a href={catHref} />}>
-            <FormattedMessage {...messages.openInCat} />
-          </Button>
-        ) : (
-          <TypographyP className="text-xs text-muted-foreground">
-            <FormattedMessage {...messages.openInCatUnavailable} />
+    <div className="grid flex-1 md:grid-cols-[minmax(0,1fr)_18rem]" aria-busy={isSaving}>
+      <div className="flex min-w-0 flex-col gap-3 px-6 py-5">
+        {showSaved ? (
+          <TypographyP className="text-xs text-muted-foreground" aria-live="polite">
+            <FormattedMessage {...messages.saved} />
           </TypographyP>
-        )}
-        {issue.linkUrl && issue.linkUrl !== catHref ? (
-          <Button
-            variant="outline"
-            size="sm"
-            render={
-              <a
-                href={issue.linkUrl}
-                {...(isExternalHttpUrl(issue.linkUrl)
-                  ? { target: "_blank", rel: "noopener noreferrer" }
-                  : {})}
-              />
-            }
-          >
-            {issue.linkLabel || intl.formatMessage(messages.openLink)}
-          </Button>
         ) : null}
-      </div>
 
-      <DetailField label={<FormattedMessage {...messages.fieldTitle} />}>
         <Input
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}
           onBlur={saveTitle}
           disabled={isSaving}
+          aria-label={intl.formatMessage(messages.fieldTitle)}
+          className={cn(
+            "h-auto rounded-none border-transparent bg-transparent px-0 py-1 text-lg font-semibold shadow-none md:text-xl",
+            "focus-visible:border-transparent focus-visible:ring-0",
+          )}
         />
-      </DetailField>
 
-      <DetailField label={<FormattedMessage {...messages.fieldDescription} />}>
         <Textarea
           value={descriptionDraft}
           onChange={(event) => setDescriptionDraft(event.currentTarget.value)}
           onBlur={saveDescription}
           disabled={isSaving}
-          className="min-h-28"
+          aria-label={intl.formatMessage(messages.fieldDescription)}
+          placeholder={intl.formatMessage(messages.fieldDescription)}
+          className={cn(
+            "min-h-32 rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
+            "focus-visible:border-transparent focus-visible:ring-0",
+          )}
         />
-      </DetailField>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <DetailField label={<FormattedMessage {...messages.fieldStatus} />}>
-          <Select
-            value={issue.status}
-            items={statusItems}
-            onValueChange={(value) => {
-              if (value) {
-                updateIssue.mutate({ status: value });
-              }
-            }}
-            disabled={isSaving}
-          >
-            <SelectTrigger className="w-full">
-              <Badge variant={issueStatusVariant(issue.status)}>
-                {issueStatusLabel(intl, issue.status)}
-              </Badge>
-            </SelectTrigger>
-            <SelectContent>
-              {statusItems.map((status) => (
-                <SelectItem key={status.value} value={status.value} label={status.label}>
-                  {status.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </DetailField>
-
-        <DetailField label={<FormattedMessage {...messages.fieldType} />}>
-          <Select
-            value={issue.issueType}
-            items={issueTypeItems}
-            onValueChange={(value) => {
-              if (value) {
-                updateIssue.mutate({ issueType: value });
-              }
-            }}
-            disabled={isSaving}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {issueTypeItems.map((type) => (
-                <SelectItem key={type.value} value={type.value} label={type.label}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </DetailField>
-
-        <DetailField label={<FormattedMessage {...messages.fieldPriority} />}>
-          <Select
-            value={priority || undefined}
-            items={priorityItems}
-            onValueChange={(value) => {
-              if (value) {
-                setValue.mutate({ columnKey: "priority", value });
-              }
-            }}
-            disabled={isSaving}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={emptyValue} />
-            </SelectTrigger>
-            <SelectContent>
-              {priorityItems.map((item) => (
-                <SelectItem key={item.value} value={item.value} label={item.label}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </DetailField>
-
-        <DetailField label={<FormattedMessage {...messages.fieldAssignee} />}>
-          <Select
-            value={issue.assigneeUserId ?? "unassigned"}
-            items={assigneeItems}
-            onValueChange={(value) => {
-              if (!value) {
-                return;
-              }
-              updateIssue.mutate({
-                assigneeUserId: value === "unassigned" ? null : value,
-              });
-            }}
-            disabled={isSaving || membersQuery.isLoading}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={emptyValue} />
-            </SelectTrigger>
-            <SelectContent>
-              {assigneeItems.map((item) => (
-                <SelectItem key={item.value} value={item.value} label={item.label}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </DetailField>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <DetailField label={<FormattedMessage {...messages.fieldReporter} />}>
-          <ReadOnlyValue value={issue.reporter} empty={emptyValue} />
-        </DetailField>
-        <DetailField label={<FormattedMessage {...messages.fieldLocale} />}>
-          <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} />
-        </DetailField>
-        <DetailField
-          label={<FormattedMessage {...messages.fieldSourcePath} />}
-          className="sm:col-span-2"
-        >
-          <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} />
-        </DetailField>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <DetailField label={<FormattedMessage {...messages.fieldCreatedAt} />}>
-          <ReadOnlyValue value={formatRelativeTimestamp(issue.createdAt)} empty={emptyValue} />
-        </DetailField>
-        <DetailField label={<FormattedMessage {...messages.fieldUpdatedAt} />}>
-          <ReadOnlyValue value={formatRelativeTimestamp(issue.updatedAt)} empty={emptyValue} />
-        </DetailField>
-        {issue.resolvedAt ? (
-          <DetailField label={<FormattedMessage {...messages.fieldResolvedAt} />}>
-            <ReadOnlyValue value={formatRelativeTimestamp(issue.resolvedAt)} empty={emptyValue} />
-          </DetailField>
+        {hasLinkedContext ? (
+          <section className="mt-2 grid gap-3 border-t border-border pt-4">
+            <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <HugeiconsIcon
+                icon={LinkSquare02Icon}
+                strokeWidth={1.8}
+                className="size-3.5 text-muted-foreground"
+              />
+              <FormattedMessage {...messages.linkedContext} />
+            </TypographyP>
+            <div className="grid gap-3">
+              {issue.key ? (
+                <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>
+                  <ReadOnlyValue value={issue.key} empty={emptyValue} />
+                </LinkedContextRow>
+              ) : null}
+              {issue.segmentId ? (
+                <LinkedContextRow label={<FormattedMessage {...messages.fieldSegmentId} />}>
+                  <ReadOnlyValue value={issue.segmentId} empty={emptyValue} />
+                </LinkedContextRow>
+              ) : null}
+              {issue.sourceText ? (
+                <LinkedContextRow label={<FormattedMessage {...messages.fieldSourceText} />}>
+                  <ReadOnlyValue value={issue.sourceText} empty={emptyValue} />
+                </LinkedContextRow>
+              ) : null}
+              {issue.linkKind ? (
+                <LinkedContextRow label={<FormattedMessage {...messages.fieldLink} />}>
+                  <ReadOnlyValue value={issue.linkKind} empty={emptyValue} />
+                </LinkedContextRow>
+              ) : null}
+            </div>
+          </section>
         ) : null}
       </div>
 
-      {(issue.key || issue.sourceText || issue.segmentId || issue.linkKind) && (
-        <div className="rounded-xl border bg-muted/30 p-4">
-          <TypographyP className="text-sm font-medium text-foreground">
-            <FormattedMessage {...messages.linkedContext} />
-          </TypographyP>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {issue.key ? (
-              <DetailField label={<FormattedMessage {...messages.fieldKey} />}>
-                <ReadOnlyValue value={issue.key} empty={emptyValue} />
-              </DetailField>
-            ) : null}
-            {issue.segmentId ? (
-              <DetailField label={<FormattedMessage {...messages.fieldSegmentId} />}>
-                <ReadOnlyValue value={issue.segmentId} empty={emptyValue} />
-              </DetailField>
-            ) : null}
-            {issue.sourceText ? (
-              <DetailField
-                label={<FormattedMessage {...messages.fieldSourceText} />}
-                className="sm:col-span-2"
-              >
-                <ReadOnlyValue value={issue.sourceText} empty={emptyValue} />
-              </DetailField>
-            ) : null}
-            {issue.linkKind ? (
-              <DetailField label={<FormattedMessage {...messages.fieldLink} />}>
-                <ReadOnlyValue value={issue.linkKind} empty={emptyValue} />
-              </DetailField>
-            ) : null}
-          </div>
+      <aside className="flex flex-col gap-1 border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+        <div className="mb-3 flex flex-col gap-2">
+          {catHref ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              render={<a href={catHref} />}
+            >
+              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
+              <FormattedMessage {...messages.openInCat} />
+            </Button>
+          ) : (
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.openInCatUnavailable} />
+            </TypographyP>
+          )}
+          {issue.linkUrl && issue.linkUrl !== catHref ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              render={
+                <a
+                  href={issue.linkUrl}
+                  {...(isExternalHttpUrl(issue.linkUrl)
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
+                />
+              }
+            >
+              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} data-icon="inline-start" />
+              {issue.linkLabel || intl.formatMessage(messages.openLink)}
+            </Button>
+          ) : null}
         </div>
-      )}
+
+        <dl className="flex flex-col">
+          <PropertyRow icon={User02Icon} label={<FormattedMessage {...messages.fieldAssignee} />}>
+            <Select
+              value={issue.assigneeUserId ?? "unassigned"}
+              items={assigneeItems}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                updateIssue.mutate({
+                  assigneeUserId: value === "unassigned" ? null : value,
+                });
+              }}
+              disabled={isSaving || membersQuery.isLoading}
+            >
+              <SelectTrigger className={ghostSelectTriggerClassName}>
+                <SelectValue placeholder={emptyValue} />
+              </SelectTrigger>
+              <SelectContent>
+                {assigneeItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PropertyRow>
+
+          <PropertyRow
+            icon={CheckmarkCircle02Icon}
+            label={<FormattedMessage {...messages.fieldStatus} />}
+          >
+            <Select
+              value={issue.status}
+              items={statusItems}
+              onValueChange={(value) => {
+                if (value) {
+                  updateIssue.mutate({ status: value });
+                }
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger className={ghostSelectTriggerClassName}>
+                <Badge variant={issueStatusVariant(issue.status)}>
+                  {issueStatusLabel(intl, issue.status)}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {statusItems.map((status) => (
+                  <SelectItem key={status.value} value={status.value} label={status.label}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PropertyRow>
+
+          <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
+            <Select
+              value={issue.issueType}
+              items={issueTypeItems}
+              onValueChange={(value) => {
+                if (value) {
+                  updateIssue.mutate({ issueType: value });
+                }
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger className={ghostSelectTriggerClassName}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {issueTypeItems.map((type) => (
+                  <SelectItem key={type.value} value={type.value} label={type.label}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PropertyRow>
+
+          <PropertyRow icon={Flag01Icon} label={<FormattedMessage {...messages.fieldPriority} />}>
+            <Select
+              value={priority || undefined}
+              items={priorityItems}
+              onValueChange={(value) => {
+                if (value) {
+                  setValue.mutate({ columnKey: "priority", value });
+                }
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger className={ghostSelectTriggerClassName}>
+                <SelectValue placeholder={emptyValue} />
+              </SelectTrigger>
+              <SelectContent>
+                {priorityItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PropertyRow>
+
+          <PropertyRow
+            icon={UserCircleIcon}
+            label={<FormattedMessage {...messages.fieldReporter} />}
+          >
+            <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
+          </PropertyRow>
+
+          <PropertyRow
+            icon={LanguageCircleIcon}
+            label={<FormattedMessage {...messages.fieldLocale} />}
+          >
+            <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} className="truncate" />
+          </PropertyRow>
+
+          <PropertyRow icon={File01Icon} label={<FormattedMessage {...messages.fieldSourcePath} />}>
+            <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} className="truncate" />
+          </PropertyRow>
+
+          <PropertyRow
+            icon={Calendar03Icon}
+            label={<FormattedMessage {...messages.fieldCreatedAt} />}
+          >
+            <ReadOnlyValue
+              value={formatRelativeTimestamp(issue.createdAt)}
+              empty={emptyValue}
+              className="truncate"
+            />
+          </PropertyRow>
+
+          <PropertyRow icon={Clock01Icon} label={<FormattedMessage {...messages.fieldUpdatedAt} />}>
+            <ReadOnlyValue
+              value={formatRelativeTimestamp(issue.updatedAt)}
+              empty={emptyValue}
+              className="truncate"
+            />
+          </PropertyRow>
+
+          {issue.resolvedAt ? (
+            <PropertyRow
+              icon={CheckmarkCircle02Icon}
+              label={<FormattedMessage {...messages.fieldResolvedAt} />}
+            >
+              <ReadOnlyValue
+                value={formatRelativeTimestamp(issue.resolvedAt)}
+                empty={emptyValue}
+                className="truncate"
+              />
+            </PropertyRow>
+          ) : null}
+        </dl>
+      </aside>
     </div>
   );
 }
