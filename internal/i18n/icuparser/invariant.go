@@ -363,6 +363,7 @@ func uniqueStrings(values []string) []string {
 	}
 	// BOLT OPTIMIZATION: If the slice is already sorted and unique, we can return it
 	// directly without copying, allocating, or sorting.
+	// NOTE: Returns the original slice (not a copy) — callers must not mutate the result.
 	if isSortedAndUnique(values) {
 		return values
 	}

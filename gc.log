@@ -1,0 +1,1089 @@
+# github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser
+internal/i18n/icuparser/ast.go:26:6: can inline LiteralElement.Type
+internal/i18n/icuparser/ast.go:32:6: can inline ArgumentElement.Type
+internal/i18n/icuparser/ast.go:53:6: can inline NumberElement.Type
+internal/i18n/icuparser/ast.go:61:6: can inline DateElement.Type
+internal/i18n/icuparser/ast.go:69:6: can inline TimeElement.Type
+internal/i18n/icuparser/ast.go:73:6: can inline PoundElement.Type
+internal/i18n/icuparser/ast.go:85:6: can inline SelectElement.Type
+internal/i18n/icuparser/ast.go:100:6: can inline PluralElement.Type
+internal/i18n/icuparser/ast.go:116:6: can inline TagElement.Type
+internal/i18n/icuparser/parse.go:669:6: can inline (*astParser).consume
+internal/i18n/icuparser/number_skeleton_token.go:13:6: can inline isNumberSkeletonWhitespace
+internal/i18n/icuparser/skeleton_errors.go:12:6: can inline errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:203:6: can inline parseSignStem
+internal/i18n/icuparser/number_skeleton_parse.go:199:6: can inline parseNotationSign
+internal/i18n/icuparser/number_skeleton_parse.go:224:6: can inline applySignOpts
+internal/i18n/icuparser/number_skeleton_parse.go:368:6: can inline mergeSignificantInto
+internal/i18n/icuparser/number_skeleton_parse.go:265:6: can inline mergeConciseScientific
+internal/i18n/icuparser/parse.go:677:6: can inline (*astParser).peek
+internal/i18n/icuparser/invariant.go:452:6: can inline isASCIIDigit
+internal/i18n/icuparser/parse.go:306:6: can inline (*astParser).parseCustomArgument
+internal/i18n/icuparser/parse.go:604:6: can inline (*astParser).startsQuotedLiteral
+internal/i18n/icuparser/parse.go:44:15: can inline (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:510:15: can inline (*astParser).parseUntilClosingTag.func1
+internal/i18n/icuparser/invariant.go:444:6: can inline isASCIIPlaceholderFirst
+internal/i18n/icuparser/invariant.go:448:6: can inline isASCIIPlaceholderSubsequent
+internal/i18n/icuparser/invariant.go:464:6: can inline isASCIIDigitRune
+internal/i18n/icuparser/invariant.go:233:6: can inline appendPlaceholder
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:63:6: can inline cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:28:6: can inline cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:300:6: can inline slices.order2Ordered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:317:6: can inline slices.medianAdjacentOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:321:6: can inline slices.reverseRangeOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:16:6: can inline slices.Sort[go.shape.[]string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:10:6: can inline slices.insertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:298:6: can inline slices.order2CmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:315:6: can inline slices.medianAdjacentCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:319:6: can inline slices.reverseRangeCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:30:6: can inline slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.optionSig·1,go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: can inline cmp.Compare[go.shape.string]
+internal/i18n/icuparser/invariant.go:307:24: can inline sortedPluralOptionSignatures.func1
+internal/i18n/icuparser/invariant.go:351:6: can inline hasNonZeroPounds
+internal/i18n/icuparser/invariant.go:198:6: can inline collectInvariantFromElements
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:369:6: can inline slices.Compact[go.shape.[]string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:10:6: can inline slices.insertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:298:6: can inline slices.order2CmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:315:6: can inline slices.medianAdjacentCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:319:6: can inline slices.reverseRangeCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:30:6: can inline slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.BlockSignature,go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:63:6: can inline cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: can inline cmp.Compare[go.shape.int]
+internal/i18n/icuparser/invariant.go:40:33: can inline ParseInvariant.func1
+internal/i18n/icuparser/invariant.go:58:6: can inline isSortedAndUnique
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:20:6: can inline slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+internal/i18n/icuparser/invariant.go:374:6: can inline slicesEqual[go.shape.string]
+internal/i18n/icuparser/invariant.go:89:6: can inline HasDuplicatePounds
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: can inline cmp.Compare[string]
+internal/i18n/icuparser/invariant.go:374:6: can inline slicesEqual[string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:57:6: can inline slices.Compare[[]int,int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:57:6: can inline slices.Compare[[]string,string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: can inline cmp.Compare[int]
+internal/i18n/icuparser/datetime_skeleton_parse.go:36:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/datetime_skeleton_parse.go:41:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/datetime_skeleton_parse.go:58:17: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/datetime_skeleton_parse.go:36:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/datetime_skeleton_parse.go:41:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/datetime_skeleton_parse.go:36:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/datetime_skeleton_parse.go:41:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/datetime_skeleton_parse.go:84:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:86:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:95:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:102:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:114:21: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:124:21: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:136:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:162:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:174:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:182:20: inlining call to fmt.Errorf
+internal/i18n/icuparser/datetime_skeleton_parse.go:84:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:86:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:95:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:102:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:114:21: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:124:21: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:136:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:162:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:174:20: inlining call to errors.New
+internal/i18n/icuparser/datetime_skeleton_parse.go:182:20: inlining call to errors.New
+internal/i18n/icuparser/parse.go:661:34: inlining call to utf8.DecodeRuneInString
+internal/i18n/icuparser/parse.go:697:34: inlining call to utf8.DecodeRuneInString
+internal/i18n/icuparser/parse.go:792:27: inlining call to strings.IndexByte
+internal/i18n/icuparser/parse.go:792:27: inlining call to stringslite.IndexByte
+internal/i18n/icuparser/parse.go:315:14: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:318:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:319:24: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:350:23: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:319:24: inlining call to errors.New
+internal/i18n/icuparser/parse.go:350:23: inlining call to errors.New
+internal/i18n/icuparser/skeleton_errors.go:9:19: inlining call to fmt.Errorf
+internal/i18n/icuparser/skeleton_errors.go:9:19: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_token.go:49:24: inlining call to strings.Split
+internal/i18n/icuparser/skeleton_errors.go:13:19: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:193:23: inlining call to strings.Index
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: inlining call to parseSignStem
+internal/i18n/icuparser/number_skeleton_parse.go:283:40: inlining call to regexp.(*Regexp).FindStringIndex
+internal/i18n/icuparser/number_skeleton_parse.go:300:37: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:302:37: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:300:37: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:302:37: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:343:40: inlining call to regexp.(*Regexp).MatchString
+internal/i18n/icuparser/number_skeleton_parse.go:343:40: inlining call to regexp.(*Regexp).doMatch
+internal/i18n/icuparser/number_skeleton_parse.go:255:37: inlining call to regexp.(*Regexp).MatchString
+internal/i18n/icuparser/number_skeleton_parse.go:256:41: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:255:37: inlining call to regexp.(*Regexp).doMatch
+internal/i18n/icuparser/number_skeleton_parse.go:256:41: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:26:61: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:40:61: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: inlining call to parseNotationSign
+internal/i18n/icuparser/number_skeleton_parse.go:56:19: inlining call to applySignOpts
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: inlining call to parseNotationSign
+internal/i18n/icuparser/number_skeleton_parse.go:64:19: inlining call to applySignOpts
+internal/i18n/icuparser/number_skeleton_parse.go:88:61: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:119:61: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:129:37: inlining call to regexp.(*Regexp).MatchString
+internal/i18n/icuparser/number_skeleton_parse.go:134:37: inlining call to regexp.(*Regexp).MatchString
+internal/i18n/icuparser/number_skeleton_parse.go:136:61: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:150:26: inlining call to mergeSignificantInto
+internal/i18n/icuparser/number_skeleton_parse.go:156:40: inlining call to regexp.(*Regexp).MatchString
+internal/i18n/icuparser/number_skeleton_parse.go:161:24: inlining call to mergeSignificantInto
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: inlining call to parseSignStem
+internal/i18n/icuparser/number_skeleton_parse.go:167:17: inlining call to applySignOpts
+internal/i18n/icuparser/number_skeleton_parse.go:175:26: inlining call to mergeConciseScientific
+internal/i18n/icuparser/number_skeleton_parse.go:179:60: inlining call to errMalformedNumberSkeleton
+internal/i18n/icuparser/number_skeleton_parse.go:26:61: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:40:61: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: inlining call to parseSignStem
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: inlining call to parseSignStem
+internal/i18n/icuparser/number_skeleton_parse.go:88:61: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:119:61: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:129:37: inlining call to regexp.(*Regexp).doMatch
+internal/i18n/icuparser/number_skeleton_parse.go:134:37: inlining call to regexp.(*Regexp).doMatch
+internal/i18n/icuparser/number_skeleton_parse.go:136:61: inlining call to errors.New
+internal/i18n/icuparser/number_skeleton_parse.go:156:40: inlining call to regexp.(*Regexp).doMatch
+internal/i18n/icuparser/number_skeleton_parse.go:179:60: inlining call to errors.New
+internal/i18n/icuparser/parse.go:190:23: inlining call to strings.HasPrefix
+internal/i18n/icuparser/parse.go:190:23: inlining call to stringslite.HasPrefix
+internal/i18n/icuparser/parse.go:213:23: inlining call to strings.HasPrefix
+internal/i18n/icuparser/parse.go:218:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:213:23: inlining call to stringslite.HasPrefix
+internal/i18n/icuparser/parse.go:218:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:240:23: inlining call to strings.HasPrefix
+internal/i18n/icuparser/parse.go:245:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:240:23: inlining call to stringslite.HasPrefix
+internal/i18n/icuparser/parse.go:245:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:734:41: inlining call to isASCIIDigit
+internal/i18n/icuparser/parse.go:752:34: inlining call to utf8.DecodeRuneInString
+internal/i18n/icuparser/parse.go:717:40: inlining call to isASCIIDigit
+internal/i18n/icuparser/parse.go:721:24: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:721:24: inlining call to errors.New
+internal/i18n/icuparser/parse.go:495:26: inlining call to strings.IndexByte
+internal/i18n/icuparser/parse.go:495:26: inlining call to stringslite.IndexByte
+internal/i18n/icuparser/parse.go:619:14: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/parse.go:626:27: inlining call to strings.IndexByte
+internal/i18n/icuparser/parse.go:628:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:633:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:639:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/parse.go:619:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:626:27: inlining call to stringslite.IndexByte
+internal/i18n/icuparser/parse.go:628:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:633:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:639:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:619:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:628:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:633:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:639:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:70:13: inlining call to (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:79:27: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:81:13: inlining call to (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:88:14: inlining call to (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:97:14: inlining call to (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:110:28: inlining call to (*astParser).startsQuotedLiteral
+internal/i18n/icuparser/parse.go:114:22: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:128:11: inlining call to (*astParser).parseMessage.func1
+internal/i18n/icuparser/parse.go:130:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:70:13: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:70:13: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:70:13: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:70:13: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:79:27: inlining call to errors.New
+internal/i18n/icuparser/parse.go:81:13: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:81:13: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:81:13: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:81:13: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:88:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:88:14: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:88:14: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:88:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:97:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:97:14: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:97:14: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:97:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:114:22: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:128:11: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:128:11: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:128:11: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:128:11: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:130:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:70:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:81:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:88:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:97:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:114:22: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:128:11: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:70:13: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:81:13: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:88:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:97:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:128:11: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:45:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:47:21: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:49:55: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:50:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:47:21: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:47:21: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:136:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:137:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:142:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:145:14: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:148:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:149:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:154:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:170:30: inlining call to (*astParser).parseCustomArgument
+internal/i18n/icuparser/parse.go:137:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:142:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:149:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:154:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:267:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:268:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:268:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:358:26: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:361:12: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:363:27: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:369:26: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:372:16: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:373:26: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:358:26: inlining call to errors.New
+internal/i18n/icuparser/parse.go:363:27: inlining call to errors.New
+internal/i18n/icuparser/parse.go:369:26: inlining call to errors.New
+internal/i18n/icuparser/parse.go:373:26: inlining call to errors.New
+internal/i18n/icuparser/parse.go:281:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:282:25: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:282:25: inlining call to errors.New
+internal/i18n/icuparser/parse.go:391:29: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:394:12: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:396:30: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:402:29: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:410:18: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:411:31: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:432:30: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:437:16: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:438:29: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:391:29: inlining call to errors.New
+internal/i18n/icuparser/parse.go:396:30: inlining call to errors.New
+internal/i18n/icuparser/parse.go:402:29: inlining call to errors.New
+internal/i18n/icuparser/parse.go:411:31: inlining call to errors.New
+internal/i18n/icuparser/parse.go:432:30: inlining call to errors.New
+internal/i18n/icuparser/parse.go:438:29: inlining call to errors.New
+internal/i18n/icuparser/parse.go:452:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:455:11: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:455:30: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:455:49: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:472:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:474:16: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:479:15: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:489:40: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:489:40: inlining call to errors.New
+internal/i18n/icuparser/parse.go:533:23: inlining call to strings.HasPrefix
+internal/i18n/icuparser/parse.go:534:13: inlining call to (*astParser).parseUntilClosingTag.func1
+internal/i18n/icuparser/parse.go:540:18: inlining call to (*astParser).consume
+internal/i18n/icuparser/parse.go:541:28: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:544:28: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:551:16: inlining call to (*astParser).peek
+internal/i18n/icuparser/parse.go:553:13: inlining call to (*astParser).parseUntilClosingTag.func1
+internal/i18n/icuparser/parse.go:561:26: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:566:14: inlining call to (*astParser).parseUntilClosingTag.func1
+internal/i18n/icuparser/parse.go:575:14: inlining call to (*astParser).parseUntilClosingTag.func1
+internal/i18n/icuparser/parse.go:588:28: inlining call to (*astParser).startsQuotedLiteral
+internal/i18n/icuparser/parse.go:590:22: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:601:24: inlining call to fmt.Errorf
+internal/i18n/icuparser/parse.go:533:23: inlining call to stringslite.HasPrefix
+internal/i18n/icuparser/parse.go:534:13: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:534:13: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:534:13: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:534:13: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:541:28: inlining call to errors.New
+internal/i18n/icuparser/parse.go:544:28: inlining call to errors.New
+internal/i18n/icuparser/parse.go:553:13: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:553:13: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:553:13: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:553:13: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:561:26: inlining call to errors.New
+internal/i18n/icuparser/parse.go:566:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:566:14: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:566:14: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:566:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:575:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:575:14: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:575:14: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:575:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:590:22: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:601:24: inlining call to errors.New
+internal/i18n/icuparser/parse.go:534:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:553:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:566:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:575:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:590:22: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:534:13: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:553:13: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:566:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:575:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/parse.go:511:14: inlining call to strings.(*Builder).Len
+internal/i18n/icuparser/parse.go:513:21: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/parse.go:515:55: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/parse.go:516:14: inlining call to strings.(*Builder).Reset
+internal/i18n/icuparser/parse.go:513:21: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/parse.go:513:21: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:457:25: inlining call to unicode.IsLetter
+internal/i18n/icuparser/invariant.go:457:48: inlining call to isASCIIDigitRune
+internal/i18n/icuparser/invariant.go:461:25: inlining call to unicode.IsLetter
+internal/i18n/icuparser/invariant.go:461:48: inlining call to isASCIIDigitRune
+internal/i18n/icuparser/invariant.go:390:32: inlining call to isASCIIPlaceholderFirst
+internal/i18n/icuparser/invariant.go:401:35: inlining call to isASCIIDigit
+internal/i18n/icuparser/invariant.go:417:36: inlining call to isASCIIPlaceholderSubsequent
+internal/i18n/icuparser/invariant.go:429:34: inlining call to utf8.DecodeRuneInString
+internal/i18n/icuparser/invariant.go:146:22: inlining call to strings.Contains
+internal/i18n/icuparser/invariant.go:183:17: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:184:19: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:185:17: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:191:14: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:195:17: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/invariant.go:146:22: inlining call to strings.Index
+internal/i18n/icuparser/invariant.go:183:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:184:19: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:185:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:191:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:183:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:184:19: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:185:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:191:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:240:19: inlining call to appendPlaceholder
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:29:15: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:29:28: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:14:32: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:14:32: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:14:32: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:29:30: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:32:15: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:29:30: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:29:30: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:32:15: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:32:15: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:246:28: inlining call to slices.nextPowerOfTwo
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:249:33: inlining call to slices.(*xorshift).Next
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:301:13: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:301:13: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:301:13: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:310:22: inlining call to slices.order2Ordered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:311:22: inlining call to slices.order2Ordered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:312:22: inlining call to slices.order2Ordered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:310:22: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:311:22: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:312:22: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:310:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:310:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:311:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:311:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:312:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:312:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:281:29: inlining call to slices.medianAdjacentOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:282:29: inlining call to slices.medianAdjacentOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:283:29: inlining call to slices.medianAdjacentOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:204:25: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:221:17: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:230:17: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:204:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:204:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:221:17: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:221:17: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:230:17: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:230:17: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:180:26: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:183:25: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:180:26: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:180:26: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:183:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:183:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:141:24: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:144:25: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:156:25: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:159:26: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:141:24: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:141:24: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:144:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:144:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:156:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:156:25: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:159:26: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:159:26: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:93:23: inlining call to slices.reverseRangeOrdered[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:110:24: inlining call to cmp.Less[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:110:24: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:110:24: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:288:13: inlining call to slices.Sort[go.shape.[]string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:244:28: inlining call to slices.nextPowerOfTwo
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:247:33: inlining call to slices.(*xorshift).Next
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:308:22: inlining call to slices.order2CmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:309:22: inlining call to slices.order2CmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:310:22: inlining call to slices.order2CmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:279:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:280:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:281:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: inlining call to slices.insertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: inlining call to slices.reverseRangeCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:41:15: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:42:15: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:308:21: inlining call to cmp.Compare[go.shape.string]
+internal/i18n/icuparser/invariant.go:308:21: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:308:21: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:307:17: inlining call to slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.optionSig·1,go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+internal/i18n/icuparser/invariant.go:316:22: inlining call to hasNonZeroPounds
+internal/i18n/icuparser/invariant.go:207:20: inlining call to appendPlaceholder
+internal/i18n/icuparser/invariant.go:219:31: inlining call to collectInvariantFromElements
+internal/i18n/icuparser/invariant.go:222:21: inlining call to appendPlaceholder
+internal/i18n/icuparser/invariant.go:252:19: inlining call to appendPlaceholder
+internal/i18n/icuparser/invariant.go:259:31: inlining call to collectInvariantFromElements
+internal/i18n/icuparser/invariant.go:265:11: inlining call to PluralElement.Type
+internal/i18n/icuparser/invariant.go:268:19: inlining call to appendPlaceholder
+internal/i18n/icuparser/invariant.go:279:31: inlining call to collectInvariantFromElements
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:244:28: inlining call to slices.nextPowerOfTwo
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:247:33: inlining call to slices.(*xorshift).Next
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:308:22: inlining call to slices.order2CmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:309:22: inlining call to slices.order2CmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:310:22: inlining call to slices.order2CmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:279:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:280:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:281:29: inlining call to slices.medianAdjacentCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: inlining call to slices.insertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: inlining call to slices.reverseRangeCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:41:15: inlining call to cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:42:15: inlining call to cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.Compare[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.Compare[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:63:22: inlining call to cmp.isNaN[go.shape.int]
+internal/i18n/icuparser/invariant.go:41:22: inlining call to cmp.Compare[go.shape.string]
+internal/i18n/icuparser/invariant.go:44:22: inlining call to cmp.Compare[go.shape.string]
+internal/i18n/icuparser/invariant.go:47:22: inlining call to cmp.Compare[go.shape.int]
+internal/i18n/icuparser/invariant.go:41:22: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:41:22: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:44:22: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:44:22: inlining call to cmp.isNaN[go.shape.string]
+internal/i18n/icuparser/invariant.go:47:22: inlining call to cmp.isNaN[go.shape.int]
+internal/i18n/icuparser/invariant.go:47:22: inlining call to cmp.isNaN[go.shape.int]
+internal/i18n/icuparser/invariant.go:36:30: inlining call to collectInvariantFromElements
+internal/i18n/icuparser/invariant.go:38:13: inlining call to slices.Sort[go.shape.[]string,go.shape.string]
+internal/i18n/icuparser/invariant.go:39:35: inlining call to slices.Compact[go.shape.[]string,go.shape.string]
+internal/i18n/icuparser/invariant.go:40:17: inlining call to slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.BlockSignature,go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+internal/i18n/icuparser/invariant.go:375:21: inlining call to slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+internal/i18n/icuparser/invariant.go:366:22: inlining call to isSortedAndUnique
+internal/i18n/icuparser/invariant.go:370:13: inlining call to slices.Sort[go.shape.[]string,go.shape.string]
+internal/i18n/icuparser/invariant.go:371:23: inlining call to slices.Compact[go.shape.[]string,go.shape.string]
+internal/i18n/icuparser/invariant.go:71:22: inlining call to isSortedAndUnique
+internal/i18n/icuparser/invariant.go:71:46: inlining call to isSortedAndUnique
+internal/i18n/icuparser/invariant.go:72:21: inlining call to slicesEqual[go.shape.string]
+internal/i18n/icuparser/invariant.go:74:20: inlining call to slicesEqual[go.shape.string]
+internal/i18n/icuparser/invariant.go:72:21: inlining call to slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+internal/i18n/icuparser/invariant.go:74:20: inlining call to slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+internal/i18n/icuparser/invariant.go:82:98: inlining call to slicesEqual[go.shape.string]
+internal/i18n/icuparser/invariant.go:82:98: inlining call to slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+internal/i18n/icuparser/invariant.go:105:13: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:108:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:110:16: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:112:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:113:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:114:30: inlining call to strconv.Itoa
+internal/i18n/icuparser/invariant.go:114:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:115:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:117:14: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:118:16: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:119:14: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:122:16: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:124:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:126:14: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:128:22: inlining call to hasNonZeroPounds
+internal/i18n/icuparser/invariant.go:129:17: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:132:17: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:134:31: inlining call to strconv.Itoa
+internal/i18n/icuparser/invariant.go:134:18: inlining call to strings.(*Builder).WriteString
+internal/i18n/icuparser/invariant.go:136:15: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:139:13: inlining call to strings.(*Builder).WriteByte
+internal/i18n/icuparser/invariant.go:140:17: inlining call to strings.(*Builder).String
+internal/i18n/icuparser/invariant.go:105:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:108:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:110:16: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:112:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:113:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:114:30: inlining call to strconv.Itoa
+internal/i18n/icuparser/invariant.go:114:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:115:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:117:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:118:16: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:119:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:122:16: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:124:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:126:14: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:129:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:132:17: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:134:31: inlining call to strconv.Itoa
+internal/i18n/icuparser/invariant.go:134:18: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:136:15: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:139:13: inlining call to strings.(*Builder).copyCheck
+internal/i18n/icuparser/invariant.go:105:13: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:108:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:110:16: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:112:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:113:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:114:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:115:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:117:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:118:16: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:119:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:122:16: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:124:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:126:14: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:129:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:132:17: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:134:18: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:136:15: inlining call to abi.NoEscape
+internal/i18n/icuparser/invariant.go:139:13: inlining call to abi.NoEscape
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/slices.go:369:6: inlining call to slices.Compact[go.shape.[]string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:16:6: inlining call to slices.Sort[go.shape.[]string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.Compare[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.isNaN[go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:30:6: inlining call to slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.optionSig·1,go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }]
+internal/i18n/icuparser/invariant.go:374:6: inlining call to slicesEqual[go.shape.string]
+internal/i18n/icuparser/invariant.go:374:6: inlining call to slices.Equal[go.shape.[]go.shape.string,go.shape.string]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.Compare[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/cmp/cmp.go:40:6: inlining call to cmp.isNaN[go.shape.int]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/sort.go:30:6: inlining call to slices.SortFunc[go.shape.[]github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.BlockSignature,go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }]
+<autogenerated>:1: inlining call to LiteralElement.Type
+<autogenerated>:1: inlining call to ArgumentElement.Type
+<autogenerated>:1: inlining call to NumberElement.Type
+<autogenerated>:1: inlining call to DateElement.Type
+<autogenerated>:1: inlining call to TimeElement.Type
+<autogenerated>:1: inlining call to PoundElement.Type
+<autogenerated>:1: inlining call to SelectElement.Type
+<autogenerated>:1: inlining call to PluralElement.Type
+<autogenerated>:1: inlining call to TagElement.Type
+internal/i18n/icuparser/ast.go:100:7: leaking param: p to result ~r0 level=0
+internal/i18n/icuparser/datetime_skeleton_parse.go:31:21: s does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:36:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:36:15: append escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:41:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:41:15: append escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:61:25: result does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:61:56: match does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:133:3: moved to heap: t
+internal/i18n/icuparser/datetime_skeleton_parse.go:84:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:86:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:88:21: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:95:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:98:20: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:102:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:114:21: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:116:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:124:21: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:126:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:136:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:140:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:146:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:152:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:158:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:162:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:165:17: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:170:19: []string{...} does not escape
+internal/i18n/icuparser/datetime_skeleton_parse.go:174:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:182:20: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/datetime_skeleton_parse.go:17:28: skeleton does not escape
+internal/i18n/icuparser/parse.go:648:7: p does not escape
+internal/i18n/icuparser/parse.go:684:7: leaking param: p to result ~r0 level=1
+internal/i18n/icuparser/parse.go:788:7: p does not escape
+internal/i18n/icuparser/parse.go:314:7: leaking param: p to result ~r0 level=1
+internal/i18n/icuparser/parse.go:319:24: ... argument does not escape
+internal/i18n/icuparser/parse.go:319:55: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:319:24: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:350:23: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/skeleton_errors.go:8:31: leaking param: msg
+internal/i18n/icuparser/skeleton_errors.go:9:19: ... argument does not escape
+internal/i18n/icuparser/skeleton_errors.go:9:51: msg escapes to heap
+internal/i18n/icuparser/skeleton_errors.go:9:19: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_token.go:48:34: leaking param: token
+internal/i18n/icuparser/number_skeleton_token.go:51:14: make([]string, 0, len(parts) - 1) escapes to heap
+internal/i18n/icuparser/number_skeleton_token.go:56:16: append escapes to heap
+internal/i18n/icuparser/number_skeleton_token.go:24:32: leaking param: skeleton
+internal/i18n/icuparser/number_skeleton_token.go:40:15: append escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:192:20: leaking param: unit to result ~r0 level=0
+internal/i18n/icuparser/number_skeleton_parse.go:280:24: result does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:280:53: leaking param: opt
+internal/i18n/icuparser/number_skeleton_parse.go:300:37: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:302:37: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:309:33: result does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:309:62: leaking param: stem
+internal/i18n/icuparser/number_skeleton_parse.go:330:32: leaking param: str
+internal/i18n/icuparser/number_skeleton_parse.go:233:47: leaking param: stem
+internal/i18n/icuparser/number_skeleton_parse.go:256:41: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:258:9: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:12:26: leaking param content: tokens
+internal/i18n/icuparser/number_skeleton_parse.go:31:4: moved to heap: f
+internal/i18n/icuparser/number_skeleton_parse.go:26:61: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:40:61: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:55:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:63:31: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:88:61: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:119:61: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:136:61: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:166:25: &NumberFormatOptions{...} does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:179:72: ... argument does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:179:114: token.Stem escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:179:60: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:189:7: p does not escape
+internal/i18n/icuparser/parse.go:189:41: leaking param: arg
+internal/i18n/icuparser/parse.go:189:46: leaking param: style
+internal/i18n/icuparser/parse.go:191:23: NumberElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:205:22: NumberElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:208:13: &NumberSkeleton{...} escapes to heap
+internal/i18n/icuparser/parse.go:212:7: p does not escape
+internal/i18n/icuparser/parse.go:212:39: leaking param: arg
+internal/i18n/icuparser/parse.go:212:44: leaking param: style
+internal/i18n/icuparser/parse.go:214:21: DateElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:218:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:229:20: DateElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:232:13: &DateTimeSkeleton{...} escapes to heap
+internal/i18n/icuparser/parse.go:239:7: p does not escape
+internal/i18n/icuparser/parse.go:239:39: leaking param: arg
+internal/i18n/icuparser/parse.go:239:44: leaking param: style
+internal/i18n/icuparser/parse.go:241:21: TimeElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:245:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:256:20: TimeElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:259:13: &DateTimeSkeleton{...} escapes to heap
+internal/i18n/icuparser/parse.go:173:7: leaking param content: p
+internal/i18n/icuparser/parse.go:173:46: leaking param: arg
+internal/i18n/icuparser/parse.go:173:51: kind does not escape
+internal/i18n/icuparser/parse.go:726:7: leaking param: p to result ~r0 level=1
+internal/i18n/icuparser/parse.go:711:7: leaking param: p to result ~r0 level=1
+internal/i18n/icuparser/parse.go:721:24: ... argument does not escape
+internal/i18n/icuparser/parse.go:721:58: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:721:24: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:765:7: leaking param: p to result ~r0 level=1
+internal/i18n/icuparser/parse.go:492:7: p does not escape
+internal/i18n/icuparser/parse.go:616:7: p does not escape
+internal/i18n/icuparser/parse.go:616:39: leaking param content: b
+internal/i18n/icuparser/parse.go:619:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:619:14: append escapes to heap
+internal/i18n/icuparser/parse.go:628:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:628:17: append escapes to heap
+internal/i18n/icuparser/parse.go:633:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:633:17: append escapes to heap
+internal/i18n/icuparser/parse.go:639:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:639:15: append escapes to heap
+internal/i18n/icuparser/parse.go:36:7: leaking param content: p
+internal/i18n/icuparser/parse.go:135:7: leaking param content: p
+internal/i18n/icuparser/parse.go:266:7: leaking param content: p
+internal/i18n/icuparser/parse.go:266:41: leaking param: arg
+internal/i18n/icuparser/parse.go:353:7: leaking param content: p
+internal/i18n/icuparser/parse.go:280:7: leaking param content: p
+internal/i18n/icuparser/parse.go:280:41: leaking param: arg
+internal/i18n/icuparser/parse.go:280:46: kind does not escape
+internal/i18n/icuparser/parse.go:385:7: leaking param content: p
+internal/i18n/icuparser/parse.go:450:7: leaking param content: p
+internal/i18n/icuparser/parse.go:503:7: leaking param content: p
+internal/i18n/icuparser/parse.go:503:42: leaking param: name
+internal/i18n/icuparser/parse.go:38:13: make([]Element, 0, 4) escapes to heap
+internal/i18n/icuparser/parse.go:70:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:70:13: append escapes to heap
+internal/i18n/icuparser/parse.go:70:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:70:13: append escapes to heap
+internal/i18n/icuparser/parse.go:70:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:70:13: append escapes to heap
+internal/i18n/icuparser/parse.go:75:16: append escapes to heap
+internal/i18n/icuparser/parse.go:79:27: ... argument does not escape
+internal/i18n/icuparser/parse.go:79:63: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:79:27: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:81:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:81:13: append escapes to heap
+internal/i18n/icuparser/parse.go:81:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:81:13: append escapes to heap
+internal/i18n/icuparser/parse.go:81:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:81:13: append escapes to heap
+internal/i18n/icuparser/parse.go:88:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:88:14: append escapes to heap
+internal/i18n/icuparser/parse.go:88:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:88:14: append escapes to heap
+internal/i18n/icuparser/parse.go:88:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:88:14: append escapes to heap
+internal/i18n/icuparser/parse.go:89:35: PoundElement{} escapes to heap
+internal/i18n/icuparser/parse.go:89:17: append escapes to heap
+internal/i18n/icuparser/parse.go:97:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:97:14: append escapes to heap
+internal/i18n/icuparser/parse.go:97:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:97:14: append escapes to heap
+internal/i18n/icuparser/parse.go:97:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:97:14: append escapes to heap
+internal/i18n/icuparser/parse.go:103:24: tag escapes to heap
+internal/i18n/icuparser/parse.go:103:18: append escapes to heap
+internal/i18n/icuparser/parse.go:114:22: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:114:22: append escapes to heap
+internal/i18n/icuparser/parse.go:128:11: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:128:11: append escapes to heap
+internal/i18n/icuparser/parse.go:128:11: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:128:11: append escapes to heap
+internal/i18n/icuparser/parse.go:128:11: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:128:11: append escapes to heap
+internal/i18n/icuparser/parse.go:130:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:130:51: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:130:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:137:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:137:49: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:137:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:142:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:142:59: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:142:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:146:25: ArgumentElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:149:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:149:56: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:149:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:154:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:154:57: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:154:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:170:30: ArgumentElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:268:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:268:71: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:268:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:277:22: SelectElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:355:13: make([]SelectOption, 0, 2) escapes to heap
+internal/i18n/icuparser/parse.go:358:26: ... argument does not escape
+internal/i18n/icuparser/parse.go:358:52: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:358:26: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:363:27: ... argument does not escape
+internal/i18n/icuparser/parse.go:363:70: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:363:27: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:369:26: ... argument does not escape
+internal/i18n/icuparser/parse.go:369:62: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:369:26: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:373:26: ... argument does not escape
+internal/i18n/icuparser/parse.go:373:65: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:373:26: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:381:15: append escapes to heap
+internal/i18n/icuparser/parse.go:282:25: ... argument does not escape
+internal/i18n/icuparser/parse.go:282:71: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:282:25: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:297:22: PluralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:388:13: make([]PluralOption, 0, 2) escapes to heap
+internal/i18n/icuparser/parse.go:391:29: ... argument does not escape
+internal/i18n/icuparser/parse.go:391:55: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:391:29: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:396:30: ... argument does not escape
+internal/i18n/icuparser/parse.go:396:70: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:396:30: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:402:29: ... argument does not escape
+internal/i18n/icuparser/parse.go:402:62: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:402:29: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:411:31: ... argument does not escape
+internal/i18n/icuparser/parse.go:411:76: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:411:31: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:432:30: ... argument does not escape
+internal/i18n/icuparser/parse.go:432:59: val escapes to heap
+internal/i18n/icuparser/parse.go:432:30: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:438:29: ... argument does not escape
+internal/i18n/icuparser/parse.go:438:65: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:438:29: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:446:15: append escapes to heap
+internal/i18n/icuparser/parse.go:489:40: ... argument does not escape
+internal/i18n/icuparser/parse.go:489:74: name escapes to heap
+internal/i18n/icuparser/parse.go:489:80: start escapes to heap
+internal/i18n/icuparser/parse.go:489:40: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:505:13: make([]Element, 0, 4) escapes to heap
+internal/i18n/icuparser/parse.go:534:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:534:13: append escapes to heap
+internal/i18n/icuparser/parse.go:534:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:534:13: append escapes to heap
+internal/i18n/icuparser/parse.go:534:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:534:13: append escapes to heap
+internal/i18n/icuparser/parse.go:541:28: ... argument does not escape
+internal/i18n/icuparser/parse.go:541:64: closeName escapes to heap
+internal/i18n/icuparser/parse.go:541:28: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:544:28: ... argument does not escape
+internal/i18n/icuparser/parse.go:544:71: closeName escapes to heap
+internal/i18n/icuparser/parse.go:544:82: name escapes to heap
+internal/i18n/icuparser/parse.go:544:28: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:553:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:553:13: append escapes to heap
+internal/i18n/icuparser/parse.go:553:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:553:13: append escapes to heap
+internal/i18n/icuparser/parse.go:553:13: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:553:13: append escapes to heap
+internal/i18n/icuparser/parse.go:558:16: append escapes to heap
+internal/i18n/icuparser/parse.go:561:26: ... argument does not escape
+internal/i18n/icuparser/parse.go:561:62: p.pos escapes to heap
+internal/i18n/icuparser/parse.go:561:26: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:566:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:566:14: append escapes to heap
+internal/i18n/icuparser/parse.go:566:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:566:14: append escapes to heap
+internal/i18n/icuparser/parse.go:566:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:566:14: append escapes to heap
+internal/i18n/icuparser/parse.go:567:35: PoundElement{} escapes to heap
+internal/i18n/icuparser/parse.go:567:17: append escapes to heap
+internal/i18n/icuparser/parse.go:575:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:575:14: append escapes to heap
+internal/i18n/icuparser/parse.go:575:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:575:14: append escapes to heap
+internal/i18n/icuparser/parse.go:575:14: LiteralElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:575:14: append escapes to heap
+internal/i18n/icuparser/parse.go:581:24: tag escapes to heap
+internal/i18n/icuparser/parse.go:581:18: append escapes to heap
+internal/i18n/icuparser/parse.go:590:22: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/parse.go:590:22: append escapes to heap
+internal/i18n/icuparser/parse.go:601:24: ... argument does not escape
+internal/i18n/icuparser/parse.go:601:44: name escapes to heap
+internal/i18n/icuparser/parse.go:601:24: &errors.errorString{...} escapes to heap
+internal/i18n/icuparser/parse.go:11:12: leaking param: input
+internal/i18n/icuparser/parse.go:11:26: opts does not escape
+internal/i18n/icuparser/parse.go:13:10: &ParseOptions{} does not escape
+internal/i18n/icuparser/invariant.go:378:24: s does not escape
+internal/i18n/icuparser/invariant.go:143:36: leaking param: s to result ~r0 level=0
+internal/i18n/icuparser/invariant.go:183:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:183:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:184:19: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:184:19: append escapes to heap
+internal/i18n/icuparser/invariant.go:185:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:185:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:191:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:191:14: append escapes to heap
+internal/i18n/icuparser/invariant.go:239:32: leaking param content: inv
+internal/i18n/icuparser/invariant.go:239:48: leaking param: arg
+internal/i18n/icuparser/invariant.go:239:53: leaking param: kind
+internal/i18n/icuparser/invariant.go:239:59: leaking param: style
+internal/i18n/icuparser/invariant.go:240:19: append escapes to heap
+internal/i18n/icuparser/invariant.go:246:25: []string{...} escapes to heap
+internal/i18n/icuparser/invariant.go:248:24: append escapes to heap
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:15:23: slices.insertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:15:23: slices.insertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:35:39: slices.siftDownOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:35:39: slices.siftDownOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:52:30: slices.heapSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:52:30: slices.heapSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:253:29: slices.breakPatternsOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:253:29: slices.breakPatternsOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:216:22: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:216:22: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:224:24: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:224:24: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:233:24: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:233:24: slices.partialInsertionSortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:176:23: slices.partitionEqualOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:176:23: slices.partitionEqualOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:189:20: slices.partitionEqualOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:189:20: slices.partitionEqualOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:138:23: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:138:23: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:148:20: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:148:20: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:151:19: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:151:19: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:165:20: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:165:20: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:169:19: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:169:19: slices.partitionOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:93:23: slices.pdqsortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:93:23: slices.pdqsortOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+internal/i18n/icuparser/invariant.go:283:22: leaking param content: opts
+internal/i18n/icuparser/invariant.go:284:13: make([]string, 0, len(opts)) escapes to heap
+internal/i18n/icuparser/invariant.go:286:15: append escapes to heap
+internal/i18n/icuparser/invariant.go:322:18: elems does not escape
+internal/i18n/icuparser/invariant.go:307:29: a does not escape
+internal/i18n/icuparser/invariant.go:307:32: b does not escape
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:33:39: slices.siftDownCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:33:39: slices.siftDownCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:50:30: slices.heapSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:50:30: slices.heapSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:251:29: slices.breakPatternsCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:251:29: slices.breakPatternsCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:214:22: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:214:22: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:222:24: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:222:24: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:231:24: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:231:24: slices.partialInsertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:174:23: slices.partitionEqualCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:174:23: slices.partitionEqualCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:187:20: slices.partitionEqualCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:187:20: slices.partitionEqualCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:136:23: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:136:23: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:146:20: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:146:20: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:149:19: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:149:19: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:163:20: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:163:20: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:167:19: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:167:19: slices.partitionCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: slices.pdqsortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: slices.pdqsortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: slices.pdqsortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: slices.pdqsortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+internal/i18n/icuparser/invariant.go:292:35: leaking param content: opts
+internal/i18n/icuparser/invariant.go:302:14: make([]optionSig, 0, len(opts)) does not escape
+internal/i18n/icuparser/invariant.go:305:16: append does not escape
+internal/i18n/icuparser/invariant.go:307:24: func literal does not escape
+internal/i18n/icuparser/invariant.go:310:19: make([]string, 0, len(sigs)) escapes to heap
+internal/i18n/icuparser/invariant.go:311:16: make([]int, 0, len(sigs)) escapes to heap
+internal/i18n/icuparser/invariant.go:313:21: append escapes to heap
+internal/i18n/icuparser/invariant.go:314:18: append escapes to heap
+internal/i18n/icuparser/invariant.go:204:34: leaking param content: el
+internal/i18n/icuparser/invariant.go:204:46: leaking param content: inv
+internal/i18n/icuparser/invariant.go:204:62: leaking param: pluralArg
+internal/i18n/icuparser/invariant.go:251:33: leaking param content: inv
+internal/i18n/icuparser/invariant.go:251:49: leaking param: v
+internal/i18n/icuparser/invariant.go:251:66: leaking param: pluralArg
+internal/i18n/icuparser/invariant.go:263:33: leaking param content: inv
+internal/i18n/icuparser/invariant.go:263:49: leaking param: v
+internal/i18n/icuparser/invariant.go:207:20: append escapes to heap
+internal/i18n/icuparser/invariant.go:222:21: append escapes to heap
+internal/i18n/icuparser/invariant.go:252:19: append escapes to heap
+internal/i18n/icuparser/invariant.go:253:24: append escapes to heap
+internal/i18n/icuparser/invariant.go:268:19: append escapes to heap
+internal/i18n/icuparser/invariant.go:271:24: append escapes to heap
+internal/i18n/icuparser/invariant.go:40:38: a does not escape
+internal/i18n/icuparser/invariant.go:40:41: b does not escape
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:33:39: slices.siftDownCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:33:39: slices.siftDownCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.first + slices.root], slices.data[slices.first + slices.child] = slices.data[slices.first + slices.child], slices.data[slices.first + slices.root]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:50:30: slices.heapSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:50:30: slices.heapSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.first], slices.data[slices.first + slices.i] = slices.data[slices.first + slices.i], slices.data[slices.first]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:251:29: slices.breakPatternsCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:251:29: slices.breakPatternsCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.idx], slices.data[slices.a + slices.other] = slices.data[slices.a + slices.other], slices.data[slices.idx]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:214:22: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:214:22: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.i - 1] = slices.data[slices.i - 1], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:222:24: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:222:24: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:231:24: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:231:24: slices.partialInsertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:174:23: slices.partitionEqualCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:174:23: slices.partitionEqualCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:187:20: slices.partitionEqualCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:187:20: slices.partitionEqualCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:136:23: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:136:23: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.a], slices.data[slices.pivot] = slices.data[slices.pivot], slices.data[slices.a]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:146:20: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:146:20: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:149:19: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:149:19: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:163:20: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:163:20: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:167:19: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:167:19: slices.partitionCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.a] = slices.data[slices.a], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: slices.pdqsortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:73:24: slices.pdqsortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: slices.pdqsortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:91:23: slices.pdqsortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+internal/i18n/icuparser/invariant.go:25:21: leaking param: s
+internal/i18n/icuparser/invariant.go:40:33: func literal does not escape
+internal/i18n/icuparser/invariant.go:58:24: s does not escape
+internal/i18n/icuparser/invariant.go:360:20: leaking param content: values
+internal/i18n/icuparser/invariant.go:360:20: leaking param: values to result ~r0 level=0
+internal/i18n/icuparser/invariant.go:369:18: append escapes to heap
+internal/i18n/icuparser/invariant.go:67:25: leaking param content: a
+internal/i18n/icuparser/invariant.go:67:28: leaking param content: b
+internal/i18n/icuparser/invariant.go:77:20: a does not escape
+internal/i18n/icuparser/invariant.go:77:23: b does not escape
+internal/i18n/icuparser/invariant.go:89:25: blocks does not escape
+internal/i18n/icuparser/invariant.go:100:22: blocks does not escape
+internal/i18n/icuparser/invariant.go:105:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:105:13: append escapes to heap
+internal/i18n/icuparser/invariant.go:108:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:108:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:110:16: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:110:16: append escapes to heap
+internal/i18n/icuparser/invariant.go:112:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:112:15: append escapes to heap
+internal/i18n/icuparser/invariant.go:113:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:113:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:114:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:114:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:115:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:115:15: append escapes to heap
+internal/i18n/icuparser/invariant.go:117:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:117:14: append escapes to heap
+internal/i18n/icuparser/invariant.go:118:16: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:118:16: append escapes to heap
+internal/i18n/icuparser/invariant.go:119:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:119:14: append escapes to heap
+internal/i18n/icuparser/invariant.go:122:16: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:122:16: append escapes to heap
+internal/i18n/icuparser/invariant.go:124:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:124:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:126:14: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:126:14: append escapes to heap
+internal/i18n/icuparser/invariant.go:129:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:129:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:132:17: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:132:17: append escapes to heap
+internal/i18n/icuparser/invariant.go:134:18: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:134:18: append escapes to heap
+internal/i18n/icuparser/invariant.go:136:15: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:136:15: append escapes to heap
+internal/i18n/icuparser/invariant.go:139:13: "strings: illegal use of non-zero Builder copied by value" escapes to heap
+internal/i18n/icuparser/invariant.go:139:13: append escapes to heap
+internal/i18n/icuparser/invariant.go:198:35: leaking param content: elems
+internal/i18n/icuparser/invariant.go:198:52: leaking param content: inv
+internal/i18n/icuparser/invariant.go:198:68: leaking param: pluralArg
+internal/i18n/icuparser/invariant.go:233:24: leaking param content: inv
+internal/i18n/icuparser/invariant.go:233:40: leaking param: value
+internal/i18n/icuparser/invariant.go:235:28: append escapes to heap
+internal/i18n/icuparser/invariant.go:351:23: values does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:199:24: opt does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:200:22: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:203:20: str does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:206:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:208:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:210:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:212:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:214:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:216:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:218:10: &NumberFormatOptions{...} escapes to heap
+internal/i18n/icuparser/number_skeleton_parse.go:224:20: dst does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:224:46: leaking param content: src
+internal/i18n/icuparser/number_skeleton_parse.go:265:29: dst does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:265:55: leaking param content: src
+internal/i18n/icuparser/number_skeleton_parse.go:368:27: dst does not escape
+internal/i18n/icuparser/number_skeleton_parse.go:368:53: leaking param: src
+internal/i18n/icuparser/parse.go:306:7: p does not escape
+internal/i18n/icuparser/parse.go:306:41: leaking param: arg
+internal/i18n/icuparser/parse.go:311:24: ArgumentElement{...} escapes to heap
+internal/i18n/icuparser/parse.go:604:7: p does not escape
+internal/i18n/icuparser/parse.go:669:7: p does not escape
+internal/i18n/icuparser/parse.go:677:7: p does not escape
+internal/i18n/icuparser/skeleton_errors.go:12:33: leaking param: msg
+internal/i18n/icuparser/skeleton_errors.go:13:19: &errors.errorString{...} escapes to heap
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:325:20: slices.reverseRangeOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortordered.go:325:20: slices.reverseRangeOrdered[go.shape.string] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:323:20: slices.reverseRangeCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:323:20: slices.reverseRangeCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:13:23: slices.insertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:13:23: slices.insertionSortCmpFunc[go.shape.struct { github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.selector string; github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser.pounds int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:323:20: slices.reverseRangeCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:323:20: slices.reverseRangeCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.i], slices.data[slices.j] = slices.data[slices.j], slices.data[slices.i]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:13:23: slices.insertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.1.linux-amd64/src/slices/zsortanyfunc.go:13:23: slices.insertionSortCmpFunc[go.shape.struct { Arg string; Type string; Offset int; Options []string; Pounds []int }] ignoring self-assignment in slices.data[slices.j], slices.data[slices.j - 1] = slices.data[slices.j - 1], slices.data[slices.j]
+internal/i18n/icuparser/invariant.go:457:25: index bounds check elided
+internal/i18n/icuparser/invariant.go:461:25: index bounds check elided
