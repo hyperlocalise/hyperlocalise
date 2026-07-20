@@ -34,6 +34,8 @@ export type IssueListUrlState = {
   locale?: string;
   assignee?: IssueAssigneeFilter;
   projectId?: string;
+  issue?: string;
+  issueProject?: string;
   search: string;
   sort: IssueListSortField;
   sortDir: IssueListSortDirection;
@@ -75,6 +77,8 @@ export function parseIssueListSearchParams(
   const projectId = options?.includeProject
     ? searchParams.get("projectId")?.trim() || undefined
     : undefined;
+  const issue = searchParams.get("issue")?.trim() || undefined;
+  const issueProject = searchParams.get("issueProject")?.trim() || undefined;
 
   return {
     view,
@@ -84,6 +88,8 @@ export function parseIssueListSearchParams(
     locale,
     assignee,
     projectId,
+    issue,
+    issueProject,
     search,
     sort,
     sortDir,
@@ -116,6 +122,12 @@ export function buildIssueListSearchParams(
   if (options?.includeProject && state.projectId) {
     params.set("projectId", state.projectId);
   }
+  if (state.issue) {
+    params.set("issue", state.issue);
+  }
+  if (state.issueProject) {
+    params.set("issueProject", state.issueProject);
+  }
   if (state.search.trim()) {
     params.set("search", state.search.trim());
   }
@@ -144,6 +156,16 @@ export function clearIssueListFilters(state: IssueListUrlState): IssueListUrlSta
     search: "",
     sort: state.sort,
     sortDir: state.sortDir,
+    issue: state.issue,
+    issueProject: state.issueProject,
+  };
+}
+
+export function stripIssueDetailFromState(state: IssueListUrlState): IssueListUrlState {
+  return {
+    ...state,
+    issue: undefined,
+    issueProject: undefined,
   };
 }
 

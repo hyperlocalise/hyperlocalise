@@ -6,7 +6,7 @@ import {
   isProjectMutationAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
-import { badRequestResponse, conflictResponse } from "@/api/response.schema";
+import { badRequestResponse, conflictResponse, notFoundResponse } from "@/api/response.schema";
 import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
@@ -106,6 +106,24 @@ export function createIssueSheetRoutes() {
         query: c.req.valid("query"),
       });
       return c.json(result, 200);
+    })
+    .get("/:issueId", validateIssueSheetIssueParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const issue = await service.getIssue({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId: params.issueId,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      if (!issue) {
+        return notFoundResponse(c, "issue_not_found", "Issue not found");
+      }
+      return c.json({ issue }, 200);
     })
     .post("/", validateIssueSheetParams, validateCreateIssueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {

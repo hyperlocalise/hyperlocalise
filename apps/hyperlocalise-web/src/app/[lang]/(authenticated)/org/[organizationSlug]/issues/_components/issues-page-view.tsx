@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "@hugeicons/core-free-icons";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -8,6 +8,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
@@ -85,6 +86,10 @@ export function IssuesPageView({
   actions,
   filterBar,
   onLoadMore,
+  selectedIssueId,
+  onIssueRowClick,
+  onIssueRowKeyDown,
+  onStopRowActivation,
 }: {
   organizationSlug: string;
   issues: OrganizationIssue[];
@@ -102,6 +107,10 @@ export function IssuesPageView({
   actions?: ReactNode;
   filterBar: ReactNode;
   onLoadMore: () => void;
+  selectedIssueId?: string;
+  onIssueRowClick: (issue: OrganizationIssue, row: HTMLTableRowElement) => void;
+  onIssueRowKeyDown: (event: KeyboardEvent<HTMLTableRowElement>, issue: OrganizationIssue) => void;
+  onStopRowActivation: (event: { stopPropagation: () => void }) => void;
 }) {
   const intl = useIntl();
 
@@ -197,14 +206,19 @@ export function IssuesPageView({
               </tr>
             ) : (
               issues.map((issue) => (
-                <tr key={`${issue.projectId}:${issue.id}`} className="align-top">
+                <tr
+                  key={`${issue.projectId}:${issue.id}`}
+                  tabIndex={0}
+                  aria-current={selectedIssueId === issue.id ? "true" : undefined}
+                  className={cn(
+                    "align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    selectedIssueId === issue.id && "bg-muted/40",
+                  )}
+                  onClick={(event) => onIssueRowClick(issue, event.currentTarget)}
+                  onKeyDown={(event) => onIssueRowKeyDown(event, issue)}
+                >
                   <td className="max-w-80 px-4 py-3">
-                    <Link
-                      href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}/issue-sheet`}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {issue.title}
-                    </Link>
+                    <span className="font-medium text-foreground">{issue.title}</span>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                       {issue.description ||
                         issue.sourcePath ||
@@ -222,7 +236,11 @@ export function IssuesPageView({
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatLabel(issue.issueType)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td
+                    className="px-4 py-3"
+                    onClick={onStopRowActivation}
+                    onKeyDown={onStopRowActivation}
+                  >
                     <Link
                       href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
                       className="text-foreground hover:underline"
