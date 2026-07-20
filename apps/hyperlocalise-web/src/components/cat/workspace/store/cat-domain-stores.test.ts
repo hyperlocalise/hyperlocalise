@@ -274,6 +274,21 @@ describe("CatWorkspaceUiStore", () => {
     }
   });
 
+  it("does not persist view mode changes when initialViewMode was set", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem });
+
+    try {
+      const ui = new CatWorkspaceUiStore("comfortable");
+      ui.setViewMode("side-by-side");
+
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(setItem).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("tracks hovered segment and preview loading state", () => {
     const ui = new CatWorkspaceUiStore();
 

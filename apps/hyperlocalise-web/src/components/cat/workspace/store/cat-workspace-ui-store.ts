@@ -14,9 +14,13 @@ export class CatWorkspaceUiStore {
   previewTargetLoading = false;
   previewCommentsLoading = false;
   visibleSideBySideSegmentIds: string[] = [];
+  // Explicit initial modes (e.g. marketing demos) must not overwrite the
+  // visitor's real CAT workspace preference.
+  #persistViewMode: boolean;
 
   constructor(initialViewMode?: CatWorkspaceViewMode) {
     this.viewMode = initialViewMode ?? readCatWorkspaceViewMode();
+    this.#persistViewMode = initialViewMode === undefined;
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
@@ -30,7 +34,9 @@ export class CatWorkspaceUiStore {
 
   setViewMode(mode: CatWorkspaceViewMode) {
     this.viewMode = mode;
-    writeCatWorkspaceViewMode(mode);
+    if (this.#persistViewMode) {
+      writeCatWorkspaceViewMode(mode);
+    }
   }
 
   setHoveredSegment(segmentId: string | null) {
