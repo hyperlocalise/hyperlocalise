@@ -38,26 +38,22 @@ func findAllTags(s string) []string {
 			break
 		}
 
-		// We only care about </?[A-Za-z] (with optional whitespace after < and /)
-		// so space-lenient closing tags like "</ strong>" and "< / div>" are found
-		// and can reach extractTagName.
-		j := i + 1
-		for j < len(s) && isHTMLWhitespace(s[j]) {
-			j++
+		// We only care about </?[A-Za-z] to match the previous regex behavior, with space leniency.
+		curr := i + 1
+		for curr < len(s) && isHTMLWhitespace(s[curr]) {
+			curr++
 		}
-		if j >= len(s) {
-			break
-		}
-		if s[j] == '/' {
-			j++
-			for j < len(s) && isHTMLWhitespace(s[j]) {
-				j++
-			}
-			if j >= len(s) {
-				break
+		if curr < len(s) && s[curr] == '/' {
+			curr++
+			for curr < len(s) && isHTMLWhitespace(s[curr]) {
+				curr++
 			}
 		}
-		next := s[j]
+		if curr >= len(s) {
+			i++
+			continue
+		}
+		next := s[curr]
 		if (next < 'a' || next > 'z') && (next < 'A' || next > 'Z') {
 			i++
 			continue

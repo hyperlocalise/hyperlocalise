@@ -120,6 +120,24 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "space-separated closing tags (whitespace inside closing tag)",
+			src:  "Hello <strong>world</ strong>",
+			tgt:  "Bonjour <strong>monde</strong>",
+			want: false,
+		},
+		{
+			name: "space-separated closing tags (whitespace before closing slash)",
+			src:  "Hello <div>world< / div>",
+			tgt:  "Bonjour <div>monde</div>",
+			want: false,
+		},
+		{
+			name: "space-separated closing tags in both source and target",
+			src:  "Hello <div>world< / div> and <strong>text</ strong>",
+			tgt:  "Bonjour <div>monde< / div> and <strong>texte</ strong>",
+			want: false,
+		},
+		{
 			name: "custom tags are treated as markup",
 			src:  "Hello <not-a-tag>world</not-a-tag>",
 			tgt:  "Bonjour world",

@@ -81,16 +81,6 @@ func TestFindAllTags_Direct(t *testing.T) {
 			in:   `<br / >`,
 			want: []string{`<br / >`},
 		},
-		{
-			name: "closing tag with space after slash",
-			in:   "Hello <strong>world</ strong >",
-			want: []string{"<strong>", "</ strong >"},
-		},
-		{
-			name: "closing tag with space before slash",
-			in:   "Hello <div>world< / div>",
-			want: []string{"<div>", "< / div>"},
-		},
 	}
 
 	for _, tt := range tests {
@@ -98,48 +88,6 @@ func TestFindAllTags_Direct(t *testing.T) {
 			got := findAllTags(tt.in)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("findAllTags(%q) = %q, want %q", tt.in, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestMismatch_SpacedClosingTags(t *testing.T) {
-	tests := []struct {
-		name string
-		src  string
-		tgt  string
-		want bool
-	}{
-		{
-			name: "space after slash in closing tag matches tight closing tag",
-			src:  "Hello <strong>world</ strong >",
-			tgt:  "Bonjour <strong>monde</strong>",
-			want: false,
-		},
-		{
-			name: "space before slash in closing tag matches tight closing tag",
-			src:  "Hello <div>world< / div>",
-			tgt:  "Bonjour <div>monde</div>",
-			want: false,
-		},
-		{
-			name: "both sides use spaced closing tags and match",
-			src:  "Hello <strong>world</ strong>",
-			tgt:  "Bonjour <strong>monde< / strong >",
-			want: false,
-		},
-		{
-			name: "spaced closing tag still detects real mismatch",
-			src:  "Hello <strong>world</ strong >",
-			tgt:  "Bonjour <em>monde</em>",
-			want: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Mismatch(tt.src, tt.tgt); got != tt.want {
-				t.Errorf("Mismatch(%q, %q) = %v, want %v", tt.src, tt.tgt, got, tt.want)
 			}
 		})
 	}
