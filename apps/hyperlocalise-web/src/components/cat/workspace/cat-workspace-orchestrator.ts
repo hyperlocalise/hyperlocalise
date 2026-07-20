@@ -28,6 +28,7 @@ import {
   mapSegmentComments,
 } from "@/components/cat/project-file/project-file-cat-mapper";
 
+import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 import { CatIntelligenceStore } from "./store/cat-intelligence-store";
 import { CatQueueStore } from "./store/cat-queue-store";
 import { CatSegmentDraft } from "./store/cat-segment-draft";
@@ -39,6 +40,10 @@ import {
   hasSaveFailureCheck,
   mergeSegmentIntelligenceOnHydrate,
 } from "./store/cat-workspace-store-utils";
+
+export type CreateCatWorkspaceOptions = {
+  initialViewMode?: CatWorkspaceViewMode;
+};
 
 type UnsavedNavigationPrompt = {
   proceed: () => void;
@@ -152,7 +157,7 @@ export class CatWorkspaceOrchestrator {
   readonly queue = new CatQueueStore();
   readonly segments = new CatSegmentStore();
   readonly intelligenceState = new CatIntelligenceStore();
-  readonly ui = new CatWorkspaceUiStore();
+  readonly ui: CatWorkspaceUiStore;
 
   jobTitle?: string;
   breadcrumbs?: string[];
@@ -188,7 +193,8 @@ export class CatWorkspaceOrchestrator {
   private dirtyStateDisposer?: IReactionDisposer;
   private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
 
-  constructor() {
+  constructor(options?: CreateCatWorkspaceOptions) {
+    this.ui = new CatWorkspaceUiStore(options?.initialViewMode);
     makeAutoObservable(
       this,
       {
@@ -1122,8 +1128,9 @@ export class CatWorkspaceOrchestrator {
 export function createCatWorkspace(
   initialState: CatWorkspaceState,
   initialSegmentKeyOrId?: string | null,
+  options?: CreateCatWorkspaceOptions,
 ) {
-  const workspace = new CatWorkspaceOrchestrator();
+  const workspace = new CatWorkspaceOrchestrator(options);
   workspace.reset(initialState, initialSegmentKeyOrId);
   return workspace;
 }

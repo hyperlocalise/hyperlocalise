@@ -1,5 +1,5 @@
 import { autorun } from "mobx";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { CatIntelligenceStore } from "./cat-intelligence-store";
 import { CatQueueStore } from "./cat-queue-store";
@@ -257,6 +257,21 @@ describe("CatWorkspaceUiStore", () => {
     expect(ui.viewMode).toBe("side-by-side");
     expect(ui.pageLimit).toBe(20);
     expect(ui.isSideBySideView).toBe(true);
+  });
+
+  it("honors an explicit initial view mode without reading storage", () => {
+    const getItem = vi.fn().mockReturnValue("side-by-side");
+    vi.stubGlobal("localStorage", { getItem, setItem: vi.fn() });
+
+    try {
+      const ui = new CatWorkspaceUiStore("comfortable");
+
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.isSideBySideView).toBe(false);
+      expect(getItem).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("tracks hovered segment and preview loading state", () => {

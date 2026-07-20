@@ -8,14 +8,15 @@ import {
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 export class CatWorkspaceUiStore {
-  viewMode: CatWorkspaceViewMode = readCatWorkspaceViewMode();
+  viewMode: CatWorkspaceViewMode;
   hoveredSegmentId: string | null = null;
   previewLoadingSegmentId: string | null = null;
   previewTargetLoading = false;
   previewCommentsLoading = false;
   visibleSideBySideSegmentIds: string[] = [];
 
-  constructor() {
+  constructor(initialViewMode?: CatWorkspaceViewMode) {
+    this.viewMode = initialViewMode ?? readCatWorkspaceViewMode();
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
