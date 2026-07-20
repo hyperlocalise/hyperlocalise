@@ -56,6 +56,29 @@ describe("CatWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
+  it("starts in comfortable view when initialViewMode is comfortable", async () => {
+    window.localStorage.setItem("cat-workspace-view-mode:v1", "side-by-side");
+
+    try {
+      renderCatWorkspace(
+        <CatWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="comfortable"
+          services={{ validateFormat: mockValidateFormat }}
+        />,
+      );
+
+      const viewModeButton = await waitFor(() =>
+        screen.getByRole("button", { name: "CAT view mode" }),
+      );
+      expect(viewModeButton).toHaveTextContent("Comfortable");
+      expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+      expect(screen.queryByText("Source")).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("cat-workspace-view-mode:v1");
+    }
+  });
+
   it("shows an empty queue state when there are no segments", () => {
     renderCatWorkspace(
       <CatWorkspaceContainer

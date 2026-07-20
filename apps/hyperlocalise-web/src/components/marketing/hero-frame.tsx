@@ -624,7 +624,11 @@ export function HeroFrame() {
         }}
       >
         <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
-          <CatWorkspaceContainer initialState={heroDemoState} services={services} />
+          <CatWorkspaceContainer
+            initialState={heroDemoState}
+            initialViewMode="comfortable"
+            services={services}
+          />
         </div>
       </motion.div>
     </div>
