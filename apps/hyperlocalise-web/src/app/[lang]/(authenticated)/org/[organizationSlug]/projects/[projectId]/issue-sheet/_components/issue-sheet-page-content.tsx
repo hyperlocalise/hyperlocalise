@@ -31,6 +31,10 @@ import { readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
 import { IssueDetailDrawer } from "../../../../_components/issue-detail/issue-detail-drawer";
+import {
+  isExternalHttpUrl,
+  isHttpOrHttpsUrl,
+} from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
 import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
@@ -196,18 +200,6 @@ function buildCatHref(organizationSlug: string, projectId: string, issue: IssueS
     params.set("segment", issue.segmentId);
   }
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`;
-}
-
-function isExternalHttpUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      parsed.origin !== window.location.origin
-    );
-  } catch {
-    return false;
-  }
 }
 
 export function IssueSheetPageContent({
@@ -613,11 +605,13 @@ function IssueLink({
 }) {
   const intl = useIntl();
   const catHref = buildCatHref(organizationSlug, projectId, issue);
-  const href = issue.linkUrl || catHref;
+  const safeLinkUrl =
+    issue.linkUrl != null && isHttpOrHttpsUrl(issue.linkUrl) ? issue.linkUrl : null;
+  const href = safeLinkUrl || catHref;
   if (!href) {
     return <span className="text-muted-foreground">{emptyValue}</span>;
   }
-  const openExternalLinkInNewTab = issue.linkUrl != null && isExternalHttpUrl(issue.linkUrl);
+  const openExternalLinkInNewTab = safeLinkUrl != null && isExternalHttpUrl(safeLinkUrl);
   return (
     <Button
       variant="link"

@@ -100,16 +100,22 @@ export function buildIssueCatHref(
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`;
 }
 
+export function isHttpOrHttpsUrl(url: string) {
+  try {
+    const protocol = new URL(url).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function isExternalHttpUrl(url: string) {
   if (typeof window === "undefined") {
     return false;
   }
   try {
     const parsed = new URL(url);
-    return (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      parsed.origin !== window.location.origin
-    );
+    return isHttpOrHttpsUrl(url) && parsed.origin !== window.location.origin;
   } catch {
     return false;
   }

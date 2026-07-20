@@ -40,6 +40,7 @@ import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messa
 import {
   buildIssueCatHref,
   isExternalHttpUrl,
+  isHttpOrHttpsUrl,
   issuePriorityValues,
   issueStatusLabel,
   issueStatusValues,
@@ -354,7 +355,9 @@ export function IssueDetailPanel({
               <FormattedMessage {...messages.openInCatUnavailable} />
             </TypographyP>
           )}
-          {issue.linkUrl && issue.linkUrl !== catHref ? (
+          {issue.linkUrl &&
+          issue.linkUrl !== catHref &&
+          isHttpOrHttpsUrl(issue.linkUrl) ? (
             <Button
               variant="ghost"
               size="sm"
