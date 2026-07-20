@@ -172,7 +172,7 @@ export function IssueDetailPanel({
     }
     setTitleDraft(issue.title);
     setDescriptionDraft(issue.description);
-  }, [issue]);
+  }, [issue?.id, issue?.title, issue?.description]);
 
   useEffect(() => {
     if (!updateIssue.isSuccess && !setValue.isSuccess) {
