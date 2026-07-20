@@ -54,6 +54,74 @@ func TestValidateWhitespaceProfile(t *testing.T) {
 	}
 }
 
+func TestProfileEdgeWhitespaceBoltFastPath(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantLeading  string
+		wantTrailing string
+	}{
+		{
+			name:         "empty string",
+			input:        "",
+			wantLeading:  "",
+			wantTrailing: "",
+		},
+		{
+			name:         "plain ascii no whitespace (fast path)",
+			input:        "Hello",
+			wantLeading:  "",
+			wantTrailing: "",
+		},
+		{
+			name:         "ascii leading and trailing whitespace",
+			input:        "  Hello \t\n",
+			wantLeading:  "  ",
+			wantTrailing: " \t\n",
+		},
+		{
+			name:         "ascii leading whitespace only",
+			input:        "\tHello",
+			wantLeading:  "\t",
+			wantTrailing: "",
+		},
+		{
+			name:         "ascii trailing whitespace only",
+			input:        "Hello\r\n",
+			wantLeading:  "",
+			wantTrailing: "\r\n",
+		},
+		{
+			name:         "non-ascii leading whitespace (nbsp)",
+			input:        "\u00a0Hello",
+			wantLeading:  "\u00a0",
+			wantTrailing: "",
+		},
+		{
+			name:         "non-ascii trailing whitespace (nbsp)",
+			input:        "Hello\u00a0",
+			wantLeading:  "",
+			wantTrailing: "\u00a0",
+		},
+		{
+			name:         "mixed leading and trailing non-ascii",
+			input:        "\u00a0 Hello \u00a0",
+			wantLeading:  "\u00a0 ",
+			wantTrailing: " \u00a0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotLeading, gotTrailing := profileEdgeWhitespace(tt.input)
+			if gotLeading != tt.wantLeading || gotTrailing != tt.wantTrailing {
+				t.Errorf("profileEdgeWhitespace(%q) = (%q, %q), want (%q, %q)",
+					tt.input, gotLeading, gotTrailing, tt.wantLeading, tt.wantTrailing)
+			}
+		})
+	}
+}
+
 func TestExtractSpecialCharLiterals(t *testing.T) {
 	got := extractSpecialCharLiterals(`Line1\nLine2\tTab\r\nEnd \u00A0 \x1F`)
 	want := []string{`\n`, `\r\n`, `\t`, `\u00A0`, `\x1F`}
