@@ -139,10 +139,12 @@ export function IssueDetailPanel({
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
+  const [showSaved, setShowSaved] = useState(false);
   const { updateIssue, setValue } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
+    onSaved: () => setShowSaved(true),
   });
 
   const membersQuery = useQuery({
@@ -164,7 +166,7 @@ export function IssueDetailPanel({
   const issue = issueQuery.data;
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
-  const [showSaved, setShowSaved] = useState(false);
+  const isSaving = updateIssue.isPending || setValue.isPending;
 
   useEffect(() => {
     if (!issue) {
@@ -175,13 +177,16 @@ export function IssueDetailPanel({
   }, [issue?.id, issue?.title, issue?.description]);
 
   useEffect(() => {
-    if (!updateIssue.isSuccess && !setValue.isSuccess) {
+    if (isSaving) {
+      setShowSaved(false);
       return;
     }
-    setShowSaved(true);
+    if (!showSaved) {
+      return;
+    }
     const timeout = window.setTimeout(() => setShowSaved(false), 2000);
     return () => window.clearTimeout(timeout);
-  }, [setValue.isSuccess, updateIssue.isSuccess]);
+  }, [isSaving, showSaved]);
 
   const statusItems = useMemo(
     () =>
@@ -213,8 +218,6 @@ export function IssueDetailPanel({
       ...members.map((member) => ({ value: member.userId, label: member.displayName })),
     ];
   }, [intl, membersQuery.data]);
-
-  const isSaving = updateIssue.isPending || setValue.isPending;
 
   if (issueQuery.isLoading) {
     return (
