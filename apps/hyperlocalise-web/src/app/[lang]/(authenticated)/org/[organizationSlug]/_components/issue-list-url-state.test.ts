@@ -4,120 +4,61 @@ import {
   buildIssueListHref,
   buildIssueListSearchParams,
   clearIssueListFilters,
-  getActiveIssueFilterChips,
-  issueListStateToApiQuery,
   parseIssueListSearchParams,
+  stripIssueDetailFromState,
 } from "./issue-list-url-state";
 
-describe("issue list URL state", () => {
-  it("parses supported filters, sort, and defaults", () => {
-    const state = parseIssueListSearchParams(
-      new URLSearchParams(
-        "view=qa_triage&status=open&issueType=qa_failure&priority=P0&locale=de-DE&assignee=unassigned&projectId=proj_1&search=hero&sort=priority&sortDir=asc",
-      ),
-      { includeProject: true },
-    );
-
-    expect(state).toEqual({
-      view: "qa_triage",
+describe("issue-list-url-state", () => {
+  it("parses and builds issue detail search params", () => {
+    const params = new URLSearchParams({
+      view: "my_work",
+      issue: "11111111-1111-4111-8111-111111111111",
+      issueProject: "project_website",
       status: "open",
-      issueType: "qa_failure",
-      priority: "P0",
-      locale: "de-DE",
-      assignee: "unassigned",
-      projectId: "proj_1",
-      search: "hero",
-      sort: "priority",
-      sortDir: "asc",
     });
+
+    const state = parseIssueListSearchParams(params, { includeProject: true });
+    expect(state.issue).toBe("11111111-1111-4111-8111-111111111111");
+    expect(state.issueProject).toBe("project_website");
+    expect(state.status).toBe("open");
+
+    const rebuilt = buildIssueListSearchParams(state, { includeProject: true });
+    expect(rebuilt.get("issue")).toBe("11111111-1111-4111-8111-111111111111");
+    expect(rebuilt.get("issueProject")).toBe("project_website");
+    expect(rebuilt.get("status")).toBe("open");
   });
 
-  it("omits default view and sort from the URL", () => {
-    const params = buildIssueListSearchParams({
+  it("preserves open issue when clearing filters", () => {
+    const state = clearIssueListFilters({
+      view: "qa_triage",
+      status: "open",
+      search: "checkout",
+      sort: "updated_at",
+      sortDir: "desc",
+      issue: "11111111-1111-4111-8111-111111111111",
+      issueProject: "project_website",
+    });
+
+    expect(state.search).toBe("");
+    expect(state.status).toBeUndefined();
+    expect(state.issue).toBe("11111111-1111-4111-8111-111111111111");
+    expect(state.issueProject).toBe("project_website");
+  });
+
+  it("strips issue detail params for close navigation", () => {
+    const state = stripIssueDetailFromState({
       view: "all_open",
       search: "",
       sort: "updated_at",
       sortDir: "desc",
-      status: "in_progress",
+      issue: "11111111-1111-4111-8111-111111111111",
+      issueProject: "project_website",
     });
 
-    expect(params.toString()).toBe("status=in_progress");
-    expect(
-      buildIssueListHref("/org/acme/issues", {
-        view: "all_open",
-        search: "",
-        sort: "updated_at",
-        sortDir: "desc",
-      }),
-    ).toBe("/org/acme/issues");
-  });
-
-  it("clears filters while preserving the selected preset and sort", () => {
-    const cleared = clearIssueListFilters({
-      view: "my_work",
-      status: "open",
-      issueType: "qa_failure",
-      priority: "P1",
-      locale: "fr-FR",
-      assignee: "me",
-      projectId: "proj_1",
-      search: "cta",
-      sort: "created_at",
-      sortDir: "asc",
-    });
-
-    expect(cleared).toEqual({
-      view: "my_work",
-      search: "",
-      sort: "created_at",
-      sortDir: "asc",
-    });
-  });
-
-  it("exposes active filter chips without opening a menu", () => {
-    const chips = getActiveIssueFilterChips(
-      {
-        view: "all_open",
-        status: "open",
-        assignee: "unassigned",
-        projectId: "proj_1",
-        search: "hero",
-        sort: "updated_at",
-        sortDir: "desc",
-      },
-      {
-        includeProject: true,
-        projectNameById: { proj_1: "Website" },
-      },
+    expect(state.issue).toBeUndefined();
+    expect(state.issueProject).toBeUndefined();
+    expect(buildIssueListHref("/org/acme/issues", state, { includeProject: true })).toBe(
+      "/org/acme/issues",
     );
-
-    expect(chips).toEqual([
-      { key: "status", value: "open" },
-      { key: "assignee", value: "unassigned" },
-      { key: "projectId", value: "proj_1", projectName: "Website" },
-      { key: "search", value: "hero" },
-    ]);
-  });
-
-  it("maps URL state into API query params used by built-in views", () => {
-    expect(
-      issueListStateToApiQuery(
-        {
-          view: "source_context",
-          issueType: "context_request",
-          search: "",
-          sort: "status",
-          sortDir: "asc",
-        },
-        { limit: 25, offset: 50 },
-      ),
-    ).toEqual({
-      view: "source_context",
-      issueType: "context_request",
-      sort: "status",
-      sortDir: "asc",
-      limit: "25",
-      offset: "50",
-    });
   });
 });

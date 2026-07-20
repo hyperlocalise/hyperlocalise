@@ -13,6 +13,13 @@ export const issueSheetMswHandlers = [
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
   http.get(issueSheetBasePath, () => HttpResponse.json(issueSheetResponseFixture)),
+  http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ issue });
+  }),
   http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);

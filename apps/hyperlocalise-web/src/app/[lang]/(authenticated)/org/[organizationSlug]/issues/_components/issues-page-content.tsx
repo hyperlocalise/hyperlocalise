@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, type KeyboardEvent } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
+import { IssueDetailDrawer } from "../../_components/issue-detail/issue-detail-drawer";
 import { IssueListFiltersBar } from "../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../_components/issue-list-url-state";
+import { useIssueDetailUrl } from "../../_components/use-issue-detail-url";
 import { useIssueListUrlState } from "../../_components/use-issue-list-url-state";
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
@@ -37,6 +39,17 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState({
     includeProject: true,
   });
+  const {
+    isOpen: isDetailOpen,
+    openIssueDetail,
+    closeIssueDetail,
+    issueProjectId,
+  } = useIssueDetailUrl({
+    includeProject: true,
+    state,
+    updateState,
+  });
+  const lastFocusedRowRef = useRef<HTMLTableRowElement | null>(null);
   const apiQuery = issueListStateToApiQuery(state, {
     includeProject: true,
     limit: ISSUES_PAGE_SIZE,
@@ -97,32 +110,71 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
     });
   };
 
+  const openIssueRow = (issue: OrganizationIssue, row: HTMLTableRowElement) => {
+    lastFocusedRowRef.current = row;
+    openIssueDetail({ issueId: issue.id, projectId: issue.projectId });
+  };
+
+  const handleIssueRowKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    issue: OrganizationIssue,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openIssueRow(issue, event.currentTarget);
+    }
+  };
+
+  const stopRowActivation = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+  };
+
+  const detailProjectId = issueProjectId ?? state.issueProject;
+
   return (
-    <IssuesPageView
-      organizationSlug={organizationSlug}
-      issues={issues}
-      summary={summary}
-      isLoading={issuesQuery.isLoading}
-      isError={issuesQuery.isError}
-      isFetchingMore={issuesQuery.isFetchingNextPage}
-      hasMore={hasMore}
-      filterBar={
-        <IssueListFiltersBar
-          state={state}
-          searchDraft={searchDraft}
-          onSearchDraftChange={setSearchDraft}
-          onStateChange={updateState}
-          onClearFilters={clearFilters}
-          projects={projectsQuery.data ?? []}
-          searchPlaceholder="Search title, description, project, or source path"
-        />
-      }
-      actions={
-        <IssuesActions organizationSlug={organizationSlug} onIssuesChanged={refreshIssues} />
-      }
-      onLoadMore={() => {
-        void issuesQuery.fetchNextPage();
-      }}
-    />
+    <>
+      <IssuesPageView
+        organizationSlug={organizationSlug}
+        issues={issues}
+        summary={summary}
+        isLoading={issuesQuery.isLoading}
+        isError={issuesQuery.isError}
+        isFetchingMore={issuesQuery.isFetchingNextPage}
+        hasMore={hasMore}
+        selectedIssueId={state.issue}
+        onIssueRowClick={openIssueRow}
+        onIssueRowKeyDown={handleIssueRowKeyDown}
+        onStopRowActivation={stopRowActivation}
+        filterBar={
+          <IssueListFiltersBar
+            state={state}
+            searchDraft={searchDraft}
+            onSearchDraftChange={setSearchDraft}
+            onStateChange={updateState}
+            onClearFilters={clearFilters}
+            projects={projectsQuery.data ?? []}
+            searchPlaceholder="Search title, description, project, or source path"
+          />
+        }
+        actions={
+          <IssuesActions organizationSlug={organizationSlug} onIssuesChanged={refreshIssues} />
+        }
+        onLoadMore={() => {
+          void issuesQuery.fetchNextPage();
+        }}
+      />
+      <IssueDetailDrawer
+        organizationSlug={organizationSlug}
+        projectId={detailProjectId}
+        issueId={state.issue}
+        isOpen={isDetailOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeIssueDetail();
+          }
+        }}
+        returnFocusRef={lastFocusedRowRef}
+      />
+    </>
   );
 }
