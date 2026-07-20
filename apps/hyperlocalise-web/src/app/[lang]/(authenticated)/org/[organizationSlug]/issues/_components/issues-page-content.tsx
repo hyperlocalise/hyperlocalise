@@ -129,8 +129,6 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
     event.stopPropagation();
   };
 
-  const detailProjectId = issueProjectId ?? state.issueProject;
-
   return (
     <>
       <IssuesPageView
@@ -165,7 +163,7 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       />
       <IssueDetailDrawer
         organizationSlug={organizationSlug}
-        projectId={detailProjectId}
+        projectId={issueProjectId}
         issueId={state.issue}
         isOpen={isDetailOpen}
         onOpenChange={(open) => {
