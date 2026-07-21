@@ -81,9 +81,7 @@ func profileEdgeWhitespace(value string) (leading, trailing string) {
 	}
 
 	start := 0
-	if firstNonWS {
-		// Skip leading scan, leading is empty
-	} else {
+	if !firstNonWS {
 		for start < len(value) {
 			r, w := utf8.DecodeRuneInString(value[start:])
 			if !isProfileEdgeWhitespace(r) {
@@ -95,9 +93,7 @@ func profileEdgeWhitespace(value string) (leading, trailing string) {
 	}
 
 	end := len(value)
-	if lastNonWS {
-		// Skip trailing scan, trailing is empty
-	} else {
+	if !lastNonWS {
 		for end > start {
 			r, w := utf8.DecodeLastRuneInString(value[start:end])
 			if !isProfileEdgeWhitespace(r) {
