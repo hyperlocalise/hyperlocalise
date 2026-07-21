@@ -155,3 +155,7 @@
 ## 2026-08-25 - [Testing Uncleaned and Relative Paths for Containment]
 **Learning:** Testing path containment/directory traversal logic with pre-cleaned paths (e.g., using `filepath.Join` inside the test assertions) can mask issues. To properly verify containment defenses, test inputs must include raw uncleaned relative traversal strings (such as `path/../outside`) and relative paths (like `.` or `../`) to ensure the system handles dynamic resolving and absolute normalization correctly.
 **Action:** When testing path guards or canonicalization logic, avoid pre-cleaning test candidates, and explicitly test both absolute and relative inputs across existence and non-existence boundaries.
+
+## 2026-08-30 - [Strategy Parser Extension Resolution]
+**Learning:** `Strategy.Parse` relies on Go's `filepath.Ext` to resolve custom registered extensions. Therefore, dynamically registered parser test cases must pass input filenames containing a dot (e.g. `file.custom` or `file.CUSTOM`) to ensure extension detection succeeds, rather than naked extensions like `custom`.
+**Action:** Always construct realistic, dot-prefixed filenames (e.g. `"file." + strings.TrimPrefix(ext, ".")`) when verifying registered parser resolution in strategy-level unit tests.
