@@ -245,3 +245,105 @@ func TestCanonicalForContainment_Symlinks(t *testing.T) {
 		t.Errorf("expected %q, got %q", expectedMissing, canonical)
 	}
 }
+
+func TestEnsureUnderRoot_RelativeAndEdgeCases(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		tmp = t.TempDir()
+	}
+
+	// Setup dir structure
+	root := filepath.Join(tmp, "root")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("failed to create root: %v", err)
+	}
+
+	subdir := filepath.Join(root, "subdir")
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get wd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	// Change directory to root to test relative paths
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		root      string
+		candidate string
+		wantErr   bool
+	}{
+		{
+			name:      "relative dot root and relative child",
+			root:      ".",
+			candidate: "subdir/file.txt",
+			wantErr:   false,
+		},
+		{
+			name:      "relative dot root and relative escapes",
+			root:      ".",
+			candidate: "../outside.txt",
+			wantErr:   true,
+		},
+		{
+			name:      "absolute root and relative child",
+			root:      root,
+			candidate: "subdir/file.txt",
+			wantErr:   false,
+		},
+		{
+			name:      "absolute root and relative escapes",
+			root:      root,
+			candidate: "../outside.txt",
+			wantErr:   true,
+		},
+		{
+			name:      "relative child containing uncleaned dots stays inside",
+			root:      root,
+			candidate: root + "/subdir/../file.txt",
+			wantErr:   false,
+		},
+		{
+			name:      "relative escapes containing uncleaned dots goes outside",
+			root:      root,
+			candidate: root + "/subdir/../../outside.txt",
+			wantErr:   true,
+		},
+		{
+			name:      "non-existent candidate containing dots stays inside",
+			root:      root,
+			candidate: root + "/missing/../other_missing.txt",
+			wantErr:   false,
+		},
+		{
+			name:      "non-existent candidate containing dots goes outside",
+			root:      root,
+			candidate: root + "/missing/../../outside_missing.txt",
+			wantErr:   true,
+		},
+		{
+			name:      "empty path behaves as current working directory",
+			root:      "",
+			candidate: "",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := EnsureUnderRoot(tt.root, tt.candidate)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("EnsureUnderRoot(%q, %q) error = %v, wantErr %v", tt.root, tt.candidate, err, tt.wantErr)
+			}
+		})
+	}
+}
