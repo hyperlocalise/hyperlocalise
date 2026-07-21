@@ -148,6 +148,11 @@ export const issueDetailPanelMessages = defineMessages({
     id: "fhtliL5Eg6",
     description: "Toast when issue detail update fails",
   },
+  titleRequired: {
+    defaultMessage: "Title cannot be empty.",
+    id: "kx356lhAw5",
+    description: "Toast when saving issue details with an empty title",
+  },
   unsavedChangesTitle: {
     defaultMessage: "Unsaved changes",
     id: "f5viDmb9eZ",

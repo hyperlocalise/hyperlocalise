@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -18,6 +19,12 @@ async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): 
   return (await response.json()) as T;
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
+}
+
 export function useIssueDetailMutations({
   organizationSlug,
   projectId,
@@ -32,6 +39,8 @@ export function useIssueDetailMutations({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const requestFailed = intl.formatMessage(messages.updateFailed);
+  const updateAbortRef = useRef<AbortController | null>(null);
+  const setValueAbortRef = useRef<AbortController | null>(null);
 
   const invalidate = async () => {
     await Promise.all([
@@ -46,10 +55,14 @@ export function useIssueDetailMutations({
 
   const updateIssue = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
+      updateAbortRef.current?.abort();
+      const controller = new AbortController();
+      updateAbortRef.current = controller;
       const response = await fetch(`${issueSheetApiPath(organizationSlug, projectId)}/${issueId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
       return readJsonOrThrow<{ issue: IssueDetailIssue }>(response, requestFailed);
     },
@@ -60,24 +73,47 @@ export function useIssueDetailMutations({
       );
       await invalidate();
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : requestFailed),
+    onError: (error) => {
+      if (isAbortError(error)) {
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : requestFailed);
+    },
   });
 
   const setValue = useMutation({
     mutationFn: async ({ columnKey, value }: { columnKey: string; value: unknown }) => {
+      setValueAbortRef.current?.abort();
+      const controller = new AbortController();
+      setValueAbortRef.current = controller;
       const response = await fetch(
         `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/values`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ columnKey, value }),
+          signal: controller.signal,
         },
       );
       return readJsonOrThrow<{ value: unknown }>(response, requestFailed);
     },
     onSuccess: invalidate,
-    onError: (error) => toast.error(error instanceof Error ? error.message : requestFailed),
+    onError: (error) => {
+      if (isAbortError(error)) {
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : requestFailed);
+    },
   });
 
-  return { updateIssue, setValue };
+  const cancelPending = () => {
+    updateAbortRef.current?.abort();
+    setValueAbortRef.current?.abort();
+    updateAbortRef.current = null;
+    setValueAbortRef.current = null;
+    updateIssue.reset();
+    setValue.reset();
+  };
+
+  return { updateIssue, setValue, cancelPending };
 }

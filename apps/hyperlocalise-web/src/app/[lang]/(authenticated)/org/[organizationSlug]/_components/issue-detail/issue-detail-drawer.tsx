@@ -93,6 +93,7 @@ export function IssueDetailDrawer({
   };
 
   const handleDiscard = () => {
+    panelRef.current?.discardPending();
     closeSheet();
   };
 
@@ -103,7 +104,6 @@ export function IssueDetailDrawer({
       closeSheet();
     } catch {
       setIsSavingClose(false);
-      panelRef.current?.endCloseConfirm();
     }
   };
 

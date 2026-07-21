@@ -25,6 +25,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export type IssueDetailPanelHandle = {
   savePending: () => Promise<void>;
   beginCloseConfirm: () => void;
   endCloseConfirm: () => void;
+  discardPending: () => void;
 };
 
 function ownerNoteFromIssue(issue: IssueDetailIssue) {
@@ -86,9 +88,8 @@ function isIssueDraftDirty(
   descriptionDraft: string,
   ownerNoteDraft: string,
 ) {
-  const nextTitle = titleDraft.trim();
   return (
-    (nextTitle !== "" && nextTitle !== issue.title) ||
+    titleDraft.trim() !== issue.title ||
     descriptionDraft !== issue.description ||
     ownerNoteDraft !== ownerNoteFromIssue(issue)
   );
@@ -176,7 +177,7 @@ export const IssueDetailPanel = forwardRef<
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
   const [showSaved, setShowSaved] = useState(false);
-  const { updateIssue, setValue } = useIssueDetailMutations({
+  const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
@@ -210,6 +211,12 @@ export const IssueDetailPanel = forwardRef<
   const ownerNoteDraftRef = useRef(ownerNoteDraft);
   const issueRef = useRef(issue);
   const suppressAutoSaveRef = useRef(false);
+  const draftBaselineRef = useRef<{
+    issueId: string;
+    title: string;
+    description: string;
+    ownerNote: string;
+  } | null>(null);
   titleDraftRef.current = titleDraft;
   descriptionDraftRef.current = descriptionDraft;
   ownerNoteDraftRef.current = ownerNoteDraft;
@@ -219,10 +226,33 @@ export const IssueDetailPanel = forwardRef<
     if (!issue) {
       return;
     }
-    setTitleDraft(issue.title);
-    setDescriptionDraft(issue.description);
-    setOwnerNoteDraft(ownerNoteFromIssue(issue));
-  }, [issue?.id, issue?.title, issue?.description, issue?.values.owner_note]);
+
+    const ownerNote = ownerNoteFromIssue(issue);
+    const baseline = draftBaselineRef.current;
+
+    if (!baseline || baseline.issueId !== issue.id) {
+      draftBaselineRef.current = {
+        issueId: issue.id,
+        title: issue.title,
+        description: issue.description,
+        ownerNote,
+      };
+      setTitleDraft(issue.title);
+      setDescriptionDraft(issue.description);
+      setOwnerNoteDraft(ownerNote);
+      return;
+    }
+
+    setTitleDraft((draft) => (draft === baseline.title ? issue.title : draft));
+    setDescriptionDraft((draft) => (draft === baseline.description ? issue.description : draft));
+    setOwnerNoteDraft((draft) => (draft === baseline.ownerNote ? ownerNote : draft));
+    draftBaselineRef.current = {
+      issueId: issue.id,
+      title: issue.title,
+      description: issue.description,
+      ownerNote,
+    };
+  }, [issue]);
 
   useImperativeHandle(ref, () => ({
     isDirty: () => {
@@ -243,6 +273,10 @@ export const IssueDetailPanel = forwardRef<
     endCloseConfirm: () => {
       suppressAutoSaveRef.current = false;
     },
+    discardPending: () => {
+      suppressAutoSaveRef.current = true;
+      cancelPending();
+    },
     savePending: async () => {
       const current = issueRef.current;
       if (!current) {
@@ -250,8 +284,13 @@ export const IssueDetailPanel = forwardRef<
       }
 
       const nextTitle = titleDraftRef.current.trim();
+      if (nextTitle === "") {
+        toast.error(intl.formatMessage(messages.titleRequired));
+        throw new Error("title_required");
+      }
+
       const issueUpdates: Record<string, unknown> = {};
-      if (nextTitle && nextTitle !== current.title) {
+      if (nextTitle !== current.title) {
         issueUpdates.title = nextTitle;
       }
       if (descriptionDraftRef.current !== current.description) {
