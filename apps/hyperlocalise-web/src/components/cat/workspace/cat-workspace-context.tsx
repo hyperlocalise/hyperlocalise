@@ -4,21 +4,33 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import type { CatWorkspaceState } from "@/components/cat/shared/types";
 
-import { CatWorkspaceOrchestrator, createCatWorkspace } from "./cat-workspace-orchestrator";
+import {
+  CatWorkspaceOrchestrator,
+  createCatWorkspace,
+  type CreateCatWorkspaceOptions,
+} from "./cat-workspace-orchestrator";
+import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 
 const CatWorkspaceContext = createContext<CatWorkspaceOrchestrator | null>(null);
 
 export function CatWorkspaceProvider({
   initialState,
   initialSegmentKeyOrId,
+  initialViewMode,
   children,
 }: {
   initialState: CatWorkspaceState;
   initialSegmentKeyOrId?: string | null;
+  initialViewMode?: CatWorkspaceViewMode;
   children: ReactNode;
 }) {
   const store = useMemo(
-    () => createCatWorkspace(initialState, initialSegmentKeyOrId),
+    () => {
+      const options: CreateCatWorkspaceOptions | undefined = initialViewMode
+        ? { initialViewMode }
+        : undefined;
+      return createCatWorkspace(initialState, initialSegmentKeyOrId, options);
+    },
     // Store is scoped to workspace mount; parent key handles remounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],

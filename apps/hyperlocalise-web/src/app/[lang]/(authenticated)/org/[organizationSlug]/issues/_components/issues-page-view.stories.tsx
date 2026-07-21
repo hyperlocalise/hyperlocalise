@@ -25,6 +25,9 @@ const meta = {
     hasMore: false,
     filterBar: <div data-testid="issue-filters">Filters</div>,
     onLoadMore: fn(),
+    onIssueRowClick: fn(),
+    onIssueRowKeyDown: fn(),
+    onStopRowActivation: fn(),
   },
 } satisfies Meta<typeof IssuesPageView>;
 

@@ -598,6 +598,15 @@ export class IssueSheetService {
     });
   }
 
+  async getIssue(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+  }): Promise<IssueSheetIssue | null> {
+    return this.getIssueById(input);
+  }
+
   private async getIssueById(input: {
     organizationId: string;
     projectId: string;

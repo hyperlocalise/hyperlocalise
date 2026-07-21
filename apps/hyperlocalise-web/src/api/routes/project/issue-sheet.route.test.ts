@@ -164,6 +164,22 @@ describe("Issue Sheet routes", () => {
     expect(viewWithStatusBody.issues).toHaveLength(0);
 
     const issueId = createdBody.issue.id;
+
+    const getIssueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    expect(getIssueResponse.status).toBe(200);
+    const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
+    expect(getIssueBody.issue.id).toBe(issueId);
+    expect(getIssueBody.issue.title).toBe("Source string needs context");
+
+    const missingIssueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      { headers },
+    );
+    expect(missingIssueResponse.status).toBe(404);
+
     const updateResponse = await requestJson(
       issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
       {

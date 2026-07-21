@@ -190,6 +190,7 @@ async function inviteOrganizationMember(input: {
       isNewUser: false,
       member: toMemberSummary(
         {
+          userId: existingMembership.localUserId,
           workosUserId: existingMembership.workosUserId,
           email: existingMembership.email,
           firstName: existingMembership.firstName,
@@ -262,6 +263,7 @@ async function inviteOrganizationMember(input: {
     isNewUser,
     member: toMemberSummary(
       {
+        userId: user.id,
         workosUserId: user.workosUserId,
         email: user.email,
         firstName: user.firstName,
@@ -438,6 +440,7 @@ export function createMemberRoutes() {
 
       const rows = await db
         .select({
+          userId: schema.users.id,
           workosUserId: schema.users.workosUserId,
           email: schema.users.email,
           firstName: schema.users.firstName,
@@ -784,6 +787,7 @@ export function createMemberRoutes() {
         {
           member: toMemberSummary(
             {
+              userId: member.localUserId,
               workosUserId: member.workosUserId,
               email: member.email,
               firstName: member.firstName,

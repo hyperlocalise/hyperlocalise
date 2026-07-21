@@ -8,7 +8,7 @@ options:
 packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
-    from: "2.7.0"
+    from: "2.9.4"
 settings:
   base:
     SWIFT_VERSION: "5.10"

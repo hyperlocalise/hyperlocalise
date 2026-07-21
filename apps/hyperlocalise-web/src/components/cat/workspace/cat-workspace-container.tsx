@@ -33,11 +33,14 @@ import { CatWorkspaceView } from "./cat-workspace";
 import { CatWorkspaceProvider, useCatWorkspace } from "./cat-workspace-context";
 import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
 import type { CatPageNavigationGuardRef } from "./cat-page-navigation-guard";
+import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 import { CatWorkspaceViewModeSync } from "./cat-workspace-view-mode-sync";
 import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
+  /** Overrides persisted view-mode preference for this workspace instance. */
+  initialViewMode?: CatWorkspaceViewMode;
   queueSnapshot?: CatWorkspaceState | null;
   lazySegment?: {
     organizationSlug: string;
@@ -229,13 +232,19 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
 export function CatWorkspaceContainer({
   initialState,
   initialSegmentKeyOrId,
+  initialViewMode,
   ...props
 }: CatWorkspaceContainerProps) {
   return (
-    <CatWorkspaceProvider initialState={initialState} initialSegmentKeyOrId={initialSegmentKeyOrId}>
+    <CatWorkspaceProvider
+      initialState={initialState}
+      initialSegmentKeyOrId={initialSegmentKeyOrId}
+      initialViewMode={initialViewMode}
+    >
       <CatWorkspaceContainerInner
         initialState={initialState}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
+        initialViewMode={initialViewMode}
         {...props}
       />
     </CatWorkspaceProvider>

@@ -156,6 +156,7 @@ export async function getOrganizationMember(organizationId: string, workosUserId
 
 export function toMemberSummary(
   row: {
+    userId: string;
     workosUserId: string;
     email: string;
     firstName: string | null;
@@ -168,6 +169,7 @@ export function toMemberSummary(
   currentWorkosUserId: string,
   actorRole?: OrganizationMembershipRole,
 ): {
+  userId: string;
   workosUserId: string;
   email: string;
   firstName: string | null;
@@ -192,6 +194,7 @@ export function toMemberSummary(
         });
 
   return {
+    userId: row.userId,
     workosUserId: row.workosUserId,
     email: row.email,
     firstName: row.firstName,
