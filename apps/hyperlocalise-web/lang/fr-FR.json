@@ -359,6 +359,9 @@
   "0A/FtMSjnF": {
     "defaultMessage": "Responsables"
   },
+  "0AIuIWXaN7": {
+    "defaultMessage": "Open link"
+  },
   "0DSwLmDrDB": {
     "defaultMessage": "Aucun fichier pour le moment"
   },
@@ -1136,6 +1139,9 @@
   "4R0gB8zCuT": {
     "defaultMessage": "Suivant"
   },
+  "4RE0bnosRR": {
+    "defaultMessage": "Title"
+  },
   "4TEJTOaEgp": {
     "defaultMessage": "Vérifications de qualité contextuelles"
   },
@@ -1637,6 +1643,9 @@
   "7bhDbepHzq": {
     "defaultMessage": "Lokalise"
   },
+  "7bzkQaXdN3": {
+    "defaultMessage": "Updated"
+  },
   "7cvqogiF4e": {
     "defaultMessage": "{count, plural, one {# missing} other {# missing}}"
   },
@@ -1705,6 +1714,9 @@
   },
   "81SMUge/HF": {
     "defaultMessage": "Les brouillons d’IA passent à côté des contraintes de l’interface utilisateur, des règles du glossaire et de ce qui a réellement changé dans la pull request."
+  },
+  "87YejAyMlf": {
+    "defaultMessage": "Loading issue…"
   },
   "87mk4HgY5S": {
     "defaultMessage": "Automations"
@@ -1864,6 +1876,9 @@
   },
   "8qtlRUPEdv": {
     "defaultMessage": "anglais"
+  },
+  "8roD8NwsMT": {
+    "defaultMessage": "Created"
   },
   "8rom3KX2rX": {
     "defaultMessage": "Send email"
@@ -2530,6 +2545,12 @@
   },
   "CoMFZXPg5S": {
     "defaultMessage": "Annulation"
+  },
+  "Cow2splN/1": {
+    "defaultMessage": "Type"
+  },
+  "Cp3xy0MA7p": {
+    "defaultMessage": "Reporter"
   },
   "CpwA2GAYax": {
     "defaultMessage": "Stale"
@@ -3254,6 +3275,9 @@
   "HDJPwmFPXK": {
     "defaultMessage": "Les chaînes de produit évoluent plus vite que la localisation ne peut suivre"
   },
+  "HDO9bAX2qb": {
+    "defaultMessage": "Open in CAT"
+  },
   "HETvCDj5wB": {
     "defaultMessage": "No findings match the current filters. <clear>Clear filters</clear>"
   },
@@ -3319,6 +3343,9 @@
   },
   "HljRytS7qm": {
     "defaultMessage": "Vous n’avez pas l’autorisation de consulter la facturation de cet espace de travail."
+  },
+  "HmDnokfJEK": {
+    "defaultMessage": "Resolved"
   },
   "Hmzt+zT6qT": {
     "defaultMessage": "persan (Iran)"
@@ -3460,6 +3487,9 @@
   },
   "ImJlsQdxZz": {
     "defaultMessage": "Failed"
+  },
+  "ImR4b9kD2P": {
+    "defaultMessage": "Add a note for the issue owner…"
   },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# tâche créée} other {# tâches créées}} avant l’erreur. Actualisez la liste des tâches avant de réessayer pour éviter les doublons."
@@ -4067,11 +4097,17 @@
   "MtSPbgepa5": {
     "defaultMessage": "Nous n’avons pas pu charger les fichiers du projet."
   },
+  "Mubi5jvzbc": {
+    "defaultMessage": "Description"
+  },
   "MusBGgLgZ1": {
     "defaultMessage": "Demande de tirage"
   },
   "MwOEdmQegm": {
     "defaultMessage": "La localisation commence dans les outils que les équipes utilisent déjà"
+  },
+  "MwxM6cb/1r": {
+    "defaultMessage": "Priority"
   },
   "MxRBhpGKS4": {
     "defaultMessage": "{count, plural, one {et # ligne non valide.} other {et # lignes non valides.}}"
@@ -4178,6 +4214,9 @@
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
   },
+  "NfnpZsFAE9": {
+    "defaultMessage": "Could not load this issue."
+  },
   "NhoTfXzaHI": {
     "defaultMessage": "Projet"
   },
@@ -4219,6 +4258,9 @@
   },
   "NuylnhUe8K": {
     "defaultMessage": "Demandez à Hyperlocalise…"
+  },
+  "Nw/qZUdZvV": {
+    "defaultMessage": "Owner note"
   },
   "Nx+ZrjUtj2": {
     "defaultMessage": "Annuler"
@@ -4655,6 +4697,9 @@
   "QUgt69cPVZ": {
     "defaultMessage": "Échec de la génération de la recommandation de traduction par IA."
   },
+  "QVweQ7BzMt": {
+    "defaultMessage": "Native issue"
+  },
   "QZITZRdJzR": {
     "defaultMessage": "Qualité"
   },
@@ -4786,6 +4831,9 @@
   },
   "R9ah9+0AUl": {
     "defaultMessage": "Smartling"
+  },
+  "RBrBoi9ilw": {
+    "defaultMessage": "Link kind"
   },
   "RBvXfLqDOK": {
     "defaultMessage": "Désactiver"
@@ -5219,6 +5267,9 @@
   "TpaF4AqL/5": {
     "defaultMessage": "Réinitialiser les paramètres d’automatisation ?"
   },
+  "TpepILtGKC": {
+    "defaultMessage": "This issue could not be found."
+  },
   "TqKPfOkj7i": {
     "defaultMessage": "Automatisation mise à jour"
   },
@@ -5336,8 +5387,14 @@
   "Uey+g5GKxu": {
     "defaultMessage": "Repository search"
   },
+  "UfX+B2NG5i": {
+    "defaultMessage": "Unassigned"
+  },
   "Uga+NfEpia": {
     "defaultMessage": "Rejouer"
+  },
+  "UirP0XHash": {
+    "defaultMessage": "Status"
   },
   "Ujq7dK2/MZ": {
     "defaultMessage": "Construisez votre flux de travail de localisation natif à l’IA"
@@ -5570,6 +5627,9 @@
   "W3/qvnQA3o": {
     "defaultMessage": "Webhook Contentful synchronisé"
   },
+  "W3V5ERIIW9": {
+    "defaultMessage": "Linked context"
+  },
   "W3mkNKamaw": {
     "defaultMessage": "Non connecté"
   },
@@ -5644,6 +5704,9 @@
   },
   "WSbyg2v11q": {
     "defaultMessage": "Natif"
+  },
+  "WUFTI428rT": {
+    "defaultMessage": "Manual"
   },
   "WUYpu2cx7T": {
     "defaultMessage": "—"
@@ -6380,6 +6443,9 @@
   "avoSAOCHz4": {
     "defaultMessage": "Unknown project"
   },
+  "awnc3dv3Xw": {
+    "defaultMessage": "Key"
+  },
   "axtydiBtML": {
     "defaultMessage": "Outil de suppression des mémoires"
   },
@@ -6596,6 +6662,9 @@
   "cbNqGo9VKV": {
     "defaultMessage": "Réessayer"
   },
+  "cd7UpbIU0k": {
+    "defaultMessage": "Add a source path and locale to open this issue in CAT."
+  },
   "cdYuP66GRZ": {
     "defaultMessage": "espagnol (Mexique)"
   },
@@ -6697,6 +6766,9 @@
   },
   "dLflEs1D1h": {
     "defaultMessage": "Réviseur"
+  },
+  "dQccrvPeHu": {
+    "defaultMessage": "Segment"
   },
   "dQdpv0JZAf": {
     "defaultMessage": "Agent d’hyperlocalisation"
@@ -6826,6 +6898,9 @@
   },
   "e1VRshKvtz": {
     "defaultMessage": "Pour la sélection : Backlog, Sprint 24, Bloqué"
+  },
+  "e1ZCr/FmBQ": {
+    "defaultMessage": "Assignee"
   },
   "e2GH/61cB8": {
     "defaultMessage": "Target locale cannot match the source locale."
@@ -7028,6 +7103,9 @@
   "f2cTOkA6mx": {
     "defaultMessage": "Créer une ligne générique de feuille de problèmes. Lier celle-ci à CAT ou à un autre outil de suivi des problèmes si nécessaire."
   },
+  "f5viDmb9eZ": {
+    "defaultMessage": "Unsaved changes"
+  },
   "f697pDeGl6": {
     "defaultMessage": "Crowdin task deleted"
   },
@@ -7105,6 +7183,9 @@
   },
   "feBDOpIUbJ": {
     "defaultMessage": "GitHub push · {repository} · {branches}"
+  },
+  "fhtliL5Eg6": {
+    "defaultMessage": "Could not save changes."
   },
   "fj5dhgmhYc": {
     "defaultMessage": "Impossible de valider l’identifiant."
@@ -7559,6 +7640,9 @@
   "iGnaQ/kXrJ": {
     "defaultMessage": "Waiting for review"
   },
+  "iGoxhCxQNO": {
+    "defaultMessage": "Saved"
+  },
   "iIDH8DJhzI": {
     "defaultMessage": "URL de base (facultative)"
   },
@@ -7630,6 +7714,9 @@
   },
   "ieQJlirS+o": {
     "defaultMessage": "current ship-safe coverage"
+  },
+  "ienF5sVVz0": {
+    "defaultMessage": "Provider issue"
   },
   "igB297V19V": {
     "defaultMessage": "Révision du routage"
@@ -8063,6 +8150,9 @@
   "kwuZYApNor": {
     "defaultMessage": "Loading your workspace plan"
   },
+  "kx356lhAw5": {
+    "defaultMessage": "Title cannot be empty."
+  },
   "kxi2ohyZnf": {
     "defaultMessage": "—"
   },
@@ -8077,6 +8167,9 @@
   },
   "l2MbFKxoMr": {
     "defaultMessage": "Posez des questions sur les chaînes, le contexte, la progression ou les traductions"
+  },
+  "l2pq2plLde": {
+    "defaultMessage": "Issue details"
   },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees"
@@ -8122,6 +8215,9 @@
   },
   "lES6CzVw2i": {
     "defaultMessage": "Product overview"
+  },
+  "lEtyUUSw7r": {
+    "defaultMessage": "Source path"
   },
   "lH4tr3c/1j": {
     "defaultMessage": "{count, plural, one {Fichier de traduction téléchargé.} other {# fichiers de traduction téléchargés.}}"
@@ -8437,6 +8533,9 @@
   },
   "nK8hDW3Eqt": {
     "defaultMessage": "Source mistake"
+  },
+  "nLGLyaeThi": {
+    "defaultMessage": "Locale"
   },
   "nOCS+qmeJF": {
     "defaultMessage": "Member"
@@ -8845,6 +8944,9 @@
   },
   "q4SZlpG/03": {
     "defaultMessage": "Purpose"
+  },
+  "q4WpE1QriH": {
+    "defaultMessage": "URL"
   },
   "q4g35VNiZ5": {
     "defaultMessage": "Jobs"
@@ -9308,6 +9410,9 @@
   "swlRLlRcrP": {
     "defaultMessage": "Ajouter un problème"
   },
+  "syMBsg2OBf": {
+    "defaultMessage": "Source text"
+  },
   "szGONLZ/cQ": {
     "defaultMessage": "Progression de la configuration"
   },
@@ -9419,6 +9524,9 @@
   "tcEBE8+x0p": {
     "defaultMessage": "Mo octets"
   },
+  "te38CqnzSy": {
+    "defaultMessage": "Agent run"
+  },
   "tfRDFTE7ho": {
     "defaultMessage": "Détecter les changements de chaînes à partir des diffs de PR"
   },
@@ -9523,6 +9631,9 @@
   },
   "uMS3Md9f77": {
     "defaultMessage": "Enregistrez une clé de fournisseur partagée pour cet espace de travail. L’enregistrement valide la clé, la chiffre au repos et remplace le fournisseur actuel."
+  },
+  "uNxjflTYdv": {
+    "defaultMessage": "Keep editing"
   },
   "uPLvPG1gYg": {
     "defaultMessage": "Copié !"
@@ -9634,6 +9745,9 @@
   },
   "uzkJ9jkLaR": {
     "defaultMessage": "Téléversez les fichiers source, puis ouvrez-en un dans l’espace de travail CAT pour réviser et modifier les traductions."
+  },
+  "v+JpRsdgw2": {
+    "defaultMessage": "CAT segment"
   },
   "v/bExbFK7z": {
     "defaultMessage": "Les équipes produit livrent en continu. Les équipes de localisation se retrouvent ensuite à devoir recouper le contexte entre les outils, après coup."
@@ -10064,6 +10178,9 @@
   "xEVW32kNCM": {
     "defaultMessage": "Resources"
   },
+  "xEznmg3kZB": {
+    "defaultMessage": "Save"
+  },
   "xFn0NDIq1p": {
     "defaultMessage": "Provider"
   },
@@ -10105,6 +10222,9 @@
   },
   "xZLc+H/X20": {
     "defaultMessage": "Translation memory created"
+  },
+  "xa11NKAkvz": {
+    "defaultMessage": "Discard"
   },
   "xaHT3hr/g2": {
     "defaultMessage": "No required placeholders are missing."
@@ -10162,6 +10282,9 @@
   },
   "xy0kgWsXSb": {
     "defaultMessage": "Refresh the page to try again."
+  },
+  "xy1S5rhKQr": {
+    "defaultMessage": "You have unsaved edits on this issue. Save them before closing, or discard them."
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL : {url}"
