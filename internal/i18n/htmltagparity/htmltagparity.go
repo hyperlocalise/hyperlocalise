@@ -17,9 +17,26 @@ func Mismatch(sourceValue, targetValue string) bool {
 		return false
 	}
 
-	sourceTags := normalizedMarkupTagNames(findAllTags(sourceValue))
-	targetTags := normalizedMarkupTagNames(findAllTags(targetValue))
+	sourceTags := collectMarkupTags(sourceValue)
+	targetTags := collectMarkupTags(targetValue)
 	return !slices.Equal(sourceTags, targetTags)
+}
+
+// collectMarkupTags scans the string and collects normalized markup tag names
+// in a single pass with minimal heap allocations by fusing name extraction and filtering.
+func collectMarkupTags(s string) []string {
+	rawTags := findAllTags(s)
+	if len(rawTags) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(rawTags))
+	for _, raw := range rawTags {
+		name := extractTagName(raw)
+		if name != "" && isLikelyMarkupTag(raw, name) {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 func findAllTags(s string) []string {
@@ -150,13 +167,33 @@ func normalizedMarkupTagNames(tags []string) []string {
 	return out
 }
 
+func isCommonHTMLTag(tag string) bool {
+	switch tag {
+	case "div", "span", "p", "a", "br", "img", "strong", "em", "b", "i", "u",
+		"h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "table", "thead",
+		"tbody", "tr", "th", "td", "button", "input", "form", "label", "select",
+		"option", "textarea", "section", "nav", "header", "footer", "aside",
+		"main", "code", "pre", "hr", "svg", "path", "iframe", "script", "style",
+		"body", "head", "html", "meta", "link", "title", "small", "sub", "sup":
+		return true
+	}
+	return false
+}
+
 func isLikelyMarkupTag(raw, normalized string) bool {
 	// BOLT OPTIMIZATION: strings.TrimPrefix is allocation-free when slicing.
 	tag := strings.TrimPrefix(normalized, "/")
 	if tag == "" {
 		return false
 	}
-	if a := atom.Lookup([]byte(tag)); a != 0 {
+
+	// BOLT OPTIMIZATION: Check for common HTML tags using a static switch to bypass atom.Lookup.
+	// This avoids allocating a []byte slice for Lookup.
+	if isCommonHTMLTag(tag) {
+		if tag != "name" && tag != "id" {
+			return true
+		}
+	} else if a := atom.Lookup([]byte(tag)); a != 0 {
 		// 'name' and 'id' are common path/template placeholders that are atoms but
 		// not standard HTML elements. We only treat them as markup if they have
 		// attributes (checked below).
@@ -164,6 +201,7 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 			return true
 		}
 	}
+
 	// Hyphens and colons are strong indicators of custom elements or namespaced tags.
 	if strings.Contains(tag, "-") || strings.Contains(tag, ":") {
 		return true
