@@ -5,9 +5,14 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { type IssueDetailIssue } from "./issue-detail-utils";
+import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 
-const issue = {
+const organizationSlug = "acme";
+const projectId = "00000000-0000-4000-8000-000000000010";
+
+const issue: IssueDetailIssue = {
   id: "00000000-0000-4000-8000-000000000001",
   title: "Original title",
   description: "Original description",
@@ -16,6 +21,9 @@ const issue = {
   targetLocale: null,
   sourcePath: null,
   segmentId: null,
+  translationKeyId: null,
+  linkedCommentId: null,
+  linkedAgentRunId: null,
   linkKind: null,
   linkLabel: null,
   linkUrl: null,
@@ -85,8 +93,8 @@ describe("useIssueDetailMutations", () => {
     const { result } = renderHook(
       () =>
         useIssueDetailMutations({
-          organizationSlug: "acme",
-          projectId: "00000000-0000-4000-8000-000000000010",
+          organizationSlug,
+          projectId,
           issueId: issue.id,
         }),
       { wrapper: createWrapper(queryClient) },
@@ -129,6 +137,86 @@ describe("useIssueDetailMutations", () => {
     expect(titleSignalRef.current?.aborted).toBe(false);
   });
 
+  it("keeps earlier field updates when a later concurrent response arrives out of order", async () => {
+    const titleSave = createDeferred<Response>();
+    const statusSave = createDeferred<Response>();
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const rawBody = init?.body;
+      const body = JSON.parse(
+        typeof rawBody === "string" ? rawBody : JSON.stringify(rawBody ?? {}),
+      ) as Record<string, unknown>;
+      if ("title" in body) {
+        return titleSave.promise;
+      }
+      if ("status" in body) {
+        return statusSave.promise;
+      }
+      throw new Error(`unexpected request body: ${JSON.stringify(body)}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        mutations: { retry: false },
+        queries: { retry: false },
+      },
+    });
+    const queryKey = issueDetailQueryKey(organizationSlug, projectId, issue.id);
+    queryClient.setQueryData(queryKey, issue);
+
+    const { result } = renderHook(
+      () =>
+        useIssueDetailMutations({
+          organizationSlug,
+          projectId,
+          issueId: issue.id,
+        }),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    act(() => {
+      result.current.updateIssue.mutate({ title: "Updated title" });
+      result.current.updateIssue.mutate({ status: "in_progress" });
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    // Title response first (fresh title, stale status).
+    await act(async () => {
+      titleSave.resolve(
+        new Response(JSON.stringify({ issue: { ...issue, title: "Updated title" } }), {
+          status: 200,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData<IssueDetailIssue>(queryKey)?.title).toBe("Updated title");
+    });
+
+    // Status response second with a stale full snapshot that still has the old title.
+    await act(async () => {
+      statusSave.resolve(
+        new Response(
+          JSON.stringify({
+            issue: { ...issue, status: "in_progress", title: "Original title" },
+          }),
+          { status: 200 },
+        ),
+      );
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<IssueDetailIssue>(queryKey);
+      expect(cached?.status).toBe("in_progress");
+      expect(cached?.title).toBe("Updated title");
+    });
+  });
+
   it("aborts in-flight updates when cancelPending is called", async () => {
     const titleSave = createDeferred<Response>();
     const titleSignalRef: { current: AbortSignal | undefined } = { current: undefined };
@@ -150,8 +238,8 @@ describe("useIssueDetailMutations", () => {
     const { result } = renderHook(
       () =>
         useIssueDetailMutations({
-          organizationSlug: "acme",
-          projectId: "00000000-0000-4000-8000-000000000010",
+          organizationSlug,
+          projectId,
           issueId: issue.id,
         }),
       { wrapper: createWrapper(queryClient) },

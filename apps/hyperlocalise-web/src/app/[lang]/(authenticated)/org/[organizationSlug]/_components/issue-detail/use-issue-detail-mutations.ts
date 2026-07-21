@@ -40,6 +40,22 @@ function releaseAbortController(controllers: Set<AbortController>, controller: A
   controllers.delete(controller);
 }
 
+/** Merge only the PATCH body into cache so a slower concurrent response cannot revert other fields. */
+function mergeIssuePatch(
+  current: IssueDetailIssue | undefined,
+  patch: Record<string, unknown>,
+  fallback: IssueDetailIssue,
+): IssueDetailIssue {
+  if (!current) {
+    return fallback;
+  }
+  const mergedEntries = Object.entries(patch).filter(([key]) => Object.hasOwn(current, key));
+  return {
+    ...current,
+    ...Object.fromEntries(mergedEntries),
+  };
+}
+
 export function useIssueDetailMutations({
   organizationSlug,
   projectId,
@@ -87,10 +103,10 @@ export function useIssueDetailMutations({
         releaseAbortController(updateAbortControllersRef.current, controller);
       }
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, body) => {
       queryClient.setQueryData(
         issueDetailQueryKey(organizationSlug, projectId, issueId),
-        result.issue,
+        (current: IssueDetailIssue | undefined) => mergeIssuePatch(current, body, result.issue),
       );
       await invalidate();
     },
