@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
+import { issueStatusVariant } from "../../_components/issue-detail/issue-detail-utils";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { issuesPageViewMessages } from "./issues-page-view.messages";
@@ -40,13 +41,6 @@ function formatLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function statusVariant(status: string) {
-  if (status === "resolved") return "success" as const;
-  if (status === "wont_fix") return "outline" as const;
-  if (status === "in_progress") return "warning" as const;
-  return "secondary" as const;
 }
 
 function IssueRowSkeleton() {
@@ -227,7 +221,7 @@ export function IssuesPageView({
                   </td>
                   <td className="px-4 py-3">
                     <Badge
-                      variant={statusVariant(issue.status)}
+                      variant={issueStatusVariant(issue.status)}
                       className="rounded-full capitalize"
                     >
                       {formatLabel(issue.status)}

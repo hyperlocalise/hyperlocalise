@@ -73,6 +73,36 @@ export const issueSheetSharedMessages = defineMessages({
     id: "G0DAu7HpBC",
     description: "Issue Sheet status option when an issue will not be fixed",
   },
+  linkKindCatSegment: {
+    defaultMessage: "CAT segment",
+    id: "v+JpRsdgw2",
+    description: "Issue Sheet link kind for a CAT segment",
+  },
+  linkKindNativeIssue: {
+    defaultMessage: "Native issue",
+    id: "QVweQ7BzMt",
+    description: "Issue Sheet link kind for a native issue",
+  },
+  linkKindProviderIssue: {
+    defaultMessage: "Provider issue",
+    id: "ienF5sVVz0",
+    description: "Issue Sheet link kind for a provider issue",
+  },
+  linkKindAgentRun: {
+    defaultMessage: "Agent run",
+    id: "te38CqnzSy",
+    description: "Issue Sheet link kind for an agent run",
+  },
+  linkKindUrl: {
+    defaultMessage: "URL",
+    id: "q4WpE1QriH",
+    description: "Issue Sheet link kind for an external URL",
+  },
+  linkKindManual: {
+    defaultMessage: "Manual",
+    id: "WUFTI428rT",
+    description: "Issue Sheet link kind for a manually created issue",
+  },
   emptyValue: {
     defaultMessage: "—",
     id: "wy44X4k96P",

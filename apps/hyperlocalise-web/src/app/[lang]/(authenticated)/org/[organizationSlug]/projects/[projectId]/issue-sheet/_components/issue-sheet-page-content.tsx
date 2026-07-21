@@ -34,6 +34,7 @@ import { IssueDetailDrawer } from "../../../../_components/issue-detail/issue-de
 import {
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
+  issueStatusVariant,
 } from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
@@ -179,13 +180,6 @@ function columnTypeLabel(intl: IntlShape, value: ColumnTypeValue) {
     case "user":
       return intl.formatMessage(sharedMessages.columnTypeUserId);
   }
-}
-
-function statusVariant(status: string) {
-  if (status === "resolved") return "success";
-  if (status === "wont_fix") return "outline";
-  if (status === "in_progress") return "warning";
-  return "secondary";
 }
 
 function buildCatHref(organizationSlug: string, projectId: string, issue: IssueSheetIssue) {
@@ -462,7 +456,7 @@ export function IssueSheetPageContent({
                         }
                       >
                         <SelectTrigger className="w-36">
-                          <Badge variant={statusVariant(issue.status)}>
+                          <Badge variant={issueStatusVariant(issue.status)}>
                             {statusLabel(intl, issue.status)}
                           </Badge>
                         </SelectTrigger>
@@ -473,7 +467,9 @@ export function IssueSheetPageContent({
                               value={status.value}
                               label={status.label}
                             >
-                              {status.label}
+                              <Badge variant={issueStatusVariant(status.value)}>
+                                {status.label}
+                              </Badge>
                             </SelectItem>
                           ))}
                         </SelectContent>

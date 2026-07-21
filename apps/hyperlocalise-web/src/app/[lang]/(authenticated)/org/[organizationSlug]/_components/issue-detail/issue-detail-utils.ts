@@ -10,6 +10,17 @@ export const issueStatusValues = ["open", "in_progress", "resolved", "wont_fix"]
 export type IssueStatusValue = (typeof issueStatusValues)[number];
 
 export const issuePriorityValues = ["P0", "P1", "P2"] as const;
+export type IssuePriorityValue = (typeof issuePriorityValues)[number];
+
+export const issueLinkKindValues = [
+  "cat_segment",
+  "native_issue",
+  "provider_issue",
+  "agent_run",
+  "url",
+  "manual",
+] as const;
+export type IssueLinkKindValue = (typeof issueLinkKindValues)[number];
 
 export type IssueDetailIssue = {
   id: string;
@@ -80,6 +91,38 @@ export function issueStatusVariant(status: string) {
   if (status === "wont_fix") return "outline" as const;
   if (status === "in_progress") return "warning" as const;
   return "secondary" as const;
+}
+
+export function issuePriorityVariant(priority: string) {
+  switch (priority as IssuePriorityValue) {
+    case "P0":
+      return "destructive" as const;
+    case "P1":
+      return "warning" as const;
+    case "P2":
+      return "secondary" as const;
+    default:
+      return "outline" as const;
+  }
+}
+
+export function linkKindLabel(intl: IntlShape, value: string) {
+  switch (value as IssueLinkKindValue) {
+    case "cat_segment":
+      return intl.formatMessage(sharedMessages.linkKindCatSegment);
+    case "native_issue":
+      return intl.formatMessage(sharedMessages.linkKindNativeIssue);
+    case "provider_issue":
+      return intl.formatMessage(sharedMessages.linkKindProviderIssue);
+    case "agent_run":
+      return intl.formatMessage(sharedMessages.linkKindAgentRun);
+    case "url":
+      return intl.formatMessage(sharedMessages.linkKindUrl);
+    case "manual":
+      return intl.formatMessage(sharedMessages.linkKindManual);
+    default:
+      return formatUnknownLabel(value);
+  }
 }
 
 export function buildIssueCatHref(
