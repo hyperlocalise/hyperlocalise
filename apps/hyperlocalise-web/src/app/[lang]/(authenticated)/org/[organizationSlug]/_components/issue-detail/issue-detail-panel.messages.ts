@@ -25,8 +25,8 @@ export const issueDetailPanelMessages = defineMessages({
   },
   saved: {
     defaultMessage: "Saved",
-    id: "EVE7+QSKr9",
-    description: "Brief success label after saving an issue field",
+    id: "iGoxhCxQNO",
+    description: "Toast after saving an issue field",
   },
   fieldTitle: {
     defaultMessage: "Title",
@@ -114,9 +114,19 @@ export const issueDetailPanelMessages = defineMessages({
     description: "Label for CAT segment id on an issue",
   },
   fieldLink: {
-    defaultMessage: "Link",
-    id: "nsS+omXI6F",
-    description: "Label for external or custom issue link",
+    defaultMessage: "Link kind",
+    id: "RBrBoi9ilw",
+    description: "Label for issue link kind",
+  },
+  fieldOwnerNote: {
+    defaultMessage: "Owner note",
+    id: "Nw/qZUdZvV",
+    description: "Label for issue owner note field",
+  },
+  fieldOwnerNotePlaceholder: {
+    defaultMessage: "Add a note for the issue owner…",
+    id: "ImR4b9kD2P",
+    description: "Placeholder for the owner note textarea",
   },
   openInCat: {
     defaultMessage: "Open in CAT",
@@ -137,5 +147,36 @@ export const issueDetailPanelMessages = defineMessages({
     defaultMessage: "Could not save changes.",
     id: "fhtliL5Eg6",
     description: "Toast when issue detail update fails",
+  },
+  titleRequired: {
+    defaultMessage: "Title cannot be empty.",
+    id: "kx356lhAw5",
+    description: "Toast when saving issue details with an empty title",
+  },
+  unsavedChangesTitle: {
+    defaultMessage: "Unsaved changes",
+    id: "f5viDmb9eZ",
+    description: "Title for unsaved changes confirmation when closing issue details",
+  },
+  unsavedChangesDescription: {
+    defaultMessage:
+      "You have unsaved edits on this issue. Save them before closing, or discard them.",
+    id: "xy1S5rhKQr",
+    description: "Description for unsaved changes confirmation when closing issue details",
+  },
+  unsavedChangesSave: {
+    defaultMessage: "Save",
+    id: "xEznmg3kZB",
+    description: "Save and close button on unsaved changes dialog",
+  },
+  unsavedChangesDiscard: {
+    defaultMessage: "Discard",
+    id: "xa11NKAkvz",
+    description: "Discard changes and close button on unsaved changes dialog",
+  },
+  unsavedChangesKeepEditing: {
+    defaultMessage: "Keep editing",
+    id: "uNxjflTYdv",
+    description: "Cancel close and keep editing button on unsaved changes dialog",
   },
 });

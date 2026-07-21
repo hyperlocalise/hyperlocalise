@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Calendar03Icon,
   CheckmarkCircle02Icon,
@@ -17,10 +25,10 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -42,11 +50,14 @@ import {
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
   issuePriorityValues,
+  issuePriorityVariant,
   issueStatusLabel,
   issueStatusValues,
   issueStatusVariant,
   issueTypeLabel,
   issueTypeValues,
+  linkKindLabel,
+  type IssueDetailIssue,
 } from "./issue-detail-utils";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
@@ -59,6 +70,31 @@ type WorkspaceMember = {
 
 type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
 
+export type IssueDetailPanelHandle = {
+  isDirty: () => boolean;
+  savePending: () => Promise<void>;
+  beginCloseConfirm: () => void;
+  endCloseConfirm: () => void;
+  discardPending: () => void;
+};
+
+function ownerNoteFromIssue(issue: IssueDetailIssue) {
+  return typeof issue.values.owner_note === "string" ? issue.values.owner_note : "";
+}
+
+function isIssueDraftDirty(
+  issue: IssueDetailIssue,
+  titleDraft: string,
+  descriptionDraft: string,
+  ownerNoteDraft: string,
+) {
+  return (
+    titleDraft.trim() !== issue.title ||
+    descriptionDraft !== issue.description ||
+    ownerNoteDraft !== ownerNoteFromIssue(issue)
+  );
+}
+
 function PropertyRow({
   icon,
   label,
@@ -69,12 +105,14 @@ function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
+    <div className="flex min-h-8 items-center justify-between gap-3 py-1.5">
       <dt className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
         <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
         <span className="truncate">{label}</span>
       </dt>
-      <dd className="flex min-w-0 max-w-[55%] justify-end text-end">{children}</dd>
+      <dd className="flex min-h-8 min-w-0 max-w-[55%] items-center justify-end text-end">
+        {children}
+      </dd>
     </div>
   );
 }
@@ -106,13 +144,13 @@ function LinkedContextRow({ label, children }: { label: ReactNode; children: Rea
 
 function IssueDetailSkeleton() {
   return (
-    <div className="grid flex-1 md:grid-cols-[minmax(0,1fr)_18rem]">
-      <div className="flex flex-col gap-4 px-6 py-5">
+    <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden">
+      <div className="flex flex-col gap-4 px-6 py-5 md:min-h-0 md:overflow-y-auto">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
-      <aside className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+      <aside className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
         <Skeleton className="h-8 w-full" />
         <Skeleton className="ml-auto h-7 w-24" />
         <Skeleton className="ml-auto h-7 w-20" />
@@ -127,24 +165,22 @@ function IssueDetailSkeleton() {
 const ghostSelectTriggerClassName =
   "h-8 max-w-full justify-end border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
 
-export function IssueDetailPanel({
-  organizationSlug,
-  projectId,
-  issueId,
-}: {
-  organizationSlug: string;
-  projectId: string;
-  issueId: string;
-}) {
+export const IssueDetailPanel = forwardRef<
+  IssueDetailPanelHandle,
+  {
+    organizationSlug: string;
+    projectId: string;
+    issueId: string;
+  }
+>(function IssueDetailPanel({ organizationSlug, projectId, issueId }, ref) {
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
-  const [showSaved, setShowSaved] = useState(false);
-  const { updateIssue, setValue } = useIssueDetailMutations({
+  const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
-    onSaved: () => setShowSaved(true),
+    onSaved: () => toast.success(intl.formatMessage(messages.saved)),
   });
 
   const membersQuery = useQuery({
@@ -166,27 +202,109 @@ export function IssueDetailPanel({
   const issue = issueQuery.data;
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
   const isSaving = updateIssue.isPending || setValue.isPending;
+
+  const titleDraftRef = useRef(titleDraft);
+  const descriptionDraftRef = useRef(descriptionDraft);
+  const ownerNoteDraftRef = useRef(ownerNoteDraft);
+  const issueRef = useRef(issue);
+  const suppressAutoSaveRef = useRef(false);
+  const draftBaselineRef = useRef<{
+    issueId: string;
+    title: string;
+    description: string;
+    ownerNote: string;
+  } | null>(null);
+  titleDraftRef.current = titleDraft;
+  descriptionDraftRef.current = descriptionDraft;
+  ownerNoteDraftRef.current = ownerNoteDraft;
+  issueRef.current = issue;
 
   useEffect(() => {
     if (!issue) {
       return;
     }
-    setTitleDraft(issue.title);
-    setDescriptionDraft(issue.description);
-  }, [issue?.id, issue?.title, issue?.description]);
 
-  useEffect(() => {
-    if (isSaving) {
-      setShowSaved(false);
+    const ownerNote = ownerNoteFromIssue(issue);
+    const baseline = draftBaselineRef.current;
+
+    if (!baseline || baseline.issueId !== issue.id) {
+      draftBaselineRef.current = {
+        issueId: issue.id,
+        title: issue.title,
+        description: issue.description,
+        ownerNote,
+      };
+      setTitleDraft(issue.title);
+      setDescriptionDraft(issue.description);
+      setOwnerNoteDraft(ownerNote);
       return;
     }
-    if (!showSaved) {
-      return;
-    }
-    const timeout = window.setTimeout(() => setShowSaved(false), 2000);
-    return () => window.clearTimeout(timeout);
-  }, [isSaving, showSaved]);
+
+    setTitleDraft((draft) => (draft === baseline.title ? issue.title : draft));
+    setDescriptionDraft((draft) => (draft === baseline.description ? issue.description : draft));
+    setOwnerNoteDraft((draft) => (draft === baseline.ownerNote ? ownerNote : draft));
+    draftBaselineRef.current = {
+      issueId: issue.id,
+      title: issue.title,
+      description: issue.description,
+      ownerNote,
+    };
+  }, [issue]);
+
+  useImperativeHandle(ref, () => ({
+    isDirty: () => {
+      const current = issueRef.current;
+      if (!current) {
+        return false;
+      }
+      return isIssueDraftDirty(
+        current,
+        titleDraftRef.current,
+        descriptionDraftRef.current,
+        ownerNoteDraftRef.current,
+      );
+    },
+    beginCloseConfirm: () => {
+      suppressAutoSaveRef.current = true;
+    },
+    endCloseConfirm: () => {
+      suppressAutoSaveRef.current = false;
+    },
+    discardPending: () => {
+      suppressAutoSaveRef.current = true;
+      cancelPending();
+    },
+    savePending: async () => {
+      const current = issueRef.current;
+      if (!current) {
+        return;
+      }
+
+      const nextTitle = titleDraftRef.current.trim();
+      if (nextTitle === "") {
+        toast.error(intl.formatMessage(messages.titleRequired));
+        throw new Error("title_required");
+      }
+
+      const issueUpdates: Record<string, unknown> = {};
+      if (nextTitle !== current.title) {
+        issueUpdates.title = nextTitle;
+      }
+      if (descriptionDraftRef.current !== current.description) {
+        issueUpdates.description = descriptionDraftRef.current;
+      }
+      if (Object.keys(issueUpdates).length > 0) {
+        await updateIssue.mutateAsync(issueUpdates);
+      }
+
+      const nextOwnerNote = ownerNoteDraftRef.current;
+      if (nextOwnerNote !== ownerNoteFromIssue(current)) {
+        await setValue.mutateAsync({ columnKey: "owner_note", value: nextOwnerNote });
+      }
+    },
+  }));
 
   const statusItems = useMemo(
     () =>
@@ -221,7 +339,7 @@ export function IssueDetailPanel({
 
   if (issueQuery.isLoading) {
     return (
-      <div aria-busy="true" aria-live="polite" className="flex flex-1 flex-col">
+      <div aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <TypographyP className="sr-only">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
@@ -257,6 +375,9 @@ export function IssueDetailPanel({
   );
 
   const saveTitle = () => {
+    if (suppressAutoSaveRef.current) {
+      return;
+    }
     const next = titleDraft.trim();
     if (!next || next === issue.title) {
       return;
@@ -265,29 +386,41 @@ export function IssueDetailPanel({
   };
 
   const saveDescription = () => {
+    if (suppressAutoSaveRef.current) {
+      return;
+    }
     if (descriptionDraft === issue.description) {
       return;
     }
     updateIssue.mutate({ description: descriptionDraft });
   };
 
-  return (
-    <div className="grid flex-1 md:grid-cols-[minmax(0,1fr)_18rem]" aria-busy={isSaving}>
-      <div className="flex min-w-0 flex-col gap-3 px-6 py-5">
-        {showSaved ? (
-          <TypographyP className="text-xs text-muted-foreground" aria-live="polite">
-            <FormattedMessage {...messages.saved} />
-          </TypographyP>
-        ) : null}
+  const saveOwnerNote = () => {
+    if (suppressAutoSaveRef.current) {
+      return;
+    }
+    const current = ownerNoteFromIssue(issue);
+    if (ownerNoteDraft === current) {
+      return;
+    }
+    setValue.mutate({ columnKey: "owner_note", value: ownerNoteDraft });
+  };
 
-        <Input
+  return (
+    <div
+      className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden"
+      aria-busy={isSaving}
+    >
+      <div className="flex min-w-0 flex-col gap-3 px-6 py-5 md:min-h-0 md:overflow-y-auto">
+        <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}
           onBlur={saveTitle}
           disabled={isSaving}
           aria-label={intl.formatMessage(messages.fieldTitle)}
+          rows={1}
           className={cn(
-            "h-auto rounded-none border-transparent bg-transparent px-0 py-1 text-lg font-semibold shadow-none md:text-xl",
+            "min-h-10 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-lg font-semibold shadow-none md:min-h-10 md:text-xl",
             "focus-visible:border-transparent focus-visible:ring-0",
           )}
         />
@@ -300,10 +433,28 @@ export function IssueDetailPanel({
           aria-label={intl.formatMessage(messages.fieldDescription)}
           placeholder={intl.formatMessage(messages.fieldDescription)}
           className={cn(
-            "min-h-32 rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
+            "min-h-32 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
             "focus-visible:border-transparent focus-visible:ring-0",
           )}
         />
+
+        <section className="mt-2 grid gap-2 border-t border-border pt-4">
+          <TypographyP className="text-sm font-medium text-foreground">
+            <FormattedMessage {...messages.fieldOwnerNote} />
+          </TypographyP>
+          <Textarea
+            value={ownerNoteDraft}
+            onChange={(event) => setOwnerNoteDraft(event.currentTarget.value)}
+            onBlur={saveOwnerNote}
+            disabled={isSaving}
+            aria-label={intl.formatMessage(messages.fieldOwnerNote)}
+            placeholder={intl.formatMessage(messages.fieldOwnerNotePlaceholder)}
+            className={cn(
+              "min-h-20 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
+              "focus-visible:border-transparent focus-visible:ring-0",
+            )}
+          />
+        </section>
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
@@ -333,7 +484,7 @@ export function IssueDetailPanel({
               ) : null}
               {issue.linkKind ? (
                 <LinkedContextRow label={<FormattedMessage {...messages.fieldLink} />}>
-                  <ReadOnlyValue value={issue.linkKind} empty={emptyValue} />
+                  <ReadOnlyValue value={linkKindLabel(intl, issue.linkKind)} empty={emptyValue} />
                 </LinkedContextRow>
               ) : null}
             </div>
@@ -341,7 +492,7 @@ export function IssueDetailPanel({
         ) : null}
       </div>
 
-      <aside className="flex flex-col gap-1 border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+      <aside className="flex flex-col gap-1 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
         <div className="mb-3 flex flex-col gap-2">
           {catHref ? (
             <Button
@@ -428,7 +579,7 @@ export function IssueDetailPanel({
               <SelectContent>
                 {statusItems.map((status) => (
                   <SelectItem key={status.value} value={status.value} label={status.label}>
-                    {status.label}
+                    <Badge variant={issueStatusVariant(status.value)}>{status.label}</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -471,12 +622,16 @@ export function IssueDetailPanel({
               disabled={isSaving}
             >
               <SelectTrigger className={ghostSelectTriggerClassName}>
-                <SelectValue placeholder={emptyValue} />
+                {priority ? (
+                  <Badge variant={issuePriorityVariant(priority)}>{priority}</Badge>
+                ) : (
+                  <SelectValue placeholder={emptyValue} />
+                )}
               </SelectTrigger>
               <SelectContent>
                 {priorityItems.map((item) => (
                   <SelectItem key={item.value} value={item.value} label={item.label}>
-                    {item.label}
+                    <Badge variant={issuePriorityVariant(item.value)}>{item.label}</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -536,4 +691,4 @@ export function IssueDetailPanel({
       </aside>
     </div>
   );
-}
+});
