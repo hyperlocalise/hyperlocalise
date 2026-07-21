@@ -25,6 +25,21 @@ function isAbortError(error: unknown) {
     : error instanceof Error && error.name === "AbortError";
 }
 
+function trackAbortController(controllers: Set<AbortController>, controller: AbortController) {
+  controllers.add(controller);
+  controller.signal.addEventListener(
+    "abort",
+    () => {
+      controllers.delete(controller);
+    },
+    { once: true },
+  );
+}
+
+function releaseAbortController(controllers: Set<AbortController>, controller: AbortController) {
+  controllers.delete(controller);
+}
+
 export function useIssueDetailMutations({
   organizationSlug,
   projectId,
@@ -39,8 +54,8 @@ export function useIssueDetailMutations({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const requestFailed = intl.formatMessage(messages.updateFailed);
-  const updateAbortRef = useRef<AbortController | null>(null);
-  const setValueAbortRef = useRef<AbortController | null>(null);
+  const updateAbortControllersRef = useRef<Set<AbortController>>(new Set());
+  const setValueAbortControllersRef = useRef<Set<AbortController>>(new Set());
 
   const invalidate = async () => {
     await Promise.all([
@@ -55,16 +70,22 @@ export function useIssueDetailMutations({
 
   const updateIssue = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
-      updateAbortRef.current?.abort();
       const controller = new AbortController();
-      updateAbortRef.current = controller;
-      const response = await fetch(`${issueSheetApiPath(organizationSlug, projectId)}/${issueId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      return readJsonOrThrow<{ issue: IssueDetailIssue }>(response, requestFailed);
+      trackAbortController(updateAbortControllersRef.current, controller);
+      try {
+        const response = await fetch(
+          `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          },
+        );
+        return readJsonOrThrow<{ issue: IssueDetailIssue }>(response, requestFailed);
+      } finally {
+        releaseAbortController(updateAbortControllersRef.current, controller);
+      }
     },
     onSuccess: async (result) => {
       queryClient.setQueryData(
@@ -83,19 +104,22 @@ export function useIssueDetailMutations({
 
   const setValue = useMutation({
     mutationFn: async ({ columnKey, value }: { columnKey: string; value: unknown }) => {
-      setValueAbortRef.current?.abort();
       const controller = new AbortController();
-      setValueAbortRef.current = controller;
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/values`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ columnKey, value }),
-          signal: controller.signal,
-        },
-      );
-      return readJsonOrThrow<{ value: unknown }>(response, requestFailed);
+      trackAbortController(setValueAbortControllersRef.current, controller);
+      try {
+        const response = await fetch(
+          `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/values`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ columnKey, value }),
+            signal: controller.signal,
+          },
+        );
+        return readJsonOrThrow<{ value: unknown }>(response, requestFailed);
+      } finally {
+        releaseAbortController(setValueAbortControllersRef.current, controller);
+      }
     },
     onSuccess: invalidate,
     onError: (error) => {
@@ -107,10 +131,14 @@ export function useIssueDetailMutations({
   });
 
   const cancelPending = () => {
-    updateAbortRef.current?.abort();
-    setValueAbortRef.current?.abort();
-    updateAbortRef.current = null;
-    setValueAbortRef.current = null;
+    for (const controller of updateAbortControllersRef.current) {
+      controller.abort();
+    }
+    for (const controller of setValueAbortControllersRef.current) {
+      controller.abort();
+    }
+    updateAbortControllersRef.current.clear();
+    setValueAbortControllersRef.current.clear();
     updateIssue.reset();
     setValue.reset();
   };
