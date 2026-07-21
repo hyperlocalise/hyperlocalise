@@ -60,7 +60,10 @@ describe("useIssueDetailMutations", () => {
     const statusSave = createDeferred<Response>();
     const titleSignalRef: { current: AbortSignal | undefined } = { current: undefined };
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const rawBody = init?.body;
+      const body = JSON.parse(
+        typeof rawBody === "string" ? rawBody : JSON.stringify(rawBody ?? {}),
+      ) as Record<string, unknown>;
       if ("title" in body) {
         titleSignalRef.current = init?.signal ?? undefined;
         return titleSave.promise;
