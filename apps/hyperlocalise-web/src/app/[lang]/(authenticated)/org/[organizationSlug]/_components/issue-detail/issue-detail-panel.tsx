@@ -176,12 +176,11 @@ export const IssueDetailPanel = forwardRef<
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
-  const [showSaved, setShowSaved] = useState(false);
   const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
-    onSaved: () => setShowSaved(true),
+    onSaved: () => toast.success(intl.formatMessage(messages.saved)),
   });
 
   const membersQuery = useQuery({
@@ -307,18 +306,6 @@ export const IssueDetailPanel = forwardRef<
     },
   }));
 
-  useEffect(() => {
-    if (isSaving) {
-      setShowSaved(false);
-      return;
-    }
-    if (!showSaved) {
-      return;
-    }
-    const timeout = window.setTimeout(() => setShowSaved(false), 2000);
-    return () => window.clearTimeout(timeout);
-  }, [isSaving, showSaved]);
-
   const statusItems = useMemo(
     () =>
       issueStatusValues.map((value) => ({
@@ -425,12 +412,6 @@ export const IssueDetailPanel = forwardRef<
       aria-busy={isSaving}
     >
       <div className="flex min-w-0 flex-col gap-3 px-6 py-5 md:min-h-0 md:overflow-y-auto">
-        {showSaved ? (
-          <TypographyP className="text-xs text-muted-foreground" aria-live="polite">
-            <FormattedMessage {...messages.saved} />
-          </TypographyP>
-        ) : null}
-
         <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}

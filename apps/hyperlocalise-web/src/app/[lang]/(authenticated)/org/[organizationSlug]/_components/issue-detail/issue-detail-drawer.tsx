@@ -25,6 +25,15 @@ import { cn } from "@/lib/primitives/cn";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { IssueDetailPanel, type IssueDetailPanelHandle } from "./issue-detail-panel";
 
+function isSheetCloseTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(
+    target.closest('[data-slot="sheet-close"]') || target.closest('[data-slot="sheet-overlay"]'),
+  );
+}
+
 export function IssueDetailDrawer({
   organizationSlug,
   projectId,
@@ -43,12 +52,14 @@ export function IssueDetailDrawer({
   const contentRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<IssueDetailPanelHandle>(null);
   const wasOpenRef = useRef(false);
+  const closingSheetRef = useRef(false);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [isSavingClose, setIsSavingClose] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       wasOpenRef.current = true;
+      closingSheetRef.current = false;
       const frame = window.requestAnimationFrame(() => {
         const closeButton = contentRef.current?.querySelector<HTMLElement>(
           '[data-slot="sheet-close"]',
@@ -67,11 +78,45 @@ export function IssueDetailDrawer({
     }
   }, [isOpen, returnFocusRef]);
 
+  // Suppress blur autosave before focus leaves the field when the user starts closing.
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const suppressBeforeCloseInteraction = (event: Event) => {
+      if (isSheetCloseTarget(event.target)) {
+        panelRef.current?.beginCloseConfirm();
+      }
+    };
+
+    const suppressBeforeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        panelRef.current?.beginCloseConfirm();
+      }
+    };
+
+    document.addEventListener("pointerdown", suppressBeforeCloseInteraction, true);
+    document.addEventListener("keydown", suppressBeforeEscape, true);
+    return () => {
+      document.removeEventListener("pointerdown", suppressBeforeCloseInteraction, true);
+      document.removeEventListener("keydown", suppressBeforeEscape, true);
+    };
+  }, [isOpen]);
+
   const resolvedProjectId = projectId;
   const resolvedIssueId = issueId;
 
-  const closeSheet = () => {
+  const keepEditing = () => {
+    closingSheetRef.current = false;
+    setConfirmCloseOpen(false);
+    setIsSavingClose(false);
     panelRef.current?.endCloseConfirm();
+  };
+
+  const closeSheetWithoutReenablingAutosave = () => {
+    closingSheetRef.current = true;
+    panelRef.current?.beginCloseConfirm();
     setConfirmCloseOpen(false);
     setIsSavingClose(false);
     onOpenChange(false);
@@ -80,7 +125,8 @@ export function IssueDetailDrawer({
   const requestClose = () => {
     const panel = panelRef.current;
     if (!panel) {
-      closeSheet();
+      closingSheetRef.current = true;
+      onOpenChange(false);
       return;
     }
     panel.beginCloseConfirm();
@@ -88,20 +134,19 @@ export function IssueDetailDrawer({
       setConfirmCloseOpen(true);
       return;
     }
-    panel.endCloseConfirm();
-    closeSheet();
+    closeSheetWithoutReenablingAutosave();
   };
 
   const handleDiscard = () => {
     panelRef.current?.discardPending();
-    closeSheet();
+    closeSheetWithoutReenablingAutosave();
   };
 
   const handleSaveAndClose = async () => {
     setIsSavingClose(true);
     try {
       await panelRef.current?.savePending();
-      closeSheet();
+      closeSheetWithoutReenablingAutosave();
     } catch {
       setIsSavingClose(false);
     }
@@ -152,10 +197,15 @@ export function IssueDetailDrawer({
           if (isSavingClose) {
             return;
           }
-          setConfirmCloseOpen(open);
           if (!open) {
-            panelRef.current?.endCloseConfirm();
+            if (closingSheetRef.current) {
+              setConfirmCloseOpen(false);
+              return;
+            }
+            keepEditing();
+            return;
           }
+          setConfirmCloseOpen(true);
         }}
       >
         <AlertDialogContent>
@@ -168,13 +218,22 @@ export function IssueDetailDrawer({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSavingClose}>
+            <AlertDialogCancel disabled={isSavingClose} onClick={keepEditing}>
               <FormattedMessage {...messages.unsavedChangesKeepEditing} />
             </AlertDialogCancel>
-            <Button variant="outline" disabled={isSavingClose} onClick={handleDiscard}>
+            <Button
+              variant="outline"
+              disabled={isSavingClose}
+              onPointerDown={() => panelRef.current?.beginCloseConfirm()}
+              onClick={handleDiscard}
+            >
               <FormattedMessage {...messages.unsavedChangesDiscard} />
             </Button>
-            <Button disabled={isSavingClose} onClick={() => void handleSaveAndClose()}>
+            <Button
+              disabled={isSavingClose}
+              onPointerDown={() => panelRef.current?.beginCloseConfirm()}
+              onClick={() => void handleSaveAndClose()}
+            >
               <FormattedMessage {...messages.unsavedChangesSave} />
             </Button>
           </AlertDialogFooter>

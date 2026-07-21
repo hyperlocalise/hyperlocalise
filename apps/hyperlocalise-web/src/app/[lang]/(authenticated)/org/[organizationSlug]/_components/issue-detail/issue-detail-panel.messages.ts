@@ -25,8 +25,8 @@ export const issueDetailPanelMessages = defineMessages({
   },
   saved: {
     defaultMessage: "Saved",
-    id: "EVE7+QSKr9",
-    description: "Brief success label after saving an issue field",
+    id: "iGoxhCxQNO",
+    description: "Toast after saving an issue field",
   },
   fieldTitle: {
     defaultMessage: "Title",
