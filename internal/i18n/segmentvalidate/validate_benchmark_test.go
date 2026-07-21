@@ -51,3 +51,26 @@ func BenchmarkValidateSegment(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkProfileEdgeWhitespace(b *testing.B) {
+	b.Run("PlainASCII", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = profileEdgeWhitespace("Hello, world!")
+		}
+	})
+
+	b.Run("WithWhitespace", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = profileEdgeWhitespace(" \tHello, world!\r\n")
+		}
+	})
+
+	b.Run("NonASCII_NBSP", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = profileEdgeWhitespace("\u00a0Hello, world!\u00a0")
+		}
+	})
+}
