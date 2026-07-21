@@ -156,17 +156,6 @@ func extractTagName(tag string) string {
 	return strings.ToLower(tag[start:i])
 }
 
-func normalizedMarkupTagNames(tags []string) []string {
-	names := normalizeTagNames(tags)
-	out := make([]string, 0, len(names))
-	for i, name := range names {
-		if isLikelyMarkupTag(tags[i], name) {
-			out = append(out, name)
-		}
-	}
-	return out
-}
-
 func isCommonHTMLTag(tag string) bool {
 	switch tag {
 	case "div", "span", "p", "a", "br", "img", "strong", "em", "b", "i", "u",
