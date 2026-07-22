@@ -1,7 +1,28 @@
 Business Source License 1.1
 
-License text copyright © 2026 hyperlocalise, All Rights Reserved.
-"Business Source License" is a trademark of hyperlocalise.
+Parameters
+
+Licensor:             Hyperlocalise Pty Ltd
+Licensed Work:        The Hyperlocalise web application contained in the
+                      apps/hyperlocalise-web/ directory of the
+                      hyperlocalise/hyperlocalise repository, version 0.1.0
+                      or later. The Licensed Work is (c) 2026
+                      Hyperlocalise Pty Ltd
+Additional Use Grant: None
+Change Date:          Four years from the date the Licensed Work is published
+Change License:       GNU General Public License Version 2.0 or later
+
+For information about alternative licensing arrangements for the Licensed Work,
+please contact https://hyperlocalise.com/contact
+
+Notice
+
+The Business Source License (this document, or the "License") is not an Open
+Source license. However, the Licensed Work will eventually be made available
+under an Open Source License, as stated in this License.
+
+License text copyright © 2017 MariaDB Corporation Ab, All Rights Reserved.
+"Business Source License" is a trademark of MariaDB Corporation Ab.
 
 Terms
 
@@ -45,14 +66,14 @@ EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
 TITLE.
 
-hyperlocalise hereby grants you permission to use this License's text to license
+MariaDB hereby grants you permission to use this License's text to license
 your works, and to refer to it using the trademark "Business Source License",
 as long as you comply with the Covenants of Licensor below.
 
 Covenants of Licensor
 
 In consideration of the right to use this License's text and the "Business
-Source License" name and trademark, Licensor covenants to hyperlocalise, and to all
+Source License" name and trademark, Licensor covenants to MariaDB, and to all
 other recipients of the licensed work to be provided by Licensor:
 
 1. To specify as the Change License the GPL Version 2.0 or any later version,
@@ -69,27 +90,3 @@ other recipients of the licensed work to be provided by Licensor:
 3. To specify a Change Date.
 
 4. Not to modify this License in any other way.
-
-Additional Use Grant
-
-None
-
-Change License
-
-GNU General Public License Version 2.0 or any later version
-
-Change Date
-
-April 21, 2030
-
-Notice
-
-The Business Source License (this document, or the "License") is not an Open Source
-license. However, the Licensed Work will eventually be made available under an
-Open Source License, as stated in this License.
-
-For more information on commercial licensing, please contact:
-https://hyperlocalise.com/contact
-
-The full License text is available at:
-https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/hyperlocalise-web/LICENSE

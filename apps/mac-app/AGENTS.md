@@ -1,6 +1,11 @@
 # Mac App Agent Instructions
 
 Native SwiftUI macOS app. Licensed BSL 1.1 (`LICENSE`).
+New `.swift` source files must include the BSL header:
+
+```bash
+node scripts/add-bsl-headers.mjs apps/mac-app
+```
 
 ## Tooling
 
