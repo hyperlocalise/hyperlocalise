@@ -319,6 +319,7 @@ export async function prepareConversationAgentTurn(
     conversationText,
     hasFileAttachments: input.hasTranslationAttachments,
     hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+    hasKnowledgeMemory: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
   });
 

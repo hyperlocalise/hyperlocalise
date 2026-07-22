@@ -60,7 +60,9 @@ export const updateKnowledgeMemoryToolInputSchema = z.object({
     .string()
     .uuid()
     .nullable()
-    .describe("Revision ID returned by get_knowledge_memory, or null for an empty Memory.md."),
+    .describe(
+      "Exact revision ID returned by get_knowledge_memory; use null only when it returns revisionId: null.",
+    ),
   summary: z
     .string()
     .trim()

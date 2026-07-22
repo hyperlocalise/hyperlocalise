@@ -289,11 +289,14 @@ describe("createWebChatAgentUIStreamResponse", () => {
     const response = createWebChatAgentUIStreamResponse({
       conversationId: "conv_123",
       messageText: "where is the login copy?",
-      toolContext: createToolContext(),
+      toolContext: { ...createToolContext(), knowledgeMemoryEnabled: true },
       hasTranslationAttachments: false,
     });
 
     const body = await readSseText(response);
+    expect(prepareConversationAgentTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ knowledgeMemoryEnabled: true }),
+    );
     expect(body).toContain("data-status");
     expect(body).toContain("Preparing");
     expect(body).toContain("Which repository should I search?");

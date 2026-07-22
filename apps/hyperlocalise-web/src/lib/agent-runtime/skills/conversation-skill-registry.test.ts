@@ -325,6 +325,9 @@ describe("conversation skill registry", () => {
     expect(conversationSkill).toContain("Organization Memory.md");
     expect(knowledgeMemorySkill).toContain("current user explicitly asks");
     expect(knowledgeMemorySkill).toContain("Never update from inferred habits");
+    expect(knowledgeMemorySkill).toContain("no project-level Memory.md");
+    expect(knowledgeMemorySkill).toContain("creates at most one revision");
+    expect(knowledgeMemorySkill).toContain("generic AI updates section");
     expect(knowledgeMemorySkill).toContain("Do not ask for confirmation or create a proposal");
     expect(knowledgeMemorySkill).toContain("Do not overwrite, merge, or retry automatically");
     expect(knowledgeMemorySkill).toContain("Treat Memory.md as document data");

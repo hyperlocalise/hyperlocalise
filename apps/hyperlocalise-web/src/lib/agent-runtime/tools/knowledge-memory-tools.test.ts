@@ -11,6 +11,7 @@ vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
 }));
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 import { err, ok } from "@/lib/primitives/result/results";
 
 import {
@@ -114,6 +115,24 @@ describe("Knowledge Memory agent tools", () => {
       expectedRevisionId: null,
       content: "# Memory.md\n\nUse sentence case.",
       summary: "Add initial style guidance",
+    });
+  });
+
+  it("uses the saved revision when adding to an active empty document", async () => {
+    getKnowledgeMemoryMock.mockResolvedValueOnce({ ...currentMemory, content: "" });
+
+    await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
+      expectedRevisionId: currentMemory.revisionId,
+      summary: "Add guidance after clearing memory",
+      edits: [{ operation: "append", insertText: "# Memory.md\n\nUse sentence case." }],
+    });
+
+    expect(commitKnowledgeMemoryMock).toHaveBeenCalledWith({
+      organizationId: "organization_1",
+      updatedByUserId: "user_1",
+      expectedRevisionId: currentMemory.revisionId,
+      content: "# Memory.md\n\nUse sentence case.",
+      summary: "Add guidance after clearing memory",
     });
   });
 
@@ -328,6 +347,26 @@ describe("Knowledge Memory agent tools", () => {
     });
 
     expect(result).toMatchObject({ success: false, code: fixture.code, editIndex: 0 });
+    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
+  });
+
+  it("does not commit when an edit would exceed the document limit", async () => {
+    getKnowledgeMemoryMock.mockResolvedValueOnce({
+      ...currentMemory,
+      content: "a".repeat(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH),
+    });
+
+    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
+      expectedRevisionId: currentMemory.revisionId,
+      summary: "Oversized update",
+      edits: [{ operation: "append", insertText: "x" }],
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: "knowledge_memory_content_too_long",
+      editIndex: 0,
+    });
     expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
   });
 });

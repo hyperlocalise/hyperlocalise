@@ -144,6 +144,9 @@ describe("conversation turn preparation", () => {
     });
 
     expect(result.clarificationFollowUp).toBeNull();
+    expect(classifyConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hasKnowledgeMemory: true }),
+    );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         surface: "web",
