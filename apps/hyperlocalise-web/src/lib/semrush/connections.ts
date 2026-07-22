@@ -314,15 +314,26 @@ export async function countAutomationsUsingSemrushConnection(input: {
   return rows.length;
 }
 
-export async function deleteSemrushConnection(input: {
+/**
+ * Lock a Semrush connection row for the duration of the current transaction.
+ * Callers that write automation references must hold this lock in the same
+ * transaction as the insert/update so deletes cannot race ahead.
+ */
+export async function lockSemrushConnectionForUpdate(input: {
   organizationId: string;
   connectionId: string;
-  db?: DatabaseClient;
-}): Promise<Result<boolean, SemrushConnectionError>> {
-  const database = input.db ?? db;
-
-  const [existing] = await database
-    .select({ id: schema.semrushConnections.id })
+  db: DatabaseClient;
+}): Promise<{
+  id: string;
+  enabled: boolean;
+  validationStatus: SemrushConnectionRow["validationStatus"];
+} | null> {
+  const [connection] = await input.db
+    .select({
+      id: schema.semrushConnections.id,
+      enabled: schema.semrushConnections.enabled,
+      validationStatus: schema.semrushConnections.validationStatus,
+    })
     .from(schema.semrushConnections)
     .where(
       and(
@@ -330,33 +341,61 @@ export async function deleteSemrushConnection(input: {
         eq(schema.semrushConnections.id, input.connectionId),
       ),
     )
-    .limit(1);
+    .limit(1)
+    .for("update");
 
-  if (!existing) {
-    return ok(false);
-  }
+  return connection ?? null;
+}
 
-  const inUseCount = await countAutomationsUsingSemrushConnection({
-    organizationId: input.organizationId,
-    connectionId: input.connectionId,
-    db: database,
-  });
-  if (inUseCount > 0) {
-    return err({
-      code: "semrush_connection_in_use",
-      message: "Remove this Semrush connection from automations before deleting it.",
+export async function deleteSemrushConnection(input: {
+  organizationId: string;
+  connectionId: string;
+  db?: DatabaseClient;
+}): Promise<Result<boolean, SemrushConnectionError>> {
+  const run = async (
+    database: DatabaseClient,
+  ): Promise<Result<boolean, SemrushConnectionError>> => {
+    const existing = await lockSemrushConnectionForUpdate({
+      organizationId: input.organizationId,
+      connectionId: input.connectionId,
+      db: database,
     });
+
+    if (!existing) {
+      return ok(false);
+    }
+
+    // Conditional delete under the row lock: only succeeds when no automation
+    // still references this connectionId.
+    const deleted = await database
+      .delete(schema.semrushConnections)
+      .where(
+        and(
+          eq(schema.semrushConnections.organizationId, input.organizationId),
+          eq(schema.semrushConnections.id, input.connectionId),
+          sql`not exists (
+            select 1
+            from ${schema.workspaceAutomations}
+            where ${schema.workspaceAutomations.organizationId} = ${input.organizationId}
+              and ${schema.workspaceAutomations.toolConfig}->'semrush'->>'connectionId' = ${input.connectionId}
+          )`,
+        ),
+      )
+      .returning({ id: schema.semrushConnections.id });
+
+    if (deleted.length === 0) {
+      return err({
+        code: "semrush_connection_in_use",
+        message: "Remove this Semrush connection from automations before deleting it.",
+      });
+    }
+
+    return ok(true);
+  };
+
+  if (input.db) {
+    return run(input.db);
   }
 
-  const deleted = await database
-    .delete(schema.semrushConnections)
-    .where(
-      and(
-        eq(schema.semrushConnections.organizationId, input.organizationId),
-        eq(schema.semrushConnections.id, input.connectionId),
-      ),
-    )
-    .returning({ id: schema.semrushConnections.id });
-
-  return ok(deleted.length > 0);
+  return db.transaction(run);
 }

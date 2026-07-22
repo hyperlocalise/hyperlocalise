@@ -70,10 +70,15 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
         throw new Error("semrush_not_connected");
       }
 
+      // Short-lived signal for connect + tool discovery only. Tool-call fetch
+      // switches to the agent timeout after discovery so multi-call reports
+      // are not cut off by the 30s connect budget.
       const connectSignal = AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
+      let requestSignal = connectSignal;
       const clientResult = await createSemrushMcpClient({
         apiKey: connectionResult.value.apiKey,
         signal: connectSignal,
+        getRequestSignal: () => requestSignal,
       });
       if (isErr(clientResult)) {
         throw new Error(clientResult.error.code);
@@ -91,6 +96,8 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
         }
         const tools = toolsResult.value as ToolSet;
         const toolNames = Object.keys(tools);
+
+        requestSignal = AbortSignal.timeout(WORKFLOW_AGENT_TIMEOUT.totalMs);
 
         const agent = new ToolLoopAgent({
           model: getHyperlocaliseAgentModel(),

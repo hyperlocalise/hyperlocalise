@@ -60,7 +60,17 @@ async function withDeadline<T>(
 
 export async function createSemrushMcpClient(input: {
   apiKey: string;
+  /**
+   * Bounds the initial MCP client handshake. Defaults to the connect timeout.
+   * Does not control later tool-call HTTP requests when `getRequestSignal` is set.
+   */
   signal?: AbortSignal;
+  /**
+   * Signal used for each MCP HTTP request (including connect and later tool calls).
+   * Callers that need a short discovery budget and a longer execution budget should
+   * return a connect signal first, then switch to an execution signal after `tools()`.
+   */
+  getRequestSignal?: () => AbortSignal;
 }): Promise<Result<MCPClient, SemrushConnectionError>> {
   const apiKey = input.apiKey.trim();
   if (!apiKey) {
@@ -70,7 +80,8 @@ export async function createSemrushMcpClient(input: {
     });
   }
 
-  const signal = input.signal ?? AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
+  const connectSignal = input.signal ?? AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
+  const getRequestSignal = input.getRequestSignal ?? (() => connectSignal);
 
   try {
     const client = await withDeadline(
@@ -84,11 +95,11 @@ export async function createSemrushMcpClient(input: {
           fetch: (url, init) =>
             fetch(url, {
               ...init,
-              signal,
+              signal: getRequestSignal(),
             }),
         },
       }),
-      signal,
+      connectSignal,
       "Timed out connecting to the Semrush MCP server.",
     );
     return ok(client);
