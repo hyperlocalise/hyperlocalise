@@ -210,13 +210,13 @@ func extractTagName(tag string) string {
 	}
 
 	name := tag[start:i]
-	if isAllLowerASCII(name) {
+	if hasNoASCIIUpperCase(name) {
 		return name
 	}
 	return strings.ToLower(name)
 }
 
-func isAllLowerASCII(s string) bool {
+func hasNoASCIIUpperCase(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if c >= 'A' && c <= 'Z' {
@@ -246,8 +246,8 @@ var htmlAtoms = map[string]bool{
 	"source": true, "template": true, "time": true, "track": true, "var": true, "video": true, "wbr": true,
 	// SVG and MathML atoms
 	"rect": true, "circle": true, "g": true, "ellipse": true, "line": true, "polyline": true, "polygon": true,
-	"text": true, "tspan": true, "defs": true, "use": true, "symbol": true, "linearGradient": true, "radialGradient": true,
-	"stop": true, "mask": true, "pattern": true, "clipPath": true,
+	"text": true, "tspan": true, "defs": true, "use": true, "symbol": true, "lineargradient": true, "radialgradient": true,
+	"stop": true, "mask": true, "pattern": true, "clippath": true,
 }
 
 func isLikelyMarkupTag(raw, normalized string) bool {
