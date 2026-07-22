@@ -14,6 +14,7 @@ export type BreadcrumbAppend = {
   id: string;
   label: string;
   href?: string;
+  title?: string;
 };
 
 export class BreadcrumbStore {
@@ -73,6 +74,7 @@ export class BreadcrumbStore {
     const appended = [...this.appends.values()].map((append) => ({
       label: append.label,
       href: append.href,
+      title: append.title,
     }));
 
     return [...overridden, ...appended];

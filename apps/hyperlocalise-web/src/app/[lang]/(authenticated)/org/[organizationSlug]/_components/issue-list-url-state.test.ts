@@ -5,60 +5,48 @@ import {
   buildIssueListSearchParams,
   clearIssueListFilters,
   parseIssueListSearchParams,
-  stripIssueDetailFromState,
 } from "./issue-list-url-state";
+import { buildIssueDetailHref } from "./issue-detail/issue-detail-utils";
 
 describe("issue-list-url-state", () => {
-  it("parses and builds issue detail search params", () => {
+  it("parses and builds list filter search params", () => {
     const params = new URLSearchParams({
       view: "my_work",
-      issue: "11111111-1111-4111-8111-111111111111",
-      issueProject: "project_website",
       status: "open",
     });
 
     const state = parseIssueListSearchParams(params, { includeProject: true });
-    expect(state.issue).toBe("11111111-1111-4111-8111-111111111111");
-    expect(state.issueProject).toBe("project_website");
     expect(state.status).toBe("open");
+    expect(state.view).toBe("my_work");
 
     const rebuilt = buildIssueListSearchParams(state, { includeProject: true });
-    expect(rebuilt.get("issue")).toBe("11111111-1111-4111-8111-111111111111");
-    expect(rebuilt.get("issueProject")).toBe("project_website");
     expect(rebuilt.get("status")).toBe("open");
+    expect(rebuilt.get("view")).toBe("my_work");
   });
 
-  it("preserves open issue when clearing filters", () => {
+  it("clears filters without preserving issue detail state", () => {
     const state = clearIssueListFilters({
       view: "qa_triage",
       status: "open",
       search: "checkout",
       sort: "updated_at",
       sortDir: "desc",
-      issue: "11111111-1111-4111-8111-111111111111",
-      issueProject: "project_website",
     });
 
     expect(state.search).toBe("");
     expect(state.status).toBeUndefined();
-    expect(state.issue).toBe("11111111-1111-4111-8111-111111111111");
-    expect(state.issueProject).toBe("project_website");
+    expect(buildIssueListHref("/org/acme/issues", state, { includeProject: true })).toBe(
+      "/org/acme/issues?view=qa_triage",
+    );
   });
 
-  it("strips issue detail params for close navigation", () => {
-    const state = stripIssueDetailFromState({
-      view: "all_open",
-      search: "",
-      sort: "updated_at",
-      sortDir: "desc",
-      issue: "11111111-1111-4111-8111-111111111111",
-      issueProject: "project_website",
-    });
-
-    expect(state.issue).toBeUndefined();
-    expect(state.issueProject).toBeUndefined();
-    expect(buildIssueListHref("/org/acme/issues", state, { includeProject: true })).toBe(
-      "/org/acme/issues",
-    );
+  it("builds permanent issue detail hrefs", () => {
+    expect(
+      buildIssueDetailHref({
+        organizationSlug: "acme",
+        projectId: "project_website",
+        issueId: "11111111-1111-4111-8111-111111111111",
+      }),
+    ).toBe("/org/acme/projects/project_website/issue-sheet/11111111-1111-4111-8111-111111111111");
   });
 });

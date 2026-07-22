@@ -8,9 +8,11 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/primitives/cn";
 
-import { issueStatusVariant } from "../../_components/issue-detail/issue-detail-utils";
+import {
+  buildIssueDetailHref,
+  issueStatusVariant,
+} from "../../_components/issue-detail/issue-detail-utils";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { issuesPageViewMessages } from "./issues-page-view.messages";
@@ -80,7 +82,6 @@ export function IssuesPageView({
   actions,
   filterBar,
   onLoadMore,
-  selectedIssueId,
   onIssueRowClick,
   onIssueRowKeyDown,
   onStopRowActivation,
@@ -101,8 +102,7 @@ export function IssuesPageView({
   actions?: ReactNode;
   filterBar: ReactNode;
   onLoadMore: () => void;
-  selectedIssueId?: string;
-  onIssueRowClick: (issue: OrganizationIssue, row: HTMLTableRowElement) => void;
+  onIssueRowClick: (issue: OrganizationIssue) => void;
   onIssueRowKeyDown: (event: KeyboardEvent<HTMLTableRowElement>, issue: OrganizationIssue) => void;
   onStopRowActivation: (event: { stopPropagation: () => void }) => void;
 }) {
@@ -203,16 +203,22 @@ export function IssuesPageView({
                 <tr
                   key={`${issue.projectId}:${issue.id}`}
                   tabIndex={0}
-                  aria-current={selectedIssueId === issue.id ? "true" : undefined}
-                  className={cn(
-                    "align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                    selectedIssueId === issue.id && "bg-muted/40",
-                  )}
-                  onClick={(event) => onIssueRowClick(issue, event.currentTarget)}
+                  className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  onClick={() => onIssueRowClick(issue)}
                   onKeyDown={(event) => onIssueRowKeyDown(event, issue)}
                 >
                   <td className="max-w-80 px-4 py-3">
-                    <span className="font-medium text-foreground">{issue.title}</span>
+                    <Link
+                      href={buildIssueDetailHref({
+                        organizationSlug,
+                        projectId: issue.projectId,
+                        issueId: issue.id,
+                      })}
+                      className="font-medium text-foreground hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {issue.title}
+                    </Link>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                       {issue.description ||
                         issue.sourcePath ||

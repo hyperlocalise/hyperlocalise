@@ -116,6 +116,20 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
   });
 
+  it("links Issue Sheet when viewing a permanent issue detail URL", () => {
+    expect(
+      getAppShellBreadcrumbs(
+        "/org/acme/projects/proj_1/issue-sheet/11111111-1111-4111-8111-111111111111",
+        intl,
+        { projectName: "Checkout" },
+      ),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Issue Sheet", href: "/org/acme/projects/proj_1/issue-sheet" },
+    ]);
+  });
+
   it("returns project overview breadcrumbs without a section crumb", () => {
     expect(
       getAppShellBreadcrumbs("/org/acme/projects/proj_1", intl, { projectName: "Checkout" }),

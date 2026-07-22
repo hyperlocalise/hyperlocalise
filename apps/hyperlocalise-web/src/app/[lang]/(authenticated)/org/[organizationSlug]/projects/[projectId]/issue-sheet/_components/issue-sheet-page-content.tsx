@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,10 +30,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
-import { cn } from "@/lib/primitives/cn";
 
-import { IssueDetailDrawer } from "../../../../_components/issue-detail/issue-detail-drawer";
 import {
+  buildIssueDetailHref,
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
   issueStatusVariant,
@@ -39,7 +40,6 @@ import {
 import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
 import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
-import { useIssueDetailUrl } from "../../../../_components/use-issue-detail-url";
 import { issueTypeValues, type IssueTypeValue } from "./issue-sheet-constants";
 import { issueSheetPageContentMessages as messages } from "./issue-sheet-page-content.messages";
 import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
@@ -205,17 +205,9 @@ export function IssueSheetPageContent({
 }) {
   useProjectPageQuery(organizationSlug, projectId);
   const intl = useIntl();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState();
-  const {
-    isOpen: isDetailOpen,
-    openIssueDetail,
-    closeIssueDetail,
-  } = useIssueDetailUrl({
-    state,
-    updateState,
-  });
-  const lastFocusedRowRef = useRef<HTMLTableRowElement | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -297,15 +289,14 @@ export function IssueSheetPageContent({
     [data?.columns],
   );
 
-  const openIssueRow = (issueId: string, row: HTMLTableRowElement) => {
-    lastFocusedRowRef.current = row;
-    openIssueDetail({ issueId });
+  const openIssueRow = (issueId: string) => {
+    router.push(buildIssueDetailHref({ organizationSlug, projectId, issueId }));
   };
 
   const handleIssueRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, issueId: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      openIssueRow(issueId, event.currentTarget);
+      openIssueRow(issueId);
     }
   };
 
@@ -421,16 +412,22 @@ export function IssueSheetPageContent({
                   <tr
                     key={issue.id}
                     tabIndex={0}
-                    aria-current={state.issue === issue.id ? "true" : undefined}
-                    className={cn(
-                      "align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      state.issue === issue.id && "bg-muted/40",
-                    )}
-                    onClick={(event) => openIssueRow(issue.id, event.currentTarget)}
+                    className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => openIssueRow(issue.id)}
                     onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
                   >
                     <td className="max-w-80 px-4 py-3">
-                      <div className="font-medium text-foreground">{issue.title}</div>
+                      <Link
+                        href={buildIssueDetailHref({
+                          organizationSlug,
+                          projectId,
+                          issueId: issue.id,
+                        })}
+                        className="font-medium text-foreground hover:underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {issue.title}
+                      </Link>
                       <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                         {issue.description ||
                           issue.sourceText ||
@@ -571,18 +568,6 @@ export function IssueSheetPageContent({
         projectId={projectId}
         columns={data?.columns ?? []}
         onImported={refresh}
-      />
-      <IssueDetailDrawer
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        issueId={state.issue}
-        isOpen={isDetailOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeIssueDetail();
-          }
-        }}
-        returnFocusRef={lastFocusedRowRef}
       />
     </ProjectPageShell>
   );

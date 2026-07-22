@@ -3,7 +3,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -512,5 +512,78 @@ Second import issue,Done,EXT-2,P2`;
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: string };
     expect(body.error).toBe("invalid_issue_sheet_import_payload");
+  });
+
+  it("rejects cross-project and missing issue access on GET", async () => {
+    const { identity, organization, user, project } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [otherProject] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${crypto.randomUUID()}`,
+        organizationId: organization.id,
+        teamId: project.teamId,
+        createdByUserId: user.id,
+        name: "Other Project",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Owned by first project",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    const crossProjectResponse = await requestJson(
+      issueSheetUrl(organizationSlug, otherProject.id, `/${created.issue.id}`),
+      { headers },
+    );
+    expect(crossProjectResponse.status).toBe(404);
+    await expect(crossProjectResponse.json()).resolves.toMatchObject({
+      error: "issue_not_found",
+    });
+
+    const missingResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      { headers },
+    );
+    expect(missingResponse.status).toBe(404);
+  });
+
+  it("rejects cross-workspace issue access on GET", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const outsider = await projectFixture.createStoredProjectFixture();
+    const ownerHeaders = await projectFixture.authHeadersFor(owner.identity);
+    const outsiderHeaders = await projectFixture.authHeadersFor(outsider.identity);
+    const ownerSlug = owner.identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(ownerSlug, owner.project.id), {
+      method: "POST",
+      headers: ownerHeaders,
+      body: {
+        title: "Private org issue",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    const response = await requestJson(
+      issueSheetUrl(ownerSlug, owner.project.id, `/${created.issue.id}`),
+      { headers: outsiderHeaders },
+    );
+    expect(response.status).toBe(404);
   });
 });

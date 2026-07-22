@@ -79,7 +79,9 @@ export type IssueDetailPanelHandle = {
 };
 
 function ownerNoteFromIssue(issue: IssueDetailIssue) {
-  return typeof issue.values.owner_note === "string" ? issue.values.owner_note : "";
+  return typeof issue.values.owner_note === "string"
+    ? issue.values.owner_note
+    : "";
 }
 
 function isIssueDraftDirty(
@@ -107,7 +109,11 @@ function PropertyRow({
   return (
     <div className="flex min-h-8 items-center justify-between gap-3 py-1.5">
       <dt className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-        <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
+        <HugeiconsIcon
+          icon={icon}
+          strokeWidth={1.8}
+          className="size-3.5 shrink-0"
+        />
         <span className="truncate">{label}</span>
       </dt>
       <dd className="flex min-h-8 min-w-0 max-w-[55%] items-center justify-end text-end">
@@ -133,7 +139,13 @@ function ReadOnlyValue({
   );
 }
 
-function LinkedContextRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+function LinkedContextRow({
+  label,
+  children,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="grid gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -144,13 +156,13 @@ function LinkedContextRow({ label, children }: { label: ReactNode; children: Rea
 
 function IssueDetailSkeleton() {
   return (
-    <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden">
-      <div className="flex flex-col gap-4 px-6 py-5 md:min-h-0 md:overflow-y-auto">
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden md:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-none">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
-      <aside className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
         <Skeleton className="h-8 w-full" />
         <Skeleton className="ml-auto h-7 w-24" />
         <Skeleton className="ml-auto h-7 w-20" />
@@ -175,7 +187,11 @@ export const IssueDetailPanel = forwardRef<
 >(function IssueDetailPanel({ organizationSlug, projectId, issueId }, ref) {
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
-  const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
+  const issueQuery = useIssueDetailQuery({
+    organizationSlug,
+    projectId,
+    issueId,
+  });
   const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
@@ -186,7 +202,9 @@ export const IssueDetailPanel = forwardRef<
   const membersQuery = useQuery({
     queryKey: ["workspace-members", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
+      const response = await apiClient.api.orgs[
+        ":organizationSlug"
+      ].members.$get({
         param: { organizationSlug },
       });
       if (!response.ok) {
@@ -243,8 +261,12 @@ export const IssueDetailPanel = forwardRef<
     }
 
     setTitleDraft((draft) => (draft === baseline.title ? issue.title : draft));
-    setDescriptionDraft((draft) => (draft === baseline.description ? issue.description : draft));
-    setOwnerNoteDraft((draft) => (draft === baseline.ownerNote ? ownerNote : draft));
+    setDescriptionDraft((draft) =>
+      draft === baseline.description ? issue.description : draft,
+    );
+    setOwnerNoteDraft((draft) =>
+      draft === baseline.ownerNote ? ownerNote : draft,
+    );
     draftBaselineRef.current = {
       issueId: issue.id,
       title: issue.title,
@@ -301,7 +323,10 @@ export const IssueDetailPanel = forwardRef<
 
       const nextOwnerNote = ownerNoteDraftRef.current;
       if (nextOwnerNote !== ownerNoteFromIssue(current)) {
-        await setValue.mutateAsync({ columnKey: "owner_note", value: nextOwnerNote });
+        await setValue.mutateAsync({
+          columnKey: "owner_note",
+          value: nextOwnerNote,
+        });
       }
     },
   }));
@@ -332,14 +357,24 @@ export const IssueDetailPanel = forwardRef<
   const assigneeItems = useMemo(() => {
     const members = membersQuery.data ?? [];
     return [
-      { value: "unassigned", label: intl.formatMessage(messages.assigneeUnassigned) },
-      ...members.map((member) => ({ value: member.userId, label: member.displayName })),
+      {
+        value: "unassigned",
+        label: intl.formatMessage(messages.assigneeUnassigned),
+      },
+      ...members.map((member) => ({
+        value: member.userId,
+        label: member.displayName,
+      })),
     ];
   }, [intl, membersQuery.data]);
 
   if (issueQuery.isLoading) {
     return (
-      <div aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
+      <div
+        aria-busy="true"
+        aria-live="polite"
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <TypographyP className="sr-only">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
@@ -369,7 +404,8 @@ export const IssueDetailPanel = forwardRef<
   }
 
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
-  const priority = typeof issue.values.priority === "string" ? issue.values.priority : "";
+  const priority =
+    typeof issue.values.priority === "string" ? issue.values.priority : "";
   const hasLinkedContext = Boolean(
     issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
   );
@@ -408,10 +444,10 @@ export const IssueDetailPanel = forwardRef<
 
   return (
     <div
-      className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden"
+      className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-none"
       aria-busy={isSaving}
     >
-      <div className="flex min-w-0 flex-col gap-3 px-6 py-5 md:min-h-0 md:overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
         <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}
@@ -468,23 +504,34 @@ export const IssueDetailPanel = forwardRef<
             </TypographyP>
             <div className="grid gap-3">
               {issue.key ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>
+                <LinkedContextRow
+                  label={<FormattedMessage {...messages.fieldKey} />}
+                >
                   <ReadOnlyValue value={issue.key} empty={emptyValue} />
                 </LinkedContextRow>
               ) : null}
               {issue.segmentId ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldSegmentId} />}>
+                <LinkedContextRow
+                  label={<FormattedMessage {...messages.fieldSegmentId} />}
+                >
                   <ReadOnlyValue value={issue.segmentId} empty={emptyValue} />
                 </LinkedContextRow>
               ) : null}
               {issue.sourceText ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldSourceText} />}>
+                <LinkedContextRow
+                  label={<FormattedMessage {...messages.fieldSourceText} />}
+                >
                   <ReadOnlyValue value={issue.sourceText} empty={emptyValue} />
                 </LinkedContextRow>
               ) : null}
               {issue.linkKind ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldLink} />}>
-                  <ReadOnlyValue value={linkKindLabel(intl, issue.linkKind)} empty={emptyValue} />
+                <LinkedContextRow
+                  label={<FormattedMessage {...messages.fieldLink} />}
+                >
+                  <ReadOnlyValue
+                    value={linkKindLabel(intl, issue.linkKind)}
+                    empty={emptyValue}
+                  />
                 </LinkedContextRow>
               ) : null}
             </div>
@@ -492,7 +539,7 @@ export const IssueDetailPanel = forwardRef<
         ) : null}
       </div>
 
-      <aside className="flex flex-col gap-1 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
+      <aside className="flex min-h-0 flex-col gap-1 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
         <div className="mb-3 flex flex-col gap-2">
           {catHref ? (
             <Button
@@ -501,7 +548,11 @@ export const IssueDetailPanel = forwardRef<
               className="w-full justify-start"
               render={<a href={catHref} />}
             >
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
+              <HugeiconsIcon
+                icon={TranslateIcon}
+                strokeWidth={1.8}
+                data-icon="inline-start"
+              />
               <FormattedMessage {...messages.openInCat} />
             </Button>
           ) : (
@@ -509,7 +560,9 @@ export const IssueDetailPanel = forwardRef<
               <FormattedMessage {...messages.openInCatUnavailable} />
             </TypographyP>
           )}
-          {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
+          {issue.linkUrl &&
+          issue.linkUrl !== catHref &&
+          isHttpOrHttpsUrl(issue.linkUrl) ? (
             <Button
               variant="ghost"
               size="sm"
@@ -523,14 +576,21 @@ export const IssueDetailPanel = forwardRef<
                 />
               }
             >
-              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} data-icon="inline-start" />
+              <HugeiconsIcon
+                icon={LinkSquare02Icon}
+                strokeWidth={1.8}
+                data-icon="inline-start"
+              />
               {issue.linkLabel || intl.formatMessage(messages.openLink)}
             </Button>
           ) : null}
         </div>
 
         <dl className="flex flex-col">
-          <PropertyRow icon={User02Icon} label={<FormattedMessage {...messages.fieldAssignee} />}>
+          <PropertyRow
+            icon={User02Icon}
+            label={<FormattedMessage {...messages.fieldAssignee} />}
+          >
             <Select
               value={issue.assigneeUserId ?? "unassigned"}
               items={assigneeItems}
@@ -549,7 +609,11 @@ export const IssueDetailPanel = forwardRef<
               </SelectTrigger>
               <SelectContent>
                 {assigneeItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value} label={item.label}>
+                  <SelectItem
+                    key={item.value}
+                    value={item.value}
+                    label={item.label}
+                  >
                     {item.label}
                   </SelectItem>
                 ))}
@@ -578,15 +642,24 @@ export const IssueDetailPanel = forwardRef<
               </SelectTrigger>
               <SelectContent>
                 {statusItems.map((status) => (
-                  <SelectItem key={status.value} value={status.value} label={status.label}>
-                    <Badge variant={issueStatusVariant(status.value)}>{status.label}</Badge>
+                  <SelectItem
+                    key={status.value}
+                    value={status.value}
+                    label={status.label}
+                  >
+                    <Badge variant={issueStatusVariant(status.value)}>
+                      {status.label}
+                    </Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </PropertyRow>
 
-          <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
+          <PropertyRow
+            icon={Tag01Icon}
+            label={<FormattedMessage {...messages.fieldType} />}
+          >
             <Select
               value={issue.issueType}
               items={issueTypeItems}
@@ -602,7 +675,11 @@ export const IssueDetailPanel = forwardRef<
               </SelectTrigger>
               <SelectContent>
                 {issueTypeItems.map((type) => (
-                  <SelectItem key={type.value} value={type.value} label={type.label}>
+                  <SelectItem
+                    key={type.value}
+                    value={type.value}
+                    label={type.label}
+                  >
                     {type.label}
                   </SelectItem>
                 ))}
@@ -610,7 +687,10 @@ export const IssueDetailPanel = forwardRef<
             </Select>
           </PropertyRow>
 
-          <PropertyRow icon={Flag01Icon} label={<FormattedMessage {...messages.fieldPriority} />}>
+          <PropertyRow
+            icon={Flag01Icon}
+            label={<FormattedMessage {...messages.fieldPriority} />}
+          >
             <Select
               value={priority || undefined}
               items={priorityItems}
@@ -623,15 +703,23 @@ export const IssueDetailPanel = forwardRef<
             >
               <SelectTrigger className={ghostSelectTriggerClassName}>
                 {priority ? (
-                  <Badge variant={issuePriorityVariant(priority)}>{priority}</Badge>
+                  <Badge variant={issuePriorityVariant(priority)}>
+                    {priority}
+                  </Badge>
                 ) : (
                   <SelectValue placeholder={emptyValue} />
                 )}
               </SelectTrigger>
               <SelectContent>
                 {priorityItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value} label={item.label}>
-                    <Badge variant={issuePriorityVariant(item.value)}>{item.label}</Badge>
+                  <SelectItem
+                    key={item.value}
+                    value={item.value}
+                    label={item.label}
+                  >
+                    <Badge variant={issuePriorityVariant(item.value)}>
+                      {item.label}
+                    </Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -642,18 +730,33 @@ export const IssueDetailPanel = forwardRef<
             icon={UserCircleIcon}
             label={<FormattedMessage {...messages.fieldReporter} />}
           >
-            <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
+            <ReadOnlyValue
+              value={issue.reporter}
+              empty={emptyValue}
+              className="truncate"
+            />
           </PropertyRow>
 
           <PropertyRow
             icon={LanguageCircleIcon}
             label={<FormattedMessage {...messages.fieldLocale} />}
           >
-            <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} className="truncate" />
+            <ReadOnlyValue
+              value={issue.targetLocale}
+              empty={emptyValue}
+              className="truncate"
+            />
           </PropertyRow>
 
-          <PropertyRow icon={File01Icon} label={<FormattedMessage {...messages.fieldSourcePath} />}>
-            <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} className="truncate" />
+          <PropertyRow
+            icon={File01Icon}
+            label={<FormattedMessage {...messages.fieldSourcePath} />}
+          >
+            <ReadOnlyValue
+              value={issue.sourcePath}
+              empty={emptyValue}
+              className="truncate"
+            />
           </PropertyRow>
 
           <PropertyRow
@@ -667,7 +770,10 @@ export const IssueDetailPanel = forwardRef<
             />
           </PropertyRow>
 
-          <PropertyRow icon={Clock01Icon} label={<FormattedMessage {...messages.fieldUpdatedAt} />}>
+          <PropertyRow
+            icon={Clock01Icon}
+            label={<FormattedMessage {...messages.fieldUpdatedAt} />}
+          >
             <ReadOnlyValue
               value={formatRelativeTimestamp(issue.updatedAt)}
               empty={emptyValue}
