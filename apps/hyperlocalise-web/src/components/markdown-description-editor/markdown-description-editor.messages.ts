@@ -15,89 +15,9 @@
 import { defineMessages } from "react-intl";
 
 export const markdownDescriptionEditorMessages = defineMessages({
-  boldTitle: {
-    defaultMessage: "Bold",
-    id: "Qe6R9CCAC7",
-    description: "Tooltip and accessible label for the bold formatting toolbar button",
-  },
-  boldLabel: {
-    defaultMessage: "B",
-    id: "O368wEYD1O",
-    description: "Visible abbreviation on the bold formatting toolbar button",
-  },
-  italicTitle: {
-    defaultMessage: "Italic",
-    id: "2Ce/RC/wfJ",
-    description: "Tooltip and accessible label for the italic formatting toolbar button",
-  },
-  italicLabel: {
-    defaultMessage: "I",
-    id: "2QU4QHjp8c",
-    description: "Visible abbreviation on the italic formatting toolbar button",
-  },
-  heading2Title: {
-    defaultMessage: "Heading 2",
-    id: "g9BGh+CmB5",
-    description: "Tooltip and accessible label for the level-2 heading toolbar button",
-  },
-  heading2Label: {
-    defaultMessage: "H2",
-    id: "ioubvwX5dG",
-    description: "Visible abbreviation on the level-2 heading toolbar button",
-  },
-  heading3Title: {
-    defaultMessage: "Heading 3",
-    id: "JMPR7Ba6ot",
-    description: "Tooltip and accessible label for the level-3 heading toolbar button",
-  },
-  heading3Label: {
-    defaultMessage: "H3",
-    id: "A2Qe3R87fV",
-    description: "Visible abbreviation on the level-3 heading toolbar button",
-  },
-  bulletListLabel: {
-    defaultMessage: "• List",
-    id: "L3ycwnosUv",
-    description: "Visible label for the bullet list toolbar button",
-  },
-  bulletListTitle: {
-    defaultMessage: "Bullet list",
-    id: "88gAEWUFj7",
-    description: "Tooltip and accessible label for the bullet list toolbar button",
-  },
-  orderedListLabel: {
-    defaultMessage: "1. List",
-    id: "K89oxCMVZA",
-    description: "Visible label for the numbered list toolbar button",
-  },
-  orderedListTitle: {
-    defaultMessage: "Numbered list",
-    id: "dZcHfTdmF2",
-    description: "Tooltip and accessible label for the numbered list toolbar button",
-  },
-  blockquoteLabel: {
-    defaultMessage: "Quote",
-    id: "8w4ZXUPESp",
-    description: "Visible label for the blockquote toolbar button",
-  },
-  blockquoteTitle: {
-    defaultMessage: "Blockquote",
-    id: "6ubkC6hfDe",
-    description: "Tooltip and accessible label for the blockquote toolbar button",
-  },
-  codeLabel: {
-    defaultMessage: "Code",
-    id: "OnnGrPT4U5",
-    description: "Visible label for the inline code toolbar button",
-  },
-  codeTitle: {
-    defaultMessage: "Inline code",
-    id: "Q26vSR4mR9",
-    description: "Tooltip and accessible label for the inline code toolbar button",
-  },
   placeholder: {
-    defaultMessage: "Add a description…",
-    id: "z6mrxTSFHp",
+    defaultMessage: "Write, or type / for blocks…",
+    id: "fjjjlNCOer",
     description: "Placeholder shown in an empty markdown description editor",
   },
   taskDescriptionAria: {
@@ -119,5 +39,60 @@ export const markdownDescriptionEditorMessages = defineMessages({
     defaultMessage: "Task description preview",
     id: "fvXYWA/jR+",
     description: "Accessible label for the read-only markdown description preview",
+  },
+  linkPrompt: {
+    defaultMessage: "Enter URL",
+    id: "iEwQSllTi8",
+    description: "Prompt shown when adding a hyperlink via the slash menu",
+  },
+  slashEmpty: {
+    defaultMessage: "No matching blocks",
+    id: "lUH3RGUMfU",
+    description: "Empty state when slash command filter matches nothing",
+  },
+  slashHeading1Title: {
+    defaultMessage: "Heading 1",
+    id: "sQepOjPr4u",
+    description: "Slash menu item for a level-1 heading",
+  },
+  slashHeading2Title: {
+    defaultMessage: "Heading 2",
+    id: "tZ64yYuboY",
+    description: "Slash menu item for a level-2 heading",
+  },
+  slashHeading3Title: {
+    defaultMessage: "Heading 3",
+    id: "1KXz+b/LeX",
+    description: "Slash menu item for a level-3 heading",
+  },
+  slashBulletListTitle: {
+    defaultMessage: "Bulleted list",
+    id: "eB3Kj7/0av",
+    description: "Slash menu item for a bullet list",
+  },
+  slashOrderedListTitle: {
+    defaultMessage: "Numbered list",
+    id: "sZ3Qm/SOaW",
+    description: "Slash menu item for a numbered list",
+  },
+  slashTaskListTitle: {
+    defaultMessage: "Checklist",
+    id: "bKVGEe8Imh",
+    description: "Slash menu item for a task checklist",
+  },
+  slashBlockquoteTitle: {
+    defaultMessage: "Quote",
+    id: "/AAFYQZiFS",
+    description: "Slash menu item for a blockquote",
+  },
+  slashCodeBlockTitle: {
+    defaultMessage: "Code block",
+    id: "UfyoQ9IKvC",
+    description: "Slash menu item for a fenced code block",
+  },
+  slashLinkTitle: {
+    defaultMessage: "Link",
+    id: "YyO52dNKVM",
+    description: "Slash menu item for inserting a hyperlink",
   },
 });
