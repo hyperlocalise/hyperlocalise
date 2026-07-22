@@ -12,13 +12,55 @@
  */
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 
-import { buildSemrushApiKeyAuthorizationHeader, SEMRUSH_MCP_URL } from "./constants";
+import {
+  buildSemrushApiKeyAuthorizationHeader,
+  SEMRUSH_MCP_CONNECT_TIMEOUT_MS,
+  SEMRUSH_MCP_URL,
+} from "./constants";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import type { SemrushConnectionError } from "./types";
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      (error as { name?: string }).name === "TimeoutError")
+  );
+}
+
+async function withDeadline<T>(
+  promise: Promise<T>,
+  signal: AbortSignal,
+  timeoutMessage: string,
+): Promise<T> {
+  if (signal.aborted) {
+    throw new Error(timeoutMessage);
+  }
+
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(new Error(timeoutMessage));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 export async function createSemrushMcpClient(input: {
   apiKey: string;
+  signal?: AbortSignal;
 }): Promise<Result<MCPClient, SemrushConnectionError>> {
   const apiKey = input.apiKey.trim();
   if (!apiKey) {
@@ -28,18 +70,35 @@ export async function createSemrushMcpClient(input: {
     });
   }
 
+  const signal = input.signal ?? AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
+
   try {
-    const client = await createMCPClient({
-      transport: {
-        type: "http",
-        url: SEMRUSH_MCP_URL,
-        headers: {
-          Authorization: buildSemrushApiKeyAuthorizationHeader(apiKey),
+    const client = await withDeadline(
+      createMCPClient({
+        transport: {
+          type: "http",
+          url: SEMRUSH_MCP_URL,
+          headers: {
+            Authorization: buildSemrushApiKeyAuthorizationHeader(apiKey),
+          },
+          fetch: (url, init) =>
+            fetch(url, {
+              ...init,
+              signal,
+            }),
         },
-      },
-    });
+      }),
+      signal,
+      "Timed out connecting to the Semrush MCP server.",
+    );
     return ok(client);
   } catch (error) {
+    if (isAbortError(error) || (error instanceof Error && error.message.includes("Timed out"))) {
+      return err({
+        code: "semrush_mcp_timeout",
+        message: "Timed out connecting to the Semrush MCP server.",
+      });
+    }
     return err({
       code: "semrush_connection_validation_failed",
       message:
@@ -48,19 +107,26 @@ export async function createSemrushMcpClient(input: {
   }
 }
 
-export async function validateSemrushApiKey(input: {
-  apiKey: string;
-}): Promise<Result<{ toolCount: number }, SemrushConnectionError>> {
-  const clientResult = await createSemrushMcpClient(input);
-  if (isErr(clientResult)) {
-    return clientResult;
-  }
+export async function listSemrushMcpTools(input: {
+  client: MCPClient;
+  signal?: AbortSignal;
+}): Promise<Result<Awaited<ReturnType<MCPClient["tools"]>>, SemrushConnectionError>> {
+  const signal = input.signal ?? AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
 
-  const client = clientResult.value;
   try {
-    const tools = await client.tools();
-    return ok({ toolCount: Object.keys(tools).length });
+    const tools = await withDeadline(
+      input.client.tools(),
+      signal,
+      "Timed out listing tools from the Semrush MCP server.",
+    );
+    return ok(tools);
   } catch (error) {
+    if (isAbortError(error) || (error instanceof Error && error.message.includes("Timed out"))) {
+      return err({
+        code: "semrush_mcp_timeout",
+        message: "Timed out listing tools from the Semrush MCP server.",
+      });
+    }
     return err({
       code: "semrush_connection_validation_failed",
       message:
@@ -68,6 +134,29 @@ export async function validateSemrushApiKey(input: {
           ? error.message
           : "Unable to list tools from the Semrush MCP server.",
     });
+  }
+}
+
+export async function validateSemrushApiKey(input: {
+  apiKey: string;
+  signal?: AbortSignal;
+}): Promise<Result<{ toolCount: number }, SemrushConnectionError>> {
+  const signal = input.signal ?? AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
+  const clientResult = await createSemrushMcpClient({
+    apiKey: input.apiKey,
+    signal,
+  });
+  if (isErr(clientResult)) {
+    return clientResult;
+  }
+
+  const client = clientResult.value;
+  try {
+    const toolsResult = await listSemrushMcpTools({ client, signal });
+    if (isErr(toolsResult)) {
+      return toolsResult;
+    }
+    return ok({ toolCount: Object.keys(toolsResult.value).length });
   } finally {
     await client.close().catch(() => undefined);
   }

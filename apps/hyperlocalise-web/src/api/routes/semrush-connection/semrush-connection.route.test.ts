@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -34,7 +35,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { createWorkspaceAutomation } from "@/lib/agents/workspace-automations";
+import { db, schema } from "@/lib/database";
+import { isOk } from "@/lib/primitives/result/results";
 
 const client = testClient(createApp());
 const fixture = createAuthTestFixture();
@@ -126,5 +129,66 @@ describe("semrushConnectionRoutes", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it("rejects deleting a Semrush connection used by an automation", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["semrush-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Semrush In Use",
+          apiKey: "semrush_test_api_key_9999",
+          enabled: true,
+          validate: false,
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("semrushConnection" in created)) {
+      throw new Error("expected semrushConnection in create response");
+    }
+
+    // Mark valid so automation integration validation accepts it.
+    await db
+      .update(schema.semrushConnections)
+      .set({ validationStatus: "valid", validationMessage: "test" })
+      .where(eq(schema.semrushConnections.id, created.semrushConnection.id));
+
+    const automation = await createWorkspaceAutomation({
+      organizationId,
+      authorUserId: userId,
+      name: "Semrush automation",
+      instructions: "Use Semrush.",
+      toolConfig: {
+        semrush: {
+          enabled: true,
+          connectionId: created.semrushConnection.id,
+        },
+      },
+    });
+    expect(isOk(automation)).toBe(true);
+
+    const deleteResponse = await client.api.orgs[":organizationSlug"]["semrush-connections"][
+      ":connectionId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          connectionId: created.semrushConnection.id,
+        },
+      },
+      { headers },
+    );
+    expect(deleteResponse.status).toBe(409);
+    const body = await deleteResponse.json();
+    expect(body).toMatchObject({ error: "semrush_connection_in_use" });
   });
 });

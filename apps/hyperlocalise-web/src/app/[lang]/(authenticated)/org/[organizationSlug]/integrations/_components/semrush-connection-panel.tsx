@@ -86,11 +86,17 @@ export function SemrushConnectionPanel({
           displayName: payload.displayName.trim() || "Semrush",
           apiKey,
           enabled: true,
-          validate: false,
+          validate: true,
         },
       });
       if (!response.ok) {
-        throw new Error(intl.formatMessage(semrushConnectionPanelMessages.saveFailed));
+        const body = (await response.json().catch(() => null)) as {
+          message?: string;
+          error?: string;
+        } | null;
+        throw new Error(
+          body?.message || intl.formatMessage(semrushConnectionPanelMessages.saveFailed),
+        );
       }
       return response.json();
     },
@@ -117,7 +123,16 @@ export function SemrushConnectionPanel({
         param: { organizationSlug, connectionId },
       });
       if (!response.ok) {
-        throw new Error(intl.formatMessage(semrushConnectionPanelMessages.deleteFailed));
+        const body = (await response.json().catch(() => null)) as {
+          message?: string;
+          error?: string;
+        } | null;
+        if (body?.error === "semrush_connection_in_use") {
+          throw new Error(intl.formatMessage(semrushConnectionPanelMessages.deleteInUse));
+        }
+        throw new Error(
+          body?.message || intl.formatMessage(semrushConnectionPanelMessages.deleteFailed),
+        );
       }
     },
     onSuccess: async () => {

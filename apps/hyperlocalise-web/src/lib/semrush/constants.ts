@@ -17,6 +17,9 @@ export const SEMRUSH_MCP_URL = "https://mcp.semrush.com/v2/mcp";
 /** Authorization scheme required by Semrush MCP API key auth. */
 export const SEMRUSH_API_KEY_AUTH_PREFIX = "Apikey";
 
+/** Bound MCP connect + tool discovery before the Semrush agent loop starts. */
+export const SEMRUSH_MCP_CONNECT_TIMEOUT_MS = 30_000;
+
 export function buildSemrushApiKeyAuthorizationHeader(apiKey: string): string {
   return `${SEMRUSH_API_KEY_AUTH_PREFIX} ${apiKey.trim()}`;
 }

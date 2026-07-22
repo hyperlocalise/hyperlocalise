@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -167,7 +167,8 @@ export async function createSemrushConnection(input: {
   let validationMessage: string | null = null;
   let lastValidatedAt: Date | null = null;
 
-  if (input.validate === true) {
+  // Validate by default so invalid keys never become selectable automation tools.
+  if (input.validate !== false) {
     const validation = await validateSemrushApiKey({ apiKey: apiKeyResult.value });
     if (isErr(validation)) {
       return validation;
@@ -245,7 +246,7 @@ export async function updateSemrushConnection(input: {
       return apiKeyResult;
     }
 
-    if (input.validate === true) {
+    if (input.validate !== false) {
       const validation = await validateSemrushApiKey({ apiKey: apiKeyResult.value });
       if (isErr(validation)) {
         return validation;
@@ -294,12 +295,59 @@ export async function updateSemrushConnection(input: {
   return ok(row ? serializeConnection(row) : null);
 }
 
+export async function countAutomationsUsingSemrushConnection(input: {
+  organizationId: string;
+  connectionId: string;
+  db?: DatabaseClient;
+}): Promise<number> {
+  const database = input.db ?? db;
+  const rows = await database
+    .select({ id: schema.workspaceAutomations.id })
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+        sql`${schema.workspaceAutomations.toolConfig}->'semrush'->>'connectionId' = ${input.connectionId}`,
+      ),
+    );
+
+  return rows.length;
+}
+
 export async function deleteSemrushConnection(input: {
   organizationId: string;
   connectionId: string;
   db?: DatabaseClient;
-}): Promise<boolean> {
+}): Promise<Result<boolean, SemrushConnectionError>> {
   const database = input.db ?? db;
+
+  const [existing] = await database
+    .select({ id: schema.semrushConnections.id })
+    .from(schema.semrushConnections)
+    .where(
+      and(
+        eq(schema.semrushConnections.organizationId, input.organizationId),
+        eq(schema.semrushConnections.id, input.connectionId),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    return ok(false);
+  }
+
+  const inUseCount = await countAutomationsUsingSemrushConnection({
+    organizationId: input.organizationId,
+    connectionId: input.connectionId,
+    db: database,
+  });
+  if (inUseCount > 0) {
+    return err({
+      code: "semrush_connection_in_use",
+      message: "Remove this Semrush connection from automations before deleting it.",
+    });
+  }
+
   const deleted = await database
     .delete(schema.semrushConnections)
     .where(
@@ -310,5 +358,5 @@ export async function deleteSemrushConnection(input: {
     )
     .returning({ id: schema.semrushConnections.id });
 
-  return deleted.length > 0;
+  return ok(deleted.length > 0);
 }

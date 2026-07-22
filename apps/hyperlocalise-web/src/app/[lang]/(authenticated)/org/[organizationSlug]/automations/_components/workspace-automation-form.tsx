@@ -115,6 +115,7 @@ type SemrushConnectionOption = {
   id: string;
   displayName: string;
   enabled: boolean;
+  validationStatus: string;
 };
 type ContentfulConnectionOption = {
   id: string;
@@ -1459,8 +1460,10 @@ function ToolsSettings({
   const enabledMcpServerConnections = mcpServerConnections.filter(
     (connection) => connection.enabled,
   );
-  const semrushConnected = semrushConnections.some((connection) => connection.enabled);
-  const enabledSemrushConnections = semrushConnections.filter((connection) => connection.enabled);
+  const enabledSemrushConnections = semrushConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const semrushConnected = enabledSemrushConnections.length > 0;
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedContentfulProject = projects.find(
     (project) => project.id === form.contentfulProjectId,

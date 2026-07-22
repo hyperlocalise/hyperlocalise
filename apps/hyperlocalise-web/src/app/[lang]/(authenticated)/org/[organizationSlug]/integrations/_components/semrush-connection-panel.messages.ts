@@ -81,6 +81,11 @@ export const semrushConnectionPanelMessages = defineMessages({
     id: "xs2JNm6T2w",
     description: "Error when Semrush connection delete fails",
   },
+  deleteInUse: {
+    defaultMessage: "Remove this Semrush connection from automations before deleting it.",
+    id: "h2M/vw0KN9",
+    description: "Error when deleting a Semrush connection still used by automations",
+  },
   deleteSucceeded: {
     defaultMessage: "Semrush connection deleted.",
     id: "Qiz/awCu+C",

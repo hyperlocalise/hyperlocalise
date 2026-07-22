@@ -25,8 +25,9 @@ import {
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
 import { isErr } from "@/lib/primitives/result/results";
+import { SEMRUSH_MCP_CONNECT_TIMEOUT_MS } from "@/lib/semrush/constants";
 import { loadSemrushConnectionWithApiKey } from "@/lib/semrush/connections";
-import { createSemrushMcpClient } from "@/lib/semrush/mcp-client";
+import { createSemrushMcpClient, listSemrushMcpTools } from "@/lib/semrush/mcp-client";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 
@@ -62,12 +63,17 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
         throw new Error(connectionResult.error.code);
       }
 
-      if (!connectionResult.value.connection.enabled) {
+      if (
+        !connectionResult.value.connection.enabled ||
+        connectionResult.value.connection.validationStatus !== "valid"
+      ) {
         throw new Error("semrush_not_connected");
       }
 
+      const connectSignal = AbortSignal.timeout(SEMRUSH_MCP_CONNECT_TIMEOUT_MS);
       const clientResult = await createSemrushMcpClient({
         apiKey: connectionResult.value.apiKey,
+        signal: connectSignal,
       });
       if (isErr(clientResult)) {
         throw new Error(clientResult.error.code);
@@ -76,7 +82,14 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
       const mcpClient = clientResult.value;
 
       try {
-        const tools = (await mcpClient.tools()) as ToolSet;
+        const toolsResult = await listSemrushMcpTools({
+          client: mcpClient,
+          signal: connectSignal,
+        });
+        if (isErr(toolsResult)) {
+          throw new Error(toolsResult.error.code);
+        }
+        const tools = toolsResult.value as ToolSet;
         const toolNames = Object.keys(tools);
 
         const agent = new ToolLoopAgent({

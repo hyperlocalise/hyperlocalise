@@ -33,4 +33,6 @@ export type SemrushConnectionError =
   | { code: "semrush_api_key_required"; message: string }
   | { code: "semrush_connection_not_found"; message: string }
   | { code: "semrush_connection_decrypt_failed"; message: string }
-  | { code: "semrush_connection_validation_failed"; message: string };
+  | { code: "semrush_connection_validation_failed"; message: string }
+  | { code: "semrush_connection_in_use"; message: string }
+  | { code: "semrush_mcp_timeout"; message: string };

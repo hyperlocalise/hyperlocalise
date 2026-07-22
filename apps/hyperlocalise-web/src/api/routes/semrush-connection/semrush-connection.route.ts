@@ -15,7 +15,12 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
 import {
   createSemrushConnection,
   deleteSemrushConnection,
@@ -81,6 +86,8 @@ function mapSemrushConnectionError(
   switch (error.code) {
     case "semrush_connection_not_found":
       return notFoundResponse(c, error.code, error.message);
+    case "semrush_connection_in_use":
+      return conflictResponse(c, error.code, error.message);
     default:
       return badRequestResponse(c, error.code, error.message);
   }
@@ -112,7 +119,8 @@ export function createSemrushConnectionRoutes() {
         displayName: body.displayName,
         apiKey: body.apiKey,
         enabled: body.enabled ?? true,
-        validate: body.validate === true,
+        // Default true so mistyped keys never become selectable automation tools.
+        validate: body.validate !== false,
       });
 
       if (isErr(result)) {
@@ -152,7 +160,7 @@ export function createSemrushConnectionRoutes() {
         displayName: body.displayName,
         apiKey: body.apiKey,
         enabled: body.enabled,
-        validate: body.validate,
+        validate: body.apiKey !== undefined ? body.validate !== false : body.validate,
       });
 
       if (isErr(result)) {
@@ -171,12 +179,16 @@ export function createSemrushConnectionRoutes() {
       }
 
       const { connectionId } = c.req.valid("param");
-      const deleted = await deleteSemrushConnection({
+      const result = await deleteSemrushConnection({
         organizationId: c.var.auth.organization.localOrganizationId,
         connectionId,
       });
 
-      if (!deleted) {
+      if (isErr(result)) {
+        return mapSemrushConnectionError(c, result.error);
+      }
+
+      if (!result.value) {
         return notFoundResponse(c, "semrush_connection_not_found");
       }
 

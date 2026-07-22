@@ -600,6 +600,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       .select({
         id: schema.semrushConnections.id,
         enabled: schema.semrushConnections.enabled,
+        validationStatus: schema.semrushConnections.validationStatus,
       })
       .from(schema.semrushConnections)
       .where(
@@ -617,7 +618,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       });
     }
 
-    if (!connection.enabled) {
+    if (!connection.enabled || connection.validationStatus !== "valid") {
       return err({
         code: "semrush_not_connected",
         message: "Enable the selected Semrush connection in Integrations before using it.",
