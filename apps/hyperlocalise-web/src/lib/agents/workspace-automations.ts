@@ -612,7 +612,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
           connectionId,
           db: database,
         })
-      : (
+      : ((
           await database
             .select({
               id: schema.semrushConnections.id,
@@ -627,7 +627,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
               ),
             )
             .limit(1)
-        )[0] ?? null;
+        )[0] ?? null);
 
     if (!connection) {
       return err({
