@@ -84,6 +84,7 @@ import {
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
+import { SemrushConnectionPanel } from "./semrush-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
@@ -1400,6 +1401,15 @@ export function IntegrationsPageContent({
                 </CmsIntegrationRow>
               </div>
             )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.seoToolsCategory} />
+            </IntegrationCategoryLabel>
+            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+              <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+            </div>
           </section>
 
           <section className="flex flex-col gap-3">

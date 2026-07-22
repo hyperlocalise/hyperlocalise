@@ -35,6 +35,11 @@ export const integrationsPageContentMessages = defineMessages({
     id: "D2ZrcxejKr",
     description: "Category label for MCP server connections on the Integrations page",
   },
+  seoToolsCategory: {
+    defaultMessage: "SEO tools",
+    id: "basdUhXB4X",
+    description: "Category label for SEO tool connections on the Integrations page",
+  },
   cmsCategory: {
     defaultMessage: "Content Management System",
     id: "dWHU+zjwUO",

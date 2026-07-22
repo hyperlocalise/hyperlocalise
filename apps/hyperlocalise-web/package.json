@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.97",
+    "@ai-sdk/mcp": "^2.0.15",
     "@ai-sdk/openai": "3.0.85",
     "@ai-sdk/react": "^3.0.220",
     "@base-ui/react": "1.6.0",

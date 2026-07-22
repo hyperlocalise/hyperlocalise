@@ -29,6 +29,7 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_contentful_translation",
   "create_native_tms_job",
   "assign_translate_with_agent",
+  "use_semrush",
   "notify_slack",
   "notify_email",
 ] as const;
@@ -49,6 +50,7 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "run_contentful_translation",
   "create_native_tms_job",
   "assign_translate_with_agent",
+  "use_semrush",
 ];
 
 const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
@@ -67,6 +69,8 @@ function workflowToolEnabled(
     case "create_native_tms_job":
     case "assign_translate_with_agent":
       return hasWorkspaceAutomationTranslationWorkflow(toolConfig);
+    case "use_semrush":
+      return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
     default:
       return false;
   }
@@ -110,6 +114,7 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "use_github_repository"),
       ...enabled.filter((tool) => tool === "create_native_tms_job"),
       ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+      ...enabled.filter((tool) => tool === "use_semrush"),
     ];
   }
 
@@ -119,6 +124,7 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "run_contentful_translation"),
     ...enabled.filter((tool) => tool === "create_native_tms_job"),
     ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+    ...enabled.filter((tool) => tool === "use_semrush"),
   ];
 }
 
