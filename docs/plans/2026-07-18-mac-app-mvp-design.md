@@ -79,9 +79,10 @@ matching the web dock.
 
 ## Licensing
 
-`apps/mac-app/LICENSE` uses Business Source License 1.1 with the same Change
-Date / Additional Use Grant as `apps/hyperlocalise-web` and `apps/canva-app`.
-Root `LICENSE` notice updated to list the Mac app.
+`apps/mac-app/LICENSE` uses Business Source License 1.1 with the same
+parameters pattern as `apps/hyperlocalise-web` and `apps/canva-app`
+(Licensor Hyperlocalise Pty Ltd, Additional Use Grant None, Change Date four
+years from publication). Root `LICENSE` notice lists the Mac app.
 
 ## Testing
 

@@ -1,3 +1,14 @@
+# License
+
+This app is licensed under the Business Source License 1.1. See [`LICENSE`](./LICENSE).
+New Hyperlocalise-owned source files (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`,
+`.css`) must include the BSL header. Preserve separate notices on third-party or
+generated files. From the repository root:
+
+```bash
+node scripts/add-bsl-headers.mjs apps/hyperlocalise-web
+```
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
