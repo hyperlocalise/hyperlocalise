@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Adds MariaDB-style Business Source License headers to source files under
- * BSL-licensed Hyperlocalise apps. Idempotent: skips files that already carry
- * a Hyperlocalise Pty Ltd BSL header.
+ * BSL-licensed Hyperlocalise apps. Idempotent: inserts or rewrites headers so
+ * they match the canonical Hyperlocalise Pty Ltd BSL header.
  *
  * Usage:
  *   node scripts/add-bsl-headers.mjs [--check] [app...]
@@ -50,13 +50,11 @@ const SKIP_DIR_NAMES = new Set([
     "Generated",
 ]);
 
-const HEADER_MARKER = "Use of this software is governed by the Business Source License";
-
 const JS_HEADER = `/*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
  * Use of this software is governed by the Business Source License 1.1
- * included in the LICENSE file and at https://mariadb.com/bsl11/.
+ * included in the LICENSE file.
  *
  * Change Date: Four years from the date the Licensed Work is published.
  *
@@ -66,21 +64,11 @@ const JS_HEADER = `/*
  */
 `;
 
-const SWIFT_HEADER = `/*
- * Copyright (c) 2026 Hyperlocalise Pty Ltd
- *
- * Use of this software is governed by the Business Source License 1.1
- * included in the LICENSE file and at https://mariadb.com/bsl11/.
- *
- * Change Date: Four years from the date the Licensed Work is published.
- *
- * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
- * Version 2.0 or later.
- */
-`;
-
+const SWIFT_HEADER = JS_HEADER;
 const CSS_HEADER = JS_HEADER;
+
+const EXISTING_HEADER_RE =
+    /\/\*\s*\n(?: \*[^\n]*\n)*? \* Use of this software is governed by the Business Source License[^\n]*\n(?: \*[^\n]*\n)*? \*\/\n?/;
 
 function parseArgs(argv) {
     const check = argv.includes("--check");
@@ -141,7 +129,6 @@ function splitLeadingDirectives(content) {
     const lines = content.split(/\r?\n/);
     let index = 0;
 
-    // Preserve BOM if present on the first line.
     while (index < lines.length) {
         const line = lines[index];
         const trimmed = line.trim();
@@ -163,7 +150,6 @@ function splitLeadingDirectives(content) {
             trimmed === "'use server';"
         ) {
             index += 1;
-            // Keep a single blank line after the directive if present.
             if (index < lines.length && lines[index].trim() === "") {
                 index += 1;
             }
@@ -190,20 +176,20 @@ function headerForFile(filePath) {
 }
 
 function ensureHeader(content, header) {
-    if (content.includes(HEADER_MARKER)) {
-        return { content, changed: false };
+    const { prefix, rest } = splitLeadingDirectives(content);
+    let body = rest;
+
+    if (EXISTING_HEADER_RE.test(body)) {
+        body = body.replace(EXISTING_HEADER_RE, header);
+    } else if (body.startsWith(header)) {
+        // Canonical header already present.
+    } else {
+        body = `${header}${body.replace(/^\n/, "")}`;
     }
 
-    const { prefix, rest } = splitLeadingDirectives(content);
-    const body = rest.startsWith("\n") ? rest : rest.length === 0 ? "" : `\n${rest}`;
-    const next =
-        prefix.length === 0
-            ? `${header}${body.replace(/^\n/, "")}`
-            : `${prefix}\n${header}${body.replace(/^\n/, "")}`;
-
-    // Normalize trailing newline.
+    const next = prefix.length === 0 ? body : `${prefix}\n${body.replace(/^\n/, "")}`;
     const normalized = next.endsWith("\n") ? next : `${next}\n`;
-    return { content: normalized, changed: true };
+    return { content: normalized, changed: normalized !== content };
 }
 
 function processFile(filePath, check) {

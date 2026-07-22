@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
  * Use of this software is governed by the Business Source License 1.1
- * included in the LICENSE file and at https://mariadb.com/bsl11/.
+ * included in the LICENSE file.
  *
  * Change Date: Four years from the date the Licensed Work is published.
  *
