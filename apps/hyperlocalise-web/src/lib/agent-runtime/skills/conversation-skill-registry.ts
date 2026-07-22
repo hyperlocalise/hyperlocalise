@@ -13,6 +13,7 @@
 import type { Bash } from "just-bash";
 import type { ToolSet } from "ai";
 
+import { hasCapability } from "@/api/auth/policy";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
 import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
 import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/translate_string";
@@ -27,6 +28,10 @@ import {
   createTodoWriteTool,
   workspaceSessionToolNames,
 } from "@/lib/agent-runtime/tools/workspace";
+import {
+  createGetKnowledgeMemoryTool,
+  createUpdateKnowledgeMemoryTool,
+} from "@/lib/agent-runtime/tools/knowledge-memory-tools";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -45,6 +50,7 @@ const REPO_TOOL_NAMES = new Set<string>(
 const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
 const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
+const KNOWLEDGE_MEMORY_WRITE_TOOL_NAMES = new Set(["update_knowledge_memory"]);
 
 export type ConversationSkillMetadata = {
   id: string;
@@ -55,6 +61,7 @@ export type ConversationSkillMetadata = {
   requiresFileAttachments?: boolean;
   requiresProjectOrAttachments: boolean;
   requiresVisualMockSkill: boolean;
+  requiresKnowledgeMemory: boolean;
   tools: string[];
   sharedSkills: string[];
 };
@@ -71,6 +78,7 @@ export type ConversationSkillActivationContext = {
   hasSandbox: boolean;
   hasTmsIntegration: boolean;
   hasVisualMockSkill: boolean;
+  knowledgeMemoryEnabled: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -80,6 +88,8 @@ const conversationSkillToolFactories: Record<string, ConversationSkillToolFactor
   get_project_context: (toolContext) => createGetProjectContextTool(toolContext),
   update_interaction_project: (toolContext) => createUpdateInteractionProjectTool(toolContext),
   check_crowdin_progress: (toolContext) => createCheckCrowdinProgressTool(toolContext),
+  get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
+  update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
 };
 
 function parseCommaSeparated(value: string | undefined): string[] {
@@ -119,6 +129,7 @@ export function parseConversationSkillMetadata(
     requiresFileAttachments: parseBooleanFlag(frontmatter.requiresFileAttachments),
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
     requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
+    requiresKnowledgeMemory: frontmatter.requiresKnowledgeMemory === "true",
     tools: parseCommaSeparated(frontmatter.tools),
     sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
   };
@@ -141,6 +152,7 @@ export function toConversationSkillActivationContext(
     hasSandbox: Boolean(runtime.toolContext.sandboxId),
     hasTmsIntegration: runtime.hasTmsIntegration,
     hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
+    knowledgeMemoryEnabled: runtime.toolContext.knowledgeMemoryEnabled === true,
   };
 }
 
@@ -180,13 +192,18 @@ export function isConversationSkillActivated(
     return false;
   }
 
+  if (skill.requiresKnowledgeMemory && !context.knowledgeMemoryEnabled) {
+    return false;
+  }
+
   const hasActivationRule =
     skill.requiresSandbox ||
     skill.requiresTmsIntegration ||
     skill.requiresProjectId ||
     skill.requiresFileAttachments !== undefined ||
     skill.requiresProjectOrAttachments ||
-    skill.requiresVisualMockSkill;
+    skill.requiresVisualMockSkill ||
+    skill.requiresKnowledgeMemory;
 
   return hasActivationRule;
 }
@@ -219,6 +236,13 @@ export function filterAvailableConversationToolNames(
       if (!gate.allowed) {
         return false;
       }
+    }
+
+    if (
+      KNOWLEDGE_MEMORY_WRITE_TOOL_NAMES.has(toolName) &&
+      !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
+    ) {
+      return false;
     }
 
     if (

@@ -139,6 +139,7 @@ describe("conversation turn preparation", () => {
       messageText: "what's the progress of HL test project?",
       hasTranslationAttachments: false,
       reportToolProgress,
+      knowledgeMemoryEnabled: true,
       db: {} as never,
     });
 
@@ -150,6 +151,7 @@ describe("conversation turn preparation", () => {
         hasTmsIntegration: true,
         toolContext: expect.objectContaining({
           reportToolProgress,
+          knowledgeMemoryEnabled: true,
         }),
       }),
     );

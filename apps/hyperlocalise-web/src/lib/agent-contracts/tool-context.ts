@@ -58,6 +58,8 @@ export type ToolContext = {
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   db: typeof db;
+  /** Resolved at the web API boundary; omitted and false both disable Knowledge Memory tools. */
+  knowledgeMemoryEnabled?: boolean;
   /** Repository agent context (optional, populated for repository workflows). */
   workMode?: RepositoryAgentWorkMode;
   repositorySource?: RepositoryAgentTaskSource;

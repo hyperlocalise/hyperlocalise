@@ -276,6 +276,7 @@ export type PrepareConversationAgentTurnInput = {
   projectId: string | null;
   messageText: string;
   hasTranslationAttachments: boolean;
+  knowledgeMemoryEnabled?: boolean;
   repositorySession?: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
   channelId?: string | null;
@@ -384,6 +385,7 @@ export async function prepareConversationAgentTurn(
       projectId: input.projectId,
       db: input.db,
       reportToolProgress: input.reportToolProgress,
+      knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
       ...(sandboxId
         ? {
             sandboxId,
