@@ -44,6 +44,7 @@ const SKIP_DIR_NAMES = new Set([
     "dist",
     "build",
     "coverage",
+    "public",
     "storybook-static",
     "out",
     "vendor",
@@ -54,9 +55,9 @@ const JS_HEADER = `/*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
  * Use of this software is governed by the Business Source License 1.1
- * included in the LICENSE file.
+ * included in this application's LICENSE file.
  *
- * Change Date: Four years from the date the Licensed Work is published.
+ * Change Date: Four years after publication of the applicable version.
  *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
@@ -68,7 +69,10 @@ const SWIFT_HEADER = JS_HEADER;
 const CSS_HEADER = JS_HEADER;
 
 const EXISTING_HEADER_RE =
-    /\/\*\s*\n(?: \*[^\n]*\n)*? \* Use of this software is governed by the Business Source License[^\n]*\n(?: \*[^\n]*\n)*? \*\/\n?/;
+    /^\/\*\s*\n(?: \*[^\n]*\n)*? \* Use of this software is governed by the Business Source License[^\n]*\n(?: \*[^\n]*\n)*? \*\/\n?/;
+const HEADER_MARKER = "Use of this software is governed by the Business Source License";
+const SEPARATE_NOTICE_RE =
+    /copyright|spdx-license-identifier|please do not modify|do not edit|@generated|auto-?generated/i;
 
 function parseArgs(argv) {
     const check = argv.includes("--check");
@@ -109,11 +113,6 @@ function collectSourceFiles(appRoot) {
 
             const ext = path.extname(entry.name);
             if (!SOURCE_EXTENSIONS.has(ext)) {
-                continue;
-            }
-
-            // Generated FormatJS / locale catalogs are not source files.
-            if (dir.includes(`${path.sep}lang${path.sep}`) && entry.name.endsWith(".json")) {
                 continue;
             }
 
@@ -176,7 +175,9 @@ function headerForFile(filePath) {
 }
 
 function ensureHeader(content, header) {
-    const { prefix, rest } = splitLeadingDirectives(content);
+    const bom = content.startsWith("\uFEFF") ? "\uFEFF" : "";
+    const source = bom ? content.slice(1) : content;
+    const { prefix, rest } = splitLeadingDirectives(source);
     let body = rest;
 
     if (EXISTING_HEADER_RE.test(body)) {
@@ -188,12 +189,21 @@ function ensureHeader(content, header) {
     }
 
     const next = prefix.length === 0 ? body : `${prefix}\n${body.replace(/^\n/, "")}`;
-    const normalized = next.endsWith("\n") ? next : `${next}\n`;
+    const normalizedBody = next.endsWith("\n") ? next : `${next}\n`;
+    const normalized = `${bom}${normalizedBody}`;
     return { content: normalized, changed: normalized !== content };
+}
+
+function shouldExcludeContent(content) {
+    return !content.includes(HEADER_MARKER) && SEPARATE_NOTICE_RE.test(content);
 }
 
 function processFile(filePath, check) {
     const original = fs.readFileSync(filePath, "utf8");
+    if (shouldExcludeContent(original)) {
+        return "excluded";
+    }
+
     const header = headerForFile(filePath);
     const { content, changed } = ensureHeader(original, header);
 
@@ -214,6 +224,7 @@ function main() {
     let updated = 0;
     let skipped = 0;
     let missing = 0;
+    let excluded = 0;
 
     for (const app of apps) {
         const appRoot = path.resolve(ROOT, app);
@@ -232,6 +243,8 @@ function main() {
             } else if (result === "missing") {
                 missing += 1;
                 console.log(`missing ${path.relative(ROOT, file)}`);
+            } else if (result === "excluded") {
+                excluded += 1;
             } else {
                 skipped += 1;
             }
@@ -239,14 +252,18 @@ function main() {
     }
 
     if (check) {
-        console.log(`check complete: missing=${missing} ok=${skipped}`);
+        console.log(`check complete: missing=${missing} ok=${skipped} excluded=${excluded}`);
         if (missing > 0) {
             process.exitCode = 1;
         }
         return;
     }
 
-    console.log(`done: updated=${updated} already-present=${skipped}`);
+    console.log(`done: updated=${updated} already-present=${skipped} excluded=${excluded}`);
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main();
+}
+
+export { ensureHeader, JS_HEADER, shouldExcludeContent };

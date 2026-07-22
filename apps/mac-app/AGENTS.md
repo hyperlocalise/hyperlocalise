@@ -1,7 +1,8 @@
 # Mac App Agent Instructions
 
 Native SwiftUI macOS app. Licensed BSL 1.1 (`LICENSE`).
-New `.swift` source files must include the BSL header:
+New Hyperlocalise-owned `.swift` source files must include the BSL header.
+Preserve separate notices on third-party or generated files:
 
 ```bash
 node scripts/add-bsl-headers.mjs apps/mac-app
