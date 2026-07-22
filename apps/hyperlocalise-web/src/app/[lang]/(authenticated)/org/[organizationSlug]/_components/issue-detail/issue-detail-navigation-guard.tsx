@@ -83,6 +83,10 @@ export function IssueDetailNavigationGuard({
     setIsSavingClose(false);
     clearPendingProceed();
     panelRef.current?.endCloseConfirm();
+    if (panelRef.current?.isDirty() && !historyGuardPushedRef.current) {
+      window.history.pushState({ issueDetailDraftGuard: true }, "", window.location.href);
+      historyGuardPushedRef.current = true;
+    }
   }, [clearPendingProceed, panelRef]);
 
   const runPendingProceed = useCallback(() => {
@@ -194,7 +198,7 @@ export function IssueDetailNavigationGuard({
         return;
       }
 
-      window.history.pushState({ issueDetailDraftGuard: true }, "", window.location.href);
+      historyGuardPushedRef.current = false;
       requestLeave(() => {
         historyGuardPushedRef.current = false;
         window.history.back();
