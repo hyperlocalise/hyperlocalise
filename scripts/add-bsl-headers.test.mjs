@@ -27,15 +27,16 @@ test("keeps framework directives before the header", () => {
 });
 
 test("rewrites an existing BSL header without duplicating it", () => {
+    const obsoletePhrase = "included in the LICENSE file and at an external BSL FAQ.";
     const oldHeader = JS_HEADER.replace(
         "included in this application's LICENSE file.",
-        "included in the LICENSE file and at https://mariadb.com/bsl11/.",
+        obsoletePhrase,
     );
     const result = ensureHeader(`${oldHeader}export const value = 1;\n`, JS_HEADER);
 
     assert.equal(result.changed, true);
     assert.equal(result.content, `${JS_HEADER}export const value = 1;\n`);
-    assert.equal(result.content.includes("mariadb.com"), false);
+    assert.equal(result.content.includes(obsoletePhrase), false);
 });
 
 test("preserves a byte-order mark", () => {
