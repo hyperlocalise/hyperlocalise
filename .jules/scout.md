@@ -40,7 +40,7 @@
 **Learning:** ICU elements for `number`, `date`, and `time` were previously excluded from `ICUBlocks` metadata, which is used for structural parity checks. While their arguments were extracted as placeholders, their specific types were missing from the structural signature. This could allow a translation to change the type (e.g., from `date` to `number`) without triggering a structural mismatch.
 **Action:** Ensure all "typed" ICU elements (`NumberElement`, `DateElement`, `TimeElement`) are appended to `ICUBlocks` during invariant collection to protect the structural integrity of complex messages.
 
-## 2025-06-12 - [PO msgid Significance of Whitespace]
+## 2026-06-12 - [PO msgid Significance of Whitespace]
 **Learning:** In gettext/PO files, `msgid` keys are the source of truth for translation lookups, and leading/trailing whitespace is significant. Over-eagerly trimming spaces from these keys during parsing causes lookup failures in downstream systems.
 **Action:** Always preserve the exact literal string for `msgid` keys, except for the header entry (`msgid ""`) which is standardly skipped in message maps.
 
@@ -159,3 +159,7 @@
 ## 2026-08-30 - [Strategy Parser Extension Resolution]
 **Learning:** `Strategy.Parse` relies on Go's `filepath.Ext` to resolve custom registered extensions. Therefore, dynamically registered parser test cases must pass input filenames containing a dot (e.g. `file.custom` or `file.CUSTOM`) to ensure extension detection succeeds, rather than naked extensions like `custom`.
 **Action:** Always construct realistic, dot-prefixed filenames (e.g. `"file." + strings.TrimPrefix(ext, ".")`) when verifying registered parser resolution in strategy-level unit tests.
+
+## 2026-09-05 - [Apple Strings Parser Error Robustness]
+**Learning:** Testing syntax parser error cases (such as missing '=' or ';', and unterminated strings/comments) directly on AppleStringsParser ensures high-value, deterministic error-handling coverage without relying on complex mocks or environment-dependent artifacts.
+**Action:** Always include boundary syntax failure cases when writing or extending parsing behavior tests to guarantee robust input validation and user-friendly error messages.
