@@ -36,7 +36,7 @@ type ClassifyConversationInput = {
   conversationText: string;
   hasFileAttachments: boolean;
   hasStoredRepositoryContext: boolean;
-  hasKnowledgeMemory?: boolean;
+  knowledgeMemoryEnabled?: boolean;
   surface: ConversationClassifierSurface;
 };
 
@@ -56,7 +56,7 @@ function truncateForClassification(value: string) {
 
 function buildConversationClassificationPrompt(input: ClassifyConversationInput) {
   const knowledgeMemoryRouting =
-    input.hasKnowledgeMemory === true
+    input.knowledgeMemoryEnabled === true
       ? [
           "",
           "Organization Memory.md routing:",
@@ -94,7 +94,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     `Surface: ${input.surface}`,
     `Has file attachments in this turn: ${input.hasFileAttachments ? "yes" : "no"}`,
     `Thread already has resolved repository context: ${input.hasStoredRepositoryContext ? "yes" : "no"}`,
-    ...(input.hasKnowledgeMemory === true ? ["Organization Memory.md skill enabled: yes"] : []),
+    ...(input.knowledgeMemoryEnabled === true ? ["Organization Memory.md skill enabled: yes"] : []),
     "",
     "Recent conversation:",
     truncateForClassification(input.conversationText.trim() || "(none)"),

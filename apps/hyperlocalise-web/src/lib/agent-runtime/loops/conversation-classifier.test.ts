@@ -197,7 +197,7 @@ describe("conversation classifier", () => {
       conversationText: "Should we add short checkout labels to Memory.md?\nYes, add that.",
       hasFileAttachments: false,
       hasStoredRepositoryContext: true,
-      hasKnowledgeMemory: true,
+      knowledgeMemoryEnabled: true,
       surface: "web",
     });
 

@@ -21,7 +21,7 @@ import { isErr } from "@/lib/primitives/result/results";
 
 const nonEmptyMemoryTextSchema = z.string().min(1).max(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH);
 
-export const knowledgeMemoryEditSchema = z.discriminatedUnion("operation", [
+const knowledgeMemoryEditSchema = z.discriminatedUnion("operation", [
   z.object({
     operation: z.literal("replace"),
     matchText: nonEmptyMemoryTextSchema.describe(
