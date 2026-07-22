@@ -15,6 +15,7 @@ import type { IntlShape } from "react-intl";
 export type AppShellBreadcrumb = {
   label: string;
   href?: string;
+  title?: string;
 };
 
 type RouteTitleKey =
@@ -340,15 +341,20 @@ export function getAppShellBreadcrumbs(
     const projectId = decodePathSegment(subsection);
     const projectLabel = options?.projectName?.trim() || projectId;
     const projectHref = buildOrgPath(organizationSlug, "projects", subsection);
+    const issueIdSegment = routeSegments[3];
 
     if (projectSection && isProjectSectionKey(projectSection)) {
+      const sectionHref = buildOrgPath(organizationSlug, "projects", subsection, projectSection);
       return [
         {
           label: formatRouteTitle(intl, "projects"),
           href: buildOrgPath(organizationSlug, "projects"),
         },
         { label: projectLabel, href: projectHref },
-        { label: formatProjectSectionTitle(intl, projectSection) },
+        {
+          label: formatProjectSectionTitle(intl, projectSection),
+          href: issueIdSegment ? sectionHref : undefined,
+        },
       ];
     }
 

@@ -156,13 +156,13 @@ function LinkedContextRow({ label, children }: { label: ReactNode; children: Rea
 
 function IssueDetailSkeleton() {
   return (
-    <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden">
-      <div className="flex flex-col gap-4 px-6 py-5 md:min-h-0 md:overflow-y-auto">
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden md:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-none">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
-      <aside className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
         <Skeleton className="h-8 w-full" />
         <Skeleton className="ml-auto h-7 w-24" />
         <Skeleton className="ml-auto h-7 w-20" />
@@ -183,11 +183,16 @@ export const IssueDetailPanel = forwardRef<
     organizationSlug: string;
     projectId: string;
     issueId: string;
+    onDirtyChange?: (dirty: boolean) => void;
   }
->(function IssueDetailPanel({ organizationSlug, projectId, issueId }, ref) {
+>(function IssueDetailPanel({ organizationSlug, projectId, issueId, onDirtyChange }, ref) {
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
-  const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
+  const issueQuery = useIssueDetailQuery({
+    organizationSlug,
+    projectId,
+    issueId,
+  });
   const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
@@ -265,6 +270,17 @@ export const IssueDetailPanel = forwardRef<
     };
   }, [issue]);
 
+  useEffect(() => {
+    if (!onDirtyChange) {
+      return;
+    }
+    if (!issue) {
+      onDirtyChange(false);
+      return;
+    }
+    onDirtyChange(isIssueDraftDirty(issue, titleDraft, descriptionDraft, ownerNoteDraft));
+  }, [issue, titleDraft, descriptionDraft, ownerNoteDraft, onDirtyChange]);
+
   useImperativeHandle(ref, () => ({
     isDirty: () => {
       const current = issueRef.current;
@@ -313,7 +329,10 @@ export const IssueDetailPanel = forwardRef<
 
       const nextOwnerNote = ownerNoteDraftRef.current;
       if (nextOwnerNote !== ownerNoteFromIssue(current)) {
-        await setValue.mutateAsync({ columnKey: "owner_note", value: nextOwnerNote });
+        await setValue.mutateAsync({
+          columnKey: "owner_note",
+          value: nextOwnerNote,
+        });
       }
     },
   }));
@@ -344,8 +363,14 @@ export const IssueDetailPanel = forwardRef<
   const assigneeItems = useMemo(() => {
     const members = membersQuery.data ?? [];
     return [
-      { value: "unassigned", label: intl.formatMessage(messages.assigneeUnassigned) },
-      ...members.map((member) => ({ value: member.userId, label: member.displayName })),
+      {
+        value: "unassigned",
+        label: intl.formatMessage(messages.assigneeUnassigned),
+      },
+      ...members.map((member) => ({
+        value: member.userId,
+        label: member.displayName,
+      })),
     ];
   }, [intl, membersQuery.data]);
 
@@ -420,10 +445,10 @@ export const IssueDetailPanel = forwardRef<
 
   return (
     <div
-      className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_22rem] md:overflow-hidden"
+      className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-none"
       aria-busy={isSaving}
     >
-      <div className="flex min-w-0 flex-col gap-3 px-6 py-5 md:min-h-0 md:overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
         <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}
@@ -504,7 +529,7 @@ export const IssueDetailPanel = forwardRef<
         ) : null}
       </div>
 
-      <aside className="flex flex-col gap-1 border-t border-border bg-muted/20 px-4 py-5 md:min-h-0 md:overflow-y-auto md:border-t-0 md:border-s">
+      <aside className="flex min-h-0 flex-col gap-1 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
         <div className="mb-3 flex flex-col gap-2">
           {catHref ? (
             <Button
