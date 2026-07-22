@@ -114,6 +114,42 @@ describe("semrush connections", () => {
     }
   });
 
+  // enabled/validationStatus guards live in the Semrush tool consumer (use_semrush.ts),
+  // not in loadSemrushConnectionWithApiKey — keep the loader permissive for callers that
+  // need credentials while configuring or re-validating a connection.
+  it("loads credentials when the connection is disabled and unvalidated", async () => {
+    const scope = await seedSemrushScope();
+    const apiKey = "semrush-disabled-key-efgh";
+
+    const created = expectOk(
+      await createSemrushConnection({
+        organizationId: scope.organizationId,
+        userId: scope.userId,
+        displayName: "Disabled Semrush",
+        apiKey,
+        enabled: false,
+        validate: false,
+      }),
+    );
+
+    expect(created).toMatchObject({
+      enabled: false,
+      validationStatus: "unvalidated",
+    });
+
+    const loaded = expectOk(
+      await loadSemrushConnectionWithApiKey({
+        organizationId: scope.organizationId,
+        connectionId: created.id,
+      }),
+    );
+    expect(loaded.apiKey).toBe(apiKey);
+    expect(loaded.connection).toMatchObject({
+      enabled: false,
+      validationStatus: "unvalidated",
+    });
+  });
+
   it("preserves validation state and stored API key on metadata-only updates", async () => {
     const scope = await seedSemrushScope();
     const apiKey = "semrush-original-key-wxyz";
@@ -149,6 +185,8 @@ describe("semrush connections", () => {
         validate: false,
       }),
     );
+    // updateSemrushConnection returns ok(null) when the row is missing — not an Err.
+    expect(updated).not.toBeNull();
 
     expect(updated).toMatchObject({
       id: created.id,
