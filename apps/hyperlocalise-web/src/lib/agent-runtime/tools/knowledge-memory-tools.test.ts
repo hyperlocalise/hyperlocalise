@@ -16,6 +16,7 @@ import { err, ok } from "@/lib/primitives/result/results";
 import {
   createGetKnowledgeMemoryTool,
   createUpdateKnowledgeMemoryTool,
+  updateKnowledgeMemoryToolInputSchema,
 } from "./knowledge-memory-tools";
 
 const currentMemory = {
@@ -135,6 +136,52 @@ describe("Knowledge Memory agent tools", () => {
       code: "knowledge_memory_unavailable",
     });
     expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
+  });
+
+  it.each([false, undefined])(
+    "fails closed without reading or committing an update when the capability is %s",
+    async (knowledgeMemoryEnabled) => {
+      const result = await executeTool(
+        createUpdateKnowledgeMemoryTool(createToolContext({ knowledgeMemoryEnabled })),
+        {
+          expectedRevisionId: currentMemory.revisionId,
+          summary: "Blocked update",
+          edits: [{ operation: "append", insertText: "Do not save this." }],
+        },
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        code: "knowledge_memory_unavailable",
+      });
+      expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
+      expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates revision, summary, and edit-count boundaries", () => {
+    const validInput = {
+      expectedRevisionId: currentMemory.revisionId,
+      summary: "Add checkout guidance",
+      edits: [{ operation: "append" as const, insertText: "Use short checkout labels." }],
+    };
+
+    expect(updateKnowledgeMemoryToolInputSchema.safeParse(validInput).success).toBe(true);
+    expect(
+      updateKnowledgeMemoryToolInputSchema.safeParse({
+        ...validInput,
+        expectedRevisionId: "not-a-revision-id",
+      }).success,
+    ).toBe(false);
+    expect(
+      updateKnowledgeMemoryToolInputSchema.safeParse({ ...validInput, summary: "   " }).success,
+    ).toBe(false);
+    expect(
+      updateKnowledgeMemoryToolInputSchema.safeParse({
+        ...validInput,
+        edits: Array.from({ length: 11 }, () => validInput.edits[0]),
+      }).success,
+    ).toBe(false);
   });
 
   it.each(["admin", "localization_manager"] as const)(

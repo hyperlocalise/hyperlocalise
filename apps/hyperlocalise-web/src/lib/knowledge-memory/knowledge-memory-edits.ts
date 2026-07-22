@@ -1,4 +1,5 @@
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "./knowledge-memory.shared";
 
@@ -110,6 +111,8 @@ export function applyKnowledgeMemoryEdits(
             : `${updatedContent}${updatedContent.endsWith("\n") ? "" : "\n\n"}${edit.insertText}`;
         break;
       }
+      default:
+        return assertNever(edit);
     }
 
     if (updatedContent.length > KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH) {

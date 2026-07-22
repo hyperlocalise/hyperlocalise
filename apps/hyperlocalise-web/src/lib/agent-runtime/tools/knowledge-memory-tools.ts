@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hasCapability } from "@/api/auth/policy";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import {
   applyKnowledgeMemoryEdits,
   KNOWLEDGE_MEMORY_MAX_EDITS,
@@ -143,6 +144,8 @@ function editErrorResult(error: KnowledgeMemoryEditError) {
         code: "knowledge_memory_invalid_edit_count" as const,
         error: `Provide between 1 and ${KNOWLEDGE_MEMORY_MAX_EDITS} Memory.md edits.`,
       };
+    default:
+      return assertNever(error);
   }
 }
 

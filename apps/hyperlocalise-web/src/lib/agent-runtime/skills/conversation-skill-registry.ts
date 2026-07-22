@@ -50,7 +50,6 @@ const REPO_TOOL_NAMES = new Set<string>(
 const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
 const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
-const KNOWLEDGE_MEMORY_WRITE_TOOL_NAMES = new Set(["update_knowledge_memory"]);
 
 export type ConversationSkillMetadata = {
   id: string;
@@ -239,7 +238,7 @@ export function filterAvailableConversationToolNames(
     }
 
     if (
-      KNOWLEDGE_MEMORY_WRITE_TOOL_NAMES.has(toolName) &&
+      toolName === "update_knowledge_memory" &&
       !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
     ) {
       return false;
