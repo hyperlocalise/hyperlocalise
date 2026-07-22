@@ -371,6 +371,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "ykXAFysnC5",
     description: "Accessible label to remove the MCP Server tool",
   },
+  semrush: {
+    defaultMessage: "Semrush",
+    id: "+Pn3eYONmL",
+    description: "Menu item and tool title for Semrush SEO data",
+  },
+  semrushDescription: {
+    defaultMessage: "Query Semrush SEO and traffic data through your connected API key.",
+    id: "ObwCSlFgt9",
+    description: "Description for the Semrush automation tool when a connection exists",
+  },
+  semrushDisconnectedDescription: {
+    defaultMessage: "Connect Semrush with an API key in Integrations before using this tool.",
+    id: "GwX/prLtJh",
+    description: "Description when no Semrush connection is available",
+  },
+  removeSemrushTool: {
+    defaultMessage: "Remove Semrush tool",
+    id: "s7935wKE28",
+    description: "Accessible label to remove the Semrush tool",
+  },
   comingSoon: {
     defaultMessage: "Coming soon",
     id: "lvwFhMaVAT",

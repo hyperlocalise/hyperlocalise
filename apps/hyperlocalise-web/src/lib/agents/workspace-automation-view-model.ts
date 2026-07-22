@@ -69,6 +69,8 @@ export type WorkspaceAutomationFormState = {
   knowledgeEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
+  semrushEnabled: boolean;
+  semrushConnectionId: string;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -88,6 +90,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "translationProjectId"
     | "translationTargetLocales"
     | "mcpConnectionId"
+    | "semrushConnectionId"
     | "form",
     string
   >
@@ -117,6 +120,10 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   mcp_connection_not_found:
     "The selected MCP server connection was not found. Choose another connection.",
   mcp_not_connected: "Enable the selected MCP server connection in Integrations before using it.",
+  semrush_connection_required: "Choose a Semrush connection.",
+  semrush_connection_not_found:
+    "The selected Semrush connection was not found. Choose another connection.",
+  semrush_not_connected: "Enable the selected Semrush connection in Integrations before using it.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -163,6 +170,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     knowledgeEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
+    semrushEnabled: false,
+    semrushConnectionId: "",
   };
 }
 
@@ -176,6 +185,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const translation = automation.toolConfig.translation;
   const knowledge = automation.toolConfig.knowledge;
   const mcp = automation.toolConfig.mcp;
+  const semrush = automation.toolConfig.semrush;
 
   return {
     name: automation.name,
@@ -233,6 +243,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     knowledgeEnabled: Boolean(knowledge?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
+    semrushEnabled: Boolean(semrush?.enabled),
+    semrushConnectionId: semrush?.connectionId ?? "",
   };
 }
 
@@ -381,6 +393,14 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.semrushEnabled
+      ? {
+          semrush: {
+            enabled: true,
+            connectionId: form.semrushConnectionId || undefined,
+          },
+        }
+      : {}),
   };
 
   return {
@@ -470,6 +490,10 @@ export function validateWorkspaceAutomationFormState(
     errors.mcpConnectionId = "Choose an MCP server connection.";
   }
 
+  if (form.semrushEnabled && !form.semrushConnectionId) {
+    errors.semrushConnectionId = "Choose a Semrush connection.";
+  }
+
   return errors;
 }
 
@@ -518,6 +542,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "mcp_connection_not_found":
     case "mcp_not_connected":
       return { mcpConnectionId: message };
+    case "semrush_connection_required":
+    case "semrush_connection_not_found":
+    case "semrush_not_connected":
+      return { semrushConnectionId: message };
     default:
       return { form: message };
   }
@@ -530,6 +558,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.emailEnabled ||
     form.contentfulEnabled ||
     form.translationEnabled ||
-    form.mcpEnabled
+    form.mcpEnabled ||
+    form.semrushEnabled
   );
 }

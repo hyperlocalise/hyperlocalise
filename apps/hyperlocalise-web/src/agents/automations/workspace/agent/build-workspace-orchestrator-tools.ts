@@ -21,6 +21,7 @@ import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
+import { createUseSemrushTool } from "./tools/use_semrush";
 
 const TOOL_BUILDERS: Record<
   WorkspaceOrchestratorToolName,
@@ -31,6 +32,7 @@ const TOOL_BUILDERS: Record<
   run_contentful_translation: createRunContentfulTranslationTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
+  use_semrush: createUseSemrushTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
 };

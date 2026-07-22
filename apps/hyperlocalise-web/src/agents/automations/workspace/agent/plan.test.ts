@@ -110,4 +110,20 @@ describe("buildWorkspaceOrchestratorPlan", () => {
 
     expect(plan.tools).toEqual(["create_native_tms_job", "assign_translate_with_agent"]);
   });
+
+  it("includes use_semrush when a Semrush connection is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          semrush: {
+            enabled: true,
+            connectionId: "11111111-1111-4111-8111-111111111111",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_semrush", "notify_slack"]);
+  });
 });

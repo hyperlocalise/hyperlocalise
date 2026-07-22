@@ -151,6 +151,13 @@ const mcpToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const semrushToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
@@ -160,6 +167,7 @@ const toolConfigSchema = z
     translation: translationToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
+    semrush: semrushToolConfigSchema.optional(),
   })
   .default({});
 
@@ -181,6 +189,7 @@ export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigS
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
+export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -260,6 +269,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "mcp_not_connected";
       message: "Enable the selected MCP server connection in Integrations before using it.";
+    }
+  | {
+      code: "semrush_connection_required";
+      message: "Enabled Semrush tools require a Semrush connection.";
+    }
+  | {
+      code: "semrush_connection_not_found";
+      message: "The selected Semrush connection was not found. Choose another connection.";
+    }
+  | {
+      code: "semrush_not_connected";
+      message: "Enable the selected Semrush connection in Integrations before using it.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -283,6 +304,10 @@ export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomat
 
 export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.mcp?.enabled);
+}
+
+export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.semrush?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -469,6 +494,14 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  const semrushTools = input.toolConfig.semrush;
+  if (semrushTools?.enabled && !semrushTools.connectionId) {
+    return err({
+      code: "semrush_connection_required",
+      message: "Enabled Semrush tools require a Semrush connection.",
+    });
+  }
+
   return ok(undefined);
 }
 
@@ -550,6 +583,44 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "mcp_not_connected",
         message: "Enable the selected MCP server connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.semrush?.enabled) {
+    const connectionId = input.toolConfig.semrush.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "semrush_connection_required",
+        message: "Enabled Semrush tools require a Semrush connection.",
+      });
+    }
+
+    const [connection] = await db
+      .select({
+        id: schema.semrushConnections.id,
+        enabled: schema.semrushConnections.enabled,
+      })
+      .from(schema.semrushConnections)
+      .where(
+        and(
+          eq(schema.semrushConnections.organizationId, input.organizationId),
+          eq(schema.semrushConnections.id, connectionId),
+        ),
+      )
+      .limit(1);
+
+    if (!connection) {
+      return err({
+        code: "semrush_connection_not_found",
+        message: "The selected Semrush connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled) {
+      return err({
+        code: "semrush_not_connected",
+        message: "Enable the selected Semrush connection in Integrations before using it.",
       });
     }
   }

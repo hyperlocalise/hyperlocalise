@@ -111,6 +111,11 @@ type McpServerConnectionOption = {
   serverUrl: string;
   enabled: boolean;
 };
+type SemrushConnectionOption = {
+  id: string;
+  displayName: string;
+  enabled: boolean;
+};
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
@@ -132,7 +137,6 @@ const METADATA_SEPARATOR = "|";
 const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
-  { id: "semrush", name: "Semrush", icon: siSemrush },
   { id: "ahrefs", name: "Ahrefs" },
   { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
   { id: "similarweb", name: "Similarweb" },
@@ -322,7 +326,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.contentfulEnabled) +
     Number(form.translationEnabled) +
     Number(form.knowledgeEnabled) +
-    Number(form.mcpEnabled)
+    Number(form.mcpEnabled) +
+    Number(form.semrushEnabled)
   );
 }
 
@@ -1075,6 +1080,7 @@ function AddToolMenu({
   mcpConnected,
   onChange,
   repositories,
+  semrushConnected,
   slackConnected,
 }: {
   contentfulConnected: boolean;
@@ -1086,6 +1092,7 @@ function AddToolMenu({
   mcpConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
+  semrushConnected: boolean;
   slackConnected: boolean;
 }) {
   return (
@@ -1290,6 +1297,22 @@ function AddToolMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.semrushEnabled || !semrushConnected}
+              onClick={() => onChange({ ...form, semrushEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siSemrush} />
+              <FormattedMessage {...workspaceAutomationFormMessages.semrush} />
+              {form.semrushEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !semrushConnected ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -1408,6 +1431,7 @@ function ToolsSettings({
   organizationSlug,
   projects,
   repositories,
+  semrushConnections,
   slackChannels,
   slackChannelsLoading,
   slackConnected,
@@ -1425,6 +1449,7 @@ function ToolsSettings({
   organizationSlug: string;
   projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
+  semrushConnections: SemrushConnectionOption[];
   slackChannels: SlackChannelOption[];
   slackChannelsLoading: boolean;
   slackConnected: boolean;
@@ -1434,6 +1459,8 @@ function ToolsSettings({
   const enabledMcpServerConnections = mcpServerConnections.filter(
     (connection) => connection.enabled,
   );
+  const semrushConnected = semrushConnections.some((connection) => connection.enabled);
+  const enabledSemrushConnections = semrushConnections.filter((connection) => connection.enabled);
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedContentfulProject = projects.find(
     (project) => project.id === form.contentfulProjectId,
@@ -2084,6 +2111,68 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.semrushEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siSemrush} />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.semrush} />}
+            description={
+              semrushConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.semrushDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.semrushDisconnectedDescription)
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeSemrushTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    semrushEnabled: false,
+                    semrushConnectionId: "",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
+              </Label>
+              <Select
+                value={form.semrushConnectionId || undefined}
+                disabled={disabled || !semrushConnected}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, semrushConnectionId: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.selectConnection,
+                    )}
+                  >
+                    {enabledSemrushConnections.find(
+                      (connection) => connection.id === form.semrushConnectionId,
+                    )?.displayName ??
+                      intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {enabledSemrushConnections.map((connection) => (
+                    <SelectItem key={connection.id} value={connection.id}>
+                      {connection.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.semrushConnectionId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
         <AddToolMenu
           contentfulConnected={contentfulConnected}
           disabled={disabled}
@@ -2094,6 +2183,7 @@ function ToolsSettings({
           mcpConnected={mcpConnected}
           onChange={onChange}
           repositories={repositories}
+          semrushConnected={semrushConnected}
           slackConnected={slackConnected}
         />
       </EditorPanel>
@@ -2344,6 +2434,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const semrushConnectionsQuery = useQuery({
+    queryKey: ["semrush-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["semrush-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Semrush connections");
+      }
+      const body = await response.json();
+      return body.semrushConnections as SemrushConnectionOption[];
+    },
+  });
+
   const repositories = useMemo(
     () => (repositoriesQuery.data ?? []).filter((repository) => !repository.archived),
     [repositoriesQuery.data],
@@ -2354,6 +2458,7 @@ export function WorkspaceAutomationEditor({
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
+  const semrushConnections = semrushConnectionsQuery.data ?? [];
   const hasHistory = mode === "detail";
 
   return (
@@ -2499,6 +2604,7 @@ export function WorkspaceAutomationEditor({
             organizationSlug={organizationSlug}
             projects={projectsQuery.data ?? []}
             repositories={repositories}
+            semrushConnections={semrushConnections}
             slackChannels={slackChannelsQuery.data ?? []}
             slackChannelsLoading={slackChannelsQuery.isLoading}
             slackConnected={slackConnected}
