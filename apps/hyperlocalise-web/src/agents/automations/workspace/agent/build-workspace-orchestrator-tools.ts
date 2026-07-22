@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ToolSet } from "ai";
 
 import type { WorkspaceOrchestratorSession } from "./context";
@@ -9,6 +21,7 @@ import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
+import { createUseSemrushTool } from "./tools/use_semrush";
 
 const TOOL_BUILDERS: Record<
   WorkspaceOrchestratorToolName,
@@ -19,6 +32,7 @@ const TOOL_BUILDERS: Record<
   run_contentful_translation: createRunContentfulTranslationTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
+  use_semrush: createUseSemrushTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
 };

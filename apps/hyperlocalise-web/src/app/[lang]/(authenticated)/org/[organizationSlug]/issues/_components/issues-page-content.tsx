@@ -1,7 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 "use client";
-
 import { useMemo, type KeyboardEvent } from "react";
-import { useRouter } from "next/navigation";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
@@ -12,6 +22,7 @@ import { issueListStateToApiQuery } from "../../_components/issue-list-url-state
 import { useIssueListUrlState } from "../../_components/use-issue-list-url-state";
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
+import { useRouter } from "next/navigation";
 
 const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
   ["organization-issues", organizationSlug, query] as const;
@@ -54,7 +65,10 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
         throw await readApiResponseError(response, "Failed to load projects");
       }
       const body = (await response.json()) as { projects: ProjectOption[] };
-      return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      return body.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+      }));
     },
   });
 

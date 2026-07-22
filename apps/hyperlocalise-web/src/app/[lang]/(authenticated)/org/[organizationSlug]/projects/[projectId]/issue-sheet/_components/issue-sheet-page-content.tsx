@@ -1,8 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 "use client";
-
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +57,8 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type IssueSheetColumn = {
   id: string;
@@ -237,7 +248,9 @@ export function IssueSheetPageContent({
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] });
+    await queryClient.invalidateQueries({
+      queryKey: ["issue-sheet", organizationSlug, projectId],
+    });
   };
 
   const updateIssue = useMutation({
@@ -449,7 +462,10 @@ export function IssueSheetPageContent({
                         value={issue.status}
                         items={statusItems}
                         onValueChange={(value) =>
-                          updateIssue.mutate({ issueId: issue.id, body: { status: value } })
+                          updateIssue.mutate({
+                            issueId: issue.id,
+                            body: { status: value },
+                          })
                         }
                       >
                         <SelectTrigger className="w-36">
@@ -481,7 +497,10 @@ export function IssueSheetPageContent({
                         value={issue.issueType}
                         items={issueTypeItems}
                         onValueChange={(value) =>
-                          updateIssue.mutate({ issueId: issue.id, body: { issueType: value } })
+                          updateIssue.mutate({
+                            issueId: issue.id,
+                            body: { issueType: value },
+                          })
                         }
                       >
                         <SelectTrigger className="w-44">
@@ -523,7 +542,11 @@ export function IssueSheetPageContent({
                           value={issue.values[column.key]}
                           emptyValue={emptyValue}
                           onChange={(value) =>
-                            setValue.mutate({ issueId: issue.id, columnKey: column.key, value })
+                            setValue.mutate({
+                              issueId: issue.id,
+                              columnKey: column.key,
+                              value,
+                            })
                           }
                         />
                       </td>
@@ -626,7 +649,10 @@ function CustomCell({
 
   if (column.type === "select") {
     const options = column.config.options ?? [];
-    const selectItems = options.map((option) => ({ value: option.id, label: option.label }));
+    const selectItems = options.map((option) => ({
+      value: option.id,
+      label: option.label,
+    }));
     return (
       <Select
         value={draft || undefined}
