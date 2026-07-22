@@ -31,7 +31,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
-import { HyperlocaliseClientError, pollLocalizeDesign, startLocalizeDesign } from "./hyperlocalise-client";
+import {
+  HyperlocaliseClientError,
+  pollLocalizeDesign,
+  startLocalizeDesign,
+} from "./hyperlocalise-client";
 import {
   loadSettings,
   parseSelectedPageValues,
