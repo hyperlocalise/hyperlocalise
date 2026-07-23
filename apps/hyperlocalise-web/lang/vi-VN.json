@@ -14,6 +14,9 @@
   "+1W0ppiYtZ": {
     "defaultMessage": "Project: {value}"
   },
+  "+1a6pZauYN": {
+    "defaultMessage": "Enter a Semrush API key."
+  },
   "+1iKu+aEDX": {
     "defaultMessage": "Reference only"
   },
@@ -53,6 +56,9 @@
   "+FuW5t+7ZR": {
     "defaultMessage": "Comment failed"
   },
+  "+G0v8S+Z5x": {
+    "defaultMessage": "API key"
+  },
   "+Gpj/X++wo": {
     "defaultMessage": "Running…"
   },
@@ -73,6 +79,9 @@
   },
   "+M3Cw0Pn31": {
     "defaultMessage": "—"
+  },
+  "+Pn3eYONmL": {
+    "defaultMessage": "Semrush"
   },
   "+RWDHuTqY1": {
     "defaultMessage": "You"
@@ -464,6 +473,9 @@
   "0bosLZsKFI": {
     "defaultMessage": "Điều phối các lượt rà soát bản địa hóa từ các đề cập, tin nhắn trực tiếp và các chuỗi đã đăng ký trên Slack."
   },
+  "0eU/dl/Oha": {
+    "defaultMessage": "Save"
+  },
   "0fORPZlrsy": {
     "defaultMessage": "Không gian làm việc của bạn trong nháy mắt — công việc được giao, hoạt động mới nhất và các dự án gần đây."
   },
@@ -481,6 +493,9 @@
   },
   "0kqhhOMa9k": {
     "defaultMessage": "Open AI"
+  },
+  "0l4RNVGmUQ": {
+    "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey."
   },
   "0lByDvasg5": {
     "defaultMessage": "Queue banner for translation reviews that still need human approval."
@@ -980,6 +995,9 @@
   "3gBCC4Vt7Q": {
     "defaultMessage": "Cố vấn"
   },
+  "3ggwxElkQA": {
+    "defaultMessage": "Display name"
+  },
   "3iZn32bnuU": {
     "defaultMessage": "Team members"
   },
@@ -1261,6 +1279,9 @@
   },
   "5N0h/1bean": {
     "defaultMessage": "Group by check type"
+  },
+  "5N7UDRdane": {
+    "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations."
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects"
@@ -1546,6 +1567,9 @@
   },
   "74QTrAm8Mn": {
     "defaultMessage": "Tích hợp"
+  },
+  "75DautUGXW": {
+    "defaultMessage": "Semrush"
   },
   "75tLVTlfqV": {
     "defaultMessage": "Đã bỏ qua"
@@ -2483,6 +2507,9 @@
   "CS4n4RFeFk": {
     "defaultMessage": "No members on this team"
   },
+  "CSG8FIAxsD": {
+    "defaultMessage": "Delete"
+  },
   "CTLXW62s69": {
     "defaultMessage": "Task type"
   },
@@ -3221,6 +3248,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}"
   },
+  "GwX/prLtJh": {
+    "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool."
+  },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
   },
@@ -3433,6 +3463,9 @@
   },
   "IKqMePX2fP": {
     "defaultMessage": "No source files are available to download."
+  },
+  "IKxY25Mtmd": {
+    "defaultMessage": "Loading issue"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files"
@@ -3685,6 +3718,9 @@
   },
   "Jwoqn7hfPq": {
     "defaultMessage": "Needs attention"
+  },
+  "JxSxJmFns3": {
+    "defaultMessage": "Loading issue..."
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Đã sao chép"
@@ -4376,6 +4412,9 @@
   "OaCyhQHy0p": {
     "defaultMessage": "Cấu hình các kiểm tra để ngăn việc gộp khi thiếu các ngôn ngữ cục bộ quan trọng hoặc khi vượt quá các ngưỡng suy giảm."
   },
+  "ObwCSlFgt9": {
+    "defaultMessage": "Query Semrush SEO and traffic data through your connected API key."
+  },
   "OcLmphgOVD": {
     "defaultMessage": "Agent"
   },
@@ -4646,6 +4685,9 @@
   "QC53J43wn0": {
     "defaultMessage": "Coming soon"
   },
+  "QCQEKXAzmZ": {
+    "defaultMessage": "Issue not found or you do not have access."
+  },
   "QDxYX6HLaI": {
     "defaultMessage": "Không có tệp nào khớp với các loại được chấp nhận."
   },
@@ -4741,6 +4783,9 @@
   },
   "QhgL5ysg0T": {
     "defaultMessage": "Logo Hyperlocalise"
+  },
+  "Qiz/awCu+C": {
+    "defaultMessage": "Semrush connection deleted."
   },
   "Qj9S5injry": {
     "defaultMessage": "Key"
@@ -4844,8 +4889,14 @@
   "RDYoEaU2oe": {
     "defaultMessage": "Contentful"
   },
+  "REOBtpoOI7": {
+    "defaultMessage": "No Semrush connections yet."
+  },
   "RHVJ0v0DYf": {
     "defaultMessage": "Không thể tải các lần chạy tự động hóa."
+  },
+  "RHfBrqrbnQ": {
+    "defaultMessage": "Add connection"
   },
   "RKI1ij45Ie": {
     "defaultMessage": "Chưa có tin nhắn nào"
@@ -6548,6 +6599,9 @@
   "bajKG/XM1h": {
     "defaultMessage": "Các chỗ giữ chỗ bổ sung"
   },
+  "basdUhXB4X": {
+    "defaultMessage": "SEO tools"
+  },
   "bc6k5kD1Ao": {
     "defaultMessage": "Bản dịch nháp"
   },
@@ -7073,6 +7127,9 @@
   "evmQYH9X0j": {
     "defaultMessage": "Description"
   },
+  "ey4FPcP+AI": {
+    "defaultMessage": "API key ending in {suffix}"
+  },
   "ez8PrKiaQJ": {
     "defaultMessage": "Source mistake"
   },
@@ -7447,6 +7504,9 @@
   },
   "h1w+zE8OFG": {
     "defaultMessage": "Project"
+  },
+  "h2M/vw0KN9": {
+    "defaultMessage": "Remove this Semrush connection from automations before deleting it."
   },
   "h3/Sx/1Xgp": {
     "defaultMessage": "Tải lên nguồn"
@@ -8159,6 +8219,9 @@
   "ky7nZwQbWB": {
     "defaultMessage": "Warnings"
   },
+  "l+wMmn4Krw": {
+    "defaultMessage": "Failed to load Semrush connections."
+  },
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini"
   },
@@ -8659,6 +8722,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining"
+  },
+  "o9256BhMtE": {
+    "defaultMessage": "Failed to save Semrush connection."
   },
   "oAg3HpyTvd": {
     "defaultMessage": "Run QA checks"
@@ -9293,6 +9359,9 @@
   "s5vcFBwpaD": {
     "defaultMessage": "Release window active"
   },
+  "s7935wKE28": {
+    "defaultMessage": "Remove Semrush tool"
+  },
   "s7KJsLFXt/": {
     "defaultMessage": "Request failed"
   },
@@ -9664,6 +9733,9 @@
   },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows"
+  },
+  "uYwF7v8b0H": {
+    "defaultMessage": "Cancel"
   },
   "uZ8yLsRfe5": {
     "defaultMessage": "{localePair} · Updated {timestamp}"
@@ -10271,6 +10343,9 @@
   "xp1ilN6OAp": {
     "defaultMessage": "Các bài viết và cập nhật mới nằm trong Zendesk, Intercom, Contentful hoặc Notion — tách biệt khỏi các hàng đợi bản địa hóa."
   },
+  "xs2JNm6T2w": {
+    "defaultMessage": "Failed to delete Semrush connection."
+  },
   "xsAaVb0T8m": {
     "defaultMessage": "Đang chờ xem xét"
   },
@@ -10504,6 +10579,9 @@
   },
   "zElCbJDM+q": {
     "defaultMessage": "Agent Proposal Review"
+  },
+  "zGlv2WTv64": {
+    "defaultMessage": "Semrush connection saved."
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories"
