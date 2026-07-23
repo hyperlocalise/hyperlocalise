@@ -415,34 +415,32 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 	var initialCap int
 	if err == nil {
 		initialCap = len(inv.Placeholders) + len(inv.ICUBlocks)
+	} else {
+		initialCap = strings.Count(s, "{")
 	}
-	// BOLT OPTIMIZATION: Pre-allocate map to minimize rehashing and resizing allocations.
+	initialCap += strings.Count(s, "%")
+
 	tokens := make(map[string]int, initialCap)
 	total := 0
 	if err == nil {
 		for _, ph := range inv.Placeholders {
-			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf to avoid reflection.
 			tokens["icu:"+ph]++
 			total++
 		}
 		for _, block := range inv.ICUBlocks {
 			offsetPart := ""
 			if block.Offset != 0 {
-				// BOLT OPTIMIZATION: Use strconv.Itoa and concatenation instead of fmt.Sprintf.
 				offsetPart = "(offset:" + strconv.Itoa(block.Offset) + ")"
 			}
-			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf to avoid reflection.
 			tokens["icu-block:"+block.Arg+offsetPart+":"+block.Type+":"+strings.Join(block.Options, ",")]++
 			total++
 		}
 	}
 	for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf.
 		tokens["brace:"+match[1]]++
 		total++
 	}
 	for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
-		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf.
 		tokens["printf:"+match]++
 		total++
 	}
