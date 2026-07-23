@@ -10,9 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { DefaultChatTransport, readUIMessageStream } from "ai";
+import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
 
-import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore, ChatDockStreamSnapshot } from "./chat-dock-store";
 
@@ -33,7 +32,7 @@ type ActiveStream = {
   controller: AbortController;
 };
 
-function createAssistantMessage(id: string, text = ""): InboxChatUIMessage {
+function createAssistantMessage(id: string, text = ""): UIMessage {
   return {
     id,
     role: "assistant",
@@ -167,7 +166,7 @@ export class ChatStreamManager {
         trigger: "submit-message",
       });
 
-      let latestMessage: InboxChatUIMessage | null = null;
+      let latestMessage: UIMessage | null = null;
       const messageStream = readUIMessageStream({
         message: createAssistantMessage(messageId),
         stream: chunkStream,

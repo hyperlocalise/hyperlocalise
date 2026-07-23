@@ -13,17 +13,17 @@
 import type { UIMessage } from "ai";
 
 export type InboxChatStatusData = {
-    message: string;
+  message: string;
 };
 
 export type InboxChatToolProgressData = {
-    toolCallId: string;
-    message: string;
+  toolCallId: string;
+  message: string;
 };
 
 export type InboxChatDataTypes = {
-    status: InboxChatStatusData;
-    toolProgress: InboxChatToolProgressData;
+  status: InboxChatStatusData;
+  toolProgress: InboxChatToolProgressData;
 };
 
 export type InboxChatUIMessage = UIMessage<never, InboxChatDataTypes>;

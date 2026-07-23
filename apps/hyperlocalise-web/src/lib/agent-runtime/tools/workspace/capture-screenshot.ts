@@ -841,12 +841,10 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         };
       }
     },
-    execute: async ({
-      target,
-      viewport = DEFAULT_VIEWPORT,
-      waitForMs = DEFAULT_WAIT_FOR_MS,
-      waitForText = [],
-    }, { toolCallId }): Promise<CaptureScreenshotResult> => {
+    execute: async (
+      { target, viewport = DEFAULT_VIEWPORT, waitForMs = DEFAULT_WAIT_FOR_MS, waitForText = [] },
+      { toolCallId },
+    ): Promise<CaptureScreenshotResult> => {
       const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
       if (!gate.allowed) {
         return {

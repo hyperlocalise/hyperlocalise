@@ -55,7 +55,6 @@ import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/t
 import type {
   InboxChatStatusData,
   InboxChatToolProgressData,
-  InboxChatUIMessage,
 } from "@/lib/agent-contracts/inbox-chat-message";
 
 import { conversationMessageListMessages } from "./conversation-message-list.messages";
@@ -72,7 +71,7 @@ import { inboxTypesMessages } from "./inbox-types.messages";
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
 type ToolPart = ToolUIPart | DynamicToolUIPart;
 
-function toAssistantUIMessage(message: ConversationMessage): InboxChatUIMessage {
+function toAssistantUIMessage(message: ConversationMessage): UIMessage {
   return {
     id: message.id,
     role: "assistant",
@@ -384,7 +383,7 @@ function AssistantMessageParts({
   message,
 }: {
   isStreaming: boolean;
-  message: InboxChatUIMessage;
+  message: UIMessage;
 }) {
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
@@ -441,7 +440,10 @@ function AssistantMessageParts({
             part.errorText ?? "",
           ]}
         >
-          <AssistantToolPart part={part} progressMessage={toolProgressByCallId.get(part.toolCallId)} />
+          <AssistantToolPart
+            part={part}
+            progressMessage={toolProgressByCallId.get(part.toolCallId)}
+          />
         </AiElementErrorBoundary>
       ))}
       {text ? (
@@ -544,17 +546,17 @@ function isReasoningPart(part: UIMessage["parts"][number]): part is ReasoningUIP
   return part.type === "reasoning";
 }
 
-function isStatusPart(
-  part: InboxChatUIMessage["parts"][number],
-): part is Extract<InboxChatUIMessage["parts"][number], { type: "data-status" }> & {
+function isStatusPart(part: UIMessage["parts"][number]): part is UIMessage["parts"][number] & {
+  type: "data-status";
   data: InboxChatStatusData;
 } {
   return part.type === "data-status";
 }
 
 function isToolProgressPart(
-  part: InboxChatUIMessage["parts"][number],
-): part is Extract<InboxChatUIMessage["parts"][number], { type: "data-toolProgress" }> & {
+  part: UIMessage["parts"][number],
+): part is UIMessage["parts"][number] & {
+  type: "data-toolProgress";
   data: InboxChatToolProgressData;
 } {
   return part.type === "data-toolProgress";
