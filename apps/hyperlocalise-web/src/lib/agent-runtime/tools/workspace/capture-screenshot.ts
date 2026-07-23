@@ -640,14 +640,28 @@ export function classifyScreenshotCaptureFailure(output: string): ScreenshotCapt
   return "screenshot_capture_failed";
 }
 
+const STORYBOOK_STORIES_SUFFIX_PATTERN = /\.stories\.(tsx?|jsx?|mdx)\b/i;
+/** Conservative path charset, including Next.js `[param]` / `(group)` segments. */
+const STORYBOOK_PATH_CHAR_PATTERN = /[\w@[\]()./-]/;
+
+/**
+ * Extract a `.stories.*` path from Storybook failure output.
+ * Uses a linear scan (no nested quantifiers) to avoid ReDoS.
+ */
 export function extractStorybookStoryPathFromFailure(output: string): string | null {
-  // Paths may include Next.js route groups / dynamic segments such as `[lang]` or `(authenticated)`.
-  const match = output.match(/((?:\.\/)?(?:[^\s:'"]+\/)*[^\s:'"/]+\.stories\.(?:tsx?|jsx?|mdx))/i);
-  if (!match?.[1]) {
+  const suffixMatch = STORYBOOK_STORIES_SUFFIX_PATTERN.exec(output);
+  if (!suffixMatch || suffixMatch.index === undefined) {
     return null;
   }
 
-  return match[1].replace(/^\.\//, "");
+  const end = suffixMatch.index + suffixMatch[0].length;
+  let start = suffixMatch.index;
+  while (start > 0 && STORYBOOK_PATH_CHAR_PATTERN.test(output.charAt(start - 1))) {
+    start -= 1;
+  }
+
+  const path = output.slice(start, end).replace(/^\.\//, "");
+  return path.length > 0 ? path : null;
 }
 
 export function buildScreenshotCaptureRecoveryHint(input: {

@@ -427,6 +427,15 @@ describe("classifyScreenshotCaptureFailure", () => {
       }),
     ).toBe(true);
   });
+
+  it("extracts story paths with a linear scan that tolerates prefix noise", () => {
+    expect(extractStorybookStoryPathFromFailure("no stories here")).toBeNull();
+    expect(
+      extractStorybookStoryPathFromFailure(
+        "prefix!/!/!/noise ./apps/web/src/button.stories.tsx trailing",
+      ),
+    ).toBe("apps/web/src/button.stories.tsx");
+  });
 });
 
 describe("createCaptureScreenshotTool", () => {
