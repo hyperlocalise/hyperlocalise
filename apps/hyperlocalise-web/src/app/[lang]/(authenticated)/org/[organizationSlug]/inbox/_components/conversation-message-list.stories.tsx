@@ -83,6 +83,96 @@ export const Streaming: Story = {
   },
 };
 
+export const CreatingMissingStoryProgress: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-missing-story-progress",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-todoWrite",
+            toolCallId: "initial-plan",
+            state: "output-available",
+            input: {
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing Storybook story",
+                  status: "in-progress",
+                },
+              ],
+            },
+            output: {
+              success: true,
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing Storybook story",
+                  status: "in-progress",
+                },
+              ],
+            },
+          },
+          {
+            type: "tool-todoWrite",
+            toolCallId: "missing-story-plan",
+            state: "output-available",
+            input: {
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing Storybook story",
+                  status: "completed",
+                },
+                {
+                  id: "prepare-preview",
+                  content: "No story found — create a temporary Storybook story with mock data",
+                  status: "in-progress",
+                },
+                {
+                  id: "capture",
+                  content: "Capture and verify the screenshot",
+                  status: "todo",
+                },
+              ],
+            },
+            output: {
+              success: true,
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing Storybook story",
+                  status: "completed",
+                },
+                {
+                  id: "prepare-preview",
+                  content: "No story found — create a temporary Storybook story with mock data",
+                  status: "in-progress",
+                },
+                {
+                  id: "capture",
+                  content: "Capture and verify the screenshot",
+                  status: "todo",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Progress")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("No story found — create a temporary Storybook story with mock data"),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByRole("status")).toHaveLength(1);
+  },
+};
+
 export const ScreenshotProgressAndReasoning: Story = {
   args: {
     messages: [messagesFixture[0]],

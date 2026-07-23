@@ -25,6 +25,10 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
+import {
+  AgentTodoProgress,
+  getAgentTodoItems,
+} from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
@@ -388,6 +392,7 @@ function AssistantMessageParts({
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
   const toolParts = message.parts.filter(isToolPart);
+  const latestTodoCallId = toolParts.findLast(isTodoWritePart)?.toolCallId;
   const statusPart = message.parts.find(isStatusPart);
   const toolProgressByCallId = new Map(
     message.parts
@@ -427,25 +432,39 @@ function AssistantMessageParts({
           </AiElementErrorBoundary>
         ) : null,
       )}
-      {toolParts.map((part, index) => (
-        <AiElementErrorBoundary
-          key={`${part.type}-${index}`}
-          scope="tool"
-          resetKeys={[
-            part.type,
-            part.state,
-            part.toolCallId,
-            serializeToolJson(part.input),
-            serializeToolJson(part.output),
-            part.errorText ?? "",
-          ]}
-        >
-          <AssistantToolPart
-            part={part}
-            progressMessage={toolProgressByCallId.get(part.toolCallId)}
-          />
-        </AiElementErrorBoundary>
-      ))}
+      {toolParts.map((part, index) => {
+        if (isTodoWritePart(part) && part.toolCallId !== latestTodoCallId) {
+          return null;
+        }
+
+        const todoItems = isTodoWritePart(part)
+          ? (getAgentTodoItems(part.output) ?? getAgentTodoItems(part.input))
+          : null;
+
+        return (
+          <AiElementErrorBoundary
+            key={`${part.type}-${index}`}
+            scope="tool"
+            resetKeys={[
+              part.type,
+              part.state,
+              part.toolCallId,
+              serializeToolJson(part.input),
+              serializeToolJson(part.output),
+              part.errorText ?? "",
+            ]}
+          >
+            {todoItems ? (
+              <AgentTodoProgress items={todoItems} />
+            ) : (
+              <AssistantToolPart
+                part={part}
+                progressMessage={toolProgressByCallId.get(part.toolCallId)}
+              />
+            )}
+          </AiElementErrorBoundary>
+        );
+      })}
       {text ? (
         <AiElementErrorBoundary scope="message" resetKeys={[text, isStreaming]}>
           <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
@@ -568,6 +587,12 @@ function isSourcePart(part: UIMessage["parts"][number]): part is SourcePart {
 
 function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
   return part.type === "dynamic-tool" || part.type.startsWith("tool-");
+}
+
+function isTodoWritePart(part: ToolPart) {
+  return (
+    part.type === "tool-todoWrite" || (part.type === "dynamic-tool" && part.toolName === "todoWrite")
+  );
 }
 
 function getSourceTitle(part: SourceUrlUIPart) {
