@@ -82,3 +82,50 @@ export const Streaming: Story = {
     streamedAssistant: createStreamedAssistantMessage(),
   },
 };
+
+export const ScreenshotProgressAndReasoning: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-screenshot-progress",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning",
+            text: "I found the matching Storybook story and am verifying the localized state.",
+            state: "done",
+          },
+          {
+            type: "tool-captureScreenshot",
+            toolCallId: "capture-story",
+            state: "input-available",
+            input: {
+              target: {
+                type: "storybook",
+                storyId: "app-inbox-message-list--default",
+              },
+            },
+          },
+          {
+            type: "data-toolProgress",
+            id: "capture-story",
+            data: {
+              toolCallId: "capture-story",
+              message: "Preparing browser and loading story…",
+            },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Preparing browser and loading story…")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "I found the matching Storybook story and am verifying the localized state.",
+      ),
+    ).toBeInTheDocument();
+  },
+};
