@@ -14,7 +14,7 @@ import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 
-export const hyperlocaliseAgentStepLimit = 10;
+export const hyperlocaliseAgentStepLimit = 16;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export function buildHyperlocaliseDynamicSections(input: {

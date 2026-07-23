@@ -39,8 +39,22 @@ import {
 
 export type { HyperlocaliseAgentSurface };
 
-export const hyperlocaliseAgentStepLimit = 10;
+/**
+ * Visual-mock and repository inspection turns need room for inspect → scaffold →
+ * capture → fix → retry → final text. Reserve the last step for a text-only reply
+ * via `prepareConversationSkillStep`.
+ */
+export const hyperlocaliseAgentStepLimit = 16;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
+
+/** Force a text-only final step so tool failures are explained to the user. */
+export function prepareConversationSkillStep({ stepNumber }: { stepNumber: number }) {
+  if (stepNumber >= hyperlocaliseAgentStepLimit - 1) {
+    return { toolChoice: "none" as const };
+  }
+
+  return undefined;
+}
 
 type InteractionHistoryRow = {
   senderType: "user" | "agent";

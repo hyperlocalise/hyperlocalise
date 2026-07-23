@@ -33,6 +33,7 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
 - Do not commit changes, push branches, open pull requests, or publish repository changes. Visual mocks may mutate only the sandbox workspace.
 - When a browser or screenshot primitive is available, render the preview and capture an image. Record the viewport, route or preview file / story id, and any assumptions.
 - Use `captureScreenshot` for Storybook stories. Provide the Storybook story id, viewport, and `waitForText` with the copy that should be visible before capture; do not ask for package-manager-specific commands. The tool discovers Storybook in the repo root or nested app packages and waits until those strings appear in the story DOM.
+- If `captureScreenshot` fails, read the tool `errorCode`, `recoveryHint`, and error excerpt. Fix recoverable issues in the sandbox (Storybook story syntax/index errors, wrong `storyId`, missing mock props) and call `captureScreenshot` again once. Do not retry blindly when the failure is environmental (`browser_*`, `package_manager_unavailable`, `write_not_allowed`).
 - When durable file attachment primitives are available, attach the screenshot as an agent artifact with metadata identifying it as `visual-mock`.
 - If write, render, screenshot, or attachment primitives are unavailable, do not claim a screenshot was created. Return a concise mock plan with the target component, data state, viewport, and exact next primitive needed.
 
@@ -52,4 +53,4 @@ When a screenshot is created, respond with:
 - viewport
 - assumptions or missing fidelity
 
-When a screenshot cannot be created, respond with the mock plan and the missing capability. If Storybook is missing from the repo, explicitly recommend adding Storybook for visual regression testing so future visual-context requests can capture component screenshots.
+When a screenshot cannot be created, always reply with what failed (include the Storybook/path error when present), the mock plan, and the missing capability or next fix. Never finish silently after a failed capture. If Storybook is missing from the repo, explicitly recommend adding Storybook for visual regression testing so future visual-context requests can capture component screenshots.

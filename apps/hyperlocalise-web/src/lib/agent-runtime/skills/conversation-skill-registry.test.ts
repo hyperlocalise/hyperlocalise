@@ -201,9 +201,15 @@ describe("conversation skill registry", () => {
     expect(visualMockSkill).toContain(
       "Call `captureScreenshot` with that `storyId` and `waitForText`",
     );
+    expect(visualMockSkill).toContain("If `captureScreenshot` fails");
+    expect(visualMockSkill).toContain("call `captureScreenshot` again once");
+    expect(visualMockSkill).toContain("Never finish silently after a failed capture");
     expect(visualMockSkill).toContain("do not invent a Storybook setup");
     expect(visualMockSkill).toContain(
       "implement visual regression testing with it so component screenshots can be captured",
+    );
+    expect(conversationSkill).toContain(
+      "When a tool fails, always leave a short user-facing explanation",
     );
   });
 
