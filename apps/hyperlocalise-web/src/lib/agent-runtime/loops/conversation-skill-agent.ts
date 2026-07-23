@@ -47,6 +47,11 @@ export function createConversationSkillAgent(
     }),
     tools,
     activeTools: toolNames,
+    providerOptions: {
+      openai: {
+        reasoningSummary: "auto",
+      },
+    },
     experimental_context: runtime,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,

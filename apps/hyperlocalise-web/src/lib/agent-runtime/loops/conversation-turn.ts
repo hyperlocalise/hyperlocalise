@@ -281,6 +281,7 @@ export type PrepareConversationAgentTurnInput = {
   channelId?: string | null;
   repositorySource?: RepositoryAgentTaskSource;
   actor?: ToolContext["actor"];
+  reportToolProgress?: ToolContext["reportToolProgress"];
   db: ToolContext["db"];
   reuseCommittedRepositorySandboxOnly?: boolean;
 };
@@ -382,6 +383,7 @@ export async function prepareConversationAgentTurn(
       membershipRole: input.membershipRole,
       projectId: input.projectId,
       db: input.db,
+      reportToolProgress: input.reportToolProgress,
       ...(sandboxId
         ? {
             sandboxId,

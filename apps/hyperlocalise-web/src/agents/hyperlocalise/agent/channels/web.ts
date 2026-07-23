@@ -19,6 +19,7 @@ import {
   type UIMessage,
 } from "ai";
 
+import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import {
   reserveAgentRuntimeUsage,
@@ -35,12 +36,6 @@ import {
   type PrepareConversationAgentTurnInput,
   type PrepareConversationAgentTurnResult,
 } from "@/lib/agent-runtime/loops/conversation-turn";
-
-export type InboxChatStatusData = {
-  message: string;
-};
-
-export type InboxChatUIMessage = UIMessage<never, { status: InboxChatStatusData }>;
 
 function textFromParts(parts: UIMessage["parts"]) {
   return parts
@@ -128,7 +123,6 @@ export function createWebChatAgentUIStreamResponse(input: {
         type: "data-status",
         id: "prep",
         data: { message: "Preparing…" },
-        transient: true,
       });
 
       const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
@@ -142,6 +136,13 @@ export function createWebChatAgentUIStreamResponse(input: {
         hasTranslationAttachments: input.hasTranslationAttachments,
         repositorySource: "chat_ui",
         db: input.toolContext.db,
+        reportToolProgress: ({ toolCallId, message }) => {
+          writer.write({
+            type: "data-toolProgress",
+            id: toolCallId,
+            data: { toolCallId, message },
+          });
+        },
       });
 
       if (prepared.clarificationFollowUp) {
@@ -178,7 +179,6 @@ export function createWebChatAgentUIStreamResponse(input: {
         type: "data-status",
         id: "prep",
         data: { message: "Thinking…" },
-        transient: true,
       });
 
       try {

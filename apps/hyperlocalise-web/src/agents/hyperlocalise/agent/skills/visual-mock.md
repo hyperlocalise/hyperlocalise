@@ -14,6 +14,11 @@ This is an agent workflow skill, not a screenshot product tool. Compose lower-le
 ## Workflow
 
 - Clarify the target screen, state, viewport, and purpose only when they cannot be inferred from the request or repository context.
+- Before repository inspection, call `todoWrite` with this workflow checklist and keep it updated after each milestone:
+  1. `Find the target component and an existing Storybook story` — `in-progress`
+  2. `Prepare a representative preview state` — `todo`
+  3. `Capture and verify the screenshot` — `todo`
+- Keep exactly one checklist item `in-progress`. When no suitable story exists, mark the first item `completed` and change the second item to `No story found — create a temporary Storybook story with mock data` before using `write` or `applyPatch`. After the preview renders, mark that item `completed` and the capture item `in-progress`. Mark every item `completed` only after screenshot capture succeeds.
 - Inspect the repository for the relevant route, component, design system, fixtures, stories, test data, and styling before inventing UI.
 - Locate the component that renders the target string/key (usage site, parent screen, or leaf UI). Prefer capturing that component's UI over freehand descriptions.
 - Prefer an **existing** Storybook story for that component when one already exists. Reuse nearby fixtures, test data, or story args when possible.
