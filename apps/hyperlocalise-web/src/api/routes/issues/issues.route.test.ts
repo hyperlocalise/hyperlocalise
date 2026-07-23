@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -271,5 +283,80 @@ describe("Organization issues routes", () => {
       "open",
       "in_progress",
     ]);
+  });
+});
+
+describe("Organization issue-sheet GET", () => {
+  function organizationIssueSheetUrl(organizationSlug: string, issueId: string) {
+    return `/api/orgs/${encodeURIComponent(organizationSlug)}/issue-sheet/${encodeURIComponent(issueId)}`;
+  }
+
+  it("returns one authorized issue by id", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Resolvable issue",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { issue: { id: string; title: string } };
+
+    const response = await requestJson(
+      organizationIssueSheetUrl(organizationSlug, created.issue.id),
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      issue: { id: string; title: string; projectId: string; projectName: string };
+    };
+    expect(body.issue).toMatchObject({
+      id: created.issue.id,
+      title: "Resolvable issue",
+      projectId: project.id,
+    });
+    expect(body.issue.projectName).toBeTruthy();
+  });
+
+  it("returns 404 for missing issues", async () => {
+    const { identity } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(
+      organizationIssueSheetUrl(organizationSlug, "00000000-0000-4000-8000-000000000000"),
+      { headers },
+    );
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "issue_not_found" });
+  });
+
+  it("returns 404 for cross-workspace access", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const outsider = await projectFixture.createStoredProjectFixture();
+    const ownerHeaders = await projectFixture.authHeadersFor(owner.identity);
+    const outsiderHeaders = await projectFixture.authHeadersFor(outsider.identity);
+    const ownerSlug = owner.identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(ownerSlug, owner.project.id), {
+      method: "POST",
+      headers: ownerHeaders,
+      body: {
+        title: "Other workspace issue",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { issue: { id: string } };
+
+    const response = await requestJson(organizationIssueSheetUrl(ownerSlug, created.issue.id), {
+      headers: outsiderHeaders,
+    });
+    expect(response.status).toBe(404);
   });
 });

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -125,8 +137,8 @@ export function AppShellClient({
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-h-svh bg-background pb-[var(--app-shell-footer-height)]">
-          <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
+        <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
+          <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur">
             <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <SidebarTrigger className="-ms-1" />
@@ -161,7 +173,9 @@ export function AppShellClient({
             </div>
           </div>
 
-          <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+            {children}
+          </div>
         </SidebarInset>
 
         <AppShellFooter

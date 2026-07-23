@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { defineMessages } from "react-intl";
 
 export const integrationsPageContentMessages = defineMessages({
@@ -22,6 +34,11 @@ export const integrationsPageContentMessages = defineMessages({
     defaultMessage: "MCP servers",
     id: "D2ZrcxejKr",
     description: "Category label for MCP server connections on the Integrations page",
+  },
+  seoToolsCategory: {
+    defaultMessage: "SEO tools",
+    id: "basdUhXB4X",
+    description: "Category label for SEO tool connections on the Integrations page",
   },
   cmsCategory: {
     defaultMessage: "Content Management System",

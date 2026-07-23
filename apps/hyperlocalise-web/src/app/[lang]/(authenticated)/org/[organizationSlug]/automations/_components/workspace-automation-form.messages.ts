@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { defineMessages } from "react-intl";
 
 export const workspaceAutomationFormMessages = defineMessages({
@@ -358,6 +370,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Remove MCP Server tool",
     id: "ykXAFysnC5",
     description: "Accessible label to remove the MCP Server tool",
+  },
+  semrush: {
+    defaultMessage: "Semrush",
+    id: "+Pn3eYONmL",
+    description: "Menu item and tool title for Semrush SEO data",
+  },
+  semrushDescription: {
+    defaultMessage: "Query Semrush SEO and traffic data through your connected API key.",
+    id: "ObwCSlFgt9",
+    description: "Description for the Semrush automation tool when a connection exists",
+  },
+  semrushDisconnectedDescription: {
+    defaultMessage: "Connect Semrush with an API key in Integrations before using this tool.",
+    id: "GwX/prLtJh",
+    description: "Description when no Semrush connection is available",
+  },
+  removeSemrushTool: {
+    defaultMessage: "Remove Semrush tool",
+    id: "s7935wKE28",
+    description: "Accessible label to remove the Semrush tool",
   },
   comingSoon: {
     defaultMessage: "Coming soon",

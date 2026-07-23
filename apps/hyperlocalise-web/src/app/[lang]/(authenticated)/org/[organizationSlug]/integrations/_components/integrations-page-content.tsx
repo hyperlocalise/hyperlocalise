@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -72,6 +84,7 @@ import {
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
+import { SemrushConnectionPanel } from "./semrush-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
@@ -1388,6 +1401,15 @@ export function IntegrationsPageContent({
                 </CmsIntegrationRow>
               </div>
             )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.seoToolsCategory} />
+            </IntegrationCategoryLabel>
+            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+              <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+            </div>
           </section>
 
           <section className="flex flex-col gap-3">

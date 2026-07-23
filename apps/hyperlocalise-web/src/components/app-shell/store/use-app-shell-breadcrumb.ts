@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useEffect } from "react";
 
 import type { BreadcrumbAppend, BreadcrumbOverride } from "./breadcrumb-store";
@@ -26,17 +38,17 @@ export function useAppShellBreadcrumbOverride(config: BreadcrumbOverrideConfig) 
 
 export function useAppShellBreadcrumbAppend(config: BreadcrumbAppendConfig) {
   const store = useAppShellStore();
-  const { id, label, href } = config;
+  const { id, label, href, title } = config;
 
   useEffect(() => {
     if (label === undefined) {
       return;
     }
 
-    store.breadcrumb.registerAppend({ id, label, href });
+    store.breadcrumb.registerAppend({ id, label, href, title });
 
     return () => {
       store.breadcrumb.unregisterAppend(id);
     };
-  }, [store, id, label, href]);
+  }, [store, id, label, href, title]);
 }

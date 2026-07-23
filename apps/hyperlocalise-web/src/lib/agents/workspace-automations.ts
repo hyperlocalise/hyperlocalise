@@ -1,9 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
@@ -139,6 +152,13 @@ const mcpToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const semrushToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
@@ -148,6 +168,7 @@ const toolConfigSchema = z
     translation: translationToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
+    semrush: semrushToolConfigSchema.optional(),
   })
   .default({});
 
@@ -169,6 +190,7 @@ export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigS
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
+export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -248,6 +270,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "mcp_not_connected";
       message: "Enable the selected MCP server connection in Integrations before using it.";
+    }
+  | {
+      code: "semrush_connection_required";
+      message: "Enabled Semrush tools require a Semrush connection.";
+    }
+  | {
+      code: "semrush_connection_not_found";
+      message: "The selected Semrush connection was not found. Choose another connection.";
+    }
+  | {
+      code: "semrush_not_connected";
+      message: "Enable the selected Semrush connection in Integrations before using it.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -271,6 +305,10 @@ export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomat
 
 export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.mcp?.enabled);
+}
+
+export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.semrush?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -457,15 +495,32 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  const semrushTools = input.toolConfig.semrush;
+  if (semrushTools?.enabled && !semrushTools.connectionId) {
+    return err({
+      code: "semrush_connection_required",
+      message: "Enabled Semrush tools require a Semrush connection.",
+    });
+  }
+
   return ok(undefined);
 }
 
 export async function validateWorkspaceAutomationIntegrations(input: {
   organizationId: string;
   toolConfig: WorkspaceAutomationToolConfig;
+  db?: DatabaseClient;
+  /**
+   * When true, locks the selected Semrush connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockSemrushConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
+  const database = input.db ?? db;
+
   if (input.toolConfig.slack?.enabled) {
-    const [connector] = await db
+    const [connector] = await database
       .select({ enabled: schema.connectors.enabled })
       .from(schema.connectors)
       .where(
@@ -485,7 +540,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
   }
 
   if (input.toolConfig.email?.enabled) {
-    const [connector] = await db
+    const [connector] = await database
       .select({ enabled: schema.connectors.enabled })
       .from(schema.connectors)
       .where(
@@ -513,7 +568,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       });
     }
 
-    const [connection] = await db
+    const [connection] = await database
       .select({
         id: schema.mcpServerConnections.id,
         enabled: schema.mcpServerConnections.enabled,
@@ -538,6 +593,53 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "mcp_not_connected",
         message: "Enable the selected MCP server connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.semrush?.enabled) {
+    const connectionId = input.toolConfig.semrush.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "semrush_connection_required",
+        message: "Enabled Semrush tools require a Semrush connection.",
+      });
+    }
+
+    const connection = input.lockSemrushConnection
+      ? await lockSemrushConnectionForUpdate({
+          organizationId: input.organizationId,
+          connectionId,
+          db: database,
+        })
+      : ((
+          await database
+            .select({
+              id: schema.semrushConnections.id,
+              enabled: schema.semrushConnections.enabled,
+              validationStatus: schema.semrushConnections.validationStatus,
+            })
+            .from(schema.semrushConnections)
+            .where(
+              and(
+                eq(schema.semrushConnections.organizationId, input.organizationId),
+                eq(schema.semrushConnections.id, connectionId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null);
+
+    if (!connection) {
+      return err({
+        code: "semrush_connection_not_found",
+        message: "The selected Semrush connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled || connection.validationStatus !== "valid") {
+      return err({
+        code: "semrush_not_connected",
+        message: "Enable the selected Semrush connection in Integrations before using it.",
       });
     }
   }
@@ -582,6 +684,12 @@ function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRe
   };
 }
 
+function shouldLockSemrushConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+}
+
 export async function createWorkspaceAutomation(input: {
   organizationId: string;
   authorUserId?: string | null;
@@ -608,14 +716,6 @@ export async function createWorkspaceAutomation(input: {
     return err(validation.error);
   }
 
-  const integrationValidation = await validateWorkspaceAutomationIntegrations({
-    organizationId: input.organizationId,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(integrationValidation)) {
-    return err(integrationValidation.error);
-  }
-
   const draftAutomation: WorkspaceAutomationRecord = {
     id: crypto.randomUUID(),
     organizationId: input.organizationId,
@@ -636,32 +736,54 @@ export async function createWorkspaceAutomation(input: {
       ? input.nextRunAt
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
-  const database = input.db ?? db;
+  const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(config.toolConfig);
 
-  const [row] = await database
-    .insert(schema.workspaceAutomations)
-    .values({
+  const write = async (
+    database: DatabaseClient,
+  ): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> => {
+    const integrationValidation = await validateWorkspaceAutomationIntegrations({
       organizationId: input.organizationId,
-      authorUserId: input.authorUserId ?? null,
-      status: input.status ?? "active",
-      name: input.name,
-      instructions: input.instructions,
-      triggerConfig: config.triggerConfig,
-      githubInstallationRepositoryId:
-        config.repositoryTarget.kind === "github"
-          ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
-          : null,
-      repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
-      nextRunAt: resolvedNextRunAt,
-    })
-    .returning();
+      db: database,
+      lockSemrushConnection,
+    });
+    if (isErr(integrationValidation)) {
+      return err(integrationValidation.error);
+    }
 
-  if (!row) {
-    throw new Error("failed_to_create_workspace_automation");
+    const [row] = await database
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: input.organizationId,
+        authorUserId: input.authorUserId ?? null,
+        status: input.status ?? "active",
+        name: input.name,
+        instructions: input.instructions,
+        triggerConfig: config.triggerConfig,
+        githubInstallationRepositoryId:
+          config.repositoryTarget.kind === "github"
+            ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
+            : null,
+        repositoryTarget: config.repositoryTarget,
+        toolConfig: config.toolConfig,
+        nextRunAt: resolvedNextRunAt,
+      })
+      .returning();
+
+    if (!row) {
+      throw new Error("failed_to_create_workspace_automation");
+    }
+
+    return ok(serializeAutomation(row));
+  };
+
+  if (input.db) {
+    return write(input.db);
   }
-
-  return ok(serializeAutomation(row));
+  if (lockSemrushConnection) {
+    return db.transaction(write);
+  }
+  return write(db);
 }
 
 export async function updateWorkspaceAutomation(input: {
@@ -711,14 +833,6 @@ export async function updateWorkspaceAutomation(input: {
     if (isErr(validation)) {
       return err(validation.error);
     }
-
-    const integrationValidation = await validateWorkspaceAutomationIntegrations({
-      organizationId: input.organizationId,
-      toolConfig: config.toolConfig,
-    });
-    if (isErr(integrationValidation)) {
-      return err(integrationValidation.error);
-    }
   }
 
   const mergedAutomation: WorkspaceAutomationRecord = {
@@ -751,37 +865,64 @@ export async function updateWorkspaceAutomation(input: {
     updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
   }
 
-  const database = input.db ?? db;
+  const lockSemrushConnection =
+    configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
 
-  const [row] = await database
-    .update(schema.workspaceAutomations)
-    .set({
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
-      ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
-      ...(input.repositoryTarget !== undefined
-        ? {
-            githubInstallationRepositoryId:
-              config.repositoryTarget.kind === "github"
-                ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
-                : null,
-            repositoryTarget: config.repositoryTarget,
-          }
-        : {}),
-      ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
-      ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
-        ? { nextRunAt: resolvedNextRunAt }
-        : {}),
-      ...(configChanged
-        ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
-        : {}),
-      updatedAt: new Date(),
-    })
-    .where(and(...updateConditions))
-    .returning();
+  const write = async (
+    database: DatabaseClient,
+  ): Promise<
+    Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>
+  > => {
+    if (configChanged) {
+      const integrationValidation = await validateWorkspaceAutomationIntegrations({
+        organizationId: input.organizationId,
+        toolConfig: config.toolConfig,
+        db: database,
+        lockSemrushConnection,
+      });
+      if (isErr(integrationValidation)) {
+        return err(integrationValidation.error);
+      }
+    }
 
-  return ok(row ? serializeAutomation(row) : null);
+    const [row] = await database
+      .update(schema.workspaceAutomations)
+      .set({
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+        ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
+        ...(input.repositoryTarget !== undefined
+          ? {
+              githubInstallationRepositoryId:
+                config.repositoryTarget.kind === "github"
+                  ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
+                  : null,
+              repositoryTarget: config.repositoryTarget,
+            }
+          : {}),
+        ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
+        ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
+          ? { nextRunAt: resolvedNextRunAt }
+          : {}),
+        ...(configChanged
+          ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
+          : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(...updateConditions))
+      .returning();
+
+    return ok(row ? serializeAutomation(row) : null);
+  };
+
+  if (input.db) {
+    return write(input.db);
+  }
+  if (lockSemrushConnection) {
+    return db.transaction(write);
+  }
+  return write(db);
 }
 
 export async function pauseWorkspaceAutomation(input: {

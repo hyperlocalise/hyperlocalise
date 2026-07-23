@@ -229,3 +229,9 @@
 **Learning:** Crowdin API v2 supports branch-level webhooks (`branch.translated`, `branch.approved`) which were missing from the SDK's `Event` type. Additionally, the service documentation was missing many modern events like file lifecycle, tasks, and groups, which can lead to confusion about supported capabilities.
 
 **Action:** Added `BranchTranslated` and `BranchApproved` constants to the `Event` model in `model/webhooks.go`. Comprehensively updated the docstrings for `WebhooksService` and `OrganizationWebhooksService` to list all supported events confirmed by documentation. Verified correct serialization of the new branch events with `TestWebhooksService_Add_BranchEvents`.
+
+## 2026-12-12 - Improve Group model parity for ParentID root filtering
+
+**Learning:** In Crowdin API v2, `parentId` is an optional field when listing groups. Specifically, querying root-level groups requires setting `parentId=0`. However, the Go SDK typed `ParentID` as an `int` and had a condition `o.ParentID > 0` before appending it to query parameters, making root group filtering impossible.
+
+**Action:** Changed `ParentID` type to `*int` in `GroupsListOptions` and updated `Values()` serialization logic to append the parameter as long as `ParentID != nil`. Updated unit tests in both `model/groups_test.go` and `groups_test.go` to explicitly verify `parentId=0` query parameter construction.

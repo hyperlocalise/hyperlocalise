@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Hono } from "hono";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
@@ -27,9 +39,11 @@ import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
+import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
+import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
 import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -157,6 +171,7 @@ function createOrgScopedAppRoutes(
 ) {
   return new Hono()
     .route("/issues", createOrganizationIssuesRoutes())
+    .route("/issue-sheet", createOrganizationIssueSheetRoutes())
     .route("/glossaries", createGlossaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes())
@@ -174,6 +189,7 @@ function createOrgScopedAppRoutes(
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
+    .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(

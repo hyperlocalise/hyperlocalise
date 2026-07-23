@@ -1,6 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 "use client";
-
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,17 +39,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
-import { cn } from "@/lib/primitives/cn";
 
-import { IssueDetailDrawer } from "../../../../_components/issue-detail/issue-detail-drawer";
 import {
+  buildIssueDetailHref,
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
+  issueStatusVariant,
 } from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
 import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
-import { useIssueDetailUrl } from "../../../../_components/use-issue-detail-url";
 import { issueTypeValues, type IssueTypeValue } from "./issue-sheet-constants";
 import { issueSheetPageContentMessages as messages } from "./issue-sheet-page-content.messages";
 import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
@@ -47,6 +57,8 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type IssueSheetColumn = {
   id: string;
@@ -181,13 +193,6 @@ function columnTypeLabel(intl: IntlShape, value: ColumnTypeValue) {
   }
 }
 
-function statusVariant(status: string) {
-  if (status === "resolved") return "success";
-  if (status === "wont_fix") return "outline";
-  if (status === "in_progress") return "warning";
-  return "secondary";
-}
-
 function buildCatHref(organizationSlug: string, projectId: string, issue: IssueSheetIssue) {
   if (!issue.sourcePath || !issue.targetLocale) {
     return null;
@@ -211,17 +216,9 @@ export function IssueSheetPageContent({
 }) {
   useProjectPageQuery(organizationSlug, projectId);
   const intl = useIntl();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState();
-  const {
-    isOpen: isDetailOpen,
-    openIssueDetail,
-    closeIssueDetail,
-  } = useIssueDetailUrl({
-    state,
-    updateState,
-  });
-  const lastFocusedRowRef = useRef<HTMLTableRowElement | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -251,7 +248,9 @@ export function IssueSheetPageContent({
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] });
+    await queryClient.invalidateQueries({
+      queryKey: ["issue-sheet", organizationSlug, projectId],
+    });
   };
 
   const updateIssue = useMutation({
@@ -303,15 +302,14 @@ export function IssueSheetPageContent({
     [data?.columns],
   );
 
-  const openIssueRow = (issueId: string, row: HTMLTableRowElement) => {
-    lastFocusedRowRef.current = row;
-    openIssueDetail({ issueId });
+  const openIssueRow = (issueId: string) => {
+    router.push(buildIssueDetailHref({ organizationSlug, projectId, issueId }));
   };
 
   const handleIssueRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, issueId: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      openIssueRow(issueId, event.currentTarget);
+      openIssueRow(issueId);
     }
   };
 
@@ -427,16 +425,22 @@ export function IssueSheetPageContent({
                   <tr
                     key={issue.id}
                     tabIndex={0}
-                    aria-current={state.issue === issue.id ? "true" : undefined}
-                    className={cn(
-                      "align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      state.issue === issue.id && "bg-muted/40",
-                    )}
-                    onClick={(event) => openIssueRow(issue.id, event.currentTarget)}
+                    className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => openIssueRow(issue.id)}
                     onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
                   >
                     <td className="max-w-80 px-4 py-3">
-                      <div className="font-medium text-foreground">{issue.title}</div>
+                      <Link
+                        href={buildIssueDetailHref({
+                          organizationSlug,
+                          projectId,
+                          issueId: issue.id,
+                        })}
+                        className="font-medium text-foreground hover:underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {issue.title}
+                      </Link>
                       <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                         {issue.description ||
                           issue.sourceText ||
@@ -458,11 +462,14 @@ export function IssueSheetPageContent({
                         value={issue.status}
                         items={statusItems}
                         onValueChange={(value) =>
-                          updateIssue.mutate({ issueId: issue.id, body: { status: value } })
+                          updateIssue.mutate({
+                            issueId: issue.id,
+                            body: { status: value },
+                          })
                         }
                       >
                         <SelectTrigger className="w-36">
-                          <Badge variant={statusVariant(issue.status)}>
+                          <Badge variant={issueStatusVariant(issue.status)}>
                             {statusLabel(intl, issue.status)}
                           </Badge>
                         </SelectTrigger>
@@ -473,7 +480,9 @@ export function IssueSheetPageContent({
                               value={status.value}
                               label={status.label}
                             >
-                              {status.label}
+                              <Badge variant={issueStatusVariant(status.value)}>
+                                {status.label}
+                              </Badge>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -488,7 +497,10 @@ export function IssueSheetPageContent({
                         value={issue.issueType}
                         items={issueTypeItems}
                         onValueChange={(value) =>
-                          updateIssue.mutate({ issueId: issue.id, body: { issueType: value } })
+                          updateIssue.mutate({
+                            issueId: issue.id,
+                            body: { issueType: value },
+                          })
                         }
                       >
                         <SelectTrigger className="w-44">
@@ -530,7 +542,11 @@ export function IssueSheetPageContent({
                           value={issue.values[column.key]}
                           emptyValue={emptyValue}
                           onChange={(value) =>
-                            setValue.mutate({ issueId: issue.id, columnKey: column.key, value })
+                            setValue.mutate({
+                              issueId: issue.id,
+                              columnKey: column.key,
+                              value,
+                            })
                           }
                         />
                       </td>
@@ -575,18 +591,6 @@ export function IssueSheetPageContent({
         projectId={projectId}
         columns={data?.columns ?? []}
         onImported={refresh}
-      />
-      <IssueDetailDrawer
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        issueId={state.issue}
-        isOpen={isDetailOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeIssueDetail();
-          }
-        }}
-        returnFocusRef={lastFocusedRowRef}
       />
     </ProjectPageShell>
   );
@@ -645,7 +649,10 @@ function CustomCell({
 
   if (column.type === "select") {
     const options = column.config.options ?? [];
-    const selectItems = options.map((option) => ({ value: option.id, label: option.label }));
+    const selectItems = options.map((option) => ({
+      value: option.id,
+      label: option.label,
+    }));
     return (
       <Select
         value={draft || undefined}

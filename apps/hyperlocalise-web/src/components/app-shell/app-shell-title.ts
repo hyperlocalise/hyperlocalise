@@ -1,8 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { IntlShape } from "react-intl";
 
 export type AppShellBreadcrumb = {
   label: string;
   href?: string;
+  title?: string;
 };
 
 type RouteTitleKey =
@@ -328,15 +341,20 @@ export function getAppShellBreadcrumbs(
     const projectId = decodePathSegment(subsection);
     const projectLabel = options?.projectName?.trim() || projectId;
     const projectHref = buildOrgPath(organizationSlug, "projects", subsection);
+    const issueIdSegment = routeSegments[3];
 
     if (projectSection && isProjectSectionKey(projectSection)) {
+      const sectionHref = buildOrgPath(organizationSlug, "projects", subsection, projectSection);
       return [
         {
           label: formatRouteTitle(intl, "projects"),
           href: buildOrgPath(organizationSlug, "projects"),
         },
         { label: projectLabel, href: projectHref },
-        { label: formatProjectSectionTitle(intl, projectSection) },
+        {
+          label: formatProjectSectionTitle(intl, projectSection),
+          href: issueIdSegment ? sectionHref : undefined,
+        },
       ];
     }
 

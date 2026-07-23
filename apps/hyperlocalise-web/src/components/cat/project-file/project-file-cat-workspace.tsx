@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -346,7 +358,6 @@ export function ProjectFileCatWorkspace({
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.segmentNotFound));
       }
 
-      const issueSheetUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
       const linkUrl =
         typeof window === "undefined"
           ? null
@@ -388,11 +399,14 @@ export function ProjectFileCatWorkspace({
         );
       }
 
+      const body = (await response.json()) as { issue: { id: string } };
+      const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.id)}`;
+
       toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
         action: {
           label: intl.formatMessage(projectFileCatWorkspaceMessages.viewIssueSheetRow),
           onClick: () => {
-            window.location.href = issueSheetUrl;
+            window.location.href = issueDetailUrl;
           },
         },
       });

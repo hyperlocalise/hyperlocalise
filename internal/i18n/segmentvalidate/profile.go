@@ -64,27 +64,51 @@ func validateWhitespaceProfile(source, translated string) error {
 }
 
 func profileEdgeWhitespace(value string) (leading, trailing string) {
-	start := 0
-	for start < len(value) {
-		r, w := utf8.DecodeRuneInString(value[start:])
-		if !isProfileEdgeWhitespace(r) {
-			break
-		}
-		start += w
+	if value == "" {
+		return "", ""
 	}
-	leading = value[:start]
+
+	// BOLT OPTIMIZATION: Check if the first and last bytes are ASCII non-whitespace.
+	// If so, we can bypass rune decoding and scanning entirely for both leading and trailing whitespace.
+	firstASCII := value[0] < 0x80
+	lastASCII := value[len(value)-1] < 0x80
+
+	firstNonWS := firstASCII && !isASCIIEdgeWhitespace(value[0])
+	lastNonWS := lastASCII && !isASCIIEdgeWhitespace(value[len(value)-1])
+
+	if firstNonWS && lastNonWS {
+		return "", ""
+	}
+
+	start := 0
+	if !firstNonWS {
+		for start < len(value) {
+			r, w := utf8.DecodeRuneInString(value[start:])
+			if !isProfileEdgeWhitespace(r) {
+				break
+			}
+			start += w
+		}
+		leading = value[:start]
+	}
 
 	end := len(value)
-	for end > start {
-		r, w := utf8.DecodeLastRuneInString(value[start:end])
-		if !isProfileEdgeWhitespace(r) {
-			break
+	if !lastNonWS {
+		for end > start {
+			r, w := utf8.DecodeLastRuneInString(value[start:end])
+			if !isProfileEdgeWhitespace(r) {
+				break
+			}
+			end -= w
 		}
-		end -= w
+		trailing = value[end:]
 	}
-	trailing = value[end:]
 
 	return leading, trailing
+}
+
+func isASCIIEdgeWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 }
 
 func isProfileEdgeWhitespace(r rune) bool {
@@ -217,5 +241,8 @@ func profileHasFormatTokens(source string) bool {
 func hasProfileWhitespaceSignals(source string) bool {
 	normalized := normalizeProfileText(source)
 	leading, trailing := profileEdgeWhitespace(normalized)
-	return leading != "" || trailing != "" || countNBSP(normalized) > 0
+	// BOLT OPTIMIZATION: Use strings.Contains instead of countNBSP > 0.
+	// This avoids scanning the entire string if a non-breaking space is found,
+	// and is simpler and faster since we only care about its presence.
+	return leading != "" || trailing != "" || strings.Contains(normalized, "\u00a0")
 }

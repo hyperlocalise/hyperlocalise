@@ -1,5 +1,5 @@
 {
-  "id": "72b44c63-6204-453b-a5c3-697b16f86eb7",
+  "id": "3ab9ecd8-0909-4db0-a5dc-74ff1fecb7da",
   "prevId": "6098f606-29fd-437b-b208-14320e823d68",
   "version": "7",
   "dialect": "postgresql",
@@ -9211,6 +9211,183 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.semrush_connections": {
+      "name": "semrush_connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_user_id": {
+          "name": "updated_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "validation_status": {
+          "name": "validation_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unvalidated'"
+        },
+        "validation_message": {
+          "name": "validation_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_validated_at": {
+          "name": "last_validated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "encryption_algorithm": {
+          "name": "encryption_algorithm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "iv": {
+          "name": "iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_tag": {
+          "name": "auth_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_version": {
+          "name": "key_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "masked_api_key_suffix": {
+          "name": "masked_api_key_suffix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_semrush_connections_org": {
+          "name": "idx_semrush_connections_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "semrush_connections_organization_id_organizations_id_fk": {
+          "name": "semrush_connections_organization_id_organizations_id_fk",
+          "tableFrom": "semrush_connections",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "semrush_connections_created_by_user_id_users_id_fk": {
+          "name": "semrush_connections_created_by_user_id_users_id_fk",
+          "tableFrom": "semrush_connections",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "semrush_connections_updated_by_user_id_users_id_fk": {
+          "name": "semrush_connections_updated_by_user_id_users_id_fk",
+          "tableFrom": "semrush_connections",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.canva_connections": {
       "name": "canva_connections",
       "schema": "",
@@ -15013,33 +15190,12 @@
           "primaryKey": true,
           "notNull": true
         },
-        "revision_id": {
-          "name": "revision_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
         "content": {
           "name": "content",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "summary": {
-          "name": "summary",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'Initial version'"
         },
         "updated_by_user_id": {
           "name": "updated_by_user_id",
@@ -15062,23 +15218,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "knowledge_memories_revision_id_key": {
-          "name": "knowledge_memories_revision_id_key",
-          "columns": [
-            {
-              "expression": "revision_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "knowledge_memories_organization_id_organizations_id_fk": {
           "name": "knowledge_memories_organization_id_organizations_id_fk",
@@ -15114,131 +15254,6 @@
         "knowledge_memories_content_length_check": {
           "name": "knowledge_memories_content_length_check",
           "value": "char_length(\"knowledge_memories\".\"content\") <= 50000"
-        },
-        "knowledge_memories_summary_length_check": {
-          "name": "knowledge_memories_summary_length_check",
-          "value": "char_length(\"knowledge_memories\".\"summary\") <= 160"
-        },
-        "knowledge_memories_version_check": {
-          "name": "knowledge_memories_version_check",
-          "value": "\"knowledge_memories\".\"version\" >= 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.knowledge_memory_revisions": {
-      "name": "knowledge_memory_revisions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "summary": {
-          "name": "summary",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "knowledge_memory_revisions_org_version_key": {
-          "name": "knowledge_memory_revisions_org_version_key",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "version",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "knowledge_memory_revisions_organization_id_organizations_id_fk": {
-          "name": "knowledge_memory_revisions_organization_id_organizations_id_fk",
-          "tableFrom": "knowledge_memory_revisions",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "knowledge_memory_revisions_created_by_user_id_users_id_fk": {
-          "name": "knowledge_memory_revisions_created_by_user_id_users_id_fk",
-          "tableFrom": "knowledge_memory_revisions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "knowledge_memory_revisions_content_length_check": {
-          "name": "knowledge_memory_revisions_content_length_check",
-          "value": "char_length(\"knowledge_memory_revisions\".\"content\") <= 50000"
-        },
-        "knowledge_memory_revisions_summary_length_check": {
-          "name": "knowledge_memory_revisions_summary_length_check",
-          "value": "char_length(\"knowledge_memory_revisions\".\"summary\") <= 160"
-        },
-        "knowledge_memory_revisions_version_check": {
-          "name": "knowledge_memory_revisions_version_check",
-          "value": "\"knowledge_memory_revisions\".\"version\" >= 1"
         }
       },
       "isRLSEnabled": false

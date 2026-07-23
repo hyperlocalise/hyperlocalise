@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, count, eq, ilike, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -16,6 +28,7 @@ import {
   priorityValueJoin,
   priorityValues,
 } from "./issue-list-query";
+import { IssueSheetService, type IssueSheetIssue } from "./issue-sheet-service";
 
 const assigneeUsers = alias(schema.users, "org_issue_assignee_users");
 
@@ -67,8 +80,61 @@ function formatUser(row: {
   return name || row.email;
 }
 
+export type OrganizationIssueDetail = IssueSheetIssue & {
+  projectId: string;
+  projectName: string;
+};
+
 export class OrganizationIssueService {
-  constructor(private readonly database = db) {}
+  constructor(
+    private readonly database = db,
+    private readonly issueSheetService = new IssueSheetService(database),
+  ) {}
+
+  async getById(auth: ApiAuthContext, issueId: string): Promise<OrganizationIssueDetail | null> {
+    const organizationId = auth.organization.localOrganizationId;
+    const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
+    const issueProjectJoin = eq(schema.issueSheetIssues.projectId, schema.projects.id);
+
+    const rows = await this.database
+      .select({
+        id: schema.issueSheetIssues.id,
+        projectId: schema.issueSheetIssues.projectId,
+        projectName: schema.projects.name,
+      })
+      .from(schema.issueSheetIssues)
+      .innerJoin(schema.projects, issueProjectJoin)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, organizationId),
+          eq(schema.issueSheetIssues.id, issueId),
+          accessibleProjectsWhere,
+          issueProjectJoin,
+        ),
+      )
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+
+    const issue = await this.issueSheetService.getIssue({
+      organizationId,
+      projectId: row.projectId,
+      issueId: row.id,
+      actorUserId: auth.user.localUserId,
+    });
+    if (!issue) {
+      return null;
+    }
+
+    return {
+      ...issue,
+      projectId: row.projectId,
+      projectName: row.projectName,
+    };
+  }
 
   async list(
     auth: ApiAuthContext,
