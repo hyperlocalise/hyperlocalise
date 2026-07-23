@@ -81,7 +81,7 @@ func TestEscapeFormula_ScoutEdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := EscapeFormula(tt.in); got != tt.want {
-				t.Fatalf("EscapeFormula(%q) = %q, want %q", tt.in, got, tt.want)
+				t.Errorf("EscapeFormula(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
 	}
@@ -91,14 +91,17 @@ func TestEscapeRow_ScoutEdgeCases(t *testing.T) {
 	t.Run("nil row", func(t *testing.T) {
 		got := EscapeRow(nil)
 		if got != nil {
-			t.Fatalf("EscapeRow(nil) = %v, want nil", got)
+			t.Errorf("EscapeRow(nil) = %v, want nil", got)
 		}
 	})
 
 	t.Run("empty row", func(t *testing.T) {
 		got := EscapeRow([]string{})
-		if got == nil || len(got) != 0 {
-			t.Fatalf("EscapeRow([]) = %v, want empty slice", got)
+		if got == nil {
+			t.Errorf("EscapeRow([]) returned nil, want non-nil empty slice")
+		}
+		if len(got) != 0 {
+			t.Errorf("EscapeRow([]) len = %d, want 0", len(got))
 		}
 	})
 
@@ -108,7 +111,7 @@ func TestEscapeRow_ScoutEdgeCases(t *testing.T) {
 
 		got := EscapeRow(row)
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("EscapeRow(%q) = %q, want %q", row, got, want)
+			t.Errorf("EscapeRow(%q) = %q, want %q", row, got, want)
 		}
 	})
 
@@ -118,7 +121,7 @@ func TestEscapeRow_ScoutEdgeCases(t *testing.T) {
 
 		got := EscapeRow(row)
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("EscapeRow(%q) = %q, want %q", row, got, want)
+			t.Errorf("EscapeRow(%q) = %q, want %q", row, got, want)
 		}
 	})
 }
