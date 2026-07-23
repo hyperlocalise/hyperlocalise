@@ -411,7 +411,11 @@ describe("createCaptureScreenshotTool", () => {
       },
       lockfiles: ["pnpm-lock.yaml"],
     });
-    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+    const reportToolProgress = vi.fn();
+    const captureScreenshot = createCaptureScreenshotTool(
+      createToolContext({ reportToolProgress }),
+      repo,
+    );
 
     const result = await captureScreenshot.execute!(
       {
@@ -509,6 +513,26 @@ describe("createCaptureScreenshotTool", () => {
         }),
       }),
     );
+    expect(reportToolProgress.mock.calls).toEqual([
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Resolving Storybook…",
+        },
+      ],
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Preparing browser and loading story…",
+        },
+      ],
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Uploading screenshot…",
+        },
+      ],
+    ]);
   });
 
   it("captures from a nested Storybook package when root package.json is missing", async () => {

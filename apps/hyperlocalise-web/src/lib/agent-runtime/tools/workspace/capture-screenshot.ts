@@ -846,7 +846,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
       viewport = DEFAULT_VIEWPORT,
       waitForMs = DEFAULT_WAIT_FOR_MS,
       waitForText = [],
-    }): Promise<CaptureScreenshotResult> => {
+    }, { toolCallId }): Promise<CaptureScreenshotResult> => {
       const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
       if (!gate.allowed) {
         return {
@@ -863,6 +863,10 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         };
       }
 
+      ctx.reportToolProgress?.({
+        toolCallId,
+        message: "Resolving Storybook…",
+      });
       const resolvedPackage = await resolveStorybookPackage(repo);
       if ("errorCode" in resolvedPackage) {
         return {
@@ -913,6 +917,10 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         }),
       );
 
+      ctx.reportToolProgress?.({
+        toolCallId,
+        message: "Preparing browser and loading story…",
+      });
       const captureResult = await repo.bash.exec("bash", {
         args: [
           "-lc",
@@ -941,6 +949,10 @@ It does not commit, push, open pull requests, or publish repository changes.`,
       }
 
       const content = Buffer.from(captureResult.stdout.trim(), "base64");
+      ctx.reportToolProgress?.({
+        toolCallId,
+        message: "Uploading screenshot…",
+      });
       const storedFile = await createStoredFile({
         organizationId: ctx.organizationId,
         projectId: ctx.projectId,

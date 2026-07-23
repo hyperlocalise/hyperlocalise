@@ -15,6 +15,7 @@
 import type { UIMessage } from "ai";
 import type { IntlShape } from "react-intl";
 
+import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { inboxTypesMessages } from "./inbox-types.messages";
@@ -67,7 +68,7 @@ export type LinkedJob = {
 export type StreamedAssistantMessage = {
   conversationId: string;
   responseToMessageId: string;
-  message: UIMessage;
+  message: InboxChatUIMessage;
   status: "streaming" | "complete" | "error";
 };
 

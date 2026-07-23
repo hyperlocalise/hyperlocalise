@@ -52,6 +52,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
+import type {
+  InboxChatStatusData,
+  InboxChatToolProgressData,
+  InboxChatUIMessage,
+} from "@/lib/agent-contracts/inbox-chat-message";
 
 import { conversationMessageListMessages } from "./conversation-message-list.messages";
 import {
@@ -67,7 +72,7 @@ import { inboxTypesMessages } from "./inbox-types.messages";
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
 type ToolPart = ToolUIPart | DynamicToolUIPart;
 
-function toAssistantUIMessage(message: ConversationMessage): UIMessage {
+function toAssistantUIMessage(message: ConversationMessage): InboxChatUIMessage {
   return {
     id: message.id,
     role: "assistant",
@@ -379,11 +384,17 @@ function AssistantMessageParts({
   message,
 }: {
   isStreaming: boolean;
-  message: UIMessage;
+  message: InboxChatUIMessage;
 }) {
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
   const toolParts = message.parts.filter(isToolPart);
+  const statusPart = message.parts.find(isStatusPart);
+  const toolProgressByCallId = new Map(
+    message.parts
+      .filter(isToolProgressPart)
+      .map((part) => [part.data.toolCallId, part.data.message]),
+  );
   const text = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
@@ -430,20 +441,22 @@ function AssistantMessageParts({
             part.errorText ?? "",
           ]}
         >
-          <AssistantToolPart part={part} />
+          <AssistantToolPart part={part} progressMessage={toolProgressByCallId.get(part.toolCallId)} />
         </AiElementErrorBoundary>
       ))}
       {text ? (
         <AiElementErrorBoundary scope="message" resetKeys={[text, isStreaming]}>
           <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
         </AiElementErrorBoundary>
-      ) : isStreaming ? (
+      ) : isStreaming && reasoningParts.length === 0 && toolParts.length === 0 ? (
         <Marker role="status">
           <MarkerIcon>
             <Spinner />
           </MarkerIcon>
           <MarkerContent>
-            <FormattedMessage {...conversationMessageListMessages.workingMarker} />
+            {statusPart?.data.message ?? (
+              <FormattedMessage {...conversationMessageListMessages.workingMarker} />
+            )}
           </MarkerContent>
         </Marker>
       ) : null}
@@ -451,7 +464,13 @@ function AssistantMessageParts({
   );
 }
 
-function AssistantToolPart({ part }: { part: ToolPart }) {
+function AssistantToolPart({
+  part,
+  progressMessage,
+}: {
+  part: ToolPart;
+  progressMessage?: string;
+}) {
   const isDynamic = part.type === "dynamic-tool";
   const headerProps = isDynamic
     ? {
@@ -467,10 +486,15 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
   // null = follow hasImageOutput; once the user toggles, keep their choice.
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const open = userOpen ?? hasImageOutput;
+  const isRunning = part.state === "input-streaming" || part.state === "input-available";
 
   return (
     <Tool open={open} onOpenChange={setUserOpen}>
-      <ToolHeader {...headerProps} input={part.input} />
+      <ToolHeader
+        {...headerProps}
+        input={part.input}
+        detail={isRunning ? progressMessage : undefined}
+      />
       <ToolContent>
         {hasImageOutput ? (
           <>
@@ -518,6 +542,22 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
 
 function isReasoningPart(part: UIMessage["parts"][number]): part is ReasoningUIPart {
   return part.type === "reasoning";
+}
+
+function isStatusPart(
+  part: InboxChatUIMessage["parts"][number],
+): part is Extract<InboxChatUIMessage["parts"][number], { type: "data-status" }> & {
+  data: InboxChatStatusData;
+} {
+  return part.type === "data-status";
+}
+
+function isToolProgressPart(
+  part: InboxChatUIMessage["parts"][number],
+): part is Extract<InboxChatUIMessage["parts"][number], { type: "data-toolProgress" }> & {
+  data: InboxChatToolProgressData;
+} {
+  return part.type === "data-toolProgress";
 }
 
 function isSourcePart(part: UIMessage["parts"][number]): part is SourcePart {

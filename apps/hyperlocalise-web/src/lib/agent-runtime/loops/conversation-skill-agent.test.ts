@@ -80,6 +80,11 @@ describe("conversation skill agent", () => {
           list_projects: expect.any(Object),
           translate_string: expect.any(Object),
         }),
+        providerOptions: {
+          openai: {
+            reasoningSummary: "auto",
+          },
+        },
         timeout: DEFAULT_AGENT_TIMEOUT,
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),

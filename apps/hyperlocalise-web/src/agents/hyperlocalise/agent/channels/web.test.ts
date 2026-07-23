@@ -283,6 +283,36 @@ describe("createWebChatAgentUIStreamResponse", () => {
     expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
   });
 
+  it("streams request-scoped tool progress from turn preparation", async () => {
+    prepareConversationAgentTurnMock.mockImplementationOnce(async (input) => {
+      input.reportToolProgress({
+        toolCallId: "call_1",
+        message: "Loading story…",
+      });
+      return {
+        classification: baseClassification,
+        agent: { stream: vi.fn() },
+        chatMessages: [],
+        clarificationFollowUp: "Done.",
+        updatedRepositorySession: null,
+        staleSandboxId: null,
+        repositorySandboxId: null,
+      };
+    });
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "capture the story",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+
+    const body = await readSseText(response);
+    expect(body).toContain("data-toolProgress");
+    expect(body).toContain("call_1");
+    expect(body).toContain("Loading story");
+  });
+
   it("merges tool and text UI message chunks from the agent stream", async () => {
     const toUIMessageStream = vi.fn(() => {
       return new ReadableStream({
@@ -294,6 +324,13 @@ describe("createWebChatAgentUIStreamResponse", () => {
             toolName: "grep",
             input: { pattern: "login" },
           });
+          controller.enqueue({ type: "reasoning-start", id: "reasoning_1" });
+          controller.enqueue({
+            type: "reasoning-delta",
+            id: "reasoning_1",
+            delta: "I should inspect the relevant files.",
+          });
+          controller.enqueue({ type: "reasoning-end", id: "reasoning_1" });
           controller.enqueue({ type: "text-start", id: "text_1" });
           controller.enqueue({ type: "text-delta", id: "text_1", delta: "Found it." });
           controller.enqueue({ type: "text-end", id: "text_1" });
@@ -331,8 +368,13 @@ describe("createWebChatAgentUIStreamResponse", () => {
     const body = await readSseText(response);
     expect(body).toContain("data-status");
     expect(body).toContain("tool-input-available");
+    expect(body).toContain("reasoning-delta");
+    expect(body).toContain("I should inspect the relevant files.");
     expect(body).toContain("Found it.");
-    expect(toUIMessageStream).toHaveBeenCalled();
+    expect(toUIMessageStream).toHaveBeenCalledWith({
+      sendReasoning: true,
+      sendStart: true,
+    });
     expect(addInteractionMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         interactionId: "conv_123",
