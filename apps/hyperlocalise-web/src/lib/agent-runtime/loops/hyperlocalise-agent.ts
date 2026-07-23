@@ -30,6 +30,8 @@ import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   buildHyperlocaliseBaseInstructions,
+  hyperlocaliseAgentMaxOutputTokens,
+  hyperlocaliseAgentStepLimit,
   type HyperlocaliseAgentSurface,
 } from "@/agents/hyperlocalise/agent/agent";
 import {
@@ -38,14 +40,7 @@ import {
 } from "./conversation-skill-agent";
 
 export type { HyperlocaliseAgentSurface };
-
-/**
- * Visual-mock and repository inspection turns need room for inspect → scaffold →
- * capture → fix → retry → final text. Reserve the last step for a text-only reply
- * via `prepareConversationSkillStep`.
- */
-export const hyperlocaliseAgentStepLimit = 16;
-export const hyperlocaliseAgentMaxOutputTokens = 4_000;
+export { hyperlocaliseAgentMaxOutputTokens, hyperlocaliseAgentStepLimit };
 
 /** Force a text-only final step so tool failures are explained to the user. */
 export function prepareConversationSkillStep({ stepNumber }: { stepNumber: number }) {

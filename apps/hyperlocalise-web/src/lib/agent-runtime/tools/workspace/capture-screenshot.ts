@@ -1149,26 +1149,9 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         }
       }
 
+      // Failures return inside the loop; reaching here means a successful capture.
       if (!captureResult || captureResult.exitCode !== 0) {
-        const output = truncate(
-          redact([captureResult?.stdout ?? "", captureResult?.stderr ?? ""].join("\n")),
-          DEFAULT_MAX_OUTPUT_BYTES,
-        );
-        const errorCode = classifyScreenshotCaptureFailure(output.text);
-        const summarized = summarizeScreenshotCaptureFailure({
-          errorCode,
-          error: output.text || "Screenshot capture failed.",
-          truncated: output.truncated,
-        });
-        return {
-          success: false as const,
-          errorCode,
-          error: summarized.errorExcerpt || "Screenshot capture failed.",
-          summary: summarized.summary,
-          recoveryHint: summarized.recoveryHint,
-          truncated: summarized.truncated,
-          attempts,
-        };
+        throw new Error("Invariant violated: screenshot capture loop exited without success");
       }
 
       const content = Buffer.from(captureResult.stdout.trim(), "base64");
