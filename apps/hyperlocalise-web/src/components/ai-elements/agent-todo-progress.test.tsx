@@ -57,6 +57,7 @@ describe("getAgentTodoItems", () => {
   });
 
   it("rejects malformed todo output", () => {
+    expect(getAgentTodoItems({ todos: [] })).toBeNull();
     expect(getAgentTodoItems({ todos: [{ id: "broken", status: "running" }] })).toBeNull();
     expect(getAgentTodoItems({ message: "no todos" })).toBeNull();
   });

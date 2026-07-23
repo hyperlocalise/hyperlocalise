@@ -43,7 +43,7 @@ export function getAgentTodoItems(value: unknown): AgentTodoItem[] | null {
   }
 
   const todos = (value as Record<string, unknown>).todos;
-  if (!Array.isArray(todos) || !todos.every(isAgentTodoItem)) {
+  if (!Array.isArray(todos) || todos.length === 0 || !todos.every(isAgentTodoItem)) {
     return null;
   }
 
