@@ -1,10 +1,10 @@
 package scoring
 
 import (
-	"fmt"
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -412,28 +412,36 @@ func placeholderTokens(s string) []string {
 }
 
 func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[string]int, int) {
-	tokens := make(map[string]int)
+	var initialCap int
+	if err == nil {
+		initialCap = len(inv.Placeholders) + len(inv.ICUBlocks)
+	} else {
+		initialCap = strings.Count(s, "{")
+	}
+	initialCap += strings.Count(s, "%")
+
+	tokens := make(map[string]int, initialCap)
 	total := 0
 	if err == nil {
 		for _, ph := range inv.Placeholders {
-			tokens[fmt.Sprintf("icu:%s", ph)]++
+			tokens["icu:"+ph]++
 			total++
 		}
 		for _, block := range inv.ICUBlocks {
 			offsetPart := ""
 			if block.Offset != 0 {
-				offsetPart = fmt.Sprintf("(offset:%d)", block.Offset)
+				offsetPart = "(offset:" + strconv.Itoa(block.Offset) + ")"
 			}
-			tokens[fmt.Sprintf("icu-block:%s%s:%s:%s", block.Arg, offsetPart, block.Type, strings.Join(block.Options, ","))]++
+			tokens["icu-block:"+block.Arg+offsetPart+":"+block.Type+":"+strings.Join(block.Options, ",")]++
 			total++
 		}
 	}
 	for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-		tokens[fmt.Sprintf("brace:%s", match[1])]++
+		tokens["brace:"+match[1]]++
 		total++
 	}
 	for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
-		tokens[fmt.Sprintf("printf:%s", match)]++
+		tokens["printf:"+match]++
 		total++
 	}
 	return tokens, total
