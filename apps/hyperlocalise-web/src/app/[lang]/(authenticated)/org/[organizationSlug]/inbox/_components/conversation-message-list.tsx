@@ -390,7 +390,7 @@ function AssistantMessageParts({
   const sourceParts = message.parts.filter(isSourcePart);
   const toolParts = message.parts.filter(isToolPart);
   const latestTodoCallId = toolParts.findLast(isTodoWritePart)?.toolCallId;
-  const statusPart = message.parts.find(isStatusPart);
+  const statusPart = message.parts.findLast(isStatusPart);
   const toolProgressByCallId = new Map(
     message.parts
       .filter(isToolProgressPart)
