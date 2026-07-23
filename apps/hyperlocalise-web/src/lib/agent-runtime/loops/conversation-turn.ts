@@ -383,11 +383,7 @@ export async function prepareConversationAgentTurn(
       membershipRole: input.membershipRole,
       projectId: input.projectId,
       db: input.db,
-      ...(input.reportToolProgress
-        ? {
-            reportToolProgress: input.reportToolProgress,
-          }
-        : {}),
+      reportToolProgress: input.reportToolProgress,
       ...(sandboxId
         ? {
             sandboxId,
