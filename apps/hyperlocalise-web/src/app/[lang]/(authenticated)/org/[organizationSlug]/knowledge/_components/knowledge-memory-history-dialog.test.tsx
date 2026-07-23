@@ -1,0 +1,367 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+// @vitest-environment happy-dom
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { IntlProvider } from "react-intl";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const apiMocks = vi.hoisted(() => ({
+  listRevisions: vi.fn(),
+  getRevision: vi.fn(),
+  restoreRevision: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
+const themeMocks = vi.hoisted(() => ({ resolvedTheme: "dark" as string | undefined }));
+
+vi.mock("@/lib/api-client-instance", () => ({
+  apiClient: {
+    api: {
+      orgs: {
+        ":organizationSlug": {
+          "knowledge-memory": {
+            revisions: {
+              $get: apiMocks.listRevisions,
+              ":revisionId": {
+                $get: apiMocks.getRevision,
+                restore: { $post: apiMocks.restoreRevision },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: apiMocks.toastError,
+    success: apiMocks.toastSuccess,
+  },
+}));
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ resolvedTheme: themeMocks.resolvedTheme }),
+}));
+
+vi.mock("@pierre/diffs/react", () => ({
+  MultiFileDiff: ({
+    oldFile,
+    newFile,
+    options,
+  }: {
+    oldFile: { contents: string };
+    newFile: { contents: string };
+    options?: {
+      theme?: { dark: string; light: string };
+      themeType?: string;
+    };
+  }) => (
+    <div
+      data-testid="memory-diff"
+      data-theme-type={options?.themeType}
+      data-dark-theme={options?.theme?.dark}
+      data-light-theme={options?.theme?.light}
+    >
+      <span>{oldFile.contents}</span>
+      <span>{newFile.contents}</span>
+    </div>
+  ),
+}));
+
+import {
+  createKnowledgeMemoryDiffFiles,
+  KnowledgeMemoryConflictView,
+  KnowledgeMemoryHistoryDialog,
+  type KnowledgeMemoryConflict,
+} from "./knowledge-memory-history-dialog";
+
+const conflict: KnowledgeMemoryConflict = {
+  draftContent: "Draft guidance",
+  latestEtag: '"revision-2"',
+  latestKnowledgeMemory: {
+    revisionId: "7e268056-d04f-4d2e-b6b3-5f11cedf865c",
+    version: 2,
+    content: "Latest guidance",
+    summary: "Updated memory",
+    updatedAt: "2026-07-17T01:00:00.000Z",
+    updatedByUserId: null,
+  },
+};
+
+const firstRevision = {
+  revisionId: "70eeb794-a9b2-4bea-8a7f-c8fa3700da4d",
+  version: 1,
+  content: "First guidance",
+  summary: "Initial rules",
+  createdAt: "2026-07-16T01:00:00.000Z",
+  createdByUserId: null,
+  createdByName: "Nguyen",
+  isCurrent: false,
+};
+
+const secondRevision = {
+  revisionId: "7e268056-d04f-4d2e-b6b3-5f11cedf865c",
+  version: 2,
+  content: "Second guidance",
+  summary: "Refine rules",
+  createdAt: "2026-07-17T01:00:00.000Z",
+  createdByUserId: null,
+  createdByName: "Nguyen",
+  isCurrent: true,
+};
+
+function jsonResponse(value: unknown, headers?: HeadersInit) {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "application/json");
+
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
+function mockRevisionHistoryRequests() {
+  apiMocks.listRevisions.mockResolvedValue(
+    jsonResponse({
+      knowledgeMemoryRevisions: [secondRevision, firstRevision].map(
+        ({ content: _content, ...revision }) => revision,
+      ),
+      nextCursor: null,
+    }),
+  );
+  apiMocks.getRevision.mockImplementation(({ param }: { param: { revisionId: string } }) =>
+    Promise.resolve(
+      jsonResponse(
+        param.revisionId === firstRevision.revisionId
+          ? {
+              knowledgeMemoryRevision: firstRevision,
+              previousKnowledgeMemoryRevision: null,
+            }
+          : {
+              knowledgeMemoryRevision: secondRevision,
+              previousKnowledgeMemoryRevision: firstRevision,
+            },
+      ),
+    ),
+  );
+}
+
+function renderHistoryDialog(
+  overrides: Partial<ComponentProps<typeof KnowledgeMemoryHistoryDialog>> = {},
+) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      <QueryClientProvider client={queryClient}>
+        <KnowledgeMemoryHistoryDialog
+          organizationSlug="test-org"
+          open
+          onOpenChange={vi.fn()}
+          canUpdateKnowledgeMemory
+          hasUnsavedChanges={false}
+          currentEtag='"revision-2"'
+          currentRevisionId={secondRevision.revisionId}
+          conflict={null}
+          isCommittingConflict={false}
+          onCommitConflict={vi.fn()}
+          onReloadLatest={vi.fn()}
+          onPreconditionFailed={vi.fn()}
+          onRestored={vi.fn()}
+          {...overrides}
+        />
+      </QueryClientProvider>
+    </IntlProvider>,
+  );
+}
+
+describe("KnowledgeMemory history UI", () => {
+  beforeEach(() => {
+    apiMocks.listRevisions.mockReset();
+    apiMocks.getRevision.mockReset();
+    apiMocks.restoreRevision.mockReset();
+    apiMocks.toastError.mockReset();
+    apiMocks.toastSuccess.mockReset();
+    themeMocks.resolvedTheme = "dark";
+  });
+
+  it("builds a Markdown diff without changing either revision", () => {
+    expect(
+      createKnowledgeMemoryDiffFiles({
+        previousContent: "Before",
+        selectedContent: "After",
+      }),
+    ).toEqual({
+      oldFile: { name: "Memory.md", contents: "Before", lang: "markdown" },
+      newFile: { name: "Memory.md", contents: "After", lang: "markdown" },
+    });
+  });
+
+  it("preserves the draft and exposes both conflict resolutions", () => {
+    const onCommit = vi.fn();
+    const onReload = vi.fn();
+
+    render(
+      <KnowledgeMemoryConflictView
+        conflict={conflict}
+        isCommitting={false}
+        onCommit={onCommit}
+        onReload={onReload}
+      />,
+    );
+
+    expect(screen.getByText("Your draft is preserved.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByTestId("memory-diff")).toHaveTextContent("Latest guidance");
+    expect(screen.getByTestId("memory-diff")).toHaveTextContent("Draft guidance");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-theme-type", "dark");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-dark-theme", "github-dark");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-light-theme", "github-light");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload latest" }));
+    fireEvent.click(screen.getByRole("button", { name: "Commit draft as next version" }));
+
+    expect(onReload).toHaveBeenCalledOnce();
+    expect(onCommit).toHaveBeenCalledOnce();
+  });
+
+  it("uses the app-resolved light theme for diffs", () => {
+    themeMocks.resolvedTheme = "light";
+
+    render(
+      <KnowledgeMemoryConflictView
+        conflict={conflict}
+        isCommitting={false}
+        onCommit={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-theme-type", "light");
+  });
+
+  it("selects a revision, renders its diff, and restores it with the current ETag", async () => {
+    mockRevisionHistoryRequests();
+
+    const restoredMemory = {
+      revisionId: "8d943c2c-c58d-4426-900f-8877d01545f0",
+      version: 3,
+      content: firstRevision.content,
+      summary: "Restored version 1",
+      updatedAt: "2026-07-17T02:00:00.000Z",
+      updatedByUserId: null,
+    };
+    apiMocks.restoreRevision.mockResolvedValue(
+      jsonResponse({ knowledgeMemory: restoredMemory }, { ETag: '"revision-3"' }),
+    );
+
+    const onRestored = vi.fn();
+    renderHistoryDialog({ onRestored });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
+    await waitFor(() => {
+      expect(screen.getByTestId("memory-diff")).toHaveTextContent(firstRevision.content);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+    expect(screen.getByRole("heading", { name: "Restore version 1" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restore version" }));
+
+    await waitFor(() => {
+      expect(apiMocks.restoreRevision).toHaveBeenCalledWith(
+        {
+          param: {
+            organizationSlug: "test-org",
+            revisionId: firstRevision.revisionId,
+          },
+        },
+        { headers: { "If-Match": '"revision-2"' } },
+      );
+      expect(onRestored).toHaveBeenCalledWith(restoredMemory, '"revision-3"');
+    });
+  });
+
+  it("reports a malformed stale restore response without reading it twice", async () => {
+    mockRevisionHistoryRequests();
+    apiMocks.restoreRevision.mockResolvedValue(
+      new Response(JSON.stringify({ error: "stale" }), {
+        status: 412,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const onPreconditionFailed = vi.fn();
+    const onRestored = vi.fn();
+    renderHistoryDialog({ onPreconditionFailed, onRestored });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore version" }));
+
+    await waitFor(() => {
+      expect(apiMocks.toastError).toHaveBeenCalledWith(
+        "Knowledge Memory changed after it was loaded",
+      );
+    });
+    expect(onPreconditionFailed).not.toHaveBeenCalled();
+    expect(onRestored).not.toHaveBeenCalled();
+  });
+
+  it("preserves the selected revision when a restore conflicts", async () => {
+    mockRevisionHistoryRequests();
+    const latestKnowledgeMemory = {
+      revisionId: "8d943c2c-c58d-4426-900f-8877d01545f0",
+      version: 3,
+      content: "Concurrent guidance",
+      summary: "Concurrent update",
+      updatedAt: "2026-07-17T02:00:00.000Z",
+      updatedByUserId: null,
+    };
+    apiMocks.restoreRevision.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "knowledge_memory_precondition_failed",
+          details: { knowledgeMemory: latestKnowledgeMemory },
+        }),
+        {
+          status: 412,
+          headers: {
+            "Content-Type": "application/json",
+            ETag: '"revision-3"',
+          },
+        },
+      ),
+    );
+
+    const onPreconditionFailed = vi.fn();
+    renderHistoryDialog({ onPreconditionFailed });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Version 1/u }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore version" }));
+
+    await waitFor(() => {
+      expect(onPreconditionFailed).toHaveBeenCalledWith(
+        firstRevision,
+        latestKnowledgeMemory,
+        '"revision-3"',
+      );
+    });
+  });
+});

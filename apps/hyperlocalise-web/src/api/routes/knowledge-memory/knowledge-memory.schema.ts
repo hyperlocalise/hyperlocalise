@@ -15,6 +15,7 @@ import { z } from "zod";
 import {
   KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH,
   KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+  KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH,
   normalizeKnowledgeMemoryContent,
 } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
@@ -31,6 +32,16 @@ export const updateKnowledgeMemoryBodySchema = z.object({
     .string()
     .transform(normalizeKnowledgeMemoryContent)
     .pipe(z.string().max(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH)),
+  summary: z.string().trim().min(1).max(KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH).optional(),
+});
+
+export const knowledgeMemoryRevisionParamsSchema = z.object({
+  revisionId: z.string().uuid(),
+});
+
+export const knowledgeMemoryRevisionListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.coerce.number().int().positive().optional(),
 });
 
 export const previewKnowledgeMemoryBodySchema = z.object({
@@ -51,7 +62,10 @@ export const previewKnowledgeMemoryBodySchema = z.object({
 });
 
 export const knowledgeMemoryRecordSchema = z.object({
+  revisionId: z.string().uuid().nullable(),
+  version: z.number().int().nonnegative(),
   content: z.string(),
+  summary: z.string().nullable(),
   updatedAt: z.string().datetime().nullable(),
   updatedByUserId: z.string().nullable(),
 });
@@ -85,8 +99,38 @@ export const knowledgeMemoryPreviewResponseSchema = z.object({
   memoryPreview: knowledgeMemoryPreviewSchema,
 });
 
+export const knowledgeMemoryRevisionMetadataSchema = z.object({
+  revisionId: z.string().uuid(),
+  version: z.number().int().positive(),
+  summary: z.string(),
+  createdAt: z.string().datetime(),
+  createdByUserId: z.string().nullable(),
+  createdByName: z.string().nullable(),
+  isCurrent: z.boolean(),
+});
+
+export const knowledgeMemoryRevisionSchema = knowledgeMemoryRevisionMetadataSchema.extend({
+  content: z.string(),
+});
+
+export const knowledgeMemoryRevisionListResponseSchema = z.object({
+  knowledgeMemoryRevisions: z.array(knowledgeMemoryRevisionMetadataSchema),
+  nextCursor: z.number().int().positive().nullable(),
+});
+
+export const knowledgeMemoryRevisionResponseSchema = z.object({
+  knowledgeMemoryRevision: knowledgeMemoryRevisionSchema,
+  previousKnowledgeMemoryRevision: knowledgeMemoryRevisionSchema.nullable(),
+});
+
 export type UpdateKnowledgeMemoryBody = z.infer<typeof updateKnowledgeMemoryBodySchema>;
 export type PreviewKnowledgeMemoryBody = z.infer<typeof previewKnowledgeMemoryBodySchema>;
 export type KnowledgeMemoryRecord = z.infer<typeof knowledgeMemoryRecordSchema>;
 export type KnowledgeMemoryResponse = z.infer<typeof knowledgeMemoryResponseSchema>;
 export type KnowledgeMemoryPreviewResponse = z.infer<typeof knowledgeMemoryPreviewResponseSchema>;
+export type KnowledgeMemoryRevisionMetadata = z.infer<typeof knowledgeMemoryRevisionMetadataSchema>;
+export type KnowledgeMemoryRevision = z.infer<typeof knowledgeMemoryRevisionSchema>;
+export type KnowledgeMemoryRevisionListResponse = z.infer<
+  typeof knowledgeMemoryRevisionListResponseSchema
+>;
+export type KnowledgeMemoryRevisionResponse = z.infer<typeof knowledgeMemoryRevisionResponseSchema>;
