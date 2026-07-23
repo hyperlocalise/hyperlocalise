@@ -4571,6 +4571,10 @@
     "defaultMessage": "No source files are available to download.",
     "description": "Empty state when there are no source files to download"
   },
+  "IKxY25Mtmd": {
+    "defaultMessage": "Loading issue",
+    "description": "Accessible label while the full-page issue detail loads"
+  },
   "IMr6sfD/7/": {
     "defaultMessage": "Files",
     "description": "Project sidebar navigation item for project files"
@@ -4906,6 +4910,10 @@
   "Jwoqn7hfPq": {
     "defaultMessage": "Needs attention",
     "description": "Fallback status line when a file needs attention but has no readiness summary"
+  },
+  "JxSxJmFns3": {
+    "defaultMessage": "Loading issue...",
+    "description": "Suspense fallback while the issue detail page loads"
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Copied",
@@ -6186,6 +6194,10 @@
   "QC53J43wn0": {
     "defaultMessage": "Coming soon",
     "description": "Badge shown on dropdown menu items that are not available yet"
+  },
+  "QCQEKXAzmZ": {
+    "defaultMessage": "Issue not found or you do not have access.",
+    "description": "Shown when the issue detail page cannot load the issue"
   },
   "QDxYX6HLaI": {
     "defaultMessage": "No files match the accepted types.",
