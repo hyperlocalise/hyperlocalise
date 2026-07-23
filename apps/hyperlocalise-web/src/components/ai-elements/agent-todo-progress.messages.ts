@@ -15,9 +15,9 @@
 import { defineMessages } from "react-intl";
 
 export const agentTodoProgressMessages = defineMessages({
-    title: {
-        defaultMessage: "Progress",
-        id: "uV83LS2hmh",
-        description: "Heading for the live agent workflow checklist",
-    },
+  title: {
+    defaultMessage: "Progress",
+    id: "AGdZtMgStX",
+    description: "Heading for the live agent workflow checklist",
+  },
 });

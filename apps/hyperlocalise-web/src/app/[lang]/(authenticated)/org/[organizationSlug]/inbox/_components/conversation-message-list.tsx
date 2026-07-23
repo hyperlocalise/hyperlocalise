@@ -25,10 +25,7 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
-import {
-  AgentTodoProgress,
-  getAgentTodoItems,
-} from "@/components/ai-elements/agent-todo-progress";
+import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
@@ -591,7 +588,8 @@ function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
 
 function isTodoWritePart(part: ToolPart) {
   return (
-    part.type === "tool-todoWrite" || (part.type === "dynamic-tool" && part.toolName === "todoWrite")
+    part.type === "tool-todoWrite" ||
+    (part.type === "dynamic-tool" && part.toolName === "todoWrite")
   );
 }
 
