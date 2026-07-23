@@ -694,14 +694,21 @@ export function isTransientScreenshotCaptureFailure(input: {
     return false;
   }
 
-  if (/Unable to index|Broken build|SyntaxError:|ELIFECYCLE|story missing|Storybook story failed/i.test(input.error)) {
+  if (
+    /Unable to index|Broken build|SyntaxError:|ELIFECYCLE|story missing|Storybook story failed/i.test(
+      input.error,
+    )
+  ) {
     return false;
   }
 
   return (
     /Could not connect to server|Connection refused|ECONNREFUSED|Storybook did not become ready/i.test(
       input.error,
-    ) || /Playwright screenshot capture failed[\s\S]*(Timeout|net::ERR_|Target closed)/i.test(input.error)
+    ) ||
+    /Playwright screenshot capture failed[\s\S]*(Timeout|net::ERR_|Target closed)/i.test(
+      input.error,
+    )
   );
 }
 
@@ -1089,9 +1096,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         ctx.reportToolProgress?.({
           toolCallId,
           message:
-            attempt === 1
-              ? "Preparing browser and loading story…"
-              : "Retrying screenshot capture…",
+            attempt === 1 ? "Preparing browser and loading story…" : "Retrying screenshot capture…",
         });
         captureResult = await repo.bash.exec("bash", {
           args: ["-lc", captureCommand],

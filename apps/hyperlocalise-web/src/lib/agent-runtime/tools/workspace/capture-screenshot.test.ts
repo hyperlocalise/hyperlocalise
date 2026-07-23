@@ -766,6 +766,9 @@ describe("createCaptureScreenshotTool", () => {
       attempts: 1,
     });
     expect(exec.mock.calls.filter(([command]) => command === "bash")).toHaveLength(1);
+    if (!result || typeof result !== "object" || !("success" in result) || result.success) {
+      throw new Error("expected failed screenshot capture");
+    }
 
     const modelOutput = await captureScreenshot.toModelOutput!({
       toolCallId: "test-tool-call",

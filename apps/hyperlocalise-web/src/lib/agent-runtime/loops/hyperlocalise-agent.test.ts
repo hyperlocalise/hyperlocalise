@@ -140,7 +140,9 @@ describe("hyperlocalise agent core", () => {
 
   it("forces a text-only reply on the final conversation skill step", () => {
     expect(prepareConversationSkillStep({ stepNumber: 0 })).toBeUndefined();
-    expect(prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 2 })).toBeUndefined();
+    expect(
+      prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 2 }),
+    ).toBeUndefined();
     expect(prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
       toolChoice: "none",
     });
