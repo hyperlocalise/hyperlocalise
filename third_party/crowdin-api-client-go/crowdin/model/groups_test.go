@@ -35,6 +35,11 @@ func TestGroupsListOptionsValues(t *testing.T) {
 			opts: &GroupsListOptions{ListOptions: ListOptions{Limit: 10, Offset: 5}},
 			out:  "limit=10&offset=5",
 		},
+		{
+			name: "with parent ID = 0 and list options",
+			opts: &GroupsListOptions{ParentID: toPtr(0), ListOptions: ListOptions{Limit: 100, Offset: 1}},
+			out:  "limit=100&offset=1&parentId=0",
+		},
 	}
 
 	for _, tt := range tests {
