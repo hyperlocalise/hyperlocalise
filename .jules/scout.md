@@ -163,3 +163,7 @@
 ## 2026-09-05 - [Apple Strings Parser Error Robustness]
 **Learning:** Testing syntax parser error cases (such as missing '=' or ';', and unterminated strings/comments) directly on AppleStringsParser ensures high-value, deterministic error-handling coverage without relying on complex mocks or environment-dependent artifacts.
 **Action:** Always include boundary syntax failure cases when writing or extending parsing behavior tests to guarantee robust input validation and user-friendly error messages.
+
+## 2026-09-10 - [CSV Formula Injection Escaping Boundaries]
+**Learning:** Formula injection defense in CSV exports must be selective. While cells starting with '=', '+', '-', or '@' are escaped to prevent arbitrary code execution, characters in the middle of a string (e.g. "1+1", "user@domain.com") or preceded by leading spaces (e.g. " =1+1") must NOT be escaped, as spreadsheet software does not interpret them as formula syntax and escaping them would corrupt legitimate translation values. Additionally, leading whitespace control characters like '\t', '\r', and '\n' must be escaped.
+**Action:** Always include comprehensive edge-case tests verifying both injection character positioning and row boundary conditions (like nil or empty row slices) to protect CSV data-mapping/security filters.
