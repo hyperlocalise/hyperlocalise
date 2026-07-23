@@ -174,8 +174,7 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-  | { code: "unsupported_provider_model" }
-  | { code: "provider_validation_failed"; message: string };
+  { code: "unsupported_provider_model" } | { code: "provider_validation_failed"; message: string };
 
 async function validateCredential(
   input: CredentialInput,
@@ -322,4 +321,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check --fix` and `vp test` to validate changes.
+
 <!--VITE PLUS END-->
