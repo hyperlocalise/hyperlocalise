@@ -23,17 +23,73 @@ func Mismatch(sourceValue, targetValue string) bool {
 }
 
 // collectMarkupTags scans the string and collects normalized markup tag names
-// in a single pass with minimal heap allocations by fusing name extraction and filtering.
+// in a single pass with minimal heap allocations by fusing tag discovery, name extraction, and filtering.
 func collectMarkupTags(s string) []string {
-	rawTags := findAllTags(s)
-	if len(rawTags) == 0 {
-		return nil
-	}
-	out := make([]string, 0, len(rawTags))
-	for _, raw := range rawTags {
-		name := extractTagName(raw)
-		if name != "" && isLikelyMarkupTag(raw, name) {
-			out = append(out, name)
+	var out []string
+	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
+	for i := 0; i < len(s); {
+		idx := strings.IndexByte(s[i:], '<')
+		if idx < 0 {
+			break
+		}
+		i += idx
+
+		// Potential tag start.
+		start := i
+		if i+1 >= len(s) {
+			break
+		}
+
+		// We only care about </?[A-Za-z] to match the previous regex behavior.
+		next := s[i+1]
+		if next == '/' {
+			if i+2 >= len(s) {
+				break
+			}
+			next = s[i+2]
+		}
+		if (next < 'a' || next > 'z') && (next < 'A' || next > 'Z') {
+			i++
+			continue
+		}
+
+		// Found a tag start, scan until we find the closing '>', respecting quotes.
+		var quote byte
+		found := false
+		for j := i + 1; j < len(s); j++ {
+			ch := s[j]
+			if quote != 0 {
+				if ch == quote {
+					quote = 0
+				}
+				continue
+			}
+
+			if ch == '"' || ch == '\'' {
+				quote = ch
+				continue
+			}
+
+			if ch == '>' {
+				raw := s[start : j+1]
+				name := extractTagName(raw)
+				if name != "" && isLikelyMarkupTag(raw, name) {
+					if out == nil {
+						// Heuristic: pre-allocate 4 slots to avoid small re-allocations
+						out = make([]string, 0, 4)
+					}
+					out = append(out, name)
+				}
+				i = j + 1
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// Unclosed tag, skip it as a potential start.
+			i++
+			continue
 		}
 	}
 	return out
@@ -153,20 +209,45 @@ func extractTagName(tag string) string {
 		return ""
 	}
 
-	return strings.ToLower(tag[start:i])
+	name := tag[start:i]
+	if hasNoASCIIUpperCase(name) {
+		return name
+	}
+	return strings.ToLower(name)
 }
 
-func isCommonHTMLTag(tag string) bool {
-	switch tag {
-	case "div", "span", "p", "a", "br", "img", "strong", "em", "b", "i", "u",
-		"h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "table", "thead",
-		"tbody", "tr", "th", "td", "button", "input", "form", "label", "select",
-		"option", "textarea", "section", "nav", "header", "footer", "aside",
-		"main", "code", "pre", "hr", "svg", "path", "iframe", "script", "style",
-		"body", "head", "html", "meta", "link", "title", "small", "sub", "sup":
-		return true
+func hasNoASCIIUpperCase(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			return false
+		}
 	}
-	return false
+	return true
+}
+
+// htmlAtoms contains all standard HTML, SVG, and MathML atoms to bypass atom.Lookup.
+// This completely avoids []byte conversions and heap allocations for safe lookup of standard tags.
+// Note: "name" and "id" are excluded since they are treated as template placeholders
+// unless they explicitly have attributes.
+var htmlAtoms = map[string]bool{
+	"div": true, "span": true, "p": true, "a": true, "br": true, "img": true, "strong": true, "em": true, "b": true, "i": true, "u": true,
+	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true, "ul": true, "ol": true, "li": true, "table": true, "thead": true,
+	"tbody": true, "tr": true, "th": true, "td": true, "button": true, "input": true, "form": true, "label": true, "select": true,
+	"option": true, "textarea": true, "section": true, "nav": true, "header": true, "footer": true, "aside": true,
+	"main": true, "code": true, "pre": true, "hr": true, "svg": true, "path": true, "iframe": true, "script": true, "style": true,
+	"body": true, "head": true, "html": true, "meta": true, "link": true, "title": true, "small": true, "sub": true, "sup": true,
+	"abbr": true, "address": true, "area": true, "article": true, "audio": true, "bdi": true, "bdo": true, "blockquote": true,
+	"canvas": true, "caption": true, "cite": true, "col": true, "colgroup": true, "data": true, "datalist": true, "dd": true,
+	"del": true, "details": true, "dfn": true, "dialog": true, "dl": true, "dt": true, "embed": true, "fieldset": true,
+	"figcaption": true, "figure": true, "hgroup": true, "ins": true, "kbd": true, "legend": true, "map": true, "mark": true,
+	"math": true, "menu": true, "meter": true, "noscript": true, "object": true, "optgroup": true, "output": true, "picture": true,
+	"progress": true, "q": true, "rp": true, "rt": true, "ruby": true, "s": true, "samp": true, "slot": true,
+	"source": true, "template": true, "time": true, "track": true, "var": true, "video": true, "wbr": true,
+	// SVG and MathML atoms
+	"rect": true, "circle": true, "g": true, "ellipse": true, "line": true, "polyline": true, "polygon": true,
+	"text": true, "tspan": true, "defs": true, "use": true, "symbol": true, "lineargradient": true, "radialgradient": true,
+	"stop": true, "mask": true, "pattern": true, "clippath": true,
 }
 
 func isLikelyMarkupTag(raw, normalized string) bool {
@@ -176,12 +257,10 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 		return false
 	}
 
-	// BOLT OPTIMIZATION: Check for common HTML tags using a static switch to bypass atom.Lookup.
+	// BOLT OPTIMIZATION: Check for common HTML tags using our precomputed map to bypass atom.Lookup.
 	// This avoids allocating a []byte slice for Lookup.
-	if isCommonHTMLTag(tag) {
-		if tag != "name" && tag != "id" {
-			return true
-		}
+	if htmlAtoms[tag] {
+		return true
 	} else if a := atom.Lookup([]byte(tag)); a != 0 {
 		// 'name' and 'id' are common path/template placeholders that are atoms but
 		// not standard HTML elements. We only treat them as markup if they have
@@ -191,8 +270,8 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 		}
 	}
 
-	// Hyphens and colons are strong indicators of custom elements or namespaced tags.
-	if strings.Contains(tag, "-") || strings.Contains(tag, ":") {
+	// BOLT OPTIMIZATION: Use strings.IndexByte for faster hyphen and colon checks.
+	if strings.IndexByte(tag, '-') >= 0 || strings.IndexByte(tag, ':') >= 0 {
 		return true
 	}
 	rawName := rawTagName(raw)
