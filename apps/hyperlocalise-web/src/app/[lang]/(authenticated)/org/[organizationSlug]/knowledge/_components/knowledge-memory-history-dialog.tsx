@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { HistoryIcon, RotateCcwIcon } from "lucide-react";
 import { MultiFileDiff, type FileContents } from "@pierre/diffs/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import type {
@@ -96,7 +97,9 @@ function KnowledgeMemoryDiff({
   previousContent: string;
   selectedContent: string;
 }) {
+  const { resolvedTheme } = useTheme();
   const files = createKnowledgeMemoryDiffFiles({ previousContent, selectedContent });
+  const themeType = resolvedTheme === "light" ? "light" : "dark";
 
   return (
     <MultiFileDiff
@@ -106,7 +109,8 @@ function KnowledgeMemoryDiff({
       options={{
         diffStyle: "unified",
         overflow: "wrap",
-        themeType: "system",
+        theme: { dark: "github-dark", light: "github-light" },
+        themeType,
         lineDiffType: "word",
       }}
     />

@@ -25,6 +25,7 @@ const apiMocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
+const themeMocks = vi.hoisted(() => ({ resolvedTheme: "dark" as string | undefined }));
 
 vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
@@ -53,15 +54,29 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ resolvedTheme: themeMocks.resolvedTheme }),
+}));
+
 vi.mock("@pierre/diffs/react", () => ({
   MultiFileDiff: ({
     oldFile,
     newFile,
+    options,
   }: {
     oldFile: { contents: string };
     newFile: { contents: string };
+    options?: {
+      theme?: { dark: string; light: string };
+      themeType?: string;
+    };
   }) => (
-    <div data-testid="memory-diff">
+    <div
+      data-testid="memory-diff"
+      data-theme-type={options?.themeType}
+      data-dark-theme={options?.theme?.dark}
+      data-light-theme={options?.theme?.light}
+    >
       <span>{oldFile.contents}</span>
       <span>{newFile.contents}</span>
     </div>
@@ -184,6 +199,7 @@ describe("KnowledgeMemory history UI", () => {
     apiMocks.restoreRevision.mockReset();
     apiMocks.toastError.mockReset();
     apiMocks.toastSuccess.mockReset();
+    themeMocks.resolvedTheme = "dark";
   });
 
   it("builds a Markdown diff without changing either revision", () => {
@@ -214,12 +230,30 @@ describe("KnowledgeMemory history UI", () => {
     expect(screen.getByText("Your draft is preserved.", { exact: false })).toBeInTheDocument();
     expect(screen.getByTestId("memory-diff")).toHaveTextContent("Latest guidance");
     expect(screen.getByTestId("memory-diff")).toHaveTextContent("Draft guidance");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-theme-type", "dark");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-dark-theme", "github-dark");
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-light-theme", "github-light");
 
     fireEvent.click(screen.getByRole("button", { name: "Reload latest" }));
     fireEvent.click(screen.getByRole("button", { name: "Commit draft as next version" }));
 
     expect(onReload).toHaveBeenCalledOnce();
     expect(onCommit).toHaveBeenCalledOnce();
+  });
+
+  it("uses the app-resolved light theme for diffs", () => {
+    themeMocks.resolvedTheme = "light";
+
+    render(
+      <KnowledgeMemoryConflictView
+        conflict={conflict}
+        isCommitting={false}
+        onCommit={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("memory-diff")).toHaveAttribute("data-theme-type", "light");
   });
 
   it("selects a revision, renders its diff, and restores it with the current ETag", async () => {
