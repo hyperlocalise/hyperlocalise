@@ -228,6 +228,10 @@ Change License. Hyperlocalise-owned source files in those trees carry a BSL
 header; third-party files retain their own notices. Use
 `node scripts/add-bsl-headers.mjs` when adding new files.
 
+The Figma plugin in [`apps/figma-plugin/`](apps/figma-plugin/) is also licensed
+separately under the Business Source License 1.1. See
+[`apps/figma-plugin/LICENSE`](apps/figma-plugin/LICENSE).
+
 ## Contributing
 
 Issues and pull requests are welcome.
