@@ -72,3 +72,23 @@ as message parts. The persistence filter already removes all `data-*` parts.
 - Concise provider reasoning summaries appear in the existing collapsible reasoning UI when the
   model supplies them.
 - No progress data is persisted or exposed to channels that do not support it.
+
+## Workflow-level visual mock progress
+
+Screenshot callbacks cannot describe decisions that happen between tools. In particular, finding
+that no suitable Storybook story exists and creating a temporary story with mock data spans search,
+read, write, and patch calls.
+
+Use the existing `todoWrite` tool as the workflow-level progress contract:
+
+1. The visual-mock skill creates a three-step checklist before repository inspection.
+2. If no story exists, it changes the preview step to “No story found — create a temporary
+   Storybook story with mock data.”
+3. It marks one step in progress at a time and updates the complete list after each milestone.
+4. The chat renders only the latest `todoWrite` call as an accessible checklist. Older checklist
+   tool calls remain in the message protocol but are hidden to avoid duplicate plans.
+5. The checklist is derived from the tool input while running and its output after completion. It
+   remains part of the existing tool history and requires no second progress transport.
+
+The custom checklist renderer applies only to `todoWrite`. Other tools retain their existing cards.
+Malformed todo output falls back to the normal tool renderer.
