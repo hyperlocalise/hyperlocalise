@@ -73,6 +73,16 @@ function createMockService() {
       alternatives: [],
     }),
   );
+  const confirmAudit = vi.fn(async () =>
+    ok<SafeAudit, LocalisationAuditError>({
+      id: AUDIT_ID,
+      status: "completed",
+      detectedLocale: "en-US",
+      alternatives: [],
+      publicSlug: "opaque-public-slug-1234",
+      summary: publicReport(),
+    }),
+  );
   const service: LocalisationAuditService = {
     prepareAudit,
     getAudit: vi.fn(async () =>
@@ -83,16 +93,7 @@ function createMockService() {
         alternatives: [],
       }),
     ),
-    confirmAudit: vi.fn(async () =>
-      ok<SafeAudit, LocalisationAuditError>({
-        id: AUDIT_ID,
-        status: "completed",
-        detectedLocale: "en-US",
-        alternatives: [],
-        publicSlug: "opaque-public-slug-1234",
-        summary: publicReport(),
-      }),
-    ),
+    confirmAudit,
     unlockAudit: vi.fn(async () =>
       ok<{ accessUrl: string }, LocalisationAuditError>({
         accessUrl: "https://app.example.test/localisation-audit/report?access=signed-token",
@@ -102,11 +103,11 @@ function createMockService() {
       ok<PublicAuditReport, LocalisationAuditError>(publicReport()),
     ),
   };
-  return { prepareAudit, service };
+  return { confirmAudit, prepareAudit, service };
 }
 
 describe("localisation audit routes", () => {
-  const { prepareAudit, service } = createMockService();
+  const { confirmAudit, prepareAudit, service } = createMockService();
   const client = testClient(createApp({ localisationAuditService: service }));
 
   beforeEach(() => {
@@ -163,6 +164,30 @@ describe("localisation audit routes", () => {
       error: "audit_rate_limited",
       message: "Try again later.",
     });
+  });
+
+  it("accepts ISO country codes when confirming the target market", async () => {
+    const response = await client.api["localisation-audit"].audits[":auditId"].confirm.$patch({
+      param: { auditId: AUDIT_ID },
+      json: { targetLocale: "en-GB", targetMarket: "gb" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(confirmAudit).toHaveBeenCalledWith({
+      auditId: AUDIT_ID,
+      targetLocale: "en-GB",
+      targetMarket: "GB",
+    });
+  });
+
+  it("rejects country names when confirming the target market", async () => {
+    const response = await client.api["localisation-audit"].audits[":auditId"].confirm.$patch({
+      param: { auditId: AUDIT_ID },
+      json: { targetLocale: "en-GB", targetMarket: "United Kingdom" },
+    });
+
+    expect(response.status).toBe(400);
+    expect(confirmAudit).not.toHaveBeenCalled();
   });
 
   it("returns only an access URL when a report is unlocked", async () => {

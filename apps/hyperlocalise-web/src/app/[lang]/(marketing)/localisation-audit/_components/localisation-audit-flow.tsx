@@ -550,10 +550,18 @@ export function LocalisationAuditFlow() {
                         <Input
                           id="target-market"
                           value={targetMarket}
-                          onChange={(event) => setTargetMarket(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setTargetMarket(event.currentTarget.value.toUpperCase())
+                          }
                           placeholder={intl.formatMessage(messages.targetMarketPlaceholder)}
+                          autoCapitalize="characters"
+                          maxLength={2}
+                          pattern="[A-Za-z]{2}"
                           required
                         />
+                        <FieldDescription>
+                          {intl.formatMessage(messages.targetMarketDescription)}
+                        </FieldDescription>
                       </Field>
                       {error && failedAction === "confirm" ? (
                         <FormError

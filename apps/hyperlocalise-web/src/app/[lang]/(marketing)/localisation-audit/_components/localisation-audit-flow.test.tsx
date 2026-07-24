@@ -117,7 +117,12 @@ describe("LocalisationAuditFlow", () => {
     expect(screen.getByText("fr-FR")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "en-GB" }));
-    await user.type(screen.getByRole("textbox", { name: "Target market" }), "United Kingdom");
+    const targetMarketInput = screen.getByRole("textbox", {
+      name: "Target market country code",
+    });
+    expect(screen.getByText("Use a two-letter ISO country code such as FR, DE, or GB.")).toBeVisible();
+    await user.type(targetMarketInput, "gb");
+    expect(targetMarketInput).toHaveValue("GB");
     await user.click(screen.getByRole("button", { name: "Run the full health check" }));
 
     expect(await screen.findByRole("heading", { name: "example.com" })).toBeVisible();
@@ -156,7 +161,7 @@ describe("LocalisationAuditFlow", () => {
         method: "PATCH",
         body: JSON.stringify({
           targetLocale: "en-GB",
-          targetMarket: "United Kingdom",
+          targetMarket: "GB",
         }),
       }),
     );
