@@ -115,6 +115,42 @@ export const heroFrameMessages = defineMessages({
     id: "lES6CzVw2i",
     description: "TM match context label in the hero CAT mock",
   },
+  tmContextHomepageHero: {
+    defaultMessage: "Homepage hero · FR",
+    id: "9n/vqDV7Ad",
+    description: "TM match context for a prior homepage hero translation in the CAT mock",
+  },
+  tmContextLaunchCampaign: {
+    defaultMessage: "Launch campaign email",
+    id: "RhmMBU70/7",
+    description: "TM match context for a launch campaign string in the CAT mock",
+  },
+  agentContextHeroTitle: {
+    defaultMessage:
+      "Rendered in `HeroSection` above the waitlist CTA. Nearby copy stresses release confidence and multi-market launch speed. Prefer outcome-led French over literal calendar metaphors.",
+    id: "yA3rkd7QLK",
+    description: "Repository agent context for the hero title segment in the CAT mock",
+  },
+  reviewReasonHeroTitle: {
+    defaultMessage: "High-visibility marketing claim — confirm tone and glossary before approve.",
+    id: "lZ8dN9JqyV",
+    description: "Review reason for the hero title segment in the CAT mock",
+  },
+  visualContextScreenshotName: {
+    defaultMessage: "Homepage hero · Desktop",
+    id: "1QS1K/UCvi",
+    description: "Visual context screenshot label for the hero title segment in the CAT mock",
+  },
+  checkGlossaryLabel: {
+    defaultMessage: "Glossary",
+    id: "aJkSc9lAOA",
+    description: "Format check label for glossary alignment in the hero CAT mock",
+  },
+  checkGlossaryMessage: {
+    defaultMessage: "Approved terms for launch and globally are present in the target.",
+    id: "gt/cmQvJ4u",
+    description: "Format check message for glossary alignment in the hero CAT mock",
+  },
   ctaProductMeaning: {
     defaultMessage: "Waitlist CTA button label on the marketing homepage.",
     id: "9z1rlSegXU",

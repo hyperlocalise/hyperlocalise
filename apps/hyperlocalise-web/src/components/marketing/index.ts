@@ -10,13 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { ChapterSection } from "./chapter-section";
+export { FeatureMeshCardsSection } from "./feature-mesh-cards-section";
 export { RecentBlogPostsSection } from "./recent-blog-posts-section";
 export { FinalCtaSection } from "./final-cta-section";
 export { HeroSection } from "./hero-section";
-export { IntakeSourcesIllustration } from "./intake-sources-illustration";
 export { LogoStripSection } from "./logo-strip-section";
-export { MonitorO11yBento } from "./monitor-o11y-bento";
+export { SlackLaunchIntakeIllustration } from "./slack-launch-intake-illustration";
 export { PrinciplesSection } from "./principles-section";
 export {
   UseCasePage,

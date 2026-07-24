@@ -50,7 +50,7 @@ export const SignedOut: Story = {
     await expect(canvas.getByRole("button", { name: "Product" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Resources" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Join waitlist" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request a Demo" })).toBeInTheDocument();
   },
 };
 
@@ -66,7 +66,7 @@ export const SignedIn: Story = {
 
     await expect(canvas.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Join waitlist" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Request a Demo" })).not.toBeInTheDocument();
   },
 };
 
@@ -81,7 +81,7 @@ export const AuthLoading: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Join waitlist" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Request a Demo" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
   },
 };

@@ -52,8 +52,8 @@ const heroDemoSegments: CatSegment[] = [
     id: "hero-cta",
     index: 2,
     key: "home.hero.cta",
-    sourceText: "Join the waitlist",
-    targetText: "Rejoindre la liste d'attente",
+    sourceText: "Request a Demo",
+    targetText: "Demander une démo",
     sourceLocale: "en-US",
     targetLocale: "fr-FR",
     contextLabel: "Primary CTA",
@@ -360,6 +360,13 @@ function buildHeroDemoChecks(intl: IntlShape): CatFormatCheck[] {
       category: "qa",
     },
     {
+      id: "check-glossary",
+      label: intl.formatMessage(heroFrameMessages.checkGlossaryLabel),
+      status: "pass",
+      message: intl.formatMessage(heroFrameMessages.checkGlossaryMessage),
+      category: "glossary",
+    },
+    {
       id: "check-length",
       label: intl.formatMessage(heroFrameMessages.checkHeroFitLabel),
       status: "warn",
@@ -374,6 +381,98 @@ function buildHeroDemoChecks(intl: IntlShape): CatFormatCheck[] {
       category: "placeholder",
     },
   ];
+}
+
+function buildHeroTitleIntelligence(intl: IntlShape): CatSegmentIntelligence {
+  return {
+    productMeaning: intl.formatMessage(heroFrameMessages.intelligenceProductMeaning),
+    intent: intl.formatMessage(heroFrameMessages.intelligenceIntent),
+    locationBreadcrumb: intl.formatMessage(heroFrameMessages.intelligenceBreadcrumb),
+    filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+    componentName: "HeroSection",
+    reviewerPreference: intl.formatMessage(heroFrameMessages.intelligenceReviewerPreference),
+    constraints: intl.formatMessage(heroFrameMessages.intelligenceConstraints),
+    reviewReason: intl.formatMessage(heroFrameMessages.reviewReasonHeroTitle),
+    reviewRisk: "medium",
+    agentContext: intl.formatMessage(heroFrameMessages.agentContextHeroTitle),
+    glossaryTerms: [
+      {
+        id: "term-launch",
+        source: "Launch",
+        target: "Lancez",
+        approved: true,
+        forbidden: false,
+      },
+      {
+        id: "term-global",
+        source: "globally",
+        target: "à l'international",
+        approved: true,
+        forbidden: false,
+      },
+      {
+        id: "term-days",
+        source: "days",
+        target: "jours",
+        approved: true,
+        forbidden: false,
+      },
+      {
+        id: "term-quarters",
+        source: "quarters",
+        target: "trimestres",
+        approved: true,
+        forbidden: false,
+      },
+    ],
+    translationMemoryMatches: [
+      {
+        id: "tm-hero-exact",
+        sourceText: "Launch globally in days, not quarters.",
+        targetText: "Lancez-vous à l'international en quelques jours, pas en quelques trimestres.",
+        matchPercent: 100,
+        matchKind: "exact",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextHomepageHero),
+      },
+      {
+        id: "tm-launch-context",
+        sourceText: "Launch every market from one workflow.",
+        targetText: "Lancez chaque marché depuis un seul workflow.",
+        matchPercent: 84,
+        matchKind: "context",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextProductOverview),
+      },
+      {
+        id: "tm-launch-fuzzy",
+        sourceText: "Go global without waiting quarters for localization.",
+        targetText: "Passez à l'international sans attendre des trimestres de localisation.",
+        matchPercent: 71,
+        matchKind: "fuzzy",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextLaunchCampaign),
+      },
+    ],
+    aiSuggestion: "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+    aiReasoning: intl.formatMessage(heroFrameMessages.aiReasoningHeroTitle),
+    visualContext: {
+      screenshots: [
+        {
+          id: "hero-desktop",
+          name: intl.formatMessage(heroFrameMessages.visualContextScreenshotName),
+          imageUrl: "/images/visual-context.png",
+          width: 999,
+          height: 432,
+          markers: [
+            {
+              left: 4,
+              top: 8,
+              width: 72,
+              height: 28,
+            },
+          ],
+        },
+      ],
+    },
+  };
 }
 
 function localizeHeroDemoSegments(intl: IntlShape): CatSegment[] {
@@ -413,6 +512,7 @@ function localizeHeroDemoSegments(intl: IntlShape): CatSegment[] {
 function buildHeroDemoState(intl: IntlShape): CatWorkspaceState {
   const segments = localizeHeroDemoSegments(intl);
   const heroDemoChecks = buildHeroDemoChecks(intl);
+  const heroTitleIntelligence = buildHeroTitleIntelligence(intl);
 
   return {
     fileContext: {
@@ -420,7 +520,7 @@ function buildHeroDemoState(intl: IntlShape): CatWorkspaceState {
       filename: "hero-section.tsx",
       sourceLocale: "en-US",
       targetLocale: "fr-FR",
-      providerKind: null,
+      providerKind: "crowdin",
       canEditTranslations: true,
       canAddComments: true,
     },
@@ -429,7 +529,7 @@ function buildHeroDemoState(intl: IntlShape): CatWorkspaceState {
     selectedSegmentId: "hero-title",
     formatChecks: heroDemoChecks,
     segmentFormatChecks: {
-      "hero-title": [],
+      "hero-title": heroDemoChecks,
       "usage-limit": [
         {
           id: "check-icu",
@@ -441,41 +541,9 @@ function buildHeroDemoState(intl: IntlShape): CatWorkspaceState {
         },
       ],
     },
-    intelligence: {
-      productMeaning: intl.formatMessage(heroFrameMessages.intelligenceProductMeaning),
-      intent: intl.formatMessage(heroFrameMessages.intelligenceIntent),
-      locationBreadcrumb: intl.formatMessage(heroFrameMessages.intelligenceBreadcrumb),
-      filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
-      componentName: "HeroSection",
-      reviewerPreference: intl.formatMessage(heroFrameMessages.intelligenceReviewerPreference),
-      constraints: intl.formatMessage(heroFrameMessages.intelligenceConstraints),
-      glossaryTerms: [
-        {
-          id: "term-global",
-          source: "globally",
-          target: "à l'international",
-          approved: true,
-          forbidden: false,
-        },
-        {
-          id: "term-launch",
-          source: "launch",
-          target: "lancer",
-          approved: true,
-          forbidden: false,
-        },
-      ],
-      translationMemoryMatches: [
-        {
-          id: "tm-launch",
-          sourceText: "Launch every market from one workflow.",
-          targetText: "Lancez chaque marché depuis un seul workflow.",
-          matchPercent: 84,
-          contextLabel: intl.formatMessage(heroFrameMessages.tmContextProductOverview),
-        },
-      ],
-    },
+    intelligence: heroTitleIntelligence,
     segmentIntelligence: {
+      "hero-title": heroTitleIntelligence,
       "hero-cta": {
         productMeaning: intl.formatMessage(heroFrameMessages.ctaProductMeaning),
         intent: intl.formatMessage(heroFrameMessages.ctaIntent),
@@ -545,12 +613,16 @@ function wait(ms: number) {
 
 function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceState) {
   const heroDemoChecks = heroDemoState.formatChecks;
+  const heroTitleIntelligence =
+    heroDemoState.segmentIntelligence?.["hero-title"] ?? heroDemoState.intelligence;
 
   async function lookupHeroDemoContext(segment: CatSegment) {
     await wait(1700);
 
     if (segment.id === "hero-title") {
-      return intl.formatMessage(heroFrameMessages.contextHeroTitle);
+      return (
+        heroTitleIntelligence.agentContext ?? intl.formatMessage(heroFrameMessages.contextHeroTitle)
+      );
     }
 
     if (segment.id === "hero-cta") {
@@ -568,6 +640,14 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
     return intl.formatMessage(heroFrameMessages.contextFallback, { key: segment.key });
   }
 
+  async function lookupHeroDemoVisualContext(segment: CatSegment) {
+    if (segment.id === "hero-title" && heroTitleIntelligence.visualContext) {
+      return heroTitleIntelligence.visualContext;
+    }
+
+    return { screenshots: [] };
+  }
+
   async function generateHeroAiRecommendation(
     segment: CatSegment,
     _targetText: string,
@@ -577,8 +657,12 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
 
     if (segment.id === "hero-title") {
       return {
-        aiSuggestion: "Déployez à l'international en quelques jours, pas en quelques trimestres.",
-        aiReasoning: intl.formatMessage(heroFrameMessages.aiReasoningHeroTitle),
+        aiSuggestion:
+          heroTitleIntelligence.aiSuggestion ??
+          "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+        aiReasoning:
+          heroTitleIntelligence.aiReasoning ??
+          intl.formatMessage(heroFrameMessages.aiReasoningHeroTitle),
         formatChecks: heroDemoChecks,
       };
     }
@@ -621,6 +705,7 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
   return {
     validateFormat: validateHeroDemoFormat,
     lookupSegmentContext: lookupHeroDemoContext,
+    lookupSegmentVisualContext: lookupHeroDemoVisualContext,
     generateAiRecommendation: generateHeroAiRecommendation,
   };
 }

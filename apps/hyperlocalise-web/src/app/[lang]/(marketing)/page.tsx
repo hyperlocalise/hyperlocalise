@@ -14,12 +14,11 @@ import type { Metadata } from "next";
 import type { WithContext } from "schema-dts";
 import { WebApplication } from "schema-dts";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
-import { chapters, footerColumns } from "@/components/marketing/marketing-page-content";
+import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
-import { ChatDockMockSection } from "@/components/marketing/chat-dock-mock";
 import { TourfinderTestimonialSection } from "@/components/marketing/tourfinder-testimonial-section";
 import {
-  ChapterSection,
+  FeatureMeshCardsSection,
   FinalCtaSection,
   HeroSection,
   PrinciplesSection,
@@ -118,51 +117,39 @@ export default async function Home({ params }: HomePageProps) {
     <>
       <JsonLd data={jsonLd} />
       <div className="min-h-screen bg-background text-foreground">
+        <HeroSection />
+
         <main className="mx-auto max-w-7xl">
-          <section className=" px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
-            <HeroSection />
-          </section>
-
-          <section className="px-5 py-16 sm:px-8 lg:px-10">
-            <ChatDockMockSection />
-          </section>
-
-          <section className="px-5 py-16 sm:px-8 lg:px-10">
-            <PrinciplesSection />
+          <section className="border-t border-border">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <PrinciplesSection />
+            </div>
           </section>
 
           <div className="border-t border-border">
             <TourfinderTestimonialSection />
           </div>
 
-          <section id="workflow">
-            {chapters.map((chapter) => (
-              <section
-                key={chapter.id}
-                id={chapter.anchorId}
-                className="border-t border-border scroll-mt-24"
-              >
-                <div className="px-5 py-20 sm:px-8 lg:px-10">
-                  <ChapterSection chapter={chapter} />
-                </div>
-              </section>
-            ))}
-          </section>
-
-          <section className="border-t border-border">
-            <div className="px-5 py-20 sm:px-8 lg:px-10">
-              <RecentBlogPostsSection lang={lang} posts={recentPosts} />
+          <section className="border-t border-border scroll-mt-24">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <FeatureMeshCardsSection />
             </div>
           </section>
 
           <section className="border-t border-border">
-            <div className="px-5 py-24 sm:px-8 lg:px-10">
+            <div className="px-5 py-28 sm:px-8 sm:py-32 lg:px-10">
               <FinalCtaSection />
             </div>
           </section>
 
           <section className="border-t border-border">
-            <div className="px-5 py-16 sm:px-8 lg:px-10">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <RecentBlogPostsSection lang={lang} posts={recentPosts} />
+            </div>
+          </section>
+
+          <section className="border-t border-border">
+            <div className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
               <MarketingFooter columns={footerColumns} />
             </div>
           </section>

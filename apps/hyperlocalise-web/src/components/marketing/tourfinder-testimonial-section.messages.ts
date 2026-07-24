@@ -15,44 +15,34 @@
 import { defineMessages } from "react-intl";
 
 export const tourfinderTestimonialSectionMessages = defineMessages({
+  eyebrow: {
+    defaultMessage: "Customer story",
+    id: "WAOAGxwy+L",
+    description: "Eyebrow label above the Tourfinder case study section",
+  },
   headline: {
     defaultMessage: "Ship apps that speak every market from day one",
-    id: "s4F8pscY2w",
-    description: "Marketing homepage Tourfinder testimonial section top headline",
+    id: "a8cGGx+QlX",
+    description: "Marketing homepage Tourfinder case study section headline",
   },
-  quote: {
+  result: {
     defaultMessage: "Tourfinder launched Vietnamese and Japanese marketing in days, not months.",
-    id: "58cCDSy73h",
-    description: "Marketing homepage Tourfinder customer quote",
+    id: "ZK/6pkQPQt",
+    description: "Marketing homepage Tourfinder case study result statement",
   },
-  featuresLabel: {
-    defaultMessage: "Features",
-    id: "x15Qhc61Zn",
-    description: "Label above the Tourfinder testimonial feature list",
+  visitSite: {
+    defaultMessage: "Visit tourfinder.vn",
+    id: "jYLCUCpCv3",
+    description: "Link label to the Tourfinder website from the case study section",
   },
-  featureVietnamese: {
-    defaultMessage: "Vietnamese localisation",
-    id: "gPd3RzQy9+",
-    description: "Tourfinder testimonial feature: Vietnamese localisation",
-  },
-  featureJapanese: {
-    defaultMessage: "Japanese marketing",
-    id: "yfZSz9rjNi",
-    description: "Tourfinder testimonial feature: Japanese marketing",
-  },
-  featureReview: {
-    defaultMessage: "Human review workflows",
-    id: "XAPcmSCzyq",
-    description: "Tourfinder testimonial feature: human review workflows",
-  },
-  featureSpeed: {
-    defaultMessage: "Days, not months",
-    id: "S2yOKsAuHb",
-    description: "Tourfinder testimonial feature: launch speed",
+  logoAlt: {
+    defaultMessage: "Tourfinder",
+    id: "AXYd5YvGYL",
+    description: "Alt text for the Tourfinder logo in the case study section",
   },
   imageAlt: {
     defaultMessage: "Tourfinder homepage localised in Vietnamese with Japan travel campaigns",
-    id: "yCJFX2pnZO",
-    description: "Alt text for the Tourfinder product screenshot in the testimonial section",
+    id: "dW/9kuI56j",
+    description: "Alt text for the Tourfinder product screenshot in the case study section",
   },
 });
