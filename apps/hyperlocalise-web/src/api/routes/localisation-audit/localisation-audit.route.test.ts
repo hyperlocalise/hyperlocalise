@@ -15,6 +15,18 @@ import "dotenv/config";
 import { testClient } from "hono/testing";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+const { getHyperlocaliseAgentModelMock } = vi.hoisted(() => ({
+  getHyperlocaliseAgentModelMock: vi.fn(() => ({ provider: "test" })),
+}));
+
+vi.mock("@/lib/agent-runtime/loops/model", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/agent-runtime/loops/model")>();
+  return {
+    ...actual,
+    getHyperlocaliseAgentModel: getHyperlocaliseAgentModelMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import type { LocalisationAuditService } from "@/lib/localisation-audit/service";
 import type {
@@ -25,6 +37,7 @@ import type {
 import { err, ok } from "@/lib/primitives/result/results";
 
 const AUDIT_ID = "11111111-1111-4111-8111-111111111111";
+const agentModelInitializationsDuringApiImport = getHyperlocaliseAgentModelMock.mock.calls.length;
 
 function publicReport(): PublicAuditReport {
   return {
@@ -112,6 +125,10 @@ describe("localisation audit routes", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("does not initialize authenticated agent models while loading the public audit API", () => {
+    expect(agentModelInitializationsDuringApiImport).toBe(0);
   });
 
   it("prepares an audit through the real API app and forwards the client IP", async () => {
