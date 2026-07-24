@@ -278,7 +278,9 @@ export function MarkdownEditor({
         className,
       )}
     >
-      {!disabled ? <MarkdownEditorToolbar editor={editor} disabled={disabled} /> : null}
+      {!disabled && !isMinimal ? (
+        <MarkdownEditorToolbar editor={editor} disabled={disabled} />
+      ) : null}
       <EditorContent
         editor={editor}
         className={cn(
