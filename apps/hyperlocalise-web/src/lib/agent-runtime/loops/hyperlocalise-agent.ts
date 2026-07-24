@@ -141,6 +141,9 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
   toolChoice,
   onEnd,
 }: CreateHyperlocaliseAgentInput<TOOLS>) {
+  // AI SDK 7 ToolsContextParameter cannot resolve for generic TOOLS even when no
+  // tool declares contextSchema. Narrow suppression keeps the settings object typed.
+  // @ts-expect-error ToolLoopAgent settings: ToolsContextParameter unresolved for generic TOOLS
   return new ToolLoopAgent({
     model: model ?? getHyperlocaliseAgentModel(),
     instructions: buildHyperlocaliseAgentInstructions({
@@ -156,7 +159,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: isStepCount(hyperlocaliseAgentStepLimit),
-  } as unknown as ToolLoopAgentSettings<never, TOOLS>);
+  });
 }
 
 export {
