@@ -16,7 +16,7 @@ import Link from "next/link";
 import { ArrowRightIcon, CheckCircle2Icon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
-import { HeroFrame } from "@/components/marketing/hero-frame";
+import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { Button } from "@/components/ui/button";
@@ -219,11 +219,7 @@ function ProductVisual({ kind }: { kind: ProductVisualKind }) {
 
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <HeroFrame />
-      </div>
-    );
+    return <HeroFrameMeshStage priority />;
   }
 
   return (

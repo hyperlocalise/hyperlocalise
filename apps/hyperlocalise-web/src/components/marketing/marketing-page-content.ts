@@ -34,21 +34,6 @@ export type MarketingFooterColumn = {
   links: MarketingFooterLink[];
 };
 
-export const principles = [
-  {
-    titleKey: "principleAgentNativeTitle",
-    descriptionKey: "principleAgentNativeDescription",
-  },
-  {
-    titleKey: "principleBringYourLlmsTitle",
-    descriptionKey: "principleBringYourLlmsDescription",
-  },
-  {
-    titleKey: "principleReleaseConfidenceTitle",
-    descriptionKey: "principleReleaseConfidenceDescription",
-  },
-] as const;
-
 export const chapters = [
   {
     id: "01",

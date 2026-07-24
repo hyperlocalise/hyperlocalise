@@ -22,9 +22,4 @@ export const principlesSectionMessages = defineMessages({
     description:
       "Marketing homepage principles section headline; muted wraps the supporting sentence",
   },
-  learnMore: {
-    defaultMessage: "Learn more",
-    id: "mwCo4y1n7b",
-    description: "Link from a principles card to the related homepage chapter",
-  },
 });

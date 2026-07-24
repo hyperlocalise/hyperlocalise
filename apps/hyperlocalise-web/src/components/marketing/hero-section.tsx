@@ -12,17 +12,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
-import { HeroFrame } from "./hero-frame";
 import { heroSectionMessages } from "./hero-section.messages";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { env } from "@/lib/env";
 
+const dashboardHref = "/dashboard";
+
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
+  const { user, loading } = useAuth();
+  const isAuthenticated = Boolean(user);
 
   const headlineTransition = shouldReduceMotion
     ? { duration: 0 }
@@ -33,9 +39,6 @@ export function HeroSection() {
   const ctaTransition = shouldReduceMotion
     ? { duration: 0 }
     : { duration: 0.78, ease: [0.19, 1, 0.22, 1] as const };
-  const frameTransition = shouldReduceMotion
-    ? { duration: 0 }
-    : { duration: 1.18, ease: [0.19, 1, 0.22, 1] as const };
 
   return (
     <div id="home" className="pt-16 lg:pt-20">
@@ -84,42 +87,24 @@ export function HeroSection() {
             delay: shouldReduceMotion ? 0 : 1.11,
           }}
         >
-          <Button
-            nativeButton={false}
-            render={
-              <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-            }
-          >
-            <FormattedMessage {...heroSectionMessages.joinWaitlist} />
-          </Button>
+          {loading ? (
+            <Skeleton className="h-9 w-36 rounded-md" aria-hidden="true" />
+          ) : isAuthenticated ? (
+            <Button nativeButton={false} render={<Link href={dashboardHref} />}>
+              <FormattedMessage {...heroSectionMessages.goToDashboard} />
+            </Button>
+          ) : (
+            <Button
+              nativeButton={false}
+              render={
+                <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              <FormattedMessage {...heroSectionMessages.joinWaitlist} />
+            </Button>
+          )}
         </motion.div>
       </motion.div>
-
-      <div className="relative mt-12">
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-[3rem] bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.18),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.12),transparent_46%)] blur-3xl"
-          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{
-            duration: shouldReduceMotion ? 0 : 1.48,
-            delay: shouldReduceMotion ? 0 : 1.16,
-            ease: [0.19, 1, 0.22, 1],
-          }}
-        />
-
-        <motion.div
-          className="relative"
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 46, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{
-            ...frameTransition,
-            delay: shouldReduceMotion ? 0 : 1.52,
-          }}
-        >
-          <HeroFrame />
-        </motion.div>
-      </div>
     </div>
   );
 }
