@@ -174,8 +174,7 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-  | { code: "unsupported_provider_model" }
-  | { code: "provider_validation_failed"; message: string };
+  { code: "unsupported_provider_model" } | { code: "provider_validation_failed"; message: string };
 
 async function validateCredential(
   input: CredentialInput,

@@ -80,7 +80,7 @@ const messageUploadBodyLimit = createMiddleware(async (c, next) => {
     chunks.push(value);
   }
 
-  c.req.raw = new Request(rawRequest.url, {
+  const replayRequestInit: RequestInit & { duplex: "half" } = {
     method: rawRequest.method,
     headers: rawRequest.headers,
     body: new ReadableStream({
@@ -93,7 +93,8 @@ const messageUploadBodyLimit = createMiddleware(async (c, next) => {
     }),
     signal: rawRequest.signal,
     duplex: "half",
-  });
+  };
+  c.req.raw = new Request(rawRequest.url, replayRequestInit);
 
   return next();
 });
@@ -538,10 +539,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     .post(
       "/:conversationId/messages",
       validateConversationParams,
-      bodyLimit({
-        maxSize: maxMessageUploadBytes,
-        onError: (c) => c.json({ error: "upload_too_large" }, 413),
-      }),
+      messageUploadBodyLimit,
       async (c) => {
         const { conversationId } = c.req.valid("param");
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
