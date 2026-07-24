@@ -40,9 +40,26 @@ const findings = Array.from({ length: 4 }, (_, index) => ({
   confidence: "high",
 }));
 
-function jsonResponse(body: unknown): Response {
+const completedSummary = {
+  domain: "example.com",
+  auditedAt: "2026-07-24T12:00:00.000Z",
+  overallScore: scored,
+  categories: {
+    technical: scored,
+    linguistic: {
+      state: "insufficient_evidence",
+      evaluatedRules: 2,
+    },
+    market: scored,
+  },
+  previewFindings: findings,
+  lockedFindingCount: 6,
+  limitations: [],
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { "Content-Type": "application/json" },
   });
 }
@@ -52,10 +69,20 @@ afterEach(() => {
 });
 
 describe("LocalisationAuditFlow", () => {
-  it("completes discovery, confirmation, preview, and report unlock", async () => {
+  it("polls durable prepare/run workflows through discovery, confirmation, preview, and unlock", async () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        jsonResponse({
+          audit: {
+            id: "audit-1",
+            status: "preparing",
+            detectedLocale: null,
+            alternatives: [],
+          },
+        }),
+      )
       .mockResolvedValueOnce(
         jsonResponse({
           audit: {
@@ -75,24 +102,19 @@ describe("LocalisationAuditFlow", () => {
         jsonResponse({
           audit: {
             id: "audit-1",
+            status: "running",
+            detectedLocale: "fr-FR",
+            alternatives: [],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          audit: {
+            id: "audit-1",
             status: "completed",
             publicSlug: "shared-1",
-            summary: {
-              domain: "example.com",
-              auditedAt: "2026-07-24T12:00:00.000Z",
-              overallScore: scored,
-              categories: {
-                technical: scored,
-                linguistic: {
-                  state: "insufficient_evidence",
-                  evaluatedRules: 2,
-                },
-                market: scored,
-              },
-              previewFindings: findings,
-              lockedFindingCount: 6,
-              limitations: [],
-            },
+            summary: completedSummary,
           },
         }),
       )
@@ -156,8 +178,9 @@ describe("LocalisationAuditFlow", () => {
         body: JSON.stringify({ url: "https://example.com/fr" }),
       }),
     );
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/localisation-audit/audits/audit-1");
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      3,
       "/api/localisation-audit/audits/audit-1/confirm",
       expect.objectContaining({
         method: "PATCH",
@@ -167,8 +190,9 @@ describe("LocalisationAuditFlow", () => {
         }),
       }),
     );
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/localisation-audit/audits/audit-1");
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      5,
       "/api/localisation-audit/audits/audit-1/unlock",
       expect.objectContaining({
         method: "POST",

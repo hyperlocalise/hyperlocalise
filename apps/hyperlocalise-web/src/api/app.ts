@@ -19,6 +19,7 @@ import type { LocalisationAuditService } from "@/lib/localisation-audit/service"
 import type {
   EmailAgentTaskQueue,
   JobQueue,
+  LocalisationAuditQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
@@ -97,6 +98,7 @@ type CreateAppOptions = {
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
   localisationAuditService?: LocalisationAuditService;
+  localisationAuditQueue?: LocalisationAuditQueue;
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
@@ -122,7 +124,10 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/blog", createBlogOgImageRoutes())
     .route(
       "/localisation-audit",
-      createLocalisationAuditRoutes({ service: options.localisationAuditService }),
+      createLocalisationAuditRoutes({
+        service: options.localisationAuditService,
+        localisationAuditQueue: options.localisationAuditQueue,
+      }),
     )
     .route(
       "/orgs/:organizationSlug",

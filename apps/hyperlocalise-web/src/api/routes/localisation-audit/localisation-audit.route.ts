@@ -24,10 +24,12 @@ import {
 import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  createLocalisationAuditService,
   localisationAuditService,
   type LocalisationAuditService,
 } from "@/lib/localisation-audit/service";
 import type { LocalisationAuditError } from "@/lib/localisation-audit/types";
+import type { LocalisationAuditQueue } from "@/lib/workflow/types";
 
 import {
   confirmLocalisationAuditBodySchema,
@@ -110,9 +112,16 @@ function requestIpAddress(headers: Headers): string {
 }
 
 export function createLocalisationAuditRoutes(
-  options: { service?: LocalisationAuditService } = {},
+  options: {
+    service?: LocalisationAuditService;
+    localisationAuditQueue?: LocalisationAuditQueue;
+  } = {},
 ) {
-  const service = options.service ?? localisationAuditService;
+  const service =
+    options.service ??
+    (options.localisationAuditQueue
+      ? createLocalisationAuditService({ queue: options.localisationAuditQueue })
+      : localisationAuditService);
 
   return new Hono()
     .post("/audits", validateCreateBody, async (c) => {

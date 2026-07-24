@@ -24,6 +24,7 @@ import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
+  LocalisationAuditQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
@@ -138,6 +139,28 @@ export function createTranslationFileImportQueue(): TranslationFileImportQueue {
     async enqueue(event) {
       const { translationFileImportWorkflow } = await import("@/workflows/translation-file-import");
       const run = await start(translationFileImportWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createLocalisationAuditQueue(): LocalisationAuditQueue {
+  return {
+    async enqueuePrepare(event) {
+      const { localisationAuditPrepareWorkflow } =
+        await import("@/workflows/localisation-audit-prepare");
+      const run = await start(localisationAuditPrepareWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+    async enqueueRun(event) {
+      const { localisationAuditRunWorkflow } = await import("@/workflows/localisation-audit-run");
+      const run = await start(localisationAuditRunWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+    async enqueueDeliver(event) {
+      const { localisationAuditDeliverWorkflow } =
+        await import("@/workflows/localisation-audit-deliver");
+      const run = await start(localisationAuditDeliverWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

@@ -143,3 +143,22 @@ export type TranslationFileImportEventData = {
 };
 
 export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData>;
+
+export type LocalisationAuditPrepareEventData = {
+  auditId: string;
+};
+
+export type LocalisationAuditRunEventData = {
+  auditId: string;
+};
+
+export type LocalisationAuditDeliverEventData = {
+  leadId: string;
+  accessUrl: string;
+};
+
+export type LocalisationAuditQueue = {
+  enqueuePrepare(event: LocalisationAuditPrepareEventData): Promise<{ ids: string[] }>;
+  enqueueRun(event: LocalisationAuditRunEventData): Promise<{ ids: string[] }>;
+  enqueueDeliver(event: LocalisationAuditDeliverEventData): Promise<{ ids: string[] }>;
+};

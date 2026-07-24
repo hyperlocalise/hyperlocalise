@@ -45,6 +45,7 @@ import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress
 
 import { AuditReportView } from "./audit-report-view";
 import type {
+  AuditStatus,
   ConfirmAuditResponse,
   CreateAuditResponse,
   UnlockAuditResponse,
@@ -54,6 +55,15 @@ import { localisationAuditMessages as messages } from "./localisation-audit.mess
 
 type FlowStage = "input" | "discovering" | "confirm" | "auditing" | "result";
 type FailedAction = "create" | "confirm" | "unlock" | null;
+type CompletedAuditView = {
+  id: string;
+  status: "completed" | "partial";
+  publicSlug?: string;
+  summary: ReturnType<typeof toAuditReportProjection>;
+};
+
+const AUDIT_POLL_INTERVAL_MS = 1_000;
+const AUDIT_POLL_TIMEOUT_MS = 90_000;
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -67,6 +77,32 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
 function getFormString(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function pollAuditUntil(
+  auditId: string,
+  isTerminal: (status: AuditStatus) => boolean,
+  fallbackError: string,
+): Promise<ConfirmAuditResponse["audit"]> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < AUDIT_POLL_TIMEOUT_MS) {
+    const response = await fetch(`/api/localisation-audit/audits/${encodeURIComponent(auditId)}`);
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, fallbackError));
+    }
+    const body = (await response.json()) as ConfirmAuditResponse;
+    if (isTerminal(body.audit.status)) {
+      return body.audit;
+    }
+    await sleep(AUDIT_POLL_INTERVAL_MS);
+  }
+  throw new Error(fallbackError);
 }
 
 function LoadingStage({
@@ -157,7 +193,7 @@ export function LocalisationAuditFlow() {
   const [stage, setStage] = useState<FlowStage>("input");
   const [submittedUrl, setSubmittedUrl] = useState("");
   const [createdAudit, setCreatedAudit] = useState<CreateAuditResponse["audit"] | null>(null);
-  const [completedAudit, setCompletedAudit] = useState<ConfirmAuditResponse["audit"] | null>(null);
+  const [completedAudit, setCompletedAudit] = useState<CompletedAuditView | null>(null);
   const [targetLocale, setTargetLocale] = useState("");
   const [targetMarket, setTargetMarket] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -185,8 +221,24 @@ export function LocalisationAuditFlow() {
       }
 
       const body = (await response.json()) as CreateAuditResponse;
-      setCreatedAudit(body.audit);
-      setTargetLocale(body.audit.detectedLocale ?? body.audit.alternatives[0]?.locale ?? "");
+      const prepared =
+        body.audit.status === "awaiting_confirmation" || body.audit.status === "failed"
+          ? body.audit
+          : await pollAuditUntil(
+              body.audit.id,
+              (status) => status === "awaiting_confirmation" || status === "failed",
+              fallbackError,
+            );
+      if (prepared.status === "failed") {
+        throw new Error(fallbackError);
+      }
+      setCreatedAudit({
+        id: prepared.id,
+        status: prepared.status,
+        detectedLocale: prepared.detectedLocale ?? null,
+        alternatives: prepared.alternatives ?? [],
+      });
+      setTargetLocale(prepared.detectedLocale ?? prepared.alternatives?.[0]?.locale ?? "");
       setStage("confirm");
     } catch (requestError) {
       setStage("input");
@@ -221,9 +273,27 @@ export function LocalisationAuditFlow() {
       }
 
       const body = (await response.json()) as ConfirmAuditResponse;
+      const completed =
+        body.audit.status === "completed" ||
+        body.audit.status === "partial" ||
+        body.audit.status === "failed"
+          ? body.audit
+          : await pollAuditUntil(
+              createdAudit.id,
+              (status) => status === "completed" || status === "partial" || status === "failed",
+              fallbackError,
+            );
+      if (
+        (completed.status !== "completed" && completed.status !== "partial") ||
+        !completed.summary
+      ) {
+        throw new Error(fallbackError);
+      }
       setCompletedAudit({
-        ...body.audit,
-        summary: toAuditReportProjection(body.audit.summary),
+        id: completed.id,
+        status: completed.status,
+        publicSlug: completed.publicSlug,
+        summary: toAuditReportProjection(completed.summary),
       });
       setStage("result");
     } catch (requestError) {

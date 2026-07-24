@@ -81,19 +81,19 @@ function createMockService() {
   const prepareAudit = vi.fn(async () =>
     ok<SafeAudit, LocalisationAuditError>({
       id: AUDIT_ID,
-      status: "awaiting_confirmation",
-      detectedLocale: "en-US",
+      status: "preparing",
+      detectedLocale: null,
       alternatives: [],
     }),
   );
   const confirmAudit = vi.fn(async () =>
     ok<SafeAudit, LocalisationAuditError>({
       id: AUDIT_ID,
-      status: "completed",
+      status: "running",
       detectedLocale: "en-US",
       alternatives: [],
-      publicSlug: "opaque-public-slug-1234",
-      summary: publicReport(),
+      targetLocale: "en-GB",
+      targetMarket: "GB",
     }),
   );
   const service: LocalisationAuditService = {
@@ -141,8 +141,8 @@ describe("localisation audit routes", () => {
     await expect(response.json()).resolves.toEqual({
       audit: {
         id: AUDIT_ID,
-        status: "awaiting_confirmation",
-        detectedLocale: "en-US",
+        status: "preparing",
+        detectedLocale: null,
         alternatives: [],
       },
     });

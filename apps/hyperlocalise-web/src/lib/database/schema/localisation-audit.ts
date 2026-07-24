@@ -99,10 +99,12 @@ export type LocalisationAuditPrivateReportData = LocalisationAuditReportData & {
 };
 
 export type LocalisationAuditEventMetadata = {
-  source?: "api" | "email" | "report";
+  source?: "api" | "email" | "report" | "workflow";
   findingCount?: number;
   localeCount?: number;
   deliveryStatus?: "sent" | "skipped" | "failed";
+  workflowRunId?: string;
+  phase?: "prepare" | "run" | "deliver";
 };
 
 export const localisationAudits = pgTable(

@@ -52,10 +52,18 @@ export type DiscoveredAlternative = {
   url: string;
 };
 
+export type AuditStatus =
+  | "preparing"
+  | "awaiting_confirmation"
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed";
+
 export type CreateAuditResponse = {
   audit: {
     id: string;
-    status: "awaiting_confirmation";
+    status: AuditStatus;
     detectedLocale: string | null;
     alternatives: DiscoveredAlternative[];
   };
@@ -64,9 +72,11 @@ export type CreateAuditResponse = {
 export type ConfirmAuditResponse = {
   audit: {
     id: string;
-    status: "completed" | "partial";
-    publicSlug: string;
-    summary: AuditSummary;
+    status: AuditStatus;
+    publicSlug?: string;
+    summary?: AuditSummary;
+    detectedLocale?: string | null;
+    alternatives?: DiscoveredAlternative[];
   };
 };
 
