@@ -29,7 +29,7 @@ describe("llms.txt route", () => {
     );
     expect(body).toContain("## Product");
     expect(body).toContain(
-      "[Agents Automation](https://www.hyperlocalise.com/en/product/agents-automation): Stop chasing localisation work across tools.",
+      "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation): Stop chasing localisation work across tools.",
     );
     expect(body).toContain(
       "[Next-gen CAT Tool](https://www.hyperlocalise.com/en/product/next-gen-cat-tool): Review translations without guessing what the string means.",

@@ -38,8 +38,8 @@ export default async function Image({ params }: ProductOgImageProps) {
     return createMarketingOgImage({
       heading: "Hyperlocalise",
       description: intl.formatMessage({
-        defaultMessage: "Localisation for the Agentic Era.",
-        id: "jycg40Y0pj",
+        defaultMessage: "The best agentic localisation platform",
+        id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
     });
@@ -51,8 +51,8 @@ export default async function Image({ params }: ProductOgImageProps) {
     return createMarketingOgImage({
       heading: "Hyperlocalise",
       description: intl.formatMessage({
-        defaultMessage: "Localisation for the Agentic Era.",
-        id: "jycg40Y0pj",
+        defaultMessage: "The best agentic localisation platform",
+        id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
     });

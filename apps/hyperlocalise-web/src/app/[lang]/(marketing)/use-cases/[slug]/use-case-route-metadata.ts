@@ -17,8 +17,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "product-localisation":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Product Localisation Platform | Hyperlocalise",
-          id: "O49fIaNAUN",
+          defaultMessage: "Product Localisation That Keeps Up With Every Release | Hyperlocalise",
+          id: "6LxKn3JIpf",
           description: "Page title for the product-localisation use case",
         }),
         description: intl.formatMessage({
@@ -31,8 +31,9 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "marketing-localisation":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Marketing Localisation Platform | Hyperlocalise",
-          id: "3uA+kFvugb",
+          defaultMessage:
+            "Campaign Localisation That Protects Brand Voice in Every Market | Hyperlocalise",
+          id: "gLY1S7oNNH",
           description: "Page title for the marketing-localisation use case",
         }),
         description: intl.formatMessage({
@@ -45,8 +46,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "help-center-localisation":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Help Center Localisation | Hyperlocalise",
-          id: "kB+yrXhyLX",
+          defaultMessage: "Support Content That Stays Current in Every Language | Hyperlocalise",
+          id: "kgZXe0zuly",
           description: "Page title for the help-center-localisation use case",
         }),
         description: intl.formatMessage({
@@ -59,8 +60,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "github-release-localisation":
       return {
         title: intl.formatMessage({
-          defaultMessage: "GitHub Localisation Workflow | Hyperlocalise",
-          id: "2koXtiF9kP",
+          defaultMessage: "Localisation Checks That Run With Every Pull Request | Hyperlocalise",
+          id: "hQHAZFLEs7",
           description: "Page title for the github-release-localisation use case",
         }),
         description: intl.formatMessage({
@@ -73,8 +74,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "localisation-quality-monitoring":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Localisation Quality Monitoring | Hyperlocalise",
-          id: "PD89ps+Bh6",
+          defaultMessage: "Catch Translation Drift Before Your Customers Do | Hyperlocalise",
+          id: "yB2wsLvc7h",
           description: "Page title for the localisation-quality-monitoring use case",
         }),
         description: intl.formatMessage({
@@ -87,8 +88,9 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
     case "localisation-operations":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Localisation Operations Platform | Hyperlocalise",
-          id: "8Le6L54Cs/",
+          defaultMessage:
+            "One Operations Layer Across Your Entire Localisation Stack | Hyperlocalise",
+          id: "mXH9Amn98O",
           description: "Page title for the localisation-operations use case",
         }),
         description: intl.formatMessage({

@@ -22,7 +22,7 @@ type LlmsLink = {
 
 const productLinks: LlmsLink[] = [
   {
-    title: "Agents Automation",
+    title: "Agent Automation",
     href: `${SITE_URL}/en/product/agents-automation`,
     description: "Stop chasing localisation work across tools",
   },

@@ -31,14 +31,13 @@ export default async function Image({ params }: HomeOgImageProps) {
   const intl = getIntlShape(lang);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | Launch Product Localisation — Translate & Review with Context",
-    id: "inSBLQSxUD",
+    defaultMessage: "Hyperlocalise | The Best Agentic Localisation Platform",
+    id: "9EV17CGa2+",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
-    defaultMessage:
-      "Hyperlocalise helps teams translate and review product localisation with real context before launch.",
-    id: "bbL3sRpta4",
+    defaultMessage: "The best agentic localisation platform to launch globally in days.",
+    id: "cdezPwXx10",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });

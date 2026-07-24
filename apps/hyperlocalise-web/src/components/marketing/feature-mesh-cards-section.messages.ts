@@ -53,15 +53,15 @@ export const featureMeshCardsSectionMessages = defineMessages({
     id: "I8M95p2Fxn",
     description: "Feature card body for context-aware translation quality",
   },
-  releaseTitle: {
-    defaultMessage: "Update one article. Ship it in every language.",
-    id: "GDDaNVOG9m",
-    description: "Feature card title for agentic help-article localisation automation",
+  automationTitle: {
+    defaultMessage: "Agent Automation",
+    id: "XXvzY76urn",
+    description: "Feature card title for agent automation workflows",
   },
-  releaseBody: {
+  automationBody: {
     defaultMessage:
-      "When a help article changes in Contentful, agents translate it across locales, run QA, and write drafts back for review — so support stays current in every market without a handoff.",
-    id: "czQTkWnDNV",
-    description: "Feature card body for agentic help-article localisation automation",
+      "Set the playbook once. Agents handle the busywork so you cover more markets without growing the team — reviewers only step in for judgment calls.",
+    id: "0ug9As7ELn",
+    description: "Feature card body for agent automation workflows",
   },
 });
