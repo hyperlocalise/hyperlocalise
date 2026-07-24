@@ -25,8 +25,9 @@ without exposing personal or sensitive information.
 3. The visitor confirms or corrects the detected language and target market.
 4. The audit shows progress while it discovers locales, checks technical
    setup, reviews customer-facing language, and compares market experiences.
-5. The free result shows the overall score, three category scores, three
-   high-impact findings, and the number of locked findings.
+5. The free result shows the available overall and category scores, an
+   **Insufficient evidence** state for withheld scores, three high-impact
+   findings, and the number of locked findings.
 6. The visitor enters a work email to unlock the full web report and receive an
    emailed copy.
 7. The primary call to action invites the lead to book a localisation strategy
