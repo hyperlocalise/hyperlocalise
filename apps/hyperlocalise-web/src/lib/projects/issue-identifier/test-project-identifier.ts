@@ -18,7 +18,10 @@ import {
 } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 /** Build a unique project identifier for test inserts within an organization. */
-export function testProjectIdentifier(name = "Test Project", taken: ReadonlySet<string> = new Set()) {
+export function testProjectIdentifier(
+  name = "Test Project",
+  taken: ReadonlySet<string> = new Set(),
+) {
   const candidate = deriveProjectIssueIdentifierCandidate(name);
   try {
     return uniquifyProjectIssueIdentifier(candidate, taken);

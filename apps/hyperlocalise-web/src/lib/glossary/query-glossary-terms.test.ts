@@ -34,7 +34,6 @@ async function createOrganization() {
     .values({
       workosOrganizationId: `org_${suffix}`,
       name: `Glossary Query Org ${suffix}`,
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       slug: `glossary-query-org-${suffix}`,
     })
     .returning();
@@ -50,6 +49,7 @@ async function createProject(organizationId: string) {
       id: `project_${randomUUID()}`,
       organizationId,
       name: "Launch Site",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       translationContext: "",
     })
@@ -70,7 +70,6 @@ async function createAttachedGlossaryTerm(input: {
     .values({
       organizationId: input.organizationId,
       name: input.glossaryName,
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       sourceLocale: "en",
       targetLocale: "fr",

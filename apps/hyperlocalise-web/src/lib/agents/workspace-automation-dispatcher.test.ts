@@ -53,7 +53,6 @@ async function seedDispatchScope() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `workspace-dispatch-${organizationId.slice(0, 8)}`,
     name: "Workspace Dispatch Test Org",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -68,6 +67,7 @@ async function seedDispatchScope() {
     organizationId,
     createdByUserId: userId,
     name: "Website",
+    identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   const githubInstallationId = `7${numericSuffix}`;
@@ -235,7 +235,6 @@ describe("workspace automation dispatcher", () => {
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
         name: "Translate Contentful article",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         instructions: "Translate Contentful updates.",
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
@@ -600,7 +599,6 @@ describe("workspace automation dispatcher", () => {
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
         name: "Translate article entries",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         instructions: "Translate article updates.",
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },

@@ -84,7 +84,7 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
     organizationId: input.organizationId,
     createdByUserId: input.userId ?? null,
     name: "Website",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
+    identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   return projectId;
@@ -113,7 +113,6 @@ async function seedGithubRepository(input: { organizationId: string }) {
       githubRepositoryId,
       owner: "hyperlocalise",
       name: `web-${numericSuffix}`,
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       fullName: `hyperlocalise/web-${numericSuffix}`,
       private: false,
       archived: false,

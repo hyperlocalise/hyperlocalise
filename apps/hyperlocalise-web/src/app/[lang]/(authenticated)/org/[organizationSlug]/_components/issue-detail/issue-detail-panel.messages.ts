@@ -37,12 +37,12 @@ export const issueDetailPanelMessages = defineMessages({
   },
   copyId: {
     defaultMessage: "Copy ID",
-    id: "issueDetailCopyId",
+    id: "jvYRTRJ96D",
     description: "Button to copy the human-readable issue identifier",
   },
   copyIdSuccess: {
     defaultMessage: "Issue ID copied",
-    id: "issueDetailCopyIdSuccess",
+    id: "1q0iPIoJWR",
     description: "Toast after copying the human-readable issue identifier",
   },
   saved: {

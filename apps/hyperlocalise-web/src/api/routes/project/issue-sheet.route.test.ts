@@ -544,7 +544,7 @@ Second import issue,Done,EXT-2,P2`;
         teamId: project.teamId,
         createdByUserId: user.id,
         name: "Other Project",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
+        identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         description: "",
         translationContext: "",
         sourceLocale: "en-US",

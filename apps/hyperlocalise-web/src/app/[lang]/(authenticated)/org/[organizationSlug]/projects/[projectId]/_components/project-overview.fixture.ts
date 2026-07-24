@@ -19,6 +19,7 @@ export const projectOverviewFixture: ProjectListRow = {
   id: "project_website",
   name: "Website localization",
   key: "website",
+  identifier: "WEB",
   description: "Marketing site and product copy",
   descriptionValue: "Marketing site and product copy",
   translationContext: "Friendly, concise marketing tone",

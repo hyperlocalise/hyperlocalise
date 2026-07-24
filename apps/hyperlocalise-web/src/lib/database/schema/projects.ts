@@ -108,10 +108,7 @@ export const projects = pgTable(
       table.externalProjectId,
     ),
     uniqueIndex("projects_org_identifier_key").on(table.organizationId, table.identifier),
-    check(
-      "projects_identifier_format_check",
-      sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`,
-    ),
+    check("projects_identifier_format_check", sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`),
     check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
     index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_projects_team_id").on(table.teamId),

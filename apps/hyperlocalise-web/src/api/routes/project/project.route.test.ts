@@ -28,6 +28,7 @@ import type {
   ProjectProviderBranchesResponse,
   ProjectResponse,
 } from "./project.schema";
+import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 const {
   countTmsProviderLiveOpenJobsForProjectMock,
@@ -174,24 +175,19 @@ describe("project detail route", () => {
   });
 
   it("updates the project issue identifier and rewrites stored issue IDs", async () => {
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const { identity, project, organization, user } =
+      await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const issueSheet = new IssueSheetService();
 
-    const createIssueResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ]["issue-sheet"].$post(
-      {
-        param: { organizationSlug, projectId: project.id },
-        json: { title: "Needs context" },
-      },
-      { headers },
-    );
-    expect(createIssueResponse.status).toBe(201);
-    const createdIssue = (await createIssueResponse.json()) as {
-      issue: { id: string; number: number; identifier: string };
-    };
-    expect(createdIssue.issue.identifier).toBe(`${project.identifier}-1`);
+    const createdIssue = await issueSheet.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: { title: "Needs context" },
+    });
+    expect(createdIssue.identifier).toBe(`${project.identifier}-1`);
 
     const patchResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
       {
@@ -204,23 +200,13 @@ describe("project detail route", () => {
     const patched = (await patchResponse.json()) as ProjectResponse;
     expect(patched.project.identifier).toBe("NEWID");
 
-    const getIssueResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "issue-sheet"
-    ][":issueId"].$get(
-      {
-        param: {
-          organizationSlug,
-          projectId: project.id,
-          issueId: createdIssue.issue.id,
-        },
-      },
-      { headers },
-    );
-    expect(getIssueResponse.status).toBe(200);
-    const issueBody = (await getIssueResponse.json()) as {
-      issue: { identifier: string; number: number };
-    };
-    expect(issueBody.issue).toMatchObject({ number: 1, identifier: "NEWID-1" });
+    const updatedIssue = await issueSheet.getIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: createdIssue.id,
+      actorUserId: user.id,
+    });
+    expect(updatedIssue).toMatchObject({ number: 1, identifier: "NEWID-1" });
   });
 
   it("returns the live provider open job count from the dedicated endpoint", async () => {

@@ -307,9 +307,7 @@ export function ProjectSettingsPageContent({
               disabled={isSaving}
               onChange={(event) =>
                 setValues((current) =>
-                  current
-                    ? { ...current, identifier: event.target.value.toUpperCase() }
-                    : current,
+                  current ? { ...current, identifier: event.target.value.toUpperCase() } : current,
                 )
               }
               aria-invalid={Boolean(errors.identifier)}
@@ -319,9 +317,7 @@ export function ProjectSettingsPageContent({
             <FieldDescription>
               <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
             </FieldDescription>
-            <FieldError
-              errors={errors.identifier ? [{ message: errors.identifier }] : undefined}
-            />
+            <FieldError errors={errors.identifier ? [{ message: errors.identifier }] : undefined} />
           </Field>
           <Field className="gap-1.5">
             <FieldLabel htmlFor="project-description">

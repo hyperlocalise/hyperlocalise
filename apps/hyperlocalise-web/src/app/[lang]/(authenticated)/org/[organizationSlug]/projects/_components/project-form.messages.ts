@@ -27,13 +27,13 @@ export const projectFormMessages = defineMessages({
   },
   identifierRequired: {
     defaultMessage: "Identifier is required.",
-    id: "projectFormIdentifierRequired",
+    id: "PhCueSOzW6",
     description: "Validation error when the project issue identifier is empty",
   },
   identifierInvalid: {
     defaultMessage:
       "Identifier must be 1–10 characters, start with a letter, and use only letters and numbers.",
-    id: "projectFormIdentifierInvalid",
+    id: "A87DLxXSk5",
     description: "Validation error when the project issue identifier format is invalid",
   },
   descriptionTooLong: {

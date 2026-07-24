@@ -73,13 +73,13 @@ export const projectSettingsPageContentMessages = defineMessages({
   },
   identifierLabel: {
     defaultMessage: "Identifier",
-    id: "projectSettingsIdentifierLabel",
+    id: "bc3AvlTYpJ",
     description: "Label for the project issue identifier field",
   },
   identifierHelp: {
     defaultMessage:
       "Used as the prefix for issue IDs (for example HL-12). Letters and numbers only. Changing this updates existing issue IDs.",
-    id: "projectSettingsIdentifierHelp",
+    id: "492CV198dr",
     description: "Help text for the project issue identifier field",
   },
   nameLabel: {

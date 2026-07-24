@@ -72,7 +72,6 @@ describe("provider-agent-writeback", () => {
       .values({
         workosOrganizationId: `org_${orgSuffix}`,
         name: "Write-back Org",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         slug: `writeback-${orgSuffix.slice(0, 8)}`,
       })
       .returning();
@@ -82,6 +81,7 @@ describe("provider-agent-writeback", () => {
       id: projectId,
       organizationId,
       name: "External TMS Project",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProjectId: "123",
@@ -217,6 +217,7 @@ describe("provider-agent-writeback", () => {
       id: projectId,
       organizationId,
       name: "External TMS Project",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProjectId: "123",

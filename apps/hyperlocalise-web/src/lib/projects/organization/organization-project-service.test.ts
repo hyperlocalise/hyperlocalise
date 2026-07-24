@@ -61,7 +61,6 @@ async function seedExternalTmsOrganization() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `ensure-project-${organizationId.slice(0, 8)}`,
     name: "Ensure Project Test Org",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -117,6 +116,7 @@ describe("ensureOrganizationProjectRecord", () => {
       organizationId: scope.organizationId,
       createdByUserId: scope.userId,
       name: "Website",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
     });
@@ -212,7 +212,7 @@ describe("ensureOrganizationProjectRecord", () => {
       organizationId: firstOrg.organizationId,
       createdByUserId: firstOrg.userId,
       name: "Org A Project",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProviderCredentialId: firstOrg.credentialId,

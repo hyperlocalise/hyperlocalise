@@ -424,11 +424,7 @@ const projectStore: ProjectStore = {
           .where(await ownedProjectWhere(auth, projectId))
           .returning();
 
-        if (
-          updated &&
-          nextIdentifier !== undefined &&
-          nextIdentifier !== existing.identifier
-        ) {
+        if (updated && nextIdentifier !== undefined && nextIdentifier !== existing.identifier) {
           await rewriteProjectIssueIdentifiers({
             projectId,
             projectIdentifier: nextIdentifier,

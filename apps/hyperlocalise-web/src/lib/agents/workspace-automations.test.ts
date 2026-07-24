@@ -58,7 +58,6 @@ async function seedWorkspaceAutomationScope() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `workspace-automation-${organizationId.slice(0, 8)}`,
     name: "Workspace Automation Test Org",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -72,6 +71,7 @@ async function seedWorkspaceAutomationScope() {
     organizationId,
     createdByUserId: userId,
     name: "Website",
+    identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.githubInstallations).values({
@@ -224,7 +224,6 @@ describe("workspace automations", () => {
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
       name: "Notification-only schedule",
-        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       instructions: "Send a daily reminder.",
       triggerConfig,
       toolConfig: {
