@@ -67,6 +67,7 @@ async function createNativeProject(targetLocales: string[]) {
     teamId: null,
     createdByUserId: userId,
     name: "Native Project",
+    identifier: "NP",
     description: "",
     translationContext: "",
     source: "native",

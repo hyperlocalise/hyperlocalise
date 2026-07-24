@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -51,6 +53,7 @@ async function seedDispatchScope() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `workspace-dispatch-${organizationId.slice(0, 8)}`,
     name: "Workspace Dispatch Test Org",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -232,6 +235,7 @@ describe("workspace automation dispatcher", () => {
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
         name: "Translate Contentful article",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         instructions: "Translate Contentful updates.",
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
@@ -596,6 +600,7 @@ describe("workspace automation dispatcher", () => {
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
         name: "Translate article entries",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         instructions: "Translate article updates.",
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },

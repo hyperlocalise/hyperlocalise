@@ -19,6 +19,7 @@ import type { ProjectListRow } from "./project-list";
 
 export type ProjectFormValues = {
   name: string;
+  identifier: string;
   description: string;
   translationContext: string;
   sourceLocale: string;
@@ -50,6 +51,7 @@ function resolveMessage(
 export function createEmptyProjectForm(): ProjectFormValues {
   return {
     name: "",
+    identifier: "",
     description: "",
     translationContext: "",
     sourceLocale: defaultNativeProjectSourceLocale,
@@ -60,6 +62,7 @@ export function createEmptyProjectForm(): ProjectFormValues {
 export function createProjectFormFromRow(project: ProjectListRow): ProjectFormValues {
   return {
     name: project.name,
+    identifier: project.identifier,
     description: project.descriptionValue,
     translationContext: project.translationContextValue,
     sourceLocale: project.sourceLocale ?? defaultNativeProjectSourceLocale,
@@ -72,17 +75,31 @@ export function createProjectFormFromRow(project: ProjectListRow): ProjectFormVa
 
 export function validateProjectForm(
   values: ProjectFormValues,
-  options?: { requireLocales?: boolean; intl?: ProjectFormIntl },
+  options?: {
+    requireLocales?: boolean;
+    requireIdentifier?: boolean;
+    intl?: ProjectFormIntl;
+  },
 ): ProjectFormErrors {
   const errors: ProjectFormErrors = {};
   const name = values.name.trim();
   const requireLocales = options?.requireLocales ?? true;
+  const requireIdentifier = options?.requireIdentifier ?? true;
   const intl = options?.intl;
 
   if (!name) {
     errors.name = resolveMessage(intl, projectFormMessages.nameRequired);
   } else if (name.length > 200) {
     errors.name = resolveMessage(intl, projectFormMessages.nameTooLong);
+  }
+
+  const identifier = values.identifier.trim().toUpperCase();
+  if (requireIdentifier || identifier) {
+    if (!identifier) {
+      errors.identifier = resolveMessage(intl, projectFormMessages.identifierRequired);
+    } else if (!/^[A-Z][A-Z0-9]{0,9}$/.test(identifier)) {
+      errors.identifier = resolveMessage(intl, projectFormMessages.identifierInvalid);
+    }
   }
 
   if (values.description.trim().length > 10_000) {
@@ -119,6 +136,7 @@ export function projectFormHasErrors(errors: ProjectFormErrors) {
 
 export type ProjectMetadataPayload = {
   name: string;
+  identifier?: string;
   description: string;
   translationContext: string;
 };
@@ -134,8 +152,10 @@ export type ProjectUpdatePayload = ProjectMetadataPayload & {
 };
 
 function buildMetadataPayload(values: ProjectFormValues): ProjectMetadataPayload {
+  const identifier = values.identifier.trim().toUpperCase();
   return {
     name: values.name.trim(),
+    ...(identifier ? { identifier } : {}),
     description: values.description.trim(),
     translationContext: values.translationContext.trim(),
   };

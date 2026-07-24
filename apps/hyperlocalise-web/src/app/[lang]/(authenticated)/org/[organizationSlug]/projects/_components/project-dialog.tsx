@@ -90,6 +90,7 @@ export function ProjectDialog({
 
     const nextErrors = validateProjectForm(values, {
       requireLocales: showLocaleFields,
+      requireIdentifier: mode === "edit",
       intl,
     });
     setErrors(nextErrors);

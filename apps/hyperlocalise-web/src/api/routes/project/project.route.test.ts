@@ -35,6 +35,7 @@ const {
   listTmsProviderLiveFilesForProjectMock,
   listTmsProviderLiveProjectBranchesMock,
   resolveApiAuthContextFromSessionMock,
+  workspaceIssuesFlagRunMock,
 } = vi.hoisted(() => ({
   countTmsProviderLiveOpenJobsForProjectMock: vi.fn(),
   getTmsProviderLiveProjectMock: vi.fn(),
@@ -46,6 +47,7 @@ const {
       globalThis.__testApiAuthContext ??
       null,
   ),
+  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -53,6 +55,14 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
   };
 });
 
@@ -107,6 +117,7 @@ describe("project detail route", () => {
       createdByUserId: userId,
       updatedByUserId: userId,
       name: "Materialized Crowdin Project",
+      identifier: "MCP",
       description: "Stored after provider sync",
       translationContext: "Use a concise help-center tone.",
       source: "external_tms",
@@ -160,6 +171,56 @@ describe("project detail route", () => {
     expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith(organizationId, externalProjectId, {
       actorUserId: userId,
     });
+  });
+
+  it("updates the project issue identifier and rewrites stored issue IDs", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createIssueResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ]["issue-sheet"].$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { title: "Needs context" },
+      },
+      { headers },
+    );
+    expect(createIssueResponse.status).toBe(201);
+    const createdIssue = (await createIssueResponse.json()) as {
+      issue: { id: string; number: number; identifier: string };
+    };
+    expect(createdIssue.issue.identifier).toBe(`${project.identifier}-1`);
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { identifier: "NEWID" },
+      },
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patched = (await patchResponse.json()) as ProjectResponse;
+    expect(patched.project.identifier).toBe("NEWID");
+
+    const getIssueResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "issue-sheet"
+    ][":issueId"].$get(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          issueId: createdIssue.issue.id,
+        },
+      },
+      { headers },
+    );
+    expect(getIssueResponse.status).toBe(200);
+    const issueBody = (await getIssueResponse.json()) as {
+      issue: { identifier: string; number: number };
+    };
+    expect(issueBody.issue).toMatchObject({ number: 1, identifier: "NEWID-1" });
   });
 
   it("returns the live provider open job count from the dedicated endpoint", async () => {

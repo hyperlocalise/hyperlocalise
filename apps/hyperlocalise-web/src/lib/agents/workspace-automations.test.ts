@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -56,6 +58,7 @@ async function seedWorkspaceAutomationScope() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `workspace-automation-${organizationId.slice(0, 8)}`,
     name: "Workspace Automation Test Org",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -221,6 +224,7 @@ describe("workspace automations", () => {
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
       name: "Notification-only schedule",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       instructions: "Send a daily reminder.",
       triggerConfig,
       toolConfig: {

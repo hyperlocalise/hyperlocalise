@@ -32,6 +32,7 @@ async function createProjectInOrganization(organizationId: string, name: string)
       teamId: team.id,
       createdByUserId: null,
       name,
+      identifier: `G${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       translationContext: "",
     })

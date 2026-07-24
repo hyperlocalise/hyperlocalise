@@ -399,10 +399,15 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as { issue: { id: string } };
+      const body = (await response.json()) as { issue: { id: string; identifier?: string } };
       const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.id)}`;
+      const toastTitle = body.issue.identifier
+        ? intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheetWithId, {
+            identifier: body.issue.identifier,
+          })
+        : intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet);
 
-      toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
+      toast.success(toastTitle, {
         action: {
           label: intl.formatMessage(projectFileCatWorkspaceMessages.viewIssueSheetRow),
           onClick: () => {

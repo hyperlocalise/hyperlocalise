@@ -62,6 +62,11 @@ import {
 } from "@/lib/providers/jobs/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
+  allocateUniqueProjectIdentifier,
+  rewriteProjectIssueIdentifiers,
+} from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
+import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
   getNativeProjectCatSegmentTarget,
@@ -195,6 +200,8 @@ import {
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
   | "external_project_locales_readonly"
+  | "identifier_taken"
+  | "invalid_identifier"
   | ProjectLocalePatchError;
 
 type ProjectUpdateError = {
@@ -205,7 +212,10 @@ type ProjectUpdateError = {
 type ProjectUpdateResult = Result<Project | null, ProjectUpdateError>;
 
 const projectLocalePatchErrorMessages: Record<
-  Exclude<ProjectUpdateErrorCode, "invalid_project_team">,
+  Exclude<
+    ProjectUpdateErrorCode,
+    "invalid_project_team" | "identifier_taken" | "invalid_identifier"
+  >,
   string
 > = {
   external_project_locales_readonly: "External TMS project locales are read-only",
@@ -289,6 +299,13 @@ const projectStore: ProjectStore = {
       throw new Error("invalid_project_team");
     }
 
+    const identifier = await allocateUniqueProjectIdentifier({
+      organizationId: auth.organization.localOrganizationId,
+      name: payload.name,
+      preferred: payload.identifier,
+      database,
+    });
+
     const [project] = await database
       .insert(schema.projects)
       .values({
@@ -297,6 +314,7 @@ const projectStore: ProjectStore = {
         teamId,
         createdByUserId: auth.user.localUserId,
         name: payload.name,
+        identifier,
         description: payload.description ?? "",
         translationContext: payload.translationContext ?? "",
         source: "native",
@@ -333,11 +351,12 @@ const projectStore: ProjectStore = {
       return ok(null);
     }
 
-    const { teamId, sourceLocale, targetLocales, ...updates } = payload;
+    const { teamId, sourceLocale, targetLocales, identifier, ...updates } = payload;
     const updateValues: typeof updates & {
       teamId?: string;
       sourceLocale?: string;
       targetLocales?: string[];
+      identifier?: string;
     } = { ...updates };
 
     if (teamId !== undefined) {
@@ -382,13 +401,59 @@ const projectStore: ProjectStore = {
       }
     }
 
-    const [project] = await db
-      .update(schema.projects)
-      .set(updateValues)
-      .where(await ownedProjectWhere(auth, projectId))
-      .returning();
+    let nextIdentifier: string | undefined;
+    if (identifier !== undefined) {
+      const parsed = projectIssueIdentifierSchema.safeParse(identifier);
+      if (!parsed.success) {
+        return err({
+          code: "invalid_identifier",
+          message: "Identifier must be 1–10 uppercase letters or digits and start with a letter",
+        });
+      }
+      nextIdentifier = parsed.data;
+      if (nextIdentifier !== existing.identifier) {
+        updateValues.identifier = nextIdentifier;
+      }
+    }
 
-    return ok(project ?? null);
+    try {
+      const project = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(schema.projects)
+          .set(updateValues)
+          .where(await ownedProjectWhere(auth, projectId))
+          .returning();
+
+        if (
+          updated &&
+          nextIdentifier !== undefined &&
+          nextIdentifier !== existing.identifier
+        ) {
+          await rewriteProjectIssueIdentifiers({
+            projectId,
+            projectIdentifier: nextIdentifier,
+            database: tx,
+          });
+        }
+
+        return updated ?? null;
+      });
+
+      return ok(project);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code?: string }).code === "23505"
+      ) {
+        return err({
+          code: "identifier_taken",
+          message: "Another project in this workspace already uses that identifier",
+        });
+      }
+      throw error;
+    }
   },
   async delete(auth, projectId) {
     const deletedProjects = await db

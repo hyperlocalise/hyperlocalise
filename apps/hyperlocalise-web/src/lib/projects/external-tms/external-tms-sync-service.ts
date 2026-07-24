@@ -24,6 +24,7 @@ import {
   type ExternalTmsJobTaskMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import { allocateUniqueProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 function normalizeDate(value: Date | string | null | undefined) {
   if (!value) return null;
@@ -63,6 +64,14 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
       externalProjectId: input.liveProject.externalProjectId,
     });
 
+    // Only allocate a prefix on first insert. Conflict updates must not overwrite
+    // an admin-edited project identifier.
+    const identifier = await allocateUniqueProjectIdentifier({
+      organizationId: input.organizationId,
+      name: input.liveProject.name,
+      database: this.database,
+    });
+
     await this.database
       .insert(schema.projects)
       .values({
@@ -72,6 +81,7 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
         createdByUserId: input.userId ?? null,
         updatedByUserId: input.userId ?? null,
         name: input.liveProject.name,
+        identifier,
         description: input.liveProject.description ?? "",
         translationContext: input.liveProject.translationContext ?? "",
         source: "external_tms",

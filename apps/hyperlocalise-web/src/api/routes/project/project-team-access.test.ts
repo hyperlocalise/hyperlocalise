@@ -95,6 +95,7 @@ describe("team-scoped project access", () => {
         param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
         json: {
           name: "Alpha Project",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
           teamId: teamAlphaBody.team.id,
           sourceLocale: "en-US",
           targetLocales: ["fr-FR"],
@@ -211,6 +212,7 @@ describe("team-scoped project access", () => {
         )[0]!.id,
         teamId: teamAlphaBody.team.id,
         name: "Alpha Files Project",
+        identifier: "AFP",
       },
       {
         id: betaProjectId,
@@ -223,6 +225,7 @@ describe("team-scoped project access", () => {
         )[0]!.id,
         teamId: teamBetaBody.team.id,
         name: "Beta Files Project",
+        identifier: "BFP",
       },
     ]);
 
@@ -310,6 +313,7 @@ describe("team-scoped project access", () => {
       id: legacyProjectId,
       organizationId: organization.id,
       name: "Legacy Project",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
     });
 
     const defaultTeam = await ensureDefaultWorkspaceTeam(organization.id);

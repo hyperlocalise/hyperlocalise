@@ -32,6 +32,7 @@ function resolveMessage(
 export type ApiProject = {
   id: string;
   name: string;
+  identifier?: string | null;
   description?: string | null;
   translationContext?: string | null;
   createdAt?: string | Date | null;
@@ -55,6 +56,7 @@ export type ProjectListRow = {
   id: string;
   name: string;
   key: string;
+  identifier: string;
   description: string;
   descriptionValue: string;
   translationContext: string;
@@ -169,7 +171,8 @@ export function mapProjectToListRow(project: ApiProject, intl?: ProjectListIntl)
   return {
     id: project.id,
     name: project.name,
-    key: createProjectKey(project),
+    key: project.identifier?.trim() || createProjectKey(project),
+    identifier: project.identifier?.trim() || createProjectKey(project),
     description: descriptionValue || resolveMessage(intl, projectListMessages.noDescription),
     descriptionValue,
     translationContext:

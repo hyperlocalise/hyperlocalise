@@ -46,6 +46,7 @@ export async function createPublicApiFixture() {
     .values({
       workosOrganizationId,
       name: `Example Org ${suffix}`,
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       slug: `example-org-${suffix}`,
     })
     .returning();
@@ -79,6 +80,7 @@ export async function createPublicApiFixture() {
   await db.insert(schema.organizationApiKeys).values({
     organizationId: organization.id,
     name: "Public API Test Key",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
     keyHash: hashApiKey(apiKey),
     keyPrefix: apiKey.slice(0, 8),
     permissions: ["jobs:read", "jobs:write", "files:read", "files:write"],

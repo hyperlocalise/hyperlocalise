@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -59,6 +61,7 @@ async function seedExternalTmsOrganization() {
     workosOrganizationId: `org_${organizationId}`,
     slug: `ensure-project-${organizationId.slice(0, 8)}`,
     name: "Ensure Project Test Org",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   await db.insert(schema.users).values({
@@ -209,6 +212,7 @@ describe("ensureOrganizationProjectRecord", () => {
       organizationId: firstOrg.organizationId,
       createdByUserId: firstOrg.userId,
       name: "Org A Project",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProviderCredentialId: firstOrg.credentialId,

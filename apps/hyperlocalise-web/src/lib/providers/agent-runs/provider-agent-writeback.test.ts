@@ -72,6 +72,7 @@ describe("provider-agent-writeback", () => {
       .values({
         workosOrganizationId: `org_${orgSuffix}`,
         name: "Write-back Org",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         slug: `writeback-${orgSuffix.slice(0, 8)}`,
       })
       .returning();

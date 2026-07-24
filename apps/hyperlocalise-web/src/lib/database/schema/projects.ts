@@ -13,7 +13,9 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -50,6 +52,10 @@ export const projects = pgTable(
     }),
     // Human-readable project name shown in app lists and settings.
     name: text("name").notNull(),
+    // Short issue-ID prefix unique within the organization (e.g. HL → HL-123).
+    identifier: text("identifier").notNull(),
+    // Last allocated issue number for this project (human-readable IDs).
+    issueNumberSeq: integer("issue_number_seq").notNull().default(0),
     // Optional long-form description for operator context.
     description: text("description").notNull().default(""),
     // Shared project-level translation guidance injected into job execution.
@@ -101,6 +107,12 @@ export const projects = pgTable(
       table.externalProviderKind,
       table.externalProjectId,
     ),
+    uniqueIndex("projects_org_identifier_key").on(table.organizationId, table.identifier),
+    check(
+      "projects_identifier_format_check",
+      sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`,
+    ),
+    check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
     index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_projects_team_id").on(table.teamId),
     index("idx_projects_created_by_user_id").on(table.createdByUserId),

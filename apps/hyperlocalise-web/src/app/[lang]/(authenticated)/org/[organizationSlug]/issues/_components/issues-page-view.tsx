@@ -33,6 +33,8 @@ export const ISSUES_PAGE_SIZE = 50;
 
 export type OrganizationIssue = {
   id: string;
+  number?: number;
+  identifier?: string;
   projectId: string;
   projectName: string;
   title: string;
@@ -220,6 +222,11 @@ export function IssuesPageView({
                   onKeyDown={(event) => onIssueRowKeyDown(event, issue)}
                 >
                   <td className="max-w-80 px-4 py-3">
+                    {issue.identifier ? (
+                      <div className="mb-1 font-mono text-xs tabular-nums text-muted-foreground">
+                        {issue.identifier}
+                      </div>
+                    ) : null}
                     <Link
                       href={buildIssueDetailHref({
                         organizationSlug,

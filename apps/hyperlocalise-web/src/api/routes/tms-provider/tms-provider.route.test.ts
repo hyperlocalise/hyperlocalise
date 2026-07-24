@@ -812,6 +812,7 @@ describe("tmsProviderRoutes", () => {
       createdByUserId: userId,
       updatedByUserId: userId,
       name: "Crowdin project",
+      identifier: "CRW",
       description: "",
       translationContext: "",
       source: "external_tms",

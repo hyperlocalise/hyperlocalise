@@ -1,6 +1,6 @@
 # Human-readable issue identifiers
 
-**Status:** Proposed  
+**Status:** Approved — Approach B  
 **Date:** 2026-07-24  
 **Related:** [Issue Sheet design](./2026-07-07-issue-sheet-design.md), [Workspace Issues flag](./2026-07-16-workspace-issues-flag-design.md)
 
@@ -14,6 +14,7 @@ Issues use UUIDs as their only public identity (`2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3
 - Give each project a short **Identifier** (prefix), defaulted from the project name and editable in project settings.
 - Keep `issue_sheet_issues.id` (UUID) as the canonical internal and URL identifier for this release.
 - Assign numbers safely under concurrency and never reuse a number within a project.
+- **Persist the full display ID** (`HL-123`) on each issue row at create time (Approach B).
 
 ## Non-goals (this release)
 
@@ -22,37 +23,18 @@ Issues use UUIDs as their only public identity (`2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3
 - Public `/v1` API changes beyond returning the new fields on existing issue payloads.
 - Renaming translation-key field `IssueSheetIssue.key` (that remains the string key).
 
-## Approaches
+## Decision
 
-### A — Prefix + per-project number (recommended)
+**Approach B — store full display ID on each issue.**
 
-Add `projects.identifier` and `issue_sheet_issues.number`. Display ID is computed as `` `${identifier}-${number}` ``.
+Persist `issue_sheet_issues.identifier` as `HL-123` at create time so list and detail DTOs need no join for display. Keep `number` for sequencing and uniqueness. When a project prefix is renamed, rewrite stored issue identifiers for that project so display stays consistent.
 
-| Pros | Cons |
-|------|------|
-| Matches Linear mental model and the product note | Display ID changes if the project identifier is renamed |
-| Small schema change; UUID routes stay valid | Call sites must join or select project identifier for display |
-| Atomic counters are well understood | Needs uniqueness rules and backfill |
+### Alternatives considered
 
-### B — Store full display ID on each issue
-
-Persist `identifier` string like `HL-123` on the issue row at create time.
-
-| Pros | Cons |
-|------|------|
-| No join for display | Renaming the project prefix leaves stale IDs or needs a mass rewrite |
-| Simple UI binding | Duplicates prefix data on every row |
-
-### C — Human ID as primary route key now
-
-Switch detail URLs and API params to `HL-123` immediately.
-
-| Pros | Cons |
-|------|------|
-| Best end-state UX | Touches every Zod param, link builder, React Query key, and CAT toast |
-| | Identifier renames break bookmarked URLs unless redirects are added |
-
-**Recommendation:** Approach A. Ship display and settings first; keep UUID routes. Optionally resolve `HL-123` in a follow-up lookup helper without changing the canonical path.
+| Approach | Why not |
+|----------|---------|
+| A — compose at read time | Chosen originally; superseded by product preference for stored IDs |
+| C — human ID as route key now | Too invasive for this release |
 
 ## Design
 
@@ -67,21 +49,21 @@ Switch detail URLs and API params to `HL-123` immediately.
 
 Constraints:
 
-- `unique (organization_id, lower(identifier))` (or store normalized uppercase and unique on `(organization_id, identifier)`).
-- Check: `identifier ~ '^[A-Z][A-Z0-9]{0,9}$'` (1–10 chars, starts with a letter, uppercase A–Z / 0–9).
+- Unique on `(organization_id, identifier)` with uppercase-normalized values.
+- Check: `identifier ~ '^[A-Z][A-Z0-9]{0,9}$'` (1–10 chars, starts with a letter).
 
 #### `issue_sheet_issues`
 
 | Column | Type | Notes |
 |--------|------|--------|
 | `number` | `integer` not null | Per-project sequence, starting at 1. |
+| `identifier` | `text` not null | Full display ID, e.g. `HL-123`, stored at create (and rewritten on project prefix rename). |
 
 Constraints:
 
 - `unique (project_id, number)`
+- `unique (project_id, identifier)`
 - Index `(organization_id, project_id, number)` for list sort / lookup
-
-Do **not** store the full `HL-123` string. Compose it at read time:
 
 ```ts
 function formatIssueIdentifier(projectIdentifier: string, number: number) {
@@ -110,12 +92,12 @@ Inside the same DB transaction as `createIssue` / CSV import create / CAT create
 UPDATE projects
 SET issue_number_seq = issue_number_seq + 1
 WHERE id = $projectId
-RETURNING issue_number_seq;
+RETURNING issue_number_seq, identifier;
 ```
 
-Insert the issue with that `number`. Never allocate outside the transaction. Dedup paths that return an existing issue (`externalRef` / linked comment) must **not** consume a new number.
+Insert the issue with that `number` and `identifier = formatIssueIdentifier(prefix, number)`. Never allocate outside the transaction. Dedup paths that return an existing issue must **not** consume a new number.
 
-CSV import: each newly inserted row gets the next number; skipped duplicates keep their existing number.
+CSV import: each newly inserted row gets the next number; skipped duplicates keep their existing identifier.
 
 ### Project settings UI
 
@@ -123,27 +105,26 @@ Add **Identifier** under General on `/org/.../projects/.../settings`.
 
 - Label: **Identifier**
 - Help: “Used as the prefix for issue IDs (for example HL-12). Letters and numbers only.”
-- Editable for **native and external** projects. This is Hyperlocalise metadata, not provider-managed — allow edit even when name/locales are read-only for TMS projects.
+- Editable for **native and external** projects (Hyperlocalise metadata).
 - Validate client + server with the same Zod rules as the DB check.
 - On conflict: field error `identifier_taken`.
-- Changing the identifier immediately changes displayed IDs for all issues in that project (numbers stay). Show a short confirm copy: “Existing issues will show the new prefix.”
+- On rename: rewrite `issue_sheet_issues.identifier` for the project to `${newPrefix}-${number}`. Confirm copy: “Existing issues will show the new prefix.”
 
-Who can edit: same permission as updating project settings today (org members with project write access / admins as already enforced by the project update route). No new role.
+Who can edit: same permission as updating project settings today.
 
 ### API / types
 
-Extend issue DTOs (`IssueSheetIssue`, org issue list/detail) with:
+Extend issue DTOs with:
 
 ```ts
 {
-  id: string;                 // UUID (unchanged)
+  id: string;          // UUID (unchanged)
   number: number;
-  identifier: string;         // "HL-123" composed display ID
-  projectIdentifier: string;  // "HL" — useful in org-wide lists
+  identifier: string;  // "HL-123" stored display ID
 }
 ```
 
-Name the composed field `identifier` on the issue payload (Linear-style). Keep project field also `identifier` on project records. Do not overload `key` (translation key).
+Project records expose `identifier` (prefix). Do not overload translation `key`.
 
 Zod:
 
@@ -151,71 +132,58 @@ Zod:
 - Project create responses include `identifier`
 - Issue params remain `issueId: z.string().uuid()` for this release
 
-Optional helper (same PR or immediate follow-up, low risk):
-
-- `resolveIssueRef(projectId, ref)` accepts UUID **or** `HL-123` / bare number within a project for future deep links and agent tools. Not required to ship display.
-
 ### UI surfaces
 
-Show the human ID as muted mono/tabular text next to or above the title — not as a card badge cluster.
+Show the stored human ID as muted mono/tabular text next to or above the title.
 
 | Surface | Change |
 |---------|--------|
-| Project Issue Sheet table | First column or leading cell: `HL-12` + title |
-| Org `/issues` table | Same; include ID so cross-project rows stay distinct |
-| Issue detail header / breadcrumb | Show `HL-12` beside title; keep UUID out of chrome |
+| Project Issue Sheet table | Leading `HL-12` + title |
+| Org `/issues` table | Same |
+| Issue detail header / breadcrumb | Show `HL-12` beside title |
 | Create success / CAT toast | Prefer `HL-12` in copy; link still uses UUID URL |
-| Copy action | Add “Copy ID” (`HL-12`) on detail (and optionally row overflow). Do not copy UUID by default |
+| Copy action | “Copy ID” copies stored `HL-12` |
 
-Do not replace the translation-key subtitle (`issueKey`) with the issue identifier — both may appear.
+Do not replace the translation-key subtitle with the issue identifier.
 
 ### Backfill
 
-Migration steps:
-
 1. Add nullable columns.
 2. Backfill `projects.identifier` for all rows (collision-safe).
-3. Set `issue_number_seq` from `count(*)` or `max(number)` after issue backfill.
-4. Backfill `issue_sheet_issues.number` per project ordered by `created_at asc, id asc` starting at 1.
-5. Set columns `not null` and add unique indexes / checks.
-6. Generate via `vp run db:generate` — do not hand-write SQL snapshots.
+3. Backfill `issue_sheet_issues.number` per project ordered by `created_at asc, id asc`.
+4. Set `issue_sheet_issues.identifier` from project prefix + number.
+5. Set `issue_number_seq` from max(number).
+6. Set columns `not null` and add unique indexes / checks.
+7. Generate via `vp run db:generate` — do not hand-write SQL snapshots. Custom SQL data backfill can live in the generated migration or a follow-up migrate script if Drizzle cannot express the procedural uniquify.
 
 ### Concurrency and edge cases
 
 | Case | Behavior |
 |------|----------|
 | Two creates at once | Row lock on `projects` update serializes numbers |
-| Identifier rename | Display IDs update; UUID URLs unchanged |
+| Identifier rename | Mass-update stored issue identifiers; UUID URLs unchanged |
 | Delete issue | Number is not reused |
-| Project delete | Cascade removes issues; identifier freed for reuse |
+| Project delete | Cascade removes issues; prefix freed for reuse |
 | Empty / emoji-only project name | Fallback identifier `PROJ` then `PROJ2`… |
-| Search | Org/project issue list query may match `identifier` / `number` in a follow-up; MVP can keep title-only search |
 
 ### Testing
 
 - Unit: identifier derivation, uniquify, format helper
-- Service: create assigns `1`, `2`, …; dedup does not bump seq; rename updates composed field
+- Service: create assigns `1`, `2`, … with stored IDs; dedup does not bump seq; rename rewrites stored IDs
 - Route: PATCH project identifier validation + conflict; issue GET includes `identifier`
-- UI: settings field; table/detail render; copy ID (component tests where patterns exist)
+- UI: settings field; table/detail render
 
 ### Implementation order
 
-1. Schema + migration + backfill helpers
+1. Schema + migration + backfill
 2. Project create default + settings PATCH + form field
-3. Issue create path assigns `number`; extend service select/DTO
+3. Issue create path assigns `number` + stored `identifier`; extend DTOs
 4. Wire UI lists, detail, toasts, copy
-5. Tests + `vp check` / `vp test` for touched packages
-
-## Open questions
-
-None blocking. Deferred product choices:
-
-1. Whether detail URLs should later become `/issue-sheet/HL-123` with UUID redirects.
-2. Whether org search should parse `HL-123` as a hard filter.
+5. Tests + `vp check` / `vp test`
 
 ## Success criteria
 
-- New issues show `PREFIX-N` in lists and detail without exposing UUID in primary UI.
+- New issues show stored `PREFIX-N` in lists and detail without exposing UUID in primary UI.
 - Project settings expose an editable **Identifier** with org-unique validation.
-- Existing projects and issues receive stable numbers after migration.
+- Existing projects and issues receive stable numbers and stored identifiers after migration.
 - UUID remains the primary key and route param.

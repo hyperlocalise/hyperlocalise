@@ -484,6 +484,13 @@
       "when": 1784860379091,
       "tag": "0068_dark_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1784864018296,
+      "tag": "0069_simple_firelord",
+      "breakpoints": true
     }
   ]
 }

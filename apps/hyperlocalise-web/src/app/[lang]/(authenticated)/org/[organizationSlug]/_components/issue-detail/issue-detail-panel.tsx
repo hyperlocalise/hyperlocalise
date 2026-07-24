@@ -451,6 +451,25 @@ export const IssueDetailPanel = forwardRef<
       aria-busy={isSaving}
     >
       <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
+        {issue.identifier ? (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">
+              {issue.identifier}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => {
+                void navigator.clipboard.writeText(issue.identifier!);
+                toast.success(intl.formatMessage(messages.copyIdSuccess));
+              }}
+            >
+              <FormattedMessage {...messages.copyId} />
+            </Button>
+          </div>
+        ) : null}
         <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}

@@ -45,6 +45,7 @@ async function createOrganization() {
     .values({
       workosOrganizationId,
       name: `Asset Tool Org ${suffix}`,
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       slug: `asset-tool-org-${suffix}`,
     })
     .returning();
@@ -80,6 +81,7 @@ async function createGlossaryWithTerm(input: {
     .values({
       organizationId: input.organizationId,
       name: input.name,
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       sourceLocale: "en",
       targetLocale: "fr",
@@ -111,6 +113,7 @@ async function createMemoryWithEntry(input: {
     .values({
       organizationId: input.organizationId,
       name: input.name,
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       status: "active",
     })
@@ -247,6 +250,7 @@ describe("createQueryGlossaryTool", () => {
     await createGlossaryWithTerm({
       organizationId: currentOrganization.id,
       name: "Current Glossary",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       sourceTerm: "checkout",
       targetTerm: "paiement",
     });
@@ -305,6 +309,7 @@ describe("createQueryTranslationMemoryTool", () => {
     await createMemoryWithEntry({
       organizationId: currentOrganization.id,
       name: "Current Memory",
+        identifier: `T${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       sourceText: "Start checkout",
       targetText: "Commencer le paiement",
     });

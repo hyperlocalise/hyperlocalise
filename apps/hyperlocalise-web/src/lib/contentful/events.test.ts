@@ -48,6 +48,7 @@ async function seedContentfulWritebackScope() {
         organizationId,
         createdByUserId: userId,
         name: "Website",
+        identifier: "WEB",
       });
 
       return db
