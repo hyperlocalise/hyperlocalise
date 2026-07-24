@@ -22,12 +22,12 @@ export const marketingFooterMessages = defineMessages({
   },
   copyright: {
     defaultMessage: "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667",
-    id: "YYI+NxfePS",
+    id: "Yzekc4ZTpO",
     description: "Copyright notice in the marketing footer with the current year",
   },
   builtWithLove: {
     defaultMessage: "Built with ♥ from Sydney, Australia",
-    id: "QXY9dL25Hd",
+    id: "I20YdH4MBB",
     description: "Location attribution line in the marketing footer",
   },
   footerImageAlt: {
@@ -37,7 +37,7 @@ export const marketingFooterMessages = defineMessages({
   },
   brandWordmark: {
     defaultMessage: "Hyperlocalise",
-    id: "0P6ioXV8_1",
+    id: "nqI6KIqpLi",
     description: "Large brand wordmark centered on the marketing footer image",
   },
 });
