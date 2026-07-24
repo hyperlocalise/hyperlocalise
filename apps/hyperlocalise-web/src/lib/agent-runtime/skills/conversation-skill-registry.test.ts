@@ -190,12 +190,21 @@ describe("conversation skill registry", () => {
 
     expect(conversationSkill).toContain("Visual context / mock / screenshot");
     expect(conversationSkill).toContain("use **visual-mock** when it is enabled");
+    expect(conversationSkill).toContain(
+      "same What it is / Where/how it shows / Translation guidance sections as find-context",
+    );
     expect(conversationSkill).toContain("for text-only context without an image request");
     expect(conversationSkill).not.toContain(
       "Prefer **visual-mock** instead when the user also asks",
     );
     expect(visualMockSkill).toContain("visual context for …");
-    expect(visualMockSkill).toContain("Do not answer visual-context requests with find-context");
+    expect(visualMockSkill).toContain(
+      "Still include the find-context textual sections beside the image",
+    );
+    expect(visualMockSkill).toContain('Do **not** use separate "Source state", "Viewport"');
+    expect(visualMockSkill).toContain("**What it is:**");
+    expect(visualMockSkill).toContain("**Where/how it shows:**");
+    expect(visualMockSkill).toContain("**Translation guidance:**");
     expect(visualMockSkill).toContain("When the component has no Storybook story");
     expect(visualMockSkill).toContain("create a temporary CSF story");
     expect(visualMockSkill).toContain(
