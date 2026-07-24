@@ -106,4 +106,9 @@ export const semrushConnectionPanelMessages = defineMessages({
     id: "+1a6pZauYN",
     description: "Validation error when Semrush API key is missing on create",
   },
+  enabled: {
+    defaultMessage: "Enabled",
+    id: "i7F4qIlR4E",
+    description: "Badge shown when a Semrush connection is enabled",
+  },
 });

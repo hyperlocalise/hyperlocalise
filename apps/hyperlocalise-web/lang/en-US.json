@@ -5999,6 +5999,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the workspace issues import project picker"
   },
+  "PHMdvgtkrp": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when a Semrush connection is enabled"
+  },
   "PJ5XoQURG9": {
     "defaultMessage": "Submit",
     "description": "Accessible label for submitting the prompt"
@@ -11754,6 +11758,10 @@
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaries",
     "description": "Sidebar navigation item for glossaries"
+  },
+  "p39kEDtTvU": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when an Ahrefs connection is enabled"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "Next branch",

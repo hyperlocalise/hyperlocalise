@@ -195,7 +195,11 @@ export function SemrushConnectionPanel({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {connection.enabled ? <Badge variant="secondary">Enabled</Badge> : null}
+              {connection.enabled ? (
+                <Badge variant="secondary">
+                  <FormattedMessage {...semrushConnectionPanelMessages.enabled} />
+                </Badge>
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"

@@ -195,7 +195,11 @@ export function AhrefsConnectionPanel({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {connection.enabled ? <Badge variant="secondary">Enabled</Badge> : null}
+              {connection.enabled ? (
+                <Badge variant="secondary">
+                  <FormattedMessage {...ahrefsConnectionPanelMessages.enabled} />
+                </Badge>
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"

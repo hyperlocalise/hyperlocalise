@@ -106,4 +106,9 @@ export const ahrefsConnectionPanelMessages = defineMessages({
     id: "3hTiwfSSe8",
     description: "Validation error when Ahrefs MCP API key is missing on create",
   },
+  enabled: {
+    defaultMessage: "Enabled",
+    id: "Ke4jWuGgEM",
+    description: "Badge shown when an Ahrefs connection is enabled",
+  },
 });

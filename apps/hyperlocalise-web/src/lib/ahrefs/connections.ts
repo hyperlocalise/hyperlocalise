@@ -295,25 +295,6 @@ export async function updateAhrefsConnection(input: {
   return ok(row ? serializeConnection(row) : null);
 }
 
-export async function countAutomationsUsingAhrefsConnection(input: {
-  organizationId: string;
-  connectionId: string;
-  db?: DatabaseClient;
-}): Promise<number> {
-  const database = input.db ?? db;
-  const rows = await database
-    .select({ id: schema.workspaceAutomations.id })
-    .from(schema.workspaceAutomations)
-    .where(
-      and(
-        eq(schema.workspaceAutomations.organizationId, input.organizationId),
-        sql`${schema.workspaceAutomations.toolConfig}->'ahrefs'->>'connectionId' = ${input.connectionId}`,
-      ),
-    );
-
-  return rows.length;
-}
-
 /**
  * Lock an Ahrefs connection row for the duration of the current transaction.
  * Callers that write automation references must hold this lock in the same
