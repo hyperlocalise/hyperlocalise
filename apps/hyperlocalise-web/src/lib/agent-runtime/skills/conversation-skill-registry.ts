@@ -20,9 +20,8 @@ import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/conte
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
-import { createTranslationJobTool } from "@/lib/agent-runtime/tools/translation-tools";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
-import { buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
+import { buildWorkspaceTools, createTranslationJobTool } from "@/lib/agent-runtime/tools/registry";
 import {
   createFetchTool,
   createTodoWriteTool,

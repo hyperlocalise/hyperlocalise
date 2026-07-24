@@ -39,6 +39,9 @@ import {
   type RepoToolContext,
 } from "./workspace";
 
+/** Re-export for callers that must stay behind the registry mock boundary in tests. */
+export { createTranslationJobTool };
+
 function createWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): ToolSet {
   const policy = resolveToolPolicy({
     organizationId: ctx.organizationId,
