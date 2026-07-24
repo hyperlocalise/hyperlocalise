@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   checkDrizzleMigrationCollisions,
   runDrizzleMigrationCollisionCheck,
-} from "./check-drizzle-migration-collisions";
+} from "../../../scripts/check-drizzle-migration-collisions";
 
 const tempRoots: string[] = [];
 
