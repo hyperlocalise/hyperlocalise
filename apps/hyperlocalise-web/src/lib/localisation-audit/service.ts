@@ -26,6 +26,7 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { mintPrivateReportAccessToken } from "./access-token";
+import { dedupeAuditedPages } from "./dedupe-pages";
 import { fetchAuditPage } from "./fetch-page";
 import { evaluateLocalisationAudit } from "./findings";
 import { discoverLocaleAlternatives, normalizeAuditUrl, sanitizeAuditExcerpt } from "./parser";
@@ -237,11 +238,44 @@ async function prepareAudit(
     });
   }
 
+  const audit = await db.transaction(async (tx) => {
+    const [createdAudit] = await tx
+      .insert(schema.localisationAudits)
+      .values({
+        status: "preparing",
+        submittedUrl: normalizedUrl,
+        normalizedUrl,
+        domain,
+        domainHash,
+        ipHash,
+        scoreVersion: LOCALISATION_AUDIT_SCORE_VERSION,
+        reportVersion: LOCALISATION_AUDIT_REPORT_VERSION,
+      })
+      .returning();
+    if (!createdAudit) {
+      throw new Error("Failed to persist localisation audit.");
+    }
+    await tx.insert(schema.localisationAuditEvents).values({
+      auditId: createdAudit.id,
+      eventType: "submitted",
+      metadata: { source: "api" },
+    });
+    return createdAudit;
+  });
+
   const pageResult = await fetchAuditPage(normalizedUrl, { isPrimary: true });
   if (isErr(pageResult)) {
+    await db
+      .update(schema.localisationAudits)
+      .set({ status: "failed", failureCode: pageResult.error.code })
+      .where(eq(schema.localisationAudits.id, audit.id));
     return pageResult;
   }
   if (pageResult.value.status !== "extracted") {
+    await db
+      .update(schema.localisationAudits)
+      .set({ status: "failed", failureCode: "audit_fetch_failed" })
+      .where(eq(schema.localisationAudits.id, audit.id));
     return err({
       code: "audit_fetch_failed",
       message: "The submitted page could not be extracted.",
@@ -250,27 +284,22 @@ async function prepareAudit(
 
   const page = pageResult.value;
   const alternatives = discoverLocaleAlternatives(page.extracted);
-  const audit = await db.transaction(async (tx) => {
-    const [createdAudit] = await tx
-      .insert(schema.localisationAudits)
-      .values({
+  const preparedAudit = await db.transaction(async (tx) => {
+    const [updatedAudit] = await tx
+      .update(schema.localisationAudits)
+      .set({
         status: "awaiting_confirmation",
-        submittedUrl: normalizedUrl,
-        normalizedUrl,
-        domain,
-        domainHash,
-        ipHash,
         detectedLocale: page.extracted.htmlLang,
         alternatives,
-        scoreVersion: LOCALISATION_AUDIT_SCORE_VERSION,
-        reportVersion: LOCALISATION_AUDIT_REPORT_VERSION,
+        failureCode: null,
       })
+      .where(eq(schema.localisationAudits.id, audit.id))
       .returning();
-    if (!createdAudit) {
-      throw new Error("Failed to persist localisation audit.");
+    if (!updatedAudit) {
+      throw new Error("Failed to prepare localisation audit.");
     }
     await tx.insert(schema.localisationAuditPages).values({
-      auditId: createdAudit.id,
+      auditId: audit.id,
       normalizedUrl: page.url,
       locale: page.extracted.htmlLang,
       isPrimary: true,
@@ -280,18 +309,15 @@ async function prepareAudit(
       extraction: toPersistedExtraction(page.extracted),
       fetchedAt: new Date(),
     });
-    await tx.insert(schema.localisationAuditEvents).values([
-      { auditId: createdAudit.id, eventType: "submitted", metadata: { source: "api" } },
-      {
-        auditId: createdAudit.id,
-        eventType: "prepared",
-        metadata: { localeCount: alternatives.length + 1 },
-      },
-    ]);
-    return createdAudit;
+    await tx.insert(schema.localisationAuditEvents).values({
+      auditId: audit.id,
+      eventType: "prepared",
+      metadata: { localeCount: alternatives.length + 1 },
+    });
+    return updatedAudit;
   });
 
-  return ok(safeAuditFromRecord(audit));
+  return ok(safeAuditFromRecord(preparedAudit));
 }
 
 async function getAudit(auditId: string): Promise<Result<SafeAudit, LocalisationAuditError>> {
@@ -363,24 +389,31 @@ async function confirmAudit(
       primaryRecord.extraction,
     ),
   };
-  const alternativePages = await mapWithConcurrency(audit.alternatives, 3, async (alternative) => {
-    const result = await fetchAuditPage(alternative.url, {
-      locale: alternative.locale,
-      isPrimary: false,
-    });
-    if (isErr(result)) {
-      return {
-        url: alternative.url,
+  const fetchedAlternativePages = await mapWithConcurrency(
+    audit.alternatives,
+    3,
+    async (alternative) => {
+      const result = await fetchAuditPage(alternative.url, {
         locale: alternative.locale,
         isPrimary: false,
-        status:
-          result.error.code === "audit_url_not_public" ? ("blocked" as const) : ("failed" as const),
-        failureCode: result.error.code,
-      };
-    }
-    return result.value;
-  });
-  const pages = [primaryPage, ...alternativePages];
+      });
+      if (isErr(result)) {
+        return {
+          url: alternative.url,
+          locale: alternative.locale,
+          isPrimary: false,
+          status:
+            result.error.code === "audit_url_not_public"
+              ? ("blocked" as const)
+              : ("failed" as const),
+          failureCode: result.error.code,
+        };
+      }
+      return result.value;
+    },
+  );
+  const pages = dedupeAuditedPages([primaryPage, ...fetchedAlternativePages]);
+  const alternativePages = pages.slice(1);
   const evaluation = evaluateLocalisationAudit({
     pages,
     targetLocale: input.targetLocale,
