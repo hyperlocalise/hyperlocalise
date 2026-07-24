@@ -983,6 +983,10 @@
     "defaultMessage": "Italic",
     "description": "Tooltip and accessible label for the italic formatting toolbar button"
   },
+  "2EB3wgNEGj": {
+    "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer.",
+    "description": "Help text for where to find an Ahrefs MCP API key"
+  },
   "2Gq43ufxii": {
     "defaultMessage": "Norwegian Bokmål (Norway)",
     "description": "Display name for BCP-47 locale nb-NO"
@@ -4095,6 +4099,10 @@
     "defaultMessage": "Description",
     "description": "Detail row label for the Crowdin task description"
   },
+  "Fw-DAiV4t2": {
+    "defaultMessage": "API key ending in {suffix}",
+    "description": "Hint that an Ahrefs API key is already stored"
+  },
   "FxGatVHbDJ": {
     "defaultMessage": "Translation memories",
     "description": "Accessible label for the translation memories list section"
@@ -4978,6 +4986,10 @@
   "KJHAVDuUjG": {
     "defaultMessage": "Priority: {value}",
     "description": "Active issue filter chip showing the selected priority"
+  },
+  "KLP0H0Bm8w": {
+    "defaultMessage": "Ahrefs",
+    "description": "Name shown for the Ahrefs integrations row"
   },
   "KMxAKNLBFq": {
     "defaultMessage": "{countLabel} terms",
@@ -5987,6 +5999,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the workspace issues import project picker"
   },
+  "PHMdvgtkrp": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when a Semrush connection is enabled"
+  },
   "PJ5XoQURG9": {
     "defaultMessage": "Submit",
     "description": "Accessible label for submitting the prompt"
@@ -6595,6 +6611,10 @@
     "defaultMessage": "Provider",
     "description": "Source filter option for provider glossaries"
   },
+  "RqJFnFdbhG": {
+    "defaultMessage": "Remove this Ahrefs connection from automations before deleting it.",
+    "description": "Error when deleting an Ahrefs connection still used by automations"
+  },
   "RsKDuqSmvu": {
     "defaultMessage": "Resolved",
     "description": "Badge shown when a PR review thread is resolved"
@@ -6975,6 +6995,10 @@
     "defaultMessage": "Log out",
     "description": "Sign-out action in the user account menu"
   },
+  "Tby5u-E5Ye": {
+    "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
+    "description": "Description when no Ahrefs connection is available"
+  },
   "TcPLZlmUn0": {
     "defaultMessage": "No plans are configured in Autumn yet.",
     "description": "Empty state when Autumn has no plans configured"
@@ -7046,6 +7070,10 @@
   "TqKPfOkj7i": {
     "defaultMessage": "Automation updated",
     "description": "Toast when a workspace automation is saved successfully"
+  },
+  "Tr3_f_b-E4": {
+    "defaultMessage": "Save",
+    "description": "Save Ahrefs connection button"
   },
   "TrnH0+MELk": {
     "defaultMessage": "Failed to copy to clipboard",
@@ -7258,6 +7286,10 @@
   "V+8wDWpBnh": {
     "defaultMessage": "All strings",
     "description": "CAT queue filter option showing every segment"
+  },
+  "V-PkRAMN_s": {
+    "defaultMessage": "Failed to delete Ahrefs connection.",
+    "description": "Error when Ahrefs connection delete fails"
   },
   "V/CBn2NY6n": {
     "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace.",
@@ -7619,6 +7651,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a project settings detail value is missing"
   },
+  "WUhmkuWno_": {
+    "defaultMessage": "Delete",
+    "description": "Delete Ahrefs connection button"
+  },
   "WUqvqtUFLC": {
     "defaultMessage": "Transport",
     "description": "Label for MCP transport select"
@@ -7922,6 +7958,10 @@
   "XuLNOM8/60": {
     "defaultMessage": "Updated date unavailable",
     "description": "Fallback when a project updated date cannot be formatted"
+  },
+  "Xucm4d5P0P": {
+    "defaultMessage": "Enter an Ahrefs MCP API key.",
+    "description": "Validation error when Ahrefs MCP API key is missing on create"
   },
   "XuiVUmGIu9": {
     "defaultMessage": "Queued",
@@ -8739,6 +8779,10 @@
     "defaultMessage": "Translation draft",
     "description": "Workflow step 3 label for the help-center-localisation use case"
   },
+  "bdbVTOv5Bm": {
+    "defaultMessage": "Add connection",
+    "description": "Button to add a new Ahrefs connection"
+  },
   "bfKQmDUNTz": {
     "defaultMessage": "Close",
     "description": "Button to close the Issue Sheet import dialog"
@@ -9254,6 +9298,10 @@
   "eBDA87G8la": {
     "defaultMessage": "Open in provider",
     "description": "Link to open a glossary in the external TMS provider"
+  },
+  "eBTNMHRzsx": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding Ahrefs connection"
   },
   "eBW5K6494F": {
     "defaultMessage": "Stop",
@@ -10487,6 +10535,10 @@
     "defaultMessage": "TMS projects",
     "description": "Section title prompting the user to connect a TMS provider"
   },
+  "jNTPuVa8uZ": {
+    "defaultMessage": "Display name",
+    "description": "Label for Ahrefs display name field"
+  },
   "jNzAYm1gdg": {
     "defaultMessage": "Edit team...",
     "description": "Menu item to open the edit team dialog"
@@ -10619,6 +10671,10 @@
     "defaultMessage": "Unknown",
     "description": "Fallback when a glossary term count is unavailable"
   },
+  "jy0fxxjZxd": {
+    "defaultMessage": "Failed to save Ahrefs connection.",
+    "description": "Error when Ahrefs connection save fails"
+  },
   "jyIUsQefkI": {
     "defaultMessage": "Edit description",
     "description": "Accessible label for the button that edits a job description"
@@ -10646,6 +10702,10 @@
   "k0oDzsZOu6": {
     "defaultMessage": "Settings unavailable",
     "description": "Slack agent panel title when settings failed to load"
+  },
+  "k0t36nvMBl": {
+    "defaultMessage": "Remove Ahrefs tool",
+    "description": "Accessible label to remove the Ahrefs tool"
   },
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace.",
@@ -11551,6 +11611,10 @@
     "defaultMessage": "Show bulk selection checkboxes",
     "description": "Accessible label for the CAT queue bulk selection mode toggle"
   },
+  "oDR2kKlwsc": {
+    "defaultMessage": "Failed to load Ahrefs connections.",
+    "description": "Error when Ahrefs connections cannot be loaded"
+  },
   "oJ52cXcJDI": {
     "defaultMessage": "Choose a plan below to start a subscription for this workspace.",
     "description": "Subscription card description when there is no active subscription"
@@ -11694,6 +11758,10 @@
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaries",
     "description": "Sidebar navigation item for glossaries"
+  },
+  "p39kEDtTvU": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when an Ahrefs connection is enabled"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "Next branch",
@@ -11911,6 +11979,10 @@
     "defaultMessage": "Major",
     "description": "Package version change badge for a major update"
   },
+  "q1odur6ptQ": {
+    "defaultMessage": "No Ahrefs connections yet.",
+    "description": "Empty state when no Ahrefs connections exist"
+  },
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…",
     "description": "Upload button label while files are uploading"
@@ -12010,6 +12082,10 @@
   "qSH0vWKsTL": {
     "defaultMessage": "Filter queue",
     "description": "Accessible label for the queue filter button"
+  },
+  "qSJAyVlIfJ": {
+    "defaultMessage": "Ahrefs connection deleted.",
+    "description": "Toast when Ahrefs connection is deleted"
   },
   "qU7FzWhWvd": {
     "defaultMessage": "Description",
@@ -12135,6 +12211,10 @@
     "defaultMessage": "Part of speech",
     "description": "Label for the part of speech field on a glossary term form"
   },
+  "r6HEWfXC5D": {
+    "defaultMessage": "Connect an Ahrefs MCP API key for SEO data in automations.",
+    "description": "Description for the Ahrefs integrations row"
+  },
   "r6Ldwc5qHk": {
     "defaultMessage": "Russian (Russia)",
     "description": "Display name for BCP-47 locale ru-RU"
@@ -12198,6 +12278,10 @@
   "rLQERYPxKy": {
     "defaultMessage": "{count}+ files",
     "description": "Count when more project files are available beyond the loaded page"
+  },
+  "rO1z4zjNQt": {
+    "defaultMessage": "Query Ahrefs SEO data through your connected MCP API key.",
+    "description": "Description for the Ahrefs automation tool when a connection exists"
   },
   "rO2fGo88vp": {
     "defaultMessage": "Localization manager",
@@ -12590,6 +12674,10 @@
   "t7l1acivlq": {
     "defaultMessage": "Failed to load members",
     "description": "Fallback error when organization members fail to load"
+  },
+  "t7yeS7VAje": {
+    "defaultMessage": "Ahrefs connection saved.",
+    "description": "Toast when Ahrefs connection is saved"
   },
   "t92moi3waZ": {
     "defaultMessage": "Save",
@@ -13235,6 +13323,10 @@
     "defaultMessage": "Sort by",
     "description": "Label for the issue list sort field select"
   },
+  "vyEG2Rrj4a": {
+    "defaultMessage": "MCP API key",
+    "description": "Label for Ahrefs MCP API key field"
+  },
   "vyiCHg90XK": {
     "defaultMessage": "Reset",
     "description": "Button to reset the interactive review PR illustration"
@@ -13266,6 +13358,10 @@
   "w1elWLFsW9": {
     "defaultMessage": "Release readiness",
     "description": "Marketing homepage workflow chapter link label"
+  },
+  "w1gNoyrmz5": {
+    "defaultMessage": "Ahrefs",
+    "description": "Menu item and tool title for Ahrefs SEO data"
   },
   "w1oESvG6DH": {
     "defaultMessage": "Job does not belong to this project",

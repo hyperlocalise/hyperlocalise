@@ -20,6 +20,7 @@ import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
+import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
 
@@ -33,6 +34,7 @@ const TOOL_BUILDERS: Record<
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   use_semrush: createUseSemrushTool,
+  use_ahrefs: createUseAhrefsTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
 };

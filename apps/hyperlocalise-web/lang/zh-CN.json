@@ -752,6 +752,9 @@
   "2Ce/RC/wfJ": {
     "defaultMessage": "斜体"
   },
+  "2EB3wgNEGj": {
+    "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer."
+  },
   "2Gq43ufxii": {
     "defaultMessage": "挪威博克马尔语（挪威）"
   },
@@ -3104,6 +3107,9 @@
   "FuoKPzKv08": {
     "defaultMessage": "Description"
   },
+  "Fw-DAiV4t2": {
+    "defaultMessage": "API key ending in {suffix}"
+  },
   "FxGatVHbDJ": {
     "defaultMessage": "Translation memories"
   },
@@ -3766,6 +3772,9 @@
   },
   "KJHAVDuUjG": {
     "defaultMessage": "Priority: {value}"
+  },
+  "KLP0H0Bm8w": {
+    "defaultMessage": "Ahrefs"
   },
   "KMxAKNLBFq": {
     "defaultMessage": "{countLabel} terms"
@@ -4526,6 +4535,9 @@
   "PFnRx7mFmC": {
     "defaultMessage": "Cancel"
   },
+  "PHMdvgtkrp": {
+    "defaultMessage": "Enabled"
+  },
   "PJ5XoQURG9": {
     "defaultMessage": "提交"
   },
@@ -4985,6 +4997,9 @@
   "RpVhGmmzel": {
     "defaultMessage": "Provider"
   },
+  "RqJFnFdbhG": {
+    "defaultMessage": "Remove this Ahrefs connection from automations before deleting it."
+  },
   "RsKDuqSmvu": {
     "defaultMessage": "Resolved"
   },
@@ -5270,6 +5285,9 @@
   "TbfAHmBI7l": {
     "defaultMessage": "退出登录"
   },
+  "Tby5u-E5Ye": {
+    "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool."
+  },
   "TcPLZlmUn0": {
     "defaultMessage": "No plans are configured in Autumn yet."
   },
@@ -5323,6 +5341,9 @@
   },
   "TqKPfOkj7i": {
     "defaultMessage": "Automation updated"
+  },
+  "Tr3_f_b-E4": {
+    "defaultMessage": "Save"
   },
   "TrnH0+MELk": {
     "defaultMessage": "Failed to copy to clipboard"
@@ -5482,6 +5503,9 @@
   },
   "V+8wDWpBnh": {
     "defaultMessage": "所有字符串"
+  },
+  "V-PkRAMN_s": {
+    "defaultMessage": "Failed to delete Ahrefs connection."
   },
   "V/CBn2NY6n": {
     "defaultMessage": "创建一个密钥，用于对脚本、CI 作业和集成进行身份验证，以访问此工作区。"
@@ -5762,6 +5786,9 @@
   "WUYpu2cx7T": {
     "defaultMessage": "—"
   },
+  "WUhmkuWno_": {
+    "defaultMessage": "Delete"
+  },
   "WUqvqtUFLC": {
     "defaultMessage": "Transport"
   },
@@ -5989,6 +6016,9 @@
   },
   "XuLNOM8/60": {
     "defaultMessage": "Updated date unavailable"
+  },
+  "Xucm4d5P0P": {
+    "defaultMessage": "Enter an Ahrefs MCP API key."
   },
   "XuiVUmGIu9": {
     "defaultMessage": "Queued"
@@ -6605,6 +6635,9 @@
   "bc6k5kD1Ao": {
     "defaultMessage": "翻译草稿"
   },
+  "bdbVTOv5Bm": {
+    "defaultMessage": "Add connection"
+  },
   "bfKQmDUNTz": {
     "defaultMessage": "Close"
   },
@@ -6991,6 +7024,9 @@
   },
   "eBDA87G8la": {
     "defaultMessage": "Open in provider"
+  },
+  "eBTNMHRzsx": {
+    "defaultMessage": "Cancel"
   },
   "eBW5K6494F": {
     "defaultMessage": "停止"
@@ -7925,6 +7961,9 @@
   "jNNp9OLKEA": {
     "defaultMessage": "TMS projects"
   },
+  "jNTPuVa8uZ": {
+    "defaultMessage": "Display name"
+  },
   "jNzAYm1gdg": {
     "defaultMessage": "Edit team..."
   },
@@ -8027,6 +8066,9 @@
   "jy07sgszKV": {
     "defaultMessage": "Unknown"
   },
+  "jy0fxxjZxd": {
+    "defaultMessage": "Failed to save Ahrefs connection."
+  },
   "jyIUsQefkI": {
     "defaultMessage": "Edit description"
   },
@@ -8047,6 +8089,9 @@
   },
   "k0oDzsZOu6": {
     "defaultMessage": "设置不可用"
+  },
+  "k0t36nvMBl": {
+    "defaultMessage": "Remove Ahrefs tool"
   },
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace."
@@ -8732,6 +8777,9 @@
   "oCFslUs6eA": {
     "defaultMessage": "显示批量选择复选框"
   },
+  "oDR2kKlwsc": {
+    "defaultMessage": "Failed to load Ahrefs connections."
+  },
   "oJ52cXcJDI": {
     "defaultMessage": "Choose a plan below to start a subscription for this workspace."
   },
@@ -8842,6 +8890,9 @@
   },
   "p2ZEW4INMa": {
     "defaultMessage": "术语表"
+  },
+  "p39kEDtTvU": {
+    "defaultMessage": "Enabled"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "下一分支"
@@ -9005,6 +9056,9 @@
   "q1SUe75H6g": {
     "defaultMessage": "Major"
   },
+  "q1odur6ptQ": {
+    "defaultMessage": "No Ahrefs connections yet."
+  },
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…"
   },
@@ -9079,6 +9133,9 @@
   },
   "qSH0vWKsTL": {
     "defaultMessage": "筛选队列"
+  },
+  "qSJAyVlIfJ": {
+    "defaultMessage": "Ahrefs connection deleted."
   },
   "qU7FzWhWvd": {
     "defaultMessage": "Description"
@@ -9173,6 +9230,9 @@
   "r1aEK84u1V": {
     "defaultMessage": "Part of speech"
   },
+  "r6HEWfXC5D": {
+    "defaultMessage": "Connect an Ahrefs MCP API key for SEO data in automations."
+  },
   "r6Ldwc5qHk": {
     "defaultMessage": "俄语（俄罗斯）"
   },
@@ -9220,6 +9280,9 @@
   },
   "rLQERYPxKy": {
     "defaultMessage": "{count}+ files"
+  },
+  "rO1z4zjNQt": {
+    "defaultMessage": "Query Ahrefs SEO data through your connected MCP API key."
   },
   "rO2fGo88vp": {
     "defaultMessage": "Localization manager"
@@ -9514,6 +9577,9 @@
   },
   "t7l1acivlq": {
     "defaultMessage": "Failed to load members"
+  },
+  "t7yeS7VAje": {
+    "defaultMessage": "Ahrefs connection saved."
   },
   "t92moi3waZ": {
     "defaultMessage": "Save"
@@ -10013,6 +10079,9 @@
   "vxPX8Bfa3e": {
     "defaultMessage": "智能体"
   },
+  "vyEG2Rrj4a": {
+    "defaultMessage": "MCP API key"
+  },
   "vyiCHg90XK": {
     "defaultMessage": "Reset"
   },
@@ -10036,6 +10105,9 @@
   },
   "w1elWLFsW9": {
     "defaultMessage": "发布准备"
+  },
+  "w1gNoyrmz5": {
+    "defaultMessage": "Ahrefs"
   },
   "w1oESvG6DH": {
     "defaultMessage": "Job does not belong to this project"
