@@ -2875,6 +2875,10 @@
     "defaultMessage": "Failed to resolve issue",
     "description": "Fallback error when resolving a CAT issue fails"
   },
+  "AGdZtMgStX": {
+    "defaultMessage": "Progress",
+    "description": "Heading for the live agent workflow checklist"
+  },
   "AH7mG/JAFC": {
     "defaultMessage": "Review coverage by locale",
     "description": "Title of the review coverage by locale card"
