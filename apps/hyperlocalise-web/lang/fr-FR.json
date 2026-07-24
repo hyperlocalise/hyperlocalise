@@ -38,6 +38,9 @@
   "+5c87/Ii+m": {
     "defaultMessage": "En pause"
   },
+  "+6nLERHfAh": {
+    "defaultMessage": "Failed to save Ahrefs connection."
+  },
   "+8hEYpTb4c": {
     "defaultMessage": "Un responsable de la croissance partage dans Slack un brief de lancement avec le positionnement, les segments d’audience et les mentions légales. Hyperlocalise structure la campagne pour la localisation, applique le glossaire de marque et les règles de ton, génère des brouillons adaptés pour chaque locale, les soumet aux validations marketing et juridiques, synchronise le contenu approuvé avec le CMS et les plateformes publicitaires, et signale toute locale dans laquelle le message s’est écarté de la source approuvée."
   },
@@ -109,6 +112,9 @@
   },
   "+auDy+Mwce": {
     "defaultMessage": "—"
+  },
+  "+dpFZFxVSO": {
+    "defaultMessage": "No owner note"
   },
   "+imNjDj2UT": {
     "defaultMessage": "Créer une tâche"
@@ -202,6 +208,9 @@
   },
   "/9wc0MhkMd": {
     "defaultMessage": "No translation context"
+  },
+  "/AAFYQZiFS": {
+    "defaultMessage": "Quote"
   },
   "/AcaMGSbw2": {
     "defaultMessage": "Source"
@@ -340,6 +349,12 @@
   },
   "0+lekb0oBh": {
     "defaultMessage": "Clé API créée"
+  },
+  "0//CTkn8hx": {
+    "defaultMessage": "Connect an Ahrefs MCP API key for SEO data in automations."
+  },
+  "0/seAQIJ6N": {
+    "defaultMessage": "API key ending in {suffix}"
   },
   "01h5d0m29X": {
     "defaultMessage": "Contexte de {source}"
@@ -584,11 +599,17 @@
   "1GUuDck/5O": {
     "defaultMessage": "Provider"
   },
+  "1Gjnjj0lCU": {
+    "defaultMessage": "Save"
+  },
   "1H0hH78poY": {
     "defaultMessage": "Autorisations insuffisantes"
   },
   "1H3clNZiEb": {
     "defaultMessage": "{count} correspondances"
+  },
+  "1KXz+b/LeX": {
+    "defaultMessage": "Heading 3"
   },
   "1PcszZ/Z93": {
     "defaultMessage": "Cible ({locale})"
@@ -679,6 +700,9 @@
   },
   "1vAzKUeJ7n": {
     "defaultMessage": "Opening…"
+  },
+  "1wPEKChqz/": {
+    "defaultMessage": "Title"
   },
   "1xnSvhvUmv": {
     "defaultMessage": "Générez des brouillons de paramètres régionaux avec votre LLM"
@@ -1001,6 +1025,9 @@
   "3ggwxElkQA": {
     "defaultMessage": "Display name"
   },
+  "3hTiwfSSe8": {
+    "defaultMessage": "Enter an Ahrefs MCP API key."
+  },
   "3iZn32bnuU": {
     "defaultMessage": "Team members"
   },
@@ -1201,6 +1228,9 @@
   },
   "4mAN6mkTxq": {
     "defaultMessage": "Delete"
+  },
+  "4mLbuv5vLp": {
+    "defaultMessage": "Display name"
   },
   "4mrug10+v6": {
     "defaultMessage": "Charger plus"
@@ -1504,6 +1534,9 @@
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
+  },
+  "6q29k14I2n": {
+    "defaultMessage": "URL"
   },
   "6qCT8hQ6y+": {
     "defaultMessage": "Keep the signed-in user and workspace identity easy to verify before agents act on releases."
@@ -1832,6 +1865,9 @@
   "8Wv1MRwzXX": {
     "defaultMessage": "Ajoutez une colonne de workflow spécifique au projet à la feuille des tickets."
   },
+  "8XNSkLVgbI": {
+    "defaultMessage": "Failed to delete Ahrefs connection."
+  },
   "8YwlZNuV6a": {
     "defaultMessage": "Jeton Bearer"
   },
@@ -2009,6 +2045,9 @@
   "9RzqUudO7g": {
     "defaultMessage": "{requestedLocale} n’est pas une langue cible pour ce fichier. Affichage de {targetLocale} à la place."
   },
+  "9Smo/yfjr3": {
+    "defaultMessage": "Priority"
+  },
   "9Sp/POP1Pn": {
     "defaultMessage": "Workspace"
   },
@@ -2044,6 +2083,9 @@
   },
   "9c0o1d89j+": {
     "defaultMessage": "Les dépôts GitHub n’ont pas pu être chargés. La recherche du contexte du dépôt n’est pas disponible."
+  },
+  "9cKD+mtj5v": {
+    "defaultMessage": "path/to/file.json"
   },
   "9cLIkDwKkC": {
     "defaultMessage": "Homepage hero"
@@ -2186,6 +2228,9 @@
   "AGTfsc7LIQ": {
     "defaultMessage": "Failed to resolve issue"
   },
+  "AGdZtMgStX": {
+    "defaultMessage": "Progress"
+  },
   "AH7mG/JAFC": {
     "defaultMessage": "Review coverage by locale"
   },
@@ -2227,6 +2272,9 @@
   },
   "AcfkWiaJBh": {
     "defaultMessage": "Copié !"
+  },
+  "Ack+p0VluH": {
+    "defaultMessage": "Locale"
   },
   "AdBFuupWOp": {
     "defaultMessage": "Progress"
@@ -2494,6 +2542,9 @@
   },
   "CKYDTAvT+Q": {
     "defaultMessage": "Suivez l’état de santé des paramètres régionaux, passez en revue la couverture et l’historique des évaluations en un seul endroit afin que les chefs de projet de localisation et les équipes d’ingénierie puissent voir ce qui est prêt à être livré."
+  },
+  "CKjsX01Ql/": {
+    "defaultMessage": "Remove Ahrefs tool"
   },
   "CPfzUKHSJO": {
     "defaultMessage": "Synced"
@@ -3260,6 +3311,9 @@
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
   },
+  "Gz/Ip82h05": {
+    "defaultMessage": "Source path"
+  },
   "H+WlOu68oG": {
     "defaultMessage": "Restoring…"
   },
@@ -3304,6 +3358,9 @@
   },
   "HA9fSDFTe4": {
     "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly."
+  },
+  "HAhLpB+d2h": {
+    "defaultMessage": "Details"
   },
   "HCHtNgw+mH": {
     "defaultMessage": "—"
@@ -3686,6 +3743,9 @@
   "JkzEXub4WI": {
     "defaultMessage": "Ship-safe"
   },
+  "Jm9tR2PeYs": {
+    "defaultMessage": "Select a project"
+  },
   "JmNB19hrDA": {
     "defaultMessage": "• {cost}"
   },
@@ -3815,6 +3875,9 @@
   "Kdyh8ZKnlc": {
     "defaultMessage": "Non traduit"
   },
+  "Ke4jWuGgEM": {
+    "defaultMessage": "Enabled"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager"
   },
@@ -3826,6 +3889,9 @@
   },
   "KkmE6ygIj4": {
     "defaultMessage": "Task type"
+  },
+  "KmO8v/yN7F": {
+    "defaultMessage": "Write, or type / for blocks…"
   },
   "KmYHpxsapg": {
     "defaultMessage": "Mapper les différences aux paramètres régionaux et à l’impact du glossaire"
@@ -4024,6 +4090,9 @@
   },
   "M3bbV5wmi2": {
     "defaultMessage": "Gérer l’accès sur GitHub"
+  },
+  "M4B6W56NTK": {
+    "defaultMessage": "Label"
   },
   "M4Yv0ZhXGX": {
     "defaultMessage": "Marketing site / Hero / CTA"
@@ -4255,6 +4324,9 @@
   },
   "NanjjZ6X+o": {
     "defaultMessage": "No translation memories match your filters. <clear>Clear filters</clear>"
+  },
+  "NbLadz5lws": {
+    "defaultMessage": "Properties"
   },
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
@@ -4624,6 +4696,9 @@
   },
   "PqqKKd0E77": {
     "defaultMessage": "Impossible de créer le projet"
+  },
+  "Ps/K17cn8c": {
+    "defaultMessage": "Type"
   },
   "PsCe6RXT6P": {
     "defaultMessage": "Connectez Contentful dans les intégrations avant de pouvoir exécuter ce déclencheur."
@@ -5210,6 +5285,9 @@
   "T2Xmxy54ip": {
     "defaultMessage": "Configure translation automation for {repositoryFullName}. This is separate from refreshing repository metadata from GitHub."
   },
+  "T67SNUNeWw": {
+    "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool."
+  },
   "T7ocGbiped": {
     "defaultMessage": "Dernière livraison : aucune livraison pour le moment"
   },
@@ -5461,6 +5539,9 @@
   },
   "UfX+B2NG5i": {
     "defaultMessage": "Unassigned"
+  },
+  "UfyoQ9IKvC": {
+    "defaultMessage": "Code block"
   },
   "Uga+NfEpia": {
     "defaultMessage": "Rejouer"
@@ -5762,6 +5843,9 @@
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
   },
+  "WMgcyXfv95": {
+    "defaultMessage": "Cancel"
+  },
   "WNMfw+TYVj": {
     "defaultMessage": "Keeps terminology, placeholders, and layout constraints aligned with the source."
   },
@@ -5918,6 +6002,9 @@
   "XIKJG5Q5Cf": {
     "defaultMessage": "Enregistrer les paramètres de {providerName}"
   },
+  "XIim2dhGAT": {
+    "defaultMessage": "Ahrefs"
+  },
   "XIuz8aoOG9": {
     "defaultMessage": "Découvrez quelles locales sont complètes, partielles ou manquantes pour le contenu produit, marketing et support."
   },
@@ -5957,6 +6044,9 @@
   "XUGFGcmuvI": {
     "defaultMessage": "Loading segments"
   },
+  "XUqaK3JKIx": {
+    "defaultMessage": "Ahrefs connection saved."
+  },
   "XVMHJ/03Qv": {
     "defaultMessage": "Localisation de campagnes qui protège la voix de la marque sur tous les marchés"
   },
@@ -5974,6 +6064,9 @@
   },
   "XbggbCCLjJ": {
     "defaultMessage": "Email"
+  },
+  "Xc4174DTX1": {
+    "defaultMessage": "Description"
   },
   "Xc6qahwRY8": {
     "defaultMessage": "Votre compte est connecté, mais cette invitation à rejoindre l’espace de travail n’a pas encore été confirmée."
@@ -6194,6 +6287,9 @@
   "YyD2h2zO8x": {
     "defaultMessage": "9+"
   },
+  "YyO52dNKVM": {
+    "defaultMessage": "Link"
+  },
   "YzNLnailQi": {
     "defaultMessage": "Unable to save automation right now"
   },
@@ -6280,6 +6376,9 @@
   },
   "ZSpIiSP+sp": {
     "defaultMessage": "Réessayer"
+  },
+  "ZV3TeuXtMA": {
+    "defaultMessage": "Context"
   },
   "ZVaGoLGTAL": {
     "defaultMessage": "Pull request"
@@ -6422,6 +6521,9 @@
   "a9LRHeifdU": {
     "defaultMessage": "Close"
   },
+  "a9TiPhW1/A": {
+    "defaultMessage": "Capture a localization issue and optionally link it to CAT or an external tracker."
+  },
   "aB+i4xfdMu": {
     "defaultMessage": "Locale"
   },
@@ -6472,6 +6574,9 @@
   },
   "aaZ+fOJPdY": {
     "defaultMessage": "Loading..."
+  },
+  "abXWU27lQ5": {
+    "defaultMessage": "Open in tracker"
   },
   "acDZHLMCP3": {
     "defaultMessage": "{memoryName} · {sourceText} → {targetText}"
@@ -6599,6 +6704,9 @@
   "bJPgIG0M7T": {
     "defaultMessage": "Branche"
   },
+  "bKVGEe8Imh": {
+    "defaultMessage": "Checklist"
+  },
   "bL4rc4u2xS": {
     "defaultMessage": "Link your Crowdin account under Integrations in Hyperlocalise, then reopen this tab."
   },
@@ -6664,6 +6772,9 @@
   },
   "bqM/HZdSBC": {
     "defaultMessage": "Enregistrer le fournisseur"
+  },
+  "brJ+Z+0eR1": {
+    "defaultMessage": "Failed to load Ahrefs connections."
   },
   "bsfKEASu14": {
     "defaultMessage": "Préserver la terminologie produit et les libellés de l’interface utilisateur"
@@ -7022,6 +7133,9 @@
   "eAIQ4Y8Q3i": {
     "defaultMessage": "All sources"
   },
+  "eB3Kj7/0av": {
+    "defaultMessage": "Bulleted list"
+  },
   "eBDA87G8la": {
     "defaultMessage": "Open in provider"
   },
@@ -7283,6 +7397,9 @@
   "fj5dhgmhYc": {
     "defaultMessage": "Impossible de valider l’identifiant."
   },
+  "fjjjlNCOer": {
+    "defaultMessage": "Write, or type / for blocks…"
+  },
   "flbKXaq8uE": {
     "defaultMessage": "Synchronisez les chaînes approuvées vers votre TMS"
   },
@@ -7432,6 +7549,9 @@
   },
   "gSVYd4jPtI": {
     "defaultMessage": "fichier"
+  },
+  "gSujo7PJIL": {
+    "defaultMessage": "No Ahrefs connections yet."
   },
   "gUXo9+5beH": {
     "defaultMessage": "Unable to create glossary"
@@ -7724,6 +7844,9 @@
   "i6ut53Z7X2": {
     "defaultMessage": "Use cases"
   },
+  "i7F4qIlR4E": {
+    "defaultMessage": "Enabled"
+  },
   "i9ZZoI20Cm": {
     "defaultMessage": "Nom affiché"
   },
@@ -7732,6 +7855,9 @@
   },
   "iCizofrwwK": {
     "defaultMessage": "Unable to save term"
+  },
+  "iEwQSllTi8": {
+    "defaultMessage": "Enter URL"
   },
   "iGnaQ/kXrJ": {
     "defaultMessage": "Waiting for review"
@@ -7747,6 +7873,9 @@
   },
   "iL9/D33IcM": {
     "defaultMessage": "Translation guidance"
+  },
+  "iLIgL6IRUh": {
+    "defaultMessage": "MCP API key"
   },
   "iMi751w5KI": {
     "defaultMessage": "Échec de l’enregistrement de la connexion au serveur MCP."
@@ -7807,6 +7936,9 @@
   },
   "iczDvJ3VLc": {
     "defaultMessage": "{count, plural, one {# file has} other {# files have}} completed translations you can download or sync with <code>sync pull</code>."
+  },
+  "idzncwhcnS": {
+    "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer."
   },
   "ieQJlirS+o": {
     "defaultMessage": "current ship-safe coverage"
@@ -7900,6 +8032,9 @@
   },
   "j3sarok4E/": {
     "defaultMessage": "Serveur MCP"
+  },
+  "j42TPeiZpP": {
+    "defaultMessage": "Ahrefs connection deleted."
   },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel"
@@ -8282,6 +8417,9 @@
   "l4izKn2eyP": {
     "defaultMessage": "Assignees"
   },
+  "l4moIhus0d": {
+    "defaultMessage": "Ahrefs"
+  },
   "l50K3EMdhi": {
     "defaultMessage": "Correspond à"
   },
@@ -8353,6 +8491,9 @@
   },
   "lT0LhQ0lGx": {
     "defaultMessage": "Chargement des types de contenu…"
+  },
+  "lUH3RGUMfU": {
+    "defaultMessage": "No matching blocks"
   },
   "lWsEWOz8r0": {
     "defaultMessage": "Adresse entrante prête. Envoyez des fichiers ou des images avec une langue cible à traduire par e-mail."
@@ -8579,6 +8720,9 @@
   "mwlaVsXCWL": {
     "defaultMessage": "Ce fichier ne peut pas être ouvert dans l’espace de travail CAT."
   },
+  "myimkcq73K": {
+    "defaultMessage": "e.g. de-DE"
+  },
   "mz8uQYwH0G": {
     "defaultMessage": "Attribution d’agent"
   },
@@ -8630,6 +8774,9 @@
   "nG1gispZFL": {
     "defaultMessage": "Le terme source \"{sourceTerm}\" doit être traduit par \"{targetTerm}\" selon le glossaire."
   },
+  "nGmfwrX00x": {
+    "defaultMessage": "Delete"
+  },
   "nJUCs4vSKi": {
     "defaultMessage": "Enregistrement..."
   },
@@ -8659,6 +8806,9 @@
   },
   "nRa4VGuM7T": {
     "defaultMessage": "GitHub repository"
+  },
+  "nRjDDcLPcB": {
+    "defaultMessage": "External link"
   },
   "nSU+BcwdQ2": {
     "defaultMessage": "Close"
@@ -8858,6 +9008,9 @@
   "omrTD1tbM0": {
     "defaultMessage": "Cohérence du texte de l’interface utilisateur et dérive terminologique entre les locales après chaque sprint."
   },
+  "onK9zkEY64": {
+    "defaultMessage": "Project"
+  },
   "onLY1zBVa5": {
     "defaultMessage": "Open in {providerKind}"
   },
@@ -8875,6 +9028,9 @@
   },
   "oyu4JeYlD+": {
     "defaultMessage": "Connaître l’intention"
+  },
+  "ozFSiYX+w7": {
+    "defaultMessage": "Cancel"
   },
   "p+mx30+l3M": {
     "defaultMessage": "Translation memory name is required."
@@ -9461,6 +9617,9 @@
   "sK6Zq81Q7Q": {
     "defaultMessage": "{count} in progress"
   },
+  "sKaaLQUNWs": {
+    "defaultMessage": "Title is required"
+  },
   "sMpopGaY+v": {
     "defaultMessage": "Unable to save entry"
   },
@@ -9476,8 +9635,14 @@
   "sQRAmiZqfA": {
     "defaultMessage": "Failed to mark job as failed"
   },
+  "sQepOjPr4u": {
+    "defaultMessage": "Heading 1"
+  },
   "sUjt/GKyKZ": {
     "defaultMessage": "Unable to create automation right now"
+  },
+  "sZ3Qm/SOaW": {
+    "defaultMessage": "Numbered list"
   },
   "sZFiP5Oe8M": {
     "defaultMessage": "Lorsque le travail de lancement est dispersé, les traductions deviennent une course de dernière minute."
@@ -9647,11 +9812,17 @@
   "tVauVn/Okc": {
     "defaultMessage": "anglais (Royaume-Uni)"
   },
+  "tWlOc1XMhX": {
+    "defaultMessage": "No description"
+  },
   "tX7cZ1uzA9": {
     "defaultMessage": "Choisir un fichier"
   },
   "tZ+plgRfNJ": {
     "defaultMessage": "Vous n’avez pas l’autorisation de mettre à jour les identifiants du fournisseur."
+  },
+  "tZ64yYuboY": {
+    "defaultMessage": "Heading 2"
   },
   "taEyfhF5GT": {
     "defaultMessage": "{percent}% confidence"
@@ -10415,6 +10586,9 @@
   "xp1ilN6OAp": {
     "defaultMessage": "Les nouveaux articles et les mises à jour sont publiés dans Zendesk, Intercom, Contentful ou Notion — déconnectés des files d’attente de localisation."
   },
+  "xqQi/ZEY79": {
+    "defaultMessage": "Query Ahrefs SEO data through your connected MCP API key."
+  },
   "xs2JNm6T2w": {
     "defaultMessage": "Failed to delete Semrush connection."
   },
@@ -10423,6 +10597,9 @@
   },
   "xsnuwmUnCV": {
     "defaultMessage": "Your role cannot post comments to the provider."
+  },
+  "xvA/BI5vJc": {
+    "defaultMessage": "Go to dashboard"
   },
   "xx4TyhA9Af": {
     "defaultMessage": "Branches"
@@ -10586,6 +10763,9 @@
   "yv/YEtTrPC": {
     "defaultMessage": "{memoryName} · {sourceText} → {targetText} ({matchScore}%)"
   },
+  "yvYYx/4tth": {
+    "defaultMessage": "Remove this Ahrefs connection from automations before deleting it."
+  },
   "ywFNKJfKqp": {
     "defaultMessage": "Contentful translate"
   },
@@ -10696,6 +10876,9 @@
   },
   "zUNfzXrjpU": {
     "defaultMessage": "Rejected: {count}"
+  },
+  "zVJ4tC5vy1": {
+    "defaultMessage": "Add connection"
   },
   "zVPPsHIMWR": {
     "defaultMessage": "Centre de confiance"
