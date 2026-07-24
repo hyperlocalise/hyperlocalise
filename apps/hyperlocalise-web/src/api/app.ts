@@ -15,6 +15,7 @@ import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
 
 import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { LocalisationAuditService } from "@/lib/localisation-audit/service";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
@@ -43,6 +44,7 @@ import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
+import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
 import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
@@ -94,6 +96,7 @@ type CreateAppOptions = {
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
+  localisationAuditService?: LocalisationAuditService;
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
@@ -117,6 +120,10 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
+    .route(
+      "/localisation-audit",
+      createLocalisationAuditRoutes({ service: options.localisationAuditService }),
+    )
     .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({

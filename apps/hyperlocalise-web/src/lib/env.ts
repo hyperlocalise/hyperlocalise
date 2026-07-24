@@ -77,6 +77,9 @@ export const env = createEnv({
     /** Resend API key for sending and receiving emails. Required for email bot integration. */
     RESEND_API_KEY: z.string().min(1).optional(),
 
+    /** Secret used to hash audit rate-limit keys and sign private report access tokens. */
+    LOCALISATION_AUDIT_ACCESS_SECRET: z.string().min(32).optional(),
+
     /** Resend webhook secret for verifying inbound email webhooks. Required for secure email handling. */
     RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 
@@ -239,6 +242,9 @@ export const env = createEnv({
       process.env.FLAGS_SECRET ??
       (isTestEnv ? "test-flags-secret-at-least-32-characters-long" : undefined),
     RESEND_API_KEY: process.env.RESEND_API_KEY ?? (isTestEnv ? "test-resend-api-key" : undefined),
+    LOCALISATION_AUDIT_ACCESS_SECRET:
+      process.env.LOCALISATION_AUDIT_ACCESS_SECRET ??
+      (isTestEnv ? "test-localisation-audit-access-secret-32chars" : undefined),
     RESEND_WEBHOOK_SECRET:
       process.env.RESEND_WEBHOOK_SECRET ?? (isTestEnv ? "test-resend-webhook-secret" : undefined),
     RESEND_FROM_ADDRESS:

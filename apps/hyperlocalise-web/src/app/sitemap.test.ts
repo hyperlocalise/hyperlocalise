@@ -45,4 +45,16 @@ describe("sitemap", () => {
     expect(install).toBeDefined();
     expect(install?.alternates).toBeUndefined();
   });
+
+  it("includes only the indexable localisation audit landing pages", () => {
+    const entries = sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      expect(
+        entries.find((entry) => entry.url === `${SITE_URL}/${locale}/localisation-audit`),
+      ).toBeDefined();
+    }
+
+    expect(entries.some((entry) => entry.url.includes("/localisation-audit/report/"))).toBe(false);
+  });
 });

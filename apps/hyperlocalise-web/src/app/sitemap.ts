@@ -53,6 +53,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const localizedStaticPaths = [
     { path: "/", changeFrequency: "weekly" as const, priority: 1 },
+    {
+      path: "/localisation-audit",
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    },
     { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
     { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
     { path: "/trust-center", changeFrequency: "monthly" as const, priority: 0.5 },

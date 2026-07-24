@@ -131,7 +131,7 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
   return nextResponse;
 }
 
-const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
+const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog", "/localisation-audit"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
 const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];

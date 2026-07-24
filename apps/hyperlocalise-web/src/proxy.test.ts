@@ -60,6 +60,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/product/agents-automation")).toBe(false);
     expect(isUnsupportedLocalePath("/use-cases/saas")).toBe(false);
     expect(isUnsupportedLocalePath("/blog")).toBe(false);
+    expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
+    expect(isUnsupportedLocalePath("/localisation-audit/report/private-token")).toBe(false);
     expect(isUnsupportedLocalePath("/privacy")).toBe(false);
   });
 
@@ -134,6 +136,18 @@ describe("proxy", () => {
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/blog");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects localisation audit paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/localisation-audit"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://www.hyperlocalise.com/en/localisation-audit",
+    );
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 

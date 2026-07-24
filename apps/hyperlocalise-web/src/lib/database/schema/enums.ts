@@ -333,3 +333,70 @@ export const repositorySourceFileIngestStateEnum = pgEnum("repository_source_fil
   "skipped",
   "failed",
 ]);
+
+/** Tracks the public localisation audit lifecycle. */
+export const localisationAuditStatusEnum = pgEnum("localisation_audit_status", [
+  "preparing",
+  "awaiting_confirmation",
+  "running",
+  "completed",
+  "partial",
+  "failed",
+]);
+
+/** Tracks whether an audit page was extracted or unavailable. */
+export const localisationAuditPageStatusEnum = pgEnum("localisation_audit_page_status", [
+  "extracted",
+  "blocked",
+  "failed",
+]);
+
+/** Identifies the score category associated with an audit rule or finding. */
+export const localisationAuditCategoryEnum = pgEnum("localisation_audit_category", [
+  "technical",
+  "linguistic",
+  "market",
+]);
+
+/** Orders audit findings by likely business impact. */
+export const localisationAuditSeverityEnum = pgEnum("localisation_audit_severity", [
+  "info",
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
+
+/** Distinguishes directly observed evidence from conservative rule judgements. */
+export const localisationAuditEvidenceKindEnum = pgEnum("localisation_audit_evidence_kind", [
+  "observed",
+  "judgement",
+]);
+
+/** Controls whether a report summary can be resolved through its public slug. */
+export const localisationAuditReportVisibilityEnum = pgEnum(
+  "localisation_audit_report_visibility",
+  ["private", "public"],
+);
+
+/** Records the independent eligibility state for search indexing. */
+export const localisationAuditIndexingStateEnum = pgEnum("localisation_audit_indexing_state", [
+  "noindex",
+  "eligible",
+  "indexed",
+  "removed",
+]);
+
+/** Classifies first-party audit funnel events without storing customer text. */
+export const localisationAuditEventTypeEnum = pgEnum("localisation_audit_event_type", [
+  "submitted",
+  "prepared",
+  "confirmed",
+  "completed",
+  "viewed",
+  "unlocked",
+  "shared",
+  "booked",
+  "workspace_converted",
+  "email_delivery_failed",
+]);
