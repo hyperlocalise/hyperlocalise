@@ -19,8 +19,9 @@ without exposing personal or sensitive information.
 ## User journey
 
 1. A visitor submits one public URL.
-2. The agent discovers explicit locale alternatives from `hreflang`, language
-   switchers, canonical links, and URL patterns.
+2. The agent discovers explicit locale alternatives from `hreflang` and
+   language switchers. Canonical links and URL patterns supply candidates that
+   require an explicit signal or user confirmation.
 3. The visitor confirms or corrects the detected language and target market.
 4. The audit shows progress while it discovers locales, checks technical
    setup, reviews customer-facing language, and compares market experiences.
@@ -72,6 +73,14 @@ facts from model judgements. It must not claim translation accuracy when it
 cannot identify a reliable source page for comparison. Missing evidence does
 not reduce a score.
 
+Each score version will define the points available for every rule, the
+severity thresholds, and the minimum confidence required to score a
+model-assisted rule. Calculate a category score from earned points divided by
+applicable points; exclude rules without enough evidence from both values.
+Apply the 40/40/20 category weights only after calculating each category.
+Publish the score version and evaluated-rule count with the report so a result
+can be reproduced.
+
 ## Agent workflow
 
 1. **Validate:** Normalise the URL, block private networks, enforce rate limits,
@@ -105,7 +114,7 @@ Store every completed or partial audit as versioned records:
 | `audit` | Submitted URL, status, target locale and market, timestamps, and score version |
 | `audit_page` | Discovered URL, locale, extraction status, and content fingerprint |
 | `audit_finding` | Category, severity, confidence, evidence, impact, and recommendation |
-| `audit_report` | Stable public slug, summary, visibility, indexing consent, and report version |
+| `audit_report` | Public summary, private full-report reference, visibility, indexing state, and report version |
 | `audit_lead` | Contact data and conversion state, separate from public report data |
 | `audit_event` | Report viewed, unlocked, shared, booked, or converted to a workspace |
 
@@ -113,31 +122,46 @@ Content fingerprints may reuse a recent extraction. A changed fingerprint,
 target market, or scoring version starts a new audit version rather than
 overwriting prior evidence.
 
-The public route will use a stable slug such as
+The public summary will use a stable slug such as
 `/localisation-audit/example-com-a1b2`. It will show the domain, audit date,
 scores, three high-level findings, sanitised recommendations, and Hyperlocalise
 calls to action. It will not expose email addresses, detailed
 vulnerability-like findings, raw model output, raw extracted content, or
 sensitive evidence.
 
-Reports will be shareable but `noindex` by default. A report becomes eligible
-for indexing only when:
+The full report is a separate private projection. The unlock flow will bind it
+to the visitor's browser session and send an expiring, signed access link by
+email. The public slug must never resolve to the private projection, even after
+the visitor unlocks it.
+
+Public summaries will be shareable but `noindex` by default. A summary becomes
+eligible for indexing only when:
 
 1. The submitter explicitly opts into public indexing.
 2. The report passes completeness and uniqueness thresholds.
 3. Automated checks find no sensitive content.
-4. The report receives editorial approval when required.
+4. The submitter verifies control of the domain, or Hyperlocalise independently
+   reviews and approves the report as editorial content.
 
-Domain ownership cannot be inferred from URL submission. Domain owners must
-have a removal path. Aggregate, anonymised findings can support indexable
-benchmark pages such as localisation health benchmarks for SaaS websites. This
-creates stronger SEO content than automatically indexing thin reports.
+Domain ownership cannot be inferred from URL submission, and opt-in alone
+cannot index a third-party domain. Domain owners must have a removal path.
+Aggregate, anonymised findings can support indexable benchmark pages such as
+localisation health benchmarks for SaaS websites. This creates stronger SEO
+content than automatically indexing thin reports.
+
+Raw extracted content and screenshots will be encrypted, restricted to the
+audit service and authorised support staff, and deleted within 30 days. Private
+reports and findings will be retained for 12 months unless the lead requests
+earlier deletion. Lead records follow the product's consent, suppression, and
+legal retention policies. A deletion request must cover raw artifacts, private
+reports, public summaries, and lead links while retaining only records required
+for suppression or legal compliance.
 
 ## Lead generation
 
-The unlock form will collect a work email and name. The visitor may optionally
-provide a role and primary target market. Company inference from an email
-domain is advisory because free, agency, and shared domains make it unreliable.
+The unlock form will require a work email. Name, role, and primary target
+market are optional. Company inference from an email domain is advisory because
+free, agency, and shared domains make it unreliable.
 
 Attach the following audit context to the lead:
 
@@ -154,7 +178,14 @@ recurring defects and repeat report visits is a stronger lead than a
 single-language brochure site with a low score. Follow-up should cite specific
 findings instead of sending generic nurture copy. Localisation leaders should
 see the strategy-call path first; product and engineering visitors should also
-see the workspace and GitHub path.
+see the workspace path. GitHub connection remains a post-workspace option
+outside this audit's first version.
+
+Collect product events through first-party analytics with an opaque `audit_id`;
+do not send URLs, emails, extracted copy, or findings as event properties.
+Carry a signed audit reference through strategy-call and workspace links so
+server-side conversion events can connect to the audit. Apply regional consent
+requirements and retain event-level analytics for no more than 13 months.
 
 ## System boundaries
 
@@ -208,7 +239,8 @@ names, or model prompts.
 - Rate-limit submissions by IP and domain.
 - Cap locale alternatives, extracted content, screenshots, and model tokens.
 - Treat page content as untrusted input and isolate it from agent instructions.
-- Provide a removal process for public reports.
+- Apply the documented retention and deletion policy to raw artifacts, reports,
+  leads, and public summaries.
 
 ## Success measures
 
@@ -228,8 +260,14 @@ names, or model prompts.
 - Benchmark linguistic findings against human-reviewed multilingual samples.
 - Test SSRF controls, prompt injection, abuse limits, and public-data
   redaction.
-- Run end-to-end tests from URL submission through email unlock and the shared
-  report.
+- Run end-to-end tests from URL submission through the three-finding preview,
+  email unlock, private-link access, and shared public summary.
+- Assert that failed email delivery preserves a retry path without exposing the
+  full report.
+- Assert that public summaries remain redacted and `noindex` until indexing
+  consent, quality, ownership or editorial review, and sensitivity checks pass.
+- Assert first-party analytics, both calls to action, signed conversion
+  attribution, partial reports, retention, deletion, and domain-owner removal.
 - Review early reports manually and measure false positives before publishing
   indexed benchmark content.
 
