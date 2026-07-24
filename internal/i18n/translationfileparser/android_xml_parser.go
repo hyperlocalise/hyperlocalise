@@ -360,6 +360,10 @@ func encodeAndroidResourceValue(value, namespaceAttrs string) string {
 }
 
 func androidXMLFragmentWellFormed(value, namespaceAttrs string) bool {
+	if wellFormed, certain := fastIsXMLFragmentWellFormed(value); certain {
+		return wellFormed
+	}
+
 	b := androidXMLFragmentPool.Get().(*bytes.Buffer)
 	b.Reset()
 	defer androidXMLFragmentPool.Put(b)
@@ -463,4 +467,231 @@ func isAndroidStringResourcePath(path string) bool {
 // string resource file layout.
 func IsAndroidStringResourcePath(path string) bool {
 	return isAndroidStringResourcePath(path)
+}
+
+func isTagNameChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= '0' && ch <= '9') ||
+		ch == '_' || ch == ':' || ch == '-' || ch == '.'
+}
+
+func allAMPEscaped(s string) bool {
+	for i := 0; i < len(s); {
+		idx := strings.IndexByte(s[i:], '&')
+		if idx < 0 {
+			return true
+		}
+		ampIdx := i + idx
+		// Check if it's a valid entity
+		semiIdx := strings.IndexByte(s[ampIdx+1:], ';')
+		if semiIdx < 0 {
+			return false
+		}
+		entity := s[ampIdx+1 : ampIdx+1+semiIdx]
+		if !isXMLTextEntityReference(entity) {
+			return false
+		}
+		i = ampIdx + 1 + semiIdx + 1
+	}
+	return true
+}
+
+// fastIsXMLFragmentWellFormed returns (wellFormed, certain).
+// If certain is true, wellFormed is the definitive answer.
+// If certain is false, we should fall back to xml.Decoder.
+func fastIsXMLFragmentWellFormed(s string) (bool, bool) {
+	var stackBuf [8]string
+	stack := stackBuf[:0]
+
+	i := 0
+	n := len(s)
+
+	for i < n {
+		idx := strings.IndexByte(s[i:], '<')
+		if idx < 0 {
+			if !allAMPEscaped(s[i:]) {
+				return false, true
+			}
+			break
+		}
+
+		textPrefix := s[i : i+idx]
+		if !allAMPEscaped(textPrefix) {
+			return false, true
+		}
+
+		i += idx
+		i++
+
+		if i >= n {
+			return false, true
+		}
+
+		if s[i] == '/' {
+			i++
+			nameStart := i
+			for i < n {
+				if s[i] >= 0x80 {
+					return false, false // Unicode/non-ASCII in tag name: fallback
+				}
+				if !isTagNameChar(s[i]) {
+					break
+				}
+				i++
+			}
+			tagName := s[nameStart:i]
+			if tagName == "" {
+				return false, true
+			}
+			for i < n && isXMLWhitespace(s[i]) {
+				i++
+			}
+			if i >= n || s[i] != '>' {
+				if i < n && s[i] >= 0x80 {
+					return false, false
+				}
+				return false, true
+			}
+			i++
+
+			if len(stack) == 0 {
+				return false, true
+			}
+			last := stack[len(stack)-1]
+			if last != tagName {
+				return false, true
+			}
+			stack = stack[:len(stack)-1]
+
+		} else if s[i] == '!' || s[i] == '?' {
+			return false, false
+		} else {
+			nameStart := i
+			for i < n {
+				if s[i] >= 0x80 {
+					return false, false // Unicode/non-ASCII in tag name: fallback
+				}
+				if !isTagNameChar(s[i]) {
+					break
+				}
+				i++
+			}
+			tagName := s[nameStart:i]
+			if tagName == "" {
+				return false, true
+			}
+
+			selfClosing := false
+			tagClosed := false
+
+			for i < n {
+				for i < n && isXMLWhitespace(s[i]) {
+					i++
+				}
+				if i >= n {
+					return false, true
+				}
+
+				if s[i] >= 0x80 {
+					return false, false // Unicode/non-ASCII inside tag: fallback
+				}
+
+				if s[i] == '>' {
+					tagClosed = true
+					i++
+					break
+				}
+				if s[i] == '/' {
+					i++
+					if i < n && s[i] == '>' {
+						selfClosing = true
+						tagClosed = true
+						i++
+						break
+					}
+					if i < n && s[i] >= 0x80 {
+						return false, false
+					}
+					return false, true
+				}
+
+				attrNameStart := i
+				for i < n {
+					if s[i] >= 0x80 {
+						return false, false // Unicode/non-ASCII in attribute name: fallback
+					}
+					if !isTagNameChar(s[i]) {
+						break
+					}
+					i++
+				}
+				attrName := s[attrNameStart:i]
+				if attrName == "" {
+					return false, true
+				}
+
+				for i < n && isXMLWhitespace(s[i]) {
+					i++
+				}
+				if i >= n || s[i] != '=' {
+					if i < n && s[i] >= 0x80 {
+						return false, false
+					}
+					return false, true
+				}
+				i++
+
+				for i < n && isXMLWhitespace(s[i]) {
+					i++
+				}
+				if i >= n {
+					return false, true
+				}
+
+				if s[i] >= 0x80 {
+					return false, false
+				}
+
+				quote := s[i]
+				if quote != '"' && quote != '\'' {
+					return false, true
+				}
+				i++
+
+				valueStart := i
+				for i < n && s[i] != quote {
+					if s[i] >= 0x80 {
+						return false, false // Unicode/non-ASCII in attribute value: fallback
+					}
+					i++
+				}
+				if i >= n {
+					return false, true
+				}
+				attrValueStr := s[valueStart:i]
+				i++
+
+				if strings.ContainsAny(attrValueStr, "&<") {
+					return false, false
+				}
+			}
+
+			if !tagClosed {
+				return false, true
+			}
+
+			if !selfClosing {
+				// BOLT OPTIMIZATION: Simplify slice growth using built-in append.
+				// Go handles growth and allocations when cap(stackBuf) is exceeded.
+				stack = append(stack, tagName)
+			}
+		}
+	}
+
+	if len(stack) > 0 {
+		return false, true
+	}
+
+	return true, true
 }

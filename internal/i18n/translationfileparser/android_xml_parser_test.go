@@ -105,6 +105,72 @@ func TestAndroidXMLResourcesParserRejectsUnsupportedTranslatableConstructs(t *te
 	}
 }
 
+func TestAndroidXMLFragmentWellFormedParity(t *testing.T) {
+	testCases := []struct {
+		name  string
+		value string
+	}{
+		{"plain text", "Hello World"},
+		{"simple html tag", "<b>Hello World</b>"},
+		{"multiple tags", "Hello <b>World</b>, how <i>are</i> you?"},
+		{"tag with attribute double quotes", `Please visit <a href="https://example.com" target="_blank">our website</a>.`},
+		{"tag with attribute single quotes", `Please visit <a href='https://example.com' target='_blank'>our website</a>.`},
+		{"namespace tag", `Hello <xliff:g id="user">%1$s</xliff:g>`},
+		{"self closing tag no space", "Hello <br/> World"},
+		{"self closing tag with space", "Hello <br /> World"},
+		{"self closing tag with attributes", `<img src="foo.png" alt="bar"/>`},
+		{"valid html entity", "2 &lt; 3"},
+		{"multiple entities", "2 &lt; 3 &amp; 4 &gt; 1"},
+		{"hex char entity", "&#x12;"},
+		{"hex char entity uppercase", "&#X12;"},
+		{"decimal char entity", "&#123;"},
+		{"empty value", ""},
+		{"empty tag", "Hello <> World"},
+		{"mismatched tags", "<b>Hello <i>World</b></i>"},
+		{"unclosed nested tag", "<b>Hello <i>World</i>"},
+		{"unescaped ampersand", "2 < 3 & 4"},
+		{"unescaped less-than", "2 < 3"},
+		{"unclosed attribute quote", `<a href="https://example.com>link</a>`},
+		{"spaces in attributes", `<a   href  =  "https://example.com"   >link</a>`},
+		{"space after slash in self closing", "<br / >"},
+		{"comment", "<!-- comment -->"},
+		{"cdata", "<![CDATA[cdata]]>"},
+		{"processing instruction", "<?xml version=\"1.0\"?>"},
+		{"deep nesting", "<a><b><c><d><e><f><g><h><i><j>deep</j></i></h></g></f></e></d></c></b></a>"},
+		{"invalid entity", "2 &notanentity; 3"},
+		{"invalid entity ampersand alone", "2 & 3"},
+		{"mismatched closing bracket", "Hello > World"},
+		{"nested attribute ampersand", `<a href="a&amp;b">link</a>`},
+		{"nested attribute unescaped ampersand", `<a href="a&b">link</a>`},
+		{"non-ASCII tag name", "<русский>Привет</русский>"},
+		{"non-ASCII attribute name", "<tag имя='значение'>Привет</tag>"},
+		{"non-ASCII attribute value", "<tag attr='русский'>Привет</tag>"},
+		{"non-ASCII text outside tag", "Привет <b>мир</b>!"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Compare slow decoder with our fast scanner.
+			// Since namespaceAttrs doesn't matter for well-formedness structure (only prefixes),
+			// we can use "" for namespaceAttrs in the slow one.
+			slowResult := androidXMLFragmentWellFormed(tc.value, "")
+			fastResult, certain := fastIsXMLFragmentWellFormed(tc.value)
+
+			if certain {
+				if fastResult != slowResult {
+					t.Errorf("Parity mismatch for %q:\n  slow: %v\n  fast: %v (certain: %v)", tc.value, slowResult, fastResult, certain)
+				}
+			} else {
+				// If not certain, then the integrated function should have fallen back and returned the slow result.
+				integratedResult := androidXMLFragmentWellFormed(tc.value, "")
+				if integratedResult != slowResult {
+					t.Errorf("Fallback mismatch for %q:\n  slow: %v\n  integrated: %v", tc.value, slowResult, integratedResult)
+				}
+			}
+		})
+	}
+}
+
 func TestIsAndroidStringResourcePath(t *testing.T) {
 	for _, tc := range []struct {
 		path string
