@@ -34,14 +34,14 @@ key\ with\ spaces = value9
 	}
 
 	expected := map[string]string{
-		"key1":             "value1",
-		"key2":             "value2",
-		"key3":             "value3",
-		"key4":             "value4",
-		"key5":             "value5",
-		"key6":             "value6",
-		"key:with:colons":  "value7",
-		"key=with=equals":  "value8",
+		"key1":            "value1",
+		"key2":            "value2",
+		"key3":            "value3",
+		"key4":            "value4",
+		"key5":            "value5",
+		"key6":            "value6",
+		"key:with:colons": "value7",
+		"key=with=equals": "value8",
 		"key with spaces": "value9",
 	}
 
