@@ -259,7 +259,7 @@ function useHomeHeroNavTone() {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [usesFullBleedHero]);
+  }, [pathname, usesFullBleedHero]);
 
   return usesFullBleedHero && onHero;
 }
