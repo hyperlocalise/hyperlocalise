@@ -207,7 +207,7 @@ export const localisationAuditMessages = defineMessages({
   },
   preparingReport: {
     defaultMessage: "Preparing your private report",
-    id: 'bDKd8Zqp+d',
+    id: "bDKd8Zqp+d",
     description: "Progress label shown while the private report is unlocked",
   },
   unlockedTitle: {
@@ -292,7 +292,7 @@ export const localisationAuditMessages = defineMessages({
   },
   confidence: {
     defaultMessage: "Confidence: {value}",
-    id: 'mmf3D9G6N+',
+    id: "mmf3D9G6N+",
     description: "Confidence level shown on an audit finding",
   },
   lockedFindings: {
