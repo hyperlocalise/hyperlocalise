@@ -100,17 +100,17 @@ export const localisationAuditMessages = defineMessages({
   },
   targetMarketLabel: {
     defaultMessage: "Target market country code",
-    id: "yprulwCnhD",
+    id: "msClVR0B/h",
     description: "Label for the target market field",
   },
   targetMarketPlaceholder: {
     defaultMessage: "FR",
-    id: "CoXn5VFRR1",
+    id: "eCVyo25b2J",
     description: "Placeholder for the target market field",
   },
   targetMarketDescription: {
     defaultMessage: "Use a two-letter ISO country code such as FR, DE, or GB.",
-    id: "sEAQ4SkKdC",
+    id: "Gn6sPMvpDX",
     description: "Help text for the target market field",
   },
   runAudit: {

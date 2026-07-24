@@ -120,7 +120,9 @@ describe("LocalisationAuditFlow", () => {
     const targetMarketInput = screen.getByRole("textbox", {
       name: "Target market country code",
     });
-    expect(screen.getByText("Use a two-letter ISO country code such as FR, DE, or GB.")).toBeVisible();
+    expect(
+      screen.getByText("Use a two-letter ISO country code such as FR, DE, or GB."),
+    ).toBeVisible();
     await user.type(targetMarketInput, "gb");
     expect(targetMarketInput).toHaveValue("GB");
     await user.click(screen.getByRole("button", { name: "Run the full health check" }));
