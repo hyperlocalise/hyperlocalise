@@ -15,7 +15,7 @@
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { cn } from "@/lib/primitives/cn";
-import type { Experimental_SpeechResult as SpeechResult } from "ai";
+import type { SpeechResult } from "ai";
 import {
   MediaControlBar,
   MediaController,

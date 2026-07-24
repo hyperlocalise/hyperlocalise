@@ -487,7 +487,7 @@ export class StringTranslationEngine {
     const { output, usage } = await generateText({
       model: this.model,
       output: Output.object({ schema: stringTranslationOutputSchema }),
-      system: this.promptPolicy.buildSystemInstructions({
+      instructions: this.promptPolicy.buildSystemInstructions({
         mode: "string",
         projectTranslationContext: input.projectTranslationContext,
         jobContext: input.jobInput.context,
@@ -534,7 +534,7 @@ export class CatRecommendationEngine {
     const { output } = await generateText({
       model: this.model,
       output: Output.object({ schema: catAiRecommendationOutputSchema }),
-      system: this.promptPolicy.buildSystemInstructions({
+      instructions: this.promptPolicy.buildSystemInstructions({
         mode: "cat-suggest",
         projectName: context.projectName,
         projectTranslationContext: context.projectTranslationContext,

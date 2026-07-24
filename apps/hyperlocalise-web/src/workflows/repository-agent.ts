@@ -112,7 +112,7 @@ async function runRepositoryAgentStep(input: {
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
     }),
-    experimental_context: { sandboxId, repositoryTaskId: task.id },
+    runtimeContext: { sandboxId, repositoryTaskId: task.id },
   });
 
   const result = await withAgentRuntimeUsageMetering({

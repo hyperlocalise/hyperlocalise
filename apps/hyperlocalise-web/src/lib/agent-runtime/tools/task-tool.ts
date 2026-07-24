@@ -82,8 +82,8 @@ BEHAVIOR:
 - Be explicit in instructions; agents cannot ask clarifying questions`,
     inputSchema: taskInputSchema,
     outputSchema: taskOutputSchema,
-    execute: async ({ subagentType, task, instructions }, { experimental_context }) => {
-      const runtimeResult = resolveAgentRuntimeContext(experimental_context);
+    execute: async ({ subagentType, task, instructions }, { context }) => {
+      const runtimeResult = resolveAgentRuntimeContext(context);
       if (isErr(runtimeResult)) {
         return {
           success: false,

@@ -199,7 +199,7 @@ export function createWebChatAgentUIStreamResponse(input: {
         throw error;
       }
     },
-    onFinish: async ({ responseMessage, isAborted }) => {
+    onEnd: async ({ responseMessage, isAborted }) => {
       try {
         if (!isAborted && !persistedDuringExecute) {
           const parts = persistableParts(responseMessage.parts);

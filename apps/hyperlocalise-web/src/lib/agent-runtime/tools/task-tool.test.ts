@@ -42,13 +42,11 @@ vi.mock("@/lib/agent-runtime/subagents/definitions", () => ({
 
 import { createTaskTool } from "./task-tool";
 
-function createToolExecutionOptions(
-  experimental_context: Record<string, unknown>,
-): ToolExecutionOptions {
+function createToolExecutionOptions(context: Record<string, unknown>): ToolExecutionOptions {
   return {
     toolCallId: "tool_call_test",
     messages: [],
-    experimental_context,
+    context,
   };
 }
 

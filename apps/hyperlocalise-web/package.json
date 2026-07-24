@@ -19,10 +19,10 @@
     "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "3.0.98",
-    "@ai-sdk/mcp": "^2.0.15",
-    "@ai-sdk/openai": "3.0.86",
-    "@ai-sdk/react": "^3.0.220",
+    "@ai-sdk/anthropic": "4.0.19",
+    "@ai-sdk/mcp": "^2.0.16",
+    "@ai-sdk/openai": "4.0.20",
+    "@ai-sdk/react": "^4.0.40",
     "@base-ui/react": "1.6.0",
     "@chat-adapter/github": "4.34.0",
     "@chat-adapter/slack": "4.34.0",
@@ -60,7 +60,7 @@
     "@workos-inc/authkit-nextjs": "4.2.0",
     "@workos-inc/node": "^10.7.0",
     "@xyflow/react": "^12.11.1",
-    "ai": "6.0.230",
+    "ai": "7.0.37",
     "ansi-to-react": "^6.2.6",
     "autumn-js": "^1.2.34",
     "chat": "4.34.0",

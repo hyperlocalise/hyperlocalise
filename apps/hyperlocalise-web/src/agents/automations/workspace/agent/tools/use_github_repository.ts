@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { and, eq } from "drizzle-orm";
-import { stepCountIs, ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
+import { isStepCount, ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
@@ -133,9 +133,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
           model: getHyperlocaliseAgentModel(),
           tools,
           instructions: composedInstructions,
-          stopWhen: stepCountIs(GITHUB_REPO_AGENT_STEP_LIMIT),
+          stopWhen: isStepCount(GITHUB_REPO_AGENT_STEP_LIMIT),
           timeout: WORKFLOW_AGENT_TIMEOUT,
-          experimental_context: { sandboxId },
+          runtimeContext: { sandboxId },
         });
 
         const prompt = [

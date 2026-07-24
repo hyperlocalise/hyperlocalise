@@ -98,17 +98,17 @@ describe("generateCatAiRecommendation", () => {
 
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining("Heading on the sign-in screen"),
+        instructions: expect.stringContaining("Heading on the sign-in screen"),
       }),
     );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining("Hero title on the sign-in page."),
+        instructions: expect.stringContaining("Hero title on the sign-in page."),
       }),
     );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining(
+        instructions: expect.stringContaining(
           "Write the reasoning in the reviewer's display locale (en), not in the target translation locale.",
         ),
         prompt: expect.stringContaining("Reviewer display locale: en"),
@@ -158,7 +158,7 @@ describe("generateCatAiRecommendation", () => {
     expect(result.ok).toBe(true);
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining(
+        instructions: expect.stringContaining(
           "Write the reasoning in the reviewer's display locale (en), not in the target translation locale.",
         ),
         prompt: expect.stringContaining("Reviewer display locale: en"),

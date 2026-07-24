@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { and, eq } from "drizzle-orm";
-import { stepCountIs, ToolLoopAgent } from "ai";
+import { isStepCount, ToolLoopAgent } from "ai";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
@@ -135,9 +135,9 @@ export async function runContentfulAgent(
       instructions: composedInstructions,
       tools,
       activeTools: [CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME],
-      stopWhen: stepCountIs(CONTENTFUL_AGENT_STEP_LIMIT),
+      stopWhen: isStepCount(CONTENTFUL_AGENT_STEP_LIMIT),
       timeout: WORKFLOW_AGENT_TIMEOUT,
-      experimental_context: session,
+      runtimeContext: session,
       prepareStep: ({ stepNumber }) => {
         if (stepNumber === 0) {
           return {

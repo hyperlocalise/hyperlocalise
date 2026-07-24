@@ -12,7 +12,7 @@
  */
 import { eq } from "drizzle-orm";
 import {
-  stepCountIs,
+  isStepCount,
   ToolLoopAgent,
   type LanguageModel,
   type ModelMessage,
@@ -65,14 +65,14 @@ type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
   activeTools?: ToolLoopAgentSettings<never, TOOLS>["activeTools"];
   prepareStep?: ToolLoopAgentSettings<never, TOOLS>["prepareStep"];
   toolChoice?: ToolLoopAgentSettings<never, TOOLS>["toolChoice"];
-  onFinish?: ToolLoopAgentSettings<never, TOOLS>["onFinish"];
+  onEnd?: ToolLoopAgentSettings<never, TOOLS>["onEnd"];
 };
 
 type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
   additionalInstructions?: string;
-  onFinish?: ConversationSkillAgentOnFinish;
+  onEnd?: ConversationSkillAgentOnFinish;
 };
 
 export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
@@ -139,7 +139,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
   activeTools,
   prepareStep,
   toolChoice,
-  onFinish,
+  onEnd,
 }: CreateHyperlocaliseAgentInput<TOOLS>) {
   return new ToolLoopAgent({
     model: model ?? getHyperlocaliseAgentModel(),
@@ -152,10 +152,10 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     activeTools,
     prepareStep,
     toolChoice,
-    onFinish,
+    onEnd,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
-    stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+    stopWhen: isStepCount(hyperlocaliseAgentStepLimit),
   });
 }
 
@@ -172,7 +172,7 @@ export function createConversationToolLoopAgent({
   surface,
   toolContext,
   additionalInstructions,
-  onFinish,
+  onEnd,
   hasFileAttachments = false,
   hasTmsIntegration = false,
   hasVisualMockSkill = false,
@@ -190,5 +190,5 @@ export function createConversationToolLoopAgent({
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };
 
-  return createConversationSkillAgent(runtime, onFinish);
+  return createConversationSkillAgent(runtime, onEnd);
 }

@@ -137,7 +137,7 @@ vi.mock("ai", async () => {
   return {
     ...actual,
     generateText: vi.fn(),
-    stepCountIs: vi.fn((n: number) => n),
+    isStepCount: vi.fn((n: number) => n),
   };
 });
 
