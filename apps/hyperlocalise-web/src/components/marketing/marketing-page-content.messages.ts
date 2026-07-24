@@ -15,39 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const marketingPageMessages = defineMessages({
-  principleAgentNativeTitle: {
-    defaultMessage: "Agent-native workflows",
-    id: "tfWxPTCye4",
-    description: "Marketing homepage principle card title",
-  },
-  principleAgentNativeDescription: {
-    defaultMessage:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
-    id: "JYqgneUcQO",
-    description: "Marketing homepage principle card description",
-  },
-  principleBringYourLlmsTitle: {
-    defaultMessage: "Bring your LLMs. Keep your TMS.",
-    id: "Qeuc8XDDyB",
-    description: "Marketing homepage principle card title",
-  },
-  principleBringYourLlmsDescription: {
-    defaultMessage:
-      "Stay flexible across model providers and existing TMS platforms without redesigning your operating model.",
-    id: "qsBhdpvLET",
-    description: "Marketing homepage principle card description",
-  },
-  principleReleaseConfidenceTitle: {
-    defaultMessage: "Designed for release confidence",
-    id: "DfN9kCeShy",
-    description: "Marketing homepage principle card title",
-  },
-  principleReleaseConfidenceDescription: {
-    defaultMessage:
-      "Carry shared context, evals, and regression checks through every sync so quality does not quietly drift.",
-    id: "XlfDKFWw7A",
-    description: "Marketing homepage principle card description",
-  },
   chapter01Label: {
     defaultMessage: "Sources",
     id: "hAsKdmnl43",

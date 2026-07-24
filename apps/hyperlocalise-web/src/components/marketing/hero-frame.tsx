@@ -24,8 +24,15 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
+import { cn } from "@/lib/primitives/cn";
 
 import { heroFrameMessages } from "./hero-frame.messages";
+
+type HeroFrameProps = {
+  /** `breakout` spans near the viewport; `contained` fills a parent stage. */
+  layout?: "breakout" | "contained";
+  className?: string;
+};
 
 const heroDemoSegments: CatSegment[] = [
   {
@@ -618,31 +625,42 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
   };
 }
 
-export function HeroFrame() {
+export function HeroFrame({ layout = "breakout", className }: HeroFrameProps) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
   const heroDemoState = buildHeroDemoState(intl);
   const services = createHeroDemoServices(intl, heroDemoState);
 
+  const frame = (
+    <motion.div
+      className={cn(
+        "relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200",
+        className,
+      )}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: shouldReduceMotion ? 0 : 0.72,
+        ease: [0.19, 1, 0.22, 1],
+      }}
+    >
+      <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
+        <CatWorkspaceContainer
+          initialState={heroDemoState}
+          initialViewMode="comfortable"
+          services={services}
+        />
+      </div>
+    </motion.div>
+  );
+
+  if (layout === "contained") {
+    return frame;
+  }
+
   return (
     <div className="relative left-1/2 w-screen max-w-[calc(100vw-2.5rem)] -translate-x-1/2 lg:max-w-[min(92rem,calc(100vw-5rem))]">
-      <motion.div
-        className="relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200"
-        initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          duration: shouldReduceMotion ? 0 : 0.72,
-          ease: [0.19, 1, 0.22, 1],
-        }}
-      >
-        <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
-          <CatWorkspaceContainer
-            initialState={heroDemoState}
-            initialViewMode="comfortable"
-            services={services}
-          />
-        </div>
-      </motion.div>
+      {frame}
     </div>
   );
 }

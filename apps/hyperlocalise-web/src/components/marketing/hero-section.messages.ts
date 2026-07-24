@@ -31,4 +31,9 @@ export const heroSectionMessages = defineMessages({
     id: "PNO4OxgFDU",
     description: "Primary call-to-action button on the marketing homepage hero",
   },
+  goToDashboard: {
+    defaultMessage: "Go to dashboard",
+    id: "xvA/BI5vJc",
+    description: "Primary call-to-action on the marketing homepage hero when the user is signed in",
+  },
 });
