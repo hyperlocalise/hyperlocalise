@@ -1195,6 +1195,10 @@
     "defaultMessage": "Account",
     "description": "Settings hub row label for account settings"
   },
+  "31nY7d5ehk": {
+    "defaultMessage": "The best agentic localisation platform to launch globally in days",
+    "description": "Marketing homepage hero headline"
+  },
   "33PBu8aQXh": {
     "defaultMessage": "Enable first",
     "description": "Badge when email notifications require enabling the email agent first"
@@ -1598,10 +1602,6 @@
   "4mzmyHsHW0": {
     "defaultMessage": "Saving...",
     "description": "Save button label while the automation update request is pending"
-  },
-  "4p38Fe84Cb": {
-    "defaultMessage": "Launch product localisation with context-aware translation and review",
-    "description": "Marketing homepage hero headline"
   },
   "4rKdbq38y5": {
     "defaultMessage": "Translation exceeds the recommended {maxLength} characters.",

@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const heroSectionMessages = defineMessages({
   headline: {
-    defaultMessage: "Launch product localisation with context-aware translation and review",
-    id: "4p38Fe84Cb",
+    defaultMessage: "The best agentic localisation platform to launch globally in days",
+    id: "31nY7d5ehk",
     description: "Marketing homepage hero headline",
   },
   body: {
