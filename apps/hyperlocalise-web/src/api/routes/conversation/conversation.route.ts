@@ -58,9 +58,12 @@ const messageUploadBodyLimit = createMiddleware(async (c, next) => {
   const hasTransferEncoding = rawRequest.headers.has("transfer-encoding");
   const contentLength = rawRequest.headers.get("content-length");
   if (contentLength && !hasTransferEncoding) {
-    return Number.parseInt(contentLength, 10) > maxMessageUploadBytes
-      ? c.json({ error: "upload_too_large" }, 413)
-      : next();
+    const parsedLength = Number.parseInt(contentLength, 10);
+    if (!Number.isNaN(parsedLength)) {
+      return parsedLength > maxMessageUploadBytes
+        ? c.json({ error: "upload_too_large" }, 413)
+        : next();
+    }
   }
 
   let size = 0;
@@ -75,6 +78,8 @@ const messageUploadBodyLimit = createMiddleware(async (c, next) => {
 
     size += value.byteLength;
     if (size > maxMessageUploadBytes) {
+      await reader.cancel().catch(() => undefined);
+      reader.releaseLock();
       return c.json({ error: "upload_too_large" }, 413);
     }
     chunks.push(value);
