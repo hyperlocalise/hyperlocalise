@@ -141,9 +141,7 @@ export async function listAhrefsMcpTools(input: {
     return err({
       code: "ahrefs_connection_validation_failed",
       message:
-        error instanceof Error
-          ? error.message
-          : "Unable to list tools from the Ahrefs MCP server.",
+        error instanceof Error ? error.message : "Unable to list tools from the Ahrefs MCP server.",
     });
   }
 }

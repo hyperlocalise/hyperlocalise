@@ -17,93 +17,93 @@ import { defineMessages } from "react-intl";
 export const ahrefsConnectionPanelMessages = defineMessages({
   rowName: {
     defaultMessage: "Ahrefs",
-    id: "KLP0H0Bm8w",
+    id: "XIim2dhGAT",
     description: "Name shown for the Ahrefs integrations row",
   },
   rowDescription: {
     defaultMessage: "Connect an Ahrefs MCP API key for SEO data in automations.",
-    id: "r6HEWfXC5D",
+    id: "0//CTkn8hx",
     description: "Description for the Ahrefs integrations row",
   },
   addConnection: {
     defaultMessage: "Add connection",
-    id: "bdbVTOv5Bm",
+    id: "zVJ4tC5vy1",
     description: "Button to add a new Ahrefs connection",
   },
   displayNameLabel: {
     defaultMessage: "Display name",
-    id: "jNTPuVa8uZ",
+    id: "4mLbuv5vLp",
     description: "Label for Ahrefs display name field",
   },
   apiKeyLabel: {
     defaultMessage: "MCP API key",
-    id: "vyEG2Rrj4a",
+    id: "iLIgL6IRUh",
     description: "Label for Ahrefs MCP API key field",
   },
   apiKeyHelp: {
     defaultMessage:
       "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer.",
-    id: "2EB3wgNEGj",
+    id: "idzncwhcnS",
     description: "Help text for where to find an Ahrefs MCP API key",
   },
   save: {
     defaultMessage: "Save",
-    id: "Tr3_f_b-E4",
+    id: "1Gjnjj0lCU",
     description: "Save Ahrefs connection button",
   },
   cancel: {
     defaultMessage: "Cancel",
-    id: "eBTNMHRzsx",
+    id: "WMgcyXfv95",
     description: "Cancel adding Ahrefs connection",
   },
   delete: {
     defaultMessage: "Delete",
-    id: "WUhmkuWno_",
+    id: "nGmfwrX00x",
     description: "Delete Ahrefs connection button",
   },
   fetchFailed: {
     defaultMessage: "Failed to load Ahrefs connections.",
-    id: "oDR2kKlwsc",
+    id: "brJ+Z+0eR1",
     description: "Error when Ahrefs connections cannot be loaded",
   },
   saveFailed: {
     defaultMessage: "Failed to save Ahrefs connection.",
-    id: "jy0fxxjZxd",
+    id: "+6nLERHfAh",
     description: "Error when Ahrefs connection save fails",
   },
   saveSucceeded: {
     defaultMessage: "Ahrefs connection saved.",
-    id: "t7yeS7VAje",
+    id: "XUqaK3JKIx",
     description: "Toast when Ahrefs connection is saved",
   },
   deleteFailed: {
     defaultMessage: "Failed to delete Ahrefs connection.",
-    id: "V-PkRAMN_s",
+    id: "8XNSkLVgbI",
     description: "Error when Ahrefs connection delete fails",
   },
   deleteInUse: {
     defaultMessage: "Remove this Ahrefs connection from automations before deleting it.",
-    id: "RqJFnFdbhG",
+    id: "yvYYx/4tth",
     description: "Error when deleting an Ahrefs connection still used by automations",
   },
   deleteSucceeded: {
     defaultMessage: "Ahrefs connection deleted.",
-    id: "qSJAyVlIfJ",
+    id: "j42TPeiZpP",
     description: "Toast when Ahrefs connection is deleted",
   },
   emptyState: {
     defaultMessage: "No Ahrefs connections yet.",
-    id: "q1odur6ptQ",
+    id: "gSujo7PJIL",
     description: "Empty state when no Ahrefs connections exist",
   },
   tokenConfigured: {
     defaultMessage: "API key ending in {suffix}",
-    id: "Fw-DAiV4t2",
+    id: "0/seAQIJ6N",
     description: "Hint that an Ahrefs API key is already stored",
   },
   apiKeyRequired: {
     defaultMessage: "Enter an Ahrefs MCP API key.",
-    id: "Xucm4d5P0P",
+    id: "3hTiwfSSe8",
     description: "Validation error when Ahrefs MCP API key is missing on create",
   },
 });

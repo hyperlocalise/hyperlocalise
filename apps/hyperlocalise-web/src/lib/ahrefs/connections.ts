@@ -352,9 +352,7 @@ export async function deleteAhrefsConnection(input: {
   connectionId: string;
   db?: DatabaseClient;
 }): Promise<Result<boolean, AhrefsConnectionError>> {
-  const run = async (
-    database: DatabaseClient,
-  ): Promise<Result<boolean, AhrefsConnectionError>> => {
+  const run = async (database: DatabaseClient): Promise<Result<boolean, AhrefsConnectionError>> => {
     const existing = await lockAhrefsConnectionForUpdate({
       organizationId: input.organizationId,
       connectionId: input.connectionId,
