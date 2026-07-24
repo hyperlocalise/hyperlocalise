@@ -81,6 +81,11 @@ Apply the 40/40/20 category weights only after calculating each category.
 Publish the score version and evaluated-rule count with the report so a result
 can be reproduced.
 
+If a category has no applicable points or does not meet its score version's
+minimum evidence threshold, show **Insufficient evidence** instead of a numeric
+category score. Withhold the overall score unless all three categories meet
+their minimum thresholds; do not reweight the remaining categories.
+
 ## Agent workflow
 
 1. **Validate:** Normalise the URL, block private networks, enforce rate limits,
@@ -113,7 +118,7 @@ Store every completed or partial audit as versioned records:
 |---|---|
 | `audit` | Submitted URL, status, target locale and market, timestamps, and score version |
 | `audit_page` | Discovered URL, locale, extraction status, and content fingerprint |
-| `audit_finding` | Category, severity, confidence, evidence, impact, and recommendation |
+| `audit_finding` | Category, severity, confidence, sanitised evidence, impact, and recommendation |
 | `audit_report` | Public summary, private full-report reference, visibility, indexing state, and report version |
 | `audit_lead` | Contact data and conversion state, separate from public report data |
 | `audit_event` | Report viewed, unlocked, shared, booked, or converted to a workspace |
@@ -122,8 +127,8 @@ Content fingerprints may reuse a recent extraction. A changed fingerprint,
 target market, or scoring version starts a new audit version rather than
 overwriting prior evidence.
 
-The public summary will use a stable slug such as
-`/localisation-audit/example-com-a1b2`. It will show the domain, audit date,
+The public summary will use an opaque stable slug such as
+`/localisation-audit/a1b2c3d4`. It will show the domain, audit date,
 scores, three high-level findings, sanitised recommendations, and Hyperlocalise
 calls to action. It will not expose email addresses, detailed
 vulnerability-like findings, raw model output, raw extracted content, or
@@ -152,10 +157,12 @@ content than automatically indexing thin reports.
 Raw extracted content and screenshots will be encrypted, restricted to the
 audit service and authorised support staff, and deleted within 30 days. Private
 reports and findings will be retained for 12 months unless the lead requests
-earlier deletion. Lead records follow the product's consent, suppression, and
-legal retention policies. A deletion request must cover raw artifacts, private
-reports, public summaries, and lead links while retaining only records required
-for suppression or legal compliance.
+earlier deletion. Retained findings may contain only short, sanitised evidence
+excerpts; links to raw artifacts must expire when those artifacts are deleted.
+Lead records follow the product's consent, suppression, and legal retention
+policies. A deletion request must cover raw artifacts, private reports, public
+summaries, and lead links while retaining only records required for suppression
+or legal compliance.
 
 ## Lead generation
 
