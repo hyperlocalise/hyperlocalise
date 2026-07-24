@@ -621,8 +621,7 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
 
     if (segment.id === "hero-title") {
       return (
-        heroTitleIntelligence.agentContext ??
-        intl.formatMessage(heroFrameMessages.contextHeroTitle)
+        heroTitleIntelligence.agentContext ?? intl.formatMessage(heroFrameMessages.contextHeroTitle)
       );
     }
 
