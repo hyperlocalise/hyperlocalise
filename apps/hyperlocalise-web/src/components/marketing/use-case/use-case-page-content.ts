@@ -35,7 +35,7 @@ export type UseCasePageContent = {
     eyebrowKey: UseCaseMessageKey;
     headlineKey: UseCaseMessageKey;
     subheadlineKey: UseCaseMessageKey;
-    ctaLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
+    ctaLabelKey: "ctaRequestDemo";
   };
   problem: {
     titleKey: UseCaseMessageKey;
@@ -67,7 +67,7 @@ export type UseCasePageContent = {
   cta: {
     headlineKey: UseCaseMessageKey;
     descriptionKey: UseCaseMessageKey;
-    primaryLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
+    primaryLabelKey: "ctaRequestDemo";
   };
 };
 
