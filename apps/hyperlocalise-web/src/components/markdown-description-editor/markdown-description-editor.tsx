@@ -149,11 +149,17 @@ export function MarkdownDescriptionEditor({
           ) {
             return false;
           }
-          if (document.querySelector("[data-markdown-slash-menu]")) {
-            // Focus can move to body while the floating menu mounts; keep editing.
-            return false;
-          }
-          onBlurRef.current?.();
+          // Defer past slash-menu mount/unmount so a transient body focus during
+          // popup open doesn't commit, but a real outside click still does.
+          queueMicrotask(() => {
+            if (_view.hasFocus()) {
+              return;
+            }
+            if (document.activeElement?.closest("[data-markdown-slash-menu]")) {
+              return;
+            }
+            onBlurRef.current?.();
+          });
           return false;
         },
       },
@@ -202,10 +208,17 @@ export function MarkdownDescriptionEditor({
             ) {
               return false;
             }
-            if (document.querySelector("[data-markdown-slash-menu]")) {
-              return false;
-            }
-            onBlurRef.current?.();
+            // Defer past slash-menu mount/unmount so a transient body focus during
+            // popup open doesn't commit, but a real outside click still does.
+            queueMicrotask(() => {
+              if (editor.view.hasFocus()) {
+                return;
+              }
+              if (document.activeElement?.closest("[data-markdown-slash-menu]")) {
+                return;
+              }
+              onBlurRef.current?.();
+            });
             return false;
           },
         },

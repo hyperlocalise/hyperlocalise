@@ -163,7 +163,6 @@ export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCo
       run: ({ editor, range }) => {
         const { from, to } = editor.state.selection;
         const selectedText = from !== to ? editor.state.doc.textBetween(from, to, " ") : "link";
-        editor.chain().focus().deleteRange(range).run();
         const url = window.prompt(linkPrompt, "https://");
         if (url === null) {
           return;
@@ -172,6 +171,7 @@ export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCo
         if (trimmed === "") {
           return;
         }
+        editor.chain().focus().deleteRange(range).run();
         editor
           .chain()
           .focus()
