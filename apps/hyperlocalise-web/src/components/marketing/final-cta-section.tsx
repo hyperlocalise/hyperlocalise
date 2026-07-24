@@ -15,9 +15,9 @@
 import { FormattedMessage } from "react-intl";
 
 import { finalCtaSectionMessages } from "./final-cta-section.messages";
+import { REQUEST_DEMO_URL } from "./request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH2 } from "@/components/ui/typography";
-import { env } from "@/lib/env";
 
 export function FinalCtaSection() {
   return (
@@ -28,9 +28,7 @@ export function FinalCtaSection() {
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <FormattedMessage {...finalCtaSectionMessages.joinEarlyAccess} />
         </Button>

@@ -46,6 +46,8 @@ import type { UseCaseMessageKey } from "@/components/marketing/use-case/use-case
 import { cn } from "@/lib/primitives/cn";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
@@ -193,7 +195,7 @@ function MegaMenuColumn({ headingKey, links }: { headingKey: NavbarMessageKey; l
   );
 }
 
-function Logo() {
+function Logo({ onHero = false }: { onHero?: boolean }) {
   const intl = useIntl();
 
   return (
@@ -205,11 +207,40 @@ function Logo() {
         height={32}
         alt={intl.formatMessage(navbarMessages.logoAlt)}
       />
-      <span className="font-sans text-base font-semibold tracking-tight">
+      <span
+        className={cn("font-sans text-base font-semibold tracking-tight", onHero && "text-white")}
+      >
         <FormattedMessage {...navbarMessages.brandName} />
       </span>
     </Link>
   );
+}
+
+function useHomeHeroNavTone() {
+  const pathname = usePathname();
+  const isMarketingHome = pathname.split("/").filter(Boolean).length === 1;
+  const [onHero, setOnHero] = useState(isMarketingHome);
+
+  useEffect(() => {
+    if (!isMarketingHome) {
+      setOnHero(false);
+      return;
+    }
+
+    const update = () => {
+      setOnHero(window.scrollY < Math.max(120, window.innerHeight * 0.55));
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [isMarketingHome]);
+
+  return isMarketingHome && onHero;
 }
 
 function MobileNavSection({
@@ -368,21 +399,48 @@ function DesktopNavigation() {
 }
 
 export function NavbarView({ auth }: { auth: NavbarAuthState }) {
+  const onHero = useHomeHeroNavTone();
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b transition-[background-color,border-color,color,backdrop-filter] duration-300",
+        onHero
+          ? "border-transparent bg-transparent text-white"
+          : "border-border bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80",
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
-          <Logo />
-          <DesktopNavigation />
+          <Logo onHero={onHero} />
+          <div
+            className={cn(
+              onHero &&
+                "[&_[data-slot=navigation-menu-trigger]]:bg-transparent [&_[data-slot=navigation-menu-trigger]]:text-white [&_[data-slot=navigation-menu-trigger]]:hover:bg-white/10 [&_[data-slot=navigation-menu-trigger]]:hover:text-white",
+            )}
+          >
+            <DesktopNavigation />
+          </div>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div
+          className={cn(
+            "hidden items-center gap-2 md:flex",
+            onHero &&
+              "[&_button]:text-white [&_button[data-variant=ghost]]:hover:bg-white/10 [&_button[data-variant=ghost]]:hover:text-white [&_a]:text-white",
+          )}
+        >
           <NavbarDesktopAuthActions auth={auth} />
           <LocaleToggle />
           <ThemeToggle />
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div
+          className={cn(
+            "flex items-center gap-2 md:hidden",
+            onHero && "[&_button]:border-white/30 [&_button]:text-white",
+          )}
+        >
           <NavbarMobileAuthCta auth={auth} />
           <MobileNavigation auth={auth} />
           <LocaleToggle />

@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,12 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { defineMessages } from "react-intl";
 
-export const providerSwitchingIllustrationMessages = defineMessages({
-  title: {
-    defaultMessage: "Providers",
-    id: "ZRMR9TQ8PW",
-    description: "Title of the provider switching illustration on the marketing homepage",
-  },
-});
+/** Public calendar link for marketing “Request a Demo” CTAs. */
+export const REQUEST_DEMO_URL = "https://calendar.app.google/gEiRwNvAZ1ERXvT26";

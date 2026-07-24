@@ -19,8 +19,8 @@ import { FormattedMessage } from "react-intl";
 import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { env } from "@/lib/env";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
@@ -54,7 +54,11 @@ function ProductHero({ content }: ProductPageProps) {
         </p>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button size="lg" nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        >
           <ProductMessage messageKey="ctaJoinWaitlist" />
           <ArrowRightIcon data-icon="inline-end" className="size-4" />
         </Button>
@@ -301,9 +305,7 @@ function ProductCta({ content }: ProductPageProps) {
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <ProductMessage messageKey="ctaJoinEarlyAccess" />
         </Button>

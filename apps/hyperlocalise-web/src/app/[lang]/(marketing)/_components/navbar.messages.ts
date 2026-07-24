@@ -126,8 +126,8 @@ export const navbarMessages = defineMessages({
     description: "Marketing navbar button to sign in",
   },
   joinWaitlist: {
-    defaultMessage: "Join waitlist",
-    id: "EGk/6OwbtI",
+    defaultMessage: "Request a Demo",
+    id: "c4Jix95kED",
     description: "Marketing navbar call-to-action to join the waitlist",
   },
   dashboard: {

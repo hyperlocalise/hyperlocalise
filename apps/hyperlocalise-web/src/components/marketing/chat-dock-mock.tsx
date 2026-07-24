@@ -22,6 +22,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tool, ToolHeader } from "@/components/ai-elements/tool";
@@ -30,6 +31,7 @@ import { TypographyH2, TypographyMuted, TypographyP } from "@/components/ui/typo
 import { cn } from "@/lib/primitives/cn";
 
 import { chatDockMockMessages } from "./chat-dock-mock.messages";
+import { LAVENDER_MESH_GRADIENT_SRC } from "./hero-frame-mesh-stage";
 
 const STEP_MS = 720;
 const TOOL_RESOLVE_MS = 520;
@@ -109,7 +111,14 @@ type VisibleTool = {
   state: "input-available" | "output-available";
 };
 
-export function ChatDockMockSection() {
+export function ChatDockMockSection({
+  className,
+  embedded = false,
+}: {
+  className?: string;
+  /** Dock panel only — omit mesh stage and marketing aside. */
+  embedded?: boolean;
+}) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
   const [phase, setPhase] = useState<PlaybackPhase>("idle");
@@ -194,13 +203,197 @@ export function ChatDockMockSection() {
   }));
   const isBusy = phase === "playing";
 
+  const dockPanel = (
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15",
+        embedded ? "h-[26rem] sm:h-[28rem]" : "h-[min(36rem,70svh)]",
+      )}
+      role="region"
+      aria-label={intl.formatMessage(chatDockMockMessages.dockTitle)}
+    >
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+          <FormattedMessage {...chatDockMockMessages.dockTitle} />
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          tabIndex={-1}
+          aria-label={intl.formatMessage(chatDockMockMessages.collapseLabel)}
+        >
+          <span aria-hidden className="text-base leading-none">
+            {COLLAPSE_GLYPH}
+          </span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          tabIndex={-1}
+          aria-label={intl.formatMessage(chatDockMockMessages.closeLabel)}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+        </Button>
+      </header>
+
+      <div ref={transcriptRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {phase === "idle" ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
+            </div>
+            <div className="max-w-sm space-y-1">
+              <h3 className="text-balance text-sm font-semibold text-foreground">
+                <FormattedMessage {...chatDockMockMessages.emptyTitle} />
+              </h3>
+              <p className="text-pretty text-sm text-muted-foreground">
+                <FormattedMessage {...chatDockMockMessages.emptySubtitle} />
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 px-4 py-5">
+            <div className="ms-auto max-w-[90%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 text-foreground">
+              {prefilledPrompt}
+            </div>
+
+            <div className="space-y-3">
+              <AnimatePresence initial={false}>
+                {toolSteps.slice(0, visibleToolCount).map((step) => {
+                  const state = toolStates[step.id] ?? "input-available";
+                  return (
+                    <motion.div
+                      key={step.id}
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: shouldReduceMotion ? 0 : 0.28,
+                        ease: EASE_OUT,
+                      }}
+                      className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
+                    >
+                      <Tool defaultOpen={state === "output-available"}>
+                        <ToolHeader
+                          type="dynamic-tool"
+                          toolName={step.toolName}
+                          state={state}
+                          detail={step.detail}
+                          input={step.input}
+                        />
+                      </Tool>
+                      {state === "output-available" ? (
+                        <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 px-2.5 py-2 font-mono text-[0.72rem] leading-5 text-muted-foreground">
+                          {step.resultLines.join("\n")}
+                        </pre>
+                      ) : null}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+
+              {showAnswer ? (
+                <motion.div
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: EASE_OUT }}
+                  className="space-y-4 text-sm leading-6 text-foreground"
+                >
+                  {answerSections.map((section) => (
+                    <div key={section.label} className="space-y-1">
+                      <p className="font-medium text-foreground">{section.label}</p>
+                      <p className="text-muted-foreground">{section.body}</p>
+                    </div>
+                  ))}
+                </motion.div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-border bg-background p-3">
+        <div className="overflow-hidden rounded-xl border border-border bg-muted/30 shadow-sm">
+          <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-muted-foreground">
+              {MENTION_GLYPH}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
+              <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />
+              <FormattedMessage {...chatDockMockMessages.contextPill} />
+            </span>
+          </div>
+          <div className="flex items-end gap-2 px-3 py-3">
+            <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
+              {phase === "idle" ? (
+                prefilledPrompt
+              ) : (
+                <span className="text-muted-foreground">
+                  <FormattedMessage {...chatDockMockMessages.composerPlaceholder} />
+                </span>
+              )}
+            </p>
+            {phase === "done" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="h-8 rounded-full px-3"
+                onClick={resetPlayback}
+              >
+                <HugeiconsIcon
+                  data-icon="inline-start"
+                  icon={RefreshIcon}
+                  strokeWidth={2}
+                  className="size-3.5"
+                />
+                <FormattedMessage {...chatDockMockMessages.replayLabel} />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-full px-3"
+                disabled={isBusy}
+                aria-label={intl.formatMessage(chatDockMockMessages.sendLabel)}
+                onClick={startPlayback}
+              >
+                <HugeiconsIcon
+                  data-icon="inline-start"
+                  icon={SentIcon}
+                  strokeWidth={2}
+                  className="size-3.5"
+                />
+                <FormattedMessage {...chatDockMockMessages.sendLabel} />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return <div className={cn("relative", className)}>{dockPanel}</div>;
+  }
+
   return (
-    <section className="relative overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:rounded-[2rem]">
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-[1.5rem] border border-border bg-background sm:rounded-[2rem]",
+        className,
+      )}
+    >
       <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.75fr)]">
         <div className="relative min-h-112 overflow-hidden border-b border-border px-4 py-8 sm:px-6 sm:py-10 lg:min-h-128 lg:border-b-0 lg:border-r lg:px-8 lg:py-12">
-          <div
+          <Image
+            src={LAVENDER_MESH_GRADIENT_SRC}
+            alt=""
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(96,116,9,0.14),transparent_42%),radial-gradient(circle_at_88%_78%,rgba(9,108,229,0.1),transparent_46%)]"
+            fill
+            sizes="(min-width: 1024px) 55vw, 100vw"
+            className="pointer-events-none object-cover object-center"
           />
 
           <motion.div
@@ -234,171 +427,7 @@ export function ChatDockMockSection() {
               ease: EASE_OUT,
             }}
           >
-            <div
-              className="flex h-[min(36rem,70svh)] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15"
-              role="region"
-              aria-label={intl.formatMessage(chatDockMockMessages.dockTitle)}
-            >
-              <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-                <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                  <FormattedMessage {...chatDockMockMessages.dockTitle} />
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  tabIndex={-1}
-                  aria-label={intl.formatMessage(chatDockMockMessages.collapseLabel)}
-                >
-                  <span aria-hidden className="text-base leading-none">
-                    {COLLAPSE_GLYPH}
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  tabIndex={-1}
-                  aria-label={intl.formatMessage(chatDockMockMessages.closeLabel)}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
-                </Button>
-              </header>
-
-              <div ref={transcriptRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                {phase === "idle" ? (
-                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                      <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
-                    </div>
-                    <div className="max-w-sm space-y-1">
-                      <h3 className="text-balance text-sm font-semibold text-foreground">
-                        <FormattedMessage {...chatDockMockMessages.emptyTitle} />
-                      </h3>
-                      <p className="text-pretty text-sm text-muted-foreground">
-                        <FormattedMessage {...chatDockMockMessages.emptySubtitle} />
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 px-4 py-5">
-                    <div className="ms-auto max-w-[90%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 text-foreground">
-                      {prefilledPrompt}
-                    </div>
-
-                    <div className="space-y-3">
-                      <AnimatePresence initial={false}>
-                        {toolSteps.slice(0, visibleToolCount).map((step) => {
-                          const state = toolStates[step.id] ?? "input-available";
-                          return (
-                            <motion.div
-                              key={step.id}
-                              initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                duration: shouldReduceMotion ? 0 : 0.28,
-                                ease: EASE_OUT,
-                              }}
-                              className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
-                            >
-                              <Tool defaultOpen={state === "output-available"}>
-                                <ToolHeader
-                                  type="dynamic-tool"
-                                  toolName={step.toolName}
-                                  state={state}
-                                  detail={step.detail}
-                                  input={step.input}
-                                />
-                              </Tool>
-                              {state === "output-available" ? (
-                                <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 px-2.5 py-2 font-mono text-[0.72rem] leading-5 text-muted-foreground">
-                                  {step.resultLines.join("\n")}
-                                </pre>
-                              ) : null}
-                            </motion.div>
-                          );
-                        })}
-                      </AnimatePresence>
-
-                      {showAnswer ? (
-                        <motion.div
-                          initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: EASE_OUT }}
-                          className="space-y-4 text-sm leading-6 text-foreground"
-                        >
-                          {answerSections.map((section) => (
-                            <div key={section.label} className="space-y-1">
-                              <p className="font-medium text-foreground">{section.label}</p>
-                              <p className="text-muted-foreground">{section.body}</p>
-                            </div>
-                          ))}
-                        </motion.div>
-                      ) : null}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="shrink-0 border-t border-border bg-background p-3">
-                <div className="overflow-hidden rounded-xl border border-border bg-muted/30 shadow-sm">
-                  <div className="flex flex-wrap gap-1.5 px-3 pt-3">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-                      {MENTION_GLYPH}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
-                      <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />
-                      <FormattedMessage {...chatDockMockMessages.contextPill} />
-                    </span>
-                  </div>
-                  <div className="flex items-end gap-2 px-3 py-3">
-                    <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
-                      {phase === "idle" ? (
-                        prefilledPrompt
-                      ) : (
-                        <span className="text-muted-foreground">
-                          <FormattedMessage {...chatDockMockMessages.composerPlaceholder} />
-                        </span>
-                      )}
-                    </p>
-                    {phase === "done" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 rounded-full px-3"
-                        onClick={resetPlayback}
-                      >
-                        <HugeiconsIcon
-                          data-icon="inline-start"
-                          icon={RefreshIcon}
-                          strokeWidth={2}
-                          className="size-3.5"
-                        />
-                        <FormattedMessage {...chatDockMockMessages.replayLabel} />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 rounded-full px-3"
-                        disabled={isBusy}
-                        aria-label={intl.formatMessage(chatDockMockMessages.sendLabel)}
-                        onClick={startPlayback}
-                      >
-                        <HugeiconsIcon
-                          data-icon="inline-start"
-                          icon={SentIcon}
-                          strokeWidth={2}
-                          className="size-3.5"
-                        />
-                        <FormattedMessage {...chatDockMockMessages.sendLabel} />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+            {dockPanel}
           </motion.div>
         </div>
 
@@ -429,6 +458,6 @@ export function ChatDockMockSection() {
           </div>
         </aside>
       </div>
-    </section>
+    </div>
   );
 }

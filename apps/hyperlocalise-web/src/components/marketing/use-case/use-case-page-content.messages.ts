@@ -46,13 +46,13 @@ export const useCasePageMessages = defineMessages({
     description: "Use case page overview section label",
   },
   ctaJoinWaitlist: {
-    defaultMessage: "Join the waitlist",
-    id: "rCTm4zs5rL",
-    description: "Use case page call-to-action to join the waitlist",
+    defaultMessage: "Request a Demo",
+    id: "g3BfS0hD2m",
+    description: "Use case page call-to-action to request a demo",
   },
   ctaRequestDemo: {
-    defaultMessage: "Request a demo",
-    id: "bAOOxyyl8P",
+    defaultMessage: "Request a Demo",
+    id: "g3BfS0hD2m",
     description: "Use case page call-to-action to request a demo",
   },
   productLocalisationMetadataTitle: {

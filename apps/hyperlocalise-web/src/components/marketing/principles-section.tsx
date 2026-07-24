@@ -33,7 +33,7 @@ export function PrinciplesSection() {
         </TypographyH2>
       </div>
 
-      <HeroFrameMeshStage className="mt-10 sm:mt-12" />
+      <HeroFrameMeshStage className="mt-12 sm:mt-16" />
     </section>
   );
 }

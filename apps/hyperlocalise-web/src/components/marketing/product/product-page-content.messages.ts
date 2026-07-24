@@ -31,14 +31,14 @@ export const productPageMessages = defineMessages({
     description: "Product page related links section description",
   },
   ctaJoinWaitlist: {
-    defaultMessage: "Join waitlist",
-    id: "/C52lRfZjE",
-    description: "Product page hero call-to-action to join the waitlist",
+    defaultMessage: "Request a Demo",
+    id: "E+xT1YvnbH",
+    description: "Product page hero call-to-action to request a demo",
   },
   ctaJoinEarlyAccess: {
-    defaultMessage: "Join early access",
-    id: "8OAyrxftUP",
-    description: "Product page bottom call-to-action to join early access",
+    defaultMessage: "Request a Demo",
+    id: "/GmJUPyDf/",
+    description: "Product page bottom call-to-action to request a demo",
   },
   productNavAgentsAutomation: {
     defaultMessage: "Agents Automation",

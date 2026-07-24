@@ -21,8 +21,8 @@ export const finalCtaSectionMessages = defineMessages({
     description: "Marketing homepage final call-to-action section headline",
   },
   joinEarlyAccess: {
-    defaultMessage: "Join early access",
-    id: "j8hWmEtYkf",
+    defaultMessage: "Request a Demo",
+    id: "/SBgalTEEE",
     description: "Primary call-to-action button on the marketing homepage final section",
   },
 });

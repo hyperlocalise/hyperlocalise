@@ -70,8 +70,10 @@ function SelectorAvatar({ target }: { target: AssignmentTarget }) {
 
 export function TranslationFlowIllustration({
   assignmentTargets,
+  className,
 }: {
   assignmentTargets: readonly AssignmentTarget[];
+  className?: string;
 }) {
   const intl = useIntl();
   const [activeAgent, setActiveAgent] = useState(assignmentTargets[0]?.name ?? "");
@@ -166,7 +168,10 @@ export function TranslationFlowIllustration({
   return (
     <div
       ref={inViewRef}
-      className="relative overflow-hidden rounded-[1.8rem] border border-border bg-background mask-radial-from-65% mask-radial-at-top"
+      className={cn(
+        "relative overflow-hidden rounded-[1.8rem] border border-border bg-background",
+        className,
+      )}
     >
       <div className="relative">
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
@@ -242,11 +247,14 @@ export function TranslationFlowIllustration({
                     }}
                   >
                     <TypographyP
-                      className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", line.tone)}
+                      className={cn(
+                        "flex flex-wrap items-center gap-x-2 gap-y-0.5 pb-0 text-[0.78rem] leading-5 sm:text-[0.82rem]",
+                        line.tone,
+                      )}
                     >
                       <span>{line.label}</span>
                       {line.showAgentModel ? (
-                        <span className="text-[0.98rem] text-muted-foreground">
+                        <span className="text-[0.72rem] text-muted-foreground sm:text-[0.78rem]">
                           {[activeAgent, flagshipModelsByAgent[activeAgent] ?? ""].join(" - ")}
                         </span>
                       ) : null}

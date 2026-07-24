@@ -19,66 +19,74 @@ import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import { tourfinderTestimonialSectionMessages } from "./tourfinder-testimonial-section.messages";
 
-const features = [
-  tourfinderTestimonialSectionMessages.featureVietnamese,
-  tourfinderTestimonialSectionMessages.featureJapanese,
-  tourfinderTestimonialSectionMessages.featureReview,
-  tourfinderTestimonialSectionMessages.featureSpeed,
-] as const;
-
 export function TourfinderTestimonialSection() {
   const intl = useIntl();
 
   return (
     <section id="customers" aria-labelledby="tourfinder-testimonial-heading">
-      <div className="relative left-1/2 w-screen -translate-x-1/2 bg-foreground text-background">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
-          <TypographyH2
-            id="tourfinder-testimonial-heading"
-            className="mx-auto max-w-4xl pb-0 text-center text-[1.85rem] leading-[1.12] font-semibold tracking-[-0.04em] text-background normal-case sm:text-4xl md:text-5xl"
-          >
-            <FormattedMessage {...tourfinderTestimonialSectionMessages.headline} />
-          </TypographyH2>
+      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-background text-foreground">
+        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10 lg:py-32">
+          <div className="max-w-3xl">
+            <p className="text-[0.72rem] font-medium tracking-[0.16em] text-muted-foreground uppercase">
+              <FormattedMessage {...tourfinderTestimonialSectionMessages.eyebrow} />
+            </p>
 
-          <div className="mt-14 grid items-center gap-10 lg:mt-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
-            <div className="space-y-10">
-              <TypographyP className="max-w-xl text-pretty text-[1.35rem] leading-[1.35] font-medium tracking-[-0.03em] text-background sm:text-[1.65rem] sm:leading-[1.3]">
-                <FormattedMessage {...tourfinderTestimonialSectionMessages.quote} />
-              </TypographyP>
+            <TypographyH2
+              id="tourfinder-testimonial-heading"
+              className="mt-5 pb-0 text-left text-[2.25rem] leading-[1.04] font-semibold tracking-[-0.045em] text-foreground normal-case sm:mt-6 sm:text-5xl md:text-[3.5rem] md:leading-[1.02]"
+            >
+              <FormattedMessage {...tourfinderTestimonialSectionMessages.headline} />
+            </TypographyH2>
 
-              <div>
-                <TypographyP className="text-[0.68rem] font-semibold tracking-[0.22em] text-background/45 uppercase">
-                  <FormattedMessage {...tourfinderTestimonialSectionMessages.featuresLabel} />
-                </TypographyP>
-                <ul className="mt-4 space-y-2.5">
-                  {features.map((feature) => (
-                    <li
-                      key={feature.id}
-                      className="text-[0.78rem] font-semibold tracking-[0.14em] text-background uppercase sm:text-[0.82rem]"
-                    >
-                      <FormattedMessage {...feature} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <TypographyP className="mt-6 max-w-2xl pb-0 text-pretty text-[1.15rem] leading-relaxed text-muted-foreground sm:mt-8 sm:text-[1.35rem] sm:leading-[1.4]">
+              <FormattedMessage {...tourfinderTestimonialSectionMessages.result} />
+            </TypographyP>
 
             <a
               href="https://tourfinder.vn"
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative block overflow-hidden rounded-xl border border-background/10 bg-background/5 shadow-[0_24px_80px_color-mix(in_srgb,var(--foreground)_45%,transparent)] outline-none focus-visible:ring-2 focus-visible:ring-background/70 focus-visible:ring-offset-2 focus-visible:ring-offset-foreground"
+              className="group/link mt-8 inline-flex items-center gap-3 sm:mt-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Image
-                src="/images/customers/tourfinder-vn.png"
-                alt={intl.formatMessage(tourfinderTestimonialSectionMessages.imageAlt)}
-                width={1440}
-                height={900}
-                className="h-auto w-full grayscale transition-[filter] duration-500 ease-out motion-reduce:transition-none group-hover:grayscale-0 group-focus-visible:grayscale-0"
-                sizes="(min-width: 1024px) 560px, 100vw"
+                src="/images/customers/tourfinder-logo.png"
+                alt={intl.formatMessage(tourfinderTestimonialSectionMessages.logoAlt)}
+                width={1177}
+                height={294}
+                className="h-6 w-auto grayscale transition-[filter] duration-500 ease-out motion-reduce:transition-none group-hover/link:grayscale-0 group-focus-visible/link:grayscale-0 sm:h-7"
               />
+              <span className="text-[0.9rem] font-medium text-foreground underline decoration-foreground/25 underline-offset-4 transition-colors group-hover/link:decoration-foreground">
+                <FormattedMessage {...tourfinderTestimonialSectionMessages.visitSite} />
+              </span>
             </a>
           </div>
+
+          <a
+            href="https://tourfinder.vn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative mt-12 block overflow-hidden rounded-2xl border border-border bg-muted shadow-[0_36px_110px_color-mix(in_srgb,var(--foreground)_16%,transparent)] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:mt-16 lg:mt-20"
+          >
+            <div
+              className="flex items-center gap-2 border-b border-border/80 bg-muted/80 px-4 py-3"
+              aria-hidden
+            >
+              <span className="size-2.5 rounded-full bg-foreground/15" />
+              <span className="size-2.5 rounded-full bg-foreground/15" />
+              <span className="size-2.5 rounded-full bg-foreground/15" />
+              <span className="ml-3 truncate text-[0.7rem] tracking-wide text-muted-foreground">
+                tourfinder.vn
+              </span>
+            </div>
+            <Image
+              src="/images/customers/tourfinder-vn.png"
+              alt={intl.formatMessage(tourfinderTestimonialSectionMessages.imageAlt)}
+              width={1440}
+              height={900}
+              className="h-auto w-full grayscale transition-[filter,transform] duration-700 ease-out motion-reduce:transition-none group-hover:scale-[1.015] group-hover:grayscale-0 group-focus-visible:scale-[1.015] group-focus-visible:grayscale-0"
+              sizes="(min-width: 1280px) 1120px, 100vw"
+            />
+          </a>
         </div>
       </div>
     </section>

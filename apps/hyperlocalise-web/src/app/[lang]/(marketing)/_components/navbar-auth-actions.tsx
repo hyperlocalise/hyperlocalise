@@ -15,9 +15,10 @@
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { env } from "@/lib/env";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
+
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 
 import { navbarMessages } from "./navbar.messages";
 
@@ -56,7 +57,10 @@ export function NavbarDesktopAuthActions({ auth }: { auth: NavbarAuthState }) {
       >
         <FormattedMessage {...navbarMessages.signIn} />
       </Button>
-      <Button nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
+      <Button
+        nativeButton={false}
+        render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+      >
         <FormattedMessage {...navbarMessages.joinWaitlist} />
       </Button>
     </>
@@ -80,7 +84,7 @@ export function NavbarMobileAuthCta({ auth }: { auth: NavbarAuthState }) {
     <Button
       className="px-3.5"
       nativeButton={false}
-      render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
+      render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
     >
       <FormattedMessage {...navbarMessages.joinWaitlist} />
     </Button>
@@ -114,7 +118,10 @@ export function NavbarMobileAuthFooter({ auth }: { auth: NavbarAuthState }) {
           <FormattedMessage {...navbarMessages.signIn} />
         </Button>
       </SheetClose>
-      <SheetClose render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />} className="w-full">
+      <SheetClose
+        render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        className="w-full"
+      >
         <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
           <FormattedMessage {...navbarMessages.joinWaitlist} />
         </Button>

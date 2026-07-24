@@ -22,18 +22,38 @@ export const heroSectionMessages = defineMessages({
   },
   body: {
     defaultMessage:
-      "Purpose-built for localization in the AI era.<lineBreak></lineBreak>Designed for human-in-the-loop.",
-    id: "hh2Hg0bL2g",
+      "An AI workforce that acts like your team of local experts.<lineBreak></lineBreak>It understands market nuance, then translates and transcreates.",
+    id: "C8PJQhhRIe",
     description: "Marketing homepage hero supporting copy below the headline",
   },
   joinWaitlist: {
-    defaultMessage: "Join waitlist",
-    id: "PNO4OxgFDU",
+    defaultMessage: "Request a Demo",
+    id: "5lnOyXIzKl",
     description: "Primary call-to-action button on the marketing homepage hero",
   },
   goToDashboard: {
     defaultMessage: "Go to dashboard",
     id: "xvA/BI5vJc",
     description: "Primary call-to-action on the marketing homepage hero when the user is signed in",
+  },
+  trustedBy: {
+    defaultMessage: "Trusted by",
+    id: "ZeZBOe2pAC",
+    description: "Label above customer logos at the bottom of the marketing homepage hero",
+  },
+  heidiHealthAlt: {
+    defaultMessage: "Heidi Health",
+    id: "Oxu+yRmzWu",
+    description: "Alt text for the Heidi Health logo in the hero trusted-by strip",
+  },
+  tourfinderAlt: {
+    defaultMessage: "Tourfinder",
+    id: "DRxt7oXd6u",
+    description: "Alt text for the Tourfinder logo in the hero trusted-by strip",
+  },
+  tourmaticAlt: {
+    defaultMessage: "Tourmatic",
+    id: "kFLYRBqx6+",
+    description: "Alt text for the Tourmatic logo in the hero trusted-by strip",
   },
 });

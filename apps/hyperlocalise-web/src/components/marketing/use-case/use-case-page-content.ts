@@ -88,7 +88,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "productLocalisationHeroEyebrow",
       headlineKey: "productLocalisationHeroHeadline",
       subheadlineKey: "productLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "productLocalisationProblemTitle",
@@ -183,7 +183,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "productLocalisationCtaHeadline",
       descriptionKey: "productLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -316,7 +316,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "helpCenterLocalisationHeroEyebrow",
       headlineKey: "helpCenterLocalisationHeroHeadline",
       subheadlineKey: "helpCenterLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "helpCenterLocalisationProblemTitle",
@@ -411,7 +411,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "helpCenterLocalisationCtaHeadline",
       descriptionKey: "helpCenterLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -430,7 +430,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "githubReleaseLocalisationHeroEyebrow",
       headlineKey: "githubReleaseLocalisationHeroHeadline",
       subheadlineKey: "githubReleaseLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "githubReleaseLocalisationProblemTitle",
@@ -525,7 +525,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "githubReleaseLocalisationCtaHeadline",
       descriptionKey: "githubReleaseLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -753,7 +753,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "localisationOperationsCtaHeadline",
       descriptionKey: "localisationOperationsCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
 ];

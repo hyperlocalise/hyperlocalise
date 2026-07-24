@@ -14,9 +14,9 @@
  */
 import { FormattedMessage } from "react-intl";
 
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
-import { env } from "@/lib/env";
 
 import type { UseCasePageContent } from "./use-case-page-content";
 import { useCasePageMessages, type UseCaseMessageKey } from "./use-case-page-content.messages";
@@ -48,9 +48,7 @@ export function UseCaseHero({ content }: UseCaseHeroProps) {
         </TypographyP>
         <Button
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <UseCaseMessage messageKey={content.hero.ctaLabelKey} />
         </Button>
@@ -280,9 +278,7 @@ export function UseCaseCtaSection({ content }: UseCaseCtaSectionProps) {
         <Button
           className="rounded-full px-5"
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <UseCaseMessage messageKey={content.primaryLabelKey} />
         </Button>
