@@ -19,6 +19,7 @@ export const githubReleasesUrl = "https://github.com/hyperlocalise/hyperlocalise
 export const docsUrl = "https://hyperlocalise.dev";
 export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 export const contactUrl = "mailto:minh@hyperlocalise.com";
+export const linkedInCompanyUrl = "https://www.linkedin.com/company/hyperlocalise/";
 
 export type MarketingFooterLink = {
   labelKey?: string;
@@ -32,6 +33,10 @@ export type MarketingFooterColumn = {
   titleKey?: string;
   title?: string;
   links: MarketingFooterLink[];
+  nested?: {
+    title: string;
+    links: MarketingFooterLink[];
+  };
 };
 
 export const testimonials = [
@@ -71,7 +76,6 @@ export const footerColumns: MarketingFooterColumn[] = [
       { labelKey: "footerCliDocs", href: cliDocsUrl },
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
-      { labelKey: "footerGitHub", href: githubRepoUrl },
       { labelKey: "footerContact", href: contactUrl },
     ],
   },
@@ -82,5 +86,9 @@ export const footerColumns: MarketingFooterColumn[] = [
       { label: "Privacy", href: "/en/privacy" },
       { label: "Trust Center", href: "/en/trust-center" },
     ],
+    nested: {
+      title: "Social",
+      links: [{ label: "LinkedIn", href: linkedInCompanyUrl }],
+    },
   },
 ];

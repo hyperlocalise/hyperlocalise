@@ -93,7 +93,7 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
           </div>
         </section>
 
-        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 pt-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

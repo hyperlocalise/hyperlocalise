@@ -15,20 +15,24 @@
 import { defineMessages } from "react-intl";
 
 export const homepageFaqSectionMessages = defineMessages({
-  eyebrow: {
-    defaultMessage: "FAQ",
-    id: "rWBGfmxnmS",
-    description: "Eyebrow label for the marketing homepage FAQ section",
-  },
   heading: {
-    defaultMessage: "Questions, answered.",
-    id: "gOqcpFET9Z",
-    description: "Heading for the marketing homepage FAQ section",
+    defaultMessage: "Have questions?",
+    id: "wu/mUwV1xQ",
+    description: "Primary heading for the marketing homepage FAQ section",
   },
-  description: {
-    defaultMessage:
-      "How Hyperlocalise fits your stack, connects your context and keeps localisation quality on track.",
-    id: "YzbXflQN6b",
-    description: "Description for the marketing homepage FAQ section",
+  subheading: {
+    defaultMessage: "Find answers.",
+    id: "Ix3K4U4BqM",
+    description: "Secondary heading under the FAQ section title",
+  },
+  moreQuestions: {
+    defaultMessage: "Any more questions?",
+    id: "iGZHcOe2Wd",
+    description: "Prompt above the contact link in the FAQ section",
+  },
+  contactUs: {
+    defaultMessage: "Contact us",
+    id: "1Z393O2F5g",
+    description: "Contact link label in the FAQ section",
   },
 });

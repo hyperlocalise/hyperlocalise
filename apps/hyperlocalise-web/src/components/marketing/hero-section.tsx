@@ -128,6 +128,7 @@ export function HeroSection() {
                 <FormattedMessage
                   {...heroSectionMessages.body}
                   values={{
+                    desktopOnly: (chunks) => <span className="hidden sm:inline">{chunks}</span>,
                     lineBreak: () => <br />,
                   }}
                 />

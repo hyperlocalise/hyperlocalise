@@ -20,4 +20,24 @@ export const marketingFooterMessages = defineMessages({
     id: "wUnHS3QtO/",
     description: "Alt text for the Hyperlocalise logo in the marketing footer",
   },
+  copyright: {
+    defaultMessage: "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667",
+    id: "YYI+NxfePS",
+    description: "Copyright notice in the marketing footer with the current year",
+  },
+  builtWithLove: {
+    defaultMessage: "Built with ♥ from Sydney, Australia",
+    id: "QXY9dL25Hd",
+    description: "Location attribution line in the marketing footer",
+  },
+  footerImageAlt: {
+    defaultMessage: "Earth from space",
+    id: "uIj8uezhZ9",
+    description: "Alt text for the full-bleed NASA image at the bottom of the marketing footer",
+  },
+  brandWordmark: {
+    defaultMessage: "Hyperlocalise",
+    id: "0P6ioXV8_1",
+    description: "Large brand wordmark centered on the marketing footer image",
+  },
 });

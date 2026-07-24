@@ -35,12 +35,18 @@ import { getAllPosts } from "@/lib/blog/blog-post";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 const metadataKeywords = [
+  "Hyperlocalise",
   "localisation",
+  "localization",
   "translation",
+  "translate",
+  "product",
+  "context",
+  "launch",
+  "review",
   "AI",
   "agentic",
   "TMS",
-  "localization",
   "GitHub",
 ] as const;
 
@@ -54,20 +60,20 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | Localisation Platform for the Agentic Era",
-    id: "RZBs1fe1V3",
+    defaultMessage: "Hyperlocalise | Launch Product Localisation — Translate & Review with Context",
+    id: "inSBLQSxUD",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
-    id: "9/pQQpDU+H",
+      "Hyperlocalise helps teams translate product copy with real context. Launch localisation faster with AI translation agents and first-class human review across your TMS.",
+    id: "HrsDc2wJjF",
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({
     defaultMessage:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
-    id: "D3VzMQGhqa",
+      "Hyperlocalise helps teams translate and review product localisation with real context before launch.",
+    id: "bbL3sRpta4",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });
@@ -163,7 +169,7 @@ export default async function Home({ params }: HomePageProps) {
           </section>
 
           <section className="border-t border-border">
-            <div className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
+            <div className="px-5 pt-20 sm:px-8 sm:pt-24 lg:px-10">
               <MarketingFooter columns={footerColumns} />
             </div>
           </section>

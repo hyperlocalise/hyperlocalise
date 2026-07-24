@@ -418,7 +418,7 @@ export default async function TrustCenterPage({ params }: TrustCenterPageProps) 
         </section>
 
         <section className="border-t border-border">
-          <div className="px-5 py-16 sm:px-8 lg:px-10">
+          <div className="px-5 pt-16 sm:px-8 lg:px-10">
             <MarketingFooter columns={footerColumns} />
           </div>
         </section>
