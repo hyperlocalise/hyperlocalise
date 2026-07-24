@@ -93,13 +93,17 @@ describe("conversation skill agent", () => {
     const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
       instructions: string;
       activeTools: string[];
-      prepareStep?: unknown;
+      prepareStep?: (input: { stepNumber: number }) => unknown;
     };
 
     expect(settings.instructions).toContain("Translation tools");
     expect(settings.instructions).not.toContain("TMS tools");
     expect(settings.activeTools).not.toContain("check_crowdin_progress");
-    expect(settings.prepareStep).toBeUndefined();
+    expect(settings.prepareStep).toEqual(expect.any(Function));
+    expect(settings.prepareStep?.({ stepNumber: 0 })).toBeUndefined();
+    expect(settings.prepareStep?.({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
+      toolChoice: "none",
+    });
   });
 
   it("adds TMS tools when integration is available", () => {

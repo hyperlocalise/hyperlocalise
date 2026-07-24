@@ -23,6 +23,7 @@ import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   hyperlocaliseAgentMaxOutputTokens,
   hyperlocaliseAgentStepLimit,
+  prepareConversationSkillStep,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 
 import { getHyperlocaliseAgentModel } from "./model";
@@ -56,6 +57,7 @@ export function createConversationSkillAgent(
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+    prepareStep: prepareConversationSkillStep,
     onFinish,
   });
 }

@@ -14,7 +14,12 @@ import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 
-export const hyperlocaliseAgentStepLimit = 10;
+/**
+ * Visual-mock and repository inspection turns need room for inspect → scaffold →
+ * capture → fix → retry → final text. Reserve the last step for a text-only reply
+ * via `prepareConversationSkillStep`.
+ */
+export const hyperlocaliseAgentStepLimit = 16;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export function buildHyperlocaliseDynamicSections(input: {
