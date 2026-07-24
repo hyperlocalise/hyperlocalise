@@ -139,10 +139,14 @@ describe("conversation turn preparation", () => {
       messageText: "what's the progress of HL test project?",
       hasTranslationAttachments: false,
       reportToolProgress,
+      knowledgeMemoryEnabled: true,
       db: {} as never,
     });
 
     expect(result.clarificationFollowUp).toBeNull();
+    expect(classifyConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ knowledgeMemoryEnabled: true }),
+    );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         surface: "web",
@@ -150,6 +154,7 @@ describe("conversation turn preparation", () => {
         hasTmsIntegration: true,
         toolContext: expect.objectContaining({
           reportToolProgress,
+          knowledgeMemoryEnabled: true,
         }),
       }),
     );

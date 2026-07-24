@@ -127,6 +127,31 @@ describe("runWebChatAgentTurn", () => {
     });
   });
 
+  it.each([
+    { capability: true, expected: true },
+    { capability: false, expected: false },
+    { capability: undefined, expected: false },
+  ])(
+    "passes a $expected Knowledge Memory capability into turn preparation",
+    async ({ capability, expected }) => {
+      setWebConversationRepositorySessionMock.mockReturnValue(true);
+
+      await runWebChatAgentTurn({
+        conversationId: "conv_123",
+        messageText: "What is in Memory.md?",
+        toolContext: {
+          ...createToolContext(),
+          knowledgeMemoryEnabled: capability,
+        },
+        hasTranslationAttachments: false,
+      });
+
+      expect(prepareConversationAgentTurnMock).toHaveBeenCalledWith(
+        expect.objectContaining({ knowledgeMemoryEnabled: expected }),
+      );
+    },
+  );
+
   it("reuses only the committed repository sandbox after repeated session write failures", async () => {
     await runWebChatAgentTurn({
       conversationId: "conv_123",
@@ -264,11 +289,14 @@ describe("createWebChatAgentUIStreamResponse", () => {
     const response = createWebChatAgentUIStreamResponse({
       conversationId: "conv_123",
       messageText: "where is the login copy?",
-      toolContext: createToolContext(),
+      toolContext: { ...createToolContext(), knowledgeMemoryEnabled: true },
       hasTranslationAttachments: false,
     });
 
     const body = await readSseText(response);
+    expect(prepareConversationAgentTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ knowledgeMemoryEnabled: true }),
+    );
     expect(body).toContain("data-status");
     expect(body).toContain("Preparing");
     expect(body).toContain("Which repository should I search?");

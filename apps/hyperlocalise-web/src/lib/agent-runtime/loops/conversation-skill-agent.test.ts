@@ -99,11 +99,58 @@ describe("conversation skill agent", () => {
     expect(settings.instructions).toContain("Translation tools");
     expect(settings.instructions).not.toContain("TMS tools");
     expect(settings.activeTools).not.toContain("check_crowdin_progress");
+    expect(settings.activeTools).not.toContain("get_knowledge_memory");
+    expect(settings.activeTools).not.toContain("update_knowledge_memory");
     expect(settings.prepareStep).toEqual(expect.any(Function));
     expect(settings.prepareStep?.({ stepNumber: 0 })).toBeUndefined();
     expect(settings.prepareStep?.({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
       toolChoice: "none",
     });
+  });
+
+  it("adds Knowledge Memory read and write tools for an enabled web admin", () => {
+    createConversationSkillAgent({
+      surface: "web",
+      hasFileAttachments: false,
+      hasTmsIntegration: false,
+      toolContext: {
+        ...baseToolContext,
+        membershipRole: "admin",
+        knowledgeMemoryEnabled: true,
+      },
+    });
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeTools: expect.arrayContaining(["get_knowledge_memory", "update_knowledge_memory"]),
+        tools: expect.objectContaining({
+          get_knowledge_memory: expect.any(Object),
+          update_knowledge_memory: expect.any(Object),
+        }),
+      }),
+    );
+  });
+
+  it("keeps Knowledge Memory read-only for an enabled reviewer", () => {
+    createConversationSkillAgent({
+      surface: "web",
+      hasFileAttachments: false,
+      hasTmsIntegration: false,
+      toolContext: {
+        ...baseToolContext,
+        membershipRole: "reviewer",
+        knowledgeMemoryEnabled: true,
+      },
+    });
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      activeTools: string[];
+      tools: Record<string, unknown>;
+    };
+    expect(settings.activeTools).toContain("get_knowledge_memory");
+    expect(settings.activeTools).not.toContain("update_knowledge_memory");
+    expect(settings.tools.get_knowledge_memory).toBeDefined();
+    expect(settings.tools.update_knowledge_memory).toBeUndefined();
   });
 
   it("adds TMS tools when integration is available", () => {

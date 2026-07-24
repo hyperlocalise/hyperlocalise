@@ -179,6 +179,46 @@ describe("conversation classifier", () => {
         ),
       }),
     );
+    expect(generateTextMock.mock.calls[0]?.[0].prompt).not.toContain(
+      "Organization Memory.md routing",
+    );
+  });
+
+  it("distinguishes organization Memory.md requests from repository context", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: repositoryClassification({
+        needsRepositoryTools: false,
+        shouldAskForRepositoryClarification: false,
+      }),
+    });
+
+    const classification = await classifyConversation({
+      currentMessage: "Yes, add that.",
+      conversationText: "Should we add short checkout labels to Memory.md?\nYes, add that.",
+      hasFileAttachments: false,
+      hasStoredRepositoryContext: true,
+      knowledgeMemoryEnabled: true,
+      surface: "web",
+    });
+
+    expect(classification).toMatchObject({
+      needsRepositoryTools: false,
+      continuesRepositoryThread: false,
+      shouldAskForRepositoryClarification: false,
+    });
+    expect(
+      shouldAttemptRepositoryContextResolution({
+        classification,
+        storedRepositoryContext: {
+          resolved: true,
+          installationId: 1,
+          repositoryFullName: "acme/web",
+        },
+      }),
+    ).toBe(false);
+    const prompt = generateTextMock.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Organization Memory.md skill enabled: yes");
+    expect(prompt).toContain("An explicit Memory.md request starts an independent task");
   });
 
   it("keeps using model classification for stored repository context follow-ups", async () => {

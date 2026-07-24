@@ -36,6 +36,7 @@ type ClassifyConversationInput = {
   conversationText: string;
   hasFileAttachments: boolean;
   hasStoredRepositoryContext: boolean;
+  knowledgeMemoryEnabled?: boolean;
   surface: ConversationClassifierSurface;
 };
 
@@ -54,6 +55,19 @@ function truncateForClassification(value: string) {
 }
 
 function buildConversationClassificationPrompt(input: ClassifyConversationInput) {
+  const knowledgeMemoryRouting =
+    input.knowledgeMemoryEnabled === true
+      ? [
+          "",
+          "Organization Memory.md routing:",
+          "- Requests specifically about Memory.md, Knowledge Memory, saved workspace guidance, or remembering/updating workspace rules do not need repository tools unless the latest request also asks to inspect GitHub, a repository, or a pull request.",
+          "- An explicit Memory.md request starts an independent task; do not inherit repository intent only because earlier messages used repository tools.",
+          '- An unambiguous follow-up to a Memory.md request (for example "yes, add that") continues the Memory task, not an older repository task.',
+          '- Example: "what does our Memory.md say about checkout copy?" -> needsRepositoryTools false, continuesRepositoryThread false, shouldAskForRepositoryClarification false.',
+          '- Example: "compare our Memory.md checkout rules with acme/web" -> needsRepositoryTools true, currentMessageSpecifiesRepository true.',
+        ]
+      : [];
+
   return [
     "Classify this Hyperlocalise agent conversation for GitHub repository tooling setup.",
     "",
@@ -63,6 +77,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     "- currentMessageSpecifiesRepository: true only when the latest user message explicitly names a repo (owner/name), GitHub URL, or pull request.",
     "- requiresPullRequest: true only when the user is asking for PR-scoped work such as fixing, reviewing, or checking a specific pull request.",
     "- shouldAskForRepositoryClarification: true when the user clearly wants repo-based localization context but the conversation does not yet identify which repository or PR to use.",
+    ...knowledgeMemoryRouting,
     "",
     "Examples:",
     '- Latest user message: "do you know the context of Knowledge?"',
@@ -79,6 +94,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     `Surface: ${input.surface}`,
     `Has file attachments in this turn: ${input.hasFileAttachments ? "yes" : "no"}`,
     `Thread already has resolved repository context: ${input.hasStoredRepositoryContext ? "yes" : "no"}`,
+    ...(input.knowledgeMemoryEnabled === true ? ["Organization Memory.md skill enabled: yes"] : []),
     "",
     "Recent conversation:",
     truncateForClassification(input.conversationText.trim() || "(none)"),

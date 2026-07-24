@@ -134,6 +134,7 @@ export function createWebChatAgentUIStreamResponse(input: {
         projectId: input.toolContext.projectId,
         messageText: input.messageText,
         hasTranslationAttachments: input.hasTranslationAttachments,
+        knowledgeMemoryEnabled: input.toolContext.knowledgeMemoryEnabled === true,
         repositorySource: "chat_ui",
         db: input.toolContext.db,
         reportToolProgress: ({ toolCallId, message }) => {
@@ -249,6 +250,7 @@ export async function runWebChatAgentTurn(input: {
     projectId: input.toolContext.projectId,
     messageText: input.messageText,
     hasTranslationAttachments: input.hasTranslationAttachments,
+    knowledgeMemoryEnabled: input.toolContext.knowledgeMemoryEnabled === true,
     repositorySource: "chat_ui",
     db: input.toolContext.db,
   });

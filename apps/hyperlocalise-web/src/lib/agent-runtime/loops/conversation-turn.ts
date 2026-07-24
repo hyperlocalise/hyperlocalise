@@ -276,6 +276,7 @@ export type PrepareConversationAgentTurnInput = {
   projectId: string | null;
   messageText: string;
   hasTranslationAttachments: boolean;
+  knowledgeMemoryEnabled?: boolean;
   repositorySession?: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
   channelId?: string | null;
@@ -318,6 +319,7 @@ export async function prepareConversationAgentTurn(
     conversationText,
     hasFileAttachments: input.hasTranslationAttachments,
     hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+    knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
   });
 
@@ -384,6 +386,7 @@ export async function prepareConversationAgentTurn(
       projectId: input.projectId,
       db: input.db,
       reportToolProgress: input.reportToolProgress,
+      knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
       ...(sandboxId
         ? {
             sandboxId,
