@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,18 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useRef, type KeyboardEvent } from "react";
+"use client";
+import { useMemo, type KeyboardEvent } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
-import { IssueDetailDrawer } from "../../_components/issue-detail/issue-detail-drawer";
+import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
 import { IssueListFiltersBar } from "../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../_components/issue-list-url-state";
-import { useIssueDetailUrl } from "../../_components/use-issue-detail-url";
 import { useIssueListUrlState } from "../../_components/use-issue-list-url-state";
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
+import { useRouter } from "next/navigation";
 
 const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
   ["organization-issues", organizationSlug, query] as const;
@@ -47,21 +46,11 @@ type OrganizationIssuesResponse = {
 type ProjectOption = { id: string; name: string };
 
 export function IssuesPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState({
     includeProject: true,
   });
-  const {
-    isOpen: isDetailOpen,
-    openIssueDetail,
-    closeIssueDetail,
-    issueProjectId,
-  } = useIssueDetailUrl({
-    includeProject: true,
-    state,
-    updateState,
-  });
-  const lastFocusedRowRef = useRef<HTMLTableRowElement | null>(null);
   const apiQuery = issueListStateToApiQuery(state, {
     includeProject: true,
     limit: ISSUES_PAGE_SIZE,
@@ -76,7 +65,10 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
         throw await readApiResponseError(response, "Failed to load projects");
       }
       const body = (await response.json()) as { projects: ProjectOption[] };
-      return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      return body.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+      }));
     },
   });
 
@@ -122,9 +114,14 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
     });
   };
 
-  const openIssueRow = (issue: OrganizationIssue, row: HTMLTableRowElement) => {
-    lastFocusedRowRef.current = row;
-    openIssueDetail({ issueId: issue.id, projectId: issue.projectId });
+  const openIssueRow = (issue: OrganizationIssue) => {
+    router.push(
+      buildIssueDetailHref({
+        organizationSlug,
+        projectId: issue.projectId,
+        issueId: issue.id,
+      }),
+    );
   };
 
   const handleIssueRowKeyDown = (
@@ -133,7 +130,7 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      openIssueRow(issue, event.currentTarget);
+      openIssueRow(issue);
     }
   };
 
@@ -142,49 +139,34 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
   };
 
   return (
-    <>
-      <IssuesPageView
-        organizationSlug={organizationSlug}
-        issues={issues}
-        summary={summary}
-        isLoading={issuesQuery.isLoading}
-        isError={issuesQuery.isError}
-        isFetchingMore={issuesQuery.isFetchingNextPage}
-        hasMore={hasMore}
-        selectedIssueId={state.issue}
-        onIssueRowClick={openIssueRow}
-        onIssueRowKeyDown={handleIssueRowKeyDown}
-        onStopRowActivation={stopRowActivation}
-        filterBar={
-          <IssueListFiltersBar
-            state={state}
-            searchDraft={searchDraft}
-            onSearchDraftChange={setSearchDraft}
-            onStateChange={updateState}
-            onClearFilters={clearFilters}
-            projects={projectsQuery.data ?? []}
-            searchPlaceholder="Search title, description, project, or source path"
-          />
-        }
-        actions={
-          <IssuesActions organizationSlug={organizationSlug} onIssuesChanged={refreshIssues} />
-        }
-        onLoadMore={() => {
-          void issuesQuery.fetchNextPage();
-        }}
-      />
-      <IssueDetailDrawer
-        organizationSlug={organizationSlug}
-        projectId={issueProjectId}
-        issueId={state.issue}
-        isOpen={isDetailOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeIssueDetail();
-          }
-        }}
-        returnFocusRef={lastFocusedRowRef}
-      />
-    </>
+    <IssuesPageView
+      organizationSlug={organizationSlug}
+      issues={issues}
+      summary={summary}
+      isLoading={issuesQuery.isLoading}
+      isError={issuesQuery.isError}
+      isFetchingMore={issuesQuery.isFetchingNextPage}
+      hasMore={hasMore}
+      onIssueRowClick={openIssueRow}
+      onIssueRowKeyDown={handleIssueRowKeyDown}
+      onStopRowActivation={stopRowActivation}
+      filterBar={
+        <IssueListFiltersBar
+          state={state}
+          searchDraft={searchDraft}
+          onSearchDraftChange={setSearchDraft}
+          onStateChange={updateState}
+          onClearFilters={clearFilters}
+          projects={projectsQuery.data ?? []}
+          searchPlaceholder="Search title, description, project, or source path"
+        />
+      }
+      actions={
+        <IssuesActions organizationSlug={organizationSlug} onIssuesChanged={refreshIssues} />
+      }
+      onLoadMore={() => {
+        void issuesQuery.fetchNextPage();
+      }}
+    />
   );
 }

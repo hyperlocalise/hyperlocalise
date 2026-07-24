@@ -14,6 +14,9 @@
   "+1W0ppiYtZ": {
     "defaultMessage": "Project: {value}"
   },
+  "+1a6pZauYN": {
+    "defaultMessage": "Enter a Semrush API key."
+  },
   "+1iKu+aEDX": {
     "defaultMessage": "Reference only"
   },
@@ -53,6 +56,9 @@
   "+FuW5t+7ZR": {
     "defaultMessage": "Comment failed"
   },
+  "+G0v8S+Z5x": {
+    "defaultMessage": "API key"
+  },
   "+Gpj/X++wo": {
     "defaultMessage": "Running…"
   },
@@ -73,6 +79,9 @@
   },
   "+M3Cw0Pn31": {
     "defaultMessage": "—"
+  },
+  "+Pn3eYONmL": {
+    "defaultMessage": "Semrush"
   },
   "+RWDHuTqY1": {
     "defaultMessage": "You"
@@ -464,6 +473,9 @@
   "0bosLZsKFI": {
     "defaultMessage": "从 Slack 提及、私信和订阅的线程中协调本地化审核。"
   },
+  "0eU/dl/Oha": {
+    "defaultMessage": "Save"
+  },
   "0fORPZlrsy": {
     "defaultMessage": "一览您的工作区 — 分配的工作、最新活动和近期项目。"
   },
@@ -481,6 +493,9 @@
   },
   "0kqhhOMa9k": {
     "defaultMessage": "OpenAI"
+  },
+  "0l4RNVGmUQ": {
+    "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey."
   },
   "0lByDvasg5": {
     "defaultMessage": "Queue banner for translation reviews that still need human approval."
@@ -980,6 +995,9 @@
   "3gBCC4Vt7Q": {
     "defaultMessage": "建议"
   },
+  "3ggwxElkQA": {
+    "defaultMessage": "Display name"
+  },
   "3iZn32bnuU": {
     "defaultMessage": "Team members"
   },
@@ -1261,6 +1279,9 @@
   },
   "5N0h/1bean": {
     "defaultMessage": "Group by check type"
+  },
+  "5N7UDRdane": {
+    "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations."
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects"
@@ -1546,6 +1567,9 @@
   },
   "74QTrAm8Mn": {
     "defaultMessage": "Integrations"
+  },
+  "75DautUGXW": {
+    "defaultMessage": "Semrush"
   },
   "75tLVTlfqV": {
     "defaultMessage": "已跳过"
@@ -2483,6 +2507,9 @@
   "CS4n4RFeFk": {
     "defaultMessage": "No members on this team"
   },
+  "CSG8FIAxsD": {
+    "defaultMessage": "Delete"
+  },
   "CTLXW62s69": {
     "defaultMessage": "Task type"
   },
@@ -3221,6 +3248,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}"
   },
+  "GwX/prLtJh": {
+    "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool."
+  },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
   },
@@ -3433,6 +3463,9 @@
   },
   "IKqMePX2fP": {
     "defaultMessage": "No source files are available to download."
+  },
+  "IKxY25Mtmd": {
+    "defaultMessage": "Loading issue"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "文件"
@@ -3685,6 +3718,9 @@
   },
   "Jwoqn7hfPq": {
     "defaultMessage": "Needs attention"
+  },
+  "JxSxJmFns3": {
+    "defaultMessage": "Loading issue..."
   },
   "K+AvrhTOJl": {
     "defaultMessage": "已复制"
@@ -4376,6 +4412,9 @@
   "OaCyhQHy0p": {
     "defaultMessage": "配置检查，以防止在缺少关键语言环境或回归阈值被超出时进行合并。"
   },
+  "ObwCSlFgt9": {
+    "defaultMessage": "Query Semrush SEO and traffic data through your connected API key."
+  },
   "OcLmphgOVD": {
     "defaultMessage": "Agent"
   },
@@ -4646,6 +4685,9 @@
   "QC53J43wn0": {
     "defaultMessage": "Coming soon"
   },
+  "QCQEKXAzmZ": {
+    "defaultMessage": "Issue not found or you do not have access."
+  },
   "QDxYX6HLaI": {
     "defaultMessage": "没有文件符合允许的类型。"
   },
@@ -4741,6 +4783,9 @@
   },
   "QhgL5ysg0T": {
     "defaultMessage": "Hyperlocalise 标志"
+  },
+  "Qiz/awCu+C": {
+    "defaultMessage": "Semrush connection deleted."
   },
   "Qj9S5injry": {
     "defaultMessage": "Key"
@@ -4844,8 +4889,14 @@
   "RDYoEaU2oe": {
     "defaultMessage": "Contentful"
   },
+  "REOBtpoOI7": {
+    "defaultMessage": "No Semrush connections yet."
+  },
   "RHVJ0v0DYf": {
     "defaultMessage": "无法加载自动化运行记录。"
+  },
+  "RHfBrqrbnQ": {
+    "defaultMessage": "Add connection"
   },
   "RKI1ij45Ie": {
     "defaultMessage": "暂无消息"
@@ -6548,6 +6599,9 @@
   "bajKG/XM1h": {
     "defaultMessage": "额外占位符"
   },
+  "basdUhXB4X": {
+    "defaultMessage": "SEO tools"
+  },
   "bc6k5kD1Ao": {
     "defaultMessage": "翻译草稿"
   },
@@ -7073,6 +7127,9 @@
   "evmQYH9X0j": {
     "defaultMessage": "Description"
   },
+  "ey4FPcP+AI": {
+    "defaultMessage": "API key ending in {suffix}"
+  },
   "ez8PrKiaQJ": {
     "defaultMessage": "Source mistake"
   },
@@ -7447,6 +7504,9 @@
   },
   "h1w+zE8OFG": {
     "defaultMessage": "Project"
+  },
+  "h2M/vw0KN9": {
+    "defaultMessage": "Remove this Semrush connection from automations before deleting it."
   },
   "h3/Sx/1Xgp": {
     "defaultMessage": "源上传"
@@ -8159,6 +8219,9 @@
   "ky7nZwQbWB": {
     "defaultMessage": "Warnings"
   },
+  "l+wMmn4Krw": {
+    "defaultMessage": "Failed to load Semrush connections."
+  },
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini"
   },
@@ -8659,6 +8722,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining"
+  },
+  "o9256BhMtE": {
+    "defaultMessage": "Failed to save Semrush connection."
   },
   "oAg3HpyTvd": {
     "defaultMessage": "Run QA checks"
@@ -9293,6 +9359,9 @@
   "s5vcFBwpaD": {
     "defaultMessage": "Release window active"
   },
+  "s7935wKE28": {
+    "defaultMessage": "Remove Semrush tool"
+  },
   "s7KJsLFXt/": {
     "defaultMessage": "Request failed"
   },
@@ -9664,6 +9733,9 @@
   },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows"
+  },
+  "uYwF7v8b0H": {
+    "defaultMessage": "Cancel"
   },
   "uZ8yLsRfe5": {
     "defaultMessage": "{localePair} · Updated {timestamp}"
@@ -10271,6 +10343,9 @@
   "xp1ilN6OAp": {
     "defaultMessage": "新文章和更新保留在 Zendesk、Intercom、Contentful 或 Notion 中，与本地化队列相互脱节。"
   },
+  "xs2JNm6T2w": {
+    "defaultMessage": "Failed to delete Semrush connection."
+  },
   "xsAaVb0T8m": {
     "defaultMessage": "等待审核"
   },
@@ -10504,6 +10579,9 @@
   },
   "zElCbJDM+q": {
     "defaultMessage": "Agent Proposal Review"
+  },
+  "zGlv2WTv64": {
+    "defaultMessage": "Semrush connection saved."
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories"

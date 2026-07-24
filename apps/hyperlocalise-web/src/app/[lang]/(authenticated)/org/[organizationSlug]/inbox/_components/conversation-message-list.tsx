@@ -25,6 +25,7 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
+import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
@@ -52,6 +53,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
+import type {
+  InboxChatStatusData,
+  InboxChatToolProgressData,
+} from "@/lib/agent-contracts/inbox-chat-message";
 
 import { conversationMessageListMessages } from "./conversation-message-list.messages";
 import {
@@ -384,6 +389,13 @@ function AssistantMessageParts({
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
   const toolParts = message.parts.filter(isToolPart);
+  const latestTodoCallId = toolParts.findLast(isTodoWritePart)?.toolCallId;
+  const statusPart = message.parts.findLast(isStatusPart);
+  const toolProgressByCallId = new Map(
+    message.parts
+      .filter(isToolProgressPart)
+      .map((part) => [part.data.toolCallId, part.data.message]),
+  );
   const text = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
@@ -417,33 +429,52 @@ function AssistantMessageParts({
           </AiElementErrorBoundary>
         ) : null,
       )}
-      {toolParts.map((part, index) => (
-        <AiElementErrorBoundary
-          key={`${part.type}-${index}`}
-          scope="tool"
-          resetKeys={[
-            part.type,
-            part.state,
-            part.toolCallId,
-            serializeToolJson(part.input),
-            serializeToolJson(part.output),
-            part.errorText ?? "",
-          ]}
-        >
-          <AssistantToolPart part={part} />
-        </AiElementErrorBoundary>
-      ))}
+      {toolParts.map((part, index) => {
+        if (isTodoWritePart(part) && part.toolCallId !== latestTodoCallId) {
+          return null;
+        }
+
+        const todoItems = isTodoWritePart(part)
+          ? (getAgentTodoItems(part.output) ?? getAgentTodoItems(part.input))
+          : null;
+
+        return (
+          <AiElementErrorBoundary
+            key={`${part.type}-${index}`}
+            scope="tool"
+            resetKeys={[
+              part.type,
+              part.state,
+              part.toolCallId,
+              serializeToolJson(part.input),
+              serializeToolJson(part.output),
+              part.errorText ?? "",
+            ]}
+          >
+            {todoItems ? (
+              <AgentTodoProgress items={todoItems} />
+            ) : (
+              <AssistantToolPart
+                part={part}
+                progressMessage={toolProgressByCallId.get(part.toolCallId)}
+              />
+            )}
+          </AiElementErrorBoundary>
+        );
+      })}
       {text ? (
         <AiElementErrorBoundary scope="message" resetKeys={[text, isStreaming]}>
           <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
         </AiElementErrorBoundary>
-      ) : isStreaming ? (
+      ) : isStreaming && reasoningParts.length === 0 && toolParts.length === 0 ? (
         <Marker role="status">
           <MarkerIcon>
             <Spinner />
           </MarkerIcon>
           <MarkerContent>
-            <FormattedMessage {...conversationMessageListMessages.workingMarker} />
+            {statusPart?.data.message ?? (
+              <FormattedMessage {...conversationMessageListMessages.workingMarker} />
+            )}
           </MarkerContent>
         </Marker>
       ) : null}
@@ -451,7 +482,13 @@ function AssistantMessageParts({
   );
 }
 
-function AssistantToolPart({ part }: { part: ToolPart }) {
+function AssistantToolPart({
+  part,
+  progressMessage,
+}: {
+  part: ToolPart;
+  progressMessage?: string;
+}) {
   const isDynamic = part.type === "dynamic-tool";
   const headerProps = isDynamic
     ? {
@@ -467,10 +504,15 @@ function AssistantToolPart({ part }: { part: ToolPart }) {
   // null = follow hasImageOutput; once the user toggles, keep their choice.
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const open = userOpen ?? hasImageOutput;
+  const isRunning = part.state === "input-streaming" || part.state === "input-available";
 
   return (
     <Tool open={open} onOpenChange={setUserOpen}>
-      <ToolHeader {...headerProps} input={part.input} />
+      <ToolHeader
+        {...headerProps}
+        input={part.input}
+        detail={isRunning ? progressMessage : undefined}
+      />
       <ToolContent>
         {hasImageOutput ? (
           <>
@@ -520,12 +562,35 @@ function isReasoningPart(part: UIMessage["parts"][number]): part is ReasoningUIP
   return part.type === "reasoning";
 }
 
+function isStatusPart(part: UIMessage["parts"][number]): part is UIMessage["parts"][number] & {
+  type: "data-status";
+  data: InboxChatStatusData;
+} {
+  return part.type === "data-status";
+}
+
+function isToolProgressPart(
+  part: UIMessage["parts"][number],
+): part is UIMessage["parts"][number] & {
+  type: "data-toolProgress";
+  data: InboxChatToolProgressData;
+} {
+  return part.type === "data-toolProgress";
+}
+
 function isSourcePart(part: UIMessage["parts"][number]): part is SourcePart {
   return part.type === "source-url" || part.type === "source-document";
 }
 
 function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
   return part.type === "dynamic-tool" || part.type.startsWith("tool-");
+}
+
+function isTodoWritePart(part: ToolPart) {
+  return (
+    part.type === "tool-todoWrite" ||
+    (part.type === "dynamic-tool" && part.toolName === "todoWrite")
+  );
 }
 
 function getSourceTitle(part: SourceUrlUIPart) {

@@ -20,6 +20,10 @@ import {
   issueSheetSortSchema,
 } from "@/api/routes/project/issue-sheet.schema";
 
+export const organizationIssueSheetIssueParamsSchema = z.object({
+  issueId: z.string().uuid(),
+});
+
 export const organizationIssuesQuerySchema = z.object({
   view: z.enum(["my_work", "qa_triage", "source_context", "all_open"]).optional(),
   status: issueSheetIssueStatusSchema.or(z.literal("all")).optional(),

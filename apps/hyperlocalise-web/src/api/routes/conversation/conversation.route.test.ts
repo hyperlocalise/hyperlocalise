@@ -104,6 +104,37 @@ afterEach(async () => {
 });
 
 describe("conversation creation", () => {
+  it("accepts a proxied multipart request without content length", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+    const request = new Request(
+      `http://localhost/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+    const proxiedRequest = new Proxy(request, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const response = await app.fetch(proxiedRequest);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      message: {
+        text: "Translate this to fr-FR",
+        senderType: "user",
+      },
+    });
+  });
+
   it("creates a chat UI conversation with the initial user message", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);

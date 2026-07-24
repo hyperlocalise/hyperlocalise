@@ -17,12 +17,12 @@ import { buildConversationSkillInstructions } from "@/lib/agent-runtime/skills/c
 import {
   buildConversationSkillPlan,
   buildConversationSkillTools,
-  filterAvailableConversationToolNames,
 } from "@/lib/agent-runtime/skills/conversation-skill-registry";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   hyperlocaliseAgentMaxOutputTokens,
   hyperlocaliseAgentStepLimit,
+  prepareConversationSkillStep,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 
 import { getHyperlocaliseAgentModel } from "./model";
@@ -34,8 +34,9 @@ export function createConversationSkillAgent(
   onFinish?: ConversationSkillAgentOnFinish,
 ) {
   const skillPlan = buildConversationSkillPlan(runtime);
-  const toolNames = filterAvailableConversationToolNames(skillPlan.toolNames, runtime);
-  const tools = buildConversationSkillTools(runtime, toolNames);
+  // Filtering lives in buildConversationSkillTools; activeTools mirrors what was built.
+  const tools = buildConversationSkillTools(runtime, skillPlan.toolNames);
+  const activeTools = Object.keys(tools);
 
   return new ToolLoopAgent<never, ToolSet>({
     model: getHyperlocaliseAgentModel(),
@@ -46,11 +47,17 @@ export function createConversationSkillAgent(
       additionalInstructions: runtime.additionalInstructions,
     }),
     tools,
-    activeTools: toolNames,
+    activeTools,
+    providerOptions: {
+      openai: {
+        reasoningSummary: "auto",
+      },
+    },
     experimental_context: runtime,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+    prepareStep: prepareConversationSkillStep,
     onFinish,
   });
 }

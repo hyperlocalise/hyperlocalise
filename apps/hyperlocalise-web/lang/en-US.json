@@ -19,6 +19,10 @@
     "defaultMessage": "Project: {value}",
     "description": "Active issue filter chip showing the selected project"
   },
+  "+1a6pZauYN": {
+    "defaultMessage": "Enter a Semrush API key.",
+    "description": "Validation error when Semrush API key is missing on create"
+  },
   "+1iKu+aEDX": {
     "defaultMessage": "Reference only",
     "description": "Capability badge for reference-only translation memories"
@@ -71,6 +75,10 @@
     "defaultMessage": "Comment failed",
     "description": "Write-back status when posting a provider comment failed"
   },
+  "+G0v8S+Z5x": {
+    "defaultMessage": "API key",
+    "description": "Label for Semrush API key field"
+  },
   "+Gpj/X++wo": {
     "defaultMessage": "Running…",
     "description": "Button label while QA checks are running"
@@ -98,6 +106,10 @@
   "+M3Cw0Pn31": {
     "defaultMessage": "—",
     "description": "Placeholder when a provider detail value is empty"
+  },
+  "+Pn3eYONmL": {
+    "defaultMessage": "Semrush",
+    "description": "Menu item and tool title for Semrush SEO data"
   },
   "+RWDHuTqY1": {
     "defaultMessage": "You",
@@ -603,6 +615,10 @@
     "defaultMessage": "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads.",
     "description": "Slack integration description before OAuth connection"
   },
+  "0eU/dl/Oha": {
+    "defaultMessage": "Save",
+    "description": "Save Semrush connection button"
+  },
   "0fORPZlrsy": {
     "defaultMessage": "Your workspace at a glance — assigned work, latest activity, and recent projects.",
     "description": "Dashboard page description under the heading"
@@ -626,6 +642,10 @@
   "0kqhhOMa9k": {
     "defaultMessage": "Open AI",
     "description": "OpenAI BYOK provider name on the integrations page"
+  },
+  "0l4RNVGmUQ": {
+    "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey.",
+    "description": "Help text for where to find a Semrush API key"
   },
   "0lByDvasg5": {
     "defaultMessage": "Queue banner for translation reviews that still need human approval.",
@@ -1279,6 +1299,10 @@
     "defaultMessage": "Advisory",
     "description": "GitHub status check mode that reports results without blocking"
   },
+  "3ggwxElkQA": {
+    "defaultMessage": "Display name",
+    "description": "Label for Semrush display name field"
+  },
   "3iZn32bnuU": {
     "defaultMessage": "Team members",
     "description": "Accessible label for the team members section"
@@ -1654,6 +1678,10 @@
   "5N0h/1bean": {
     "defaultMessage": "Group by check type",
     "description": "Option to group findings by check type"
+  },
+  "5N7UDRdane": {
+    "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations.",
+    "description": "Description for the Semrush integrations row"
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects",
@@ -2034,6 +2062,10 @@
   "74QTrAm8Mn": {
     "defaultMessage": "Integrations",
     "description": "Label for the integrations usage feature on billing settings"
+  },
+  "75DautUGXW": {
+    "defaultMessage": "Semrush",
+    "description": "Name shown for the Semrush integrations row"
   },
   "75tLVTlfqV": {
     "defaultMessage": "Skipped",
@@ -2843,6 +2875,10 @@
     "defaultMessage": "Failed to resolve issue",
     "description": "Fallback error when resolving a CAT issue fails"
   },
+  "AGdZtMgStX": {
+    "defaultMessage": "Progress",
+    "description": "Heading for the live agent workflow checklist"
+  },
   "AH7mG/JAFC": {
     "defaultMessage": "Review coverage by locale",
     "description": "Title of the review coverage by locale card"
@@ -3266,6 +3302,10 @@
   "CS4n4RFeFk": {
     "defaultMessage": "No members on this team",
     "description": "Empty state title when a team has no members"
+  },
+  "CSG8FIAxsD": {
+    "defaultMessage": "Delete",
+    "description": "Delete Semrush connection button"
   },
   "CTLXW62s69": {
     "defaultMessage": "Task type",
@@ -4247,6 +4287,10 @@
     "defaultMessage": "Due {due}",
     "description": "Relative due date under job task details"
   },
+  "GwX/prLtJh": {
+    "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool.",
+    "description": "Description when no Semrush connection is available"
+  },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.",
     "description": "Legal operator line on the Trust Center page"
@@ -4530,6 +4574,10 @@
   "IKqMePX2fP": {
     "defaultMessage": "No source files are available to download.",
     "description": "Empty state when there are no source files to download"
+  },
+  "IKxY25Mtmd": {
+    "defaultMessage": "Loading issue",
+    "description": "Accessible label while the full-page issue detail loads"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files",
@@ -4866,6 +4914,10 @@
   "Jwoqn7hfPq": {
     "defaultMessage": "Needs attention",
     "description": "Fallback status line when a file needs attention but has no readiness summary"
+  },
+  "JxSxJmFns3": {
+    "defaultMessage": "Loading issue...",
+    "description": "Suspense fallback while the issue detail page loads"
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Copied",
@@ -5783,6 +5835,10 @@
     "defaultMessage": "Configure checks that prevent merge when critical locales are missing or regression thresholds are exceeded.",
     "description": "Capability 6 description for the github-release-localisation use case"
   },
+  "ObwCSlFgt9": {
+    "defaultMessage": "Query Semrush SEO and traffic data through your connected API key.",
+    "description": "Description for the Semrush automation tool when a connection exists"
+  },
   "OcLmphgOVD": {
     "defaultMessage": "Agent",
     "description": "Role badge for AI agents in the translation flow assignment mock"
@@ -6143,6 +6199,10 @@
     "defaultMessage": "Coming soon",
     "description": "Badge shown on dropdown menu items that are not available yet"
   },
+  "QCQEKXAzmZ": {
+    "defaultMessage": "Issue not found or you do not have access.",
+    "description": "Shown when the issue detail page cannot load the issue"
+  },
   "QDxYX6HLaI": {
     "defaultMessage": "No files match the accepted types.",
     "description": "Error when dropped or selected files do not match accepted MIME types"
@@ -6270,6 +6330,10 @@
   "QhgL5ysg0T": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Accessible alt text for the Hyperlocalise logo on the onboarding page"
+  },
+  "Qiz/awCu+C": {
+    "defaultMessage": "Semrush connection deleted.",
+    "description": "Toast when Semrush connection is deleted"
   },
   "Qj9S5injry": {
     "defaultMessage": "Key",
@@ -6403,9 +6467,17 @@
     "defaultMessage": "Contentful",
     "description": "Run history trigger source for Contentful runs"
   },
+  "REOBtpoOI7": {
+    "defaultMessage": "No Semrush connections yet.",
+    "description": "Empty state when no Semrush connections exist"
+  },
   "RHVJ0v0DYf": {
     "defaultMessage": "Automation runs could not be loaded.",
     "description": "Error when dashboard automation runs fail to load"
+  },
+  "RHfBrqrbnQ": {
+    "defaultMessage": "Add connection",
+    "description": "Button to add a new Semrush connection"
   },
   "RKI1ij45Ie": {
     "defaultMessage": "No messages yet",
@@ -8659,6 +8731,10 @@
     "defaultMessage": "Extra placeholders",
     "description": "CAT format check label when target has placeholders not in the source"
   },
+  "basdUhXB4X": {
+    "defaultMessage": "SEO tools",
+    "description": "Category label for SEO tool connections on the Integrations page"
+  },
   "bc6k5kD1Ao": {
     "defaultMessage": "Translation draft",
     "description": "Workflow step 3 label for the help-center-localisation use case"
@@ -9359,6 +9435,10 @@
     "defaultMessage": "Description",
     "description": "Label for the optional job description field"
   },
+  "ey4FPcP+AI": {
+    "defaultMessage": "API key ending in {suffix}",
+    "description": "Hint that a Semrush API key is already stored"
+  },
   "ez8PrKiaQJ": {
     "defaultMessage": "Source mistake",
     "description": "Issue Sheet issue type option for a source mistake"
@@ -9858,6 +9938,10 @@
   "h1w+zE8OFG": {
     "defaultMessage": "Project",
     "description": "Label for the workspace files project filter"
+  },
+  "h2M/vw0KN9": {
+    "defaultMessage": "Remove this Semrush connection from automations before deleting it.",
+    "description": "Error when deleting a Semrush connection still used by automations"
   },
   "h3/Sx/1Xgp": {
     "defaultMessage": "Source upload",
@@ -10791,6 +10875,10 @@
     "defaultMessage": "Warnings",
     "description": "QA summary chip and filter option for warning severity"
   },
+  "l+wMmn4Krw": {
+    "defaultMessage": "Failed to load Semrush connections.",
+    "description": "Error when Semrush connections cannot be loaded"
+  },
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini",
     "description": "Google Gemini BYOK provider name on the integrations page"
@@ -11450,6 +11538,10 @@
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining",
     "description": "Usage row showing remaining allowance"
+  },
+  "o9256BhMtE": {
+    "defaultMessage": "Failed to save Semrush connection.",
+    "description": "Error when Semrush connection save fails"
   },
   "oAg3HpyTvd": {
     "defaultMessage": "Run QA checks",
@@ -12291,6 +12383,10 @@
     "defaultMessage": "Release window active",
     "description": "Badge indicating an active release window on the monitoring bento"
   },
+  "s7935wKE28": {
+    "defaultMessage": "Remove Semrush tool",
+    "description": "Accessible label to remove the Semrush tool"
+  },
   "s7KJsLFXt/": {
     "defaultMessage": "Request failed",
     "description": "Fallback error when the create issue API request fails"
@@ -12782,6 +12878,10 @@
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
     "description": "Helper text describing CSV size and row limits for import"
+  },
+  "uYwF7v8b0H": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding Semrush connection"
   },
   "uZ8yLsRfe5": {
     "defaultMessage": "{localePair} · Updated {timestamp}",
@@ -13575,6 +13675,10 @@
     "defaultMessage": "New articles and updates live in Zendesk, Intercom, Contentful, or Notion — disconnected from localisation queues.",
     "description": "Problem pain point 1 for the help-center-localisation use case"
   },
+  "xs2JNm6T2w": {
+    "defaultMessage": "Failed to delete Semrush connection.",
+    "description": "Error when Semrush connection delete fails"
+  },
   "xsnuwmUnCV": {
     "defaultMessage": "Your role cannot post comments to the provider.",
     "description": "Error when the user tries to post a comment without write permission"
@@ -13882,6 +13986,10 @@
   "zElCbJDM+q": {
     "defaultMessage": "Agent Proposal Review",
     "description": "Section heading for reviewing agent translation proposals"
+  },
+  "zGlv2WTv64": {
+    "defaultMessage": "Semrush connection saved.",
+    "description": "Toast when Semrush connection is saved"
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",

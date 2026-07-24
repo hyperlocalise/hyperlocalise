@@ -21,14 +21,24 @@ func TestGroupsListOptionsValues(t *testing.T) {
 			opts: &GroupsListOptions{},
 		},
 		{
-			name: "with parent ID",
-			opts: &GroupsListOptions{ParentID: 123},
+			name: "with parent ID = 0",
+			opts: &GroupsListOptions{ParentID: toPtr(0)},
+			out:  "parentId=0",
+		},
+		{
+			name: "with parent ID = 123",
+			opts: &GroupsListOptions{ParentID: toPtr(123)},
 			out:  "parentId=123",
 		},
 		{
 			name: "with list options",
 			opts: &GroupsListOptions{ListOptions: ListOptions{Limit: 10, Offset: 5}},
 			out:  "limit=10&offset=5",
+		},
+		{
+			name: "with parent ID = 0 and list options",
+			opts: &GroupsListOptions{ParentID: toPtr(0), ListOptions: ListOptions{Limit: 100, Offset: 1}},
+			out:  "limit=100&offset=1&parentId=0",
 		},
 	}
 

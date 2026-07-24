@@ -65,6 +65,7 @@ import {
   createHyperlocaliseAgent,
   hyperlocaliseAgentModelId,
   hyperlocaliseAgentStepLimit,
+  prepareConversationSkillStep,
   replaceLastUserMessage,
   toModelMessages,
 } from "./hyperlocalise-agent";
@@ -135,6 +136,16 @@ describe("hyperlocalise agent core", () => {
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),
     );
+  });
+
+  it("forces a text-only reply on the final conversation skill step", () => {
+    expect(prepareConversationSkillStep({ stepNumber: 0 })).toBeUndefined();
+    expect(
+      prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 2 }),
+    ).toBeUndefined();
+    expect(prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
+      toolChoice: "none",
+    });
   });
 
   it("creates a skill-based conversation agent from runtime context", () => {

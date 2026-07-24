@@ -176,6 +176,31 @@ export function isExternalHttpUrl(url: string) {
   }
 }
 
+export function buildIssueDetailHref({
+  organizationSlug,
+  projectId,
+  issueId,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  issueId: string;
+}) {
+  return `/org/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(issueId)}`;
+}
+
+const ISSUE_BREADCRUMB_TITLE_MAX_LENGTH = 72;
+
+export function truncateIssueTitleForBreadcrumb(
+  title: string,
+  maxLength = ISSUE_BREADCRUMB_TITLE_MAX_LENGTH,
+) {
+  const trimmed = title.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
 export function issueSheetApiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
 }

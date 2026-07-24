@@ -29,6 +29,13 @@ export type AgentSessionState = {
   todos: AgentTodoItem[];
 };
 
+export type ToolProgressUpdate = {
+  toolCallId: string;
+  message: string;
+};
+
+export type ToolProgressEmitter = (update: ToolProgressUpdate) => void;
+
 export function ensureAgentSession(ctx: { agentSession?: AgentSessionState }): AgentSessionState {
   if (!ctx.agentSession) {
     ctx.agentSession = { todos: [] };
@@ -59,4 +66,6 @@ export type ToolContext = {
   githubContext?: RepositoryAgentGitHubContext | null;
   /** Mutable per-run session state (todos, etc.). */
   agentSession?: AgentSessionState;
+  /** Request-scoped live progress for web chat tools. Other channels omit it. */
+  reportToolProgress?: ToolProgressEmitter;
 };

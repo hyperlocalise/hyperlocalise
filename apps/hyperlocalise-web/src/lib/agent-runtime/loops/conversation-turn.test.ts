@@ -128,6 +128,7 @@ describe("conversation turn preparation", () => {
   });
 
   it("runs the shared agent for web chat without requiring attachments", async () => {
+    const reportToolProgress = vi.fn();
     const result = await prepareConversationAgentTurn({
       surface: "web",
       conversationId: "conv_123",
@@ -137,6 +138,7 @@ describe("conversation turn preparation", () => {
       projectId: null,
       messageText: "what's the progress of HL test project?",
       hasTranslationAttachments: false,
+      reportToolProgress,
       db: {} as never,
     });
 
@@ -146,6 +148,9 @@ describe("conversation turn preparation", () => {
         surface: "web",
         hasFileAttachments: false,
         hasTmsIntegration: true,
+        toolContext: expect.objectContaining({
+          reportToolProgress,
+        }),
       }),
     );
   });

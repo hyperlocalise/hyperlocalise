@@ -40,7 +40,7 @@
 **Learning:** ICU elements for `number`, `date`, and `time` were previously excluded from `ICUBlocks` metadata, which is used for structural parity checks. While their arguments were extracted as placeholders, their specific types were missing from the structural signature. This could allow a translation to change the type (e.g., from `date` to `number`) without triggering a structural mismatch.
 **Action:** Ensure all "typed" ICU elements (`NumberElement`, `DateElement`, `TimeElement`) are appended to `ICUBlocks` during invariant collection to protect the structural integrity of complex messages.
 
-## 2025-06-12 - [PO msgid Significance of Whitespace]
+## 2026-06-12 - [PO msgid Significance of Whitespace]
 **Learning:** In gettext/PO files, `msgid` keys are the source of truth for translation lookups, and leading/trailing whitespace is significant. Over-eagerly trimming spaces from these keys during parsing causes lookup failures in downstream systems.
 **Action:** Always preserve the exact literal string for `msgid` keys, except for the header entry (`msgid ""`) which is standardly skipped in message maps.
 
@@ -159,3 +159,11 @@
 ## 2026-08-30 - [Strategy Parser Extension Resolution]
 **Learning:** `Strategy.Parse` relies on Go's `filepath.Ext` to resolve custom registered extensions. Therefore, dynamically registered parser test cases must pass input filenames containing a dot (e.g. `file.custom` or `file.CUSTOM`) to ensure extension detection succeeds, rather than naked extensions like `custom`.
 **Action:** Always construct realistic, dot-prefixed filenames (e.g. `"file." + strings.TrimPrefix(ext, ".")`) when verifying registered parser resolution in strategy-level unit tests.
+
+## 2026-09-05 - [Apple Strings Parser Error Robustness]
+**Learning:** Testing syntax parser error cases (such as missing '=' or ';', and unterminated strings/comments) directly on AppleStringsParser ensures high-value, deterministic error-handling coverage without relying on complex mocks or environment-dependent artifacts.
+**Action:** Always include boundary syntax failure cases when writing or extending parsing behavior tests to guarantee robust input validation and user-friendly error messages.
+
+## 2026-09-10 - [CSV Formula Injection Escaping Boundaries]
+**Learning:** Formula injection defense in CSV exports must be selective. While cells starting with '=', '+', '-', or '@' are escaped to prevent arbitrary code execution, characters in the middle of a string (e.g. "1+1", "user@domain.com") or preceded by leading spaces (e.g. " =1+1") must NOT be escaped, as spreadsheet software does not interpret them as formula syntax and escaping them would corrupt legitimate translation values. Additionally, leading whitespace control characters like '\t', '\r', and '\n' must be escaped.
+**Action:** Always include comprehensive edge-case tests verifying both injection character positioning and row boundary conditions (like nil or empty row slices) to protect CSV data-mapping/security filters.

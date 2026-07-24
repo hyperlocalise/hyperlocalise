@@ -80,6 +80,11 @@ describe("conversation skill agent", () => {
           list_projects: expect.any(Object),
           translate_string: expect.any(Object),
         }),
+        providerOptions: {
+          openai: {
+            reasoningSummary: "auto",
+          },
+        },
         timeout: DEFAULT_AGENT_TIMEOUT,
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),
@@ -88,13 +93,17 @@ describe("conversation skill agent", () => {
     const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
       instructions: string;
       activeTools: string[];
-      prepareStep?: unknown;
+      prepareStep?: (input: { stepNumber: number }) => unknown;
     };
 
     expect(settings.instructions).toContain("Translation tools");
     expect(settings.instructions).not.toContain("TMS tools");
     expect(settings.activeTools).not.toContain("check_crowdin_progress");
-    expect(settings.prepareStep).toBeUndefined();
+    expect(settings.prepareStep).toEqual(expect.any(Function));
+    expect(settings.prepareStep?.({ stepNumber: 0 })).toBeUndefined();
+    expect(settings.prepareStep?.({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
+      toolChoice: "none",
+    });
   });
 
   it("adds TMS tools when integration is available", () => {
@@ -147,5 +156,41 @@ describe("conversation skill agent", () => {
     expect(settings.instructions).toContain("Find context in repository");
     expect(settings.instructions).toContain("Recent changes with full context");
     expect(settings.instructions).toContain("exist in the current source files now");
+  });
+
+  it("exposes todoWrite in both tools and activeTools for repo skills", () => {
+    createConversationSkillAgent({
+      surface: "web",
+      hasFileAttachments: false,
+      hasTmsIntegration: false,
+      hasVisualMockSkill: true,
+      toolContext: {
+        ...baseToolContext,
+        sandboxId: "sbx_123",
+        workMode: "write",
+        repositorySource: "chat_ui",
+        actor: { sourceUserId: "user_123", role: "admin" },
+        membershipRole: "admin",
+      },
+    });
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeTools: expect.arrayContaining(["todoWrite", "grep", "captureScreenshot"]),
+        tools: expect.objectContaining({
+          todoWrite: expect.any(Object),
+          grep: expect.any(Object),
+          captureScreenshot: expect.any(Object),
+        }),
+      }),
+    );
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      activeTools: string[];
+      tools: Record<string, unknown>;
+    };
+    for (const toolName of settings.activeTools) {
+      expect(settings.tools[toolName]).toBeDefined();
+    }
   });
 });

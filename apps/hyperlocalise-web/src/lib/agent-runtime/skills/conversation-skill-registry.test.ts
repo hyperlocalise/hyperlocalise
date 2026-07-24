@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { clearAgentManifestCache, loadAgentSkill } from "@/agents/_runtime/loader";
 import {
   buildConversationSkillPlan,
+  buildConversationSkillTools,
   filterAvailableConversationToolNames,
   isConversationSkillActivated,
   listConversationSkills,
@@ -190,20 +191,35 @@ describe("conversation skill registry", () => {
 
     expect(conversationSkill).toContain("Visual context / mock / screenshot");
     expect(conversationSkill).toContain("use **visual-mock** when it is enabled");
+    expect(conversationSkill).toContain(
+      "same What it is / Where/how it shows / Translation guidance sections as find-context",
+    );
     expect(conversationSkill).toContain("for text-only context without an image request");
     expect(conversationSkill).not.toContain(
       "Prefer **visual-mock** instead when the user also asks",
     );
     expect(visualMockSkill).toContain("visual context for …");
-    expect(visualMockSkill).toContain("Do not answer visual-context requests with find-context");
+    expect(visualMockSkill).toContain(
+      "Still include the find-context textual sections beside the image",
+    );
+    expect(visualMockSkill).toContain('Do **not** use separate "Source state", "Viewport"');
+    expect(visualMockSkill).toContain("**What it is:**");
+    expect(visualMockSkill).toContain("**Where/how it shows:**");
+    expect(visualMockSkill).toContain("**Translation guidance:**");
     expect(visualMockSkill).toContain("When the component has no Storybook story");
     expect(visualMockSkill).toContain("create a temporary CSF story");
     expect(visualMockSkill).toContain(
       "Call `captureScreenshot` with that `storyId` and `waitForText`",
     );
+    expect(visualMockSkill).toContain("If `captureScreenshot` fails");
+    expect(visualMockSkill).toContain("call `captureScreenshot` again once");
+    expect(visualMockSkill).toContain("Never finish silently after a failed capture");
     expect(visualMockSkill).toContain("do not invent a Storybook setup");
     expect(visualMockSkill).toContain(
       "implement visual regression testing with it so component screenshots can be captured",
+    );
+    expect(conversationSkill).toContain(
+      "When a tool fails, always leave a short user-facing explanation",
     );
   });
 
@@ -323,6 +339,63 @@ describe("conversation skill registry", () => {
     );
 
     expect(toolNames).toEqual(["translate_string", "list_projects"]);
+  });
+
+  it("keeps todoWrite available without a sandbox", () => {
+    const toolNames = filterAvailableConversationToolNames(["todoWrite", "grep"], {
+      hasFileAttachments: false,
+      toolContext: {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+      },
+    });
+
+    expect(toolNames).toEqual(["todoWrite"]);
+  });
+
+  it("builds todoWrite as a session tool for conversation skills", () => {
+    const tools = buildConversationSkillTools(
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+        },
+      },
+      ["todoWrite", "grep"],
+    );
+
+    expect(tools.todoWrite).toBeDefined();
+    expect(tools.grep).toBeDefined();
+  });
+
+  it("builds todoWrite even when no sandbox workspace tools are available", () => {
+    const tools = buildConversationSkillTools(
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+        },
+      },
+      ["todoWrite"],
+    );
+
+    expect(tools.todoWrite).toBeDefined();
+    expect(Object.keys(tools)).toEqual(["todoWrite"]);
   });
 
   it("gates repository write tools from read-only conversation runtimes", () => {

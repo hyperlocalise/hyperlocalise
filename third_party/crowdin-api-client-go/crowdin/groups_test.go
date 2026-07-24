@@ -122,7 +122,7 @@ func TestGroupService_ListWithQueryParams(t *testing.T) {
 
 	groups, _, err := client.Groups.List(
 		context.Background(),
-		&model.GroupsListOptions{ParentID: 1, ListOptions: model.ListOptions{Limit: 100, Offset: 1}},
+		&model.GroupsListOptions{ParentID: ToPtr(1), ListOptions: model.ListOptions{Limit: 100, Offset: 1}},
 	)
 	if err != nil {
 		t.Errorf("Groups.List returned error: %v", err)
@@ -145,6 +145,131 @@ func TestGroupService_ListWithQueryParams(t *testing.T) {
 	}
 	if !reflect.DeepEqual(groups, want) {
 		t.Errorf("Groups.List returned %+v, want %+v", groups, want)
+	}
+}
+
+func TestGroupService_ListWithRootQueryParam(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/groups", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		testURL(t, r, "/api/v2/groups?parentId=0")
+		fmt.Fprint(w, `{
+			"data": [
+				{
+					"data": {
+						"id": 1,
+						"name": "Root materials",
+						"description": "Root KB localization materials",
+						"parentId": 0,
+						"organizationId": 200000299,
+						"userId": 6,
+						"subgroupsCount": 0,
+						"projectsCount": 1,
+						"webUrl": "https://example.crowdin.com/u/groups/123",
+						"createdAt": "2023-09-20T11:11:05+00:00",
+						"updatedAt": "2023-09-20T12:22:20+00:00"
+					}
+				}
+			],
+			"pagination": {
+				"offset": 0,
+				"limit": 25
+			}
+		}`)
+	})
+
+	groups, _, err := client.Groups.List(
+		context.Background(),
+		&model.GroupsListOptions{ParentID: ToPtr(0)},
+	)
+	if err != nil {
+		t.Errorf("Groups.List returned error: %v", err)
+	}
+
+	want := []*model.Group{
+		{
+			ID:             1,
+			Name:           "Root materials",
+			Description:    "Root KB localization materials",
+			ParentID:       0,
+			OrganizationID: 200000299,
+			UserID:         6,
+			SubgroupsCount: 0,
+			ProjectsCount:  1,
+			WebURL:         "https://example.crowdin.com/u/groups/123",
+			CreatedAt:      "2023-09-20T11:11:05+00:00",
+			UpdatedAt:      "2023-09-20T12:22:20+00:00",
+		},
+	}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("Groups.List returned %+v, want %+v", groups, want)
+	}
+}
+
+func TestGroupService_ListWithRootQueryParamAndPagination(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/groups", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		testURL(t, r, "/api/v2/groups?limit=100&offset=1&parentId=0")
+		fmt.Fprint(w, `{
+			"data": [
+				{
+					"data": {
+						"id": 1,
+						"name": "Root materials",
+						"description": "Root KB localization materials",
+						"parentId": 0,
+						"organizationId": 200000299,
+						"userId": 6,
+						"subgroupsCount": 0,
+						"projectsCount": 1,
+						"webUrl": "https://example.crowdin.com/u/groups/123",
+						"createdAt": "2023-09-20T11:11:05+00:00",
+						"updatedAt": "2023-09-20T12:22:20+00:00"
+					}
+				}
+			],
+			"pagination": {
+				"offset": 1,
+				"limit": 100
+			}
+		}`)
+	})
+
+	groups, resp, err := client.Groups.List(
+		context.Background(),
+		&model.GroupsListOptions{ParentID: ToPtr(0), ListOptions: model.ListOptions{Limit: 100, Offset: 1}},
+	)
+	if err != nil {
+		t.Errorf("Groups.List returned error: %v", err)
+	}
+
+	want := []*model.Group{
+		{
+			ID:             1,
+			Name:           "Root materials",
+			Description:    "Root KB localization materials",
+			ParentID:       0,
+			OrganizationID: 200000299,
+			UserID:         6,
+			SubgroupsCount: 0,
+			ProjectsCount:  1,
+			WebURL:         "https://example.crowdin.com/u/groups/123",
+			CreatedAt:      "2023-09-20T11:11:05+00:00",
+			UpdatedAt:      "2023-09-20T12:22:20+00:00",
+		},
+	}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("Groups.List returned %+v, want %+v", groups, want)
+	}
+
+	expectedPagination := model.Pagination{Offset: 1, Limit: 100}
+	if !reflect.DeepEqual(resp.Pagination, expectedPagination) {
+		t.Errorf("Groups.List returned %+v, want %+v", resp.Pagination, expectedPagination)
 	}
 }
 

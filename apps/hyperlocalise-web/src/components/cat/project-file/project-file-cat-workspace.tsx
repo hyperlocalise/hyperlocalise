@@ -358,7 +358,6 @@ export function ProjectFileCatWorkspace({
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.segmentNotFound));
       }
 
-      const issueSheetUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
       const linkUrl =
         typeof window === "undefined"
           ? null
@@ -400,11 +399,14 @@ export function ProjectFileCatWorkspace({
         );
       }
 
+      const body = (await response.json()) as { issue: { id: string } };
+      const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.id)}`;
+
       toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
         action: {
           label: intl.formatMessage(projectFileCatWorkspaceMessages.viewIssueSheetRow),
           onClick: () => {
-            window.location.href = issueSheetUrl;
+            window.location.href = issueDetailUrl;
           },
         },
       });

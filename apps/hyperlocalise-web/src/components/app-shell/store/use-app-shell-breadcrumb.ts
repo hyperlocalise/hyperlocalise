@@ -38,17 +38,17 @@ export function useAppShellBreadcrumbOverride(config: BreadcrumbOverrideConfig) 
 
 export function useAppShellBreadcrumbAppend(config: BreadcrumbAppendConfig) {
   const store = useAppShellStore();
-  const { id, label, href } = config;
+  const { id, label, href, title } = config;
 
   useEffect(() => {
     if (label === undefined) {
       return;
     }
 
-    store.breadcrumb.registerAppend({ id, label, href });
+    store.breadcrumb.registerAppend({ id, label, href, title });
 
     return () => {
       store.breadcrumb.unregisterAppend(id);
     };
-  }, [store, id, label, href]);
+  }, [store, id, label, href, title]);
 }

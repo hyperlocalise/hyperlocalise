@@ -23,10 +23,13 @@ import {
   detectPackageManager,
   detectStorybookMajorVersion,
   detectStorybookScreenshotCommand,
+  extractStorybookStoryPathFromFailure,
+  isTransientScreenshotCaptureFailure,
   parseDependencyMajorVersion,
   parsePackageJsonCandidatePaths,
   resolveStorybookPackage,
   shouldOmitPackageScriptArgSeparator,
+  summarizeScreenshotCaptureFailure,
 } from "./capture-screenshot";
 import type { RepoToolContext } from "./types";
 
@@ -71,6 +74,7 @@ function createRepoContext(input: {
   lockfiles?: readonly string[];
   findStdout?: string;
   execResult?: { exitCode: number; stdout: string; stderr: string };
+  execResults?: Array<{ exitCode: number; stdout: string; stderr: string }>;
 }) {
   const packageJsonByPath: Record<string, Record<string, unknown>> = {
     ...(input.packageJson ? { "package.json": input.packageJson } : {}),
@@ -78,6 +82,7 @@ function createRepoContext(input: {
   };
   const lockfiles = new Set(input.lockfiles ?? []);
   const writtenFiles = new Map<string, string | Buffer>();
+  const queuedExecResults = [...(input.execResults ?? [])];
   const exec = vi.fn(async (command: string) => {
     if (command === "find") {
       return {
@@ -88,10 +93,11 @@ function createRepoContext(input: {
       };
     }
 
+    const nextResult = queuedExecResults.shift() ?? input.execResult;
     return {
-      exitCode: input.execResult?.exitCode ?? 0,
-      stdout: input.execResult?.stdout ?? Buffer.from("png-bytes").toString("base64"),
-      stderr: input.execResult?.stderr ?? "",
+      exitCode: nextResult?.exitCode ?? 0,
+      stdout: nextResult?.stdout ?? Buffer.from("png-bytes").toString("base64"),
+      stderr: nextResult?.stderr ?? "",
       env: {},
     };
   });
@@ -378,6 +384,58 @@ describe("classifyScreenshotCaptureFailure", () => {
     ).toBe("browser_system_deps_unavailable");
     expect(classifyScreenshotCaptureFailure("storybook failed")).toBe("screenshot_capture_failed");
   });
+
+  it("maps Storybook index/syntax failures to storybook_index_failed", () => {
+    const output = [
+      "curl: (7) Failed to connect to 127.0.0.1 port 6006",
+      "Storybook did not become ready on the expected port.",
+      "▲  🚨 Unable to index",
+      "│  ./src/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-overview-page-content.stories.tsx:",
+      "│  SyntaxError: Unexpected token (115:0)",
+      "■  Error: Unable to index",
+      "Broken build, fix the error above.",
+    ].join("\n");
+
+    expect(classifyScreenshotCaptureFailure(output)).toBe("storybook_index_failed");
+    expect(extractStorybookStoryPathFromFailure(output)).toBe(
+      "src/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-overview-page-content.stories.tsx",
+    );
+    expect(
+      summarizeScreenshotCaptureFailure({
+        errorCode: "storybook_index_failed",
+        error: output,
+      }),
+    ).toMatchObject({
+      summary: expect.stringContaining("project-overview-page-content.stories.tsx"),
+      recoveryHint: expect.stringContaining("call captureScreenshot again"),
+    });
+    expect(
+      isTransientScreenshotCaptureFailure({
+        errorCode: "storybook_index_failed",
+        error: output,
+      }),
+    ).toBe(false);
+  });
+
+  it("treats connection-only readiness flakes as transient", () => {
+    const output =
+      "curl: (7) Failed to connect to 127.0.0.1 port 6006 after 0 ms: Could not connect to server\nStorybook did not become ready on the expected port.";
+    expect(
+      isTransientScreenshotCaptureFailure({
+        errorCode: "screenshot_capture_failed",
+        error: output,
+      }),
+    ).toBe(true);
+  });
+
+  it("extracts story paths with a linear scan that tolerates prefix noise", () => {
+    expect(extractStorybookStoryPathFromFailure("no stories here")).toBeNull();
+    expect(
+      extractStorybookStoryPathFromFailure(
+        "prefix!/!/!/noise ./apps/web/src/button.stories.tsx trailing",
+      ),
+    ).toBe("apps/web/src/button.stories.tsx");
+  });
 });
 
 describe("createCaptureScreenshotTool", () => {
@@ -411,7 +469,11 @@ describe("createCaptureScreenshotTool", () => {
       },
       lockfiles: ["pnpm-lock.yaml"],
     });
-    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+    const reportToolProgress = vi.fn();
+    const captureScreenshot = createCaptureScreenshotTool(
+      createToolContext({ reportToolProgress }),
+      repo,
+    );
 
     const result = await captureScreenshot.execute!(
       {
@@ -509,6 +571,26 @@ describe("createCaptureScreenshotTool", () => {
         }),
       }),
     );
+    expect(reportToolProgress.mock.calls).toEqual([
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Resolving Storybook…",
+        },
+      ],
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Preparing browser and loading story…",
+        },
+      ],
+      [
+        {
+          toolCallId: "test-tool-call",
+          message: "Uploading screenshot…",
+        },
+      ],
+    ]);
   });
 
   it("captures from a nested Storybook package when root package.json is missing", async () => {
@@ -594,6 +676,124 @@ describe("createCaptureScreenshotTool", () => {
     expect(result).toMatchObject({
       success: false,
       errorCode: "browser_binary_unavailable",
+      recoveryHint: expect.stringContaining("environment failure"),
+      attempts: 1,
+    });
+  });
+
+  it("retries once for transient Storybook readiness failures", async () => {
+    const reportToolProgress = vi.fn();
+    const { exec, repo } = createRepoContext({
+      packageJson: {
+        scripts: { storybook: "storybook dev" },
+      },
+      execResults: [
+        {
+          exitCode: 1,
+          stdout: "",
+          stderr:
+            "curl: (7) Failed to connect to 127.0.0.1 port 6006 after 0 ms: Could not connect to server\nStorybook did not become ready on the expected port.",
+        },
+        {
+          exitCode: 0,
+          stdout: Buffer.from("png-bytes").toString("base64"),
+          stderr: "",
+        },
+      ],
+    });
+    vi.mocked(createStoredFile).mockResolvedValueOnce({
+      id: "file_retry",
+      organizationId: "org_1",
+      projectId: "project_1",
+      createdByUserId: "user_1",
+      role: "reference",
+      sourceKind: "repository_file",
+      sourceInteractionId: "conv_1",
+      sourceJobId: null,
+      storageProvider: "vercel_blob",
+      storageKey: "organizations/org_1/files/file_retry/storybook.png",
+      storageUrl: "https://blob.example/storybook-retry.png",
+      downloadUrl: "https://download.example/storybook-retry.png",
+      filename: "storybook-components-button--primary.png",
+      contentType: "image/png",
+      byteSize: 9,
+      sha256: "hash",
+      etag: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const captureScreenshot = createCaptureScreenshotTool(
+      createToolContext({ reportToolProgress }),
+      repo,
+    );
+
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "components-button--primary" } },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, fileId: "file_retry" });
+    expect(exec.mock.calls.filter(([command]) => command === "bash")).toHaveLength(2);
+    expect(reportToolProgress).toHaveBeenCalledWith({
+      toolCallId: "test-tool-call",
+      message: "Retrying screenshot capture…",
+    });
+  });
+
+  it("does not retry Storybook index failures and returns a recovery hint", async () => {
+    const storybookLog = [
+      "curl: (7) Failed to connect to 127.0.0.1 port 6006",
+      "Storybook did not become ready on the expected port.",
+      "Unable to index",
+      "./src/app/[lang]/(authenticated)/org/acme/projects/p1/_components/project-overview-page-content.stories.tsx:",
+      "SyntaxError: Unexpected token (115:0)",
+      "Broken build, fix the error above.",
+    ].join("\n");
+    const { exec, repo } = createRepoContext({
+      packageJson: {
+        scripts: { storybook: "storybook dev" },
+      },
+      execResult: {
+        exitCode: 1,
+        stdout: "",
+        stderr: storybookLog,
+      },
+    });
+    const captureScreenshot = createCaptureScreenshotTool(createToolContext(), repo);
+
+    const result = await captureScreenshot.execute!(
+      { target: { type: "storybook", storyId: "app-project-overview-page--default" } },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: "storybook_index_failed",
+      summary: expect.stringContaining("project-overview-page-content.stories.tsx"),
+      recoveryHint: expect.stringContaining("call captureScreenshot again"),
+      attempts: 1,
+    });
+    expect(exec.mock.calls.filter(([command]) => command === "bash")).toHaveLength(1);
+    if (!result || typeof result !== "object" || !("success" in result) || result.success) {
+      throw new Error("expected failed screenshot capture");
+    }
+
+    const modelOutput = await captureScreenshot.toModelOutput!({
+      toolCallId: "test-tool-call",
+      input: { target: { type: "storybook", storyId: "app-project-overview-page--default" } },
+      output: result,
+    });
+    expect(modelOutput).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "text",
+          text: expect.stringMatching(
+            /errorCode: storybook_index_failed[\s\S]*recoveryHint:[\s\S]*SyntaxError/,
+          ),
+        },
+      ],
     });
   });
 

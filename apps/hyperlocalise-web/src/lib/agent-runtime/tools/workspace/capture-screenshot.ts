@@ -40,6 +40,10 @@ const STORYBOOK_PORT = 6006;
 const STORYBOOK_READY_TIMEOUT_MS = 30_000;
 /** Server cold-start (deps + bundling) is slower than story render; keep a longer poll. */
 const STORYBOOK_SERVER_READY_SECONDS = 120;
+/** One automatic re-run for transient Storybook/Playwright readiness flakes. */
+const MAX_TRANSIENT_CAPTURE_ATTEMPTS = 2;
+/** Keep failure excerpts short enough for the model to act on. */
+const FAILURE_ERROR_EXCERPT_BYTES = 8_000;
 const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
 const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
 const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
@@ -605,12 +609,20 @@ const waitForText = ${JSON.stringify(input.waitForText)};
 `.trimStart();
 }
 
-export function classifyScreenshotCaptureFailure(output: string) {
+export type ScreenshotCaptureErrorCode =
+  | "package_manager_unavailable"
+  | "browser_runtime_install_failed"
+  | "browser_binary_unavailable"
+  | "browser_system_deps_unavailable"
+  | "storybook_index_failed"
+  | "screenshot_capture_failed";
+
+export function classifyScreenshotCaptureFailure(output: string): ScreenshotCaptureErrorCode {
   const match = output.match(
     /HYPERLOCALISE_SCREENSHOT_ERROR_CODE=(package_manager_unavailable|browser_runtime_install_failed|browser_binary_unavailable|browser_system_deps_unavailable)\b/,
   );
   if (match?.[1]) {
-    return match[1];
+    return match[1] as ScreenshotCaptureErrorCode;
   }
   // Chromium linked against libnspr4/libnss3; surface a structured code when the OS libs are missing.
   if (
@@ -619,7 +631,131 @@ export function classifyScreenshotCaptureFailure(output: string) {
   ) {
     return "browser_system_deps_unavailable";
   }
+  if (
+    /Unable to index|Broken build, fix the error above|SyntaxError:/i.test(output) &&
+    /\.stories\.(tsx?|jsx?|mdx)/i.test(output)
+  ) {
+    return "storybook_index_failed";
+  }
   return "screenshot_capture_failed";
+}
+
+const STORYBOOK_STORIES_SUFFIX_PATTERN = /\.stories\.(tsx?|jsx?|mdx)\b/i;
+/** Conservative path charset, including Next.js `[param]` / `(group)` segments. */
+const STORYBOOK_PATH_CHAR_PATTERN = /[\w@[\]()./-]/;
+
+/**
+ * Extract a `.stories.*` path from Storybook failure output.
+ * Uses a linear scan (no nested quantifiers) to avoid ReDoS.
+ */
+export function extractStorybookStoryPathFromFailure(output: string): string | null {
+  const suffixMatch = STORYBOOK_STORIES_SUFFIX_PATTERN.exec(output);
+  if (!suffixMatch || suffixMatch.index === undefined) {
+    return null;
+  }
+
+  const end = suffixMatch.index + suffixMatch[0].length;
+  let start = suffixMatch.index;
+  while (start > 0 && STORYBOOK_PATH_CHAR_PATTERN.test(output.charAt(start - 1))) {
+    start -= 1;
+  }
+
+  const path = output.slice(start, end).replace(/^\.\//, "");
+  return path.length > 0 ? path : null;
+}
+
+export function buildScreenshotCaptureRecoveryHint(input: {
+  errorCode: string;
+  error: string;
+}): string | undefined {
+  switch (input.errorCode) {
+    case "storybook_index_failed": {
+      const storyPath = extractStorybookStoryPathFromFailure(input.error);
+      return storyPath
+        ? `Fix the Storybook syntax/index error in ${storyPath}, then call captureScreenshot again with the same storyId.`
+        : "Fix the Storybook story syntax/index error shown in the log, then call captureScreenshot again with the same storyId.";
+    }
+    case "screenshot_capture_failed":
+      if (/story missing|storyErrored|Storybook story failed/i.test(input.error)) {
+        return "Verify the storyId and that the temporary story renders without runtime errors, then call captureScreenshot again.";
+      }
+      if (/waitForText|Timeout/i.test(input.error)) {
+        return "Confirm waitForText matches visible copy in the story, adjust mock props if needed, then call captureScreenshot again.";
+      }
+      return "Inspect the Storybook/Playwright error excerpt, fix the preview in the sandbox if possible, then call captureScreenshot once more.";
+    case "browser_runtime_install_failed":
+    case "browser_binary_unavailable":
+    case "browser_system_deps_unavailable":
+    case "package_manager_unavailable":
+      return "This is an environment failure. Explain it to the user; do not keep retrying captureScreenshot.";
+    case "write_not_allowed":
+    case "workspace_write_unavailable":
+      return "Screenshot capture requires write access to the sandbox. Explain the limitation to the user.";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Transient readiness flakes can clear on a second launch. Fatal Storybook index /
+ * syntax / dependency failures should not be retried by the tool itself.
+ */
+export function isTransientScreenshotCaptureFailure(input: {
+  errorCode: string;
+  error: string;
+}): boolean {
+  if (input.errorCode !== "screenshot_capture_failed") {
+    return false;
+  }
+
+  if (
+    /Unable to index|Broken build|SyntaxError:|ELIFECYCLE|story missing|Storybook story failed/i.test(
+      input.error,
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    /Could not connect to server|Connection refused|ECONNREFUSED|Storybook did not become ready/i.test(
+      input.error,
+    ) ||
+    /Playwright screenshot capture failed[\s\S]*(Timeout|net::ERR_|Target closed)/i.test(
+      input.error,
+    )
+  );
+}
+
+export function summarizeScreenshotCaptureFailure(input: {
+  errorCode: string;
+  error: string;
+  truncated?: boolean;
+}): {
+  errorCode: string;
+  summary: string;
+  recoveryHint?: string;
+  errorExcerpt: string;
+  truncated?: boolean;
+} {
+  const recoveryHint = buildScreenshotCaptureRecoveryHint(input);
+  const excerpt = truncate(input.error, FAILURE_ERROR_EXCERPT_BYTES);
+  const storyPath = extractStorybookStoryPathFromFailure(input.error);
+  const summary =
+    input.errorCode === "storybook_index_failed"
+      ? storyPath
+        ? `Storybook failed to index ${storyPath}.`
+        : "Storybook failed to index a stories file."
+      : input.errorCode === "screenshot_capture_failed"
+        ? "Storybook screenshot capture failed."
+        : `Screenshot capture failed (${input.errorCode}).`;
+
+  return {
+    errorCode: input.errorCode,
+    summary,
+    recoveryHint,
+    errorExcerpt: excerpt.text,
+    truncated: input.truncated || excerpt.truncated || undefined,
+  };
 }
 
 function managedBrowserRuntimeCommand() {
@@ -725,8 +861,11 @@ type CaptureScreenshotFailure = {
   success: false;
   errorCode: string;
   error: string;
+  summary?: string;
+  recoveryHint?: string;
   checkedFiles?: string[];
   truncated?: boolean;
+  attempts?: number;
 };
 
 export type CaptureScreenshotResult = CaptureScreenshotSuccess | CaptureScreenshotFailure;
@@ -793,7 +932,35 @@ It does not commit, push, open pull requests, or publish repository changes.`,
     inputSchema: captureScreenshotInputSchema,
     toModelOutput: async ({ output }) => {
       if (!isCaptureScreenshotSuccess(output)) {
-        return { type: "json", value: output as CaptureScreenshotFailure };
+        const failure = output as CaptureScreenshotFailure;
+        const summarized = summarizeScreenshotCaptureFailure({
+          errorCode: failure.errorCode,
+          error: failure.error,
+          truncated: failure.truncated,
+        });
+        const recoveryHint = failure.recoveryHint ?? summarized.recoveryHint;
+        return {
+          type: "content",
+          value: [
+            {
+              type: "text",
+              text: [
+                "Screenshot capture failed.",
+                `errorCode: ${summarized.errorCode}`,
+                `summary: ${failure.summary ?? summarized.summary}`,
+                recoveryHint ? `recoveryHint: ${recoveryHint}` : null,
+                failure.attempts && failure.attempts > 1 ? `attempts: ${failure.attempts}` : null,
+                failure.checkedFiles?.length
+                  ? `checkedFiles: ${failure.checkedFiles.join(", ")}`
+                  : null,
+                "errorExcerpt:",
+                summarized.errorExcerpt,
+              ]
+                .filter((line): line is string => Boolean(line))
+                .join("\n"),
+            },
+          ],
+        };
       }
 
       try {
@@ -841,34 +1008,48 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         };
       }
     },
-    execute: async ({
-      target,
-      viewport = DEFAULT_VIEWPORT,
-      waitForMs = DEFAULT_WAIT_FOR_MS,
-      waitForText = [],
-    }): Promise<CaptureScreenshotResult> => {
+    execute: async (
+      { target, viewport = DEFAULT_VIEWPORT, waitForMs = DEFAULT_WAIT_FOR_MS, waitForText = [] },
+      { toolCallId },
+    ): Promise<CaptureScreenshotResult> => {
       const gate = assertRepositoryWriteAllowed(ctx, "apply_fixes");
       if (!gate.allowed) {
         return {
           success: false as const,
           errorCode: "write_not_allowed" as const,
           error: gate.reason,
+          summary: "Screenshot capture is not allowed for this actor.",
+          recoveryHint: buildScreenshotCaptureRecoveryHint({
+            errorCode: "write_not_allowed",
+            error: gate.reason,
+          }),
         };
       }
       if (!repo.bash.writeWorkspaceFile) {
+        const error = "Workspace write support is required to create screenshot scripts.";
         return {
           success: false as const,
           errorCode: "workspace_write_unavailable" as const,
-          error: "Workspace write support is required to create screenshot scripts.",
+          error,
+          summary: "Workspace write support is unavailable.",
+          recoveryHint: buildScreenshotCaptureRecoveryHint({
+            errorCode: "workspace_write_unavailable",
+            error,
+          }),
         };
       }
 
+      ctx.reportToolProgress?.({
+        toolCallId,
+        message: "Resolving Storybook…",
+      });
       const resolvedPackage = await resolveStorybookPackage(repo);
       if ("errorCode" in resolvedPackage) {
         return {
           success: false as const,
           errorCode: resolvedPackage.errorCode,
           error: resolvedPackage.error,
+          summary: resolvedPackage.error,
           checkedFiles: resolvedPackage.checkedFiles,
         };
       }
@@ -913,34 +1094,71 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         }),
       );
 
-      const captureResult = await repo.bash.exec("bash", {
-        args: [
-          "-lc",
-          buildCaptureCommand({
-            storybookCommand,
-            baseDir,
-            scriptPath,
-            screenshotPath,
-            port: STORYBOOK_PORT,
-          }),
-        ],
+      const captureCommand = buildCaptureCommand({
+        storybookCommand,
+        baseDir,
+        scriptPath,
+        screenshotPath,
+        port: STORYBOOK_PORT,
       });
 
-      if (captureResult.exitCode !== 0) {
-        const output = truncate(
+      let captureResult: Awaited<ReturnType<RepoToolContext["bash"]["exec"]>> | null = null;
+      let attempts = 0;
+
+      for (let attempt = 1; attempt <= MAX_TRANSIENT_CAPTURE_ATTEMPTS; attempt += 1) {
+        attempts = attempt;
+        ctx.reportToolProgress?.({
+          toolCallId,
+          message:
+            attempt === 1 ? "Preparing browser and loading story…" : "Retrying screenshot capture…",
+        });
+        captureResult = await repo.bash.exec("bash", {
+          args: ["-lc", captureCommand],
+        });
+
+        if (captureResult.exitCode === 0) {
+          break;
+        }
+
+        const failedOutput = truncate(
           redact([captureResult.stdout, captureResult.stderr].join("\n")),
           DEFAULT_MAX_OUTPUT_BYTES,
         );
-        const errorCode = classifyScreenshotCaptureFailure(output.text);
-        return {
-          success: false as const,
-          errorCode,
-          error: output.text || "Screenshot capture failed.",
-          truncated: output.truncated,
-        };
+        const errorCode = classifyScreenshotCaptureFailure(failedOutput.text);
+        const canRetry =
+          attempt < MAX_TRANSIENT_CAPTURE_ATTEMPTS &&
+          isTransientScreenshotCaptureFailure({
+            errorCode,
+            error: failedOutput.text,
+          });
+        if (!canRetry) {
+          const summarized = summarizeScreenshotCaptureFailure({
+            errorCode,
+            error: failedOutput.text || "Screenshot capture failed.",
+            truncated: failedOutput.truncated,
+          });
+          return {
+            success: false as const,
+            errorCode,
+            error: summarized.errorExcerpt || "Screenshot capture failed.",
+            summary: summarized.summary,
+            recoveryHint: summarized.recoveryHint,
+            truncated: summarized.truncated,
+            attempts,
+          };
+        }
+      }
+
+      // Failures return inside the loop; reaching here means a successful capture.
+      if (!captureResult || captureResult.exitCode !== 0) {
+        throw new Error("Invariant violated: screenshot capture loop exited without success");
       }
 
       const content = Buffer.from(captureResult.stdout.trim(), "base64");
+      ctx.reportToolProgress?.({
+        toolCallId,
+        message: "Uploading screenshot…",
+      });
       const storedFile = await createStoredFile({
         organizationId: ctx.organizationId,
         projectId: ctx.projectId,

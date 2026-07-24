@@ -84,24 +84,34 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       <BreadcrumbList className="flex-nowrap gap-1.5 text-sm sm:gap-2">
         {breadcrumbs.map((crumb, index) => {
           const isLast = index === breadcrumbs.length - 1;
+          const tooltip = crumb.title ?? (isLast ? crumb.label : undefined);
 
           return (
             <Fragment key={`${crumb.href ?? crumb.label}-${index}`}>
               {index > 0 ? <BreadcrumbSeparator /> : null}
-              <BreadcrumbItem className="min-w-0">
+              <BreadcrumbItem
+                className={cn(
+                  "min-w-0",
+                  isLast
+                    ? "max-w-[min(100%,14rem)] sm:max-w-xs md:max-w-sm"
+                    : "max-w-[7rem] shrink-0 sm:max-w-[9rem]",
+                )}
+              >
                 {isLast || !crumb.href ? (
                   <BreadcrumbPage
                     className={cn(
-                      "truncate font-semibold text-foreground",
+                      "block truncate font-semibold text-foreground",
                       isLast ? "text-base" : "text-sm",
                     )}
+                    title={tooltip}
                   >
                     {crumb.label}
                   </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink
                     render={<Link href={crumb.href} />}
-                    className="truncate font-medium text-muted-foreground hover:text-foreground"
+                    className="block truncate font-medium text-muted-foreground hover:text-foreground"
+                    title={crumb.label}
                   >
                     {crumb.label}
                   </BreadcrumbLink>

@@ -25,7 +25,7 @@ type Group struct {
 type GroupsListOptions struct {
 	ListOptions
 
-	ParentID int `json:"parentId,omitempty"`
+	ParentID *int `json:"parentId,omitempty"`
 }
 
 // Values returns the url.Values representation of the GroupsListOptions.
@@ -36,8 +36,8 @@ func (o *GroupsListOptions) Values() (url.Values, bool) {
 	}
 
 	v, _ := o.ListOptions.Values()
-	if o.ParentID > 0 {
-		v.Add("parentId", strconv.Itoa(o.ParentID))
+	if o.ParentID != nil {
+		v.Add("parentId", strconv.Itoa(*o.ParentID))
 	}
 
 	return v, len(v) > 0
