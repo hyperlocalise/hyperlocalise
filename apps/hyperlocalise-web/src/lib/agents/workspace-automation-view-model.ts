@@ -71,6 +71,8 @@ export type WorkspaceAutomationFormState = {
   mcpConnectionId: string;
   semrushEnabled: boolean;
   semrushConnectionId: string;
+  ahrefsEnabled: boolean;
+  ahrefsConnectionId: string;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -91,6 +93,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "translationTargetLocales"
     | "mcpConnectionId"
     | "semrushConnectionId"
+    | "ahrefsConnectionId"
     | "form",
     string
   >
@@ -124,6 +127,10 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   semrush_connection_not_found:
     "The selected Semrush connection was not found. Choose another connection.",
   semrush_not_connected: "Enable the selected Semrush connection in Integrations before using it.",
+  ahrefs_connection_required: "Choose an Ahrefs connection.",
+  ahrefs_connection_not_found:
+    "The selected Ahrefs connection was not found. Choose another connection.",
+  ahrefs_not_connected: "Enable the selected Ahrefs connection in Integrations before using it.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -172,6 +179,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     mcpConnectionId: "",
     semrushEnabled: false,
     semrushConnectionId: "",
+    ahrefsEnabled: false,
+    ahrefsConnectionId: "",
   };
 }
 
@@ -186,6 +195,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const knowledge = automation.toolConfig.knowledge;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
+  const ahrefs = automation.toolConfig.ahrefs;
 
   return {
     name: automation.name,
@@ -245,6 +255,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     mcpConnectionId: mcp?.connectionId ?? "",
     semrushEnabled: Boolean(semrush?.enabled),
     semrushConnectionId: semrush?.connectionId ?? "",
+    ahrefsEnabled: Boolean(ahrefs?.enabled),
+    ahrefsConnectionId: ahrefs?.connectionId ?? "",
   };
 }
 
@@ -401,6 +413,14 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.ahrefsEnabled
+      ? {
+          ahrefs: {
+            enabled: true,
+            connectionId: form.ahrefsConnectionId || undefined,
+          },
+        }
+      : {}),
   };
 
   return {
@@ -494,6 +514,10 @@ export function validateWorkspaceAutomationFormState(
     errors.semrushConnectionId = "Choose a Semrush connection.";
   }
 
+  if (form.ahrefsEnabled && !form.ahrefsConnectionId) {
+    errors.ahrefsConnectionId = "Choose an Ahrefs connection.";
+  }
+
   return errors;
 }
 
@@ -546,6 +570,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "semrush_connection_not_found":
     case "semrush_not_connected":
       return { semrushConnectionId: message };
+    case "ahrefs_connection_required":
+    case "ahrefs_connection_not_found":
+    case "ahrefs_not_connected":
+      return { ahrefsConnectionId: message };
     default:
       return { form: message };
   }
@@ -559,6 +587,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.contentfulEnabled ||
     form.translationEnabled ||
     form.mcpEnabled ||
-    form.semrushEnabled
+    form.semrushEnabled ||
+    form.ahrefsEnabled
   );
 }

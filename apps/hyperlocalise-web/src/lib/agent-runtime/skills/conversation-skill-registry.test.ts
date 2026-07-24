@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { clearAgentManifestCache, loadAgentSkill } from "@/agents/_runtime/loader";
 import {
   buildConversationSkillPlan,
+  buildConversationSkillTools,
   filterAvailableConversationToolNames,
   isConversationSkillActivated,
   listConversationSkills,
@@ -338,6 +339,63 @@ describe("conversation skill registry", () => {
     );
 
     expect(toolNames).toEqual(["translate_string", "list_projects"]);
+  });
+
+  it("keeps todoWrite available without a sandbox", () => {
+    const toolNames = filterAvailableConversationToolNames(["todoWrite", "grep"], {
+      hasFileAttachments: false,
+      toolContext: {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+      },
+    });
+
+    expect(toolNames).toEqual(["todoWrite"]);
+  });
+
+  it("builds todoWrite as a session tool for conversation skills", () => {
+    const tools = buildConversationSkillTools(
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+        },
+      },
+      ["todoWrite", "grep"],
+    );
+
+    expect(tools.todoWrite).toBeDefined();
+    expect(tools.grep).toBeDefined();
+  });
+
+  it("builds todoWrite even when no sandbox workspace tools are available", () => {
+    const tools = buildConversationSkillTools(
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+        },
+      },
+      ["todoWrite"],
+    );
+
+    expect(tools.todoWrite).toBeDefined();
+    expect(Object.keys(tools)).toEqual(["todoWrite"]);
   });
 
   it("gates repository write tools from read-only conversation runtimes", () => {

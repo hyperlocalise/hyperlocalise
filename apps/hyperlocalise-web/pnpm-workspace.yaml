@@ -37,6 +37,9 @@ overrides:
   dompurify: "3.4.12"
   "js-yaml@^3.0.0": "3.15.0"
   "js-yaml@^4.0.0": "4.3.0"
+  # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
+  # still resolve 1.25.8; dual copies break editor Fragment identity.
+  prosemirror-model: "1.25.11"
 peerDependencyRules:
   allowAny:
     - vite

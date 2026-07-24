@@ -84,6 +84,7 @@ import {
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
+import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
@@ -1409,6 +1410,12 @@ export function IntegrationsPageContent({
             </IntegrationCategoryLabel>
             <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
               <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <div className="border-t border-border">
+                <AhrefsConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                />
+              </div>
             </div>
           </section>
 

@@ -391,6 +391,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "s7935wKE28",
     description: "Accessible label to remove the Semrush tool",
   },
+  ahrefs: {
+    defaultMessage: "Ahrefs",
+    id: "l4moIhus0d",
+    description: "Menu item and tool title for Ahrefs SEO data",
+  },
+  ahrefsDescription: {
+    defaultMessage: "Query Ahrefs SEO data through your connected MCP API key.",
+    id: "xqQi/ZEY79",
+    description: "Description for the Ahrefs automation tool when a connection exists",
+  },
+  ahrefsDisconnectedDescription: {
+    defaultMessage: "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
+    id: "T67SNUNeWw",
+    description: "Description when no Ahrefs connection is available",
+  },
+  removeAhrefsTool: {
+    defaultMessage: "Remove Ahrefs tool",
+    id: "CKjsX01Ql/",
+    description: "Accessible label to remove the Ahrefs tool",
+  },
   comingSoon: {
     defaultMessage: "Coming soon",
     id: "lvwFhMaVAT",

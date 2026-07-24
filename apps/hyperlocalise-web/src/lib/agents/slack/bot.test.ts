@@ -143,6 +143,8 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/agent-runtime/tools/registry", () => ({
   buildTools: vi.fn(() => ({})),
+  buildWorkspaceTools: vi.fn(() => ({})),
+  createTranslationJobTool: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/agents/image-generation", () => ({

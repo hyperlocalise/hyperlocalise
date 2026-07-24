@@ -57,6 +57,8 @@ import { cn } from "@/lib/primitives/cn";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
+import { IssueMarkdownField } from "./issue-markdown-field";
+import { issueMarkdownFieldMessages as markdownFieldMessages } from "./issue-markdown-field.messages";
 import {
   buildIssueCatHref,
   isExternalHttpUrl,
@@ -462,34 +464,30 @@ export const IssueDetailPanel = forwardRef<
           )}
         />
 
-        <Textarea
+        <IssueMarkdownField
+          key={`${issue.id}-description`}
           value={descriptionDraft}
-          onChange={(event) => setDescriptionDraft(event.currentTarget.value)}
-          onBlur={saveDescription}
+          onChange={setDescriptionDraft}
+          onCommit={saveDescription}
           disabled={isSaving}
-          aria-label={intl.formatMessage(messages.fieldDescription)}
           placeholder={intl.formatMessage(messages.fieldDescription)}
-          className={cn(
-            "min-h-32 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
-            "focus-visible:border-transparent focus-visible:ring-0",
-          )}
+          emptyMessage={intl.formatMessage(markdownFieldMessages.emptyDescription)}
+          ariaLabel={intl.formatMessage(messages.fieldDescription)}
         />
 
         <section className="mt-2 grid gap-2 border-t border-border pt-4">
           <TypographyP className="text-sm font-medium text-foreground">
             <FormattedMessage {...messages.fieldOwnerNote} />
           </TypographyP>
-          <Textarea
+          <IssueMarkdownField
+            key={`${issue.id}-owner-note`}
             value={ownerNoteDraft}
-            onChange={(event) => setOwnerNoteDraft(event.currentTarget.value)}
-            onBlur={saveOwnerNote}
+            onChange={setOwnerNoteDraft}
+            onCommit={saveOwnerNote}
             disabled={isSaving}
-            aria-label={intl.formatMessage(messages.fieldOwnerNote)}
             placeholder={intl.formatMessage(messages.fieldOwnerNotePlaceholder)}
-            className={cn(
-              "min-h-20 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none md:text-sm",
-              "focus-visible:border-transparent focus-visible:ring-0",
-            )}
+            emptyMessage={intl.formatMessage(markdownFieldMessages.emptyOwnerNote)}
+            ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
           />
         </section>
 

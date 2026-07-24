@@ -16,6 +16,7 @@ import { z } from "zod";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 
 import {
@@ -159,6 +160,13 @@ const semrushToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const ahrefsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
@@ -169,6 +177,7 @@ const toolConfigSchema = z
     knowledge: knowledgeToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
+    ahrefs: ahrefsToolConfigSchema.optional(),
   })
   .default({});
 
@@ -191,6 +200,7 @@ export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulT
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
+export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -282,6 +292,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "semrush_not_connected";
       message: "Enable the selected Semrush connection in Integrations before using it.";
+    }
+  | {
+      code: "ahrefs_connection_required";
+      message: "Enabled Ahrefs tools require an Ahrefs connection.";
+    }
+  | {
+      code: "ahrefs_connection_not_found";
+      message: "The selected Ahrefs connection was not found. Choose another connection.";
+    }
+  | {
+      code: "ahrefs_not_connected";
+      message: "Enable the selected Ahrefs connection in Integrations before using it.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -309,6 +331,10 @@ export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToo
 
 export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.semrush?.enabled);
+}
+
+export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.ahrefs?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -503,6 +529,14 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  const ahrefsTools = input.toolConfig.ahrefs;
+  if (ahrefsTools?.enabled && !ahrefsTools.connectionId) {
+    return err({
+      code: "ahrefs_connection_required",
+      message: "Enabled Ahrefs tools require an Ahrefs connection.",
+    });
+  }
+
   return ok(undefined);
 }
 
@@ -516,6 +550,12 @@ export async function validateWorkspaceAutomationIntegrations(input: {
    * Requires `db` to be a transaction client.
    */
   lockSemrushConnection?: boolean;
+  /**
+   * When true, locks the selected Ahrefs connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockAhrefsConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
   const database = input.db ?? db;
 
@@ -644,6 +684,53 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.ahrefs?.enabled) {
+    const connectionId = input.toolConfig.ahrefs.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "ahrefs_connection_required",
+        message: "Enabled Ahrefs tools require an Ahrefs connection.",
+      });
+    }
+
+    const connection = input.lockAhrefsConnection
+      ? await lockAhrefsConnectionForUpdate({
+          organizationId: input.organizationId,
+          connectionId,
+          db: database,
+        })
+      : ((
+          await database
+            .select({
+              id: schema.ahrefsConnections.id,
+              enabled: schema.ahrefsConnections.enabled,
+              validationStatus: schema.ahrefsConnections.validationStatus,
+            })
+            .from(schema.ahrefsConnections)
+            .where(
+              and(
+                eq(schema.ahrefsConnections.organizationId, input.organizationId),
+                eq(schema.ahrefsConnections.id, connectionId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null);
+
+    if (!connection) {
+      return err({
+        code: "ahrefs_connection_not_found",
+        message: "The selected Ahrefs connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled || connection.validationStatus !== "valid") {
+      return err({
+        code: "ahrefs_not_connected",
+        message: "Enable the selected Ahrefs connection in Integrations before using it.",
+      });
+    }
+  }
+
   return ok(undefined);
 }
 
@@ -688,6 +775,12 @@ function shouldLockSemrushConnectionForToolConfig(
   toolConfig: WorkspaceAutomationToolConfig,
 ): boolean {
   return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+}
+
+function shouldLockAhrefsConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
 }
 
 export async function createWorkspaceAutomation(input: {
@@ -737,6 +830,8 @@ export async function createWorkspaceAutomation(input: {
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
   const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(config.toolConfig);
+  const lockAhrefsConnection = shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -746,6 +841,7 @@ export async function createWorkspaceAutomation(input: {
       toolConfig: config.toolConfig,
       db: database,
       lockSemrushConnection,
+      lockAhrefsConnection,
     });
     if (isErr(integrationValidation)) {
       return err(integrationValidation.error);
@@ -780,7 +876,7 @@ export async function createWorkspaceAutomation(input: {
   if (input.db) {
     return write(input.db);
   }
-  if (lockSemrushConnection) {
+  if (needsConnectionLock) {
     return db.transaction(write);
   }
   return write(db);
@@ -867,6 +963,9 @@ export async function updateWorkspaceAutomation(input: {
 
   const lockSemrushConnection =
     configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
+  const lockAhrefsConnection =
+    configChanged && shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -879,6 +978,7 @@ export async function updateWorkspaceAutomation(input: {
         toolConfig: config.toolConfig,
         db: database,
         lockSemrushConnection,
+        lockAhrefsConnection,
       });
       if (isErr(integrationValidation)) {
         return err(integrationValidation.error);
@@ -919,7 +1019,7 @@ export async function updateWorkspaceAutomation(input: {
   if (input.db) {
     return write(input.db);
   }
-  if (lockSemrushConnection) {
+  if (needsConnectionLock) {
     return db.transaction(write);
   }
   return write(db);
