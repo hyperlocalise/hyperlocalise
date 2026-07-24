@@ -16,7 +16,7 @@ import { ensureAgentSession } from "@/lib/agent-contracts/tool-context";
 
 import { createTodoWriteTool } from "./todo";
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 describe("createTodoWriteTool", () => {
   it("stores todos on the tool context session", async () => {

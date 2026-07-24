@@ -122,7 +122,7 @@ describe("createAssignTranslateWithAgentTool", () => {
     const currentSession = session();
     const tool = createAssignTranslateWithAgentTool(currentSession);
 
-    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [] });
+    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} });
 
     expect(result).toMatchObject({
       jobId: "job_1",
@@ -157,7 +157,7 @@ describe("createAssignTranslateWithAgentTool", () => {
     });
     const tool = createAssignTranslateWithAgentTool(currentSession);
 
-    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [] });
+    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} });
 
     expect(result).toEqual(existing);
     expect(mocks.enqueueExistingFileTranslationJob).not.toHaveBeenCalled();
@@ -167,8 +167,8 @@ describe("createAssignTranslateWithAgentTool", () => {
     const currentSession = session({ outputSummary: {} });
     const tool = createAssignTranslateWithAgentTool(currentSession);
 
-    await expect(tool.execute!({}, { toolCallId: "call-1", messages: [] })).rejects.toThrow(
-      "native_tms_job_missing",
-    );
+    await expect(
+      tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} }),
+    ).rejects.toThrow("native_tms_job_missing");
   });
 });

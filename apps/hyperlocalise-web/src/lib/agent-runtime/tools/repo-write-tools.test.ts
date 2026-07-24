@@ -121,7 +121,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
 
     await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     );
 
     expect(checkRepositoryWriteGateMock).toHaveBeenCalledWith(
@@ -141,7 +141,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
     const tool = createApplyHyperlocaliseFixesTool(createBaseCtx());
     const result = (await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -172,7 +172,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
 
     await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     );
 
     expect(valuesMock).toHaveBeenCalledWith(
@@ -188,7 +188,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
     const tool = createApplyHyperlocaliseFixesTool(createBaseCtx({ sandboxId: null }));
     const result = (await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -207,7 +207,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
     const tool = createApplyHyperlocaliseFixesTool(createBaseCtx());
     const result = (await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; output: string };
 
     expect(result.success).toBe(true);
@@ -227,7 +227,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
     const tool = createApplyHyperlocaliseFixesTool(createBaseCtx());
     const result = (await tool.execute!(
       { scope: "all" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -250,7 +250,7 @@ describe("createCommitChangesTool", () => {
     const tool = createCommitChangesTool(createBaseCtx());
     const result = (await tool.execute!(
       { message: "custom" },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -269,7 +269,7 @@ describe("createCommitChangesTool", () => {
     const tool = createCommitChangesTool(createBaseCtx());
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; changed: boolean };
 
     expect(result.success).toBe(true);
@@ -296,7 +296,7 @@ describe("createCommitChangesTool", () => {
     const tool = createCommitChangesTool(createBaseCtx());
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; changed: boolean; changedPaths: string[] };
 
     expect(result.success).toBe(true);
@@ -322,7 +322,7 @@ describe("createPushToBranchTool", () => {
     const tool = createPushToBranchTool(createBaseCtx());
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -338,7 +338,7 @@ describe("createPushToBranchTool", () => {
     const tool = createPushToBranchTool(createBaseCtx());
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -349,7 +349,7 @@ describe("createPushToBranchTool", () => {
     const tool = createPushToBranchTool(createBaseCtx({ githubContext: null }));
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -368,7 +368,7 @@ describe("createPushToBranchTool", () => {
     const tool = createPushToBranchTool(createBaseCtx());
     const result = (await tool.execute!(
       {},
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; branch: string };
 
     expect(result.success).toBe(true);
@@ -423,7 +423,7 @@ describe("createUploadSourcesTool", () => {
     const tool = createUploadSourcesTool(createBaseCtx());
     const result = (await tool.execute!(
       { paths: ["src/i18n/en.json"] },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -434,7 +434,7 @@ describe("createUploadSourcesTool", () => {
     const tool = createUploadSourcesTool(createBaseCtx({ projectId: null }));
     const result = (await tool.execute!(
       { paths: ["src/i18n/en.json"] },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);
@@ -452,7 +452,7 @@ describe("createUploadSourcesTool", () => {
     const tool = createUploadSourcesTool(createBaseCtx());
     const result = (await tool.execute!(
       { paths: ["src/i18n/en.json", "src/i18n/fr.json"] },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as {
       success: boolean;
       uploaded: Array<{ path: string; fileId: string; sourceFileVersionId: string }>;
@@ -505,7 +505,7 @@ describe("createUploadSourcesTool", () => {
     const tool = createUploadSourcesTool(createBaseCtx());
     const result = (await tool.execute!(
       { paths: ["src/i18n/en.json", "src/i18n/missing.json"] },
-      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal, context: {} },
     )) as { success: boolean; error: string };
 
     expect(result.success).toBe(false);

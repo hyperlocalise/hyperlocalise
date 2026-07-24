@@ -43,7 +43,7 @@ vi.mock("undici", () => ({
   fetch: undiciMock.fetch,
 }));
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 describe("isAllowedWebUrl", () => {
   it("allows public https URLs", () => {

@@ -144,7 +144,7 @@ describe("Agent Tools RBAC", () => {
     } as any,
   });
 
-  const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+  const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
   async function executeTool(tool: any, input: any) {
     if (!tool.execute) {

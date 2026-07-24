@@ -77,7 +77,7 @@ async function executeResolveInteractionTool(input: {
 
   return resolveInteraction.execute(
     { status: "archived" },
-    { toolCallId: "test-tool-call", messages: [] },
+    { toolCallId: "test-tool-call", messages: [], context: {} },
   );
 }
 

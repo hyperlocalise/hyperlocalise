@@ -156,7 +156,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: isStepCount(hyperlocaliseAgentStepLimit),
-  });
+  } as unknown as ToolLoopAgentSettings<never, TOOLS>);
 }
 
 export {
