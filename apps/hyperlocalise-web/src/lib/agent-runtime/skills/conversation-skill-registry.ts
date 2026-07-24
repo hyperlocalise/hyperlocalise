@@ -22,6 +22,7 @@ import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
 import { buildTools, buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
+import { workspaceSessionToolNames } from "@/lib/agent-runtime/tools/workspace";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -30,7 +31,13 @@ import {
 
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
-const REPO_TOOL_NAMES = new Set<string>([...repositoryWorkspaceToolNames, "captureScreenshot"]);
+/** Session tools live on the agent session, not the sandbox workspace. */
+const SESSION_TOOL_NAMES = new Set<string>(workspaceSessionToolNames);
+const REPO_TOOL_NAMES = new Set<string>(
+  [...repositoryWorkspaceToolNames, "captureScreenshot"].filter(
+    (toolName) => !SESSION_TOOL_NAMES.has(toolName),
+  ),
+);
 const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
 const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
@@ -243,6 +250,14 @@ export function buildConversationSkillTools(
   const builtTools = buildTools(ctx);
 
   for (const toolName of availableToolNames) {
+    if (SESSION_TOOL_NAMES.has(toolName)) {
+      const sessionTool = builtTools[toolName];
+      if (sessionTool) {
+        tools[toolName] = sessionTool;
+      }
+      continue;
+    }
+
     if (REPO_TOOL_NAMES.has(toolName)) {
       const repoTool = repoTools?.[toolName];
       if (repoTool) {

@@ -37,6 +37,9 @@ export function createConversationSkillAgent(
   const skillPlan = buildConversationSkillPlan(runtime);
   const toolNames = filterAvailableConversationToolNames(skillPlan.toolNames, runtime);
   const tools = buildConversationSkillTools(runtime, toolNames);
+  // Only advertise tools that were actually built (session tools like todoWrite
+  // must not appear in activeTools when missing from the ToolSet).
+  const activeTools = toolNames.filter((toolName) => toolName in tools);
 
   return new ToolLoopAgent<never, ToolSet>({
     model: getHyperlocaliseAgentModel(),
@@ -47,7 +50,7 @@ export function createConversationSkillAgent(
       additionalInstructions: runtime.additionalInstructions,
     }),
     tools,
-    activeTools: toolNames,
+    activeTools,
     providerOptions: {
       openai: {
         reasoningSummary: "auto",
