@@ -501,9 +501,9 @@ describe("conversation skill registry", () => {
         },
       );
 
-       expect(toolNames).toEqual(["get_knowledge_memory"]);
-     },
-   );
+      expect(toolNames).toEqual(["get_knowledge_memory"]);
+    },
+  );
 
   it("gates repository write tools from read-only conversation runtimes", () => {
     const toolNames = filterAvailableConversationToolNames(

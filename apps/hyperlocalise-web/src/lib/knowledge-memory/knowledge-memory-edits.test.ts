@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
@@ -77,6 +89,61 @@ describe("applyKnowledgeMemoryEdits", () => {
 
     expect(isOk(deleted) && deleted.value).toBe("Keep this.");
     expect(isOk(appended) && appended.value).toBe("# Memory.md\n\nUse sentence case.");
+  });
+
+  it.each([
+    {
+      name: "before an anchor",
+      content: "## Voice\nUse sentence case.\n## Brand",
+      edit: {
+        operation: "insert_before" as const,
+        anchorText: "## Brand",
+        insertText: "Use sentence case.\n",
+      },
+    },
+    {
+      name: "after an anchor",
+      content: "## Voice\nUse sentence case.\n## Brand",
+      edit: {
+        operation: "insert_after" as const,
+        anchorText: "## Voice",
+        insertText: "\nUse sentence case.",
+      },
+    },
+    {
+      name: "at the end of the document",
+      content: "## Voice\nUse sentence case.",
+      edit: { operation: "append" as const, insertText: "Use sentence case." },
+    },
+  ])("treats an exact repeated insert $name as a no-op", ({ content, edit }) => {
+    const result = applyKnowledgeMemoryEdits(content, [edit]);
+
+    expect(result).toEqual({ ok: true, value: content });
+  });
+
+  it("does not append an exact Markdown block that already exists elsewhere", () => {
+    const content = [
+      "## Checkout",
+      "- Always use sentence case for checkout button labels.",
+      "",
+      "## Legal",
+      "Preserve approved legal text.",
+    ].join("\n");
+
+    expect(
+      applyKnowledgeMemoryEdits(content, [
+        {
+          operation: "append",
+          insertText: "- Always use sentence case for checkout button labels.",
+        },
+      ]),
+    ).toEqual({ ok: true, value: content });
+  });
+
+  it("appends text that only appears as part of a larger Markdown block", () => {
+    expect(
+      applyKnowledgeMemoryEdits("foobar", [{ operation: "append", insertText: "bar" }]),
+    ).toEqual({ ok: true, value: "foobar\n\nbar" });
   });
 
   it.each([

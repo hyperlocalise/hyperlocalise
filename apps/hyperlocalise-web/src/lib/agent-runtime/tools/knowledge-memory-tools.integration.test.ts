@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -137,5 +149,60 @@ describe("Knowledge Memory agent tool integration", () => {
         content: initialContent,
       },
     ]);
+  });
+
+  it("does not create a revision when an exact append is retried", async () => {
+    const stored = await fixture.createLocalWorkosIdentity();
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout",
+      "- Always use sentence case for checkout button labels.",
+    ].join("\n");
+    const initial = await commitKnowledgeMemoryForOrganization({
+      organizationId: stored.organization.id,
+      updatedByUserId: stored.user.id,
+      expectedRevisionId: null,
+      content,
+      summary: "Initial checkout guidance",
+    });
+    expect(isOk(initial)).toBe(true);
+    if (!isOk(initial)) {
+      return;
+    }
+
+    const result = await executeTool(
+      createUpdateKnowledgeMemoryTool({
+        conversationId: "conversation_1",
+        organizationId: stored.organization.id,
+        localUserId: stored.user.id,
+        membershipRole: "admin",
+        projectId: null,
+        db,
+        knowledgeMemoryEnabled: true,
+      }),
+      {
+        expectedRevisionId: initial.value.knowledgeMemory.revisionId,
+        summary: "Remember checkout button casing",
+        edits: [
+          {
+            operation: "append",
+            insertText: "- Always use sentence case for checkout button labels.",
+          },
+        ],
+      },
+    );
+
+    expect(result).toMatchObject({ success: true, changed: false, version: 1 });
+    expect(await getKnowledgeMemoryForOrganization(stored.organization.id)).toMatchObject({
+      content,
+      version: 1,
+    });
+    expect(
+      await db
+        .select({ id: schema.knowledgeMemoryRevisions.id })
+        .from(schema.knowledgeMemoryRevisions)
+        .where(eq(schema.knowledgeMemoryRevisions.organizationId, stored.organization.id)),
+    ).toEqual([]);
   });
 });

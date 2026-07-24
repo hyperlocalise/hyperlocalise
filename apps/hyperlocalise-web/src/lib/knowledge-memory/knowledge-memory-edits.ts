@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
@@ -44,6 +56,26 @@ function insertAt(content: string, index: number, text: string) {
   return `${content.slice(0, index)}${text}${content.slice(index)}`;
 }
 
+function isAlreadyInsertedAt(content: string, index: number, text: string) {
+  return index >= 0 && content.slice(index, index + text.length) === text;
+}
+
+function containsExactMarkdownBlock(content: string, text: string) {
+  let index = content.indexOf(text);
+
+  while (index !== -1) {
+    const endIndex = index + text.length;
+    const startsAtBoundary = index === 0 || content[index - 1] === "\n";
+    const endsAtBoundary = endIndex === content.length || content[endIndex] === "\n";
+    if (startsAtBoundary && endsAtBoundary) {
+      return true;
+    }
+    index = content.indexOf(text, index + 1);
+  }
+
+  return false;
+}
+
 export function applyKnowledgeMemoryEdits(
   content: string,
   edits: readonly KnowledgeMemoryEdit[],
@@ -83,6 +115,15 @@ export function applyKnowledgeMemoryEdits(
         if (!target.ok) {
           return target;
         }
+        if (
+          isAlreadyInsertedAt(
+            updatedContent,
+            target.value - edit.insertText.length,
+            edit.insertText,
+          )
+        ) {
+          break;
+        }
         updatedContent = insertAt(updatedContent, target.value, edit.insertText);
         break;
       }
@@ -94,21 +135,23 @@ export function applyKnowledgeMemoryEdits(
         if (!target.ok) {
           return target;
         }
-        updatedContent = insertAt(
-          updatedContent,
-          target.value + edit.anchorText.length,
-          edit.insertText,
-        );
+        const insertionIndex = target.value + edit.anchorText.length;
+        if (isAlreadyInsertedAt(updatedContent, insertionIndex, edit.insertText)) {
+          break;
+        }
+        updatedContent = insertAt(updatedContent, insertionIndex, edit.insertText);
         break;
       }
       case "append": {
         if (!edit.insertText) {
           return err({ code: "invalid_edit", editIndex });
         }
-        updatedContent =
-          updatedContent.length === 0
-            ? edit.insertText
-            : `${updatedContent}${updatedContent.endsWith("\n") ? "" : "\n\n"}${edit.insertText}`;
+        if (!containsExactMarkdownBlock(updatedContent, edit.insertText)) {
+          updatedContent =
+            updatedContent.length === 0
+              ? edit.insertText
+              : `${updatedContent}${updatedContent.endsWith("\n") ? "" : "\n\n"}${edit.insertText}`;
+        }
         break;
       }
       default:
