@@ -61,10 +61,10 @@ Taken individually, these adjustments may appear small. Together, they determine
 
 Although these terms are frequently used interchangeably, they represent different levels of adaptation.
 
-| Approach | Focus | Outcome |
-| --- | --- | --- |
-| **Translation** | Converting text into another language | Customers can understand the content. |
-| **Localisation** | Adapting content for a specific language or region | Customers can comfortably use the product. |
+| Approach              | Focus                                                          | Outcome                                        |
+| --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
+| **Translation**       | Converting text into another language                          | Customers can understand the content.          |
+| **Localisation**      | Adapting content for a specific language or region             | Customers can comfortably use the product.     |
 | **Hyperlocalisation** | Adapting the complete customer experience for a local audience | Customers feel the product was built for them. |
 
 For companies serving multiple international markets, the distinction becomes increasingly important. As products mature and competition grows, success depends less on whether content has been translated and more on whether customers feel understood.
