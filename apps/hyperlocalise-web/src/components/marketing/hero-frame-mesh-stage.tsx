@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 
 import { cn } from "@/lib/primitives/cn";
@@ -26,6 +27,8 @@ type HeroFrameMeshStageProps = {
 };
 
 export function HeroFrameMeshStage({ className, priority = false }: HeroFrameMeshStageProps) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <div
       className={cn(
@@ -44,7 +47,17 @@ export function HeroFrameMeshStage({ className, priority = false }: HeroFrameMes
           className="object-cover object-center"
         />
         <div className="relative p-3 sm:p-5 lg:p-8 xl:p-10">
-          <HeroFrame layout="contained" className="shadow-[0_24px_64px_rgba(0,0,0,0.28)]" />
+          <motion.div
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{
+              duration: shouldReduceMotion ? 0 : 0.72,
+              ease: [0.19, 1, 0.22, 1],
+            }}
+          >
+            <HeroFrame layout="contained" className="shadow-[0_24px_64px_rgba(0,0,0,0.28)]" />
+          </motion.div>
         </div>
       </div>
     </div>

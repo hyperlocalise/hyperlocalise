@@ -630,37 +630,38 @@ export function HeroFrame({ layout = "breakout", className }: HeroFrameProps) {
   const shouldReduceMotion = useReducedMotion();
   const heroDemoState = buildHeroDemoState(intl);
   const services = createHeroDemoServices(intl, heroDemoState);
-
-  const frame = (
-    <motion.div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200",
-        className,
-      )}
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: shouldReduceMotion ? 0 : 0.72,
-        ease: [0.19, 1, 0.22, 1],
-      }}
-    >
-      <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
-        <CatWorkspaceContainer
-          initialState={heroDemoState}
-          initialViewMode="comfortable"
-          services={services}
-        />
-      </div>
-    </motion.div>
+  const frameClassName = cn(
+    "relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200",
+    className,
+  );
+  const workspace = (
+    <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
+      <CatWorkspaceContainer
+        initialState={heroDemoState}
+        initialViewMode="comfortable"
+        services={services}
+      />
+    </div>
   );
 
+  // Contained layout is staged by the parent (e.g. whileInView); skip mount animation.
   if (layout === "contained") {
-    return frame;
+    return <div className={frameClassName}>{workspace}</div>;
   }
 
   return (
     <div className="relative left-1/2 w-screen max-w-[calc(100vw-2.5rem)] -translate-x-1/2 lg:max-w-[min(92rem,calc(100vw-5rem))]">
-      {frame}
+      <motion.div
+        className={frameClassName}
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{
+          duration: shouldReduceMotion ? 0 : 0.72,
+          ease: [0.19, 1, 0.22, 1],
+        }}
+      >
+        {workspace}
+      </motion.div>
     </div>
   );
 }
