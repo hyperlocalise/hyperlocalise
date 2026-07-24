@@ -9,28 +9,28 @@
     "defaultMessage": "Paramètres"
   },
   "+0iMxWNkSS": {
-    "defaultMessage": "Language"
+    "defaultMessage": "Langue"
   },
   "+1W0ppiYtZ": {
-    "defaultMessage": "Project: {value}"
+    "defaultMessage": "Projet : {value}"
   },
   "+1a6pZauYN": {
-    "defaultMessage": "Enter a Semrush API key."
+    "defaultMessage": "Saisissez une clé API Semrush."
   },
   "+1iKu+aEDX": {
-    "defaultMessage": "Reference only"
+    "defaultMessage": "Référence uniquement"
   },
   "+1iajv5nbm": {
     "defaultMessage": "filipino (Philippines)"
   },
   "+26I9vlNu+": {
-    "defaultMessage": "Type: {value}"
+    "defaultMessage": "Type : {value}"
   },
   "+3ic9geD5G": {
     "defaultMessage": "Archivé"
   },
   "+3ub8INH28": {
-    "defaultMessage": "Revoke invitation for {name}"
+    "defaultMessage": "Révoquer l’invitation pour {name}"
   },
   "+54c7/3Jjq": {
     "defaultMessage": "Ouvrir l’utilisation du forfait : {planName}"
@@ -42,7 +42,7 @@
     "defaultMessage": "Un responsable de la croissance partage dans Slack un brief de lancement avec le positionnement, les segments d’audience et les mentions légales. Hyperlocalise structure la campagne pour la localisation, applique le glossaire de marque et les règles de ton, génère des brouillons adaptés pour chaque locale, les soumet aux validations marketing et juridiques, synchronise le contenu approuvé avec le CMS et les plateformes publicitaires, et signale toute locale dans laquelle le message s’est écarté de la source approuvée."
   },
   "+91wkWHR07": {
-    "defaultMessage": "Remove {name}"
+    "defaultMessage": "Supprimer {name}"
   },
   "+Bv/z7GqIV": {
     "defaultMessage": "Exécutez GitHub Actions pour détecter les écarts de localisation, comparez les résultats et gardez les vérifications de publication visibles dans les pull requests avant que des synchronisations défectueuses n’atteignent la production."
@@ -54,13 +54,13 @@
     "defaultMessage": "Rester"
   },
   "+FuW5t+7ZR": {
-    "defaultMessage": "Comment failed"
+    "defaultMessage": "Échec de la publication du commentaire"
   },
   "+G0v8S+Z5x": {
-    "defaultMessage": "API key"
+    "defaultMessage": "Clé API"
   },
   "+Gpj/X++wo": {
-    "defaultMessage": "Running…"
+    "defaultMessage": "En cours…"
   },
   "+HZaUMLm0i": {
     "defaultMessage": "Enregistrer les modifications"
