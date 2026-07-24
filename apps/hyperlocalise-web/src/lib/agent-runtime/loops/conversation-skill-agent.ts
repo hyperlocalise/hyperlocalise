@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { stepCountIs, ToolLoopAgent, type ToolLoopAgentSettings, type ToolSet } from "ai";
+import { isStepCount, ToolLoopAgent, type ToolLoopAgentSettings, type ToolSet } from "ai";
 
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { buildConversationSkillInstructions } from "@/lib/agent-runtime/skills/compose-conversation-skill-instructions";
@@ -27,11 +27,11 @@ import {
 
 import { getHyperlocaliseAgentModel } from "./model";
 
-export type ConversationSkillAgentOnFinish = ToolLoopAgentSettings<never, ToolSet>["onFinish"];
+export type ConversationSkillAgentOnFinish = ToolLoopAgentSettings<never, ToolSet>["onEnd"];
 
 export function createConversationSkillAgent(
   runtime: HyperlocaliseAgentRuntimeContext,
-  onFinish?: ConversationSkillAgentOnFinish,
+  onEnd?: ConversationSkillAgentOnFinish,
 ) {
   const skillPlan = buildConversationSkillPlan(runtime);
   // Filtering lives in buildConversationSkillTools; activeTools mirrors what was built.
@@ -53,11 +53,11 @@ export function createConversationSkillAgent(
         reasoningSummary: "auto",
       },
     },
-    experimental_context: runtime,
+    runtimeContext: runtime,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
-    stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+    stopWhen: isStepCount(hyperlocaliseAgentStepLimit),
     prepareStep: prepareConversationSkillStep,
-    onFinish,
+    onEnd,
   });
 }

@@ -18,7 +18,7 @@ import { createApplyPatchTool } from "./apply-patch";
 import { createWriteTool } from "./write";
 import type { RepoToolContext } from "./types";
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 function createWriteContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {

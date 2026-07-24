@@ -16,7 +16,7 @@ import { Bash, defineCommand, InMemoryFs } from "just-bash";
 import { createGlobTool } from "./glob";
 import type { RepoToolContext } from "./types";
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 describe("createGlobTool", () => {
   it("lists files via ripgrep", async () => {

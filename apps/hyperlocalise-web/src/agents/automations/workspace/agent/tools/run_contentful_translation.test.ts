@@ -232,7 +232,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
     expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
@@ -279,7 +282,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
     expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
@@ -317,7 +323,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).toHaveBeenCalledWith(
       expect.objectContaining({

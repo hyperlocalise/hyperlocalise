@@ -78,7 +78,7 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
         `Sandbox id: ${input.sandboxId}. Use repository tools to inspect files when needed.`,
       ],
     }),
-    experimental_context: { sandboxId: input.sandboxId },
+    runtimeContext: { sandboxId: input.sandboxId },
   });
 
   const parent = input.parentCommitSha ?? "unknown";

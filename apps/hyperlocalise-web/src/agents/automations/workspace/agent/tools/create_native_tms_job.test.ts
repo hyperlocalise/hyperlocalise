@@ -145,6 +145,7 @@ describe("createNativeTmsJobTool", () => {
       {
         toolCallId: "call-1",
         messages: [],
+        context: {},
       },
     );
 
@@ -176,7 +177,7 @@ describe("createNativeTmsJobTool", () => {
     const currentSession = session({ outputSummary: { createNativeTmsJob: existing } });
     const tool = createNativeTmsJobTool(currentSession);
 
-    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [] });
+    const result = await tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} });
 
     expect(result).toEqual(existing);
     expect(mocks.createFileTranslationJob).not.toHaveBeenCalled();

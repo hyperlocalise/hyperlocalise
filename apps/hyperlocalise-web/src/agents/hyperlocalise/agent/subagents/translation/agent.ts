@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { stepCountIs, ToolLoopAgent } from "ai";
+import { isStepCount, ToolLoopAgent } from "ai";
 import { z } from "zod";
 
 import { loadSubagentInstructions } from "@/agents/_runtime/loader";
@@ -46,7 +46,7 @@ const TRANSLATION_SYSTEM_PROMPT = buildTranslationSystemPrompt();
 export const translationSubagent = new ToolLoopAgent({
   model: getHyperlocaliseAgentModel(),
   instructions: TRANSLATION_SYSTEM_PROMPT,
-  stopWhen: stepCountIs(SUBAGENT_STEP_LIMIT),
+  stopWhen: isStepCount(SUBAGENT_STEP_LIMIT),
   timeout: SUBAGENT_TIMEOUT,
   callOptionsSchema,
   // @ts-expect-error Dynamic toolset is assembled in prepareCall from ToolContext.

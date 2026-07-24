@@ -106,7 +106,7 @@ describe("repositoryAgentWorkflow", () => {
       expect.objectContaining({
         instructions: "sys",
         timeout: WORKFLOW_AGENT_TIMEOUT,
-        experimental_context: { sandboxId: null, repositoryTaskId: "task_1" },
+        runtimeContext: { sandboxId: null, repositoryTaskId: "task_1" },
       }),
     );
     expect(generateMock).toHaveBeenCalledWith({

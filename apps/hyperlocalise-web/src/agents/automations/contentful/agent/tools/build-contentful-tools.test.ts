@@ -76,7 +76,10 @@ describe("buildContentfulAgentTools", () => {
       throw new Error("run_translation tool is missing execute");
     }
 
-    const result = await runTranslation.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await runTranslation.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.executeContentfulAutomation).toHaveBeenCalledWith(
       {

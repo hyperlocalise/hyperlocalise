@@ -11,9 +11,9 @@
  * Version 2.0 or later.
  */
 import { cn } from "@/lib/primitives/cn";
-import type { Experimental_GeneratedImage } from "ai";
+import type { GeneratedFile } from "ai";
 
-export type ImageProps = Experimental_GeneratedImage & {
+export type ImageProps = GeneratedFile & {
   className?: string;
   alt?: string;
 };

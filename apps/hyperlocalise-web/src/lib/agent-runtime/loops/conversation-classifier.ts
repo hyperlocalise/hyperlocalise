@@ -124,7 +124,7 @@ export function createConversationClassifier({ model }: CreateConversationClassi
       output: Output.object({
         schema: conversationClassificationSchema,
       }),
-      system:
+      instructions:
         "You are a precise conversation classifier for a localization agent. Return only structured classification data for GitHub repository tooling.",
       prompt: buildConversationClassificationPrompt(input),
       temperature: 0,

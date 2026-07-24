@@ -12,9 +12,9 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { openaiMock, stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
+const { openaiMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
   openaiMock: vi.fn(() => "mock-model"),
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -29,7 +29,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
@@ -53,9 +53,9 @@ vi.mock("@/lib/database", () => ({
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-skill-agent", () => ({
-  createConversationSkillAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
+  createConversationSkillAgent: vi.fn((runtime: unknown, onEnd: unknown) => ({
     runtime,
-    onFinish,
+    onEnd,
   })),
 }));
 
@@ -126,7 +126,7 @@ describe("hyperlocalise agent core", () => {
     });
 
     expect(openaiMock).toHaveBeenCalledWith(hyperlocaliseAgentModelId);
-    expect(stepCountIsMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
+    expect(isStepCountMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",

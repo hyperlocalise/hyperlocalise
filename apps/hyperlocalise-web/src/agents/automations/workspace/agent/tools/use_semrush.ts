@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
@@ -110,7 +110,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
             SUBAGENT_NO_QUESTIONS_RULES,
             SUBAGENT_RESPONSE_FORMAT,
           ].join("\n"),
-          stopWhen: stepCountIs(SEMRUSH_TOOL_STEP_LIMIT),
+          stopWhen: isStepCount(SEMRUSH_TOOL_STEP_LIMIT),
           timeout: WORKFLOW_AGENT_TIMEOUT,
         });
 

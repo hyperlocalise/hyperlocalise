@@ -138,7 +138,7 @@ export function createSlackImageRequestInterpreter({
       output: Output.object({
         schema: slackImageRequestIntentSchema,
       }),
-      system:
+      instructions:
         "You are a precise Slack intake parser for an image localization agent. Return only structured data.",
       prompt: buildSlackImageRequestPrompt(input),
       temperature: 0,

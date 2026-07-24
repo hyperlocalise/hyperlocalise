@@ -164,7 +164,7 @@ async function executeGlossarySearch(input: {
       projectId: input.projectId,
       limit: 10,
     },
-    { toolCallId: "test-tool-call", messages: [] },
+    { toolCallId: "test-tool-call", messages: [], context: {} },
   );
 
   return result as Extract<GlossarySearchResult, { terms: unknown }>;
@@ -189,7 +189,7 @@ async function executeMemorySearch(input: {
       projectId: input.projectId,
       limit: 10,
     },
-    { toolCallId: "test-tool-call", messages: [] },
+    { toolCallId: "test-tool-call", messages: [], context: {} },
   );
 
   return result as Extract<MemorySearchResult, { matches: unknown }>;

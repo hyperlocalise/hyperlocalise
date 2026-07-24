@@ -16,7 +16,7 @@ import { Bash, InMemoryFs } from "just-bash";
 import { createBashTool, isAllowedBashCommand } from "./bash";
 import type { RepoToolContext } from "./types";
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 function createTestContext(): RepoToolContext {
   const fs = new InMemoryFs({ "/home/user/project/readme.md": "hello" });

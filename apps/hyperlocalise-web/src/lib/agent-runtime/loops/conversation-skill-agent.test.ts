@@ -12,8 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+const { isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -28,7 +28,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });

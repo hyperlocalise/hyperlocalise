@@ -38,7 +38,7 @@ vi.mock("@/lib/file-storage/records", () => ({
   getStoredFileContent: vi.fn(),
 }));
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 function createMockDb(organizationSlug = "acme") {
   return {

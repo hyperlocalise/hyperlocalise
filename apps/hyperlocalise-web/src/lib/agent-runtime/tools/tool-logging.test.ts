@@ -99,7 +99,7 @@ describe("wrapToolSetWithLogging", () => {
         path: "src/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components",
         regex: false,
       },
-      { toolCallId: "call_123", messages: [] },
+      { toolCallId: "call_123", messages: [], context: {} },
     );
 
     const loggedEvents = getLoggedEvents();
@@ -142,7 +142,7 @@ describe("wrapToolSetWithLogging", () => {
     const wrappedTools = wrapToolSetWithLogging({ bash: bashTool } as ToolSet, createToolContext());
     const wrappedBash = wrappedTools.bash as typeof bashTool;
 
-    await wrappedBash.execute!({ command }, { toolCallId: "call_bash", messages: [] });
+    await wrappedBash.execute!({ command }, { toolCallId: "call_bash", messages: [], context: {} });
 
     const loggedEvents = getLoggedEvents();
     expect(consoleLogCalls[0]?.[0]).toBe("agent tool call started");
@@ -182,7 +182,7 @@ describe("wrapToolSetWithLogging", () => {
     await expect(
       wrappedFuzzySearch.execute!(
         { query: "Reviewed strings" },
-        { toolCallId: "call_failure", messages: [] },
+        { toolCallId: "call_failure", messages: [], context: {} },
       ),
     ).rejects.toThrow("sandbox unavailable");
 

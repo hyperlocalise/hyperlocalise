@@ -41,7 +41,7 @@ function createTestContext(files: Record<string, string> = {}): { bash: Bash } {
   return { bash };
 }
 
-const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
 describe("redact", () => {
   it("redacts env var lines", () => {

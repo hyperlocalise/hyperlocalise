@@ -115,7 +115,7 @@ export function createEmailRequestInterpreter({ model }: CreateEmailRequestInter
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),
-      system:
+      instructions:
         "You are a precise email intake parser for a localization agent. Return only structured data.",
       prompt: buildIntentPrompt(input),
       temperature: 0,
@@ -148,7 +148,7 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),
-      system:
+      instructions:
         "You are a precise email intake parser for a localization agent. This is a clarification reply. Return only structured data.",
       prompt: buildClarificationPrompt(input),
       temperature: 0,

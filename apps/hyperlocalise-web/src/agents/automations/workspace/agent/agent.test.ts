@@ -12,8 +12,8 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-const { stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+const { isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -24,7 +24,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
@@ -104,7 +104,7 @@ describe("workspace orchestrator agent", () => {
 
     createWorkspaceOrchestratorAgent(session);
 
-    expect(stepCountIsMock).toHaveBeenCalledWith(3);
+    expect(isStepCountMock).toHaveBeenCalledWith(3);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeTools: ["run_github_workflows", "notify_slack"],
