@@ -190,6 +190,7 @@ describe("workspace job list", () => {
       organizationId,
       teamId: defaultTeam.id,
       name: "Provider project",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       translationContext: "",
       source: "external_tms",

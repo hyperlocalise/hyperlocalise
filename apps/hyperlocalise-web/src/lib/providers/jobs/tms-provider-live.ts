@@ -631,6 +631,8 @@ function buildLiveProviderProject(input: {
     createdByUserId: null,
     updatedByUserId: null,
     name: input.name,
+    identifier: "LIVE",
+    issueNumberSeq: 0,
     description: "",
     translationContext: "",
     source: "external_tms",

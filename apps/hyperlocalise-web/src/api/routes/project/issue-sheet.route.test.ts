@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -148,6 +150,8 @@ describe("Issue Sheet routes", () => {
       issueType: "context_request",
       status: "open",
       targetLocale: "de-DE",
+      number: 1,
+      identifier: expect.stringMatching(/^[A-Z][A-Z0-9]{0,9}-1$/),
       values: { priority: "P1" },
     });
 
@@ -540,6 +544,7 @@ Second import issue,Done,EXT-2,P2`;
         teamId: project.teamId,
         createdByUserId: user.id,
         name: "Other Project",
+        identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
         description: "",
         translationContext: "",
         sourceLocale: "en-US",

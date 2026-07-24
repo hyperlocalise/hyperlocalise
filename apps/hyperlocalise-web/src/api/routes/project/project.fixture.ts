@@ -66,6 +66,7 @@ export function createProjectTestFixture(client?: Client) {
         teamId: team.id,
         createdByUserId: user.id,
         name: "Docs",
+        identifier: `D${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`,
         description: "",
         translationContext: "",
         sourceLocale: "en-US",

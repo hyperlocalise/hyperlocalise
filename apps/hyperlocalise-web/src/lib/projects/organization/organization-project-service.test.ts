@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -114,6 +116,7 @@ describe("ensureOrganizationProjectRecord", () => {
       organizationId: scope.organizationId,
       createdByUserId: scope.userId,
       name: "Website",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
     });
@@ -209,6 +212,7 @@ describe("ensureOrganizationProjectRecord", () => {
       organizationId: firstOrg.organizationId,
       createdByUserId: firstOrg.userId,
       name: "Org A Project",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProviderCredentialId: firstOrg.credentialId,

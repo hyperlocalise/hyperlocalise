@@ -72,6 +72,8 @@ type IssueSheetColumn = {
 
 type IssueSheetIssue = {
   id: string;
+  number: number;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -430,6 +432,9 @@ export function IssueSheetPageContent({
                     onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
                   >
                     <td className="max-w-80 px-4 py-3">
+                      <div className="mb-1 font-mono text-xs tabular-nums text-muted-foreground">
+                        {issue.identifier}
+                      </div>
                       <Link
                         href={buildIssueDetailHref({
                           organizationSlug,

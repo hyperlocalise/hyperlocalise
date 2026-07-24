@@ -63,6 +63,7 @@ export async function createPublicApiFixture() {
       organizationId: organization.id,
       createdByUserId: user.id,
       name: "Marketing Site",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "Primary website strings",
       translationContext: "Use concise product-marketing language.",
     })

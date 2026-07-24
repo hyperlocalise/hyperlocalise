@@ -34,6 +34,8 @@ const assigneeUsers = alias(schema.users, "org_issue_assignee_users");
 
 export type OrganizationIssueListItem = {
   id: string;
+  number: number;
+  identifier: string;
   projectId: string;
   projectName: string;
   title: string;
@@ -169,6 +171,8 @@ export class OrganizationIssueService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        number: schema.issueSheetIssues.number,
+        identifier: schema.issueSheetIssues.identifier,
         projectId: schema.issueSheetIssues.projectId,
         projectName: schema.projects.name,
         title: schema.issueSheetIssues.title,
@@ -234,6 +238,8 @@ export class OrganizationIssueService {
     return {
       issues: rows.map((row) => ({
         id: row.id,
+        number: row.number,
+        identifier: row.identifier,
         projectId: row.projectId,
         projectName: row.projectName,
         title: row.title,

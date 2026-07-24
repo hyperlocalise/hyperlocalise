@@ -196,9 +196,11 @@ export function ProjectSettingsPageContent({
 
   const isSaving = updateProject.isPending;
   const settingsEditable = project?.source === "native";
+  // Issue identifier is Hyperlocalise-owned metadata and stays editable for TMS projects.
+  const canSaveSettings = Boolean(project);
   useAppShellHeaderAction({
     id: "project-settings-save",
-    visible: Boolean(settingsEditable),
+    visible: canSaveSettings,
     render: () => (
       <Button type="submit" form="project-settings-form" disabled={isSaving}>
         {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
@@ -294,6 +296,28 @@ export function ProjectSettingsPageContent({
               aria-invalid={Boolean(errors.name)}
             />
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
+          </Field>
+          <Field className="gap-1.5">
+            <FieldLabel htmlFor="project-identifier">
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierLabel} />
+            </FieldLabel>
+            <Input
+              id="project-identifier"
+              value={values.identifier}
+              disabled={isSaving}
+              onChange={(event) =>
+                setValues((current) =>
+                  current ? { ...current, identifier: event.target.value.toUpperCase() } : current,
+                )
+              }
+              aria-invalid={Boolean(errors.identifier)}
+              className="font-mono uppercase"
+              maxLength={10}
+            />
+            <FieldDescription>
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
+            </FieldDescription>
+            <FieldError errors={errors.identifier ? [{ message: errors.identifier }] : undefined} />
           </Field>
           <Field className="gap-1.5">
             <FieldLabel htmlFor="project-description">

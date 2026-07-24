@@ -71,6 +71,17 @@ export const projectSettingsPageContentMessages = defineMessages({
     id: "N14/CQLyYb",
     description: "Badge shown when a project settings section cannot be edited",
   },
+  identifierLabel: {
+    defaultMessage: "Identifier",
+    id: "bc3AvlTYpJ",
+    description: "Label for the project issue identifier field",
+  },
+  identifierHelp: {
+    defaultMessage:
+      "Used as the prefix for issue IDs (for example HL-12). Letters and numbers only. Changing this updates existing issue IDs.",
+    id: "492CV198dr",
+    description: "Help text for the project issue identifier field",
+  },
   nameLabel: {
     defaultMessage: "Name",
     id: "6Lz1ZPrrNj",

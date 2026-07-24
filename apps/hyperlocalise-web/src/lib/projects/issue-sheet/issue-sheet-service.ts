@@ -27,6 +27,7 @@ import {
   runIssueSheetCsvImport,
   type IssueSheetImportResult,
 } from "./issue-sheet-csv-import-runner";
+import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 import {
   buildIssueListFilterConditions,
   buildIssueListOrderBy,
@@ -50,6 +51,8 @@ export type IssueSheetColumn = {
 
 export type IssueSheetIssue = {
   id: string;
+  number: number;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -125,6 +128,8 @@ const assigneeUsers = alias(schema.users, "assignee_users");
 
 type IssueRow = {
   id: string;
+  number: number;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -168,6 +173,8 @@ function formatUser(row: {
 function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheetIssue {
   return {
     id: row.id,
+    number: row.number,
+    identifier: row.identifier,
     title: row.title,
     description: row.description,
     issueType: row.issueType,
@@ -356,34 +363,47 @@ export class IssueSheetService {
       return existing;
     }
 
-    const [issue] = await this.database
-      .insert(schema.issueSheetIssues)
-      .values({
-        organizationId: input.organizationId,
+    const created = await this.database.transaction(async (tx) => {
+      const allocated = await allocateNextIssueIdentifier({
         projectId: input.projectId,
-        title: input.body.title,
-        description: input.body.description ?? "",
-        issueType: input.body.issueType ?? "general_question",
-        status: input.body.status ?? "open",
-        targetLocale: input.body.targetLocale ?? null,
-        sourcePath: input.body.sourcePath ?? null,
-        segmentId: input.body.segmentId ?? null,
-        translationKeyId: input.body.translationKeyId ?? null,
-        linkedCommentId: input.body.linkedCommentId ?? null,
-        linkedAgentRunId: input.body.linkedAgentRunId ?? null,
-        linkKind: input.body.linkKind ?? null,
-        linkLabel: input.body.linkLabel ?? null,
-        linkUrl: input.body.linkUrl ?? null,
-        externalRef: input.body.externalRef ?? null,
-        reporterUserId: input.actorUserId,
-        assigneeUserId: input.body.assigneeUserId ?? null,
-        resolvedAt:
-          input.body.status === "resolved" || input.body.status === "wont_fix" ? new Date() : null,
-      })
-      .onConflictDoNothing()
-      .returning({ id: schema.issueSheetIssues.id });
+        database: tx,
+      });
 
-    if (!issue) {
+      const [issue] = await tx
+        .insert(schema.issueSheetIssues)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          number: allocated.number,
+          identifier: allocated.identifier,
+          title: input.body.title,
+          description: input.body.description ?? "",
+          issueType: input.body.issueType ?? "general_question",
+          status: input.body.status ?? "open",
+          targetLocale: input.body.targetLocale ?? null,
+          sourcePath: input.body.sourcePath ?? null,
+          segmentId: input.body.segmentId ?? null,
+          translationKeyId: input.body.translationKeyId ?? null,
+          linkedCommentId: input.body.linkedCommentId ?? null,
+          linkedAgentRunId: input.body.linkedAgentRunId ?? null,
+          linkKind: input.body.linkKind ?? null,
+          linkLabel: input.body.linkLabel ?? null,
+          linkUrl: input.body.linkUrl ?? null,
+          externalRef: input.body.externalRef ?? null,
+          reporterUserId: input.actorUserId,
+          assigneeUserId: input.body.assigneeUserId ?? null,
+          resolvedAt:
+            input.body.status === "resolved" || input.body.status === "wont_fix"
+              ? new Date()
+              : null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.issueSheetIssues.id });
+
+      return issue ?? null;
+    });
+
+    if (!created) {
       const conflicted = await this.findExistingLinkedIssue(input);
       if (conflicted) {
         return conflicted;
@@ -395,21 +415,21 @@ export class IssueSheetService {
       await this.setValue({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: issue.id,
+        issueId: created.id,
         body: { columnKey: "priority", value: input.body.priority },
       });
     }
 
-    const created = await this.getIssueById({
+    const loaded = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: issue.id,
+      issueId: created.id,
       actorUserId: input.actorUserId,
     });
-    if (!created) {
+    if (!loaded) {
       throw new Error("issue_sheet_issue_load_failed");
     }
-    return created;
+    return loaded;
   }
 
   async updateIssue(input: {
@@ -681,6 +701,8 @@ export class IssueSheetService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        number: schema.issueSheetIssues.number,
+        identifier: schema.issueSheetIssues.identifier,
         title: schema.issueSheetIssues.title,
         description: schema.issueSheetIssues.description,
         issueType: schema.issueSheetIssues.issueType,

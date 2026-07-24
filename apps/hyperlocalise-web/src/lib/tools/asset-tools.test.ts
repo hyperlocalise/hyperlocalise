@@ -61,6 +61,7 @@ async function createProject(organizationId: string) {
       id: `project_${randomUUID()}`,
       organizationId,
       name: "Launch Site",
+      identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
       description: "",
       translationContext: "",
     })

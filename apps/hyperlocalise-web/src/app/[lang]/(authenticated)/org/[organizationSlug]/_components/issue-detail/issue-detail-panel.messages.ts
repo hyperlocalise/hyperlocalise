@@ -35,6 +35,16 @@ export const issueDetailPanelMessages = defineMessages({
     id: "TpepILtGKC",
     description: "Error when issue detail returns not found",
   },
+  copyId: {
+    defaultMessage: "Copy ID",
+    id: "jvYRTRJ96D",
+    description: "Button to copy the human-readable issue identifier",
+  },
+  copyIdSuccess: {
+    defaultMessage: "Issue ID copied",
+    id: "1q0iPIoJWR",
+    description: "Toast after copying the human-readable issue identifier",
+  },
   saved: {
     defaultMessage: "Saved",
     id: "iGoxhCxQNO",

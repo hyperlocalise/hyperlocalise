@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -82,6 +84,7 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
     organizationId: input.organizationId,
     createdByUserId: input.userId ?? null,
     name: "Website",
+    identifier: `P${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`,
   });
 
   return projectId;

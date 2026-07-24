@@ -62,6 +62,13 @@ export const createProjectBodySchema = z
     teamId: z.string().uuid().optional(),
     sourceLocale: localeInputSchema,
     targetLocales: projectTargetLocalesSchema,
+    identifier: z
+      .string()
+      .trim()
+      .min(1)
+      .max(10)
+      .regex(/^[A-Za-z][A-Za-z0-9]{0,9}$/)
+      .optional(),
   })
   .superRefine((value, ctx) => {
     const sourceKey = value.sourceLocale.toLowerCase();
@@ -82,6 +89,13 @@ export const updateProjectBodySchema = z
     teamId: z.string().uuid().optional(),
     sourceLocale: localeInputSchema.optional(),
     targetLocales: projectTargetLocalesSchema.optional(),
+    identifier: z
+      .string()
+      .trim()
+      .min(1)
+      .max(10)
+      .regex(/^[A-Za-z][A-Za-z0-9]{0,9}$/)
+      .optional(),
   })
   .refine(
     (value) =>
@@ -90,7 +104,8 @@ export const updateProjectBodySchema = z
       value.translationContext !== undefined ||
       value.teamId !== undefined ||
       value.sourceLocale !== undefined ||
-      value.targetLocales !== undefined,
+      value.targetLocales !== undefined ||
+      value.identifier !== undefined,
     {
       message: "at least one field must be provided",
     },
@@ -121,6 +136,8 @@ export const projectRecordSchema = z.object({
   teamId: z.string().uuid().nullable(),
   createdByUserId: z.string().nullable(),
   name: z.string(),
+  identifier: z.string(),
+  issueNumberSeq: z.number().int().optional(),
   description: z.string(),
   translationContext: z.string(),
   source: z.enum(["native", "external_tms"]),

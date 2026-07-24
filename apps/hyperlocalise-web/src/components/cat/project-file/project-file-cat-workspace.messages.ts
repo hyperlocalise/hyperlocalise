@@ -65,6 +65,12 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     id: "AF35eujXwK",
     description: "Toast confirmation after adding a CAT segment to the issue sheet",
   },
+  addedToIssueSheetWithId: {
+    defaultMessage: "Added {identifier} to Issue Sheet",
+    id: "oTJACALWwq",
+    description:
+      "Toast confirmation after adding a CAT segment to the issue sheet, including the human-readable ID",
+  },
   viewIssueSheetRow: {
     defaultMessage: "View row",
     id: "zf/XYl5KpE",

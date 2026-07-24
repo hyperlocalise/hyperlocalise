@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -44,6 +45,10 @@ export const issueSheetIssues = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    // Per-project sequential number used in the stored human-readable ID.
+    number: integer("number").notNull(),
+    // Stored display ID (Approach B), e.g. HL-123.
+    identifier: text("identifier").notNull(),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     issueType: text("issue_type").notNull().default("general_question"),
@@ -90,9 +95,17 @@ export const issueSheetIssues = pgTable(
     ),
     index("idx_issue_sheet_issues_project_locale").on(table.projectId, table.targetLocale),
     index("idx_issue_sheet_issues_linked_comment").on(table.linkedCommentId),
+    index("idx_issue_sheet_issues_org_project_number").on(
+      table.organizationId,
+      table.projectId,
+      table.number,
+    ),
+    uniqueIndex("issue_sheet_issues_project_number_key").on(table.projectId, table.number),
+    uniqueIndex("issue_sheet_issues_project_identifier_key").on(table.projectId, table.identifier),
     uniqueIndex("issue_sheet_issues_project_external_ref_key")
       .on(table.projectId, table.externalRef)
       .where(sql`${table.externalRef} IS NOT NULL`),
+    check("issue_sheet_issues_number_check", sql`${table.number} >= 1`),
   ],
 );
 

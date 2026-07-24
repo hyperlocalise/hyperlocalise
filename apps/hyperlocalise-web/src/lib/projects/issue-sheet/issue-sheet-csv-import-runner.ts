@@ -26,6 +26,7 @@ import {
   type IssueSheetSystemField,
 } from "./issue-sheet-csv-import";
 import type { IssueSheetColumn, IssueSheetService } from "./issue-sheet-service";
+import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 export type IssueSheetImportResult = {
   dryRun: boolean;
@@ -400,11 +401,18 @@ export async function runIssueSheetCsvImport(
 
   await db.transaction(async (tx) => {
     for (const row of rowsToCreate) {
+      const allocated = await allocateNextIssueIdentifier({
+        projectId: input.projectId,
+        database: tx,
+      });
+
       const [issue] = await tx
         .insert(schema.issueSheetIssues)
         .values({
           organizationId: input.organizationId,
           projectId: input.projectId,
+          number: allocated.number,
+          identifier: allocated.identifier,
           title: row.title,
           description: row.description,
           issueType: row.issueType,

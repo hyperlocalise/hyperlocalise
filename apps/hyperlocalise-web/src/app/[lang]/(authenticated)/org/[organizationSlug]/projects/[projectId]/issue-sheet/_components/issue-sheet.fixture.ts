@@ -186,6 +186,7 @@ export const issueSheetProjectFixture: ProjectRecord = {
   teamId: null,
   createdByUserId: "user_mina",
   name: "Website localization",
+  identifier: "WL",
   description: "Marketing site and product copy",
   translationContext: "Friendly, concise marketing tone",
   source: "external_tms",
