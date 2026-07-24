@@ -20,9 +20,14 @@ import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/conte
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
+import { createTranslationJobTool } from "@/lib/agent-runtime/tools/translation-tools";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
-import { buildTools, buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
-import { workspaceSessionToolNames } from "@/lib/agent-runtime/tools/workspace";
+import { buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
+import {
+  createFetchTool,
+  createTodoWriteTool,
+  workspaceSessionToolNames,
+} from "@/lib/agent-runtime/tools/workspace";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -247,14 +252,9 @@ export function buildConversationSkillTools(
       ? buildWorkspaceTools(ctx, { bash: createSandboxRepoBash(ctx.sandboxId) as Bash })
       : null;
 
-  const builtTools = buildTools(ctx);
-
   for (const toolName of availableToolNames) {
-    if (SESSION_TOOL_NAMES.has(toolName)) {
-      const sessionTool = builtTools[toolName];
-      if (sessionTool) {
-        tools[toolName] = sessionTool;
-      }
+    if (toolName === "todoWrite") {
+      tools[toolName] = createTodoWriteTool(() => ctx);
       continue;
     }
 
@@ -266,16 +266,13 @@ export function buildConversationSkillTools(
       continue;
     }
 
-    if (toolName === "createTranslationJob" && builtTools.createTranslationJob) {
-      tools[toolName] = builtTools.createTranslationJob;
+    if (toolName === "createTranslationJob") {
+      tools[toolName] = createTranslationJobTool(ctx);
       continue;
     }
 
     if (WEB_TOOL_NAMES.has(toolName)) {
-      const webTool = builtTools[toolName];
-      if (webTool) {
-        tools[toolName] = webTool;
-      }
+      tools[toolName] = createFetchTool();
       continue;
     }
 

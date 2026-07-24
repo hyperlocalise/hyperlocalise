@@ -17,7 +17,6 @@ import { buildConversationSkillInstructions } from "@/lib/agent-runtime/skills/c
 import {
   buildConversationSkillPlan,
   buildConversationSkillTools,
-  filterAvailableConversationToolNames,
 } from "@/lib/agent-runtime/skills/conversation-skill-registry";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
@@ -35,11 +34,9 @@ export function createConversationSkillAgent(
   onFinish?: ConversationSkillAgentOnFinish,
 ) {
   const skillPlan = buildConversationSkillPlan(runtime);
-  const toolNames = filterAvailableConversationToolNames(skillPlan.toolNames, runtime);
-  const tools = buildConversationSkillTools(runtime, toolNames);
-  // Only advertise tools that were actually built (session tools like todoWrite
-  // must not appear in activeTools when missing from the ToolSet).
-  const activeTools = toolNames.filter((toolName) => toolName in tools);
+  // Filtering lives in buildConversationSkillTools; activeTools mirrors what was built.
+  const tools = buildConversationSkillTools(runtime, skillPlan.toolNames);
+  const activeTools = Object.keys(tools);
 
   return new ToolLoopAgent<never, ToolSet>({
     model: getHyperlocaliseAgentModel(),
