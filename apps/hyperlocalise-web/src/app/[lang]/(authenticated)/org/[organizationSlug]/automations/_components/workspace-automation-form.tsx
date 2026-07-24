@@ -117,6 +117,12 @@ type SemrushConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
+type AhrefsConnectionOption = {
+  id: string;
+  displayName: string;
+  enabled: boolean;
+  validationStatus: string;
+};
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
@@ -138,7 +144,6 @@ const METADATA_SEPARATOR = "|";
 const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
-  { id: "ahrefs", name: "Ahrefs" },
   { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
   { id: "similarweb", name: "Similarweb" },
 ] as const;
@@ -328,7 +333,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.translationEnabled) +
     Number(form.knowledgeEnabled) +
     Number(form.mcpEnabled) +
-    Number(form.semrushEnabled)
+    Number(form.semrushEnabled) +
+    Number(form.ahrefsEnabled)
   );
 }
 
@@ -1081,6 +1087,7 @@ function AddToolMenu({
   mcpConnected,
   onChange,
   repositories,
+  ahrefsConnected,
   semrushConnected,
   slackConnected,
 }: {
@@ -1093,6 +1100,7 @@ function AddToolMenu({
   mcpConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
+  ahrefsConnected: boolean;
   semrushConnected: boolean;
   slackConnected: boolean;
 }) {
@@ -1314,6 +1322,22 @@ function AddToolMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.ahrefsEnabled || !ahrefsConnected}
+              onClick={() => onChange({ ...form, ahrefsEnabled: true })}
+            >
+              <AutomationToolMenuIcon />
+              <FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />
+              {form.ahrefsEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !ahrefsConnected ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -1432,6 +1456,7 @@ function ToolsSettings({
   organizationSlug,
   projects,
   repositories,
+  ahrefsConnections,
   semrushConnections,
   slackChannels,
   slackChannelsLoading,
@@ -1450,6 +1475,7 @@ function ToolsSettings({
   organizationSlug: string;
   projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
+  ahrefsConnections: AhrefsConnectionOption[];
   semrushConnections: SemrushConnectionOption[];
   slackChannels: SlackChannelOption[];
   slackChannelsLoading: boolean;
@@ -1464,6 +1490,10 @@ function ToolsSettings({
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
   const semrushConnected = enabledSemrushConnections.length > 0;
+  const enabledAhrefsConnections = ahrefsConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const ahrefsConnected = enabledAhrefsConnections.length > 0;
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedContentfulProject = projects.find(
     (project) => project.id === form.contentfulProjectId,
@@ -2176,6 +2206,68 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.ahrefsEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />}
+            description={
+              ahrefsConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.ahrefsDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.ahrefsDisconnectedDescription)
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeAhrefsTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    ahrefsEnabled: false,
+                    ahrefsConnectionId: "",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
+              </Label>
+              <Select
+                value={form.ahrefsConnectionId || undefined}
+                disabled={disabled || !ahrefsConnected}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, ahrefsConnectionId: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.selectConnection,
+                    )}
+                  >
+                    {enabledAhrefsConnections.find(
+                      (connection) => connection.id === form.ahrefsConnectionId,
+                    )?.displayName ??
+                      intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {enabledAhrefsConnections.map((connection) => (
+                    <SelectItem key={connection.id} value={connection.id}>
+                      {connection.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.ahrefsConnectionId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
         <AddToolMenu
           contentfulConnected={contentfulConnected}
           disabled={disabled}
@@ -2186,6 +2278,7 @@ function ToolsSettings({
           mcpConnected={mcpConnected}
           onChange={onChange}
           repositories={repositories}
+          ahrefsConnected={ahrefsConnected}
           semrushConnected={semrushConnected}
           slackConnected={slackConnected}
         />
@@ -2451,6 +2544,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const ahrefsConnectionsQuery = useQuery({
+    queryKey: ["ahrefs-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["ahrefs-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Ahrefs connections");
+      }
+      const body = await response.json();
+      return body.ahrefsConnections as AhrefsConnectionOption[];
+    },
+  });
+
   const repositories = useMemo(
     () => (repositoriesQuery.data ?? []).filter((repository) => !repository.archived),
     [repositoriesQuery.data],
@@ -2462,6 +2569,7 @@ export function WorkspaceAutomationEditor({
   const contentfulConnected = contentfulConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
+  const ahrefsConnections = ahrefsConnectionsQuery.data ?? [];
   const hasHistory = mode === "detail";
 
   return (
@@ -2607,6 +2715,7 @@ export function WorkspaceAutomationEditor({
             organizationSlug={organizationSlug}
             projects={projectsQuery.data ?? []}
             repositories={repositories}
+            ahrefsConnections={ahrefsConnections}
             semrushConnections={semrushConnections}
             slackChannels={slackChannelsQuery.data ?? []}
             slackChannelsLoading={slackChannelsQuery.isLoading}

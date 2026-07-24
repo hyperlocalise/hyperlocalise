@@ -39,6 +39,7 @@ import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
+import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
@@ -190,6 +191,7 @@ function createOrgScopedAppRoutes(
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
+    .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
