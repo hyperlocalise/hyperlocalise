@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const featureMeshCardsSectionMessages = defineMessages({
   headline: {
-    defaultMessage: "Purpose-built for localization teams",
-    id: "NB+dK055R8",
+    defaultMessage: "Purpose-built for localisation teams",
+    id: "vaf540aoc8",
     description: "Marketing homepage feature mesh cards section headline",
   },
   intakeTitle: {

@@ -83,7 +83,7 @@ export function TourfinderTestimonialSection() {
               alt={intl.formatMessage(tourfinderTestimonialSectionMessages.imageAlt)}
               width={1440}
               height={900}
-              className="h-auto w-full grayscale transition-[filter,transform] duration-700 ease-out motion-reduce:transition-none group-hover:scale-[1.015] group-hover:grayscale-0 group-focus-visible:scale-[1.015] group-focus-visible:grayscale-0"
+              className="h-auto w-full grayscale transition-[filter] duration-700 ease-out motion-reduce:transition-none group-hover:grayscale-0 group-focus-visible:grayscale-0"
               sizes="(min-width: 1280px) 1120px, 100vw"
             />
           </a>

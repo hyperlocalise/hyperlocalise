@@ -52,6 +52,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
+import { themeToggleMessages } from "@/components/theme-toggle/theme-toggle.messages";
 
 import {
   NavbarDesktopAuthActions,
@@ -359,7 +360,13 @@ function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
             <MobileNavSection headingKey="navCompanyHeading" links={companyLinks} />
           </nav>
         </div>
-        <SheetFooter className="gap-2 border-t border-border px-5 py-5">
+        <SheetFooter className="gap-3 border-t border-border px-5 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">
+              <FormattedMessage {...themeToggleMessages.changeTheme} />
+            </span>
+            <ThemeToggle />
+          </div>
           <NavbarMobileAuthFooter auth={auth} />
         </SheetFooter>
       </SheetContent>
@@ -444,7 +451,6 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
           <NavbarMobileAuthCta auth={auth} />
           <MobileNavigation auth={auth} />
           <LocaleToggle />
-          <ThemeToggle />
         </div>
       </div>
     </header>
