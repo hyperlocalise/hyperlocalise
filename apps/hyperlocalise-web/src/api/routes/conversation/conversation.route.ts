@@ -12,7 +12,7 @@
  */
 import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
+import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 
 import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
@@ -48,6 +48,55 @@ import {
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
+
+const messageUploadBodyLimit = createMiddleware(async (c, next) => {
+  const rawRequest = c.req.raw;
+  if (!rawRequest.body) {
+    return next();
+  }
+
+  const hasTransferEncoding = rawRequest.headers.has("transfer-encoding");
+  const contentLength = rawRequest.headers.get("content-length");
+  if (contentLength && !hasTransferEncoding) {
+    return Number.parseInt(contentLength, 10) > maxMessageUploadBytes
+      ? c.json({ error: "upload_too_large" }, 413)
+      : next();
+  }
+
+  let size = 0;
+  const chunks: Uint8Array[] = [];
+  const reader = rawRequest.body.getReader();
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    size += value.byteLength;
+    if (size > maxMessageUploadBytes) {
+      return c.json({ error: "upload_too_large" }, 413);
+    }
+    chunks.push(value);
+  }
+
+  c.req.raw = new Request(rawRequest.url, {
+    method: rawRequest.method,
+    headers: rawRequest.headers,
+    body: new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    }),
+    signal: rawRequest.signal,
+    duplex: "half",
+  });
+
+  return next();
+});
 
 function notFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
   return c.json({ error: "not_found" }, 404);
@@ -289,10 +338,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     })
     .post(
       "/",
-      bodyLimit({
-        maxSize: maxMessageUploadBytes,
-        onError: (c) => c.json({ error: "upload_too_large" }, 413),
-      }),
+      messageUploadBodyLimit,
       async (c) => {
         const body = await c.req.parseBody({ all: true });
         const parsed = createConversationRequestSchema.safeParse({
