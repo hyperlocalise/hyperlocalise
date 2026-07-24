@@ -98,6 +98,23 @@ describe("public-http-fetch", () => {
       });
     });
     expect(pinned).toEqual({ address: "93.184.216.34", family: 4 });
+
+    const pinnedAll = await new Promise<Array<{ address: string; family: number }>>(
+      (resolve, reject) => {
+        lookup?.(
+          "api.example.com",
+          { all: true },
+          (error: Error | null, addresses: Array<{ address: string; family: number }>) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve(addresses);
+          },
+        );
+      },
+    );
+    expect(pinnedAll).toEqual([{ address: "93.184.216.34", family: 4 }]);
     expect(undiciMock.close).toHaveBeenCalled();
   });
 

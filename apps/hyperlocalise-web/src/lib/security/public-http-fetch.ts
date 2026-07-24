@@ -60,7 +60,11 @@ export async function withPublicHttpFetch<T>(
   const { address, family } = hostResult.value;
   const dispatcher = new Agent({
     connect: {
-      lookup(_hostname, _options, callback) {
+      lookup(_hostname, options, callback) {
+        if (options.all) {
+          callback(null, [{ address, family }]);
+          return;
+        }
         callback(null, address, family);
       },
     },
