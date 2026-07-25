@@ -46,7 +46,7 @@ export const SignedOut: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole("link", { name: /Hyperlocalise logo/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: /Hyperlocalise/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Product" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Resources" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
