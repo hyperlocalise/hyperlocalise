@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { SITE_URL } from "@/lib/seo/site-url";
+
 import {
+  buildLocalisationAuditVerifyUrl,
   hashLocalisationAuditReportToken,
   localisationAuditUnlockCookieName,
   mintLocalisationAuditReportToken,
@@ -46,5 +49,17 @@ describe("localisation audit report tokens", () => {
     expect(minted.token.length).toBeGreaterThan(20);
     expect(minted.tokenHash).toBe(hashLocalisationAuditReportToken(minted.token));
     expect(minted.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("builds verify URLs from a deploy-safe public origin", () => {
+    const url = buildLocalisationAuditVerifyUrl({
+      domainSlug: "example-com-abcdef",
+      token: "opaque-token",
+      locale: "en",
+    });
+    expect(url).not.toContain("localhost");
+    expect(url.startsWith(SITE_URL) || url.includes("example.test")).toBe(true);
+    expect(url).toContain("/api/localisation-audit/example-com-abcdef/verify");
+    expect(url).toContain("token=opaque-token");
   });
 });

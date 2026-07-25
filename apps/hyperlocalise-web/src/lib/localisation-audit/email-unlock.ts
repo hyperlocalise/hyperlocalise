@@ -13,8 +13,22 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
+import { SITE_URL } from "@/lib/seo/site-url";
 
 import { LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS } from "./types";
+
+function publicAppOrigin(): string {
+  const configured = env.HYPERLOCALISE_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+
+  const appEnv = env.NEXT_PUBLIC_APP_ENV;
+  if (appEnv === "development" || appEnv === "test") {
+    return "http://localhost:3000";
+  }
+
+  // Deploy-safe fallback when HYPERLOCALISE_PUBLIC_APP_URL is unset.
+  return SITE_URL.replace(/\/$/, "");
+}
 
 /** Legacy single-cookie name kept for migration reads; prefer per-domain cookies. */
 export const LOCALISATION_AUDIT_UNLOCK_COOKIE = "hl_localisation_audit_unlock";
@@ -88,8 +102,7 @@ export function buildLocalisationAuditVerifyUrl(input: {
   token: string;
   locale: string;
 }): string {
-  const base = env.HYPERLOCALISE_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-  const url = new URL(`/api/localisation-audit/${input.domainSlug}/verify`, base);
+  const url = new URL(`/api/localisation-audit/${input.domainSlug}/verify`, publicAppOrigin());
   url.searchParams.set("token", input.token);
   url.searchParams.set("locale", input.locale);
   return url.toString();

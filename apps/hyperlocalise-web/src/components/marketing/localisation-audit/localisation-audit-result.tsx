@@ -200,6 +200,22 @@ export function LocalisationAuditResult({
     });
   }
 
+  if ((audit.status === "queued" || audit.status === "running") && audit.retryable) {
+    return (
+      <section className="px-5 pt-16 pb-20 sm:px-8 sm:pt-20 lg:px-10">
+        <TypographyH1>{copy.staleTitle}</TypographyH1>
+        <TypographyP className="mt-4 max-w-2xl text-lg text-muted-foreground">
+          {copy.staleBody}
+        </TypographyP>
+        <p className="mt-6 text-sm text-muted-foreground">{audit.domainKey}</p>
+        {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
+        <Button className="mt-8" onClick={onRetry} disabled={retryPending}>
+          {retryPending ? copy.retrying : copy.retry}
+        </Button>
+      </section>
+    );
+  }
+
   if (audit.status === "queued" || audit.status === "running") {
     const activeIndex = stageIndex(audit.progressStage);
     return (

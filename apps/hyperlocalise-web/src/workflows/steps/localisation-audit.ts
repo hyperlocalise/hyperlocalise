@@ -20,6 +20,7 @@ import {
   failLocalisationAudit,
   findLocalisationAuditById,
   listPendingLocalisationAuditLeads,
+  markLocalisationAuditLeadEmailFailed,
   markLocalisationAuditLeadEmailQueued,
   markLocalisationAuditProgress,
   markLocalisationAuditRunning,
@@ -227,9 +228,17 @@ export async function queuePendingLocalisationAuditReportEmailsStep(auditId: str
   let queued = 0;
   for (const lead of pending) {
     await markLocalisationAuditLeadEmailQueued(lead.id);
-    // Send step mints a fresh token when none is provided.
-    await queue.enqueue({ leadId: lead.id });
-    queued += 1;
+    try {
+      // Send step mints a fresh token when none is provided.
+      await queue.enqueue({ leadId: lead.id });
+      queued += 1;
+    } catch {
+      // Keep the lead selectable by listPendingLocalisationAuditLeads (pending|failed).
+      await markLocalisationAuditLeadEmailFailed({
+        leadId: lead.id,
+        error: "localisation_audit_email_enqueue_failed",
+      });
+    }
   }
   return { queued };
 }

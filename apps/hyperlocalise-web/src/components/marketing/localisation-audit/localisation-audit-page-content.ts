@@ -65,6 +65,9 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     progressCrawling: "Crawling",
     progressAnalyzing: "Analyzing",
     progressScoring: "Scoring",
+    staleTitle: "This audit looks stuck",
+    staleBody:
+      "No progress for a while. You can safely retry — we will reclaim the stalled run and start a fresh attempt.",
     failedTitle: "Audit failed",
     failedBody: "Something went wrong while auditing this domain. You can retry safely.",
     retry: "Retry audit",
@@ -81,7 +84,7 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     findingsHeading: "Headline findings",
     unlockHeading: "Get the full report by email",
     unlockBody:
-      "Enter your work email. We send a one-time verified link (expires in 24 hours) to unlock every finding, page sample, and linguistic note.",
+      "Enter your work email. We send a verified link (expires in 24 hours) to unlock every finding, page sample, and linguistic note.",
     emailLabel: "Work email",
     emailPlaceholder: "you@company.com",
     unlockSubmit: "Email me the report",

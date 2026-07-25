@@ -22,7 +22,10 @@ import {
   localisationAuditUnlockCookieName,
   verifyLocalisationAuditUnlock,
 } from "@/lib/localisation-audit/email-unlock";
-import { findLocalisationAuditBySlug } from "@/lib/localisation-audit/store";
+import {
+  findLocalisationAuditBySlug,
+  isLocalisationAuditRetryable,
+} from "@/lib/localisation-audit/store";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 import { getLocalisationAuditResultRouteMetadata } from "../localisation-audit-route-metadata";
@@ -103,7 +106,7 @@ export default async function LocalisationAuditResultRoutePage({
         teaser: audit.teaser,
         report: unlocked ? audit.report : null,
         unlocked,
-        retryable: audit.status === "failed",
+        retryable: isLocalisationAuditRetryable(audit),
         errorCode: audit.errorCode,
         errorMessage: audit.errorMessage,
         completedAt: audit.completedAt?.toISOString() ?? null,
