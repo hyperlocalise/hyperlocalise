@@ -61,10 +61,10 @@ Xét riêng lẻ, những điều chỉnh này có thể trông nhỏ nhặt. Nh
 
 Mặc dù các thuật ngữ này thường được sử dụng thay thế cho nhau, chúng thể hiện những mức độ thích ứng khác nhau.
 
-| Phương pháp            | Trọng tâm                                                      | Kết quả                                        |
-| --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
-| **Bản dịch**       | Chuyển đổi văn bản sang ngôn ngữ khác                          | Khách hàng có thể hiểu nội dung.          |
-| **Bản địa hóa**      | Điều chỉnh nội dung cho một ngôn ngữ hoặc khu vực cụ thể             | Khách hàng có thể thoải mái sử dụng sản phẩm.     |
+| Phương pháp                     | Trọng tâm                                                                      | Kết quả                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Bản dịch**                    | Chuyển đổi văn bản sang ngôn ngữ khác                                          | Khách hàng có thể hiểu nội dung.                            |
+| **Bản địa hóa**                 | Điều chỉnh nội dung cho một ngôn ngữ hoặc khu vực cụ thể                       | Khách hàng có thể thoải mái sử dụng sản phẩm.               |
 | **Bản địa hóa siêu địa phương** | Điều chỉnh toàn bộ trải nghiệm khách hàng cho phù hợp với đối tượng địa phương | Khách hàng cảm thấy sản phẩm được tạo ra dành riêng cho họ. |
 
 Đối với các công ty phục vụ nhiều thị trường quốc tế, sự khác biệt này ngày càng trở nên quan trọng. Khi sản phẩm phát triển hoàn thiện và cạnh tranh gia tăng, thành công ngày càng phụ thuộc ít hơn vào việc nội dung đã được dịch hay chưa, mà phụ thuộc nhiều hơn vào việc khách hàng có cảm thấy mình được thấu hiểu hay không.
