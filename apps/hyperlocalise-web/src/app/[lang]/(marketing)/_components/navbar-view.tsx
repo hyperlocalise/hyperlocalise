@@ -20,6 +20,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import {
   Sheet,
@@ -96,6 +97,18 @@ const useCaseLinks: NavLink[] = useCaseFooterLinks.map((link) => ({
   labelKey: link.useCaseLabelKey,
 }));
 
+const pricingLink: NavLink = {
+  href: "/pricing",
+  kind: "navbar",
+  labelKey: "navPricing",
+};
+
+const companyPageLink: NavLink = {
+  href: "/company",
+  kind: "navbar",
+  labelKey: "navCompany",
+};
+
 const resourceLinks: NavLink[] = [
   { href: docsUrl, kind: "navbar", labelKey: "navDocumentation", external: true },
   { href: cliDocsUrl, kind: "navbar", labelKey: "navCliDocs", external: true },
@@ -104,7 +117,7 @@ const resourceLinks: NavLink[] = [
   { href: githubRepoUrl, kind: "navbar", labelKey: "navGitHub", external: true },
 ];
 
-const companyLinks: NavLink[] = [
+const legalLinks: NavLink[] = [
   { href: contactUrl, kind: "navbar", labelKey: "navContact" },
   { href: "/trust-center", kind: "navbar", labelKey: "navTrustCenter" },
   { href: "/privacy", kind: "navbar", labelKey: "navPrivacy" },
@@ -357,7 +370,18 @@ function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
             <MobileNavSection headingKey="navPlatformHeading" links={productLinks} />
             <MobileNavSection headingKey="navUseCasesHeading" links={useCaseLinks} />
             <MobileNavSection headingKey="navResourcesHeading" links={resourceLinks} />
-            <MobileNavSection headingKey="navCompanyHeading" links={companyLinks} />
+            <MobileNavSection headingKey="navLegalHeading" links={legalLinks} />
+            <div className="space-y-1.5">
+              <SheetClose render={<a href={pricingLink.href} />} className={mobileNavLinkClassName}>
+                <NavLinkLabel link={pricingLink} />
+              </SheetClose>
+              <SheetClose
+                render={<a href={companyPageLink.href} />}
+                className={mobileNavLinkClassName}
+              >
+                <NavLinkLabel link={companyPageLink} />
+              </SheetClose>
+            </div>
           </nav>
         </div>
         <SheetFooter className="gap-3 border-t border-border px-5 py-5">
@@ -396,9 +420,31 @@ function DesktopNavigation() {
           <NavigationMenuContent>
             <div className="grid w-max grid-cols-2 gap-6 p-3 pe-4">
               <MegaMenuColumn headingKey="navResourcesHeading" links={resourceLinks} />
-              <MegaMenuColumn headingKey="navCompanyHeading" links={companyLinks} />
+              <MegaMenuColumn headingKey="navLegalHeading" links={legalLinks} />
             </div>
           </NavigationMenuContent>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <NavigationMenuLink
+            href={pricingLink.href}
+            className={cn(
+              navigationMenuTriggerStyle(),
+              "px-3 py-2 font-medium text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <NavLinkLabel link={pricingLink} />
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <NavigationMenuLink
+            href={companyPageLink.href}
+            className={cn(
+              navigationMenuTriggerStyle(),
+              "px-3 py-2 font-medium text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <NavLinkLabel link={companyPageLink} />
+          </NavigationMenuLink>
         </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
@@ -423,7 +469,10 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
           <div
             className={cn(
               onHero &&
-                "[&_[data-slot=navigation-menu-trigger]]:bg-transparent [&_[data-slot=navigation-menu-trigger]]:text-white [&_[data-slot=navigation-menu-trigger]]:hover:bg-white/10 [&_[data-slot=navigation-menu-trigger]]:hover:text-white",
+                [
+                  "[&_[data-slot=navigation-menu-trigger]]:bg-transparent [&_[data-slot=navigation-menu-trigger]]:text-white [&_[data-slot=navigation-menu-trigger]]:hover:bg-white/10 [&_[data-slot=navigation-menu-trigger]]:hover:text-white",
+                  "[&_[data-slot=navigation-menu-link]]:bg-transparent [&_[data-slot=navigation-menu-link]]:text-white [&_[data-slot=navigation-menu-link]]:hover:bg-white/10 [&_[data-slot=navigation-menu-link]]:hover:text-white",
+                ].join(" "),
             )}
           >
             <DesktopNavigation />

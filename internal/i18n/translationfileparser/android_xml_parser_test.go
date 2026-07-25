@@ -171,7 +171,6 @@ func TestAndroidXMLFragmentWellFormedParity(t *testing.T) {
 	}
 }
 
-
 func TestIsAndroidStringResourcePath(t *testing.T) {
 	for _, tc := range []struct {
 		path string

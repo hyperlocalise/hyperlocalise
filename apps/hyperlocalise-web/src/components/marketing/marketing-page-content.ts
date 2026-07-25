@@ -74,6 +74,8 @@ export const footerColumns: MarketingFooterColumn[] = [
     links: [
       { labelKey: "footerDocumentation", href: docsUrl },
       { labelKey: "footerCliDocs", href: cliDocsUrl },
+      { labelKey: "footerPricing", href: "/pricing" },
+      { labelKey: "footerCompany", href: "/company" },
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerContact", href: contactUrl },

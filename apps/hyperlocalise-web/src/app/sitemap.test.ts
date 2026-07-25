@@ -45,4 +45,14 @@ describe("sitemap", () => {
     expect(install).toBeDefined();
     expect(install?.alternates).toBeUndefined();
   });
+
+  it("includes the company page for each locale", () => {
+    const entries = sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const company = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/company`);
+      expect(company).toBeDefined();
+      expect(company?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/company`);
+    }
+  });
 });

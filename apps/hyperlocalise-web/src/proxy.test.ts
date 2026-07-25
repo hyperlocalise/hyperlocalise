@@ -61,6 +61,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/use-cases/saas")).toBe(false);
     expect(isUnsupportedLocalePath("/blog")).toBe(false);
     expect(isUnsupportedLocalePath("/privacy")).toBe(false);
+    expect(isUnsupportedLocalePath("/pricing")).toBe(false);
+    expect(isUnsupportedLocalePath("/company")).toBe(false);
   });
 
   it("allows the site root", () => {
@@ -134,6 +136,26 @@ describe("proxy", () => {
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/blog");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects pricing paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/pricing"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/pricing");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects company paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/company"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/company");
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 

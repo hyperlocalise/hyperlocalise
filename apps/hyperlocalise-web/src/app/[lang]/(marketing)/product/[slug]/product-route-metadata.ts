@@ -31,8 +31,9 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
     case "next-gen-cat-tool":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Review Translations With the Context Next to the String | Hyperlocalise",
-          id: "zwRYJHfFfL",
+          defaultMessage:
+            "Review Translations Without Guessing What the String Means | Hyperlocalise",
+          id: "jeP5GjQn+Q",
           description: "Page title for the next-gen CAT tool product page",
         }),
         description: intl.formatMessage({

@@ -12,13 +12,19 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DRIZZLE_DIR = join(import.meta.dirname, "..", "drizzle");
-const JOURNAL_PATH = join(DRIZZLE_DIR, "meta", "_journal.json");
 const MIGRATION_PREFIX_RE = /^(\d+)_/;
 
 type Journal = {
   entries: Array<{ idx: number; tag: string }>;
+};
+
+export type DrizzleMigrationCollisionCheck = {
+  duplicateIndices: string[];
+  duplicatePrefixes: Array<{ files: string[]; prefix: string }>;
+  unrecognizedFiles: string[];
 };
 
 function findDuplicateKeys(values: string[]): string[] {
@@ -32,8 +38,15 @@ function findDuplicateKeys(values: string[]): string[] {
     .toSorted();
 }
 
-function checkFilenamePrefixes(): string[] {
-  const files = readdirSync(DRIZZLE_DIR).filter((name) => name.endsWith(".sql"));
+function listMigrationSqlFiles(drizzleDir: string): string[] {
+  return readdirSync(drizzleDir).filter((name) => name.endsWith(".sql"));
+}
+
+function checkFilenamePrefixes(drizzleDir: string): {
+  duplicatePrefixes: Array<{ files: string[]; prefix: string }>;
+  unrecognizedFiles: string[];
+} {
+  const files = listMigrationSqlFiles(drizzleDir);
   const prefixes: string[] = [];
   const unrecognized: string[] = [];
 
@@ -46,59 +59,104 @@ function checkFilenamePrefixes(): string[] {
     prefixes.push(match[1]);
   }
 
-  if (unrecognized.length > 0) {
-    console.error("Migration SQL files must use a numeric prefix (for example 0061_name.sql):");
-    for (const file of unrecognized.toSorted()) {
-      console.error(`  - ${file}`);
-    }
-    process.exit(1);
-  }
-
-  return findDuplicateKeys(prefixes);
+  return {
+    duplicatePrefixes: findDuplicateKeys(prefixes).map((prefix) => ({
+      files: files
+        .filter((name) => name.startsWith(`${prefix}_`) && name.endsWith(".sql"))
+        .toSorted(),
+      prefix,
+    })),
+    unrecognizedFiles: unrecognized.toSorted(),
+  };
 }
 
-function checkJournalIndices(): string[] {
-  const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf8")) as Journal;
+function checkJournalIndices(drizzleDir: string): string[] {
+  const journalPath = join(drizzleDir, "meta", "_journal.json");
+  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as Journal;
   return findDuplicateKeys(journal.entries.map((entry) => String(entry.idx)));
 }
 
-function main() {
-  let failed = false;
+export function checkDrizzleMigrationCollisions(
+  drizzleDir = DRIZZLE_DIR,
+): DrizzleMigrationCollisionCheck {
+  const { duplicatePrefixes, unrecognizedFiles } = checkFilenamePrefixes(drizzleDir);
 
-  const duplicatePrefixes = checkFilenamePrefixes();
-  if (duplicatePrefixes.length > 0) {
-    failed = true;
-    console.error(
+  return {
+    duplicateIndices: checkJournalIndices(drizzleDir),
+    duplicatePrefixes,
+    unrecognizedFiles,
+  };
+}
+
+function hasCollisions(result: DrizzleMigrationCollisionCheck): boolean {
+  return (
+    result.duplicateIndices.length > 0 ||
+    result.duplicatePrefixes.length > 0 ||
+    result.unrecognizedFiles.length > 0
+  );
+}
+
+export function formatDrizzleMigrationCollisionErrors(
+  result: DrizzleMigrationCollisionCheck,
+): string[] {
+  const messages: string[] = [];
+
+  if (result.unrecognizedFiles.length > 0) {
+    messages.push("Migration SQL files must use a numeric prefix (for example 0061_name.sql):");
+    for (const file of result.unrecognizedFiles) {
+      messages.push(`  - ${file}`);
+    }
+  }
+
+  if (result.duplicatePrefixes.length > 0) {
+    messages.push(
       "Duplicate migration index prefix in drizzle/ (likely a merge from parallel branches):",
     );
-    for (const prefix of duplicatePrefixes) {
-      const files = readdirSync(DRIZZLE_DIR)
-        .filter((name) => name.startsWith(`${prefix}_`) && name.endsWith(".sql"))
-        .toSorted();
-      console.error(`  - ${prefix}_ (${files.join(", ")})`);
+    for (const { files, prefix } of result.duplicatePrefixes) {
+      messages.push(`  - ${prefix}_ (${files.join(", ")})`);
     }
-    console.error(
+    messages.push(
       "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'.",
     );
   }
 
-  const duplicateIndices = checkJournalIndices();
-  if (duplicateIndices.length > 0) {
-    failed = true;
-    console.error(
+  if (result.duplicateIndices.length > 0) {
+    messages.push(
       "Duplicate idx in drizzle/meta/_journal.json (likely a merge from parallel branches that each generated the same migration number):",
     );
-    for (const idx of duplicateIndices) {
-      console.error(`  - idx: ${idx}`);
+    for (const idx of result.duplicateIndices) {
+      messages.push(`  - idx: ${idx}`);
     }
-    console.error(
+    messages.push(
       "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'.",
     );
   }
 
-  if (failed) {
+  return messages;
+}
+
+export function runDrizzleMigrationCollisionCheck(input?: {
+  drizzleDir?: string;
+  stderr?: Pick<typeof console, "error">;
+}): boolean {
+  const result = checkDrizzleMigrationCollisions(input?.drizzleDir);
+  if (!hasCollisions(result)) {
+    return true;
+  }
+
+  const stderr = input?.stderr ?? console;
+  for (const message of formatDrizzleMigrationCollisionErrors(result)) {
+    stderr.error(message);
+  }
+  return false;
+}
+
+function main() {
+  if (!runDrizzleMigrationCollisionCheck()) {
     process.exit(1);
   }
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}

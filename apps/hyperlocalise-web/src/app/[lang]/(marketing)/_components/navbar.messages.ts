@@ -40,15 +40,25 @@ export const navbarMessages = defineMessages({
     id: "xEVW32kNCM",
     description: "Category heading above resource links in the marketing navbar mega-menu",
   },
-  navCompanyHeading: {
-    defaultMessage: "Company",
-    id: "Qf1y2qH7lj",
-    description: "Category heading above company links in the marketing navbar mega-menu",
+  navLegalHeading: {
+    defaultMessage: "Legal",
+    id: "C47ZCMpLQ9",
+    description: "Category heading above legal links in the marketing navbar mega-menu",
   },
   navBlog: {
     defaultMessage: "Blog",
     id: "Qmtq3rDIqg",
     description: "Marketing navbar link to the blog",
+  },
+  navPricing: {
+    defaultMessage: "Pricing",
+    id: "H02egE79hp",
+    description: "Marketing navbar link to the pricing page",
+  },
+  navCompany: {
+    defaultMessage: "Company",
+    id: "JhSEFQy5g1",
+    description: "Marketing navbar link to the company page",
   },
   navDocumentation: {
     defaultMessage: "Documentation",

@@ -22,8 +22,8 @@ export const heroSectionMessages = defineMessages({
   },
   body: {
     defaultMessage:
-      "Hyperlocalise is an AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>",
-    id: "mDNDpO0mIA",
+      "An AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>",
+    id: "3i6/WZOWss",
     description: "Marketing homepage hero supporting copy below the headline",
   },
   joinWaitlist: {

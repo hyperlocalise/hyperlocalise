@@ -41,8 +41,8 @@ export const productPageMessages = defineMessages({
     description: "Product page bottom call-to-action to request a demo",
   },
   productNavAgentsAutomation: {
-    defaultMessage: "Agents Automation",
-    id: "m/UWxMsKQI",
+    defaultMessage: "Agent Automation",
+    id: "ujk7Desyds",
     description: "Navigation label for the agents automation product page",
   },
   productNavNextGenCatTool: {
@@ -213,8 +213,8 @@ export const productPageMessages = defineMessages({
     description: "Meta description for the agents automation product page",
   },
   agentsAutomationHeroEyebrow: {
-    defaultMessage: "Agents Automation",
-    id: "hamQyEil8d",
+    defaultMessage: "Agent Automation",
+    id: "pYr1Qzb1sO",
     description: "Hero eyebrow for the agents automation product page",
   },
   agentsAutomationHeroHeadline: {
@@ -284,8 +284,8 @@ export const productPageMessages = defineMessages({
     description: "Bottom CTA description for the agents automation product page",
   },
   nextGenCatToolMetadataTitle: {
-    defaultMessage: "Review Translations With the Context Next to the String | Hyperlocalise",
-    id: "zwRYJHfFfL",
+    defaultMessage: "Review Translations Without Guessing What the String Means | Hyperlocalise",
+    id: "jeP5GjQn+Q",
     description: "Page title for the next-gen CAT tool product page",
   },
   nextGenCatToolMetadataDescription: {

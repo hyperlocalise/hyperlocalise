@@ -18,32 +18,23 @@ import {
   toMarketingOgHeading,
 } from "@/lib/og/create-marketing-og-image";
 
-export const alt = "Hyperlocalise";
+import { getPricingRouteMetadata } from "./pricing-route-metadata";
+
+export const alt = "Hyperlocalise Pricing";
 export const size = marketingOgImageSize;
 export const contentType = marketingOgImageContentType;
 
-type HomeOgImageProps = {
+type PricingOgImageProps = {
   params: Promise<{ lang: string }>;
 };
 
-export default async function Image({ params }: HomeOgImageProps) {
+export default async function Image({ params }: PricingOgImageProps) {
   const { lang } = await params;
   const intl = getIntlShape(lang);
-
-  const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | The Best Agentic Localisation Platform",
-    id: "9EV17CGa2+",
-    description: "Page title for the marketing homepage",
-  });
-  const description = intl.formatMessage({
-    defaultMessage: "The best agentic localisation platform to launch globally in days.",
-    id: "cdezPwXx10",
-    description:
-      "Open Graph meta description for the marketing homepage (shorter than the main description)",
-  });
+  const metadata = getPricingRouteMetadata(intl);
 
   return createMarketingOgImage({
-    heading: toMarketingOgHeading(title),
-    description,
+    heading: toMarketingOgHeading(metadata.title),
+    description: metadata.description,
   });
 }

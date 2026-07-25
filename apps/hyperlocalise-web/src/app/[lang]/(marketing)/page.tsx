@@ -60,20 +60,19 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | Launch Product Localisation — Translate & Review with Context",
-    id: "inSBLQSxUD",
+    defaultMessage: "Hyperlocalise | The Best Agentic Localisation Platform",
+    id: "9EV17CGa2+",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "Hyperlocalise helps teams translate product copy with real context. Launch localisation faster with AI translation agents and first-class human review across your TMS.",
-    id: "HrsDc2wJjF",
+      "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
+    id: "3K/+e2NRMM",
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({
-    defaultMessage:
-      "Hyperlocalise helps teams translate and review product localisation with real context before launch.",
-    id: "bbL3sRpta4",
+    defaultMessage: "The best agentic localisation platform to launch globally in days.",
+    id: "cdezPwXx10",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });

@@ -166,8 +166,8 @@ export function FeatureMeshCardsSection() {
         </FeatureMeshCard>
 
         <FeatureMeshCard
-          title={featureMeshCardsSectionMessages.releaseTitle}
-          body={featureMeshCardsSectionMessages.releaseBody}
+          title={featureMeshCardsSectionMessages.automationTitle}
+          body={featureMeshCardsSectionMessages.automationBody}
           meshSrc={DUSK_MESH_GRADIENT_SRC}
         >
           <AutomationEditorIllustration />

@@ -69,9 +69,9 @@ function headingFontForLocale(locale: AppLocale) {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Hyperlocalise | Launch Product Localisation — Translate & Review with Context",
+  title: "Hyperlocalise | The Best Agentic Localisation Platform",
   description:
-    "Hyperlocalise helps teams translate product copy with real context. Launch localisation faster with AI translation agents and first-class human review across your TMS.",
+    "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
 };
 
 async function getInitialAuth(): Promise<
