@@ -159,3 +159,13 @@ export type IssueNotificationEmailEventData = {
 };
 
 export type IssueNotificationEmailQueue = JobQueue<IssueNotificationEmailEventData>;
+
+export type LocalisationAuditQueue = JobQueue<{
+  auditId: string;
+  attemptNumber: number;
+}>;
+
+export type LocalisationAuditReportEmailQueue = JobQueue<{
+  leadId: string;
+  token?: string;
+}>;

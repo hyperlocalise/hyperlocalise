@@ -115,6 +115,11 @@ export const marketingPageMessages = defineMessages({
     id: "qgNLOHiYyJ",
     description: "Marketing footer resource link label for the company page",
   },
+  footerLocalisationAudit: {
+    defaultMessage: "Localisation audit",
+    id: "dsSZ7Ag4+b",
+    description: "Marketing footer resource link label for the localisation audit tool",
+  },
   footerStatus: {
     defaultMessage: "Status",
     id: "az1dhUOnH0",

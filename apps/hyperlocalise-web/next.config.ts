@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { NextConfig } from "next";
+import { withBotId } from "botid/next/config";
 import { withWorkflow } from "workflow/next";
 
 import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
@@ -28,4 +29,6 @@ const nextConfig: NextConfig = {
   // multiple CSP headers intersect and would block Enterprise custom domains.
 };
 
-export default withWorkflow(nextConfig);
+// BotID Deep Analysis must also be enabled in the Vercel Firewall dashboard.
+// withWorkflow returns a Next.js plugin function; cast for BotID's NextConfigOrFunction.
+export default withBotId(withWorkflow(nextConfig) as unknown as NextConfig);

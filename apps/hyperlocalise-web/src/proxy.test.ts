@@ -64,6 +64,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/pricing")).toBe(false);
     expect(isUnsupportedLocalePath("/company")).toBe(false);
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
+    expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
+    expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
   });
 
   it("allows the site root", () => {

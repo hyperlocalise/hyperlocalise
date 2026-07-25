@@ -17,6 +17,7 @@ import { useCaseSlugs } from "@/components/marketing/use-case";
 import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts, getPostBySlug, parseBlogPostDate } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
+import { listCompletedLocalisationAuditSlugs } from "@/lib/localisation-audit/store";
 import {
   getLocalizedAbsoluteUrl,
   getSitemapLanguageAlternates,
@@ -49,13 +50,14 @@ function localizedSitemapEntry({
   };
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const localizedStaticPaths = [
     { path: "/", changeFrequency: "weekly" as const, priority: 1 },
     { path: "/pricing", changeFrequency: "weekly" as const, priority: 0.9 },
     { path: "/company", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/startups", changeFrequency: "monthly" as const, priority: 0.8 },
+    { path: "/localisation-audit", changeFrequency: "weekly" as const, priority: 0.85 },
     { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
     { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
   ];
@@ -129,6 +131,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }),
   );
 
+  let auditEntries: MetadataRoute.Sitemap = [];
+  try {
+    const audits = await listCompletedLocalisationAuditSlugs(200);
+    auditEntries = SUPPORTED_APP_LOCALES.flatMap((locale) =>
+      audits.map((audit) =>
+        localizedSitemapEntry({
+          locale,
+          path: `/localisation-audit/${audit.domainSlug}`,
+          lastModified: audit.completedAt ?? now,
+          changeFrequency: "monthly",
+          priority: 0.6,
+        }),
+      ),
+    );
+  } catch {
+    auditEntries = [];
+  }
+
   return [
     ...localizedStaticEntries,
     {
@@ -141,5 +161,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...useCaseEntries,
     ...blogIndexEntries,
     ...blogPostEntries,
+    ...auditEntries,
   ];
 }

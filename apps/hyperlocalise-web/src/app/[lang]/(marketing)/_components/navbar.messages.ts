@@ -65,6 +65,11 @@ export const navbarMessages = defineMessages({
     id: "JhSEFQy5g1",
     description: "Marketing navbar link to the company page",
   },
+  navLocalisationAudit: {
+    defaultMessage: "Localisation audit",
+    id: "7zP273oZkl",
+    description: "Marketing navbar link to the free localisation audit tool",
+  },
   navDocumentation: {
     defaultMessage: "Documentation",
     id: "zuCO/3GiEh",

@@ -10,16 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
 import { SITE_URL } from "@/lib/seo/site-url";
 
+vi.mock("@/lib/localisation-audit/store", () => ({
+  listCompletedLocalisationAuditSlugs: vi.fn(async () => []),
+}));
+
 import sitemap from "./sitemap";
 
 describe("sitemap", () => {
-  it("includes hreflang language alternates for localized marketing URLs", () => {
-    const entries = sitemap();
+  it("includes hreflang language alternates for localized marketing URLs", async () => {
+    const entries = await sitemap();
     const homeEn = entries.find((entry) => entry.url === `${SITE_URL}/en`);
 
     expect(homeEn?.alternates?.languages).toEqual({
@@ -38,16 +42,16 @@ describe("sitemap", () => {
     }
   });
 
-  it("keeps the non-localized install URL without language alternates", () => {
-    const entries = sitemap();
+  it("keeps the non-localized install URL without language alternates", async () => {
+    const entries = await sitemap();
     const install = entries.find((entry) => entry.url === `${SITE_URL}/install`);
 
     expect(install).toBeDefined();
     expect(install?.alternates).toBeUndefined();
   });
 
-  it("includes the company page for each locale", () => {
-    const entries = sitemap();
+  it("includes the company page for each locale", async () => {
+    const entries = await sitemap();
 
     for (const locale of SUPPORTED_APP_LOCALES) {
       const company = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/company`);
@@ -56,13 +60,25 @@ describe("sitemap", () => {
     }
   });
 
-  it("includes the startups page for each locale", () => {
-    const entries = sitemap();
+  it("includes the startups page for each locale", async () => {
+    const entries = await sitemap();
 
     for (const locale of SUPPORTED_APP_LOCALES) {
       const startups = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/startups`);
       expect(startups).toBeDefined();
       expect(startups?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/startups`);
+    }
+  });
+
+  it("includes the localisation audit landing page for each locale", async () => {
+    const entries = await sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const audit = entries.find(
+        (entry) => entry.url === `${SITE_URL}/${locale}/localisation-audit`,
+      );
+      expect(audit).toBeDefined();
+      expect(audit?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/localisation-audit`);
     }
   });
 });

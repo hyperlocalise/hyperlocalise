@@ -82,12 +82,15 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
+  createLocalisationAuditQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
+import type { LocalisationAuditQueue } from "@/lib/workflow/types";
 
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
@@ -99,6 +102,7 @@ type CreateAppOptions = {
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  localisationAuditQueue?: LocalisationAuditQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -121,6 +125,12 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
+    .route(
+      "/localisation-audit",
+      createLocalisationAuditRoutes({
+        localisationAuditQueue: options.localisationAuditQueue ?? createLocalisationAuditQueue(),
+      }),
+    )
     .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({

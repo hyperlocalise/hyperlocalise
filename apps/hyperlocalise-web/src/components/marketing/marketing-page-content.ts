@@ -80,6 +80,7 @@ export const footerColumns: MarketingFooterColumn[] = [
       { labelKey: "footerPricing", href: "/pricing" },
       { labelKey: "footerStartups", href: "/startups" },
       { labelKey: "footerCompany", href: "/company" },
+      { labelKey: "footerLocalisationAudit", href: "/localisation-audit" },
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerContact", href: contactUrl },
