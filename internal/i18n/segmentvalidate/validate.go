@@ -53,10 +53,11 @@ func ValidateSegment(req Request) []Check {
 	}
 
 	kind := KindForSourcePath(req.SourcePath)
-	formatErr := validateForKind(kind, req.SourceText, req.TargetText)
+	hasICUTokens, formatErr := validateForKindWithTokens(kind, req.SourceText, req.TargetText)
+	var hasProfileTokens bool
 	var profileErr error
 	if formatErr == nil && kind != FormatMarkdown {
-		profileErr = validateProfileParity(req.SourceText, req.TargetText)
+		hasProfileTokens, profileErr = validateProfileParityWithTokens(req.SourceText, req.TargetText)
 	}
 
 	switch {
@@ -65,7 +66,12 @@ func ValidateSegment(req Request) []Check {
 	case profileErr != nil:
 		checks = append(checks, checkFromError(profileErr))
 	default:
-		hasTokens := segmentHasFormatTokens(req.SourceText, kind)
+		hasTokens := false
+		if kind == FormatMarkdown {
+			hasTokens = strings.Contains(req.SourceText, "\x1eHLMDPH_") || hasICUTokens || profileHasFormatTokens(req.SourceText)
+		} else {
+			hasTokens = hasICUTokens || hasProfileTokens
+		}
 		label := "Format"
 		message := "No placeholders or ICU blocks detected."
 		if hasTokens {
@@ -92,42 +98,48 @@ func FirstValidationError(sourcePath, source, target string) error {
 }
 
 func validateForKind(kind FormatKind, source, translated string) error {
+	_, err := validateForKindWithTokens(kind, source, translated)
+	return err
+}
+
+func validateForKindWithTokens(kind FormatKind, source, translated string) (bool, error) {
 	var err error
+	var hasICUTokens bool
 	switch kind {
 	case FormatMarkdown:
 		if err = translationfileparser.ValidateMarkdownTranslatedBlockStructure(source, translated); err != nil {
-			return err
+			return false, err
 		}
 		if err = translationfileparser.ValidateMarkdownInternalPlaceholders(source, translated); err != nil {
-			return err
+			return false, err
 		}
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return fmt.Errorf("raw HTML syntax introduced in translated markdown")
+			return false, fmt.Errorf("raw HTML syntax introduced in translated markdown")
 		}
-		err = validateICUInvariant(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	case FormatHTML:
 		if htmltagparity.Mismatch(source, translated) {
-			return fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))
+			return false, fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))
 		}
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return fmt.Errorf("raw HTML syntax introduced in translated html")
+			return false, fmt.Errorf("raw HTML syntax introduced in translated html")
 		}
-		err = validateICUInvariant(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	case FormatLiquid:
 		if err = translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
-			return err
+			return false, err
 		}
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
-			return fmt.Errorf("raw HTML syntax introduced in translated liquid")
+			return false, fmt.Errorf("raw HTML syntax introduced in translated liquid")
 		}
-		err = validateICUInvariant(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	default:
-		err = validateICUInvariant(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return hasICUTokens, nil
 }
 
 func checkFromError(err error) Check {

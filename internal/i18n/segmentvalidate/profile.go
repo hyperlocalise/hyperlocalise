@@ -8,13 +8,24 @@ import (
 )
 
 func validateProfileParity(source, translated string) error {
-	if err := validateExtraPlaceholderParity(source, translated); err != nil {
-		return err
+	_, err := validateProfileParityWithTokens(source, translated)
+	return err
+}
+
+func validateProfileParityWithTokens(source, translated string) (bool, error) {
+	hasExtra, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	if err != nil {
+		return false, err
 	}
-	if err := validateWhitespaceProfile(source, translated); err != nil {
-		return err
+	hasWS, err := validateWhitespaceProfileWithTokens(source, translated)
+	if err != nil {
+		return false, err
 	}
-	return validateSpecialCharParity(source, translated)
+	hasSpecial, err := validateSpecialCharParityWithTokens(source, translated)
+	if err != nil {
+		return false, err
+	}
+	return hasExtra || hasWS || hasSpecial, nil
 }
 
 var profileNBSPReplacer = strings.NewReplacer(
@@ -31,12 +42,17 @@ func normalizeProfileText(value string) string {
 }
 
 func validateWhitespaceProfile(source, translated string) error {
+	_, err := validateWhitespaceProfileWithTokens(source, translated)
+	return err
+}
+
+func validateWhitespaceProfileWithTokens(source, translated string) (bool, error) {
 	sourceNorm := normalizeProfileText(source)
 	targetNorm := normalizeProfileText(translated)
 
 	// BOLT OPTIMIZATION: If the normalized strings are identical, their whitespace profiles are guaranteed to be identical.
 	if sourceNorm == targetNorm {
-		return nil
+		return hasProfileWhitespaceSignals(sourceNorm), nil
 	}
 
 	sourceLeading, sourceTrailing := profileEdgeWhitespace(sourceNorm)
@@ -49,14 +65,16 @@ func validateWhitespaceProfile(source, translated string) error {
 	if sourceTrailing != targetTrailing {
 		parts = append(parts, "trailing whitespace differs from source")
 	}
-	if countNBSP(sourceNorm) != countNBSP(targetNorm) {
+	srcNBSP := countNBSP(sourceNorm)
+	if srcNBSP != countNBSP(targetNorm) {
 		parts = append(parts, "non-breaking space count differs from source")
 	}
 	if len(parts) == 0 {
-		return nil
+		hasWS := sourceLeading != "" || sourceTrailing != "" || srcNBSP > 0
+		return hasWS, nil
 	}
 
-	return fmt.Errorf(
+	return false, fmt.Errorf(
 		"translation invariant violation: whitespace profile mismatch (%s) | %s",
 		strings.Join(parts, "; "),
 		formatInvariantDebugContext(source, translated),
@@ -120,12 +138,17 @@ func countNBSP(value string) int {
 }
 
 func validateSpecialCharParity(source, translated string) error {
+	_, err := validateSpecialCharParityWithTokens(source, translated)
+	return err
+}
+
+func validateSpecialCharParityWithTokens(source, translated string) (bool, error) {
 	expected := extractSpecialCharLiterals(source)
 	got := extractSpecialCharLiterals(translated)
 	if stringSlicesEqual(expected, got) {
-		return nil
+		return len(expected) > 0, nil
 	}
-	return fmt.Errorf(
+	return false, fmt.Errorf(
 		"translation invariant violation: special character parity mismatch (expected %v, got %v) | %s",
 		expected,
 		got,

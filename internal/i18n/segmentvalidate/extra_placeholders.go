@@ -68,12 +68,17 @@ func isEscapedPercentAt(text string, index int) bool {
 }
 
 func validateExtraPlaceholderParity(source, translated string) error {
+	_, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	return err
+}
+
+func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, error) {
 	expected := extractExtraPlaceholders(source)
 	got := extractExtraPlaceholders(translated)
 	if stringSlicesEqual(expected, got) {
-		return nil
+		return len(expected) > 0, nil
 	}
-	return fmt.Errorf(
+	return false, fmt.Errorf(
 		"translation invariant violation: extra placeholder parity mismatch (expected %q, got %q) | %s",
 		expected,
 		got,
