@@ -111,14 +111,14 @@ Hyperlocalise connects localisation work with product changes rather than treati
 
 Its product direction includes:
 
-* Agent-native translation, review, and synchronisation workflows
-* Automatic discovery of context from repositories and connected tools
-* A next-generation CAT environment with human review
-* Support for different AI model providers
-* Compatibility with existing TMS platforms
-* Translation evaluations and regression checks
-* Locale readiness information for release decisions
-* Shared localisation knowledge that improves over time
+- Agent-native translation, review, and synchronisation workflows
+- Automatic discovery of context from repositories and connected tools
+- A next-generation CAT environment with human review
+- Support for different AI model providers
+- Compatibility with existing TMS platforms
+- Translation evaluations and regression checks
+- Locale readiness information for release decisions
+- Shared localisation knowledge that improves over time
 
 The objective is not simply to translate more words. It is to help localisation teams keep pace with continuous product development while maintaining market quality.
 
@@ -126,12 +126,12 @@ The objective is not simply to translate more words. It is to help localisation 
 
 Hyperlocalise is particularly well suited to:
 
-* Software companies releasing frequently across multiple markets
-* Product teams whose localisation managers are overwhelmed by coordination work
-* Companies already using a TMS but wanting more capable AI automation
-* Teams that struggle to provide translators with screenshots and product context
-* Organisations that want to use multiple AI models without becoming dependent on one provider
-* Teams that need better visibility into whether each locale is genuinely ready
+- Software companies releasing frequently across multiple markets
+- Product teams whose localisation managers are overwhelmed by coordination work
+- Companies already using a TMS but wanting more capable AI automation
+- Teams that struggle to provide translators with screenshots and product context
+- Organisations that want to use multiple AI models without becoming dependent on one provider
+- Teams that need better visibility into whether each locale is genuinely ready
 
 ### Important consideration
 
@@ -161,11 +161,11 @@ Developers can synchronise content from repositories, organise translations arou
 
 This makes Crowdin a practical choice for:
 
-* Developer-led product companies
-* Open-source projects
-* Teams with complex integration requirements
-* Companies that want control over their AI providers
-* Organisations managing software, documentation, websites, and community translation together
+- Developer-led product companies
+- Open-source projects
+- Teams with complex integration requirements
+- Companies that want control over their AI providers
+- Organisations managing software, documentation, websites, and community translation together
 
 ### Where Hyperlocalise has an advantage
 
@@ -193,14 +193,14 @@ Phrase has also invested in APIs, software development kits, command-line workfl
 
 Phrase is a strong option for organisations that need:
 
-* Enterprise governance and permissions
-* A combined software localisation and TMS ecosystem
-* Vendor and linguist management
-* AI engine selection and orchestration
-* Quality estimation and reporting
-* APIs and custom integrations
-* Support for many content types and business departments
-* A large partner and services ecosystem
+- Enterprise governance and permissions
+- A combined software localisation and TMS ecosystem
+- Vendor and linguist management
+- AI engine selection and orchestration
+- Quality estimation and reporting
+- APIs and custom integrations
+- Support for many content types and business departments
+- A large partner and services ecosystem
 
 Its breadth can be valuable when localisation spans multiple divisions, vendors, systems, and content formats.
 
@@ -230,13 +230,13 @@ The company is expanding into agentic workflows through an MCP server and AI age
 
 Lokalise is a strong choice for:
 
-* Product-led SaaS companies
-* Mobile application teams
-* Design-heavy product organisations
-* Teams that want localisation to begin in Figma
-* Companies that value an approachable central workspace
-* Teams that need over-the-air translation updates
-* Organisations bringing developers, designers, translators, and product managers into one process
+- Product-led SaaS companies
+- Mobile application teams
+- Design-heavy product organisations
+- Teams that want localisation to begin in Figma
+- Companies that value an approachable central workspace
+- Teams that need over-the-air translation updates
+- Organisations bringing developers, designers, translators, and product managers into one process
 
 ### Where Hyperlocalise has an advantage
 
@@ -264,12 +264,12 @@ LILT Assist extends this model with an enterprise AI agent that can support tran
 
 LILT is particularly suitable for:
 
-* Large enterprises with substantial translation volume
-* Regulated or specialised content
-* Organisations that want AI technology and linguistic services together
-* Teams that value continuously adapting models
-* Companies requiring human validation across major launches
-* Enterprise localisation programmes that prefer a managed engagement
+- Large enterprises with substantial translation volume
+- Regulated or specialised content
+- Organisations that want AI technology and linguistic services together
+- Teams that value continuously adapting models
+- Companies requiring human validation across major launches
+- Enterprise localisation programmes that prefer a managed engagement
 
 ### Important consideration
 
@@ -289,16 +289,16 @@ The challenge is not merely generating language. It is giving the AI enough know
 
 Product teams should therefore evaluate how a platform handles:
 
-* Repository and interface context
-* Screenshots and visual references
-* Terminology and style guidance
-* Previous translations
-* Market-specific rules
-* Human feedback
-* Automated quality checks
-* Translation regressions
-* Synchronisation with source systems
-* Release blockers and locale readiness
+- Repository and interface context
+- Screenshots and visual references
+- Terminology and style guidance
+- Previous translations
+- Market-specific rules
+- Human feedback
+- Automated quality checks
+- Translation regressions
+- Synchronisation with source systems
+- Release blockers and locale readiness
 
 The model is only one component. The surrounding context, workflow, knowledge, and quality system determine whether AI localisation is reliable at scale.
 
