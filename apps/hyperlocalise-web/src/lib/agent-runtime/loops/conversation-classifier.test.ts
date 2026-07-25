@@ -139,6 +139,12 @@ describe("conversation classifier", () => {
     );
 
     expect(generateTextMock).toHaveBeenCalledOnce();
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: expect.stringContaining("localization agent"),
+      }),
+    );
+    expect(generateTextMock.mock.calls[0]?.[0]).not.toHaveProperty("system");
   });
 
   it("includes a repository lookup example for context-of string questions", async () => {

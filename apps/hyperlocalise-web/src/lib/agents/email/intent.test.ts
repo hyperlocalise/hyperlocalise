@@ -12,9 +12,9 @@
  */
 import "dotenv/config";
 
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createEmailRequestInterpreter } from "./intent";
+import { createClarificationInterpreter, createEmailRequestInterpreter } from "./intent";
 
 const { generateTextMock } = vi.hoisted(() => ({
   generateTextMock: vi.fn(),
@@ -34,6 +34,19 @@ vi.mock("@/lib/env", () => ({
     OPENAI_API_KEY: "test-openai-api-key",
   },
 }));
+
+function expectGenerateTextUsesInstructions(expectedInstructions: string) {
+  expect(generateTextMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      instructions: expect.stringContaining(expectedInstructions),
+    }),
+  );
+  expect(generateTextMock.mock.calls.at(-1)?.[0]).not.toHaveProperty("system");
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("createEmailRequestInterpreter", () => {
   it("normalizes locales and instructions from structured model output", async () => {
@@ -64,6 +77,7 @@ describe("createEmailRequestInterpreter", () => {
       confidence: 0.96,
       missingFields: [],
     });
+    expectGenerateTextUsesInstructions("email intake parser");
   });
 
   it("marks absent locales as missing after normalization", async () => {
@@ -136,5 +150,35 @@ describe("createEmailRequestInterpreter", () => {
         ),
       }),
     );
+  });
+
+  it("uses AI SDK instructions for clarification replies", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: {
+        sourceLocale: "en",
+        targetLocale: "fr-ca",
+        instructions: "Match the source tone.",
+        confidence: 0.91,
+        missingFields: [],
+      },
+    });
+
+    const interpretClarification = createClarificationInterpreter({
+      model: {} as Parameters<typeof createClarificationInterpreter>[0]["model"],
+    });
+
+    await expect(
+      interpretClarification({
+        text: "Source is English, target is French Canada. Match the source tone.",
+      }),
+    ).resolves.toEqual({
+      kind: "translate",
+      sourceLocale: "en",
+      targetLocale: "fr-CA",
+      instructions: "Match the source tone.",
+      confidence: 0.91,
+      missingFields: [],
+    });
+    expectGenerateTextUsesInstructions("clarification reply");
   });
 });
