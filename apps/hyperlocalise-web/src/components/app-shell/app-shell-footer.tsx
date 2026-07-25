@@ -25,7 +25,6 @@ import {
 import { ChatDockErrorBoundary } from "@/components/app-shell/chat-dock/chat-dock-error-boundary";
 import { PlanUsageFooterControl } from "@/components/billing/plan-usage-summary";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 import { appShellFooterMessages } from "./app-shell-footer.messages";
@@ -56,23 +55,16 @@ export function AppShellFooter({
           {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
           <div className="ms-auto flex min-w-0 items-center gap-2">
             {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
-                    aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
-                  >
-                    <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} />
-                  </Button>
-                }
-              />
-              <TooltipContent side="top" align="end">
-                <FormattedMessage {...appShellFooterMessages.supportTooltip} />
-              </TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="gap-1.5 px-2"
+              render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
+              aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
+            >
+              <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} className="size-3.5" />
+              <FormattedMessage {...appShellFooterMessages.supportLabel} />
+            </Button>
           </div>
         </div>
       </div>

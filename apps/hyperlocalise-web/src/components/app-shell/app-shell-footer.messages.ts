@@ -20,9 +20,9 @@ export const appShellFooterMessages = defineMessages({
     id: "ecG+jsddyC",
     description: "Accessible label for the support email button in the app shell footer",
   },
-  supportTooltip: {
+  supportLabel: {
     defaultMessage: "Support",
-    id: "UkpQmLO4C5",
-    description: "Tooltip label for the support email button in the app shell footer",
+    id: "VvLbwcYPHK",
+    description: "Label for the support email button in the app shell footer",
   },
 });
