@@ -4049,6 +4049,9 @@
   "JuVYR2r3yd": {
     "defaultMessage": "导航菜单"
   },
+  "JwC3NaQtN9": {
+    "defaultMessage": "Hyperlocalise"
+  },
   "JwDpy6S6NK": {
     "defaultMessage": "在不离开功能页流程的情况下，在各产品支柱之间切换。"
   },
@@ -4146,7 +4149,7 @@
     "defaultMessage": "加入 Hyperlocalise 等候名单，将本地化检查纳入您的发布流程。"
   },
   "KaiqOsFp5/": {
-    "defaultMessage": "由相信本地化连接世界的人打造"
+    "defaultMessage": "Built by people who believe localisation connects the world"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "CAT 工作区加载失败"
@@ -4619,6 +4622,9 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects"
   },
+  "NZyLH6QByp": {
+    "defaultMessage": "一支如同本地专家团队般行动的 AI 劳动力。"
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
@@ -5037,7 +5043,7 @@
     "defaultMessage": "Loading project…"
   },
   "PtbJHeHRh5": {
-    "defaultMessage": "智能体本地化平台定价 | Hyperlocalise"
+    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Select project"
@@ -7155,7 +7161,7 @@
     "defaultMessage": "AI 功能"
   },
   "bUrzfKsGhW": {
-    "defaultMessage": "关于 Hyperlocalise | 打造智能体本地化平台"
+    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform"
   },
   "bW5VkndWCk": {
     "defaultMessage": "电子邮件代理已禁用"
@@ -8275,6 +8281,9 @@
   },
   "hamQyEil8d": {
     "defaultMessage": "代理自动化"
+  },
+  "hdNOTMXsn9": {
+    "defaultMessage": "公司 | Hyperlocalise"
   },
   "hdt51o9xzu": {
     "defaultMessage": "复制 OAuth 回调 URL"
@@ -11032,6 +11041,9 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "已同步的 Canva 画板“Spring campaign / EN”——48 个文本图层已准备好接收。"
+  },
+  "wN/evt/nnl": {
+    "defaultMessage": "定价 | Hyperlocalise"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "在选择方案之前，了解每个套餐包含的内容。"

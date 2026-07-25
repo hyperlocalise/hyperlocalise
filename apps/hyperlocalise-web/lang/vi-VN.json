@@ -4049,6 +4049,9 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Menu điều hướng"
   },
+  "JwC3NaQtN9": {
+    "defaultMessage": "Hyperlocalise"
+  },
   "JwDpy6S6NK": {
     "defaultMessage": "Di chuyển giữa các trụ cột sản phẩm mà không rời khỏi luồng trang tính năng."
   },
@@ -4146,7 +4149,7 @@
     "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và đưa các kiểm tra bản địa hóa vào quy trình phát hành của bạn."
   },
   "KaiqOsFp5/": {
-    "defaultMessage": "Được xây dựng bởi những người tin rằng bản địa hóa kết nối thế giới"
+    "defaultMessage": "Built by people who believe localisation connects the world"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "Không thể tải không gian làm việc CAT"
@@ -4619,6 +4622,9 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects"
   },
+  "NZyLH6QByp": {
+    "defaultMessage": "Một đội ngũ AI hoạt động như đội ngũ chuyên gia địa phương của bạn."
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
@@ -5037,7 +5043,7 @@
     "defaultMessage": "Loading project…"
   },
   "PtbJHeHRh5": {
-    "defaultMessage": "Bảng giá nền tảng bản địa hóa agentic | Hyperlocalise"
+    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Select project"
@@ -7155,7 +7161,7 @@
     "defaultMessage": "Tính năng AI"
   },
   "bUrzfKsGhW": {
-    "defaultMessage": "Về Hyperlocalise | Xây dựng nền tảng bản địa hóa agentic"
+    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform"
   },
   "bW5VkndWCk": {
     "defaultMessage": "Tác nhân email đã bị vô hiệu hóa"
@@ -8275,6 +8281,9 @@
   },
   "hamQyEil8d": {
     "defaultMessage": "Tự động hóa tác nhân"
+  },
+  "hdNOTMXsn9": {
+    "defaultMessage": "Công ty | Hyperlocalise"
   },
   "hdt51o9xzu": {
     "defaultMessage": "Sao chép URL callback OAuth"
@@ -11032,6 +11041,9 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "Đã đồng bộ bảng Canva \"Spring campaign / EN\" — 48 lớp văn bản sẵn sàng để tiếp nhận."
+  },
+  "wN/evt/nnl": {
+    "defaultMessage": "Bảng giá | Hyperlocalise"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "Xem mỗi gói bao gồm những gì trước khi bạn chọn lộ trình."

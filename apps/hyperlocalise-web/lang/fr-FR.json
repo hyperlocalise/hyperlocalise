@@ -4049,6 +4049,9 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Navigation menu"
   },
+  "JwC3NaQtN9": {
+    "defaultMessage": "Hyperlocalise"
+  },
   "JwDpy6S6NK": {
     "defaultMessage": "Passez d’un pilier du produit à l’autre sans quitter le parcours de la page de fonctionnalité."
   },
@@ -4146,7 +4149,7 @@
     "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et intégrez les vérifications de localisation à votre pipeline de publication."
   },
   "KaiqOsFp5/": {
-    "defaultMessage": "Conçu par des personnes qui croient que la localisation relie le monde"
+    "defaultMessage": "Built by people who believe localisation connects the world"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "Le chargement de l’espace de travail CAT a échoué"
@@ -4619,6 +4622,9 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects"
   },
+  "NZyLH6QByp": {
+    "defaultMessage": "Une main-d’œuvre IA qui agit comme votre équipe d’experts locaux."
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
@@ -5037,7 +5043,7 @@
     "defaultMessage": "Loading project…"
   },
   "PtbJHeHRh5": {
-    "defaultMessage": "Tarifs de la plateforme de localisation agentique | Hyperlocalise"
+    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Select project"
@@ -7155,7 +7161,7 @@
     "defaultMessage": "Fonctionnalités d’IA"
   },
   "bUrzfKsGhW": {
-    "defaultMessage": "À propos d’Hyperlocalise | Construire la plateforme de localisation agentique"
+    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform"
   },
   "bW5VkndWCk": {
     "defaultMessage": "Agent de messagerie désactivé"
@@ -8275,6 +8281,9 @@
   },
   "hamQyEil8d": {
     "defaultMessage": "Automatisation des agents"
+  },
+  "hdNOTMXsn9": {
+    "defaultMessage": "Entreprise | Hyperlocalise"
   },
   "hdt51o9xzu": {
     "defaultMessage": "Copier l’URL de rappel OAuth"
@@ -11032,6 +11041,9 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "Tableau Canva synchronisé « Campagne de printemps / EN » — 48 calques de texte prêts à être intégrés."
+  },
+  "wN/evt/nnl": {
+    "defaultMessage": "Tarifs | Hyperlocalise"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "Découvrez ce que comprend chaque forfait avant de choisir votre formule."

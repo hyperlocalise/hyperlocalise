@@ -642,7 +642,7 @@
     "defaultMessage": "Unzureichende Berechtigungen"
   },
   "1H3clNZiEb": {
-    "defaultMessage": "{count} matching"
+    "defaultMessage": "{count} Treffer"
   },
   "1KXz+b/LeX": {
     "defaultMessage": "Überschrift 3"
@@ -4049,6 +4049,9 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Navigationsmenü"
   },
+  "JwC3NaQtN9": {
+    "defaultMessage": "Hyperlocalise"
+  },
   "JwDpy6S6NK": {
     "defaultMessage": "Wechseln Sie zwischen den Produktpfeilern, ohne den Ablauf der Funktionsseite zu verlassen."
   },
@@ -4146,7 +4149,7 @@
     "defaultMessage": "Treten Sie der Hyperlocalise-Warteliste bei und integrieren Sie Lokalisierungsprüfungen in Ihre Release-Pipeline."
   },
   "KaiqOsFp5/": {
-    "defaultMessage": "Gebaut von Menschen, die glauben, dass Lokalisierung die Welt verbindet"
+    "defaultMessage": "Built by people who believe localisation connects the world"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "CAT-Arbeitsbereich konnte nicht geladen werden"
@@ -4619,6 +4622,9 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
   },
+  "NZyLH6QByp": {
+    "defaultMessage": "Eine KI-Belegschaft, die wie Ihr Team aus lokalen Experten agiert."
+  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
@@ -5037,7 +5043,7 @@
     "defaultMessage": "Projekt wird geladen …"
   },
   "PtbJHeHRh5": {
-    "defaultMessage": "Preise für die agentische Lokalisierungsplattform | Hyperlocalise"
+    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Projekt auswählen"
@@ -7155,7 +7161,7 @@
     "defaultMessage": "KI-Funktionen"
   },
   "bUrzfKsGhW": {
-    "defaultMessage": "Über Hyperlocalise | Wir bauen die agentische Lokalisierungsplattform"
+    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform"
   },
   "bW5VkndWCk": {
     "defaultMessage": "E-Mail-Agent deaktiviert"
@@ -8275,6 +8281,9 @@
   },
   "hamQyEil8d": {
     "defaultMessage": "Agentenautomatisierung"
+  },
+  "hdNOTMXsn9": {
+    "defaultMessage": "Unternehmen | Hyperlocalise"
   },
   "hdt51o9xzu": {
     "defaultMessage": "OAuth-Rückruf-URL kopieren"
@@ -11032,6 +11041,9 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "Synchronisiertes Canva-Board „Spring campaign / EN“ — 48 Textebenen bereit für die Erfassung."
+  },
+  "wN/evt/nnl": {
+    "defaultMessage": "Preise | Hyperlocalise"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "Sehen Sie, welche Leistungen die einzelnen Tarife umfassen, bevor Sie sich entscheiden."

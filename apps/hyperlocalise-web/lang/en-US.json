@@ -703,10 +703,6 @@
     "defaultMessage": "Contribute to jobs and run AI actions; approve reviews and write-back. No organization administration.",
     "description": "Description of the reviewer role"
   },
-  "0vuUDWBSZZ": {
-    "defaultMessage": "Hyperlocalise",
-    "description": "Brand name shown next to the logo in the marketing navbar on desktop"
-  },
   "0wt+Elr1cE": {
     "defaultMessage": "Automation name",
     "description": "Accessible label for the automation name field"
@@ -5079,6 +5075,10 @@
     "defaultMessage": "Navigation menu",
     "description": "Screen-reader title for the mobile navigation sheet"
   },
+  "JwC3NaQtN9": {
+    "defaultMessage": "Hyperlocalise",
+    "description": "Brand name shown next to the logo in the marketing navbar on desktop"
+  },
   "JwDpy6S6NK": {
     "defaultMessage": "Move between the product pillars without leaving the feature-page flow.",
     "description": "Product page related links section description"
@@ -7419,10 +7419,6 @@
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the localisation-operations use case"
   },
-  "UkpQmLO4C5": {
-    "defaultMessage": "Support",
-    "description": "Label for the support email button in the app shell footer"
-  },
   "UnPQUzFk+U": {
     "defaultMessage": "A billing FAQ update needs to reach twelve locales",
     "description": "Scenario section title for the help-center-localisation use case"
@@ -7674,6 +7670,10 @@
   "VucfHYKoo9": {
     "defaultMessage": "MCP servers",
     "description": "Category label for MCP server connections on Integrations"
+  },
+  "VvLbwcYPHK": {
+    "defaultMessage": "Support",
+    "description": "Label for the support email button in the app shell footer"
   },
   "VvwPsdoDVF": {
     "defaultMessage": "Read-only",
