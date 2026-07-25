@@ -5199,6 +5199,10 @@
     "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
     "description": "CTA section description for the github-release-localisation use case"
   },
+  "KaiqOsFp5/": {
+    "defaultMessage": "Built by people who believe localisation connects the world",
+    "description": "Primary headline on the marketing company page"
+  },
   "Kdwno+5sGa": {
     "defaultMessage": "CAT workspace failed to load",
     "description": "Error boundary title when the full CAT workspace crashes"
@@ -5795,10 +5799,6 @@
     "defaultMessage": "Failed to load projects",
     "description": "Fallback error when projects fail to load on the glossaries page"
   },
-  "NZyLH6QByp": {
-    "defaultMessage": "Built by people who believe localisation connects the world",
-    "description": "Primary headline on the marketing company page"
-  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2",
     "description": "Example placeholder for the Crowdin API base URL field"
@@ -6322,6 +6322,10 @@
   "PtTtkKUG7c": {
     "defaultMessage": "Loading project…",
     "description": "Suspense fallback while project overview content loads"
+  },
+  "PtbJHeHRh5": {
+    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise",
+    "description": "Meta title for the marketing pricing page"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Select project",
@@ -8987,6 +8991,10 @@
     "defaultMessage": "AI features",
     "description": "Pricing matrix row label for AI features"
   },
+  "bUrzfKsGhW": {
+    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform",
+    "description": "Meta title for the marketing company page"
+  },
   "bW5VkndWCk": {
     "defaultMessage": "Email agent disabled",
     "description": "Toast after disabling the email agent"
@@ -10410,10 +10418,6 @@
   "haASfbpIl3": {
     "defaultMessage": "Synced import",
     "description": "Capability badge for translation memories imported via sync"
-  },
-  "hdNOTMXsn9": {
-    "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform",
-    "description": "Meta title for the marketing company page"
   },
   "hdt51o9xzu": {
     "defaultMessage": "Copy OAuth callback URL",
@@ -13854,10 +13858,6 @@
   "wLz+lanHT9": {
     "defaultMessage": "Synced Canva board \"Spring campaign / EN\" — 48 text layers ready for intake.",
     "description": "Earlier agent message in the Slack channel (shown muted)"
-  },
-  "wN/evt/nnl": {
-    "defaultMessage": "Agentic Localisation Platform Pricing | Hyperlocalise",
-    "description": "Meta title for the marketing pricing page"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "See what each plan includes before you choose a path.",

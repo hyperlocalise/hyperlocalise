@@ -4145,6 +4145,9 @@
   "Ka+dKs8Zz9": {
     "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et intégrez les vérifications de localisation à votre pipeline de publication."
   },
+  "KaiqOsFp5/": {
+    "defaultMessage": "Conçu par des personnes qui croient que la localisation relie le monde"
+  },
   "Kdwno+5sGa": {
     "defaultMessage": "Le chargement de l’espace de travail CAT a échoué"
   },
@@ -4616,9 +4619,6 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects"
   },
-  "NZyLH6QByp": {
-    "defaultMessage": "Conçu par des personnes qui croient que la localisation relie le monde"
-  },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
@@ -5035,6 +5035,9 @@
   },
   "PtTtkKUG7c": {
     "defaultMessage": "Loading project…"
+  },
+  "PtbJHeHRh5": {
+    "defaultMessage": "Tarifs de la plateforme de localisation agentique | Hyperlocalise"
   },
   "PtdBUhTKib": {
     "defaultMessage": "Select project"
@@ -7151,6 +7154,9 @@
   "bUBd4XGtBI": {
     "defaultMessage": "Fonctionnalités d’IA"
   },
+  "bUrzfKsGhW": {
+    "defaultMessage": "À propos d’Hyperlocalise | Construire la plateforme de localisation agentique"
+  },
   "bW5VkndWCk": {
     "defaultMessage": "Agent de messagerie désactivé"
   },
@@ -8269,9 +8275,6 @@
   },
   "hamQyEil8d": {
     "defaultMessage": "Automatisation des agents"
-  },
-  "hdNOTMXsn9": {
-    "defaultMessage": "À propos d’Hyperlocalise | Construire la plateforme de localisation agentique"
   },
   "hdt51o9xzu": {
     "defaultMessage": "Copier l’URL de rappel OAuth"
@@ -11029,9 +11032,6 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "Tableau Canva synchronisé « Campagne de printemps / EN » — 48 calques de texte prêts à être intégrés."
-  },
-  "wN/evt/nnl": {
-    "defaultMessage": "Tarifs de la plateforme de localisation agentique | Hyperlocalise"
   },
   "wNfaNj8oeP": {
     "defaultMessage": "Découvrez ce que comprend chaque forfait avant de choisir votre formule."

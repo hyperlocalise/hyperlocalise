@@ -16,7 +16,7 @@ export function getCompanyRouteMetadata(intl: IntlShape) {
   return {
     title: intl.formatMessage({
       defaultMessage: "About Hyperlocalise | Building the Agentic Localisation Platform",
-      id: "hdNOTMXsn9",
+      id: "bUrzfKsGhW",
       description: "Meta title for the marketing company page",
     }),
     description: intl.formatMessage({

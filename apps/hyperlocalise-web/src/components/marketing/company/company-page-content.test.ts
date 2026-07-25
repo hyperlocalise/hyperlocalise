@@ -44,9 +44,7 @@ describe("company page content", () => {
   it("returns localized company page copy", () => {
     const copy = getCompanyPageCopy("en");
 
-    expect(copy.headline).toBe(
-      "Built by people who believe localisation connects the world",
-    );
+    expect(copy.headline).toBe("Built by people who believe localisation connects the world");
     expect(copy.requestDemo).toBe("Request a demo");
     expect(copy.backedByHeading).toBe("Backed by");
     expect(copy.startmateName).toBe("Startmate");

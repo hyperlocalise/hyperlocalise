@@ -16,7 +16,7 @@ export function getPricingRouteMetadata(intl: IntlShape) {
   return {
     title: intl.formatMessage({
       defaultMessage: "Agentic Localisation Platform Pricing | Hyperlocalise",
-      id: "wN/evt/nnl",
+      id: "PtbJHeHRh5",
       description: "Meta title for the marketing pricing page",
     }),
     description: intl.formatMessage({
