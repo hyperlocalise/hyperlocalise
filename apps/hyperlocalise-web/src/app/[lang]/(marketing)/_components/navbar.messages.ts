@@ -145,9 +145,4 @@ export const navbarMessages = defineMessages({
     id: "mFfweL99wM",
     description: "Marketing navbar button to open the app dashboard when signed in",
   },
-  brandName: {
-    defaultMessage: "Hyperlocalise",
-    id: "0vuUDWBSZZ",
-    description: "Brand name shown next to the logo in the marketing navbar",
-  },
 });

@@ -209,11 +209,11 @@ function MegaMenuColumn({ headingKey, links }: { headingKey: NavbarMessageKey; l
   );
 }
 
-function Logo({ onHero = false }: { onHero?: boolean }) {
+function Logo() {
   const intl = useIntl();
 
   return (
-    <Link href="/" className="flex items-center gap-2.5">
+    <Link href="/" className="flex items-center">
       <Image
         src="/images/logo.png"
         className="size-8"
@@ -221,11 +221,6 @@ function Logo({ onHero = false }: { onHero?: boolean }) {
         height={32}
         alt={intl.formatMessage(navbarMessages.logoAlt)}
       />
-      <span
-        className={cn("font-sans text-base font-semibold tracking-tight", onHero && "text-white")}
-      >
-        <FormattedMessage {...navbarMessages.brandName} />
-      </span>
     </Link>
   );
 }
@@ -465,7 +460,7 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
-          <Logo onHero={onHero} />
+          <Logo />
           <div
             className={cn(
               onHero &&

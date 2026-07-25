@@ -703,10 +703,6 @@
     "defaultMessage": "Contribute to jobs and run AI actions; approve reviews and write-back. No organization administration.",
     "description": "Description of the reviewer role"
   },
-  "0vuUDWBSZZ": {
-    "defaultMessage": "Hyperlocalise",
-    "description": "Brand name shown next to the logo in the marketing navbar"
-  },
   "0wt+Elr1cE": {
     "defaultMessage": "Automation name",
     "description": "Accessible label for the automation name field"
