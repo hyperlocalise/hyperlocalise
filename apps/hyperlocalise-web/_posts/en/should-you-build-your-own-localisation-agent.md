@@ -29,7 +29,7 @@ The answer depends on what you are actually trying to build.
 
 A prototype that generates translated text is relatively straightforward. A dependable localisation agent that understands product context, follows market-specific guidance, protects variables, works across your existing systems and improves through human feedback is a much larger undertaking.
 
-The important question is not whether your team *can* build a localisation agent. It is whether owning and operating that system will create enough strategic value to justify the continuing investment.
+The important question is not whether your team _can_ build a localisation agent. It is whether owning and operating that system will create enough strategic value to justify the continuing investment.
 
 ## A localisation agent is more than an AI translator
 
@@ -39,15 +39,15 @@ OpenAI describes agents as systems that combine models with instructions, tools 
 
 Applied to localisation, that means an effective agent must do considerably more than call a translation model. It needs to:
 
-* retrieve relevant product, brand and market context;
-* apply terminology, style guides and previous translation decisions;
-* preserve placeholders, formatting, markup and technical constraints;
-* distinguish between content that requires translation, transcreation or no change;
-* coordinate reviews, approvals and revisions;
-* synchronise work with repositories, content systems and translation platforms;
-* explain why it made a decision;
-* escalate uncertainty to the right person; and
-* learn from reviewer feedback without repeating previous mistakes.
+- retrieve relevant product, brand and market context;
+- apply terminology, style guides and previous translation decisions;
+- preserve placeholders, formatting, markup and technical constraints;
+- distinguish between content that requires translation, transcreation or no change;
+- coordinate reviews, approvals and revisions;
+- synchronise work with repositories, content systems and translation platforms;
+- explain why it made a decision;
+- escalate uncertainty to the right person; and
+- learn from reviewer feedback without repeating previous mistakes.
 
 This distinction matters because a team can build the translation step and believe it has built the complete system. In reality, translation generation may be one of the easier components.
 
@@ -151,13 +151,13 @@ The build-versus-buy decision should therefore be based on strategic differentia
 
 Building internally may be the right decision when most of the following conditions are true:
 
-* Localisation intelligence is fundamental to your company’s core product or competitive advantage.
-* Your workflows are sufficiently specialised that existing platforms cannot support them through configuration or integration.
-* You have a dedicated, long-term engineering team responsible for the system.
-* You have access to localisation specialists who can design evaluations and guide product decisions.
-* Your security, deployment or data requirements cannot be met by external providers.
-* Your content volume and operational scale can justify the complete cost of ownership.
-* Your organisation is prepared to maintain integrations, evaluations and governance continuously.
+- Localisation intelligence is fundamental to your company’s core product or competitive advantage.
+- Your workflows are sufficiently specialised that existing platforms cannot support them through configuration or integration.
+- You have a dedicated, long-term engineering team responsible for the system.
+- You have access to localisation specialists who can design evaluations and guide product decisions.
+- Your security, deployment or data requirements cannot be met by external providers.
+- Your content volume and operational scale can justify the complete cost of ownership.
+- Your organisation is prepared to maintain integrations, evaluations and governance continuously.
 
 In that situation, the system should be treated as a strategic platform rather than an internal experiment.
 
@@ -183,24 +183,24 @@ Many companies should own their localisation knowledge while using a specialised
 
 Your organisation can own:
 
-* brand and market strategy;
-* terminology and style guidance;
-* product and customer context;
-* approval policies;
-* quality expectations;
-* human reviewer relationships; and
-* the final decision about what is released.
+- brand and market strategy;
+- terminology and style guidance;
+- product and customer context;
+- approval policies;
+- quality expectations;
+- human reviewer relationships; and
+- the final decision about what is released.
 
 A platform can provide:
 
-* model orchestration;
-* context retrieval;
-* integrations;
-* workflow automation;
-* evaluation infrastructure;
-* observability;
-* permissions and auditability; and
-* continuing adaptation as models and localisation practices evolve.
+- model orchestration;
+- context retrieval;
+- integrations;
+- workflow automation;
+- evaluation infrastructure;
+- observability;
+- permissions and auditability; and
+- continuing adaptation as models and localisation practices evolve.
 
 This allows the company to preserve the knowledge that creates differentiation without rebuilding the technical plumbing required to make that knowledge usable.
 
