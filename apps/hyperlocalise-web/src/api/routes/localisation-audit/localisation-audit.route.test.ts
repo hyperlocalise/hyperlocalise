@@ -26,7 +26,7 @@ const {
   upsertLeadMock,
   markLeadQueuedMock,
   markLeadFailedMock,
-  consumeTokenMock,
+  verifyTokenMock,
   trackMock,
 } = vi.hoisted(() => ({
   checkBotIdMock: vi.fn(),
@@ -39,7 +39,7 @@ const {
   upsertLeadMock: vi.fn(),
   markLeadQueuedMock: vi.fn(),
   markLeadFailedMock: vi.fn(),
-  consumeTokenMock: vi.fn(),
+  verifyTokenMock: vi.fn(),
   trackMock: vi.fn(),
 }));
 
@@ -80,7 +80,7 @@ vi.mock("@/lib/localisation-audit/store", () => ({
   upsertLocalisationAuditLeadForDelivery: upsertLeadMock,
   markLocalisationAuditLeadEmailQueued: markLeadQueuedMock,
   markLocalisationAuditLeadEmailFailed: markLeadFailedMock,
-  consumeLocalisationAuditReportToken: consumeTokenMock,
+  verifyLocalisationAuditReportToken: verifyTokenMock,
 }));
 
 function succeededAudit(overrides: Record<string, unknown> = {}) {
@@ -349,7 +349,7 @@ describe("localisation audit routes", () => {
   });
 
   it("verifies token, sets per-domain cookie, and redirects", async () => {
-    consumeTokenMock.mockResolvedValue({
+    verifyTokenMock.mockResolvedValue({
       lead: { id: "lead-1", email: "lead@example.com" },
       audit: succeededAudit(),
     });
@@ -366,8 +366,24 @@ describe("localisation audit routes", () => {
     expect(setCookie).toContain("hl_la_unlock_example-com=");
   });
 
-  it("rejects expired or reused verify tokens", async () => {
-    consumeTokenMock.mockResolvedValue(null);
+  it("normalizes unsupported verify locales instead of open-redirecting", async () => {
+    verifyTokenMock.mockResolvedValue({
+      lead: { id: "lead-1", email: "lead@example.com" },
+      audit: succeededAudit(),
+    });
+    const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
+    const routes = createLocalisationAuditRoutes();
+
+    const response = await routes.request("/example-com/verify?token=abc&locale=%2F%2Fevil.co", {
+      method: "GET",
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/en/localisation-audit/example-com");
+  });
+
+  it("rejects expired verify tokens", async () => {
+    verifyTokenMock.mockResolvedValue(null);
     const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
     const routes = createLocalisationAuditRoutes();
 

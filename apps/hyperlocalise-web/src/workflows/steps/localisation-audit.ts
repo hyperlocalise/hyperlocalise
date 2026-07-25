@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics";
+import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { crawlLocalisationAuditSample } from "@/lib/localisation-audit/crawl";
 import { runLinguisticLocalisationReview } from "@/lib/localisation-audit/linguistic-review";

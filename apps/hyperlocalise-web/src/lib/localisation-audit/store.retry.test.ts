@@ -18,10 +18,10 @@ import { db, schema } from "@/lib/database";
 import {
   claimOrReuseLocalisationAudit,
   completeLocalisationAudit,
-  consumeLocalisationAuditReportToken,
   failLocalisationAudit,
   isLocalisationAuditRetryable,
   upsertLocalisationAuditLeadForDelivery,
+  verifyLocalisationAuditReportToken,
 } from "./store";
 import { LOCALISATION_AUDIT_STALE_MS } from "./types";
 
@@ -131,7 +131,7 @@ describe("localisation audit claim/retry", () => {
     expect(staleReclaim.audit.attemptNumber).toBe(3);
   });
 
-  it("consumes report tokens once and rejects reuse", async () => {
+  it("verifies report tokens idempotently until expiry", async () => {
     const created = await claimOrReuseLocalisationAudit({
       domainKey: `${domainKey}-email`,
       domainSlug: `${domainSlug}-email`,
@@ -174,17 +174,19 @@ describe("localisation audit claim/retry", () => {
     });
     expect(upsert.token.length).toBeGreaterThan(10);
 
-    const first = await consumeLocalisationAuditReportToken({
+    const first = await verifyLocalisationAuditReportToken({
       domainSlug: created.audit.domainSlug,
       token: upsert.token,
     });
     expect(first?.lead.deliveryStatus).toBe("verified");
+    expect(first?.lead.tokenHash).toBeTruthy();
 
-    const second = await consumeLocalisationAuditReportToken({
+    const second = await verifyLocalisationAuditReportToken({
       domainSlug: created.audit.domainSlug,
       token: upsert.token,
     });
-    expect(second).toBeNull();
+    expect(second?.lead.deliveryStatus).toBe("verified");
+    expect(second?.lead.email).toBe("lead@example.com");
 
     await db
       .delete(schema.localisationAudits)

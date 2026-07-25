@@ -500,7 +500,12 @@ export async function markLocalisationAuditLeadEmailFailed(input: {
   return row ?? null;
 }
 
-export async function consumeLocalisationAuditReportToken(input: {
+/**
+ * Validates a report token without burning it.
+ * Marks the lead verified on first success; the same token remains usable until expiry
+ * so email security scanners cannot invalidate the recipient's link.
+ */
+export async function verifyLocalisationAuditReportToken(input: {
   domainSlug: string;
   token: string;
 }): Promise<{ lead: LocalisationAuditLeadRow; audit: LocalisationAuditRow } | null> {
@@ -527,8 +532,9 @@ export async function consumeLocalisationAuditReportToken(input: {
   if (!row.lead.tokenExpiresAt || row.lead.tokenExpiresAt.getTime() < Date.now()) {
     return null;
   }
+
   if (row.lead.deliveryStatus === "verified") {
-    return null;
+    return { lead: row.lead, audit: row.audit };
   }
 
   const timestamp = now();
@@ -537,8 +543,6 @@ export async function consumeLocalisationAuditReportToken(input: {
     .set({
       deliveryStatus: "verified" satisfies LocalisationAuditLeadDeliveryStatus,
       verifiedAt: timestamp,
-      tokenHash: null,
-      tokenExpiresAt: null,
       updatedAt: timestamp,
     })
     .where(
@@ -555,6 +559,15 @@ export async function consumeLocalisationAuditReportToken(input: {
     )
     .returning();
 
-  if (!verified) return null;
+  if (!verified) {
+    // Race: another request verified first; re-read.
+    const [fresh] = await db
+      .select()
+      .from(schema.localisationAuditLeads)
+      .where(eq(schema.localisationAuditLeads.id, row.lead.id))
+      .limit(1);
+    if (!fresh || fresh.deliveryStatus !== "verified") return null;
+    return { lead: fresh, audit: row.audit };
+  }
   return { lead: verified, audit: row.audit };
 }

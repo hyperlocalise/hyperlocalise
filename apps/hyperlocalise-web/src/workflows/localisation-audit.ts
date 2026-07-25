@@ -75,7 +75,12 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
     });
 
     if (analyzed.ok) {
-      await queuePendingLocalisationAuditReportEmailsStep(prepared.auditId);
+      // Email delivery must not overwrite a completed audit on transient queue failure.
+      try {
+        await queuePendingLocalisationAuditReportEmailsStep(prepared.auditId);
+      } catch {
+        return { ...analyzed, workflowRunId, emailQueueFailed: true as const };
+      }
     }
 
     return { ...analyzed, workflowRunId };

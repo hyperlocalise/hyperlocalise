@@ -15,15 +15,20 @@ import { describe, expect, it } from "vite-plus/test";
 import { hostnameToDomainSlug, isValidDomainSlug, resolveDomainIdentity } from "./domain-slug";
 
 describe("hostnameToDomainSlug", () => {
-  it("maps hostnames to a-z and hyphen slugs", () => {
-    expect(hostnameToDomainSlug("stripe.com")).toBe("stripe-com");
-    expect(hostnameToDomainSlug("www.Stripe.com")).toBe("stripe-com");
-    expect(hostnameToDomainSlug("shop.acme.co.uk")).toBe("shop-acme-co-uk");
+  it("maps hostnames to a-z hyphen slugs with a stable discriminator", () => {
+    const slug = hostnameToDomainSlug("stripe.com");
+    expect(slug.startsWith("stripe-com-")).toBe(true);
+    expect(isValidDomainSlug(slug)).toBe(true);
+    expect(hostnameToDomainSlug("www.Stripe.com")).toBe(slug);
   });
 
-  it("drops digits so slugs stay a-z and hyphen only", () => {
-    expect(hostnameToDomainSlug("web3.io")).toBe("web-io");
-    expect(isValidDomainSlug(hostnameToDomainSlug("web3.io"))).toBe(true);
+  it("keeps digit and hyphen/dot collapses unique", () => {
+    const withDigit = hostnameToDomainSlug("web3.io");
+    const withoutDigit = hostnameToDomainSlug("web.io");
+    expect(withDigit).not.toBe(withoutDigit);
+    expect(withDigit.startsWith("web-io-")).toBe(true);
+    expect(withoutDigit.startsWith("web-io-")).toBe(true);
+    expect(hostnameToDomainSlug("a-b.com")).not.toBe(hostnameToDomainSlug("a.b.com"));
   });
 });
 
@@ -33,7 +38,7 @@ describe("resolveDomainIdentity", () => {
     expect(bare.ok).toBe(true);
     if (bare.ok) {
       expect(bare.value.domainKey).toBe("example.com");
-      expect(bare.value.domainSlug).toBe("example-com");
+      expect(bare.value.domainSlug.startsWith("example-com-")).toBe(true);
       expect(bare.value.sourceUrl).toBe("https://example.com/");
     }
 
@@ -41,13 +46,13 @@ describe("resolveDomainIdentity", () => {
     expect(full.ok).toBe(true);
     if (full.ok) {
       expect(full.value.domainKey).toBe("example.com");
-      expect(full.value.domainSlug).toBe("example-com");
+      expect(full.value.domainSlug.startsWith("example-com-")).toBe(true);
     }
   });
 
   it("rejects invalid slugs and private hosts", () => {
     expect(resolveDomainIdentity("http://127.0.0.1").ok).toBe(false);
     expect(isValidDomainSlug("stripe.com")).toBe(false);
-    expect(isValidDomainSlug("stripe-com")).toBe(true);
+    expect(isValidDomainSlug("stripe-com-abcdef")).toBe(true);
   });
 });

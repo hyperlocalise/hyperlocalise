@@ -20,8 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
-import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics";
 import { clientAnalytics } from "@/lib/analytics/client";
+import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import type {
   LocalisationAuditFinding,
   LocalisationAuditProgressStage,

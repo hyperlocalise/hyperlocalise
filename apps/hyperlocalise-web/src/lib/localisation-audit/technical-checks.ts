@@ -22,6 +22,20 @@ function normalizeLocale(value: string): string {
   return value.trim().replaceAll("_", "-").toLowerCase();
 }
 
+function pagePathname(url: string): string | null {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return null;
+  }
+}
+
+function pathLocaleFromUrl(url: string): string | null {
+  const pathname = pagePathname(url);
+  if (!pathname) return null;
+  return pathname.match(LOCALE_PREFIX)?.[1] ?? null;
+}
+
 function detectLocales(
   pages: LocalisationAuditCrawledPage[],
   focusLocales: string[],
@@ -155,7 +169,7 @@ export function runTechnicalLocalisationChecks(input: {
   }
 
   for (const page of input.pages) {
-    const pathLocale = page.url.match(LOCALE_PREFIX)?.[1];
+    const pathLocale = pathLocaleFromUrl(page.url);
     if (!pathLocale || !page.htmlLang) continue;
     if (normalizeLocale(pathLocale) !== normalizeLocale(page.htmlLang)) {
       findings.push({
@@ -171,7 +185,7 @@ export function runTechnicalLocalisationChecks(input: {
   }
 
   for (const page of input.pages) {
-    const pathLocale = page.url.match(LOCALE_PREFIX)?.[1];
+    const pathLocale = pathLocaleFromUrl(page.url);
     if (!pathLocale) continue;
     if (normalizeLocale(pathLocale).startsWith("en")) continue;
     if (page.textSample && looksPrimarilyEnglish(page.textSample)) {

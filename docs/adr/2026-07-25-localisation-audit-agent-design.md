@@ -8,7 +8,7 @@ Offer a public localisation health check as a lead magnet. Visitors paste a URL,
 
 - Landing: `/[lang]/localisation-audit`
 - Result: `/[lang]/localisation-audit/[domainSlug]`
-- `domainSlug` is `[a-z]+(?:-[a-z]+)*` only (dots and other hostname chars become hyphens; digits stripped). Example: `stripe.com` → `stripe-com`.
+- `domainSlug` is `[a-z]+(?:-[a-z]+)*` only (dots and other hostname chars become hyphens; digits stripped), plus a short stable a-z hash suffix so collapses cannot collide (`web3.io` ≠ `web.io`). Example: `stripe.com` → `stripe-com-<hash>`.
 - Domain identity uses normalized hostname (lowercase, strip `www.`).
 - Public page shows teaser (score `/100`, locale map, prioritized “Fix first” findings). Full report unlocks only after email verification.
 - Optional focus locales (1–2) deepen the linguistic pass when provided on first run.
@@ -56,8 +56,9 @@ Public Hono routes under `/api/localisation-audit` start/retry runs, expose teas
   - keeps the lead `pending` while the audit is running, then auto-sends on completion
   - allows safe resend with a short cooldown
 - Email uses React Email + Resend (existing `RESEND_*` env vars).
-- `GET /:domainSlug/verify` consumes the one-time token, marks the lead verified, sets `hl_la_unlock_{domainSlug}` HttpOnly cookie, and redirects to the localized result.
+- `GET /:domainSlug/verify` validates the token (reusable until expiry so email link-previews cannot burn it), marks the lead verified, sets `hl_la_unlock_{domainSlug}` HttpOnly cookie, and redirects to a normalized app locale path.
 - Per-domain cookies prevent unlocking one domain from unlocking another.
+- Report-email enqueue failures after a successful analysis do not mark the audit failed.
 
 ## Analytics
 

@@ -20,8 +20,9 @@ import {
   notFoundResponse,
   tooManyRequestsResponse,
 } from "@/api/response.schema";
-import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics";
+import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protection";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import {
@@ -32,13 +33,13 @@ import {
 import {
   attachLocalisationAuditWorkflowRun,
   claimOrReuseLocalisationAudit,
-  consumeLocalisationAuditReportToken,
   failLocalisationAudit,
   findLocalisationAuditBySlug,
   isLocalisationAuditRetryable,
   markLocalisationAuditLeadEmailFailed,
   markLocalisationAuditLeadEmailQueued,
   upsertLocalisationAuditLeadForDelivery,
+  verifyLocalisationAuditReportToken,
   type LocalisationAuditRow,
 } from "@/lib/localisation-audit/store";
 import { isErr } from "@/lib/primitives/result/results";
@@ -253,7 +254,8 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         );
       }
 
-      const locale = parsed.data.locale?.trim() || "en";
+      const locale =
+        normalizeAppLocale(parsed.data.locale ?? DEFAULT_APP_LOCALE) ?? DEFAULT_APP_LOCALE;
       const upsert = await upsertLocalisationAuditLeadForDelivery({
         auditId: audit.id,
         email: parsed.data.email,
@@ -324,23 +326,25 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
       }
 
       const token = c.req.query("token");
-      const locale = c.req.query("locale")?.trim() || "en";
+      const locale =
+        normalizeAppLocale(c.req.query("locale") ?? DEFAULT_APP_LOCALE) ?? DEFAULT_APP_LOCALE;
       if (!token) {
         return badRequestResponse(c, "invalid_token", "A report token is required");
       }
 
-      const consumed = await consumeLocalisationAuditReportToken({ domainSlug, token });
-      if (!consumed) {
+      // Token stays valid until expiry so email link-previews cannot burn a one-click unlock.
+      const verified = await verifyLocalisationAuditReportToken({ domainSlug, token });
+      if (!verified) {
         return forbiddenResponse(
           c,
           "localisation_audit_token_invalid",
-          "This report link is invalid, expired, or already used.",
+          "This report link is invalid or expired.",
         );
       }
 
       const cookieValue = signLocalisationAuditUnlock({
         domainSlug,
-        email: consumed.lead.email,
+        email: verified.lead.email,
       });
       setCookie(c, localisationAuditUnlockCookieName(domainSlug), cookieValue, {
         httpOnly: true,
@@ -352,7 +356,7 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
 
       serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.emailVerified, {
         delivery: "verified",
-        score_band: scoreBand(consumed.audit.score),
+        score_band: scoreBand(verified.audit.score),
       });
 
       return c.redirect(`/${locale}/localisation-audit/${domainSlug}`, 302);

@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   normalizeHostname,
@@ -33,18 +35,31 @@ export function isValidDomainSlug(slug: string): boolean {
   return DOMAIN_SLUG_PATTERN.test(slug);
 }
 
+/** Stable a-z discriminator so digit/hyphen/dot collapses cannot collide. */
+function domainSlugDiscriminator(domainKey: string): string {
+  const digest = createHash("sha256").update(domainKey).digest();
+  let out = "";
+  for (const byte of digest) {
+    out += String.fromCharCode(97 + (byte % 26));
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
 /**
  * SEO slug: lowercase a-z and hyphens only.
  * Dots and other non-letters become hyphens; digits are dropped.
+ * A short hash suffix keeps distinct hostnames unique after collapse.
  */
 export function hostnameToDomainSlug(hostname: string): string {
   const normalized = normalizeHostname(hostname).replace(/^www\./, "");
-  const slug = normalized
+  const base = normalized
     .toLowerCase()
     .replace(/[^a-z]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  return slug;
+  if (!base) return "";
+  return `${base}-${domainSlugDiscriminator(normalized)}`;
 }
 
 export function normalizeDomainKey(hostname: string): string {
