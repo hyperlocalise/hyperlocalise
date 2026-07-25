@@ -7,11 +7,6 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 )
 
-func validateICUInvariant(source, translated string) error {
-	_, err := validateICUInvariantWithTokens(source, translated)
-	return err
-}
-
 func validateICUInvariantWithTokens(source, translated string) (bool, error) {
 	// BOLT OPTIMIZATION: Fast-path for plain text without any potential ICU structures or HTML tags.
 	// If neither the source nor the translated text contains '{' or '<', neither can contain any ICU

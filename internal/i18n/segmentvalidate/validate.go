@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
@@ -255,23 +254,6 @@ func checkFromError(err error) Check {
 			Category: "syntax",
 		}
 	}
-}
-
-func segmentHasFormatTokens(source string, kind FormatKind) bool {
-	if kind == FormatMarkdown {
-		if strings.Contains(source, "\x1eHLMDPH_") {
-			return true
-		}
-	}
-
-	// BOLT OPTIMIZATION: Avoid ParseInvariant overhead if there's no potential ICU structure or tag.
-	if strings.ContainsAny(source, "{<") {
-		inv, err := icuparser.ParseInvariant(trimSpace(source))
-		if err == nil && (len(inv.Placeholders) > 0 || len(inv.ICUBlocks) > 0) {
-			return true
-		}
-	}
-	return profileHasFormatTokens(source)
 }
 
 func placeholderTokensFromMessage(message string) []string {

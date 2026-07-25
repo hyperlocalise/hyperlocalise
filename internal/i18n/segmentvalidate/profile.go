@@ -7,11 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-func validateProfileParity(source, translated string) error {
-	_, err := validateProfileParityWithTokens(source, translated)
-	return err
-}
-
 func validateProfileParityWithTokens(source, translated string) (bool, error) {
 	hasExtra, err := validateExtraPlaceholderParityWithTokens(source, translated)
 	if err != nil {
