@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type FocusEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -115,6 +115,8 @@ export function MarkdownEditor({
   chrome?: "default" | "minimal";
 }) {
   const intl = useIntl();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const blurCommitScheduledRef = useRef(false);
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
   const slashConfigRef = useRef<MarkdownSlashCommandConfig>({
@@ -137,6 +139,30 @@ export function MarkdownEditor({
     isMinimal ? "min-h-[3rem]" : "min-h-[8rem]",
   );
 
+  const scheduleBlurCommit = useCallback((hasEditorFocus: () => boolean) => {
+    // Root focusout and ProseMirror blur can both fire for one leave; coalesce.
+    if (blurCommitScheduledRef.current) {
+      return;
+    }
+    blurCommitScheduledRef.current = true;
+    // Defer past slash/bubble menu mount/unmount so a transient body focus
+    // during popup open doesn't commit, but a real outside click still does.
+    queueMicrotask(() => {
+      blurCommitScheduledRef.current = false;
+      if (hasEditorFocus()) {
+        return;
+      }
+      const active = document.activeElement;
+      if (rootRef.current?.contains(active)) {
+        return;
+      }
+      if (isMarkdownEditorChromeTarget(active)) {
+        return;
+      }
+      onBlurRef.current?.();
+    });
+  }, []);
+
   const editor = useEditor({
     extensions: editorExtensions,
     content: value,
@@ -153,26 +179,24 @@ export function MarkdownEditor({
         "data-placeholder": resolvedPlaceholder,
       },
       handleDOMEvents: {
-        blur: (_view, event) => {
-          if (isMarkdownEditorChromeTarget(event.relatedTarget)) {
-            return false;
-          }
-          // Defer past slash/bubble menu mount/unmount so a transient body focus
-          // during popup open doesn't commit, but a real outside click still does.
-          queueMicrotask(() => {
-            if (_view.hasFocus()) {
-              return;
-            }
-            if (isMarkdownEditorChromeTarget(document.activeElement)) {
-              return;
-            }
-            onBlurRef.current?.();
-          });
+        blur: (_view) => {
+          scheduleBlurCommit(() => _view.hasFocus());
           return false;
         },
       },
     },
   });
+
+  const handleRootFocusOut = (event: FocusEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) {
+      return;
+    }
+    if (isMarkdownEditorChromeTarget(next)) {
+      return;
+    }
+    scheduleBlurCommit(() => Boolean(editor?.view.hasFocus()));
+  };
 
   useEffect(() => {
     if (!editor) {
@@ -208,27 +232,14 @@ export function MarkdownEditor({
           "data-placeholder": resolvedPlaceholder,
         },
         handleDOMEvents: {
-          blur: (_view, event) => {
-            if (isMarkdownEditorChromeTarget(event.relatedTarget)) {
-              return false;
-            }
-            // Defer past slash/bubble menu mount/unmount so a transient body focus
-            // during popup open doesn't commit, but a real outside click still does.
-            queueMicrotask(() => {
-              if (editor.view.hasFocus()) {
-                return;
-              }
-              if (isMarkdownEditorChromeTarget(document.activeElement)) {
-                return;
-              }
-              onBlurRef.current?.();
-            });
+          blur: (_view) => {
+            scheduleBlurCommit(() => editor.view.hasFocus());
             return false;
           },
         },
       },
     });
-  }, [editor, editorContentClassName, resolvedAriaLabel, resolvedPlaceholder]);
+  }, [editor, editorContentClassName, resolvedAriaLabel, resolvedPlaceholder, scheduleBlurCommit]);
 
   const placeholderStyles = cn(
     "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
@@ -252,6 +263,8 @@ export function MarkdownEditor({
 
   return (
     <div
+      ref={rootRef}
+      onBlur={handleRootFocusOut}
       className={cn(
         isMinimal
           ? "[&_.tiptap]:min-h-[3rem]"

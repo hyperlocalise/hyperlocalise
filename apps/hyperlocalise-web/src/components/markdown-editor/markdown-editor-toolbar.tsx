@@ -53,9 +53,10 @@ function MarkdownToolbarButton({
       aria-pressed={pressed}
       disabled={disabled}
       onMouseDown={(event) => {
+        // Keep the editor selection while clicking the toolbar control.
         event.preventDefault();
-        onClick();
       }}
+      onClick={onClick}
       className={cn(
         "inline-flex h-7 min-w-7 items-center justify-center rounded border border-transparent px-2 text-xs font-medium text-subtle-foreground transition-colors",
         "hover:border-border hover:bg-muted hover:text-foreground",
