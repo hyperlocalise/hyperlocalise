@@ -15,8 +15,8 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/invopop/jsonschema v0.14.0
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
-	github.com/mattn/go-isatty v0.0.23
-	github.com/openai/openai-go/v3 v3.44.0
+	github.com/mattn/go-isatty v0.0.24
+	github.com/openai/openai-go/v3 v3.46.0
 	github.com/phrase/phrase-go/v4 v4.29.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -225,7 +225,7 @@ require (
 	github.com/stbenjam/no-sprintf-host-port v0.3.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tetafro/godot v1.5.6 // indirect
-	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
