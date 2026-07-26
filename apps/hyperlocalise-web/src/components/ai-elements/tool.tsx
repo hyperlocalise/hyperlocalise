@@ -198,12 +198,12 @@ export const ToolHeader = ({
   return (
     <CollapsibleTrigger
       className={cn(
-        "flex w-full cursor-pointer items-baseline gap-1.5 py-0.5 text-start text-sm",
+        "flex w-full min-w-0 cursor-pointer items-baseline gap-1.5 py-0.5 text-start text-sm",
         className,
       )}
       {...props}
     >
-      <span className="truncate text-foreground">{name}</span>
+      <span className="shrink-0 text-foreground">{name}</span>
       {muted ? (
         <span
           className={cn("min-w-0 truncate text-muted-foreground", isPending && "animate-pulse")}
