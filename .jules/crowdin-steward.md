@@ -235,3 +235,9 @@
 **Learning:** In Crowdin API v2, `parentId` is an optional field when listing groups. Specifically, querying root-level groups requires setting `parentId=0`. However, the Go SDK typed `ParentID` as an `int` and had a condition `o.ParentID > 0` before appending it to query parameters, making root group filtering impossible.
 
 **Action:** Changed `ParentID` type to `*int` in `GroupsListOptions` and updated `Values()` serialization logic to append the parameter as long as `ParentID != nil`. Updated unit tests in both `model/groups_test.go` and `groups_test.go` to explicitly verify `parentId=0` query parameter construction.
+
+## 2026-12-19 - Fix GetManagers endpoint path and signature mismatch
+
+**Learning:** In the Crowdin Enterprise API v2, the endpoint to get a single group manager is `GET /api/v2/groups/{groupId}/managers/{userId}` (using both the group ID and the manager's user ID as identifiers). However, the Go SDK's `GetManagers` function incorrectly omitted the `userID` parameter, constructed the incorrect list-level endpoint path `/api/v2/groups/{groupId}/managers`, and attempted to decode the response as a single resource `ManagerGetResponse`. This would cause JSON unmarshaling failures or retrieve incorrect resources under real workloads.
+
+**Action:** Updated `GetManagers` in `crowdin/users.go` to accept `userID int` and updated its API request path to `/api/v2/groups/%d/managers/%d`. Fixed `TestManagersService_Get` in `crowdin/users_test.go` to supply a valid user ID and assert the correct URL structure.
