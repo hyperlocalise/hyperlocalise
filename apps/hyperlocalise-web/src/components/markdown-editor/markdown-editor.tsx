@@ -117,6 +117,7 @@ export function MarkdownEditor({
   const intl = useIntl();
   const rootRef = useRef<HTMLDivElement>(null);
   const blurCommitScheduledRef = useRef(false);
+  const linkPromptOpenRef = useRef(false);
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
   const slashConfigRef = useRef<MarkdownSlashCommandConfig>({
@@ -149,6 +150,9 @@ export function MarkdownEditor({
     // during popup open doesn't commit, but a real outside click still does.
     queueMicrotask(() => {
       blurCommitScheduledRef.current = false;
+      if (linkPromptOpenRef.current) {
+        return;
+      }
       if (hasEditorFocus()) {
         return;
       }
@@ -281,7 +285,14 @@ export function MarkdownEditor({
           isMinimal ? "min-h-[3rem]" : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
         )}
       />
-      {!disabled ? <MarkdownEditorBubbleMenu editor={editor} /> : null}
+      {!disabled ? (
+        <MarkdownEditorBubbleMenu
+          editor={editor}
+          onLinkPromptOpenChange={(open) => {
+            linkPromptOpenRef.current = open;
+          }}
+        />
+      ) : null}
     </div>
   );
 }

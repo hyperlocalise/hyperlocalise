@@ -62,7 +62,13 @@ function BubbleMenuButton({
   );
 }
 
-export function MarkdownEditorBubbleMenu({ editor }: { editor: Editor }) {
+export function MarkdownEditorBubbleMenu({
+  editor,
+  onLinkPromptOpenChange,
+}: {
+  editor: Editor;
+  onLinkPromptOpenChange?: (open: boolean) => void;
+}) {
   const intl = useIntl();
   const linkPrompt = intl.formatMessage(markdownEditorMessages.linkPrompt);
 
@@ -115,18 +121,24 @@ export function MarkdownEditorBubbleMenu({ editor }: { editor: Editor }) {
             }
 
             const previousUrl = editor.getAttributes("link").href;
-            const url = window.prompt(
-              linkPrompt,
-              typeof previousUrl === "string" ? previousUrl : "https://",
-            );
-            if (url === null) {
-              return;
+            onLinkPromptOpenChange?.(true);
+            try {
+              const url = window.prompt(
+                linkPrompt,
+                typeof previousUrl === "string" ? previousUrl : "https://",
+              );
+              if (url === null) {
+                return;
+              }
+              if (url.trim() === "") {
+                editor.chain().focus().unsetLink().run();
+                return;
+              }
+              editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+            } finally {
+              editor.commands.focus();
+              queueMicrotask(() => onLinkPromptOpenChange?.(false));
             }
-            if (url.trim() === "") {
-              editor.chain().focus().unsetLink().run();
-              return;
-            }
-            editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
           }}
         />
       </div>
