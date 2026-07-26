@@ -14,10 +14,7 @@
  */
 import { useState } from "react";
 
-import {
-  MarkdownDescriptionEditor,
-  MarkdownDescriptionPreview,
-} from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownEditor, MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { cn } from "@/lib/primitives/cn";
 
 export function IssueMarkdownField({
@@ -41,7 +38,7 @@ export function IssueMarkdownField({
 
   if (isEditing) {
     return (
-      <MarkdownDescriptionEditor
+      <MarkdownEditor
         value={value}
         onChange={onChange}
         onBlur={() => {
@@ -79,7 +76,7 @@ export function IssueMarkdownField({
         }
       }}
     >
-      <MarkdownDescriptionPreview
+      <MarkdownPreview
         value={value}
         emptyMessage={emptyMessage ?? placeholder}
         chrome="minimal"

@@ -21,7 +21,7 @@ import { ListIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -279,7 +279,7 @@ export function NativeJobDetailContent({
         renderDescriptionField={
           providerDescription.trim().length > 0
             ? ({ description }) => (
-                <MarkdownDescriptionPreview value={description} className="border-border bg-card" />
+                <MarkdownPreview value={description} className="border-border bg-card" />
               )
             : undefined
         }

@@ -19,10 +19,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import {
-  MarkdownDescriptionEditor,
-  MarkdownDescriptionPreview,
-} from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownEditor, MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
@@ -62,15 +59,13 @@ export function ProviderJobDescriptionFieldView({
       return <p className="text-sm text-muted-foreground">{noDescription}</p>;
     }
 
-    return (
-      <MarkdownDescriptionPreview value={description} className="border-border bg-transparent" />
-    );
+    return <MarkdownPreview value={description} className="border-border bg-transparent" />;
   }
 
   if (!isEditing) {
     return (
       <div className="group/description relative">
-        <MarkdownDescriptionPreview
+        <MarkdownPreview
           value={description}
           emptyMessage={noDescription}
           className="border-border bg-transparent pr-12"
@@ -94,7 +89,7 @@ export function ProviderJobDescriptionFieldView({
 
   return (
     <div className="space-y-3">
-      <MarkdownDescriptionEditor
+      <MarkdownEditor
         value={draft}
         onChange={(nextDraft) => {
           setDraftState({ baseDescription: description, draft: nextDraft });

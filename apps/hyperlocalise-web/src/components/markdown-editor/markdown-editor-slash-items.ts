@@ -27,7 +27,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import type { IntlShape } from "react-intl";
 
-import { markdownDescriptionEditorMessages as messages } from "./markdown-description-editor.messages";
+import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
 export type MarkdownSlashShortcutPart = "mod" | "alt" | "shift" | (string & {});
 

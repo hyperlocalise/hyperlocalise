@@ -17,7 +17,7 @@ import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { MarkdownDescriptionEditor } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -270,7 +270,7 @@ export function IssueSheetCreateIssueDialog({
                 />
               </Field>
               <Field label={<FormattedMessage {...messages.descriptionLabel} />}>
-                <MarkdownDescriptionEditor
+                <MarkdownEditor
                   value={description}
                   onChange={setDescription}
                   disabled={createIssue.isPending}

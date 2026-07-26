@@ -18,7 +18,7 @@ import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-ic
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -216,7 +216,7 @@ export function JobProviderDetailSectionView({
                   </dt>
                   <dd className="min-w-0 text-sm text-subtle-foreground">
                     {crowdinDescription ? (
-                      <MarkdownDescriptionPreview
+                      <MarkdownPreview
                         value={crowdinDescription}
                         className="border-border bg-transparent"
                       />

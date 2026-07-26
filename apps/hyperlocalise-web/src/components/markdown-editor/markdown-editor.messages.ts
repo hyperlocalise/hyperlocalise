@@ -14,7 +14,87 @@
  */
 import { defineMessages } from "react-intl";
 
-export const markdownDescriptionEditorMessages = defineMessages({
+export const markdownEditorMessages = defineMessages({
+  boldTitle: {
+    defaultMessage: "Bold",
+    id: "Qe6R9CCAC7",
+    description: "Tooltip and accessible label for the bold formatting toolbar button",
+  },
+  boldLabel: {
+    defaultMessage: "B",
+    id: "O368wEYD1O",
+    description: "Visible abbreviation on the bold formatting toolbar button",
+  },
+  italicTitle: {
+    defaultMessage: "Italic",
+    id: "2Ce/RC/wfJ",
+    description: "Tooltip and accessible label for the italic formatting toolbar button",
+  },
+  italicLabel: {
+    defaultMessage: "I",
+    id: "2QU4QHjp8c",
+    description: "Visible abbreviation on the italic formatting toolbar button",
+  },
+  heading2Title: {
+    defaultMessage: "Heading 2",
+    id: "g9BGh+CmB5",
+    description: "Tooltip and accessible label for the level-2 heading toolbar button",
+  },
+  heading2Label: {
+    defaultMessage: "H2",
+    id: "ioubvwX5dG",
+    description: "Visible abbreviation on the level-2 heading toolbar button",
+  },
+  heading3Title: {
+    defaultMessage: "Heading 3",
+    id: "JMPR7Ba6ot",
+    description: "Tooltip and accessible label for the level-3 heading toolbar button",
+  },
+  heading3Label: {
+    defaultMessage: "H3",
+    id: "A2Qe3R87fV",
+    description: "Visible abbreviation on the level-3 heading toolbar button",
+  },
+  bulletListLabel: {
+    defaultMessage: "• List",
+    id: "L3ycwnosUv",
+    description: "Visible label for the bullet list toolbar button",
+  },
+  bulletListTitle: {
+    defaultMessage: "Bullet list",
+    id: "88gAEWUFj7",
+    description: "Tooltip and accessible label for the bullet list toolbar button",
+  },
+  orderedListLabel: {
+    defaultMessage: "1. List",
+    id: "K89oxCMVZA",
+    description: "Visible label for the numbered list toolbar button",
+  },
+  orderedListTitle: {
+    defaultMessage: "Numbered list",
+    id: "dZcHfTdmF2",
+    description: "Tooltip and accessible label for the numbered list toolbar button",
+  },
+  blockquoteLabel: {
+    defaultMessage: "Quote",
+    id: "8w4ZXUPESp",
+    description: "Visible label for the blockquote toolbar button",
+  },
+  blockquoteTitle: {
+    defaultMessage: "Blockquote",
+    id: "6ubkC6hfDe",
+    description: "Tooltip and accessible label for the blockquote toolbar button",
+  },
+  codeLabel: {
+    defaultMessage: "Code",
+    id: "OnnGrPT4U5",
+    description: "Visible label for the inline code toolbar button",
+  },
+  codeTitle: {
+    defaultMessage: "Inline code",
+    id: "Q26vSR4mR9",
+    description: "Tooltip and accessible label for the inline code toolbar button",
+  },
   placeholder: {
     defaultMessage: "Write, or type / for blocks…",
     id: "fjjjlNCOer",
@@ -94,5 +174,30 @@ export const markdownDescriptionEditorMessages = defineMessages({
     defaultMessage: "Link",
     id: "YyO52dNKVM",
     description: "Slash menu item for inserting a hyperlink",
+  },
+  bubbleBold: {
+    defaultMessage: "Bold",
+    id: "DRi2LRug2G",
+    description: "Bubble menu button to toggle bold text",
+  },
+  bubbleItalic: {
+    defaultMessage: "Italic",
+    id: "9l9T50rviR",
+    description: "Bubble menu button to toggle italic text",
+  },
+  bubbleStrike: {
+    defaultMessage: "Strikethrough",
+    id: "rUPw7LyUVG",
+    description: "Bubble menu button to toggle strikethrough text",
+  },
+  bubbleCode: {
+    defaultMessage: "Inline code",
+    id: "E7cU/WEnnG",
+    description: "Bubble menu button to toggle inline code",
+  },
+  bubbleLink: {
+    defaultMessage: "Link",
+    id: "CT9/X7v9OM",
+    description: "Bubble menu button to add or remove a hyperlink",
   },
 });

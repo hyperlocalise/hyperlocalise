@@ -23,7 +23,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { MarkdownContent } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -23,7 +23,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   formatMarkdownSlashShortcut,
   type MarkdownSlashCommandItem,
-} from "./markdown-description-editor-slash-items";
+} from "./markdown-editor-slash-items";
 
 export type MarkdownSlashCommandListHandle = {
   onKeyDown: (event: globalThis.KeyboardEvent) => boolean;

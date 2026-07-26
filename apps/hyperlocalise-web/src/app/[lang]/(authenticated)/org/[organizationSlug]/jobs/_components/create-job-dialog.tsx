@@ -18,7 +18,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { MarkdownDescriptionEditor } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -564,7 +564,7 @@ export function CreateJobDialog({
                 <Label>
                   <FormattedMessage {...createJobDialogMessages.descriptionLabel} />
                 </Label>
-                <MarkdownDescriptionEditor
+                <MarkdownEditor
                   value={description}
                   onChange={setDescription}
                   disabled={createJob.isPending}

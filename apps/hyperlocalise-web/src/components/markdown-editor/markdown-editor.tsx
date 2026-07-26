@@ -24,17 +24,30 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
-import { markdownDescriptionEditorMessages } from "./markdown-description-editor.messages";
+import { MarkdownEditorBubbleMenu } from "./markdown-editor-bubble-menu";
+import { markdownEditorMessages } from "./markdown-editor.messages";
 import {
   buildMarkdownSlashCommandItems,
   filterMarkdownSlashCommandItems,
-} from "./markdown-description-editor-slash-items";
+} from "./markdown-editor-slash-items";
 import {
   createMarkdownSlashCommandExtension,
   type MarkdownSlashCommandConfig,
-} from "./markdown-description-editor-slash-extension";
+} from "./markdown-editor-slash-extension";
+import { MarkdownEditorToolbar } from "./markdown-editor-toolbar";
 
-const markdownDescriptionContentClassName = cn(
+function isMarkdownEditorChromeTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        "[data-markdown-slash-menu], [data-markdown-bubble-menu], [data-markdown-toolbar]",
+      ),
+    )
+  );
+}
+
+const markdownEditorContentClassName = cn(
   "max-w-none px-3 py-2 text-sm text-subtle-foreground focus:outline-none",
   "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_h1]:mb-3 [&_h1]:mt-5 [&_h1]:font-heading [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:text-foreground",
@@ -54,8 +67,8 @@ const markdownDescriptionContentClassName = cn(
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
 );
 
-const markdownDescriptionMinimalContentClassName = cn(
-  markdownDescriptionContentClassName,
+const markdownEditorMinimalContentClassName = cn(
+  markdownEditorContentClassName,
   "px-0 py-1 text-foreground",
 );
 
@@ -81,7 +94,7 @@ function useMarkdownEditorExtensions(getSlashConfig: () => MarkdownSlashCommandC
   );
 }
 
-export function MarkdownDescriptionEditor({
+export function MarkdownEditor({
   value,
   onChange,
   onBlur,
@@ -98,7 +111,7 @@ export function MarkdownDescriptionEditor({
   className?: string;
   placeholder?: string;
   ariaLabel?: string;
-  /** Minimal inline chrome (Linear-style); markdown and keyboard shortcuts only. */
+  /** Minimal inline chrome omits the bordered shell; toolbar still shows when editable. */
   chrome?: "default" | "minimal";
 }) {
   const intl = useIntl();
@@ -111,17 +124,16 @@ export function MarkdownDescriptionEditor({
   slashConfigRef.current = {
     resolveItems: (query: string) =>
       filterMarkdownSlashCommandItems(buildMarkdownSlashCommandItems(intl), query),
-    emptyLabel: intl.formatMessage(markdownDescriptionEditorMessages.slashEmpty),
+    emptyLabel: intl.formatMessage(markdownEditorMessages.slashEmpty),
   };
   const getSlashConfig = useCallback(() => slashConfigRef.current, []);
   const editorExtensions = useMarkdownEditorExtensions(getSlashConfig);
-  const resolvedPlaceholder =
-    placeholder ?? intl.formatMessage(markdownDescriptionEditorMessages.placeholder);
+  const resolvedPlaceholder = placeholder ?? intl.formatMessage(markdownEditorMessages.placeholder);
   const resolvedAriaLabel =
-    ariaLabel ?? intl.formatMessage(markdownDescriptionEditorMessages.taskDescriptionAria);
+    ariaLabel ?? intl.formatMessage(markdownEditorMessages.taskDescriptionAria);
   const isMinimal = chrome === "minimal";
   const editorContentClassName = cn(
-    isMinimal ? markdownDescriptionMinimalContentClassName : markdownDescriptionContentClassName,
+    isMinimal ? markdownEditorMinimalContentClassName : markdownEditorContentClassName,
     isMinimal ? "min-h-[3rem]" : "min-h-[8rem]",
   );
 
@@ -142,20 +154,16 @@ export function MarkdownDescriptionEditor({
       },
       handleDOMEvents: {
         blur: (_view, event) => {
-          const relatedTarget = event.relatedTarget;
-          if (
-            relatedTarget instanceof Element &&
-            relatedTarget.closest("[data-markdown-slash-menu]")
-          ) {
+          if (isMarkdownEditorChromeTarget(event.relatedTarget)) {
             return false;
           }
-          // Defer past slash-menu mount/unmount so a transient body focus during
-          // popup open doesn't commit, but a real outside click still does.
+          // Defer past slash/bubble menu mount/unmount so a transient body focus
+          // during popup open doesn't commit, but a real outside click still does.
           queueMicrotask(() => {
             if (_view.hasFocus()) {
               return;
             }
-            if (document.activeElement?.closest("[data-markdown-slash-menu]")) {
+            if (isMarkdownEditorChromeTarget(document.activeElement)) {
               return;
             }
             onBlurRef.current?.();
@@ -201,20 +209,16 @@ export function MarkdownDescriptionEditor({
         },
         handleDOMEvents: {
           blur: (_view, event) => {
-            const relatedTarget = event.relatedTarget;
-            if (
-              relatedTarget instanceof Element &&
-              relatedTarget.closest("[data-markdown-slash-menu]")
-            ) {
+            if (isMarkdownEditorChromeTarget(event.relatedTarget)) {
               return false;
             }
-            // Defer past slash-menu mount/unmount so a transient body focus during
-            // popup open doesn't commit, but a real outside click still does.
+            // Defer past slash/bubble menu mount/unmount so a transient body focus
+            // during popup open doesn't commit, but a real outside click still does.
             queueMicrotask(() => {
               if (editor.view.hasFocus()) {
                 return;
               }
-              if (document.activeElement?.closest("[data-markdown-slash-menu]")) {
+              if (isMarkdownEditorChromeTarget(document.activeElement)) {
                 return;
               }
               onBlurRef.current?.();
@@ -257,12 +261,14 @@ export function MarkdownDescriptionEditor({
         className,
       )}
     >
+      {!disabled ? <MarkdownEditorToolbar editor={editor} disabled={disabled} /> : null}
       <EditorContent
         editor={editor}
         className={cn(
           isMinimal ? "min-h-[3rem]" : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
         )}
       />
+      {!disabled ? <MarkdownEditorBubbleMenu editor={editor} /> : null}
     </div>
   );
 }
@@ -280,7 +286,7 @@ export function MarkdownContent({
 }) {
   const intl = useIntl();
   const resolvedAriaLabel =
-    ariaLabel ?? intl.formatMessage(markdownDescriptionEditorMessages.markdownContentAria);
+    ariaLabel ?? intl.formatMessage(markdownEditorMessages.markdownContentAria);
 
   const editor = useEditor({
     extensions: markdownBaseExtensions,
@@ -290,7 +296,7 @@ export function MarkdownContent({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: cn(markdownDescriptionContentClassName, contentClassName),
+        class: cn(markdownEditorContentClassName, contentClassName),
         "aria-label": resolvedAriaLabel,
       },
     },
@@ -317,7 +323,7 @@ export function MarkdownContent({
     editor.setOptions({
       editorProps: {
         attributes: {
-          class: cn(markdownDescriptionContentClassName, contentClassName),
+          class: cn(markdownEditorContentClassName, contentClassName),
           "aria-label": resolvedAriaLabel,
         },
       },
@@ -341,7 +347,7 @@ export function MarkdownContent({
   );
 }
 
-export function MarkdownDescriptionPreview({
+export function MarkdownPreview({
   value,
   className,
   contentClassName,
@@ -356,10 +362,8 @@ export function MarkdownDescriptionPreview({
 }) {
   const intl = useIntl();
   const resolvedEmptyMessage =
-    emptyMessage ?? intl.formatMessage(markdownDescriptionEditorMessages.noDescription);
-  const previewAriaLabel = intl.formatMessage(
-    markdownDescriptionEditorMessages.taskDescriptionPreviewAria,
-  );
+    emptyMessage ?? intl.formatMessage(markdownEditorMessages.noDescription);
+  const previewAriaLabel = intl.formatMessage(markdownEditorMessages.taskDescriptionPreviewAria);
   const isMinimal = chrome === "minimal";
 
   if (!value.trim()) {

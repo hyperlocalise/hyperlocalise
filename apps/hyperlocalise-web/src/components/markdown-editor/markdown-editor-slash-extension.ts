@@ -16,8 +16,8 @@ import { Extension } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 
-import type { MarkdownSlashCommandItem } from "./markdown-description-editor-slash-items";
-import { createMarkdownSlashCommandSuggestionRender } from "./markdown-description-editor-slash-list";
+import type { MarkdownSlashCommandItem } from "./markdown-editor-slash-items";
+import { createMarkdownSlashCommandSuggestionRender } from "./markdown-editor-slash-list";
 
 export type MarkdownSlashCommandConfig = {
   resolveItems: (query: string) => MarkdownSlashCommandItem[];
