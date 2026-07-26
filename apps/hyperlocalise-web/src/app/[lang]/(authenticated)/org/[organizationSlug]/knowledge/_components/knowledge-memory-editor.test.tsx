@@ -144,13 +144,19 @@ function renderEditor() {
 }
 
 async function editAndOpenSaveDialog(content: string, summary: string) {
-  fireEvent.change(await screen.findByRole("textbox", { name: "Global guidance" }), {
-    target: { value: content },
+  const editor = await screen.findByRole("textbox", { name: "Global guidance" });
+  await userEvent.clear(editor);
+  await userEvent.type(editor, content);
+
+  const saveButton = screen.getByRole("button", { name: "Save changes" });
+  await waitFor(() => {
+    expect(saveButton).toBeEnabled();
   });
-  await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Version note (optional)" }), {
-    target: { value: summary },
-  });
+  await userEvent.click(saveButton);
+
+  const summaryInput = await screen.findByRole("textbox", { name: "Version note (optional)" });
+  await userEvent.clear(summaryInput);
+  await userEvent.type(summaryInput, summary);
 }
 
 describe("KnowledgeMemoryEditor", () => {
