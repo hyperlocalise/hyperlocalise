@@ -61,10 +61,10 @@ Einzeln betrachtet mögen diese Anpassungen unbedeutend erscheinen. Zusammengeno
 
 Obwohl diese Begriffe häufig synonym verwendet werden, repräsentieren sie unterschiedliche Anpassungsstufen.
 
-| Ansatz                | Fokus                                                            | Ergebnis                                       |
-| --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
-| **Übersetzung**       | Text in eine andere Sprache übertragen                          | Kunden können den Inhalt verstehen.          |
-| **Lokalisierung**      | Anpassung von Inhalten an eine bestimmte Sprache oder Region             | Kunden können das Produkt problemlos nutzen.     |
+| Ansatz                 | Fokus                                                            | Ergebnis                                                            |
+| ---------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Übersetzung**        | Text in eine andere Sprache übertragen                           | Kunden können den Inhalt verstehen.                                 |
+| **Lokalisierung**      | Anpassung von Inhalten an eine bestimmte Sprache oder Region     | Kunden können das Produkt problemlos nutzen.                        |
 | **Hyperlokalisierung** | Anpassung des gesamten Kundenerlebnisses an ein lokales Publikum | Kunden haben das Gefühl, dass das Produkt für sie entwickelt wurde. |
 
 Für Unternehmen, die mehrere internationale Märkte bedienen, wird diese Unterscheidung immer wichtiger. Mit zunehmender Reife der Produkte und wachsendem Wettbewerb hängt der Erfolg weniger davon ab, ob Inhalte übersetzt wurden, sondern vielmehr davon, ob sich Kunden verstanden fühlen.
