@@ -63,6 +63,7 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/privacy")).toBe(false);
     expect(isUnsupportedLocalePath("/pricing")).toBe(false);
     expect(isUnsupportedLocalePath("/company")).toBe(false);
+    expect(isUnsupportedLocalePath("/startups")).toBe(false);
   });
 
   it("allows the site root", () => {

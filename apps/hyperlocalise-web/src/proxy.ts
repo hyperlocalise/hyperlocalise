@@ -139,6 +139,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/trust-center",
   "/pricing",
   "/company",
+  "/startups",
 ]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
 const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];

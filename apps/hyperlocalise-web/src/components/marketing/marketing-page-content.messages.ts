@@ -105,6 +105,11 @@ export const marketingPageMessages = defineMessages({
     id: "e18M4A0kqC",
     description: "Marketing footer resource link label for the pricing page",
   },
+  footerStartups: {
+    defaultMessage: "Startups",
+    id: "fWWcDn9s5p",
+    description: "Marketing footer resource link label for the startups program page",
+  },
   footerCompany: {
     defaultMessage: "Company",
     id: "qgNLOHiYyJ",

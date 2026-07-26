@@ -55,6 +55,11 @@ export const navbarMessages = defineMessages({
     id: "H02egE79hp",
     description: "Marketing navbar link to the pricing page",
   },
+  navStartups: {
+    defaultMessage: "Startups",
+    id: "fJ0e9/fLRw",
+    description: "Marketing navbar link to the startups program page",
+  },
   navCompany: {
     defaultMessage: "Company",
     id: "JhSEFQy5g1",

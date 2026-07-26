@@ -113,6 +113,7 @@ const resourceLinks: NavLink[] = [
   { href: docsUrl, kind: "navbar", labelKey: "navDocumentation", external: true },
   { href: cliDocsUrl, kind: "navbar", labelKey: "navCliDocs", external: true },
   { href: "/blog", kind: "navbar", labelKey: "navBlog" },
+  { href: "/startups", kind: "navbar", labelKey: "navStartups" },
   { href: githubActionUrl, kind: "navbar", labelKey: "navGitHubAction", external: true },
   { href: githubRepoUrl, kind: "navbar", labelKey: "navGitHub", external: true },
 ];
@@ -235,11 +236,14 @@ function Logo({ onHero = false }: { onHero?: boolean }) {
 
 function useHomeHeroNavTone() {
   const pathname = usePathname();
-  const isMarketingHome = pathname.split("/").filter(Boolean).length === 1;
-  const [onHero, setOnHero] = useState(isMarketingHome);
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const isMarketingHome = pathSegments.length === 1;
+  const isStartupsPage = pathSegments.length === 2 && pathSegments[1] === "startups";
+  const usesFullBleedHero = isMarketingHome || isStartupsPage;
+  const [onHero, setOnHero] = useState(usesFullBleedHero);
 
   useEffect(() => {
-    if (!isMarketingHome) {
+    if (!usesFullBleedHero) {
       setOnHero(false);
       return;
     }
@@ -255,9 +259,9 @@ function useHomeHeroNavTone() {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [isMarketingHome]);
+  }, [usesFullBleedHero]);
 
-  return isMarketingHome && onHero;
+  return usesFullBleedHero && onHero;
 }
 
 function MobileNavSection({

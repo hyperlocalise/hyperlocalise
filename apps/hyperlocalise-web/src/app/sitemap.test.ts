@@ -55,4 +55,14 @@ describe("sitemap", () => {
       expect(company?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/company`);
     }
   });
+
+  it("includes the startups page for each locale", () => {
+    const entries = sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const startups = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/startups`);
+      expect(startups).toBeDefined();
+      expect(startups?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/startups`);
+    }
+  });
 });
