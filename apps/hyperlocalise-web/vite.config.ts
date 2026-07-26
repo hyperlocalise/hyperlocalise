@@ -66,6 +66,8 @@ export default defineConfig({
       "next/cache": path.resolve(rootDir, "node_modules/next/cache.js"),
       "next/headers": path.resolve(rootDir, "node_modules/next/headers.js"),
       "next/navigation": path.resolve(rootDir, "node_modules/next/navigation.js"),
+      // AuthKit 4.3+ imports `server-only` at module scope; stub it for Vitest.
+      "server-only": path.resolve(rootDir, "src/test/mocks/server-only.ts"),
     },
   },
 });
