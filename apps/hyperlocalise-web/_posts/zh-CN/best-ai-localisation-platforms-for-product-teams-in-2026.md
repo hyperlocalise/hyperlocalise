@@ -1,8 +1,8 @@
 ---
-title: Best AI Localisation Platforms for Product Teams in 2026
+title: 2026 年产品团队最佳 AI 本地化平台
 date: 2026-07-25T00:00:00.000Z
-excerpt: Compare five leading AI localisation platforms for product teams — Hyperlocalise, Crowdin, Phrase, Lokalise, and LILT — and how to choose the right one for continuous product releases.
-category: Product
+excerpt: 比较五大 AI 本地化平台——Hyperlocalise、Crowdin、Phrase、Lokalise 和 LILT——以及如何为持续的产品发布选择合适的平台。
+category: 产品
 tags:
   - AI localisation
   - AI localization
@@ -21,382 +21,382 @@ tags:
   - localisation platforms
 ---
 
-AI has changed what product teams should expect from localisation software.
+AI 已改变产品团队应如何看待本地化软件。
 
-Traditional translation management systems were designed to store strings, assign translation tasks, and move content between translators and reviewers. Those capabilities remain important, but they no longer solve the entire problem.
+传统的翻译管理系统旨在存储字符串、分配翻译任务，以及在译员和审校员之间传递内容。这些功能仍然很重要，但已无法解决全部问题。
 
-Modern product teams ship continuously. Copy changes inside pull requests, designs, help centres, release notes, campaigns, and product experiments. Localisation teams must understand where that content appears, why it changed, which markets it affects, and whether every locale is ready to ship.
+现代产品团队持续交付。文案变更会出现在拉取请求、设计、帮助中心、发行说明、营销活动和产品实验中。本地化团队必须了解这些内容出现在哪里、为何发生变更、会影响哪些市场，以及每个语言区域是否都已准备好发布。
 
-The best AI localisation platforms therefore do more than generate translations. They gather context, coordinate work, apply terminology and brand guidance, involve human reviewers where their judgement matters, and keep multilingual releases moving alongside product development.
+因此，最佳的 AI 本地化平台不仅仅是生成翻译。它们还会收集上下文、协调工作、应用术语和品牌指南，在需要人工判断的地方引入人工审核，并让多语言版本的发布与产品开发同步推进。
 
-This guide compares five leading AI localisation platforms for product teams:
+本指南比较了五个领先的 AI 本地化平台，面向产品团队：
 
-1. Hyperlocalise
+1. 超本地化
 2. Crowdin
-3. Phrase
+3. 短语
 4. Lokalise
 5. LILT
 
-Smartling has intentionally not been included in this comparison.
+Smartling 特意未包含在此次比较中。
 
-## The best AI localisation platforms at a glance
+## 一览最佳 AI 本地化平台
 
-| Platform          | Best for                                                                                 | Main strength                                                                                             | Important consideration                                                                      |
+| 平台              | 最适合                                                                                   | 主要优势                                                                                               | 重要注意事项                                                                                      |
 | ----------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Hyperlocalise** | Product teams that want agent-native localisation without replacing their existing tools | AI agents, automatic context discovery, TMS interoperability, human review, and release intelligence      | A newer platform that is still expanding availability                                        |
-| **Crowdin**       | Developer-led teams that value integrations and extensibility                            | Large integration ecosystem, software localisation workflows, APIs, branching, and flexible AI providers  | Advanced workflows can require configuration across multiple apps and providers              |
-| **Phrase**        | Large enterprises with complex localisation infrastructure                               | Enterprise orchestration, governance, AI engine selection, quality estimation, and broad content coverage | Its breadth may be more than smaller product teams need                                      |
-| **Lokalise**      | Product and design teams that want an approachable central localisation workspace        | Figma workflows, visual context, over-the-air updates, automation, and product-friendly collaboration     | Its newer agentic capabilities are still evolving                                            |
-| **LILT**          | Enterprises that want adaptive AI combined with professional human validation            | Continuously adapting AI models and an AI-plus-human delivery model                                       | Often better suited to managed enterprise programmes than lightweight self-service workflows |
+| **Hyperlocalise** | 希望在不替换现有工具的情况下实现智能体原生本地化的产品团队 | AI 智能体、自动上下文发现、TMS 互操作性、人工审核和发布智能 | 仍在逐步扩大可用范围的新平台 |
+| **Crowdin**       | 重视集成和可扩展性的开发者主导型团队                            | 庞大的集成生态系统、软件本地化工作流、API、分支功能以及灵活的 AI 提供商  | 高级工作流可能需要跨多个应用和提供商进行配置              |
+| **短语**        | 具有复杂本地化基础设施的大型企业                               | 企业级编排、治理、AI 引擎选择、质量评估以及广泛的内容覆盖 | 其广度可能超出规模较小的产品团队的需求                                      |
+| **Lokalise**      | 适合希望拥有易用的集中式本地化工作区的产品和设计团队        | Figma 工作流、可视化上下文、空中更新、自动化以及便于产品团队协作的功能     | 其较新的智能代理功能仍在不断发展                                            |
+| **LILT**          | 希望将自适应 AI 与专业人工验证相结合的企业            | 持续自适应的 AI 模型，以及 AI+人工交付模式                                       | 通常更适合托管型企业项目，而非轻量级自助工作流 |
 
-## How we evaluated the platforms
+## 我们如何评估这些平台
 
-This article is published by Hyperlocalise, so it is important to explain how the ranking was determined.
+本文由 Hyperlocalise 发布，因此有必要说明排名是如何确定的。
 
-We evaluated each platform from the perspective of a modern product team rather than comparing feature checklists alone. The ranking considers six questions:
+我们从现代产品团队的角度评估了每个平台，而不仅仅是比较功能清单。排名考虑了六个问题：
 
-### 1. Does localisation fit into product development?
+### 1. 本地化是否适用于产品开发？
 
-Localisation should begin while a feature is being designed and built, not after the source-language release is complete. Strong platforms connect with repositories, design tools, content systems, communication tools, and release workflows.
+本地化应在功能设计和开发期间开始，而不是等到源语言版本发布完成之后。强大的平台能够与代码仓库、设计工具、内容系统、沟通工具和发布工作流连接。
 
-### 2. Can the AI understand product context?
+### 2. AI 能理解产品上下文吗？
 
-A sentence can mean different things depending on where it appears. A button label, onboarding message, error notification, and marketing headline require different decisions.
+句子的含义可能会因其出现的位置而有所不同。按钮标签、引导消息、错误通知和营销标题需要采取不同的处理方式。
 
-An AI localisation platform should be able to use surrounding strings, screenshots, repository information, terminology, style guidance, previous translations, and market-specific instructions.
+一个 AI 本地化平台应该能够利用周边字符串、截图、代码库信息、术语、风格指南、过往翻译以及针对特定市场的指示。
 
-### 3. Can it do more than produce a first draft?
+### 3. 它能否不仅仅生成初稿？
 
-Translation generation is only one step. Product teams also need work to be created, assigned, reviewed, synchronised, tested, and prepared for release.
+翻译生成只是其中一步。产品团队还需要创建、分配、审核、同步、测试工作，并为发布做好准备。
 
-The strongest platforms use AI to reduce operational work across the entire localisation lifecycle.
+最强大的平台利用 AI 减少整个本地化生命周期中的运营工作。
 
-### 4. Does it preserve human control?
+### 4. 它是否保留了人类的控制权？
 
-AI should reduce repetitive work without removing linguistic accountability. Human reviewers still need clear ways to inspect important content, make market-specific decisions, and improve future output.
+AI 应减少重复性工作，但不应削弱语言责任制。人工审阅者仍需要清晰的方式来检查重要内容、做出适合市场的决策，并改进未来的输出。
 
-### 5. Can it work with the existing technology stack?
+### 5. 它能与现有的技术栈协同工作吗？
 
-Many companies already use a TMS, repository workflow, content management system, or language service provider. Replacing all of that infrastructure can create more work than it removes.
+许多公司已经在使用 TMS、代码库工作流、内容管理系统或语言服务提供商。替换所有这些基础设施可能会增加工作量，而不是减少工作量。
 
-Interoperability is therefore a major advantage.
+因此，互操作性是一项主要优势。
 
-### 6. Does it help teams decide when a locale is ready?
+### 6. 它是否能帮助团队决定某个语言环境何时准备就绪？
 
-Completing a translation task does not necessarily mean a release is safe. Teams need visibility into missing content, review debt, terminology failures, quality changes, sync problems, and market-specific blockers.
+完成翻译任务并不一定意味着发布是安全的。团队需要了解缺失内容、审核积压、术语问题、质量变化、同步问题以及特定市场的阻碍因素。
 
-## 1. Hyperlocalise: Best overall AI localisation platform for product teams
+## 1. Hyperlocalise：产品团队综合表现最佳的 AI 本地化平台
 
-Hyperlocalise ranks first because it is designed around the operating model product teams are moving towards: localisation work performed by specialised AI agents, guided by shared knowledge, connected to existing tools, and governed by human reviewers.
+Hyperlocalise 排名第一，因为它围绕产品团队正在转向的运营模式而设计：由专门的 AI 代理执行本地化工作，在共享知识的指导下，与现有工具连接，并由人工审核人员进行监管。
 
-Instead of treating AI as another machine translation provider inside a traditional TMS, Hyperlocalise treats localisation as an agentic workflow.
+Hyperlocalise 不将 AI 视为传统 TMS 中的另一种机器翻译提供商，而是将本地化视为一种智能代理工作流。
 
-Agents can gather source context, translate content, review output, coordinate synchronisation, and check release quality. Human linguists and localisation managers remain involved where their judgement produces the greatest value.
+代理可以收集源上下文、翻译内容、审校输出、协调同步并检查发布质量。人工语言专家和本地化经理仍会在其判断能够带来最大价值的环节参与其中。
 
-Hyperlocalise is also designed to work with existing TMS platforms rather than requiring companies to replace them. Product teams can introduce agent workflows, context discovery, and localisation intelligence while continuing to use systems such as Crowdin, Phrase, or Lokalise for established translation and review processes.
+Hyperlocalise 还专为与现有 TMS 平台协同工作而设计，无需企业更换现有系统。产品团队可以引入智能代理工作流、上下文发现和本地化智能，同时继续使用 Crowdin、Phrase 或 Lokalise 等系统来执行既有的翻译和审核流程。
 
-### Why Hyperlocalise is different
+### Hyperlocalise 的独特之处
 
-Most localisation platforms begin with a central database of strings. Hyperlocalise begins with the work happening around those strings.
+大多数本地化平台都从字符串中央数据库开始。Hyperlocalise 则从围绕这些字符串开展的工作开始。
 
-A pull request contains information about what changed. A Slack request contains urgency and launch timing. A design explains where the text appears. A repository contains related components and product terminology. A previous release contains evidence about which translations were accepted or corrected.
+拉取请求包含有关变更的信息。Slack 请求包含紧迫性和发布时机。设计稿说明文本出现的位置。代码仓库包含相关组件和产品术语。之前的版本发布包含哪些翻译被接受或修正的证据。
 
-Hyperlocalise agents are designed to collect that information and attach it to the localisation workflow automatically.
+Hyperlocalise 代理旨在收集该信息，并将其自动附加到本地化工作流程中。
 
-This reduces one of the most persistent causes of poor localisation: translators receiving isolated strings with little explanation of what they mean.
+这减少了本地化质量不佳的一个最常见原因：译员收到缺乏含义说明的孤立字符串。
 
-### Built for product release velocity
+### 为产品发布速度而打造
 
-Hyperlocalise connects localisation work with product changes rather than treating it as a separate downstream process.
+Hyperlocalise 将本地化工作与产品变更相连接，而不是将其视为一个独立的后续流程。
 
-Its product direction includes:
+其产品方向包括：
 
-- Agent-native translation, review, and synchronisation workflows
-- Automatic discovery of context from repositories and connected tools
-- A next-generation CAT environment with human review
-- Support for different AI model providers
-- Compatibility with existing TMS platforms
-- Translation evaluations and regression checks
-- Locale readiness information for release decisions
-- Shared localisation knowledge that improves over time
+- 智能体原生的翻译、审校和同步工作流
+- 从代码仓库和已连接的工具中自动发现上下文
+- 新一代的 CAT 环境，配备人工审核
+- 支持不同的 AI 模型提供商
+- 与现有 TMS 平台的兼容性
+- 翻译评估和回归检查
+- 用于发布决策的本地化准备情况信息
+- 不断积累的共享本地化知识
 
-The objective is not simply to translate more words. It is to help localisation teams keep pace with continuous product development while maintaining market quality.
+目标并不只是翻译更多文字，而是帮助本地化团队跟上持续的产品开发，同时保持市场质量。
 
-### Best suited to
+### 最适合于
 
-Hyperlocalise is particularly well suited to:
+Hyperlocalise 特别适用于：
 
-- Software companies releasing frequently across multiple markets
-- Product teams whose localisation managers are overwhelmed by coordination work
-- Companies already using a TMS but wanting more capable AI automation
-- Teams that struggle to provide translators with screenshots and product context
-- Organisations that want to use multiple AI models without becoming dependent on one provider
-- Teams that need better visibility into whether each locale is genuinely ready
+- 在多个市场频繁发布软件的公司
+- 本地化经理被协调工作压得喘不过气的产品团队
+- 已经在使用 TMS，但希望实现更强大 AI 自动化的公司
+- 难以为译员提供截图和产品上下文的团队
+- 希望使用多个 AI 模型而不依赖于某一家提供商的组织
+- 需要更清晰了解每个区域设置是否真正准备就绪的团队
 
-### Important consideration
+### 重要事项
 
-Hyperlocalise is newer than the established TMS vendors in this comparison, and parts of the platform are still being introduced through early access and pilot programmes. Companies that require a long-established procurement footprint may prefer Phrase, Crowdin, Lokalise, or LILT.
+与本次比较中的成熟 TMS 供应商相比，Hyperlocalise 较为新近，平台的部分功能仍在通过抢先体验和试点项目逐步推出。需要长期成熟采购体系的企业可能更倾向于选择 Phrase、Crowdin、Lokalise 或 LILT。
 
-For teams willing to adopt an agent-native operating model, however, Hyperlocalise offers the clearest vision of localisation as an intelligent product workflow rather than a translation queue.
+然而，对于愿意采用智能体原生运营模式的团队而言，Hyperlocalise 提供了最清晰的愿景：将本地化视为智能产品工作流，而非翻译队列。
 
-## 2. Crowdin: Best for developer integrations and extensibility
+## 2. Crowdin：最适合开发者集成和可扩展性
 
-Crowdin is one of the strongest options for developer-led localisation.
+Crowdin 是开发者主导本地化的最佳选择之一。
 
-Its core platform supports Git-based workflows, branching, APIs, command-line tools, translation memory, glossaries, quality checks, in-context previews, and support for more than 100 file formats. Its marketplace includes hundreds of applications and integrations across repositories, design systems, content platforms, documentation tools, and automation services.
+其核心平台支持基于 Git 的工作流、分支、API、命令行工具、翻译记忆库、术语库、质量检查、上下文预览，以及 100 多种文件格式。其应用市场涵盖数百种应用和集成，涉及代码仓库、设计系统、内容平台、文档工具和自动化服务。
 
-That ecosystem makes Crowdin especially attractive to teams that want to assemble a localisation workflow around their existing engineering stack.
+该生态系统让 Crowdin 对于希望围绕现有工程技术栈构建本地化工作流的团队尤其具有吸引力。
 
-### Crowdin’s approach to AI
+### Crowdin 的 AI 方法经典三级
 
-Crowdin allows teams to use machine translation and large language model providers including OpenAI, Anthropic, Azure AI, DeepL, and Google. Teams can provide glossaries, translation memories, style instructions, and additional context to improve generated translations.
+Crowdin 允许团队使用包括 OpenAI、Anthropic、Azure AI、DeepL 和 Google 在内的机器翻译和大型语言模型提供商。团队可以提供术语表、翻译记忆库、风格指南和其他上下文信息，以改进生成的翻译。
 
-Its Context Harvester is intended to collect product context, while AI-assisted proofreading and quality checks support the review process. Crowdin has also introduced Crowdin Copilot, an AI assistant embedded inside the platform with access to project and organisational operations. At the time of writing, Crowdin describes Copilot as an early-stage product whose behaviour may continue to change.
+其 Context Harvester 旨在收集产品上下文，而 AI 辅助校对和质量检查则为审校流程提供支持。Crowdin 还推出了 Crowdin Copilot，这是一款嵌入平台的 AI 助手，可访问项目和组织运营功能。截至撰写本文时，Crowdin 将 Copilot 描述为一款处于早期阶段的产品，其行为可能会继续发生变化。
 
-### Where Crowdin performs well
+### Crowdin 表现出色的方面
 
-Crowdin is particularly strong when product localisation is closely connected to software delivery.
+当产品本地化与软件交付紧密相连时，Crowdin 尤其强大。
 
-Developers can synchronise content from repositories, organise translations around branches, automate imports and exports, and return completed translations to the codebase. Teams can also extend the platform through its marketplace instead of waiting for every workflow to become a native product feature.
+开发者可以从代码仓库同步内容，围绕分支组织翻译，自动执行导入和导出，并将完成的翻译返回代码库。团队还可以通过平台的市场扩展功能，而不必等待每个工作流都成为原生产品功能。
 
-This makes Crowdin a practical choice for:
+这使 Crowdin 成为以下方面的实用选择：
 
-- Developer-led product companies
-- Open-source projects
-- Teams with complex integration requirements
-- Companies that want control over their AI providers
-- Organisations managing software, documentation, websites, and community translation together
+- 开发者主导的产品公司
+- 开源项目
+- 具有复杂集成要求的团队
+- 希望掌控其 AI 提供商的公司
+- 同时管理软件、文档、网站和社区翻译的组织
 
-### Where Hyperlocalise has an advantage
+### Hyperlocalise 的优势所在
 
-Crowdin provides a highly capable localisation platform and a broad collection of AI tools. Hyperlocalise places greater emphasis on agents coordinating work across systems, discovering context from the source environment, and evaluating release readiness across an existing localisation stack.
+Crowdin 提供功能强大的本地化平台和丰富的 AI 工具集合。Hyperlocalise 更加注重代理在各系统间协调工作、从源环境中发现上下文，以及在现有本地化技术栈中评估发布准备情况。
 
-For teams that want a central and extensible TMS, Crowdin remains a strong choice. For teams that want an intelligent layer working across their TMS, repository, product context, reviewers, and release process, Hyperlocalise offers a more agent-native approach.
+对于希望拥有集中式且可扩展的 TMS 的团队来说，Crowdin 仍然是一个有力的选择。对于希望在其 TMS、代码仓库、产品上下文、审校人员和发布流程之间发挥作用的智能层的团队来说，Hyperlocalise 提供了一种更具智能体原生特性的方案。
 
-## 3. Phrase: Best for complex enterprise localisation programmes
+## 3. 短语：最适合复杂的企业本地化项目
 
-Phrase offers one of the broadest localisation technology portfolios in the market.
+Phrase 提供业内最广泛的本地化技术产品组合之一。
 
-Phrase Strings is designed for software, application, and website localisation, while Phrase TMS supports enterprise translation management, vendor workflows, linguistic assets, and high-volume content operations. These capabilities now sit within what Phrase describes as a Language Intelligence Platform.
+Phrase Strings 专为软件、应用程序和网站本地化而设计，而 Phrase TMS 则支持企业翻译管理、供应商工作流、语言资产和大批量内容运营。这些功能现已归入 Phrase 所称的语言智能平台。
 
-For large organisations, the combination can support product interfaces, documentation, marketing content, multimedia, and enterprise translation operations within one ecosystem.
+对于大型组织，这种组合能够在一个生态系统内支持产品界面、文档、营销内容、多媒体和企业翻译运营。
 
-### Phrase’s approach to AI
+### Phrase 对 AI 的方法
 
-Phrase focuses heavily on AI orchestration.
+该短语主要聚焦于 AI 编排。
 
-Its platform can select from multiple machine translation engines and language models based on content type, cost, and quality requirements. Teams can also connect their own engines. Translation memories, terminology, style guides, and other linguistic resources can be supplied as context, while quality estimation helps determine which content requires additional attention.
+其平台可根据内容类型、成本和质量要求，从多个机器翻译引擎和语言模型中进行选择。团队还可以接入自己的引擎。翻译记忆库、术语库、风格指南和其他语言资源都可以作为上下文提供，同时质量评估有助于确定哪些内容需要额外关注。
 
-Phrase has also invested in APIs, software development kits, command-line workflows, webhooks, branching, MCP connectivity, and agent-to-agent interaction. This makes the platform increasingly relevant to engineering and AI teams as well as traditional localisation departments.
+Phrase 还投资于 API、软件开发工具包、命令行工作流、Webhook、分支、MCP 连接以及代理之间的交互。这使该平台对工程团队和 AI 团队以及传统本地化部门越来越重要。
 
-### Where Phrase performs well
+### Phrase 表现出色的方面
 
-Phrase is a strong option for organisations that need:
+Phrase 是有以下需求的组织的优质选择：
 
-- Enterprise governance and permissions
-- A combined software localisation and TMS ecosystem
-- Vendor and linguist management
-- AI engine selection and orchestration
-- Quality estimation and reporting
-- APIs and custom integrations
-- Support for many content types and business departments
-- A large partner and services ecosystem
+- 企业治理与权限
+- 一个集成的软件本地化与 TMS 生态系统
+- 供应商和语言专家管理
+- AI 引擎选择与编排
+- 质量评估和报告
+- API 和自定义集成
+- 支持多种内容类型和业务部门
+- 庞大的合作伙伴和服务生态系统
 
-Its breadth can be valuable when localisation spans multiple divisions, vendors, systems, and content formats.
+当本地化涉及多个部门、供应商、系统和内容格式时，其广泛性可能很有价值。
 
-### Important consideration
+### 重要事项
 
-That breadth can also introduce complexity.
+这种广度也可能带来复杂性。
 
-A product team primarily trying to localise an application may not need the complete enterprise environment. Phrase is generally most compelling when the company has a mature localisation function, substantial content volume, formal governance requirements, or several departments sharing localisation infrastructure.
+主要致力于本地化应用的产品团队可能不需要完整的企业级环境。当公司拥有成熟的本地化职能、庞大的内容量、正式的治理要求，或多个部门共享本地化基础设施时，Phrase 通常最具吸引力。
 
-Hyperlocalise takes a more focused approach. It is intended to add intelligent agents, context, evaluation, and release coordination around product localisation without requiring teams to consolidate every localisation function into one large platform.
+Hyperlocalise 采用更加聚焦的方法。它旨在围绕产品本地化添加智能代理、上下文、评估和发布协调功能，而无需团队将所有本地化职能整合到一个大型平台中。
 
-## 4. Lokalise: Best for collaborative product and design workflows
+## 4. Lokalise：最适合协作式产品和设计工作流程
 
-Lokalise has built a strong position among software companies by making localisation accessible to developers, designers, product managers, and translators.
+Lokalise 通过让开发者、设计师、产品经理和译员都能轻松进行本地化，在软件公司中占据了稳固的地位。
 
-Its product workflows include repository integrations, APIs, command-line tools, webhooks, mobile SDKs, over-the-air updates, automation, task management, dashboards, and visual review. Its design capabilities include a native Figma integration, screenshots, previews, character limits, and pseudo-localisation for identifying interface problems before release.
+其产品工作流包括代码库集成、API、命令行工具、Webhooks、移动 SDK、无线更新、自动化、任务管理、仪表板和可视化审查。其设计功能包括原生 Figma 集成、屏幕截图、预览、字符限制，以及用于在发布前识别界面问题的伪本地化。
 
-These features make Lokalise especially useful when product and design teams want to participate directly in localisation rather than handing everything to a separate department.
+这些功能使 Lokalise 在产品和设计团队希望直接参与本地化，而不是将所有工作交给独立部门处理时，特别有用。
 
-### Lokalise’s approach to AI
+### Lokalise 的 AI 方法
 
-Lokalise provides AI translation using project context such as glossaries, style guides, instructions, and previous translations. It also offers AI-generated suggestions, automated quality evaluation, and workflows that can route content for human review.
+Lokalise 利用术语表、风格指南、说明和之前的翻译等项目上下文提供 AI 翻译。它还提供 AI 生成的建议、自动质量评估以及可将内容提交人工审核的工作流。
 
-The company is expanding into agentic workflows through an MCP server and AI agents capable of performing administrative actions such as creating projects, assigning roles, and coordinating tasks. Some of these capabilities were still described as beta or early-access features in Lokalise’s 2026 product updates.
+该公司正通过 MCP 服务器和能够执行管理操作的 AI 代理拓展代理式工作流，例如创建项目、分配角色和协调任务。在 Lokalise 2026 年的产品更新中，其中一些功能仍被描述为测试版或抢先体验功能。
 
-### Where Lokalise performs well
+### Lokalise 表现良好的方面
 
-Lokalise is a strong choice for:
+Lokalise 是以下方面的理想选择：
 
-- Product-led SaaS companies
-- Mobile application teams
-- Design-heavy product organisations
-- Teams that want localisation to begin in Figma
-- Companies that value an approachable central workspace
-- Teams that need over-the-air translation updates
-- Organisations bringing developers, designers, translators, and product managers into one process
+- 产品驱动型 SaaS 公司
+- 移动应用团队
+- 设计驱动型产品组织
+- 希望在 Figma 中开始本地化的团队
+- 重视易于使用的中央工作空间的公司
+- 需要通过无线方式更新翻译的团队
+- 将开发人员、设计师、翻译人员和产品经理纳入同一流程的组织
 
-### Where Hyperlocalise has an advantage
+### Hyperlocalise 的优势在哪些方面
 
-Lokalise is primarily the system in which localisation projects and strings are managed. Hyperlocalise is designed to act as an intelligence and agent layer across the systems where product and localisation work already happens.
+Lokalise 主要用于管理本地化项目和字符串。Hyperlocalise 旨在作为智能和代理层，连接产品和本地化工作已经开展的各个系统。
 
-This distinction matters for teams that already have a TMS or do not want another migration.
+对于已经拥有 TMS 或不希望再次迁移的团队来说，这一区别很重要。
 
-Rather than asking every participant to move into a new central workflow, Hyperlocalise aims to gather knowledge from repositories, requests, AI assistants, and localisation systems, then coordinate the necessary work while preserving human review.
+Hyperlocalise 并不要求每位参与者都转移到全新的集中式工作流中，而是旨在从代码仓库、请求、AI 助手和本地化系统中汇聚知识，然后在保留人工审核的同时协调必要的工作。
 
-## 5. LILT: Best for adaptive AI with human validation
+## 5. LILT：最适合具备人工验证的自适应 AI
 
-LILT is a strong option for enterprise organisations that want AI translation combined with professional linguistic services and human validation.
+LILT 是企业组织的理想选择，能够将 AI 翻译与专业语言服务及人工验证相结合。
 
-Its adaptive AI models learn from brand terminology, domain data, and human corrections. LILT states that feedback from human verification can be applied continuously so that models adapt as work progresses. The platform can also match different models to different tasks and fine-tune models using customer data.
+其自适应 AI 模型可从品牌术语、领域数据和人工修正中学习。LILT 表示，人工核验的反馈可以持续应用，使模型能够随着工作进展进行适应。该平台还可以为不同任务匹配不同模型，并使用客户数据微调模型。
 
-This approach is valuable for organisations with large volumes of specialised content where model adaptation and professional linguistic oversight are central requirements.
+这种方法对于拥有大量专业内容的组织非常有价值，因为模型适配和专业语言监督是其核心要求。
 
-### LILT’s approach to product localisation
+### LILT 的产品本地化方法
 
-LILT positions its platform as supporting end-to-end global launches, including interface strings, advertising, documentation, packaging, and support content. It combines AI-generated translation with expert review and connects with content, design, marketing, and product systems.
+LILT 将其平台定位为支持端到端的全球发布，包括界面字符串、广告、文档、包装和支持内容。该平台将 AI 生成的翻译与专家审校相结合，并连接内容、设计、营销和产品系统。
 
-LILT Assist extends this model with an enterprise AI agent that can support translation requests, operational tasks, reporting, and localisation management across departments. Product and engineering teams can use it to incorporate localisation into development workflows.
+LILT Assist 通过企业级 AI 代理扩展了该模型，可支持各部门的翻译请求、运营任务、报告和本地化管理。产品和工程团队可以利用它将本地化纳入开发工作流程。
 
-### Where LILT performs well
+### LILT 表现出色的领域
 
-LILT is particularly suitable for:
+LILT 特别适用于：
 
-- Large enterprises with substantial translation volume
-- Regulated or specialised content
-- Organisations that want AI technology and linguistic services together
-- Teams that value continuously adapting models
-- Companies requiring human validation across major launches
-- Enterprise localisation programmes that prefer a managed engagement
+- 拥有大量翻译需求的大型企业
+- 受监管或专业内容
+- 希望将 AI 技术与语言服务相结合的组织
+- 重视持续调整模型的团队
+- 在重大发布期间需要人工验证的公司
+- 偏好托管式合作的企业本地化项目
 
-### Important consideration
+### 重要注意事项
 
-LILT’s model may be less appropriate for a small product team seeking a lightweight, self-service software localisation environment.
+LILT 的模型可能不太适合寻求轻量级、自助式软件本地化环境的小型产品团队。
 
-Its strongest proposition combines enterprise AI, workflow technology, linguistic expertise, and service delivery. Teams primarily looking for repository-first localisation management may find Crowdin or Lokalise more immediately familiar. Teams seeking an agent layer across their existing stack may prefer Hyperlocalise.
+其最强的价值主张融合了企业级 AI、工作流技术、语言学专业能力和服务交付。主要寻求以代码仓库为先的本地化管理的团队，可能会觉得 Crowdin 或 Lokalise 更加熟悉易用。希望在现有技术栈之上构建代理层的团队，则可能更倾向于 Hyperlocalise。
 
-## Why AI translation alone is not enough
+## 为什么仅靠 AI 翻译还不够
 
-Many platforms now offer access to capable language models. That does not make every platform equally effective for product localisation.
+如今，许多平台都提供对高性能语言模型的访问。但这并不意味着每个平台在产品本地化方面都同样有效。
 
-A model can generate a fluent translation and still make the wrong product decision.
+模型可以生成流畅的翻译，但仍可能做出错误的产品决策。
 
-It may misunderstand whether “Save” is a verb or noun. It may translate a feature name that should remain in English. It may use terminology approved for marketing but prohibited inside the product. It may produce text that overflows a mobile interface or contradicts an earlier onboarding step.
+它可能会误解“Save”是动词还是名词。它可能会翻译本应保留英文的功能名称。它可能会使用营销中认可但产品内禁止使用的术语。它可能会生成在移动界面中溢出的文本，或与之前的引导步骤相矛盾。
 
-The challenge is not merely generating language. It is giving the AI enough knowledge to make the correct decision, then verifying that decision within the broader product experience.
+挑战不仅仅是生成语言，而是为 AI 提供足够的知识，使其做出正确的决策，然后在更广泛的产品体验中验证该决策。
 
-Product teams should therefore evaluate how a platform handles:
+因此，产品团队应评估平台如何处理：
 
-- Repository and interface context
-- Screenshots and visual references
-- Terminology and style guidance
-- Previous translations
-- Market-specific rules
-- Human feedback
-- Automated quality checks
-- Translation regressions
-- Synchronisation with source systems
-- Release blockers and locale readiness
+- 代码仓库和界面上下文
+- 屏幕截图和视觉参考
+- 术语和风格指南
+- 之前的翻译
+- 特定市场规则
+- 人工反馈
+- 自动化质量检查
+- 翻译回归
+- 与源系统同步
+- 发布阻碍因素和语言环境就绪情况
 
-The model is only one component. The surrounding context, workflow, knowledge, and quality system determine whether AI localisation is reliable at scale.
+模型只是其中一个组成部分。周围的上下文、工作流程、知识和质量体系决定了人工智能本地化能否可靠地规模化。
 
-## How to choose the right AI localisation platform
+## 如何选择合适的 AI 本地化平台
 
-The right platform depends on the operating model you want to build.
+合适的平台取决于您希望构建的运营模式。
 
-### Choose Hyperlocalise when you want an agentic layer across your stack
+### 当您希望在整个技术栈中采用智能代理层时，选择 Hyperlocalise
 
-Hyperlocalise is the strongest fit when your main problem is not storing translations, but coordinating context, AI work, human review, existing TMS platforms, and multilingual releases.
+当您的主要问题不是存储翻译，而是协调上下文、AI 工作、人类审核、现有 TMS 平台和多语言发布时，Hyperlocalise 是最合适的选择。
 
-It is particularly relevant when you want to improve your localisation capability without immediately replacing your current infrastructure.
+当您希望在不立即替换现有基础设施的情况下提升本地化能力时，这一点尤其重要。
 
-### Choose Crowdin when developer extensibility is the priority
+### 当开发者可扩展性是首要考虑因素时，选择 Crowdin
 
-Crowdin is a strong choice when engineers want extensive integrations, branching, APIs, a marketplace, and flexibility over how the localisation system is assembled.
+当工程师需要丰富的集成、分支、API、市场以及对本地化系统组装方式的灵活控制时，Crowdin 是一个不错的选择。
 
-### Choose Phrase when you need enterprise breadth and governance
+### 需要企业级覆盖面和治理能力时，选择 Phrase
 
-Phrase is best considered when localisation spans multiple departments, vendors, content types, and governance requirements. It provides a broad enterprise environment, although smaller teams should determine whether they need its full scope.
+当本地化涉及多个部门、供应商、内容类型和治理要求时，Phrase 最值得考虑。它适用于广泛的企业环境，但规模较小的团队应评估自己是否需要其全部功能范围。
 
-### Choose Lokalise when product and design collaboration is the priority
+### 当产品与设计协作是首要任务时，选择 Lokalise
 
-Lokalise is compelling when designers, developers, product managers, and translators need to work inside one approachable system, especially when Figma and mobile application workflows are important.
+当设计师、开发人员、产品经理和译员需要在一个易于使用的系统中协作时，Lokalise 尤其具有吸引力，特别是在 Figma 和移动应用工作流至关重要的情况下。
 
-### Choose LILT when you want adaptive AI and managed human expertise
+### 如果您需要自适应 AI 和托管式人工专业服务，请选择 LILT
 
-LILT is well suited to enterprises that want custom AI models, continuous learning, expert validation, and service delivery as part of the same localisation programme.
+LILT 非常适合希望在同一项本地化计划中获得定制 AI 模型、持续学习、专家验证和服务交付的企业。
 
-## Questions to ask during an AI localisation platform evaluation
+## 评估 AI 本地化平台时要问的问题
 
-Before selecting a platform, test it against real content from an upcoming release.
+在选择平台之前，使用即将发布的实际内容对其进行测试。
 
-Ask each vendor:
+询问每个供应商：
 
-1. How does the platform discover what a string means?
-2. Can it use repository, screenshot, design, and product context?
-3. Can we use our preferred models or bring our own model provider?
-4. Can it work with our current TMS?
-5. How does human feedback improve future translations?
-6. How are high-risk translations routed for review?
-7. Can the platform identify regressions between releases?
-8. Can developers trigger localisation from CI/CD workflows?
-9. Can product managers see what is blocking each locale?
-10. How does the platform measure quality beyond translation completion?
-11. Can we trace why the AI made a particular decision?
-12. What happens when terminology or product context changes?
+1. 平台如何发现字符串的含义？
+2. 它可以使用代码仓库、截图、设计和产品上下文吗？
+3. 我们可以使用首选模型，或接入我们自己的模型提供商吗？
+4. 它能与我们当前的 TMS 配合使用吗？
+5. 人工反馈如何改进未来的翻译？
+6. 高风险翻译如何转交审核？
+7. 平台能否识别不同版本发布之间的回归问题？
+8. 开发者可以从 CI/CD 工作流触发本地化吗？
+9. 产品经理能看到各个语言区域的阻碍因素吗？
+10. 平台如何衡量翻译完成度以外的质量？
+11. 我们能追溯 AI 做出某个特定决策的原因吗？
+12. 当术语或产品上下文发生变化时会怎样？
 
-A polished demonstration is useful, but a pilot using real product content will reveal much more about context quality, integration effort, reviewer experience, and release reliability.
+精心打磨的演示很有用，但使用真实产品内容进行试点，将更全面地揭示上下文质量、集成工作量、审阅者体验和发布可靠性。
 
-## The future of product localisation is agentic
+## 产品本地化的未来属于智能代理屬?
 
-The localisation platform category is changing.
+本地化平台类别正在更改。
 
-Translation management systems will continue to provide important infrastructure, including linguistic assets, permissions, workflows, translation editors, and content storage. AI models will continue to improve the speed and fluency of first drafts.
+翻译管理系统将继续提供重要的基础设施，包括语言资产、权限、工作流、翻译编辑器和内容存储。AI 模型将继续提高初稿的速度和流畅度。
 
-The next major shift is the layer connecting those capabilities.
+下一个重大转变是连接这些能力的层。
 
-AI agents can gather context before translation begins, create and coordinate work, identify content that requires human judgement, synchronise changes between systems, and monitor whether every market is prepared for release.
+AI 代理可以在翻译开始前收集上下文，创建并协调工作，识别需要人工判断的内容，在系统之间同步更改，并监控每个市场是否已准备好发布。
 
-That changes localisation from a downstream service into a continuous product capability.
+这将把本地化从下游服务转变为持续的产品能力。
 
-For product teams that want to adopt this model while keeping human expertise and existing localisation infrastructure, Hyperlocalise is our number-one AI localisation platform for 2026.
+对于希望采用这一模式，同时保留人类专业能力和现有本地化基础设施的产品团队而言，Hyperlocalise 是我们评选的 2026 年排名第一的 AI 本地化平台。
 
-It is not simply using AI to translate faster. It is building an AI workforce that helps localisation teams understand more, coordinate less, and launch products in every market with greater confidence.
+这并不只是利用 AI 更快地完成翻译，而是在打造一支 AI 劳动力队伍，帮助本地化团队了解更多、减少协调工作，并更有信心地在每个市场推出产品。
 
-## Frequently asked questions
+## 常见问题
 
-### What is an AI localisation platform?
+### 什么是 AI 本地化平台？
 
-An AI localisation platform helps teams adapt products and content for different languages and markets using artificial intelligence.
+AI 本地化平台利用人工智能帮助团队针对不同语言和市场调整产品和内容。
 
-Depending on the platform, this can include translation generation, terminology application, quality evaluation, workflow automation, context collection, task assignment, human review, synchronisation, and reporting.
+根据平台的不同，这可能包括翻译生成、术语应用、质量评估、工作流自动化、上下文收集、任务分配、人工审核、同步和报告。
 
-### What is the best AI localisation platform for product teams?
+### 对于产品团队来说，最好的 AI 本地化平台是什么？
 
-Hyperlocalise is our top choice for product teams that want agent-native workflows, automatic context discovery, human review, TMS interoperability, and release-focused quality intelligence.
+对于希望实现原生智能体工作流、自动上下文发现、人工审核、TMS 互操作性以及以发布为重点的质量智能的产品团队来说，Hyperlocalise 是我们的首选。
 
-Crowdin, Phrase, Lokalise, and LILT remain strong choices for teams with different requirements.
+Crowdin、Phrase、Lokalise 和 LILT 仍然是满足不同需求的团队的优秀选择。
 
-### Can AI replace a localisation team?
+### AI 能取代本地化团队吗？
 
-AI can automate large amounts of translation and operational work, but it should not eliminate human ownership.
+AI 可以自动完成大量翻译和运营工作，但不应取代人类的责任。
 
-Localisation professionals provide market judgement, cultural knowledge, brand interpretation, risk assessment, and strategic direction. The most effective platforms use AI to increase the capacity of localisation teams rather than treating human expertise as unnecessary.
+本地化专业人士提供市场判断、文化知识、品牌诠释、风险评估和战略指导。最有效的平台利用 AI 提升本地化团队的能力，而不是将人类专业知识视为多余。
 
-### Do we need to replace our existing TMS to use AI localisation?
+### 我们需要更换现有的 TMS 才能使用 AI 本地化吗？
 
-Not necessarily.
+不一定。
 
-Some organisations will benefit from moving to a platform with more capable native AI. Others can introduce an intelligence and agent layer that works with their current TMS.
+一些组织将受益于迁移到原生 AI 能力更强的平台。其他组织则可以引入一个与其当前 TMS 协同工作的智能和代理层。
 
-Hyperlocalise is specifically designed around the second approach, allowing teams to introduce agentic localisation workflows without rebuilding their entire operating model.
+Hyperlocalise 专为第二种方法设计，使团队能够引入代理式本地化工作流程，而无需重建整个运营模式。
 
-### What is the difference between AI translation and AI localisation?
+### AI 翻译和 AI 本地化有什么区别？
 
-AI translation focuses on converting text from one language into another.
+AI 翻译专注于将文本从一种语言转换为另一种语言。
 
-AI localisation considers the broader product and market context, including terminology, intent, user experience, interface constraints, tone, cultural expectations, workflows, quality checks, and release requirements.
+AI 本地化会考虑更广泛的产品和市场背景，包括术语、意图、用户体验、界面限制、语气、文化预期、工作流程、质量检查和发布要求。
 
-Translation is one task inside localisation. A complete AI localisation platform must support the decisions and operations surrounding it.
+翻译只是本地化工作中的一项任务。完整的 AI 本地化平台必须支持与之相关的决策和操作。

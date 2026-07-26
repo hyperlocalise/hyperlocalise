@@ -1,8 +1,8 @@
 ---
-title: Should You Build Your Own Localisation Agent?
+title: 你应该构建自己的本地化代理吗？
 date: 2026-07-25T00:00:00.000Z
-excerpt: An impressive AI translation demo is easy to build. A dependable localisation agent that understands context, protects product integrity, and improves through human feedback is a much larger undertaking. Here is how to decide whether to build or buy.
-category: Product
+excerpt: 构建一个令人印象深刻的 AI 翻译演示很容易。打造一个能够理解上下文、维护产品完整性，并通过人工反馈不断改进的可靠本地化代理，则是一项规模大得多的工程。以下是如何决定应当自建还是购买。
+category: 产品
 tags:
   - localisation agent
   - localization agent
@@ -19,229 +19,229 @@ tags:
   - AI agents
 ---
 
-It has never been easier to build an impressive AI translation demo.
+构建一个令人印象深刻的 AI 翻译演示从未如此简单。
 
-Connect a large language model to a repository, give it a glossary and ask it to translate a set of strings. Within days, a product team can have something that looks like a localisation agent. It may produce fluent translations, respond to instructions and even open pull requests automatically.
+将大型语言模型连接到代码仓库，为它提供术语表，并要求它翻译一组字符串。几天之内，产品团队就能拥有一个看起来像本地化代理的工具。它可以生成流畅的翻译、响应指令，甚至自动发起拉取请求。
 
-That early progress can make the next decision seem obvious: why pay for a localisation platform when your engineering team can build an agent internally?
+早期取得的进展可能会让下一个决定显得显而易见：既然工程团队可以在内部构建代理，为什么还要为本地化平台付费？
 
-The answer depends on what you are actually trying to build.
+答案取决于你实际上想要构建什么。
 
-A prototype that generates translated text is relatively straightforward. A dependable localisation agent that understands product context, follows market-specific guidance, protects variables, works across your existing systems and improves through human feedback is a much larger undertaking.
+生成翻译文本的原型相对简单。一个可靠的本地化代理则要复杂得多：它需要理解产品上下文、遵循特定市场的指导原则、保护变量、兼容您现有的系统，并通过人工反馈不断改进。
 
-The important question is not whether your team _can_ build a localisation agent. It is whether owning and operating that system will create enough strategic value to justify the continuing investment.
+重要的问题不是你的团队_能否_构建本地化代理，而是拥有并运营该系统是否会创造足够的战略价值，从而证明持续投入是合理的。
 
-## A localisation agent is more than an AI translator
+## 本地化代理不仅仅是 AI 翻译器
 
-An AI translator receives text and returns text in another language. A localisation agent operates across a workflow.
+AI 翻译器接收文本并将其转换为另一种语言。本地化代理在整个工作流程中运行。
 
-OpenAI describes agents as systems that combine models with instructions, tools and guardrails so they can complete tasks on a user’s behalf. Anthropic similarly recommends beginning with simple, composable workflows rather than adding unnecessary agent complexity.
+OpenAI 将代理描述为将模型与指令、工具和防护机制相结合的系统，使其能够代表用户完成任务。Anthropic 同样建议从简单且可组合的工作流开始，而不是增加不必要的代理复杂性。
 
-Applied to localisation, that means an effective agent must do considerably more than call a translation model. It needs to:
+在本地化领域，这意味着一个高效的代理必须做的远不止调用翻译模型。它需要：
 
-- retrieve relevant product, brand and market context;
-- apply terminology, style guides and previous translation decisions;
+- 获取相关的产品、品牌和市场背景；
+- 请提供需要翻译的英文文本。
 - preserve placeholders, formatting, markup and technical constraints;
-- distinguish between content that requires translation, transcreation or no change;
-- coordinate reviews, approvals and revisions;
-- synchronise work with repositories, content systems and translation platforms;
-- explain why it made a decision;
-- escalate uncertainty to the right person; and
-- learn from reviewer feedback without repeating previous mistakes.
+- 区分需要翻译、创译或无需更改的内容；
+- 协调评审、审批和修订；
+- 将工作与代码仓库、内容系统和翻译平台同步；
+- 解释其作出决定的原因；
+- 将不确定之处上报给合适的人员；并
+- 从审阅者的反馈中学习，避免重蹈覆辙。
 
-This distinction matters because a team can build the translation step and believe it has built the complete system. In reality, translation generation may be one of the easier components.
+这一点很重要，因为团队可能会构建翻译步骤，并认为自己已经构建了完整的系统。实际上，翻译生成可能是较为容易的组件之一。
 
-The harder problem is creating a reliable operating layer around it.
+更难的问题是围绕它创建一个可靠的运行层。
 
-## Why building your own agent is appealing
+## 为什么构建自己的智能体很有吸引力
 
-There are legitimate reasons to consider an internal localisation agent.
+有充分正当的理由考虑采用内部本地化代理。
 
-The most obvious is control. Your team can decide exactly which models to use, how prompts are structured, where data is processed and how the agent interacts with internal systems. You are not constrained by another company’s product roadmap or assumptions about how localisation should work.
+最明显的优势是控制力。您的团队可以准确决定使用哪些模型、如何构建提示词、在哪里处理数据，以及代理如何与内部系统交互。您不受其他公司的产品路线图或其对本地化工作方式的假设所限制。
 
-Building internally can also make sense when your workflow is genuinely unusual. A gaming company with narrative branching, a regulated medical platform or a business with a proprietary content architecture may have requirements that general-purpose tools cannot support cleanly.
+当你的工作流程确实与众不同，内部构建也可能是合理的选择。具有叙事分支的游戏公司、受监管的医疗平台，或采用专有内容架构的企业，可能有一些通用工具无法妥善支持的需求。
 
-There is also a strategic argument. When localisation technology is central to your product rather than an operational function, the underlying intelligence may become valuable intellectual property. A language-learning company, multilingual search provider or AI communication product may reasonably decide that localisation capabilities belong inside its core platform.
+这也有一个战略层面的理由。当本地化技术成为产品的核心，而不只是运营职能时，其底层智能可能会成为有价值的知识产权。语言学习公司、多语言搜索服务提供商或 AI 沟通产品可能会合理地认为，本地化能力应当纳入其核心平台。
 
-At sufficient scale, an internal system could also reduce certain vendor costs. However, this comparison is often made using model API expenses alone. The true cost includes the engineering, infrastructure and operational work required to keep the system dependable.
+达到一定规模后，内部系统还可以降低某些供应商成本。不过，这种比较通常只考虑模型 API 费用。实际成本还包括确保系统可靠运行所需的工程、基础设施和运营工作。
 
-Control is valuable, but control also means ownership.
+控制很有价值，但控制也意味着责任。
 
-## The hidden scope of building a localisation agent
+## 构建本地化代理的隐藏范围
 
-The first internal version may only require a model, a prompt and access to source strings. Production use introduces a much larger set of responsibilities.
+第一个内部版本可能只需要一个模型、一个提示词以及对源字符串的访问权限。投入生产使用后，则会带来更多大量的职责。
 
-### 1. Building the context layer
+### 1. 构建上下文层
 
-Translation quality depends heavily on context. The agent may need to understand where a message appears, which user action triggered it, what surrounding interface elements say and whether the content belongs to onboarding, billing, support or marketing.
+翻译质量在很大程度上取决于上下文。代理可能需要了解消息显示的位置、触发消息的用户操作、周围界面元素的文字，以及内容属于入门引导、账单、支持还是营销。
 
-That information is usually scattered across design files, repositories, product documentation, screenshots, analytics, tickets and conversations. Building an agent therefore requires more than prompt engineering. It requires a context retrieval system that can identify the right information for each translation task without overwhelming the model with irrelevant data.
+这些信息通常分散在设计文件、代码仓库、产品文档、屏幕截图、分析数据、工单和对话中。因此，构建一个代理不仅需要提示工程，还需要一个上下文检索系统，能够为每项翻译任务识别正确的信息，同时避免让无关数据淹没模型。
 
-The context must also stay current. A screenshot from an earlier interface, an outdated glossary entry or an obsolete product description can produce a confident but incorrect translation.
+上下文也必须保持最新。较早版本界面的截图、过时的术语表条目或已过时的产品描述，都可能导致翻译看似自信却不正确。
 
-This becomes a data architecture problem: what information should be indexed, who owns it, how is it updated and which sources should the agent trust when they conflict?
+这就成了一个数据架构问题：应该索引哪些信息、由谁负责、如何更新，以及当信息来源相互冲突时，代理应信任哪些来源？
 
-### 2. Supporting localisation-specific formats
+### 2. 支持本地化特定格式
 
-Product content is not always plain text.
+产品内容不总是纯文本。
 
-Localisation systems must handle placeholders, plurals, variables, tags, character limits and structured file formats without corrupting them. XLIFF, for example, exists to carry localisable content between different stages and tools in a localisation workflow. Unicode’s MessageFormat specification addresses dynamic messages involving variables, plural rules, grammatical matching, dates and numbers.
+本地化系统必须处理占位符、复数形式、变量、标签、字符限制和结构化文件格式，同时避免损坏这些内容。例如，XLIFF 用于在本地化工作流的不同阶段和工具之间传递可本地化内容。Unicode 的 MessageFormat 规范用于处理涉及变量、复数规则、语法匹配、日期和数字的动态消息。
 
-A translation can sound perfectly natural while still breaking the product because the model moved a placeholder incorrectly, translated a variable, removed markup or misunderstood how a plural branch works.
+翻译听起来可以非常自然，但如果模型错误地移动了占位符、翻译了变量、删除了标记或误解了复数分支的工作方式，仍然可能导致产品出现问题。
 
-Your agent therefore needs deterministic validation alongside generative intelligence. Fluency alone is not enough.
+因此，您的智能体需要在生成式智能之外进行确定性验证。仅凭流畅性是不够的。
 
-### 3. Creating a meaningful evaluation system
+### 3. 创建一个有意义的评估体系
 
-Localisation quality cannot be measured with a single pass-or-fail test.
+本地化质量无法通过单一的通过或失败测试来衡量。
 
-A production evaluation framework may need to assess meaning preservation, terminology, tone, grammar, cultural suitability, formatting integrity, length restrictions and consistency with related content. Different content types also require different standards. A legal notice should not be evaluated in the same way as a campaign headline or a conversational interface message.
+生产环境评估框架可能需要评估含义保留、术语、语气、语法、文化适宜性、格式完整性、长度限制以及与相关内容的一致性。不同的内容类型也需要不同的标准。法律声明不应与营销活动标题或对话界面消息采用相同的评估方式。
 
-Automated evaluations can detect many problems, but they must be calibrated against human judgement. Your team needs representative test sets, expected outcomes, language-specific reviewers and a method for measuring whether changes to prompts, models or context retrieval improve the system.
+自动化评估可以检测出许多问题，但必须根据人工判断进行校准。您的团队需要具有代表性的测试集、预期结果、特定语言的审阅者，以及一种衡量提示词、模型或上下文检索的更改是否改善系统的方法。
 
-Without this layer, a model upgrade can silently improve one language while reducing quality in another.
+没有这一层，模型升级可能会在悄无声息中提升一种语言的质量，却降低另一种语言的质量。
 
-### 4. Integrating the entire workflow
+### 4. 集成整个工作流程
 
-An agent becomes useful when it can act inside the systems where localisation work already happens.
+当代理能够在本地化工作已开展的系统中执行操作时，它才会变得有用。
 
-That may include GitHub, design tools, content management systems, customer support platforms, product databases, translation management systems and internal approval workflows. Each integration needs authentication, permission handling, retry logic, error recovery, monitoring and maintenance.
+这可能包括 GitHub、设计工具、内容管理系统、客户支持平台、产品数据库、翻译管理系统和内部审批工作流。每个集成都需要身份验证、权限处理、重试逻辑、错误恢复、监控和维护。
 
-The workflow must also account for partial failures. What happens when the agent translates 900 strings successfully but cannot process the remaining 100? What happens when content changes during review? Can reviewers see which context influenced the result? Can an approved translation be traced to a particular model, instruction set and source version?
+工作流还必须考虑部分失败的情况。如果代理成功翻译了 900 个字符串，却无法处理剩余的 100 个，会发生什么？如果内容在审校期间发生变化，会发生什么？审校人员能否看到哪些上下文影响了结果？已批准的翻译能否追溯到特定的模型、指令集和源版本？
 
-These are product and infrastructure concerns, not merely AI concerns.
+这些是产品和基础设施方面的考量，而不仅仅是 AI 方面的考量。
 
-### 5. Protecting sensitive data and systems
+### 5. 保护敏感数据和系统
 
-A localisation agent may be given access to unreleased product features, customer communications, internal documentation and proprietary terminology. If it can take actions, it may also have permission to modify content or push changes into production workflows.
+本地化代理可能会接触到尚未发布的产品功能、客户沟通内容、内部文档和专有术语。如果它能够执行操作，还可能被授予修改内容或将更改推送到生产工作流的权限。
 
-OWASP identifies prompt injection and insecure output handling among the major risks facing applications built with large language models. A malicious or accidental instruction inside retrieved content can influence an agent, while unvalidated output can create downstream security problems.
+OWASP 将提示注入和不安全的输出处理列为使用大型语言模型构建的应用程序面临的主要风险之一。检索内容中恶意或意外的指令可能会影响代理，而未经验证的输出可能导致下游安全问题。
 
-A production system needs strict permission boundaries, input and output validation, audit logs, data-retention controls and clear rules governing which actions can be automated. Higher-risk changes may require explicit human approval.
+生产系统需要严格的权限边界、输入和输出验证、审计日志、数据保留控制，以及明确规定哪些操作可以自动化的规则。高风险变更可能需要获得明确的人工批准。
 
-NIST’s AI Risk Management Framework also emphasises that trustworthy AI requires continuing governance, measurement and risk management rather than a one-time technical review.
+NIST 的 AI 风险管理框架还强调，值得信赖的 AI 需要持续的治理、测量和风险管理，而不是一次性的技术审查。
 
-### 6. Maintaining the agent after launch
+### 6. 上线后维护代理 агент
 
-Models change. Prices change. APIs change. Product terminology evolves. New markets introduce new linguistic requirements. Integrations break, security expectations increase and users discover edge cases that were invisible during development.
+模型会变化。价格会变化。API 会变化。产品术语会不断演变。新市场会带来新的语言需求。集成会中断，安全预期会提高，用户也会发现开发期间未曾察觉的边缘情况。
 
-The agent therefore needs an ongoing owner.
+因此，该代理需要一位持续负责的负责人。
 
-That owner is not simply maintaining code. They are managing the relationship between models, workflows, organisational knowledge and human reviewers. They must investigate failures, improve evaluations, update instructions and decide when new capabilities are safe enough to release.
+那位负责人并不只是维护代码。他们还在管理模型、工作流、组织知识与人工审核人员之间的关系。他们必须调查故障、改进评估、更新指令，并决定何时新能力已经足够安全，可以发布。
 
-A localisation agent is not a project that ends when the first version ships. It becomes an internal product.
+本地化代理并不是在第一个版本发布时就结束的项目。它会成为一个内部产品。
 
-## The real build-versus-buy calculation
+## 真正的自研与采购计算
 
-The cost of an internally built agent is not simply:
+内部构建的代理成本并不只是：
 
-> Model usage + a few weeks of engineering
+> 模型使用量 + 几周的工程开发
 
-A more realistic calculation is:
+更现实的计算是：
 
-> Initial development + integrations + context infrastructure + evaluation systems + security + observability + ongoing maintenance + localisation expertise + opportunity cost
+> 初始开发 + 集成 + 上下文基础设施 + 评估系统 + 安全性 + 可观测性 + 持续维护 + 本地化专业知识 + 机会成本
 
-Opportunity cost is especially important.
+机会成本尤其重要。
 
-Every engineer working on localisation infrastructure is not working on the company’s core product. That investment may be worthwhile when the localisation system creates a durable competitive advantage. It is harder to justify when the objective is simply to help the localisation team release content faster.
+每一位从事本地化基础设施工作的工程师，都没有在开发公司的核心产品。当本地化系统能够带来持久的竞争优势时，这项投入可能是值得的。如果目标仅仅是帮助本地化团队更快地发布内容，那么这项投入就更难证明其合理性。
 
-The build-versus-buy decision should therefore be based on strategic differentiation, not whether a prototype appears inexpensive.
+因此，构建还是购买的决策应基于战略差异化，而不应取决于原型看起来是否成本低廉。
 
-## When building your own localisation agent makes sense
+## 当构建自己的本地化代理有意义时
 
-Building internally may be the right decision when most of the following conditions are true:
+当以下大多数条件都满足时，内部构建可能是正确的决策：
 
-- Localisation intelligence is fundamental to your company’s core product or competitive advantage.
-- Your workflows are sufficiently specialised that existing platforms cannot support them through configuration or integration.
-- You have a dedicated, long-term engineering team responsible for the system.
-- You have access to localisation specialists who can design evaluations and guide product decisions.
-- Your security, deployment or data requirements cannot be met by external providers.
-- Your content volume and operational scale can justify the complete cost of ownership.
-- Your organisation is prepared to maintain integrations, evaluations and governance continuously.
+- 本地化智能是贵公司核心产品或竞争优势的基础。
+- 你的工作流程足够特殊，以至于现有平台无法通过配置或集成来支持它们。
+- 你们有一支专门负责该系统的长期工程团队。
+- 您可以获得本地化专家的支持，他们能够设计评估方案并为产品决策提供指导。
+- 外部提供商无法满足您的安全性、部署或数据要求。
+- 您的内容量和运营规模足以证明拥有成本总额是合理的。
+- 您的组织已准备好持续维护集成、评估和治理。
 
-In that situation, the system should be treated as a strategic platform rather than an internal experiment.
+在这种情况下，该系统应被视为一个战略平台，而不是内部实验。
 
-The team should define ownership, reliability targets, approval boundaries and evaluation criteria before expanding automation. It should also resist building a complex multi-agent architecture before simpler workflows have been proven.
+团队应在扩大自动化之前明确责任归属、可靠性目标、审批边界和评估标准。同时，还应避免在更简单的工作流程得到验证之前构建复杂的多智能体架构。
 
-## When using a localisation agent platform makes more sense
+## 何时使用本地化代理平台更合理
 
-A platform is usually the stronger choice when localisation supports the business but is not itself the business.
+当本地化服务于业务、但本身并非业务时，平台通常是更强的选择。
 
-This is particularly true when the primary goal is to improve translation quality, shorten release cycles or reduce operational workload without creating a new internal infrastructure team.
+当主要目标是在不组建新的内部基础设施团队的情况下提高翻译质量、缩短发布周期或减少运营工作量时，尤其如此。
 
-A specialised platform can provide the context layer, workflow orchestration, integrations, quality controls and review experience that would otherwise need to be developed internally. Your localisation team can focus on market decisions and quality rather than maintaining AI infrastructure.
+专业化平台可以提供上下文层、工作流编排、集成、质量控制和审核体验，而这些通常需要内部自行开发。您的本地化团队可以专注于市场决策和质量，而无需维护 AI 基础设施。
 
-This does not require giving up control. The right platform should let you retain ownership of terminology, style, review policies, translation memory and approval decisions. It should also provide visibility into what the agent is doing, what information it used and where human judgement is required.
+这并不意味着要放弃控制权。合适的平台应让您继续掌握术语、风格、审核政策、翻译记忆库和审批决策的所有权。同时，它还应让您清楚了解代理正在做什么、使用了哪些信息，以及哪些环节需要人工判断。
 
 It should work with your existing localisation stack rather than forcing an immediate migration. As we explored in [How to Add AI Translation Without Replacing Your TMS](/blog/how-to-add-ai-translation-without-replacing-tms), an agent can add intelligence across an existing workflow without requiring the organisation to discard the systems and processes it already relies on.
 
-## The hybrid approach is often the strongest
+## 混合方法通常是最强的
 
-The decision does not have to be completely binary.
+这个决定不必完全是非此即彼的。
 
-Many companies should own their localisation knowledge while using a specialised platform to operationalise it.
+许多公司应当掌握自己的本地化知识，同时使用专业平台将其付诸实践。
 
-Your organisation can own:
+您的组织可以拥有：
 
-- brand and market strategy;
-- terminology and style guidance;
-- product and customer context;
-- approval policies;
-- quality expectations;
-- human reviewer relationships; and
-- the final decision about what is released.
+- 品牌与市场策略；
+- 术语和风格指南；
+- 产品和客户背景；
+- 审批策略；
+- 质量预期；
+- 人工审核员关系；以及
+- 最终决定发布什么。
 
-A platform can provide:
+平台可以提供：
 
-- model orchestration;
-- context retrieval;
-- integrations;
-- workflow automation;
-- evaluation infrastructure;
-- observability;
-- permissions and auditability; and
-- continuing adaptation as models and localisation practices evolve.
+- 模型编排；
+- 上下文检索；
+- 集成；
+- 工作流自动化；
+- 评估基础设施；
+- 可观测性；
+- 权限和可审计性；以及
+- 随着模型和本地化实践的发展持续进行调整。
 
-This allows the company to preserve the knowledge that creates differentiation without rebuilding the technical plumbing required to make that knowledge usable.
+这使公司能够保留创造差异化优势的知识，而无需重新构建使这些知识可用所需的技术基础设施。
 
-In other words, own your localisation intelligence. Be deliberate about whether you also need to own the infrastructure around it.
+换句话说，掌握你自己的本地化智能。谨慎决定是否也需要掌握其周边的基础设施。
 
-## A practical decision framework
+## 一个实用的决策框架
 
-Before approving an internal build, ask the following questions:
+在批准内部构建版本之前，请询问以下问题：
 
-| Question                                             | Stronger signal to build                                      | Stronger signal to use a platform                              |
+| 问题                                                 | 更强的构建信号                                               | 更强的使用平台信号                                             |
 | ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| Is localisation technology part of the core product? | Yes, it directly differentiates the product                   | No, it supports product expansion                              |
-| Are the workflows genuinely unique?                  | Existing systems cannot support them                          | They can be handled through configuration or integration       |
-| Who will own the system after launch?                | A dedicated platform team                                     | A temporary project team or individual engineer                |
-| Can you evaluate quality across every target market? | You have language experts and evaluation infrastructure       | You primarily need proven workflows and human review           |
-| How quickly must the business see value?             | The company can invest over a longer horizon                  | The team needs operational improvement soon                    |
-| Are you prepared to maintain every integration?      | Integration ownership is strategically valuable               | Maintenance would distract from core product work              |
-| Does internal ownership create a durable advantage?  | Yes, the capability is difficult for competitors to reproduce | No, the main value comes from using the capability effectively |
+| 本地化技术是核心产品的一部分吗？ | 是的，它直接体现了产品的差异化                   | 不，它支持产品扩展                              |
+| 这些工作流是否真正独特？ | 现有系统无法支持这些工作流 | 可以通过配置或集成来处理 |
+| 上线后由谁负责该系统？ | 专门的平台团队 | 临时项目团队或个人工程师 |
+| 您能否评估每个目标市场的质量？ | 您拥有语言专家和评估基础设施 | 您主要需要经过验证的工作流程和人工审核 |
+| 企业需要多快看到价值？ | 公司可以进行长期投资 | 团队需要尽快实现运营改进 |
+| 你是否准备好维护每个集成？      | 集成所有权具有战略价值               | 维护工作会分散核心产品开发的注意力              |
+| 内部所有权是否能创造持久优势？ | 是，该能力很难被竞争对手复制 | 否，主要价值来自有效利用该能力 |
 
-The last question is the most important.
+最后一个问题最重要。
 
-Custom technology is not automatically strategic technology. Sometimes a company builds something internally and assumes that ownership itself creates an advantage. In practice, the advantage usually comes from proprietary knowledge, distribution, customer insight or a distinctive operating model—not from maintaining another integration layer.
+定制技术并不会自动成为战略性技术。有时，公司会内部构建某些东西，并认为拥有它本身就能创造优势。但实际上，优势通常来自专有知识、分销渠道、客户洞察或独特的运营模式，而不是维护另一层集成。
 
-## Do not build an agent simply because you can
+## 不要仅仅因为你能，就构建一个智能体
 
-The rapid improvement of language models has lowered the barrier to experimentation, which is good for the localisation industry. More teams can test ideas, automate repetitive work and explore better ways to bring product context into translation.
+语言模型的快速进步降低了试验门槛，这对本地化行业来说是件好事。更多团队可以测试想法、自动化重复性工作，并探索更好的方式，将产品上下文融入翻译。
 
-But lower development barriers can also hide the distance between a prototype and a dependable system.
+但更低的开发门槛也可能掩盖原型与可靠系统之间的差距。
 
-A convincing demo proves that a model can generate a translation. It does not prove that the system can manage context, preserve product integrity, support human reviewers, operate securely and improve across thousands of changes and multiple markets.
+一个令人信服的演示证明了模型能够生成翻译，但并不能证明系统能够管理上下文、维护产品完整性、支持人工审核人员、确保安全运行，并在数千次变更和多个市场中持续改进。
 
-Building your own localisation agent makes sense when owning that capability is strategically important enough to justify owning all of those responsibilities.
+当拥有本地化能力在战略上足够重要，足以证明承担所有这些职责是合理的时，构建自己的本地化代理才是有意义的。
 
-For most product and localisation teams, the better path is to adopt an agentic platform that works with their existing tools, keeps human expertise central and gives them control over the knowledge that makes their product distinctive.
+对于大多数产品和本地化团队来说，更好的选择是采用一个能与现有工具协同工作的智能代理平台，将人类专业知识置于核心位置，并让团队掌控那些使其产品独具特色的知识。
 
-That is the philosophy behind Hyperlocalise. We are building an AI workforce for localisation teams: agents that gather context, apply market knowledge, assist with translation and quality assurance, and help teams keep pace with product development without replacing the tools or people they already trust.
+这正是 Hyperlocalise 背后的理念。我们正在为本地化团队打造一支 AI 劳动力队伍：这些智能体能够收集上下文信息、运用市场知识、协助翻译和质量保证，并帮助团队跟上产品开发的步伐，同时不会取代他们一直信赖的工具或人员。
 
-The future of localisation will not be defined by who can send text to a language model. It will be defined by who can turn organisational knowledge and local expertise into a reliable, scalable way of working.
+本地化的未来不会由谁能将文本发送给语言模型所定义，而将由谁能把组织知识和本地专业知识转化为可靠且可扩展的工作方式所定义。
 
-## See Hyperlocalise’s localisation agents in action
+## 查看 Hyperlocalise 的本地化代理实际运行效果
 
-If you are weighing build versus buy, we can walk through how an agentic localisation workflow fits your stack, your review process, and the markets you need to support.
+如果您正在权衡自建还是采购，我们可以详细介绍代理式本地化工作流程如何适配您的技术栈、审核流程以及您需要支持的市场。
 
 [Get a Demo](https://calendar.app.google/gEiRwNvAZ1ERXvT26)

@@ -1,8 +1,8 @@
 ---
-title: Should You Build Your Own Localisation Agent?
+title: Sollten Sie Ihren eigenen Lokalisierungsagenten entwickeln?
 date: 2026-07-25T00:00:00.000Z
-excerpt: An impressive AI translation demo is easy to build. A dependable localisation agent that understands context, protects product integrity, and improves through human feedback is a much larger undertaking. Here is how to decide whether to build or buy.
-category: Product
+excerpt: Eine beeindruckende KI-Übersetzungsdemo lässt sich leicht erstellen. Ein zuverlässiger Lokalisierungsagent, der den Kontext versteht, die Integrität des Produkts schützt und sich durch menschliches Feedback verbessert, ist ein weitaus größeres Vorhaben. So entscheiden Sie, ob Sie selbst entwickeln oder eine Lösung kaufen sollten.
+category: Produkt
 tags:
   - localisation agent
   - localization agent
@@ -19,229 +19,229 @@ tags:
   - AI agents
 ---
 
-It has never been easier to build an impressive AI translation demo.
+Noch nie war es so einfach, eine beeindruckende KI-Übersetzungsdemo zu erstellen.
 
-Connect a large language model to a repository, give it a glossary and ask it to translate a set of strings. Within days, a product team can have something that looks like a localisation agent. It may produce fluent translations, respond to instructions and even open pull requests automatically.
+Verbinden Sie ein Large Language Model mit einem Repository, geben Sie ihm ein Glossar und bitten Sie es, eine Reihe von Zeichenfolgen zu übersetzen. Innerhalb weniger Tage kann ein Produktteam etwas haben, das wie ein Lokalisierungsagent aussieht. Es kann flüssige Übersetzungen erstellen, auf Anweisungen reagieren und sogar automatisch Pull Requests öffnen.
 
-That early progress can make the next decision seem obvious: why pay for a localisation platform when your engineering team can build an agent internally?
+Dieser frühe Fortschritt kann die nächste Entscheidung offensichtlich erscheinen lassen: Warum für eine Lokalisierungsplattform bezahlen, wenn Ihr Engineering-Team intern einen Agenten entwickeln kann?
 
-The answer depends on what you are actually trying to build.
+Die Antwort hängt davon ab, was du tatsächlich zu entwickeln versuchst.
 
-A prototype that generates translated text is relatively straightforward. A dependable localisation agent that understands product context, follows market-specific guidance, protects variables, works across your existing systems and improves through human feedback is a much larger undertaking.
+Ein Prototyp, der übersetzten Text generiert, ist relativ einfach zu entwickeln. Ein zuverlässiger Lokalisierungsagent, der den Produktkontext versteht, marktspezifische Vorgaben befolgt, Variablen schützt, mit Ihren bestehenden Systemen zusammenarbeitet und sich durch menschliches Feedback verbessert, ist ein wesentlich umfangreicheres Vorhaben.
 
-The important question is not whether your team _can_ build a localisation agent. It is whether owning and operating that system will create enough strategic value to justify the continuing investment.
+Die entscheidende Frage ist nicht, ob Ihr Team einen Lokalisierungsagenten entwickeln _kann_. Entscheidend ist, ob der Besitz und Betrieb dieses Systems genügend strategischen Wert schaffen, um die laufenden Investitionen zu rechtfertigen.
 
-## A localisation agent is more than an AI translator
+## Ein Lokalisierungsagent ist mehr als ein KI-Übersetzer
 
-An AI translator receives text and returns text in another language. A localisation agent operates across a workflow.
+Ein KI-Übersetzer erhält Text und gibt ihn in einer anderen Sprache zurück. Ein Lokalisierungsagent arbeitet in einem Workflow.
 
-OpenAI describes agents as systems that combine models with instructions, tools and guardrails so they can complete tasks on a user’s behalf. Anthropic similarly recommends beginning with simple, composable workflows rather than adding unnecessary agent complexity.
+OpenAI beschreibt Agenten als Systeme, die Modelle mit Anweisungen, Tools und Schutzvorkehrungen kombinieren, damit sie Aufgaben im Namen eines Benutzers erledigen können. Anthropic empfiehlt ebenfalls, mit einfachen, kombinierbaren Workflows zu beginnen, anstatt unnötige Agentenkomplexität hinzuzufügen.
 
-Applied to localisation, that means an effective agent must do considerably more than call a translation model. It needs to:
+Auf die Lokalisierung angewandt bedeutet das, dass ein effektiver Agent erheblich mehr tun muss, als nur ein Übersetzungsmodell aufzurufen. Er muss:
 
-- retrieve relevant product, brand and market context;
+- relevanten Produkt-, Marken- und Marktkontext abrufen;
 - apply terminology, style guides and previous translation decisions;
-- preserve placeholders, formatting, markup and technical constraints;
-- distinguish between content that requires translation, transcreation or no change;
-- coordinate reviews, approvals and revisions;
-- synchronise work with repositories, content systems and translation platforms;
-- explain why it made a decision;
-- escalate uncertainty to the right person; and
-- learn from reviewer feedback without repeating previous mistakes.
+- Platzhalter, Formatierung, Markup und technische Vorgaben beibehalten;
+- zwischen Inhalten unterscheiden, die eine Übersetzung, Transkreation oder keine Änderung erfordern;
+- Reviews, Genehmigungen und Überarbeitungen koordinieren;
+- Synchronisieren Sie die Arbeit mit Repositorys, Content-Systemen und Übersetzungsplattformen;
+- erklären, warum diese Entscheidung getroffen wurde;
+- Unsicherheiten an die richtige Person weiterleiten; und
+- aus dem Feedback der Prüfer lernen, ohne frühere Fehler zu wiederholen.
 
-This distinction matters because a team can build the translation step and believe it has built the complete system. In reality, translation generation may be one of the easier components.
+Diese Unterscheidung ist wichtig, weil ein Team den Übersetzungsschritt entwickeln und glauben kann, es habe das vollständige System entwickelt. In Wirklichkeit kann die Übersetzungserstellung eine der leichteren Komponenten sein.
 
-The harder problem is creating a reliable operating layer around it.
+Das schwierigere Problem besteht darin, eine zuverlässige Betriebsebene darum herum zu schaffen.
 
-## Why building your own agent is appealing
+## Warum es attraktiv ist, einen eigenen Agenten zu entwickeln
 
-There are legitimate reasons to consider an internal localisation agent.
+Es gibt legitime Gründe, einen internen Lokalisierungsagenten in Betracht zu ziehen.
 
-The most obvious is control. Your team can decide exactly which models to use, how prompts are structured, where data is processed and how the agent interacts with internal systems. You are not constrained by another company’s product roadmap or assumptions about how localisation should work.
+Am offensichtlichsten ist die Kontrolle. Ihr Team kann genau festlegen, welche Modelle verwendet werden, wie Prompts strukturiert sind, wo Daten verarbeitet werden und wie der Agent mit internen Systemen interagiert. Sie sind nicht an die Produkt-Roadmap eines anderen Unternehmens oder an dessen Annahmen darüber gebunden, wie Lokalisierung funktionieren sollte.
 
-Building internally can also make sense when your workflow is genuinely unusual. A gaming company with narrative branching, a regulated medical platform or a business with a proprietary content architecture may have requirements that general-purpose tools cannot support cleanly.
+Die interne Entwicklung kann ebenfalls sinnvoll sein, wenn Ihr Workflow tatsächlich ungewöhnlich ist. Ein Gaming-Unternehmen mit verzweigten Handlungssträngen, eine regulierte medizinische Plattform oder ein Unternehmen mit einer proprietären Content-Architektur hat möglicherweise Anforderungen, die allgemeine Tools nicht ohne Weiteres erfüllen können.
 
-There is also a strategic argument. When localisation technology is central to your product rather than an operational function, the underlying intelligence may become valuable intellectual property. A language-learning company, multilingual search provider or AI communication product may reasonably decide that localisation capabilities belong inside its core platform.
+Es gibt auch ein strategisches Argument. Wenn Lokalisierungstechnologie für Ihr Produkt zentral ist und nicht lediglich eine operative Funktion darstellt, kann die zugrunde liegende Intelligenz zu wertvollem geistigem Eigentum werden. Ein Sprachlernunternehmen, ein Anbieter mehrsprachiger Suchfunktionen oder ein KI-Kommunikationsprodukt kann mit gutem Grund zu dem Schluss kommen, dass Lokalisierungsfähigkeiten in seine Kernplattform gehören.
 
-At sufficient scale, an internal system could also reduce certain vendor costs. However, this comparison is often made using model API expenses alone. The true cost includes the engineering, infrastructure and operational work required to keep the system dependable.
+Bei ausreichender Skalierung könnte ein internes System auch bestimmte Anbieterkosten senken. Dieser Vergleich wird jedoch häufig ausschließlich anhand der Kosten für die Modell-APIs angestellt. Die tatsächlichen Kosten umfassen auch den technischen, infrastrukturellen und betrieblichen Aufwand, der erforderlich ist, um die Zuverlässigkeit des Systems zu gewährleisten.
 
-Control is valuable, but control also means ownership.
+Kontrolle ist wertvoll, aber Kontrolle bedeutet auch Verantwortung.
 
-## The hidden scope of building a localisation agent
+## Der verborgene Umfang beim Aufbau eines Lokalisierungsagenten
 
-The first internal version may only require a model, a prompt and access to source strings. Production use introduces a much larger set of responsibilities.
+Die erste interne Version benötigt möglicherweise nur ein Modell, einen Prompt und Zugriff auf die Quellzeichenfolgen. Der Einsatz in der Produktion bringt eine weitaus größere Bandbreite an Verantwortlichkeiten mit sich.
 
-### 1. Building the context layer
+### 1. Aufbau der Kontextschicht
 
-Translation quality depends heavily on context. The agent may need to understand where a message appears, which user action triggered it, what surrounding interface elements say and whether the content belongs to onboarding, billing, support or marketing.
+Die Übersetzungsqualität hängt stark vom Kontext ab. Der Agent muss möglicherweise verstehen, wo eine Nachricht angezeigt wird, welche Benutzeraktion sie ausgelöst hat, was die umgebenden Benutzeroberflächenelemente aussagen und ob der Inhalt zum Onboarding, zur Abrechnung, zum Support oder zum Marketing gehört.
 
-That information is usually scattered across design files, repositories, product documentation, screenshots, analytics, tickets and conversations. Building an agent therefore requires more than prompt engineering. It requires a context retrieval system that can identify the right information for each translation task without overwhelming the model with irrelevant data.
+Diese Informationen sind normalerweise über Designdateien, Repositories, Produktdokumentation, Screenshots, Analysen, Tickets und Gespräche verstreut. Die Entwicklung eines Agenten erfordert daher mehr als Prompt-Engineering. Sie erfordert ein System zum Abrufen von Kontext, das für jede Übersetzungsaufgabe die richtigen Informationen identifizieren kann, ohne das Modell mit irrelevanten Daten zu überlasten.
 
-The context must also stay current. A screenshot from an earlier interface, an outdated glossary entry or an obsolete product description can produce a confident but incorrect translation.
+Auch der Kontext muss aktuell bleiben. Ein Screenshot einer früheren Benutzeroberfläche, ein veralteter Glossareintrag oder eine überholte Produktbeschreibung kann zu einer selbstsicheren, aber falschen Übersetzung führen.
 
-This becomes a data architecture problem: what information should be indexed, who owns it, how is it updated and which sources should the agent trust when they conflict?
+Das wird zu einem Datenarchitekturproblem: Welche Informationen sollten indexiert werden, wer ist dafür verantwortlich, wie werden sie aktualisiert und welchen Quellen sollte der Agent vertrauen, wenn sie sich widersprechen?
 
-### 2. Supporting localisation-specific formats
+### 2. Unterstützung lokalisierungsspezifischer Formate
 
-Product content is not always plain text.
+Produktinhalte sind nicht immer reiner Text.
 
-Localisation systems must handle placeholders, plurals, variables, tags, character limits and structured file formats without corrupting them. XLIFF, for example, exists to carry localisable content between different stages and tools in a localisation workflow. Unicode’s MessageFormat specification addresses dynamic messages involving variables, plural rules, grammatical matching, dates and numbers.
+Lokalisierungssysteme müssen Platzhalter, Pluralformen, Variablen, Tags, Zeichenbegrenzungen und strukturierte Dateiformate verarbeiten können, ohne sie zu beschädigen. XLIFF beispielsweise dient dazu, lokalisierbare Inhalte zwischen verschiedenen Phasen und Tools eines Lokalisierungs-Workflows zu übertragen. Die MessageFormat-Spezifikation von Unicode behandelt dynamische Nachrichten mit Variablen, Pluralregeln, grammatikalischer Übereinstimmung sowie Datums- und Zahlenformaten.
 
-A translation can sound perfectly natural while still breaking the product because the model moved a placeholder incorrectly, translated a variable, removed markup or misunderstood how a plural branch works.
+Eine Übersetzung kann vollkommen natürlich klingen und dennoch das Produkt beeinträchtigen, weil das Modell einen Platzhalter falsch verschoben, eine Variable übersetzt, Markup entfernt oder missverstanden hat, wie ein Pluralzweig funktioniert.
 
-Your agent therefore needs deterministic validation alongside generative intelligence. Fluency alone is not enough.
+Ihr Agent benötigt daher neben generativer Intelligenz auch eine deterministische Validierung. Sprachgewandtheit allein reicht nicht aus.
 
-### 3. Creating a meaningful evaluation system
+### 3. Ein aussagekräftiges Bewertungssystem erstellen
 
-Localisation quality cannot be measured with a single pass-or-fail test.
+Die Lokalisierungsqualität kann nicht mit einem einzigen Bestanden-oder-Nicht-bestanden-Test gemessen werden.
 
-A production evaluation framework may need to assess meaning preservation, terminology, tone, grammar, cultural suitability, formatting integrity, length restrictions and consistency with related content. Different content types also require different standards. A legal notice should not be evaluated in the same way as a campaign headline or a conversational interface message.
+Ein Framework zur Bewertung von Produktionsinhalten muss möglicherweise die Bedeutungserhaltung, Terminologie, den Ton, die Grammatik, die kulturelle Eignung, die Formatierungsintegrität, Längenbeschränkungen und die Konsistenz mit verwandten Inhalten beurteilen. Unterschiedliche Inhaltstypen erfordern außerdem unterschiedliche Standards. Ein rechtlicher Hinweis sollte nicht auf dieselbe Weise bewertet werden wie eine Kampagnenüberschrift oder eine Nachricht in einer konversationellen Benutzeroberfläche.
 
-Automated evaluations can detect many problems, but they must be calibrated against human judgement. Your team needs representative test sets, expected outcomes, language-specific reviewers and a method for measuring whether changes to prompts, models or context retrieval improve the system.
+Automatisierte Evaluierungen können viele Probleme erkennen, müssen jedoch anhand menschlicher Beurteilungen kalibriert werden. Ihr Team benötigt repräsentative Testsätze, erwartete Ergebnisse, sprachspezifische Reviewer und eine Methode, um zu messen, ob Änderungen an Prompts, Modellen oder dem Abruf von Kontexten das System verbessern.
 
-Without this layer, a model upgrade can silently improve one language while reducing quality in another.
+Ohne diese Ebene kann ein Modell-Upgrade eine Sprache unbemerkt verbessern, während die Qualität in einer anderen sinkt.
 
-### 4. Integrating the entire workflow
+### 4. Integration des gesamten Workflows
 
-An agent becomes useful when it can act inside the systems where localisation work already happens.
+Ein Agent wird nützlich, wenn er in den Systemen handeln kann, in denen Lokalisierungsarbeit bereits stattfindet.
 
-That may include GitHub, design tools, content management systems, customer support platforms, product databases, translation management systems and internal approval workflows. Each integration needs authentication, permission handling, retry logic, error recovery, monitoring and maintenance.
+Das kann GitHub, Design-Tools, Content-Management-Systeme, Kundensupport-Plattformen, Produktdatenbanken, Übersetzungsmanagementsysteme und interne Genehmigungs-Workflows umfassen. Jede Integration erfordert Authentifizierung, Berechtigungsverwaltung, Wiederholungslogik, Fehlerbehebung, Überwachung und Wartung.
 
-The workflow must also account for partial failures. What happens when the agent translates 900 strings successfully but cannot process the remaining 100? What happens when content changes during review? Can reviewers see which context influenced the result? Can an approved translation be traced to a particular model, instruction set and source version?
+Der Workflow muss auch Teilausfälle berücksichtigen. Was passiert, wenn der Agent 900 Zeichen erfolgreich übersetzt, aber die verbleibenden 100 nicht verarbeiten kann? Was passiert, wenn sich Inhalte während der Überprüfung ändern? Können Prüfer sehen, welcher Kontext das Ergebnis beeinflusst hat? Kann eine genehmigte Übersetzung auf ein bestimmtes Modell, einen bestimmten Anweisungssatz und eine bestimmte Quellversion zurückgeführt werden?
 
-These are product and infrastructure concerns, not merely AI concerns.
+Dies sind Anliegen zu Produkt und Infrastruktur, nicht lediglich zu KI.
 
-### 5. Protecting sensitive data and systems
+### 5. Schutz sensibler Daten und Systeme
 
-A localisation agent may be given access to unreleased product features, customer communications, internal documentation and proprietary terminology. If it can take actions, it may also have permission to modify content or push changes into production workflows.
+Ein Lokalisierungsagent kann Zugriff auf unveröffentlichte Produktfunktionen, Kundenkommunikation, interne Dokumentation und proprietäre Terminologie erhalten. Wenn er Aktionen ausführen kann, ist er möglicherweise auch berechtigt, Inhalte zu ändern oder Änderungen in Produktions-Workflows zu übertragen.
 
-OWASP identifies prompt injection and insecure output handling among the major risks facing applications built with large language models. A malicious or accidental instruction inside retrieved content can influence an agent, while unvalidated output can create downstream security problems.
+OWASP zählt Prompt-Injection und die unsichere Verarbeitung von Ausgaben zu den größten Risiken für Anwendungen, die mit großen Sprachmodellen erstellt werden. Eine böswillige oder versehentlich in abgerufenen Inhalten enthaltene Anweisung kann einen Agenten beeinflussen, während nicht validierte Ausgaben nachgelagerte Sicherheitsprobleme verursachen können.
 
-A production system needs strict permission boundaries, input and output validation, audit logs, data-retention controls and clear rules governing which actions can be automated. Higher-risk changes may require explicit human approval.
+Ein Produktionssystem benötigt strenge Berechtigungsgrenzen, eine Validierung von Eingaben und Ausgaben, Audit-Protokolle, Kontrollen zur Datenaufbewahrung und klare Regeln dafür, welche Aktionen automatisiert werden dürfen. Änderungen mit höherem Risiko können eine ausdrückliche Genehmigung durch einen Menschen erfordern.
 
-NIST’s AI Risk Management Framework also emphasises that trustworthy AI requires continuing governance, measurement and risk management rather than a one-time technical review.
+Das KI-Risikomanagement-Framework des NIST betont ebenfalls, dass vertrauenswürdige KI eine kontinuierliche Governance, Messung und ein kontinuierliches Risikomanagement erfordert, statt einer einmaligen technischen Überprüfung.
 
-### 6. Maintaining the agent after launch
+### 6. Pflege des Agenten nach dem Start
 
-Models change. Prices change. APIs change. Product terminology evolves. New markets introduce new linguistic requirements. Integrations break, security expectations increase and users discover edge cases that were invisible during development.
+Modelle ändern sich. Preise ändern sich. APIs ändern sich. Die Produktterminologie entwickelt sich weiter. Neue Märkte bringen neue sprachliche Anforderungen mit sich. Integrationen gehen kaputt, die Sicherheitsanforderungen steigen und Nutzer entdecken Sonderfälle, die während der Entwicklung unsichtbar waren.
 
-The agent therefore needs an ongoing owner.
+Der Agent benötigt daher einen dauerhaften Verantwortlichen.
 
-That owner is not simply maintaining code. They are managing the relationship between models, workflows, organisational knowledge and human reviewers. They must investigate failures, improve evaluations, update instructions and decide when new capabilities are safe enough to release.
+Diese verantwortliche Person pflegt nicht einfach nur Code. Sie verwaltet die Beziehung zwischen Modellen, Workflows, organisatorischem Wissen und menschlichen Prüfern. Sie muss Fehler untersuchen, Evaluierungen verbessern, Anweisungen aktualisieren und entscheiden, wann neue Funktionen sicher genug für eine Veröffentlichung sind.
 
-A localisation agent is not a project that ends when the first version ships. It becomes an internal product.
+Ein Lokalisierungsagent ist kein Projekt, das mit der Veröffentlichung der ersten Version endet. Er wird zu einem internen Produkt.
 
-## The real build-versus-buy calculation
+## Die tatsächliche Build-or-Buy-Kalkulation
 
-The cost of an internally built agent is not simply:
+Die Kosten eines intern entwickelten Agenten sind nicht einfach:
 
-> Model usage + a few weeks of engineering
+> Modellnutzung + ein paar Wochen Entwicklungsarbeit
 
-A more realistic calculation is:
+Eine realistischere Berechnung lautet:
 
-> Initial development + integrations + context infrastructure + evaluation systems + security + observability + ongoing maintenance + localisation expertise + opportunity cost
+> Erstentwicklung + Integrationen + Kontextinfrastruktur + Evaluierungssysteme + Sicherheit + Observability + laufende Wartung + Lokalisierungsexpertise + Opportunitätskosten
 
-Opportunity cost is especially important.
+Opportunitätskosten sind besonders wichtig.
 
-Every engineer working on localisation infrastructure is not working on the company’s core product. That investment may be worthwhile when the localisation system creates a durable competitive advantage. It is harder to justify when the objective is simply to help the localisation team release content faster.
+Jeder Ingenieur, der an der Lokalisierungsinfrastruktur arbeitet, arbeitet nicht am Kernprodukt des Unternehmens. Diese Investition kann sich lohnen, wenn das Lokalisierungssystem einen nachhaltigen Wettbewerbsvorteil schafft. Sie ist schwerer zu rechtfertigen, wenn das Ziel lediglich darin besteht, dem Lokalisierungsteam zu helfen, Inhalte schneller zu veröffentlichen.
 
-The build-versus-buy decision should therefore be based on strategic differentiation, not whether a prototype appears inexpensive.
+Die Entscheidung zwischen Eigenentwicklung und Zukauf sollte daher auf der strategischen Differenzierung basieren und nicht darauf, ob ein Prototyp kostengünstig erscheint.
 
-## When building your own localisation agent makes sense
+## Wann es sinnvoll ist, einen eigenen Lokalisierungsagenten zu erstellen
 
-Building internally may be the right decision when most of the following conditions are true:
+Eine interne Entwicklung kann die richtige Entscheidung sein, wenn die meisten der folgenden Bedingungen erfüllt sind:
 
-- Localisation intelligence is fundamental to your company’s core product or competitive advantage.
-- Your workflows are sufficiently specialised that existing platforms cannot support them through configuration or integration.
-- You have a dedicated, long-term engineering team responsible for the system.
-- You have access to localisation specialists who can design evaluations and guide product decisions.
-- Your security, deployment or data requirements cannot be met by external providers.
-- Your content volume and operational scale can justify the complete cost of ownership.
-- Your organisation is prepared to maintain integrations, evaluations and governance continuously.
+- Lokalisierungsintelligenz ist grundlegend für das Kernprodukt oder den Wettbewerbsvorteil Ihres Unternehmens.
+- Ihre Workflows sind so spezialisiert, dass bestehende Plattformen sie weder durch Konfiguration noch durch Integration unterstützen können.
+- Sie verfügen über ein fest zugeordnetes, langfristig verantwortliches Engineering-Team für das System.
+- Sie haben Zugriff auf Lokalisierungsspezialisten, die Evaluierungen konzipieren und Produktentscheidungen begleiten können.
+- Ihre Sicherheits-, Bereitstellungs- oder Datenanforderungen können von externen Anbietern nicht erfüllt werden.
+- Ihr Inhaltsvolumen und Ihr Betriebsumfang können die Gesamtbetriebskosten rechtfertigen.
+- Ihre Organisation ist darauf vorbereitet, Integrationen, Evaluierungen und Governance kontinuierlich aufrechtzuerhalten.
 
-In that situation, the system should be treated as a strategic platform rather than an internal experiment.
+In dieser Situation sollte das System als strategische Plattform und nicht als internes Experiment betrachtet werden.
 
-The team should define ownership, reliability targets, approval boundaries and evaluation criteria before expanding automation. It should also resist building a complex multi-agent architecture before simpler workflows have been proven.
+Das Team sollte Zuständigkeiten, Zuverlässigkeitsziele, Genehmigungsgrenzen und Bewertungskriterien festlegen, bevor es die Automatisierung ausweitet. Außerdem sollte es sich dagegen wehren, eine komplexe Multi-Agenten-Architektur zu entwickeln, bevor einfachere Workflows nachweislich funktionieren.
 
-## When using a localisation agent platform makes more sense
+## Wenn die Verwendung einer Lokalisierungsplattform für Agenten sinnvoller ist
 
-A platform is usually the stronger choice when localisation supports the business but is not itself the business.
+Eine Plattform ist in der Regel die bessere Wahl, wenn die Lokalisierung das Geschäft unterstützt, aber nicht selbst das Geschäft ist.
 
-This is particularly true when the primary goal is to improve translation quality, shorten release cycles or reduce operational workload without creating a new internal infrastructure team.
+Dies gilt insbesondere dann, wenn das Hauptziel darin besteht, die Übersetzungsqualität zu verbessern, die Release-Zyklen zu verkürzen oder den betrieblichen Arbeitsaufwand zu reduzieren, ohne ein neues internes Infrastrukturteam aufzubauen.
 
-A specialised platform can provide the context layer, workflow orchestration, integrations, quality controls and review experience that would otherwise need to be developed internally. Your localisation team can focus on market decisions and quality rather than maintaining AI infrastructure.
+Eine spezialisierte Plattform kann die Kontextebene, die Workflow-Orchestrierung, Integrationen, Qualitätskontrollen und die Review-Erfahrung bereitstellen, die andernfalls intern entwickelt werden müssten. Ihr Lokalisierungsteam kann sich auf Marktentscheidungen und Qualität konzentrieren, anstatt die KI-Infrastruktur zu warten.
 
-This does not require giving up control. The right platform should let you retain ownership of terminology, style, review policies, translation memory and approval decisions. It should also provide visibility into what the agent is doing, what information it used and where human judgement is required.
+Dies erfordert nicht, die Kontrolle abzugeben. Die richtige Plattform sollte es Ihnen ermöglichen, die Kontrolle über Terminologie, Stil, Prüfungsrichtlinien, Translation Memory und Genehmigungsentscheidungen zu behalten. Sie sollte außerdem Einblick darin geben, was der Agent tut, welche Informationen er verwendet und wo menschliches Urteilsvermögen erforderlich ist.
 
 It should work with your existing localisation stack rather than forcing an immediate migration. As we explored in [How to Add AI Translation Without Replacing Your TMS](/blog/how-to-add-ai-translation-without-replacing-tms), an agent can add intelligence across an existing workflow without requiring the organisation to discard the systems and processes it already relies on.
 
-## The hybrid approach is often the strongest
+## Der hybride Ansatz ist oft der stärkste
 
-The decision does not have to be completely binary.
+Die Entscheidung muss nicht völlig binär sein.
 
-Many companies should own their localisation knowledge while using a specialised platform to operationalise it.
+Viele Unternehmen sollten ihr Lokalisierungswissen selbst besitzen und gleichzeitig eine spezialisierte Plattform nutzen, um es operativ umzusetzen.
 
-Your organisation can own:
+Ihre Organisation kann Eigentümerin sein:
 
-- brand and market strategy;
-- terminology and style guidance;
-- product and customer context;
-- approval policies;
-- quality expectations;
-- human reviewer relationships; and
-- the final decision about what is released.
+- Marken- und Marktstrategie;
+- Terminologie- und Stilrichtlinien;
+- Produkt- und Kundenkontext;
+- Genehmigungsrichtlinien;
+- Qualitätserwartungen;
+- Beziehungen zu menschlichen Prüfern; und
+- die endgültige Entscheidung darüber, was veröffentlicht wird.
 
-A platform can provide:
+Eine Plattform kann Folgendes bereitstellen:
 
-- model orchestration;
-- context retrieval;
-- integrations;
-- workflow automation;
-- evaluation infrastructure;
-- observability;
-- permissions and auditability; and
-- continuing adaptation as models and localisation practices evolve.
+- Modellorchestrierung;
+- Kontextabruf;
+- Integrationen;
+- Workflow-Automatisierung;
+- Evaluierungsinfrastruktur;
+- Beobachtbarkeit;
+- Berechtigungen und Auditierbarkeit; und
+- fortlaufende Anpassung, während sich Modelle und Lokalisierungspraktiken weiterentwickeln.
 
-This allows the company to preserve the knowledge that creates differentiation without rebuilding the technical plumbing required to make that knowledge usable.
+Dies ermöglicht es dem Unternehmen, das Wissen zu bewahren, das den Unterschied ausmacht, ohne die erforderliche technische Infrastruktur zur Nutzbarmachung dieses Wissens neu aufbauen zu müssen.
 
-In other words, own your localisation intelligence. Be deliberate about whether you also need to own the infrastructure around it.
+Mit anderen Worten: Machen Sie Ihre Lokalisierungsintelligenz zu Ihrer eigenen. Überlegen Sie bewusst, ob Sie auch die dazugehörige Infrastruktur selbst betreiben müssen.
 
-## A practical decision framework
+## Ein praktischer Entscheidungsrahmen
 
-Before approving an internal build, ask the following questions:
+Stellen Sie vor der Freigabe eines internen Builds die folgenden Fragen:
 
-| Question                                             | Stronger signal to build                                      | Stronger signal to use a platform                              |
+| Frage                                               | Stärkeres Signal für die Entwicklung                         | Stärkeres Signal für die Nutzung einer Plattform                |
 | ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| Is localisation technology part of the core product? | Yes, it directly differentiates the product                   | No, it supports product expansion                              |
-| Are the workflows genuinely unique?                  | Existing systems cannot support them                          | They can be handled through configuration or integration       |
-| Who will own the system after launch?                | A dedicated platform team                                     | A temporary project team or individual engineer                |
-| Can you evaluate quality across every target market? | You have language experts and evaluation infrastructure       | You primarily need proven workflows and human review           |
-| How quickly must the business see value?             | The company can invest over a longer horizon                  | The team needs operational improvement soon                    |
-| Are you prepared to maintain every integration?      | Integration ownership is strategically valuable               | Maintenance would distract from core product work              |
-| Does internal ownership create a durable advantage?  | Yes, the capability is difficult for competitors to reproduce | No, the main value comes from using the capability effectively |
+| Ist Lokalisierungstechnologie Teil des Kernprodukts? | Ja, sie hebt das Produkt direkt vom Wettbewerb ab | Nein, sie unterstützt die Produkterweiterung |
+| Sind die Workflows wirklich einzigartig?                  | Bestehende Systeme können sie nicht unterstützen                          | Sie können durch Konfiguration oder Integration umgesetzt werden       |
+| Wer wird das System nach dem Launch betreuen?                | Ein dediziertes Plattformteam                                     | Ein temporäres Projektteam oder ein einzelner Entwickler                |
+| Können Sie die Qualität in allen Zielmärkten bewerten? | Sie verfügen über Sprachexperten und eine Evaluierungsinfrastruktur | Sie benötigen in erster Linie bewährte Workflows und eine menschliche Überprüfung           |
+| Wie schnell muss das Unternehmen einen Mehrwert sehen? | Das Unternehmen kann über einen längeren Zeitraum investieren | Das Team benötigt bald operative Verbesserungen |
+| Sind Sie darauf vorbereitet, jede Integration zu pflegen?      | Die Verantwortung für Integrationen ist strategisch wertvoll               | Die Wartung würde von der Arbeit am Kernprodukt ablenken              |
+| Schafft internes Eigentum einen nachhaltigen Vorteil?  | Ja, die Fähigkeit ist für Wettbewerber nur schwer reproduzierbar | Nein, der Hauptwert entsteht durch die effektive Nutzung der Fähigkeit |
 
-The last question is the most important.
+Die letzte Frage ist die wichtigste.
 
-Custom technology is not automatically strategic technology. Sometimes a company builds something internally and assumes that ownership itself creates an advantage. In practice, the advantage usually comes from proprietary knowledge, distribution, customer insight or a distinctive operating model—not from maintaining another integration layer.
+Individuell entwickelte Technologie ist nicht automatisch strategische Technologie. Manchmal entwickelt ein Unternehmen etwas intern und nimmt an, dass allein der Besitz einen Vorteil schafft. In der Praxis entsteht der Vorteil meist durch proprietäres Wissen, Vertriebswege, Kundenkenntnis oder ein unverwechselbares Betriebsmodell – nicht durch die Pflege einer weiteren Integrationsschicht.
 
-## Do not build an agent simply because you can
+## Erstelle nicht einfach einen Agenten, nur weil du es kannst
 
-The rapid improvement of language models has lowered the barrier to experimentation, which is good for the localisation industry. More teams can test ideas, automate repetitive work and explore better ways to bring product context into translation.
+Die rasante Weiterentwicklung von Sprachmodellen hat die Einstiegshürden für Experimente gesenkt, was für die Lokalisierungsbranche gut ist. Mehr Teams können Ideen testen, repetitive Aufgaben automatisieren und bessere Möglichkeiten erkunden, Produktkontext in die Übersetzung einzubringen.
 
-But lower development barriers can also hide the distance between a prototype and a dependable system.
+Doch niedrigere Entwicklungshürden können auch die Distanz zwischen einem Prototypen und einem zuverlässigen System verschleiern.
 
-A convincing demo proves that a model can generate a translation. It does not prove that the system can manage context, preserve product integrity, support human reviewers, operate securely and improve across thousands of changes and multiple markets.
+Eine überzeugende Demo beweist, dass ein Modell eine Übersetzung erstellen kann. Sie beweist nicht, dass das System Kontext verwalten, die Integrität des Produkts wahren, menschliche Prüfer unterstützen, sicher betrieben werden und sich bei Tausenden von Änderungen und in mehreren Märkten weiterentwickeln kann.
 
-Building your own localisation agent makes sense when owning that capability is strategically important enough to justify owning all of those responsibilities.
+Die Entwicklung eines eigenen Lokalisierungsagenten ist sinnvoll, wenn der Besitz dieser Fähigkeit strategisch wichtig genug ist, um die Übernahme all dieser Verantwortlichkeiten zu rechtfertigen.
 
-For most product and localisation teams, the better path is to adopt an agentic platform that works with their existing tools, keeps human expertise central and gives them control over the knowledge that makes their product distinctive.
+Für die meisten Produkt- und Lokalisierungsteams besteht der bessere Weg darin, eine agentische Plattform einzuführen, die mit ihren bestehenden Tools arbeitet, menschliches Fachwissen in den Mittelpunkt stellt und ihnen die Kontrolle über das Wissen gibt, das ihr Produkt einzigartig macht.
 
-That is the philosophy behind Hyperlocalise. We are building an AI workforce for localisation teams: agents that gather context, apply market knowledge, assist with translation and quality assurance, and help teams keep pace with product development without replacing the tools or people they already trust.
+Das ist die Philosophie hinter Hyperlocalise. Wir entwickeln eine KI-Belegschaft für Lokalisierungsteams: Agenten, die Kontext sammeln, Marktkenntnisse anwenden, bei der Übersetzung und Qualitätssicherung unterstützen und Teams dabei helfen, mit der Produktentwicklung Schritt zu halten, ohne die Tools oder Menschen zu ersetzen, denen sie bereits vertrauen.
 
-The future of localisation will not be defined by who can send text to a language model. It will be defined by who can turn organisational knowledge and local expertise into a reliable, scalable way of working.
+Die Zukunft der Lokalisierung wird nicht davon bestimmt, wer Text an ein Sprachmodell senden kann. Sie wird davon bestimmt, wer organisatorisches Wissen und lokales Fachwissen in eine zuverlässige, skalierbare Arbeitsweise umwandeln kann.
 
-## See Hyperlocalise’s localisation agents in action
+## Sehen Sie Hyperlocalises Lokalisierungsagenten in Aktion
 
-If you are weighing build versus buy, we can walk through how an agentic localisation workflow fits your stack, your review process, and the markets you need to support.
+Wenn Sie abwägen, ob Sie selbst entwickeln oder eine Lösung kaufen möchten, zeigen wir Ihnen gerne, wie sich ein agentischer Lokalisierungs-Workflow in Ihren Technologie-Stack, Ihren Prüfprozess und die Märkte integrieren lässt, die Sie unterstützen müssen.
 
 [Get a Demo](https://calendar.app.google/gEiRwNvAZ1ERXvT26)
