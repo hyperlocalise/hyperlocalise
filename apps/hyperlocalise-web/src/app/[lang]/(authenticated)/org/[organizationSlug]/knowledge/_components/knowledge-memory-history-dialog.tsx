@@ -71,12 +71,12 @@ export function createKnowledgeMemoryDiffFiles(input: {
 }): { oldFile: FileContents; newFile: FileContents } {
   return {
     oldFile: {
-      name: "Memory.md",
+      name: "Global guidance",
       contents: input.previousContent,
       lang: "markdown",
     },
     newFile: {
-      name: "Memory.md",
+      name: "Global guidance",
       contents: input.selectedContent,
       lang: "markdown",
     },
@@ -314,10 +314,10 @@ export function KnowledgeMemoryHistoryDialog({
           <DialogHeader className="border-b border-border px-6 py-5 pe-14">
             <DialogTitle className="flex items-center gap-2">
               <HistoryIcon className="size-4" />
-              Memory history
+              Global guidance history
             </DialogTitle>
             <DialogDescription>
-              Review committed versions, compare changes, or restore an earlier Memory.md.
+              Review saved versions, compare changes, or restore earlier guidance.
             </DialogDescription>
           </DialogHeader>
 

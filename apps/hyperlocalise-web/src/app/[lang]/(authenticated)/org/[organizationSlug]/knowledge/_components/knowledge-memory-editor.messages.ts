@@ -16,30 +16,40 @@ import { defineMessages } from "react-intl";
 
 export const knowledgeMemoryEditorMessages = defineMessages({
   title: {
-    defaultMessage: "Organization memory",
-    id: "cGZAPE84bW",
-    description: "Heading for the organization knowledge memory editor",
-  },
-  description: {
-    defaultMessage:
-      "One markdown document for localization rules, glossary notes, brand guidance, and things to avoid.",
-    id: "6mSsZi1QjK",
-    description: "Description under the organization knowledge memory editor heading",
+    defaultMessage: "Global guidance",
+    id: "6F6O0hv6yy",
+    description: "Heading for the global guidance editor",
   },
   lastUpdated: {
-    defaultMessage: "Last updated {timestamp}",
-    id: "noSrhn1pJ3",
-    description: "Shows when the organization knowledge memory was last saved",
+    defaultMessage: "Saved {timestamp}",
+    id: "OVYNR7qNg7",
+    description: "Shows when global guidance was last saved",
   },
   notSavedYet: {
     defaultMessage: "Not saved yet",
     id: "pzP0LynEOg",
     description: "Shown when organization knowledge memory has never been saved",
   },
-  memoryLabel: {
-    defaultMessage: "Memory.md",
-    id: "tgQz/g+KA0",
-    description: "Label for the organization knowledge memory markdown field",
+  memoryPlaceholder: {
+    defaultMessage:
+      "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
+    id: "/y+q4g0L8i",
+    description: "Placeholder for the global guidance TipTap editor",
+  },
+  memoryAriaLabel: {
+    defaultMessage: "Global guidance",
+    id: "DR05xC0qfm",
+    description: "Accessible label for the global guidance TipTap editor",
+  },
+  versionNoteLabel: {
+    defaultMessage: "Version note (optional)",
+    id: "DHd5WNIV7o",
+    description: "Label for the optional knowledge memory version note field",
+  },
+  versionNotePlaceholder: {
+    defaultMessage: "Updated product terminology",
+    id: "Ok15bFijfb",
+    description: "Placeholder for the optional knowledge memory version note field",
   },
   overLimitError: {
     defaultMessage: "Knowledge memory must be {limit} characters or less.",
@@ -51,74 +61,59 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     id: "crhiHIjb38",
     description: "Character count for the organization knowledge memory editor",
   },
-  saving: {
+  unsavedChanges: {
+    defaultMessage: "Unsaved changes",
+    id: "kYhhhQsEy6",
+    description: "Status shown when global guidance has local changes",
+  },
+  changesSaved: {
+    defaultMessage: "All changes saved",
+    id: "fvlbrsgBUm",
+    description: "Status shown when global guidance matches the saved version",
+  },
+  history: {
+    defaultMessage: "History",
+    id: "4vgdKa1rPI",
+    description: "Button to open knowledge memory revision history",
+  },
+  committing: {
     defaultMessage: "Saving",
-    id: "8l8bAaSw0Y",
-    description: "Save button label while organization knowledge memory is saving",
+    id: "iN2/ib2XhV",
+    description: "Commit button label while knowledge memory is saving",
   },
-  save: {
-    defaultMessage: "Save",
-    id: "5d21vrW8b9",
-    description: "Save button label for organization knowledge memory",
+  commitChanges: {
+    defaultMessage: "Save changes",
+    id: "h8EKkv2BNt",
+    description: "Commit button label for knowledge memory",
   },
-  previewTitle: {
-    defaultMessage: "Retrieval preview",
-    id: "W/c1gMXI8X",
-    description: "Heading for the knowledge memory retrieval preview section",
+  saveDialogTitle: {
+    defaultMessage: "Save changes",
+    id: "2ebaFVw9EO",
+    description: "Title of the dialog used to save global guidance",
   },
-  previewDescription: {
-    defaultMessage: "Test what saved Memory.md guidance would be loaded for a translation query.",
-    id: "Kyj/6Mb2oy",
-    description: "Description for the knowledge memory retrieval preview section",
+  saveDialogDescription: {
+    defaultMessage: "Optionally describe what changed for version history.",
+    id: "Uprf8bLGRl",
+    description: "Description in the global guidance save dialog",
   },
-  targetLocaleLabel: {
-    defaultMessage: "Target locale",
-    id: "lDRDJJcswg",
-    description: "Label for the knowledge memory preview target locale field",
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "CP+VovcJDY",
+    description: "Button that closes the global guidance save dialog",
   },
-  sourceTextLabel: {
-    defaultMessage: "Source text",
-    id: "EraI1sZNxF",
-    description: "Label for the knowledge memory preview source text field",
+  saveVersion: {
+    defaultMessage: "Save version",
+    id: "Sx9RV1pKpJ",
+    description: "Button that saves a new global guidance version",
   },
-  saveBeforePreview: {
-    defaultMessage: "Save changes before previewing updated memory.",
-    id: "UB4eOrmqpw",
-    description: "Hint when unsaved knowledge memory changes block an accurate preview",
+  version: {
+    defaultMessage: "Version {version}",
+    id: "BZE2c4wFg4",
+    description: "Shows the current knowledge memory version number",
   },
-  previewUsesSaved: {
-    defaultMessage: "Preview uses the saved markdown memory.",
-    id: "/iwtwhLhum",
-    description: "Hint when the knowledge memory preview uses the saved document",
-  },
-  previewing: {
-    defaultMessage: "Previewing",
-    id: "7A+ivEeF6T",
-    description: "Preview button label while knowledge memory retrieval is running",
-  },
-  preview: {
-    defaultMessage: "Preview",
-    id: "SiPCg9X6AE",
-    description: "Preview button label for knowledge memory retrieval",
-  },
-  selectedCount: {
-    defaultMessage: "{count} selected",
-    id: "edDxW76Fj5",
-    description: "Badge showing how many memory sections were selected for a preview",
-  },
-  charsSelected: {
-    defaultMessage: "{selected}/{total} chars",
-    id: "yIpwcI2dct",
-    description: "Badge showing selected versus total knowledge memory character counts",
-  },
-  noMemorySelected: {
-    defaultMessage: "(no memory selected)",
-    id: "AVpvSFVkzQ",
-    description: "Placeholder when knowledge memory preview returns no compact text",
-  },
-  matchedHeadings: {
-    defaultMessage: "Matched headings",
-    id: "U33IyIY5fW",
-    description: "Heading above matched knowledge memory heading paths in preview results",
+  addSources: {
+    defaultMessage: "Add sources",
+    id: "gyVhBvCqLP",
+    description: "Button to return from global guidance to the source upload screen",
   },
 });

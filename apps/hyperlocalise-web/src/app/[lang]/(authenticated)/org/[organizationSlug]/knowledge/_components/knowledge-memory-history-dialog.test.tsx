@@ -209,8 +209,8 @@ describe("KnowledgeMemory history UI", () => {
         selectedContent: "After",
       }),
     ).toEqual({
-      oldFile: { name: "Memory.md", contents: "Before", lang: "markdown" },
-      newFile: { name: "Memory.md", contents: "After", lang: "markdown" },
+      oldFile: { name: "Global guidance", contents: "Before", lang: "markdown" },
+      newFile: { name: "Global guidance", contents: "After", lang: "markdown" },
     });
   });
 
