@@ -13,10 +13,11 @@
 import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-export const startupsHeroImageSrc = "/images/nasa-gyp1xkjZNg8-unsplash.jpg";
+export const startupsHeroImageSrc = "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg";
 export const startmateUrl = "https://www.startmate.com";
 export const startmateLogoSrc = "/images/startmate-logo.svg";
 export const slatorUrl = "https://slator.com/2026-slator-language-ai-50-under-50/";
+export const slatorLogoSrc = "/images/slator-logo.svg";
 
 export const trustedByLogos = [
   {
@@ -49,26 +50,15 @@ export function getStartupsPageCopy(locale: string) {
   const intl = getIntlShape(locale);
 
   return {
-    brand: intl.formatMessage({
-      defaultMessage: "Hyperlocalise",
-      id: "E0EMIJxaEQ",
-      description: "Brand name shown as the hero-level signal on the startups page",
-    }),
     headline: intl.formatMessage({
-      defaultMessage: "Hyperlocalise for startups",
-      id: "AmiOm5k2FJ",
+      defaultMessage: "New markets. 100x momentum.",
+      id: "4rmmdM56iz",
       description: "Primary headline on the marketing startups page",
     }),
     offerLine: intl.formatMessage({
-      defaultMessage: "Get up to 80% off Growth",
-      id: "9IRrcenIid",
+      defaultMessage: "80% off Growth to launch globally in days.",
+      id: "REEtEqm192",
       description: "Offer line under the startups page headline",
-    }),
-    subcopy: intl.formatMessage({
-      defaultMessage:
-        "Go global with a native TMS and AI agent workflow — no separate localisation stack required. Details confirmed on your demo.",
-      id: "SU2sB1fM1l",
-      description: "Supporting copy under the startups page offer line",
     }),
     applyCta: intl.formatMessage({
       defaultMessage: "Apply for startup pricing",
@@ -81,57 +71,57 @@ export function getStartupsPageCopy(locale: string) {
       description: "Secondary CTA linking to the pricing page from the startups hero",
     }),
     whyHeading: intl.formatMessage({
-      defaultMessage: "Built for teams that need to move fast",
-      id: "kWQRWONtnI",
+      defaultMessage: "Built for teams scaling into new markets",
+      id: "4Q7IA4cUr1",
       description: "Heading for the why-startups benefits section",
     }),
     whySubcopy: intl.formatMessage({
       defaultMessage:
-        "Early-stage teams ship product and marketing across markets without a localisation department — or a separate TMS.",
-      id: "53JNdtNVxs",
+        "Entering a new market should feel like growth, not a second product launch that stalls the company.",
+      id: "SSTF1YYS27",
       description: "Supporting copy under the why-startups heading",
     }),
     benefits: [
       {
-        id: "native-tms",
+        id: "global-complexity",
         title: intl.formatMessage({
-          defaultMessage: "Native TMS with AI agents",
-          id: "9uAHuyskcc",
-          description: "Benefit title: native TMS with AI agent workflow for startups",
+          defaultMessage: "New markets are not copy-paste",
+          id: "l+4ZVzc8lT",
+          description: "Story beat title: scaling requires market-specific fit",
         }),
         body: intl.formatMessage({
           defaultMessage:
-            "Skip buying Crowdin, Lokalise, or another TMS first. Manage strings, drafts, and review in Hyperlocalise while agents run intake, translation, and handoff in one workflow.",
-          id: "E6s5Pdmwn1",
-          description: "Benefit body: native TMS with AI agent workflow for startups",
+            "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally.",
+          id: "6ivqVq7zS5",
+          description: "Story beat body: markets need local fit and compliance",
         }),
       },
       {
-        id: "launch-fast",
+        id: "context-without-overhead",
         title: intl.formatMessage({
-          defaultMessage: "Launch locales in days",
-          id: "1aX8wAetFg",
-          description: "Benefit title: speed to launch new locales",
+          defaultMessage: "Growth should not create busywork",
+          id: "SvpJwumZyD",
+          description: "Story beat title: scaling should not add coordination overhead",
         }),
         body: intl.formatMessage({
           defaultMessage:
-            "Stand up product and marketing localisation quickly so a new market does not wait on a long vendor cycle.",
-          id: "rNVLcdtpiy",
-          description: "Benefit body: speed to launch new locales",
+            "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team.",
+          id: "dtxXs1IpQ7",
+          description: "Story beat body: scale without burying the product team",
         }),
       },
       {
-        id: "context-review",
+        id: "launch-at-speed",
         title: intl.formatMessage({
-          defaultMessage: "Review with product context",
-          id: "dOTVaKVBN7",
-          description: "Benefit title: context-aware review for small teams",
+          defaultMessage: "Move while the opportunity is open",
+          id: "tpB8bOrCyY",
+          description: "Story beat title: scale into markets while timing favors you",
         }),
         body: intl.formatMessage({
           defaultMessage:
-            "Pull signal from GitHub and Slack so small teams review strings with intent, glossary, and UI context — not guesswork.",
-          id: "G4ax8RWKGX",
-          description: "Benefit body: context-aware review for small teams",
+            "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you.",
+          id: "zzgULmXNCF",
+          description: "Story beat body: enter markets quickly when opportunity appears",
         }),
       },
     ],
@@ -139,11 +129,6 @@ export function getStartupsPageCopy(locale: string) {
       defaultMessage: "Trusted by teams going global early",
       id: "2lPB6SLWPB",
       description: "Heading for the startups page social proof section",
-    }),
-    trustedByLabel: intl.formatMessage({
-      defaultMessage: "Trusted by",
-      id: "R49Zm8jay8",
-      description: "Label above customer logos on the startups page",
     }),
     heidiHealthAlt: intl.formatMessage({
       defaultMessage: "Heidi Health",
@@ -213,7 +198,7 @@ export function getStartupsPageCopy(locale: string) {
         description: "Startup program eligibility: new customer",
       }),
       intl.formatMessage({
-        defaultMessage: "Early-stage — typically under 50 employees or pre-Series B",
+        defaultMessage: "Early-stage, typically under 50 employees or pre-Series B",
         id: "WoD+am33dd",
         description: "Startup program eligibility: company stage",
       }),
@@ -224,12 +209,13 @@ export function getStartupsPageCopy(locale: string) {
       }),
     ],
     finalHeading: intl.formatMessage({
-      defaultMessage: "Ready to apply?",
+      defaultMessage: "Ready for the next market?",
       id: "iVPGu5Ye6L",
       description: "Final CTA heading on the startups page",
     }),
     finalSubcopy: intl.formatMessage({
-      defaultMessage: "Book a demo and we will walk through eligibility and startup pricing.",
+      defaultMessage:
+        "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
       id: "jWomcj3eo6",
       description: "Final CTA supporting copy on the startups page",
     }),

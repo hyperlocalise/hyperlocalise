@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   getStartupsFaqItems,
   getStartupsPageCopy,
+  slatorLogoSrc,
   slatorUrl,
   startmateLogoSrc,
   startmateUrl,
@@ -24,10 +25,11 @@ import {
 
 describe("startups page content", () => {
   it("exposes program assets and customer destinations", () => {
-    expect(startupsHeroImageSrc).toBe("/images/nasa-gyp1xkjZNg8-unsplash.jpg");
+    expect(startupsHeroImageSrc).toBe("/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg");
     expect(startmateUrl).toBe("https://www.startmate.com");
     expect(startmateLogoSrc).toBe("/images/startmate-logo.svg");
     expect(slatorUrl).toBe("https://slator.com/2026-slator-language-ai-50-under-50/");
+    expect(slatorLogoSrc).toBe("/images/slator-logo.svg");
     expect(trustedByLogos.map((logo) => logo.id)).toEqual([
       "heidi-health",
       "tourfinder",
@@ -38,15 +40,18 @@ describe("startups page content", () => {
   it("returns localized startups page copy with the offer and eligibility", () => {
     const copy = getStartupsPageCopy("en");
 
-    expect(copy.brand).toBe("Hyperlocalise");
-    expect(copy.headline).toBe("Hyperlocalise for startups");
-    expect(copy.offerLine).toBe("Get up to 80% off Growth");
+    expect(copy.headline).toBe("New markets. 100x momentum.");
+    expect(copy.offerLine).toBe("80% off Growth to launch globally in days.");
     expect(copy.applyCta).toBe("Apply for startup pricing");
     expect(copy.seePricingCta).toBe("See pricing");
     expect(copy.benefits).toHaveLength(3);
-    expect(copy.benefits[0]?.title).toBe("Native TMS with AI agents");
-    expect(copy.benefits[0]?.body).toContain("Skip buying Crowdin");
-    expect(copy.subcopy).toContain("native TMS");
+    expect(copy.benefits[0]?.title).toBe("New markets are not copy-paste");
+    expect(copy.benefits[0]?.body).toContain("compliance");
+    expect(copy.benefits[1]?.title).toBe("Growth should not create busywork");
+    expect(copy.benefits[2]?.title).toBe("Move while the opportunity is open");
+    expect(copy.whyHeading).toBe("Built for teams scaling into new markets");
+    expect(copy.whySubcopy).toContain("new market");
+    expect(copy.finalHeading).toBe("Ready for the next market?");
     expect(copy.tourfinderResult).toContain("Vietnamese and Japanese");
     expect(copy.programHeading).toBe("Hyperlocalise Startup Program");
     expect(copy.eligibility).toHaveLength(3);

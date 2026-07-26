@@ -24,12 +24,23 @@ import { cn } from "@/lib/primitives/cn";
 import {
   getStartupsFaqItems,
   getStartupsPageCopy,
+  slatorLogoSrc,
   slatorUrl,
   startmateLogoSrc,
   startmateUrl,
   startupsHeroImageSrc,
   trustedByLogos,
 } from "./startups-page-content";
+
+const SEAFOAM_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864145512.jpg";
+const SAGE_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864073608.jpg";
+const LAVENDER_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864042890.jpg";
+
+const benefitMeshById = {
+  "global-complexity": SEAFOAM_MESH_GRADIENT_SRC,
+  "context-without-overhead": SAGE_MESH_GRADIENT_SRC,
+  "launch-at-speed": LAVENDER_MESH_GRADIENT_SRC,
+} as const;
 
 type StartupsPageProps = {
   locale: string;
@@ -61,16 +72,8 @@ export function StartupsPage({ locale }: StartupsPageProps) {
           aria-hidden
         />
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-5xl flex-col items-center justify-center px-5 py-28 text-center sm:px-8 lg:px-10">
-          <p className="font-heading text-sm font-semibold tracking-[0.22em] text-white/70 uppercase sm:text-base">
-            {copy.brand}
-          </p>
-          <TypographyH1 className="mt-5 max-w-3xl text-balance text-white">
-            {copy.headline}
-          </TypographyH1>
-          <p className="mt-5 font-heading text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            {copy.offerLine}
-          </p>
-          <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">{copy.subcopy}</TypographyP>
+          <TypographyH1 className="max-w-3xl text-balance text-white">{copy.headline}</TypographyH1>
+          <p className="mt-5 text-lg text-white/80 sm:text-xl">{copy.offerLine}</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button
               size="lg"
@@ -105,18 +108,43 @@ export function StartupsPage({ locale }: StartupsPageProps) {
               </TypographyH2>
               <TypographyP className="text-lg text-muted-foreground">{copy.whySubcopy}</TypographyP>
             </div>
-            <ol className="mt-14 grid gap-10 border-t border-border pt-10 md:grid-cols-3 md:gap-8">
-              {copy.benefits.map((benefit, index) => (
-                <li key={benefit.id} className="space-y-3">
-                  <p className="font-heading text-sm font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-                    {String(index + 1).padStart(2, "0")}
-                  </p>
-                  <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-base leading-7 text-muted-foreground">{benefit.body}</p>
-                </li>
-              ))}
+            <ol className="mt-14 grid gap-4 sm:gap-5 md:grid-cols-3 md:gap-6">
+              {copy.benefits.map((benefit, index) => {
+                const meshSrc =
+                  benefitMeshById[benefit.id as keyof typeof benefitMeshById] ??
+                  SEAFOAM_MESH_GRADIENT_SRC;
+
+                return (
+                  <li
+                    key={benefit.id}
+                    className="relative isolate min-h-[18rem] overflow-hidden rounded-[1.5rem] shadow-[0_20px_48px_rgba(0,0,0,0.16)] sm:min-h-[20rem] sm:rounded-[1.75rem]"
+                  >
+                    <Image
+                      src={meshSrc}
+                      alt=""
+                      aria-hidden
+                      fill
+                      sizes="(min-width: 768px) 22rem, 100vw"
+                      className="object-cover object-center"
+                    />
+                    <div
+                      className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70"
+                      aria-hidden
+                    />
+                    <div className="relative flex h-full min-h-[18rem] flex-col justify-between gap-8 p-5 sm:min-h-[20rem] sm:p-7">
+                      <div className="space-y-3 sm:space-y-4">
+                        <p className="font-heading text-sm font-semibold tracking-[0.16em] text-white/70 uppercase">
+                          {String(index + 1).padStart(2, "0")}
+                        </p>
+                        <h3 className="font-heading text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                          {benefit.title}
+                        </h3>
+                      </div>
+                      <p className="text-base leading-7 text-white/85">{benefit.body}</p>
+                    </div>
+                  </li>
+                );
+              })}
             </ol>
           </div>
         </section>
@@ -131,9 +159,6 @@ export function StartupsPage({ locale }: StartupsPageProps) {
             </TypographyH2>
 
             <div className="mt-12 space-y-8">
-              <p className="text-[0.7rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                {copy.trustedByLabel}
-              </p>
               <ul className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {trustedByLogos.map((logo) => (
                   <li key={logo.id}>
@@ -193,11 +218,16 @@ export function StartupsPage({ locale }: StartupsPageProps) {
                     href={slatorUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-h-36 flex-col items-start justify-center gap-3 rounded-xl bg-muted px-8 py-10 transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    className="flex min-h-36 flex-col items-start justify-center gap-4 rounded-xl bg-muted px-8 py-10 transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
-                    <span className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                      {copy.slatorName}
-                    </span>
+                    <Image
+                      src={slatorLogoSrc}
+                      alt={copy.slatorName}
+                      width={220}
+                      height={57}
+                      unoptimized
+                      className="h-9 w-auto opacity-60 brightness-0 dark:invert sm:h-10"
+                    />
                     <span className="text-sm text-muted-foreground">{copy.slatorDescription}</span>
                   </a>
                 </li>
