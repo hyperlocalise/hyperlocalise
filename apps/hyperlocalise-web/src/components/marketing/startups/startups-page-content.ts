@@ -66,8 +66,8 @@ export function getStartupsPageCopy(locale: string) {
     }),
     subcopy: intl.formatMessage({
       defaultMessage:
-        "Launch globally in days with AI agents and human review — without ripping out your TMS. Details confirmed on your demo.",
-      id: "X99gBROMpr",
+        "Go global with a native TMS and AI agent workflow — no separate localisation stack required. Details confirmed on your demo.",
+      id: "SU2sB1fM1l",
       description: "Supporting copy under the startups page offer line",
     }),
     applyCta: intl.formatMessage({
@@ -87,11 +87,25 @@ export function getStartupsPageCopy(locale: string) {
     }),
     whySubcopy: intl.formatMessage({
       defaultMessage:
-        "Early-stage teams ship product and marketing across markets without a localisation department.",
-      id: "m2Sd5h1l1P",
+        "Early-stage teams ship product and marketing across markets without a localisation department — or a separate TMS.",
+      id: "53JNdtNVxs",
       description: "Supporting copy under the why-startups heading",
     }),
     benefits: [
+      {
+        id: "native-tms",
+        title: intl.formatMessage({
+          defaultMessage: "Native TMS with AI agents",
+          id: "9uAHuyskcc",
+          description: "Benefit title: native TMS with AI agent workflow for startups",
+        }),
+        body: intl.formatMessage({
+          defaultMessage:
+            "Skip buying Crowdin, Lokalise, or another TMS first. Manage strings, drafts, and review in Hyperlocalise while agents run intake, translation, and handoff in one workflow.",
+          id: "E6s5Pdmwn1",
+          description: "Benefit body: native TMS with AI agent workflow for startups",
+        }),
+      },
       {
         id: "launch-fast",
         title: intl.formatMessage({
@@ -104,20 +118,6 @@ export function getStartupsPageCopy(locale: string) {
             "Stand up product and marketing localisation quickly so a new market does not wait on a long vendor cycle.",
           id: "rNVLcdtpiy",
           description: "Benefit body: speed to launch new locales",
-        }),
-      },
-      {
-        id: "keep-tms",
-        title: intl.formatMessage({
-          defaultMessage: "Keep your TMS. Add agents.",
-          id: "HGtrhvUVVg",
-          description: "Benefit title: keep existing TMS with AI agents",
-        }),
-        body: intl.formatMessage({
-          defaultMessage:
-            "Work alongside Crowdin, Lokalise, Phrase, or Smartling. Hyperlocalise orchestrates intake, draft, and review around the stack you already trust.",
-          id: "SBDWNETOn/",
-          description: "Benefit body: keep existing TMS with AI agents",
         }),
       },
       {
@@ -274,9 +274,22 @@ export function getStartupsFaqItems(locale: string): HomepageFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Request a demo from this page. On the call we review your stage, stack, and localisation needs, then confirm whether startup pricing applies.",
-        id: "GSpsJhbG0E",
+          "Request a demo from this page. On the call we review your stage, product workflow, and localisation needs, then confirm whether startup pricing applies.",
+        id: "K+l0K4IDAZ",
         description: "Startups FAQ answer about how to apply",
+      }),
+    },
+    {
+      question: intl.formatMessage({
+        defaultMessage: "Do I need Crowdin, Lokalise, or another TMS first?",
+        id: "yGq0s5/abu",
+        description: "Startups FAQ question about needing an existing TMS",
+      }),
+      answer: intl.formatMessage({
+        defaultMessage:
+          "No. Hyperlocalise includes a native TMS with an AI agent workflow, so startups can manage strings, drafts, and review without standing up a separate translation stack. Connect GitHub and Slack when you are ready to automate intake and release.",
+        id: "9XeOGxKmUC",
+        description: "Startups FAQ answer about needing an existing TMS",
       }),
     },
     {

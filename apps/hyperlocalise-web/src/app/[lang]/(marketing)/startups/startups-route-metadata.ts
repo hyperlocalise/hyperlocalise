@@ -21,8 +21,8 @@ export function getStartupsRouteMetadata(intl: IntlShape) {
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Apply for the Hyperlocalise Startup Program — up to 80% off Growth for early-stage teams launching localisation with AI agents and human review.",
-      id: "oNa7FPedul",
+        "Apply for the Hyperlocalise Startup Program — up to 80% off Growth for early-stage teams going global with a native TMS and AI agent workflow.",
+      id: "1db+Z84NPJ",
       description: "Meta description for the marketing startups page",
     }),
   };

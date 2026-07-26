@@ -26,7 +26,8 @@ Startup Program layout.
 ## Page sections
 
 1. Full-bleed hero — brand, headline, offer line, apply + see pricing CTAs
-2. Why startups — three benefits (launch speed, keep TMS, context review)
+2. Why startups — three benefits (native TMS + AI agents, launch speed,
+   context review). Aimed at startups without an existing TMS.
 3. Proof — logos, Tourfinder line, Startmate + Slator recognition
 4. Program box — eligibility + apply CTA
 5. FAQ — program, eligibility, apply, discount meaning, larger companies

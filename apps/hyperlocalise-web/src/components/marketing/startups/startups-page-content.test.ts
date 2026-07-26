@@ -44,7 +44,9 @@ describe("startups page content", () => {
     expect(copy.applyCta).toBe("Apply for startup pricing");
     expect(copy.seePricingCta).toBe("See pricing");
     expect(copy.benefits).toHaveLength(3);
-    expect(copy.benefits[0]?.title).toBe("Launch locales in days");
+    expect(copy.benefits[0]?.title).toBe("Native TMS with AI agents");
+    expect(copy.benefits[0]?.body).toContain("Skip buying Crowdin");
+    expect(copy.subcopy).toContain("native TMS");
     expect(copy.tourfinderResult).toContain("Vietnamese and Japanese");
     expect(copy.programHeading).toBe("Hyperlocalise Startup Program");
     expect(copy.eligibility).toHaveLength(3);
@@ -54,10 +56,12 @@ describe("startups page content", () => {
   it("returns startups FAQ items covering apply and discount questions", () => {
     const faqItems = getStartupsFaqItems("en");
 
-    expect(faqItems).toHaveLength(5);
+    expect(faqItems).toHaveLength(6);
     expect(faqItems[0]?.question).toBe("What is the Hyperlocalise Startup Program?");
     expect(faqItems[2]?.question).toBe("How do I apply?");
-    expect(faqItems[3]?.answer).toContain("80%");
-    expect(faqItems[4]?.answer).toContain("Growth or Enterprise");
+    expect(faqItems[3]?.question).toContain("another TMS first");
+    expect(faqItems[3]?.answer).toContain("native TMS");
+    expect(faqItems[4]?.answer).toContain("80%");
+    expect(faqItems[5]?.answer).toContain("Growth or Enterprise");
   });
 });
