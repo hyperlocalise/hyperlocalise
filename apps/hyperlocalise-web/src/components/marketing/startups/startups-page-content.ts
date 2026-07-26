@@ -52,12 +52,12 @@ export function getStartupsPageCopy(locale: string) {
   return {
     headline: intl.formatMessage({
       defaultMessage: "New markets. 100x momentum.",
-      id: "4rmmdM56iz",
+      id: "h/oYoN5Oui",
       description: "Primary headline on the marketing startups page",
     }),
     offerLine: intl.formatMessage({
       defaultMessage: "80% off Growth to launch globally in days.",
-      id: "REEtEqm192",
+      id: "hsNMISsI79",
       description: "Offer line under the startups page headline",
     }),
     applyCta: intl.formatMessage({
@@ -72,13 +72,13 @@ export function getStartupsPageCopy(locale: string) {
     }),
     whyHeading: intl.formatMessage({
       defaultMessage: "Built for teams scaling into new markets",
-      id: "4Q7IA4cUr1",
+      id: "5Eha9aNTjn",
       description: "Heading for the why-startups benefits section",
     }),
     whySubcopy: intl.formatMessage({
       defaultMessage:
         "Entering a new market should feel like growth, not a second product launch that stalls the company.",
-      id: "SSTF1YYS27",
+      id: "XHI21GKve1",
       description: "Supporting copy under the why-startups heading",
     }),
     benefits: [
@@ -86,13 +86,13 @@ export function getStartupsPageCopy(locale: string) {
         id: "global-complexity",
         title: intl.formatMessage({
           defaultMessage: "New markets are not copy-paste",
-          id: "l+4ZVzc8lT",
+          id: "8ACcRRFoOD",
           description: "Story beat title: scaling requires market-specific fit",
         }),
         body: intl.formatMessage({
           defaultMessage:
             "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally.",
-          id: "6ivqVq7zS5",
+          id: "grODyw1HO9",
           description: "Story beat body: markets need local fit and compliance",
         }),
       },
@@ -100,13 +100,13 @@ export function getStartupsPageCopy(locale: string) {
         id: "context-without-overhead",
         title: intl.formatMessage({
           defaultMessage: "Growth should not create busywork",
-          id: "SvpJwumZyD",
+          id: "TC3oIavSPO",
           description: "Story beat title: scaling should not add coordination overhead",
         }),
         body: intl.formatMessage({
           defaultMessage:
             "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team.",
-          id: "dtxXs1IpQ7",
+          id: "SLg8IXCI6V",
           description: "Story beat body: scale without burying the product team",
         }),
       },
@@ -114,13 +114,13 @@ export function getStartupsPageCopy(locale: string) {
         id: "launch-at-speed",
         title: intl.formatMessage({
           defaultMessage: "Move while the opportunity is open",
-          id: "tpB8bOrCyY",
+          id: "g5f066LmY+",
           description: "Story beat title: scale into markets while timing favors you",
         }),
         body: intl.formatMessage({
           defaultMessage:
             "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you.",
-          id: "zzgULmXNCF",
+          id: "qBHY8te/JC",
           description: "Story beat body: enter markets quickly when opportunity appears",
         }),
       },
@@ -199,7 +199,7 @@ export function getStartupsPageCopy(locale: string) {
       }),
       intl.formatMessage({
         defaultMessage: "Early-stage, typically under 50 employees or pre-Series B",
-        id: "WoD+am33dd",
+        id: "q1gTXMRwMD",
         description: "Startup program eligibility: company stage",
       }),
       intl.formatMessage({
@@ -210,13 +210,13 @@ export function getStartupsPageCopy(locale: string) {
     ],
     finalHeading: intl.formatMessage({
       defaultMessage: "Ready for the next market?",
-      id: "iVPGu5Ye6L",
+      id: "xXvQeFYygi",
       description: "Final CTA heading on the startups page",
     }),
     finalSubcopy: intl.formatMessage({
       defaultMessage:
         "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
-      id: "jWomcj3eo6",
+      id: "t9u0C/3PvD",
       description: "Final CTA supporting copy on the startups page",
     }),
   };
