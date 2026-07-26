@@ -45,23 +45,14 @@ const MENU_MIN_WIDTH_PX = 208;
 const MENU_VIEWPORT_GAP_PX = 8;
 const MENU_OFFSET_PX = 4;
 
-function lockWindowScroll(): () => void {
-  const { body, documentElement } = document;
-  const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
-  const previousOverflow = body.style.overflow;
-  const previousPaddingRight = body.style.paddingRight;
-  body.style.overflow = "hidden";
-  if (scrollbarWidth > 0) {
-    body.style.paddingRight = `${scrollbarWidth}px`;
-  }
-  return () => {
-    body.style.overflow = previousOverflow;
-    body.style.paddingRight = previousPaddingRight;
-  };
-}
-
-function useWindowScrollLock() {
-  useEffect(() => lockWindowScroll(), []);
+/**
+ * Open dialogs on the next macrotask so the tree context menu (and any
+ * scroll/focus ownership it holds) can fully unmount first. Opening a modal in
+ * the same turn races Base UI's scroll lock / inert markers and leaves the
+ * file-tree "..." trigger dead until a full page refresh.
+ */
+function runAfterMenuClose(action: () => void) {
+  window.setTimeout(action, 0);
 }
 
 function resolveMenuStyle(context: ContextMenuOpenContext): CSSProperties {
@@ -120,7 +111,6 @@ export function ProjectFileTreeContextMenu({
   fileActions: ProjectFileTreeActionsConfig;
   capabilities: ProjectFileActionCapabilities;
 }) {
-  useWindowScrollLock();
   const [mounted, setMounted] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>(() => resolveMenuStyle(context));
 
@@ -167,7 +157,9 @@ export function ProjectFileTreeContextMenu({
             title={capabilities.translateDisabledTitle}
             onClick={() => {
               closeMenu();
-              fileActions.onTranslateFile?.(file);
+              runAfterMenuClose(() => {
+                fileActions.onTranslateFile?.(file);
+              });
             }}
           >
             <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
@@ -180,7 +172,9 @@ export function ProjectFileTreeContextMenu({
             className="w-full justify-start"
             onClick={() => {
               closeMenu();
-              fileActions.onImportFile?.(file);
+              runAfterMenuClose(() => {
+                fileActions.onImportFile?.(file);
+              });
             }}
           >
             <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
@@ -193,7 +187,9 @@ export function ProjectFileTreeContextMenu({
             className="w-full justify-start"
             onClick={() => {
               closeMenu();
-              fileActions.onDownloadFile?.(file);
+              runAfterMenuClose(() => {
+                fileActions.onDownloadFile?.(file);
+              });
             }}
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />

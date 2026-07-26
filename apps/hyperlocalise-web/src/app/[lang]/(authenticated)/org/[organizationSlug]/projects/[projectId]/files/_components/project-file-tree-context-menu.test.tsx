@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ContextMenuOpenContext } from "@pierre/trees";
 import { IntlProvider } from "react-intl";
@@ -57,8 +57,99 @@ describe("ProjectFileTreeContextMenu", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
 
+    await waitFor(() => {
+      expect(onTranslateFile).toHaveBeenCalledWith(file);
+    });
     expect(close).toHaveBeenCalledWith({ restoreFocus: false });
-    expect(onTranslateFile).toHaveBeenCalledWith(file);
     expect(events).toEqual(["close", "translate"]);
+  });
+
+  it("schedules dialog open on a macrotask after close", () => {
+    vi.useFakeTimers();
+    try {
+      const events: string[] = [];
+      const close = vi.fn(() => events.push("close"));
+      const onTranslateFile = vi.fn(() => events.push("translate"));
+      const onImportFile = vi.fn(() => events.push("import"));
+      const onDownloadFile = vi.fn(() => events.push("download"));
+      const file = createProjectFileRecord({
+        sourcePath: "marketing/pricing.json",
+        storedFileId: "file_pricing",
+      });
+
+      const { unmount } = render(
+        <IntlProvider locale="en" messages={{}}>
+          <ProjectFileTreeContextMenu
+            file={file}
+            context={{ close } as unknown as ContextMenuOpenContext}
+            fileActions={{
+              organizationSlug: "acme",
+              projectId: "proj_1",
+              highlightLocale: null,
+              projectTargetLocales: ["fr"],
+              onViewStrings: vi.fn(),
+              onTranslateFile,
+              onImportFile,
+              onDownloadFile,
+            }}
+            capabilities={{
+              canOpenCat: true,
+              canTranslateWithAgent: true,
+              catHref: "/cat",
+              isNativeFile: true,
+              translateDisabledTitle: undefined,
+            }}
+          />
+        </IntlProvider>,
+      );
+
+      screen.getByRole("button", { name: "Translate with agent" }).click();
+      expect(events).toEqual(["close"]);
+      expect(onTranslateFile).not.toHaveBeenCalled();
+      vi.runAllTimers();
+      expect(events).toEqual(["close", "translate"]);
+
+      events.length = 0;
+      close.mockClear();
+      unmount();
+      render(
+        <IntlProvider locale="en" messages={{}}>
+          <ProjectFileTreeContextMenu
+            file={file}
+            context={{ close } as unknown as ContextMenuOpenContext}
+            fileActions={{
+              organizationSlug: "acme",
+              projectId: "proj_1",
+              highlightLocale: null,
+              projectTargetLocales: ["fr"],
+              onViewStrings: vi.fn(),
+              onTranslateFile,
+              onImportFile,
+              onDownloadFile,
+            }}
+            capabilities={{
+              canOpenCat: true,
+              canTranslateWithAgent: true,
+              catHref: "/cat",
+              isNativeFile: true,
+              translateDisabledTitle: undefined,
+            }}
+          />
+        </IntlProvider>,
+      );
+
+      screen.getByRole("button", { name: "Import translations" }).click();
+      expect(events).toEqual(["close"]);
+      vi.runAllTimers();
+      expect(events).toEqual(["close", "import"]);
+
+      events.length = 0;
+      screen.getByRole("button", { name: "Download" }).click();
+      expect(events).toEqual(["close"]);
+      vi.runAllTimers();
+      expect(events).toEqual(["close", "download"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
