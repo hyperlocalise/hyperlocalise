@@ -15,7 +15,7 @@
     "@canva/app-i18n-kit": "^1.2.0",
     "@canva/app-ui-kit": "^5.10.0",
     "@canva/asset": "^2.3.0",
-    "@canva/design": "2.10.0",
+    "@canva/design": "2.10.1",
     "@canva/error": "^2.2.1",
     "@canva/intents": "^2.5.0",
     "@canva/platform": "^2.2.2",
@@ -54,8 +54,8 @@
     "tsx": "4.23.1",
     "typescript": "6.0.3",
     "url-loader": "4.1.1",
-    "vite-plus": "0.2.5",
-    "webpack": "5.108.4",
+    "vite-plus": "0.2.6",
+    "webpack": "5.109.0",
     "webpack-cli": "6.0.1",
     "webpack-dev-server": "5.2.6",
     "yargs": "17.7.3"
@@ -63,5 +63,5 @@
   "engines": {
     "node": "^22 || ^24"
   },
-  "packageManager": "pnpm@11.15.1"
+  "packageManager": "pnpm@11.17.0"
 }
