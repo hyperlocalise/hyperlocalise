@@ -99,7 +99,7 @@ import { KnowledgeMemoryEditor } from "./knowledge-memory-editor";
 const initialKnowledgeMemory: KnowledgeMemoryRecord = {
   revisionId: "11111111-1111-4111-8111-111111111111",
   version: 1,
-  content: "Initial guidance",
+  content: "",
   summary: "Initial version",
   updatedAt: "2026-07-20T10:15:00.000Z",
   updatedByUserId: null,
@@ -146,7 +146,7 @@ function renderEditor() {
 
 async function editAndOpenSaveDialog(content: string, summary: string) {
   const editor = await screen.findByRole("textbox", { name: "Global guidance" });
-  fireEvent.input(editor, { target: { value: content } });
+  await userEvent.type(editor, content);
   await waitFor(() => {
     expect(editor).toHaveValue(content);
   });
@@ -158,7 +158,6 @@ async function editAndOpenSaveDialog(content: string, summary: string) {
   await userEvent.click(saveButton);
 
   const summaryInput = await screen.findByRole("textbox", { name: "Version note (optional)" });
-  await userEvent.clear(summaryInput);
   await userEvent.type(summaryInput, summary);
 }
 
