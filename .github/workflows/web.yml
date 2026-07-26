@@ -28,6 +28,9 @@ jobs:
   web-check:
     name: Hyperlocalise Web Check
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    # drizzle-kit generate reads DATABASE_URL from config; no live DB needed.
+    env:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
     defaults:
       run:
         working-directory: apps/hyperlocalise-web
