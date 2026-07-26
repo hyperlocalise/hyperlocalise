@@ -50,7 +50,7 @@ export function createKnowledgeEditorViewFixture(
     isLoading: false,
     isSaving: false,
     onOpenHistory: () => undefined,
-    onSubmit: () => undefined,
+    onSubmit: async () => undefined,
     ...overrides,
   };
 }
