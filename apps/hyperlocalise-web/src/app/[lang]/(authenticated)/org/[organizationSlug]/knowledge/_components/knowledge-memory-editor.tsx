@@ -199,8 +199,8 @@ export function KnowledgeMemoryEditor({
         isLoading={knowledgeMemoryQuery.isLoading}
         isSaving={saveKnowledgeMemory.isPending}
         onOpenHistory={() => setHistoryOpen(true)}
-        onSubmit={() => {
-          saveKnowledgeMemory.mutate({
+        onSubmit={async () => {
+          await saveKnowledgeMemory.mutateAsync({
             content,
             summary: summary.trim() || undefined,
             expectedEtag: savedEtag,

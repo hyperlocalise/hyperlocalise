@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { readApiError } from "@/lib/api-error";
@@ -34,6 +34,7 @@ export function KnowledgePageContent({
   const [viewMode, setViewMode] = useState<KnowledgePageMode | null>(null);
   const [draftSeed, setDraftSeed] = useState<string | undefined>(undefined);
   const [editorMountKey, setEditorMountKey] = useState(0);
+  const isAddingSources = useRef(false);
 
   const knowledgeMemoryQuery = useQuery({
     queryKey: knowledgeMemoryQueryKey(organizationSlug),
@@ -55,10 +56,14 @@ export function KnowledgePageContent({
   });
 
   const savedContent = knowledgeMemoryQuery.data?.knowledgeMemory.content ?? "";
-  const hasExistingKnowledge = savedContent.trim().length > 0;
+  const hasExistingKnowledge = savedContent.length > 0;
 
   useEffect(() => {
-    if (!knowledgeMemoryQuery.data || viewMode !== null) {
+    if (
+      !knowledgeMemoryQuery.data ||
+      (viewMode !== null &&
+        (viewMode !== "upload" || !hasExistingKnowledge || isAddingSources.current))
+    ) {
       return;
     }
 
@@ -66,8 +71,11 @@ export function KnowledgePageContent({
   }, [hasExistingKnowledge, knowledgeMemoryQuery.data, viewMode]);
 
   const openEditor = (seed?: string) => {
-    setDraftSeed(seed);
-    setEditorMountKey((value) => value + 1);
+    isAddingSources.current = false;
+    if (typeof seed === "string") {
+      setDraftSeed(seed);
+      setEditorMountKey((value) => value + 1);
+    }
     setViewMode("editor");
   };
 
@@ -77,22 +85,31 @@ export function KnowledgePageContent({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
       <KnowledgePageHeader
-        onAddSources={resolvedMode === "editor" ? () => setViewMode("upload") : undefined}
+        onAddSources={
+          resolvedMode === "editor"
+            ? () => {
+                isAddingSources.current = true;
+                setViewMode("upload");
+              }
+            : undefined
+        }
       />
 
       {resolvedMode === "loading" ? <KnowledgePageSkeleton /> : null}
 
       {resolvedMode === "upload" ? (
-        <KnowledgeUploadSection onStartMarkdownText={() => openEditor("")} />
+        <KnowledgeUploadSection onStartMarkdownText={() => openEditor()} />
       ) : null}
 
-      {resolvedMode === "editor" ? (
-        <KnowledgeMemoryEditor
-          key={editorMountKey}
-          organizationSlug={organizationSlug}
-          canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-          initialDraftContent={draftSeed}
-        />
+      {resolvedMode !== "loading" ? (
+        <div className={resolvedMode === "editor" ? undefined : "hidden"}>
+          <KnowledgeMemoryEditor
+            key={editorMountKey}
+            organizationSlug={organizationSlug}
+            canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+            initialDraftContent={draftSeed}
+          />
+        </div>
       ) : null}
     </div>
   );

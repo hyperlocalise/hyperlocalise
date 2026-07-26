@@ -81,6 +81,7 @@ export function KnowledgeUploadSection({
     const all = Array.from(incoming);
     if (all.length > KNOWLEDGE_UPLOAD_MAX_FILES) {
       toast.message(intl.formatMessage(knowledgeUploadSectionMessages.tooManyFiles));
+      return;
     }
 
     const accepted = filterKnowledgeUploadFiles(all);

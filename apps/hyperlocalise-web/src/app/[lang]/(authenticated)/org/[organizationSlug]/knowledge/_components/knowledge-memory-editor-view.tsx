@@ -63,7 +63,7 @@ export type KnowledgeMemoryEditorViewProps = {
   isLoading: boolean;
   isSaving: boolean;
   onOpenHistory: () => void;
-  onSubmit: () => void;
+  onSubmit: () => Promise<void>;
 };
 
 export function KnowledgeMemoryEditorView({
@@ -190,10 +190,14 @@ export function KnowledgeMemoryEditorView({
         <DialogContent>
           <form
             className="flex flex-col gap-6"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              onSubmit();
-              setSaveDialogOpen(false);
+              try {
+                await onSubmit();
+                setSaveDialogOpen(false);
+              } catch {
+                // The mutation reports the error and leaves the dialog open for retry.
+              }
             }}
           >
             <DialogHeader>
