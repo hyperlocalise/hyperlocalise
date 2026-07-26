@@ -87,6 +87,7 @@ vi.mock("@/components/markdown-editor/markdown-editor", () => ({
     <textarea
       aria-label={ariaLabel}
       disabled={disabled}
+      onInput={(event) => onChange(event.currentTarget.value)}
       onChange={(event) => onChange(event.currentTarget.value)}
       value={value}
     />
@@ -145,8 +146,10 @@ function renderEditor() {
 
 async function editAndOpenSaveDialog(content: string, summary: string) {
   const editor = await screen.findByRole("textbox", { name: "Global guidance" });
-  await userEvent.clear(editor);
-  await userEvent.type(editor, content);
+  fireEvent.input(editor, { target: { value: content } });
+  await waitFor(() => {
+    expect(editor).toHaveValue(content);
+  });
 
   const saveButton = screen.getByRole("button", { name: "Save changes" });
   await waitFor(() => {
