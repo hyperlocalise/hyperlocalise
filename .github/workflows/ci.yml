@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
@@ -20,8 +21,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  go-lint:
+    name: Go Lint
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Verify formatting
+        run: |
+          make fmt
+          git diff --exit-code
+
+      - name: Lint
+        run: make lint
+
   action-self-test:
     name: Action Self Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -61,6 +85,7 @@ jobs:
 
   web-sync-cli-smoke-test:
     name: Web Sync CLI Smoke Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
@@ -89,6 +114,7 @@ jobs:
 
   bazel-build-test:
     name: Bazel Build/Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -108,6 +134,7 @@ jobs:
 
   go-quality:
     name: Go Quality
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -118,14 +145,6 @@ jobs:
         uses: ./.github/actions/go-bootstrap
         with:
           go-version-file: go.mod
-
-      - name: Verify formatting
-        run: |
-          make fmt
-          git diff --exit-code
-
-      - name: Lint
-        run: make lint
 
       - name: Workspace tests
         run: make test-workspace

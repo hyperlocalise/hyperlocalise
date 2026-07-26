@@ -2,6 +2,7 @@ name: Web CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
@@ -19,9 +20,52 @@ concurrency:
   group: web-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: "true"
+  NODE_OPTIONS: --max-old-space-size=8192
+
 jobs:
-  hyperlocalise-web-build:
-    name: Hyperlocalise Web Build
+  web-check:
+    name: Hyperlocalise Web Check
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          cache: true
+
+      - name: Install hyperlocalise-web dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Check for Drizzle migration collisions
+        run: vp run db:check-migrations
+
+      - name: Check for Drizzle migration drift
+        run: |
+          set -euo pipefail
+          vp run db:generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::Drizzle schema and migrations are out of sync."
+            echo "Run 'vp run db:generate' locally and commit the generated files."
+            git status --porcelain drizzle
+            git --no-pager diff -- drizzle
+            exit 1
+          fi
+
+      - name: Check hyperlocalise-web
+        run: vp check
+
+  web-test-build:
+    name: Hyperlocalise Web Test/Build
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:
@@ -38,8 +82,6 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
-      CI: "true"
-      NODE_OPTIONS: --max-old-space-size=8192
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
       OPENAI_API_KEY: test-openai-api-key
       NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
@@ -72,26 +114,8 @@ jobs:
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
-      - name: Check for Drizzle migration collisions
-        run: vp run db:check-migrations
-
-      - name: Check for Drizzle migration drift
-        run: |
-          set -euo pipefail
-          vp run db:generate
-          if [ -n "$(git status --porcelain drizzle)" ]; then
-            echo "::error::Drizzle schema and migrations are out of sync."
-            echo "Run 'vp run db:generate' locally and commit the generated files."
-            git status --porcelain drizzle
-            git --no-pager diff -- drizzle
-            exit 1
-          fi
-
       - name: Migrate hyperlocalise-web database
         run: vp run db:migrate
-
-      - name: Check hyperlocalise-web
-        run: vp check
 
       - name: Test hyperlocalise-web
         run: vp test
