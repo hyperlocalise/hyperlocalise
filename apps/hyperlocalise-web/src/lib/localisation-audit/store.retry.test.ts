@@ -131,6 +131,40 @@ describe("localisation audit claim/retry", () => {
     expect(staleReclaim.audit.attemptNumber).toBe(3);
   });
 
+  it("handles concurrent lead upserts idempotently", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    const [first, second] = await Promise.all([
+      upsertLocalisationAuditLeadForDelivery({
+        auditId: created.audit.id,
+        email: "lead@example.com",
+        locale: "en",
+      }),
+      upsertLocalisationAuditLeadForDelivery({
+        auditId: created.audit.id,
+        email: "lead@example.com",
+        locale: "en",
+      }),
+    ]);
+
+    expect(first.lead.id).toBe(second.lead.id);
+    const leads = await db
+      .select()
+      .from(schema.localisationAuditLeads)
+      .where(
+        and(
+          eq(schema.localisationAuditLeads.auditId, created.audit.id),
+          eq(schema.localisationAuditLeads.email, "lead@example.com"),
+        ),
+      );
+    expect(leads).toHaveLength(1);
+  });
+
   it("verifies report tokens idempotently until expiry", async () => {
     const created = await claimOrReuseLocalisationAudit({
       domainKey: `${domainKey}-email`,

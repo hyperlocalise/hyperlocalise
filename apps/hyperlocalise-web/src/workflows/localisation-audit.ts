@@ -41,6 +41,17 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
       return { ...prepared, workflowRunId };
     }
     if (prepared.alreadyCompleted) {
+      try {
+        await queuePendingLocalisationAuditReportEmailsStep(prepared.auditId);
+      } catch {
+        return {
+          ok: true,
+          alreadyCompleted: true,
+          auditId: prepared.auditId,
+          workflowRunId,
+          emailQueueFailed: true as const,
+        };
+      }
       return { ok: true, alreadyCompleted: true, auditId: prepared.auditId, workflowRunId };
     }
     if (prepared.staleAttempt) {

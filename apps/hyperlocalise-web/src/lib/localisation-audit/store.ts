@@ -383,7 +383,7 @@ export async function upsertLocalisationAuditLeadForDelivery(input: {
   forceResend?: boolean;
 }): Promise<UpsertLocalisationAuditLeadResult> {
   const email = input.email.trim().toLowerCase();
-  const existing = await findLocalisationAuditLead({ auditId: input.auditId, email });
+  let existing = await findLocalisationAuditLead({ auditId: input.auditId, email });
   const minted = mintLocalisationAuditReportToken();
   const timestamp = now();
 
@@ -398,17 +398,24 @@ export async function upsertLocalisationAuditLeadForDelivery(input: {
         tokenHash: minted.tokenHash,
         tokenExpiresAt: minted.expiresAt,
       })
+      .onConflictDoNothing({
+        target: [schema.localisationAuditLeads.auditId, schema.localisationAuditLeads.email],
+      })
       .returning();
-    if (!created) {
+    if (created) {
+      return {
+        lead: created,
+        token: minted.token,
+        created: true,
+        resendAllowed: true,
+        cooldownMsRemaining: 0,
+      };
+    }
+
+    existing = await findLocalisationAuditLead({ auditId: input.auditId, email });
+    if (!existing) {
       throw new Error("failed to create localisation audit lead");
     }
-    return {
-      lead: created,
-      token: minted.token,
-      created: true,
-      resendAllowed: true,
-      cooldownMsRemaining: 0,
-    };
   }
 
   const lastQueued = existing.lastEmailQueuedAt?.getTime() ?? existing.emailSentAt?.getTime() ?? 0;
