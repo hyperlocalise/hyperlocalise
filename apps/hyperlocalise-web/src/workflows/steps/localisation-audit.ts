@@ -24,6 +24,7 @@ import {
   markLocalisationAuditLeadEmailQueued,
   markLocalisationAuditProgress,
   markLocalisationAuditRunning,
+  upsertLocalisationAuditLeadForDelivery,
 } from "@/lib/localisation-audit/store";
 import { runTechnicalLocalisationChecks } from "@/lib/localisation-audit/technical-checks";
 import type {
@@ -227,15 +228,20 @@ export async function queuePendingLocalisationAuditReportEmailsStep(auditId: str
   const queue = createLocalisationAuditReportEmailQueue();
   let queued = 0;
   for (const lead of pending) {
-    await markLocalisationAuditLeadEmailQueued(lead.id);
+    const refreshed = await upsertLocalisationAuditLeadForDelivery({
+      auditId: lead.auditId,
+      email: lead.email,
+      locale: lead.locale,
+      forceResend: true,
+    });
+    await markLocalisationAuditLeadEmailQueued(refreshed.lead.id);
     try {
-      // Send step mints a fresh token when none is provided.
-      await queue.enqueue({ leadId: lead.id });
+      await queue.enqueue({ leadId: refreshed.lead.id, token: refreshed.token });
       queued += 1;
     } catch {
       // Keep the lead selectable by listPendingLocalisationAuditLeads (pending|failed).
       await markLocalisationAuditLeadEmailFailed({
-        leadId: lead.id,
+        leadId: refreshed.lead.id,
         error: "localisation_audit_email_enqueue_failed",
       });
     }

@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { eq } from "drizzle-orm";
 import { render } from "react-email";
 import { Resend } from "resend";
 
@@ -20,12 +19,10 @@ import {
 } from "@/emails/localisation-audit-report-email";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import {
   buildLocalisationAuditVerifyUrl,
   hashLocalisationAuditReportToken,
-  mintLocalisationAuditReportToken,
 } from "@/lib/localisation-audit/email-unlock";
 import {
   findLocalisationAuditById,
@@ -44,8 +41,15 @@ export async function sendLocalisationAuditReportEmailStep(input: {
   if (!lead) {
     return { ok: false as const, code: "lead_not_found" as const };
   }
-  if (lead.deliveryStatus === "verified") {
-    return { ok: true as const, skipped: true as const, reason: "already_verified" as const };
+  if (lead.deliveryStatus === "verified" || lead.deliveryStatus === "sent") {
+    return {
+      ok: true as const,
+      skipped: true as const,
+      reason:
+        lead.deliveryStatus === "verified"
+          ? ("already_verified" as const)
+          : ("already_sent" as const),
+    };
   }
 
   const audit = await findLocalisationAuditById(lead.auditId);
@@ -65,7 +69,7 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     return { ok: false as const, code: "resend_not_configured" as const };
   }
 
-  let token = input.token;
+  const token = input.token;
   const tokenMatches =
     token != null &&
     lead.tokenHash != null &&
@@ -74,16 +78,7 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     lead.tokenExpiresAt.getTime() > Date.now();
 
   if (!tokenMatches) {
-    const minted = mintLocalisationAuditReportToken();
-    token = minted.token;
-    await db
-      .update(schema.localisationAuditLeads)
-      .set({
-        tokenHash: minted.tokenHash,
-        tokenExpiresAt: minted.expiresAt,
-        deliveryStatus: "queued",
-      })
-      .where(eq(schema.localisationAuditLeads.id, input.leadId));
+    return { ok: true as const, skipped: true as const, reason: "stale_token" as const };
   }
 
   const verifyUrl = buildLocalisationAuditVerifyUrl({
@@ -105,13 +100,18 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     const text = localisationAuditReportEmailText(emailProps);
     const resend = new Resend(env.RESEND_API_KEY);
     const fromName = env.RESEND_FROM_NAME ?? "Hyperlocalise";
-    const result = await resend.emails.send({
-      from: `${fromName} <${env.RESEND_FROM_ADDRESS}>`,
-      to: lead.email,
-      subject: `${audit.domainKey} localisation score: ${audit.score}/100`,
-      html,
-      text,
-    });
+    const result = await resend.emails.send(
+      {
+        from: `${fromName} <${env.RESEND_FROM_ADDRESS}>`,
+        to: lead.email,
+        subject: `${audit.domainKey} localisation score: ${audit.score}/100`,
+        html,
+        text,
+      },
+      {
+        idempotencyKey: `localisation-audit-report:${lead.id}:${lead.tokenHash}`,
+      },
+    );
 
     if (result.error) {
       await markLocalisationAuditLeadEmailFailed({

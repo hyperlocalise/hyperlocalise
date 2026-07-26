@@ -20,10 +20,12 @@ import {
   completeLocalisationAudit,
   failLocalisationAudit,
   isLocalisationAuditRetryable,
+  listPendingLocalisationAuditLeads,
+  markLocalisationAuditLeadEmailQueued,
   upsertLocalisationAuditLeadForDelivery,
   verifyLocalisationAuditReportToken,
 } from "./store";
-import { LOCALISATION_AUDIT_STALE_MS } from "./types";
+import { LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS, LOCALISATION_AUDIT_STALE_MS } from "./types";
 
 async function cleanup(domainKey: string) {
   await db
@@ -129,6 +131,23 @@ describe("localisation audit claim/retry", () => {
     });
     expect(staleReclaim.outcome).toBe("reclaimed");
     expect(staleReclaim.audit.attemptNumber).toBe(3);
+
+    await db
+      .update(schema.localisationAudits)
+      .set({
+        status: "succeeded",
+        report: null,
+      })
+      .where(eq(schema.localisationAudits.id, created.audit.id));
+
+    const incompleteSuccessReclaim = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+    expect(incompleteSuccessReclaim.outcome).toBe("reclaimed");
+    expect(incompleteSuccessReclaim.audit.attemptNumber).toBe(4);
   });
 
   it("handles concurrent lead upserts idempotently", async () => {
@@ -163,6 +182,34 @@ describe("localisation audit claim/retry", () => {
         ),
       );
     expect(leads).toHaveLength(1);
+  });
+
+  it("reselects queued leads after the resend cooldown", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+    const upsert = await upsertLocalisationAuditLeadForDelivery({
+      auditId: created.audit.id,
+      email: "lead@example.com",
+      locale: "en",
+    });
+    await markLocalisationAuditLeadEmailQueued(upsert.lead.id);
+
+    expect(await listPendingLocalisationAuditLeads(created.audit.id)).toHaveLength(0);
+
+    await db
+      .update(schema.localisationAuditLeads)
+      .set({
+        lastEmailQueuedAt: new Date(
+          Date.now() - LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS - 1_000,
+        ),
+      })
+      .where(eq(schema.localisationAuditLeads.id, upsert.lead.id));
+
+    expect(await listPendingLocalisationAuditLeads(created.audit.id)).toHaveLength(1);
   });
 
   it("verifies report tokens idempotently until expiry", async () => {

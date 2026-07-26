@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -48,6 +48,7 @@ function isActiveAudit(audit: LocalisationAuditRow, staleMs = LOCALISATION_AUDIT
 
 export function isLocalisationAuditRetryable(audit: LocalisationAuditRow) {
   if (audit.status === "failed") return true;
+  if (audit.status === "succeeded") return audit.report == null;
   if (audit.status === "queued" || audit.status === "running") {
     return !isActiveAudit(audit);
   }
@@ -186,6 +187,10 @@ export async function claimOrReuseLocalisationAudit(input: {
         eq(schema.localisationAudits.id, existing.id),
         or(
           eq(schema.localisationAudits.status, "failed"),
+          and(
+            eq(schema.localisationAudits.status, "succeeded"),
+            isNull(schema.localisationAudits.report),
+          ),
           and(
             inArray(schema.localisationAudits.status, ["queued", "running"]),
             lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
@@ -354,13 +359,23 @@ export async function findLocalisationAuditLead(input: { auditId: string; email:
 }
 
 export async function listPendingLocalisationAuditLeads(auditId: string) {
+  const staleQueuedCutoff = new Date(Date.now() - LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS);
   return db
     .select()
     .from(schema.localisationAuditLeads)
     .where(
       and(
         eq(schema.localisationAuditLeads.auditId, auditId),
-        inArray(schema.localisationAuditLeads.deliveryStatus, ["pending", "failed"]),
+        or(
+          inArray(schema.localisationAuditLeads.deliveryStatus, ["pending", "failed"]),
+          and(
+            eq(schema.localisationAuditLeads.deliveryStatus, "queued"),
+            or(
+              isNull(schema.localisationAuditLeads.lastEmailQueuedAt),
+              lt(schema.localisationAuditLeads.lastEmailQueuedAt, staleQueuedCutoff),
+            ),
+          ),
+        ),
       ),
     );
 }
