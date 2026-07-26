@@ -315,15 +315,25 @@ func hasLetter(text string) bool {
 }
 
 func tagTokenCounts(s string) (map[string]int, int) {
+	// BOLT OPTIMIZATION: If none of the signal characters are present,
+	// neither HTML nor Markdown patterns can match. Return early.
+	if !strings.ContainsAny(s, "<*_~`[#") {
+		return nil, 0
+	}
+
 	tokens := make(map[string]int)
 	total := 0
-	for _, match := range htmlTagPattern.FindAllString(s, -1) {
-		tokens["html:"+strings.ToLower(strings.TrimSpace(match))]++
-		total++
+	if strings.Contains(s, "<") {
+		for _, match := range htmlTagPattern.FindAllString(s, -1) {
+			tokens["html:"+strings.ToLower(strings.TrimSpace(match))]++
+			total++
+		}
 	}
-	for _, match := range markdownTokenPattern.FindAllString(s, -1) {
-		tokens["md:"+strings.TrimSpace(match)]++
-		total++
+	if strings.ContainsAny(s, "*_~`[#") {
+		for _, match := range markdownTokenPattern.FindAllString(s, -1) {
+			tokens["md:"+strings.TrimSpace(match)]++
+			total++
+		}
 	}
 	return tokens, total
 }
@@ -436,13 +446,18 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 			total++
 		}
 	}
-	for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-		tokens["brace:"+match[1]]++
-		total++
+	// BOLT OPTIMIZATION: Avoid running regex if the signal characters are not present.
+	if strings.Contains(s, "{") {
+		for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
+			tokens["brace:"+match[1]]++
+			total++
+		}
 	}
-	for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
-		tokens["printf:"+match]++
-		total++
+	if strings.Contains(s, "%") {
+		for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
+			tokens["printf:"+match]++
+			total++
+		}
 	}
 	return tokens, total
 }
@@ -492,27 +507,36 @@ func tokenizeNormalized(s string) []string {
 }
 
 func normalizeText(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" {
 		return ""
 	}
+	// BOLT OPTIMIZATION: Avoid intermediate strings.ToLower and strings.TrimSpace
+	// allocations by traversing in a single pass.
 	var b strings.Builder
-	lastSpace := false
+	b.Grow(len(s))
+
+	pendingSpace := false
 	for _, r := range s {
 		if unicode.IsPunct(r) && r != '_' && r != '$' && r != '%' && r != '{' && r != '}' {
 			continue
 		}
 		if unicode.IsSpace(r) {
-			if !lastSpace {
-				b.WriteByte(' ')
-				lastSpace = true
-			}
+			pendingSpace = true
 			continue
 		}
-		lastSpace = false
-		b.WriteRune(r)
+
+		// If we had a pending space, write it only if the builder already contains characters
+		if pendingSpace {
+			if b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			pendingSpace = false
+		}
+
+		// Write the lowercased rune directly to the builder
+		b.WriteRune(unicode.ToLower(r))
 	}
-	return strings.TrimSpace(b.String())
+	return b.String()
 }
 
 func dedupAdjacent(items []string) []string {
