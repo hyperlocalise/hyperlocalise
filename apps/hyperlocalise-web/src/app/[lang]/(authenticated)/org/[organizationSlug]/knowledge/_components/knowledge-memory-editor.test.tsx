@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -64,7 +64,13 @@ vi.mock("next-themes", () => ({
 }));
 
 vi.mock("@pierre/diffs/react", () => ({
-  MultiFileDiff: ({ oldFile, newFile }: { oldFile: { contents: string }; newFile: { contents: string } }) => (
+  MultiFileDiff: ({
+    oldFile,
+    newFile,
+  }: {
+    oldFile: { contents: string };
+    newFile: { contents: string };
+  }) => (
     <div data-testid="memory-diff">
       <span>{oldFile.contents}</span>
       <span>{newFile.contents}</span>
