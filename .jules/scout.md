@@ -171,3 +171,7 @@
 ## 2026-09-12 - [Go XML Syntax Error Precedence in Custom Parser Testing]
 **Learning:** In custom token-based XML parsers utilizing Go's standard `xml.Decoder`, syntax errors (such as mismatched tags or unclosed structures) are returned immediately by `decoder.Token()`. This prevents the parser from executing subsequent custom EOF check logic. When testing validation and syntax errors, expect standard "XML syntax error" results for structurally malformed inputs, and save custom EOF/unterminated error assertions for cases where XML is syntactically valid but structurally incomplete according to the custom parser's rules.
 **Action:** Ensure parser tests for malformed markup check for the underlying XML parser's syntax error rather than the custom parser's late-stage EOF checks if the tag structure violates the XML spec.
+
+## 2026-10-15 - [I18N Config Locale Validation Edge Cases]
+**Learning:** Testing config validation rules (like locales, targets, and fallbacks) with malformed JSON structure, empty values, spaces, and invalid regex characters (e.g. `?`) ensures that user configuration errors are caught immediately during validation rather than manifesting as silent errors during file lookup.
+**Action:** Always include comprehensive, table-driven validation tests for core configuration files when adding or modifying validation rules.
