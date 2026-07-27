@@ -295,3 +295,7 @@
 ## 2027-03-28 - Optimizing scoring evaluation text normalization and token counting
 **Learning:** In text scoring evaluators, high-volume string normalization and token counting often suffer from redundant allocation overhead (like chaining `strings.ToLower` and `strings.TrimSpace` on large volumes of segments) and regular expression parsing on strings without any placeholders/markup. Re-implementing normalization as a single-pass character loop, and shielding regular expressions behind simple signal-character checks (`Contains` and `ContainsAny`), yields massive performance boosts while preserving 100% functional equivalence.
 **Action:** Always combine normalization steps (lowercase, trim, punctuation removal) into single-pass loops with pre-allocated builders, and guard regular expressions behind cheap signal character checks in high-frequency evaluation contexts.
+
+## 2027-03-30 - Bypassing xml.Decoder in Android XML Marshalling via Zero-Allocation Lexer
+**Learning:** Instantiating `xml.Decoder` on small, well-formed XML/HTML fragments (such as `<xliff:g>` or `<b>` tags in translations) creates huge memory allocation and parsing overhead. A custom, zero-allocation lexer scanner can verify well-formedness of balanced tags, entity references, and declared namespace prefixes. Gracefully falling back to `xml.Decoder` for complex markup guarantees 100% correctness.
+**Action:** Use a fast-path, zero-allocation well-formedness scanner for XML fragments to avoid `xml.Decoder` instantiation overhead on clean, standard markup strings.

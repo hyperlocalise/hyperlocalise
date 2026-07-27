@@ -347,9 +347,232 @@ func isSelfClosingXMLStart(text string, endOffset int) bool {
 	return true
 }
 
+func isNamespaceDeclared(prefix, namespaceAttrs string) bool {
+	if prefix == "" {
+		return true
+	}
+	return strings.Contains(namespaceAttrs, "xmlns:"+prefix+"=")
+}
+
+func isAlphaNumDashColonDotOrSpace(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+		c == '_' || c == '-' || c == ':' || c == '.' || c == ' ' || c == '\t' || c == '\r' || c == '\n'
+}
+
+func isAlphaNumDashColonDot(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+		c == '_' || c == '-' || c == ':' || c == '.'
+}
+
+func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
+	// A fast, zero-allocation scanner to check if standard markup is well-formed.
+	// Returns false if there are any doubts, falling back to full xml.Decoder.
+	var stack [8]string
+	stackPtr := 0
+
+	i := 0
+	n := len(value)
+	for i < n {
+		ch := value[i]
+		if ch == '<' {
+			// Tag start
+			if i+1 >= n {
+				return false // Trailing '<'
+			}
+			if value[i+1] == '/' {
+				// Closing tag: </name> or </name > or spaces inside
+				i += 2
+				// Find tag name
+				start := i
+				for i < n && value[i] != '>' {
+					c := value[i]
+					if !isAlphaNumDashColonDotOrSpace(c) {
+						return false // Unexpected character or non-ASCII
+					}
+					i++
+				}
+				if i >= n {
+					return false // Unterminated closing tag
+				}
+				tagName := strings.TrimSpace(value[start:i])
+				if tagName == "" {
+					return false
+				}
+
+				// Validate namespace if any
+				if idx := strings.IndexByte(tagName, ':'); idx >= 0 {
+					prefix := tagName[:idx]
+					if !isNamespaceDeclared(prefix, namespaceAttrs) {
+						return false
+					}
+				}
+
+				// Pop from stack and verify
+				if stackPtr == 0 {
+					return false // Unmatched closing tag
+				}
+				stackPtr--
+				if stack[stackPtr] != tagName {
+					return false // Mismatched tag
+				}
+				i++ // consume '>'
+			} else {
+				// Opening tag: <name ...> or <name />
+				i++
+				start := i
+				// Read tag name first
+				for i < n {
+					c := value[i]
+					if c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '/' || c == '>' {
+						break
+					}
+					if !isAlphaNumDashColonDot(c) {
+						return false // Invalid char in tag name
+					}
+					i++
+				}
+				tagName := value[start:i]
+				if tagName == "" {
+					return false // e.g. `<>`
+				}
+
+				// Validate namespace if any
+				if idx := strings.IndexByte(tagName, ':'); idx >= 0 {
+					prefix := tagName[:idx]
+					if !isNamespaceDeclared(prefix, namespaceAttrs) {
+						return false
+					}
+				}
+
+				// Now read attributes until '/' or '>'
+				selfClosing := false
+				for i < n {
+					// Skip spaces
+					for i < n && (value[i] == ' ' || value[i] == '\t' || value[i] == '\r' || value[i] == '\n') {
+						i++
+					}
+					if i >= n {
+						return false
+					}
+					if value[i] == '/' {
+						if i+1 < n && value[i+1] == '>' {
+							selfClosing = true
+							i += 2
+							break
+						}
+						return false // Invalid `/`
+					}
+					if value[i] == '>' {
+						i++
+						break
+					}
+
+					// Otherwise, must be an attribute name
+					attrStart := i
+					for i < n {
+						c := value[i]
+						if c == '=' || c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '/' || c == '>' {
+							break
+						}
+						if !isAlphaNumDashColonDot(c) {
+							return false
+						}
+						i++
+					}
+					if attrStart == i {
+						return false
+					}
+					attrName := value[attrStart:i]
+					if idx := strings.IndexByte(attrName, ':'); idx >= 0 {
+						prefix := attrName[:idx]
+						if !isNamespaceDeclared(prefix, namespaceAttrs) {
+							return false
+						}
+					}
+
+					// Skip spaces
+					for i < n && (value[i] == ' ' || value[i] == '\t' || value[i] == '\r' || value[i] == '\n') {
+						i++
+					}
+					if i >= n || value[i] != '=' {
+						return false // Expected `=`
+					}
+					i++ // consume `=`
+					// Skip spaces
+					for i < n && (value[i] == ' ' || value[i] == '\t' || value[i] == '\r' || value[i] == '\n') {
+						i++
+					}
+					if i >= n {
+						return false
+					}
+					quote := value[i]
+					if quote != '"' && quote != '\'' {
+						return false // Expected quote
+					}
+					i++ // consume quote
+					// Read attribute value
+					for i < n && value[i] != quote {
+						c := value[i]
+						if c == '<' {
+							return false
+						}
+						if c == '&' {
+							// Verify entity
+							entityStart := i + 1
+							semi := strings.IndexByte(value[entityStart:], ';')
+							if semi < 0 {
+								return false
+							}
+							entity := value[entityStart : entityStart+semi]
+							if !isXMLTextEntityReference(entity) {
+								return false
+							}
+							i += semi + 1
+						}
+						i++
+					}
+					if i >= n {
+						return false // Unterminated attribute quote
+					}
+					i++ // consume quote
+				}
+
+				if !selfClosing {
+					if stackPtr >= len(stack) {
+						return false // Stack overflow (nesting too deep, fall back to xml.Decoder)
+					}
+					stack[stackPtr] = tagName
+					stackPtr++
+				}
+			}
+		} else if ch == '&' {
+			// Entity reference outside tags
+			entityStart := i + 1
+			semi := strings.IndexByte(value[entityStart:], ';')
+			if semi < 0 {
+				return false
+			}
+			entity := value[entityStart : entityStart+semi]
+			if !isXMLTextEntityReference(entity) {
+				return false
+			}
+			i += semi + 2 // skip entity and `;`
+		} else {
+			i++
+		}
+	}
+
+	return stackPtr == 0
+}
+
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
 	// BOLT OPTIMIZATION: Fast-path for strings without '<', '&', or '>' to skip expensive XML well-formedness checks.
 	if !strings.ContainsAny(value, "<&>") {
+		return value
+	}
+
+	// BOLT OPTIMIZATION: Fast-path, zero-allocation scanner to bypass standard xml.Decoder parsing
+	if fastIsXMLFragmentWellFormed(value, namespaceAttrs) {
 		return value
 	}
 

@@ -105,6 +105,131 @@ func TestAndroidXMLResourcesParserRejectsUnsupportedTranslatableConstructs(t *te
 	}
 }
 
+func TestFastIsXMLFragmentWellFormed(t *testing.T) {
+	namespaceAttrs := ` xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools"`
+
+	tests := []struct {
+		name           string
+		value          string
+		namespaceAttrs string
+		want           bool
+	}{
+		{
+			name:  "plain text",
+			value: "hello world",
+			want:  true,
+		},
+		{
+			name:  "simple bold tag",
+			value: "hello <b>world</b>",
+			want:  true,
+		},
+		{
+			name:  "nested formatting tags",
+			value: "hello <b><i>world</i></b>",
+			want:  true,
+		},
+		{
+			name:  "self-closing tag",
+			value: "hello <br /> world",
+			want:  true,
+		},
+		{
+			name:  "self-closing tag with no space",
+			value: "hello <br/> world",
+			want:  true,
+		},
+		{
+			name:           "declared namespace tag",
+			value:          `Hello <xliff:g id="user">%1$s</xliff:g>`,
+			namespaceAttrs: namespaceAttrs,
+			want:           true,
+		},
+		{
+			name:           "undeclared namespace tag",
+			value:          `Hello <xliff:g id="user">%1$s</xliff:g>`,
+			namespaceAttrs: "",
+			want:           false, // should fall back to xml.Decoder which will fail/escape
+		},
+		{
+			name:           "declared namespace attribute",
+			value:          `Hello <b tools:ignore="TypographyDashes">world</b>`,
+			namespaceAttrs: namespaceAttrs,
+			want:           true,
+		},
+		{
+			name:           "undeclared namespace attribute",
+			value:          `Hello <b tools:ignore="TypographyDashes">world</b>`,
+			namespaceAttrs: "",
+			want:           false,
+		},
+		{
+			name:  "valid entity",
+			value: "2 &lt; 3 &amp; 4",
+			want:  true,
+		},
+		{
+			name:  "valid entity inline",
+			value: "2 &lt; 3",
+			want:  true,
+		},
+		{
+			name:  "invalid entity raw end",
+			value: "2 &lt",
+			want:  false,
+		},
+		{
+			name:  "raw ampersand",
+			value: "hello & world",
+			want:  false,
+		},
+		{
+			name:  "unbalanced closing tag",
+			value: "hello <b>world</i>",
+			want:  false,
+		},
+		{
+			name:  "missing closing tag",
+			value: "hello <b>world",
+			want:  false,
+		},
+		{
+			name:  "stray less than",
+			value: "hello < world",
+			want:  false,
+		},
+		{
+			name:  "dangling tag start",
+			value: "hello <b>world<",
+			want:  false,
+		},
+		{
+			name:  "empty tag",
+			value: "hello <> world",
+			want:  false,
+		},
+		{
+			name:  "malformed attribute value quote",
+			value: `<b attr=val>hello</b>`,
+			want:  false,
+		},
+		{
+			name:  "unclosed attribute quote",
+			value: `<b attr="val>hello</b>`,
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := fastIsXMLFragmentWellFormed(tt.value, tt.namespaceAttrs)
+			if got != tt.want {
+				t.Errorf("fastIsXMLFragmentWellFormed(%q, %q) = %v, want %v", tt.value, tt.namespaceAttrs, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsAndroidStringResourcePath(t *testing.T) {
 	for _, tc := range []struct {
 		path string
