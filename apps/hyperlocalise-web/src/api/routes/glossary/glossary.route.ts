@@ -14,6 +14,7 @@ import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse } from "@/api/errors";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
@@ -293,6 +294,8 @@ async function listGlossaryProjects(
   auth: ApiAuthContext,
   glossaryId: string,
 ): Promise<GlossaryProjectRecord[]> {
+  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
+
   return db
     .select({
       projectId: schema.projects.id,
@@ -307,6 +310,7 @@ async function listGlossaryProjects(
       and(
         eq(schema.projectGlossaries.organizationId, auth.organization.localOrganizationId),
         eq(schema.projectGlossaries.glossaryId, glossaryId),
+        accessibleProjectsWhere,
       ),
     )
     .orderBy(schema.projectGlossaries.priority, schema.projects.name);
