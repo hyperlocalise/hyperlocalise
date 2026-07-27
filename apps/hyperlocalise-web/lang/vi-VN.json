@@ -614,6 +614,9 @@
   "11wuxnX/XF": {
     "defaultMessage": "Trình kích hoạt"
   },
+  "17dOLN4clX": {
+    "defaultMessage": "Hyperlocalise Startup Program"
+  },
   "18VKZNqtbO": {
     "defaultMessage": "Cần xem xét"
   },
@@ -703,6 +706,9 @@
   },
   "1ctE4ledVd": {
     "defaultMessage": "Assignee"
+  },
+  "1db+Z84NPJ": {
+    "defaultMessage": "Apply for the Hyperlocalise Startup Program — up to 80% off Growth for early-stage teams going global with a native TMS and AI agent workflow."
   },
   "1e/ZaE2rH7": {
     "defaultMessage": "Live jobs fetched from your connected TMS provider."
@@ -937,6 +943,9 @@
   },
   "2lMmWOEFYn": {
     "defaultMessage": "Project deleted"
+  },
+  "2lPB6SLWPB": {
+    "defaultMessage": "Trusted by teams going global early"
   },
   "2mcGAlQ7te": {
     "defaultMessage": "Hiện không có hành động nào đang chờ xử lý. Hãy bắt đầu một yêu cầu mới hoặc duyệt qua các dự án khi bạn sẵn sàng tiếp tục."
@@ -1406,6 +1415,9 @@
   "5CjwrQGWSz": {
     "defaultMessage": "Hệ thống"
   },
+  "5Eha9aNTjn": {
+    "defaultMessage": "Built for teams scaling into new markets"
+  },
   "5FDuQWvCGc": {
     "defaultMessage": "Xem trước việc nhập khẩu"
   },
@@ -1754,6 +1766,9 @@
   "78OEnC/JOf": {
     "defaultMessage": "Workspace slug"
   },
+  "79OV0Q8xnc": {
+    "defaultMessage": "The maximum discount is 80% off Growth list pricing. The final amount depends on stage, scope, and fit. We share a clear number on the demo — nothing is charged until you agree."
+  },
   "79wF7UTpnH": {
     "defaultMessage": "Drift"
   },
@@ -1943,6 +1958,9 @@
   "88ySfb40EV": {
     "defaultMessage": "Confidence"
   },
+  "8ACcRRFoOD": {
+    "defaultMessage": "New markets are not copy-paste"
+  },
   "8Aop7svU4q": {
     "defaultMessage": "Loading file…"
   },
@@ -2032,6 +2050,9 @@
   },
   "8aMYTx5g7o": {
     "defaultMessage": "Priority"
+  },
+  "8akRFF2klx": {
+    "defaultMessage": "The Startup Program is aimed at early-stage teams. Larger companies should still request a demo — we can discuss Growth or Enterprise options that fit your organisation."
   },
   "8akVFVMFrZ": {
     "defaultMessage": "Expand Sidebar"
@@ -2233,6 +2254,9 @@
   },
   "9WGORyVfVo": {
     "defaultMessage": "Tiếng Đức (Đức)"
+  },
+  "9XeOGxKmUC": {
+    "defaultMessage": "No. Hyperlocalise includes a native TMS with an AI agent workflow, so startups can manage strings, drafts, and review without standing up a separate translation stack. Connect GitHub and Slack when you are ready to automate intake and release."
   },
   "9YNv5fx63k": {
     "defaultMessage": "Tiếng Hàn (Hàn Quốc)"
@@ -2771,6 +2795,9 @@
   "CQCxmYWm3f": {
     "defaultMessage": "Cập nhật kết nối"
   },
+  "CR4EdyZSZI": {
+    "defaultMessage": "Who is eligible?"
+  },
   "CRRbrB6ehg": {
     "defaultMessage": "Cổng đánh giá"
   },
@@ -2989,6 +3016,9 @@
   },
   "DRRpzdvulu": {
     "defaultMessage": "GitHub"
+  },
+  "DRg3CQC9an": {
+    "defaultMessage": "Selected for the 2026 Slator Language AI 50 Under 50."
   },
   "DRi2LRug2G": {
     "defaultMessage": "Đậm"
@@ -3367,6 +3397,9 @@
   },
   "FVAIUC0HI7": {
     "defaultMessage": "Context needed: {key}"
+  },
+  "FVe674aA/n": {
+    "defaultMessage": "Heidi Health"
   },
   "FZJSisAX7z": {
     "defaultMessage": "{hours} hr {minutes} min"
@@ -4121,6 +4154,9 @@
   "K+AvrhTOJl": {
     "defaultMessage": "Đã sao chép"
   },
+  "K+l0K4IDAZ": {
+    "defaultMessage": "Request a demo from this page. On the call we review your stage, product workflow, and localisation needs, then confirm whether startup pricing applies."
+  },
   "K0I+hdjpXe": {
     "defaultMessage": "Plan usage, payment method, invoices, and billing contacts."
   },
@@ -4666,6 +4702,9 @@
   },
   "NTnOgDMsrG": {
     "defaultMessage": "Load team membership and roles."
+  },
+  "NWBLW7QFvn": {
+    "defaultMessage": "Tourfinder"
   },
   "NX9i6pdgvw": {
     "defaultMessage": "Đã tạo {date}"
@@ -5294,6 +5333,9 @@
   "QlWnr3uEAw": {
     "defaultMessage": "Enable the email agent in <link>Integrations</link> to use email notifications."
   },
+  "QmJs3YzCjV": {
+    "defaultMessage": "What does \"up to 80% off\" mean?"
+  },
   "QmXtxyLvCd": {
     "defaultMessage": "Kết nối tài khoản OpenAI của bạn"
   },
@@ -5422,6 +5464,9 @@
   },
   "RWrEpStLhj": {
     "defaultMessage": "Failed to start {provider} connection"
+  },
+  "RXXOOcxbRk": {
+    "defaultMessage": "Applying for the Growth plan"
   },
   "RZBs1fe1V3": {
     "defaultMessage": "Siêu bản địa hóa | Nền tảng bản địa hóa cho Kỷ nguyên Agentic"
@@ -5573,6 +5618,9 @@
   "SKhTQyZkDY": {
     "defaultMessage": "Completed"
   },
+  "SLg8IXCI6V": {
+    "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team."
+  },
   "SNl5ipNJ6A": {
     "defaultMessage": "Không giới hạn"
   },
@@ -5717,6 +5765,9 @@
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows"
   },
+  "TC3oIavSPO": {
+    "defaultMessage": "Growth should not create busywork"
+  },
   "TDQxQUihFM": {
     "defaultMessage": "No supported files were selected."
   },
@@ -5767,6 +5818,9 @@
   },
   "TRXXor6TdH": {
     "defaultMessage": "Display name"
+  },
+  "TRlFNEhzfJ": {
+    "defaultMessage": "Apply for startup pricing"
   },
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
@@ -5857,6 +5911,9 @@
   },
   "Ty0GwUvHBg": {
     "defaultMessage": "Progress"
+  },
+  "Tyhk/abQFS": {
+    "defaultMessage": "What is the Hyperlocalise Startup Program?"
   },
   "U+Ll/sGDKs": {
     "defaultMessage": "Saving..."
@@ -6040,6 +6097,12 @@
   },
   "V5IhYqq1Fk": {
     "defaultMessage": "Quản lý"
+  },
+  "V5fRx/1XLP": {
+    "defaultMessage": "New Hyperlocalise customer"
+  },
+  "V8A7lWd26M": {
+    "defaultMessage": "It is pricing support for early-stage startups adopting Hyperlocalise Growth. Qualifying teams can receive up to 80% off for their first 12 months, or while they still meet the program criteria. Exact terms are confirmed on the demo."
   },
   "V8Rg1mvKHG": {
     "defaultMessage": "Đã lưu kết nối Contentful"
@@ -6449,6 +6512,9 @@
   "XFpqPsul6Y": {
     "defaultMessage": "Changed: {fields}"
   },
+  "XHI21GKve1": {
+    "defaultMessage": "Entering a new market should feel like growth, not a second product launch that stalls the company."
+  },
   "XHTRGbNDAl": {
     "defaultMessage": "Mã thông báo truy cập cá nhân"
   },
@@ -6818,6 +6884,9 @@
   "Z91mmC1MhD": {
     "defaultMessage": "Can access projects and work assigned to this team."
   },
+  "Z99fVSK2K8": {
+    "defaultMessage": "Slator Language AI 50 Under 50"
+  },
   "Z9kckxHp8S": {
     "defaultMessage": "Unavailable"
   },
@@ -6919,6 +6988,9 @@
   },
   "ZmMPE/eod1": {
     "defaultMessage": "Đã kết nối"
+  },
+  "ZnysOZy/rI": {
+    "defaultMessage": "See pricing"
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Tìm kiếm kho lưu trữ"
@@ -7117,6 +7189,9 @@
   },
   "alKFWoCQYb": {
     "defaultMessage": "Download"
+  },
+  "ambL1h5gLQ": {
+    "defaultMessage": "How do I apply?"
   },
   "anZVyDdEfq": {
     "defaultMessage": "Để trống cho Smartling API tiêu chuẩn. Đối với máy chủ tùy chỉnh, hãy bao gồm đường dẫn API xác thực, ví dụ https://api.smartling.com/auth-api/v2."
@@ -7598,6 +7673,9 @@
   "dgJxXLu6Bs": {
     "defaultMessage": "Search: {value}"
   },
+  "diE57pixFS": {
+    "defaultMessage": "Recognition"
+  },
   "dj9zRisspO": {
     "defaultMessage": "Issues could not be loaded."
   },
@@ -7910,6 +7988,9 @@
   "fIcVSh09FH": {
     "defaultMessage": "Words to do"
   },
+  "fJ0e9/fLRw": {
+    "defaultMessage": "Startups"
+  },
   "fK68dbaITk": {
     "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>"
   },
@@ -7921,6 +8002,9 @@
   },
   "fNe2j52ZZs": {
     "defaultMessage": "Save description"
+  },
+  "fNsrVmOrc3": {
+    "defaultMessage": "Early-stage startups can get up to 80% off the Growth plan for the first 12 months, or while you qualify. We confirm fit and pricing on the demo."
   },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
@@ -7939,6 +8023,9 @@
   },
   "fVnq1NHYYK": {
     "defaultMessage": "Track localization issues in Hyperlocalise, then link rows to CAT segments, native issues, provider threads, or external context."
+  },
+  "fWWcDn9s5p": {
+    "defaultMessage": "Startups"
   },
   "fXIJvHCrL6": {
     "defaultMessage": "Phân đoạn trước"
@@ -8050,6 +8137,9 @@
   },
   "g5YfEeVlsF": {
     "defaultMessage": "Xóa {branch}"
+  },
+  "g5f066LmY+": {
+    "defaultMessage": "Move while the opportunity is open"
   },
   "g7kCok/oT0": {
     "defaultMessage": "Edit project..."
@@ -8207,6 +8297,9 @@
   "gr2zgIumPD": {
     "defaultMessage": "Archived"
   },
+  "grODyw1HO9": {
+    "defaultMessage": "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally."
+  },
   "gso6nAA1gq": {
     "defaultMessage": "Tác nhân Slack đã bị vô hiệu hóa"
   },
@@ -8243,6 +8336,9 @@
   "h/hbKtjuxJ": {
     "defaultMessage": "Primary conversion button for the public waitlist."
   },
+  "h/oYoN5Oui": {
+    "defaultMessage": "New markets. 100x momentum."
+  },
   "h0dd/MaO2f": {
     "defaultMessage": "Thu thập các thay đổi chuỗi, mô tả PR, chuỗi thảo luận trên Slack và brief ra mắt để dịch giả hiểu vì sao nội dung đã thay đổi — không chỉ thấy phần diff."
   },
@@ -8263,6 +8359,9 @@
   },
   "h3/Sx/1Xgp": {
     "defaultMessage": "Tải lên nguồn"
+  },
+  "h3G4KiByU3": {
+    "defaultMessage": "Our company is larger than 50 employees. Can we still apply?"
   },
   "h3qjecOeg8": {
     "defaultMessage": "Open {projectName} in provider"
@@ -8425,6 +8524,9 @@
   },
   "hpZLGfM1av": {
     "defaultMessage": "Clear filters"
+  },
+  "hsNMISsI79": {
+    "defaultMessage": "80% off Growth to launch globally in days."
   },
   "huDfeEPmkj": {
     "defaultMessage": "Không phụ thuộc TMS"
@@ -8882,6 +8984,9 @@
   "k+z441n7pT": {
     "defaultMessage": "Kiểm tra CI"
   },
+  "k/fYpNgsXA": {
+    "defaultMessage": "Hyperlocalise for Startups | Up to 80% off Growth"
+  },
   "k0oDzsZOu6": {
     "defaultMessage": "Cài đặt không khả dụng"
   },
@@ -9182,6 +9287,9 @@
   "lPmc7tHCkL": {
     "defaultMessage": "{spaceId}/{environmentId}"
   },
+  "lSzcdHw8Ko": {
+    "defaultMessage": "Who can apply"
+  },
   "lT0LhQ0lGx": {
     "defaultMessage": "Đang tải các loại nội dung…"
   },
@@ -9400,6 +9508,9 @@
   },
   "mmfrG6qsJL": {
     "defaultMessage": "Assign to project"
+  },
+  "mnlYeyj08E": {
+    "defaultMessage": "Tourmatic"
   },
   "moonxzY9iq": {
     "defaultMessage": "Công việc đến từ sản phẩm, marketing, hỗ trợ và kỹ thuật qua nhiều kênh khác nhau mà không có đầu mối tiếp nhận chung."
@@ -9827,6 +9938,9 @@
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
   },
+  "pOCBt3fv7m": {
+    "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit."
+  },
   "pSCJIupsz5": {
     "defaultMessage": "Send"
   },
@@ -9947,6 +10061,9 @@
   "q1SUe75H6g": {
     "defaultMessage": "Major"
   },
+  "q1gTXMRwMD": {
+    "defaultMessage": "Early-stage, typically under 50 employees or pre-Series B"
+  },
   "q1odur6ptQ": {
     "defaultMessage": "No Ahrefs connections yet."
   },
@@ -9988,6 +10105,9 @@
   },
   "qAtz8sLMpD": {
     "defaultMessage": "Đánh giá thủ công trong TMS của bạn trước khi xuất bản lại lên Canva"
+  },
+  "qBHY8te/JC": {
+    "defaultMessage": "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you."
   },
   "qBw0XsEKyN": {
     "defaultMessage": "Luôn linh hoạt trên nhiều nhà cung cấp và nền tảng"
@@ -10099,6 +10219,9 @@
   },
   "qjIfzjBgLQ": {
     "defaultMessage": "Tín hiệu ngữ cảnh"
+  },
+  "qlC3SJDnRm": {
+    "defaultMessage": "Startmate"
   },
   "qlu/Ts2pCg": {
     "defaultMessage": "Ask, search, or make anything…"
@@ -10516,6 +10639,9 @@
   },
   "t9YYiKFrxA": {
     "defaultMessage": "Tài liệu sản phẩm"
+  },
+  "t9u0C/3PvD": {
+    "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth."
   },
   "tCUf/LZUI9": {
     "defaultMessage": "Biến các yêu cầu trên Slack và bảng Canva thành công việc bản địa hóa được xác định phạm vi, với ngữ cảnh được đính kèm ngay từ đầu."
@@ -11024,6 +11150,9 @@
   "vfXyrNNj+X": {
     "defaultMessage": "Sao chép tên"
   },
+  "vgj4VLCd7U": {
+    "defaultMessage": "Backed by Australia and New Zealand's leading startup accelerator."
+  },
   "viq5/Imoma": {
     "defaultMessage": "Không gian làm việc"
   },
@@ -11378,6 +11507,9 @@
   "xX2Nm+qioI": {
     "defaultMessage": "Chúng tôi đã tạo không gian làm việc, nhưng không thể chuẩn bị URL của nó. Vui lòng thử lại."
   },
+  "xXvQeFYygi": {
+    "defaultMessage": "Ready for the next market?"
+  },
   "xYeE5w8BlW": {
     "defaultMessage": "Name, project, or external ID..."
   },
@@ -11416,6 +11548,9 @@
   },
   "xkthiVH+yt": {
     "defaultMessage": "Manual"
+  },
+  "xkvlRbfU7k": {
+    "defaultMessage": "Tourfinder launched Vietnamese and Japanese marketing in days, not months."
   },
   "xm2niAeH2y": {
     "defaultMessage": "New AI chat"
@@ -11530,6 +11665,9 @@
   },
   "yFteFluQ4P": {
     "defaultMessage": "Tiếp nhận"
+  },
+  "yGq0s5/abu": {
+    "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?"
   },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}"

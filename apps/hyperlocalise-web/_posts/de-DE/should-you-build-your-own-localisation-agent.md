@@ -210,15 +210,15 @@ Mit anderen Worten: Machen Sie Ihre Lokalisierungsintelligenz zu Ihrer eigenen. 
 
 Stellen Sie vor der Freigabe eines internen Builds die folgenden Fragen:
 
-| Frage                                                     | Stärkeres Signal für die Entwicklung                                | Stärkeres Signal für die Nutzung einer Plattform                                  |
-| --------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Ist Lokalisierungstechnologie Teil des Kernprodukts?      | Ja, sie hebt das Produkt direkt vom Wettbewerb ab                   | Nein, sie unterstützt die Produkterweiterung                                      |
-| Sind die Workflows wirklich einzigartig?                  | Bestehende Systeme können sie nicht unterstützen                    | Sie können durch Konfiguration oder Integration umgesetzt werden                  |
-| Wer wird das System nach dem Launch betreuen?             | Ein dediziertes Plattformteam                                       | Ein temporäres Projektteam oder ein einzelner Entwickler                          |
-| Können Sie die Qualität in allen Zielmärkten bewerten?    | Sie verfügen über Sprachexperten und eine Evaluierungsinfrastruktur | Sie benötigen in erster Linie bewährte Workflows und eine menschliche Überprüfung |
-| Wie schnell muss das Unternehmen einen Mehrwert sehen?    | Das Unternehmen kann über einen längeren Zeitraum investieren       | Das Team benötigt bald operative Verbesserungen                                   |
-| Sind Sie darauf vorbereitet, jede Integration zu pflegen? | Die Verantwortung für Integrationen ist strategisch wertvoll        | Die Wartung würde von der Arbeit am Kernprodukt ablenken                          |
-| Schafft internes Eigentum einen nachhaltigen Vorteil?     | Ja, die Fähigkeit ist für Wettbewerber nur schwer reproduzierbar    | Nein, der Hauptwert entsteht durch die effektive Nutzung der Fähigkeit            |
+| Frage                                               | Stärkeres Signal für die Entwicklung                         | Stärkeres Signal für die Nutzung einer Plattform                |
+| ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| Ist Lokalisierungstechnologie Teil des Kernprodukts? | Ja, sie hebt das Produkt direkt vom Wettbewerb ab | Nein, sie unterstützt die Produkterweiterung |
+| Sind die Workflows wirklich einzigartig?                  | Bestehende Systeme können sie nicht unterstützen                          | Sie können durch Konfiguration oder Integration umgesetzt werden       |
+| Wer wird das System nach dem Launch betreuen?                | Ein dediziertes Plattformteam                                     | Ein temporäres Projektteam oder ein einzelner Entwickler                |
+| Können Sie die Qualität in allen Zielmärkten bewerten? | Sie verfügen über Sprachexperten und eine Evaluierungsinfrastruktur | Sie benötigen in erster Linie bewährte Workflows und eine menschliche Überprüfung           |
+| Wie schnell muss das Unternehmen einen Mehrwert sehen? | Das Unternehmen kann über einen längeren Zeitraum investieren | Das Team benötigt bald operative Verbesserungen |
+| Sind Sie darauf vorbereitet, jede Integration zu pflegen?      | Die Verantwortung für Integrationen ist strategisch wertvoll               | Die Wartung würde von der Arbeit am Kernprodukt ablenken              |
+| Schafft internes Eigentum einen nachhaltigen Vorteil?  | Ja, die Fähigkeit ist für Wettbewerber nur schwer reproduzierbar | Nein, der Hauptwert entsteht durch die effektive Nutzung der Fähigkeit |
 
 Die letzte Frage ist die wichtigste.
 

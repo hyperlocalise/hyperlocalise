@@ -210,15 +210,15 @@ En d’autres termes, maîtrisez votre intelligence de localisation. Déterminez
 
 Avant d’approuver une version interne, posez les questions suivantes :
 
-| Question                                                               | Signal plus fort pour développer                                           | Signal plus fort pour utiliser une plateforme                                   |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| La technologie de localisation fait-elle partie du produit principal ? | Oui, elle différencie directement le produit                               | Non, elle soutient l’expansion du produit                                       |
-| Les workflows sont-ils véritablement uniques ?                         | Les systèmes existants ne peuvent pas les prendre en charge                | Ils peuvent être gérés via une configuration ou une intégration                 |
-| Qui sera responsable du système après son lancement ?                  | Une équipe dédiée à la plateforme                                          | Une équipe de projet temporaire ou un ingénieur individuel                      |
-| Pouvez-vous évaluer la qualité sur chaque marché cible ?               | Vous disposez d’experts linguistiques et d’une infrastructure d’évaluation | Vous avez principalement besoin de workflows éprouvés et d’une révision humaine |
-| À quelle vitesse l’entreprise doit-elle voir des résultats ?           | L’entreprise peut investir sur un horizon plus long                        | L’équipe a besoin d’une amélioration opérationnelle rapidement                  |
-| Êtes-vous prêt à assurer la maintenance de chaque intégration ?        | La responsabilité des intégrations a une valeur stratégique                | La maintenance détournerait l’attention du développement du produit principal   |
-| La maîtrise en interne crée-t-elle un avantage durable ?               | Oui, la capacité est difficile à reproduire pour les concurrents           | Non, la valeur principale vient de l’utilisation efficace de la capacité        |
+| Question                                             | Signal plus fort pour développer                            | Signal plus fort pour utiliser une plateforme                   |
+| ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| La technologie de localisation fait-elle partie du produit principal ? | Oui, elle différencie directement le produit                   | Non, elle soutient l’expansion du produit                              |
+| Les workflows sont-ils véritablement uniques ?                  | Les systèmes existants ne peuvent pas les prendre en charge                          | Ils peuvent être gérés via une configuration ou une intégration       |
+| Qui sera responsable du système après son lancement ? | Une équipe dédiée à la plateforme | Une équipe de projet temporaire ou un ingénieur individuel |
+| Pouvez-vous évaluer la qualité sur chaque marché cible ? | Vous disposez d’experts linguistiques et d’une infrastructure d’évaluation       | Vous avez principalement besoin de workflows éprouvés et d’une révision humaine           |
+| À quelle vitesse l’entreprise doit-elle voir des résultats ? | L’entreprise peut investir sur un horizon plus long | L’équipe a besoin d’une amélioration opérationnelle rapidement |
+| Êtes-vous prêt à assurer la maintenance de chaque intégration ? | La responsabilité des intégrations a une valeur stratégique | La maintenance détournerait l’attention du développement du produit principal |
+| La maîtrise en interne crée-t-elle un avantage durable ?  | Oui, la capacité est difficile à reproduire pour les concurrents | Non, la valeur principale vient de l’utilisation efficace de la capacité |
 
 La dernière question est la plus importante.
 
