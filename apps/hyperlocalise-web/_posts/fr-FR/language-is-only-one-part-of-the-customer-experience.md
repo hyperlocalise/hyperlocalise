@@ -61,11 +61,11 @@ Pris individuellement, ces ajustements peuvent sembler minimes. Ensemble, ils d�
 
 Bien que ces termes soient fréquemment utilisés indifféremment, ils représentent différents niveaux d’adaptation.
 
-| Approche              | Objectif                                                      | Résultat                                      |
-| --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
-| **Traduction**       | Convertir du texte dans une autre langue                          | Les clients peuvent comprendre le contenu.          |
-| **Localisation**      | Adaptation du contenu à une langue ou une région spécifique | Les clients peuvent utiliser le produit aisément.     |
-| **Hyperlocalisation** | Adapter l’expérience client complète à un public local | Les clients ont le sentiment que le produit a été conçu pour eux. |
+| Approche              | Objectif                                                    | Résultat                                                          |
+| --------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Traduction**        | Convertir du texte dans une autre langue                    | Les clients peuvent comprendre le contenu.                        |
+| **Localisation**      | Adaptation du contenu à une langue ou une région spécifique | Les clients peuvent utiliser le produit aisément.                 |
+| **Hyperlocalisation** | Adapter l’expérience client complète à un public local      | Les clients ont le sentiment que le produit a été conçu pour eux. |
 
 Pour les entreprises qui desservent plusieurs marchés internationaux, cette distinction devient de plus en plus importante. À mesure que les produits gagnent en maturité et que la concurrence s’intensifie, la réussite dépend moins du fait que le contenu ait été traduit que du sentiment des clients d’être compris.
 
