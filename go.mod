@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
+	github.com/workos/workos-go/v10 v10.0.0
 	github.com/workos/workos-go/v9 v9.6.0
 	github.com/yuin/goldmark v1.8.4
 	go.opentelemetry.io/otel v1.44.0
