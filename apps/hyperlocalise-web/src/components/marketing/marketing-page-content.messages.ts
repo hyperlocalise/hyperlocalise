@@ -117,7 +117,7 @@ export const marketingPageMessages = defineMessages({
   },
   footerStatus: {
     defaultMessage: "Status",
-    id: "vKKxRpw7Y7",
+    id: "az1dhUOnH0",
     description: "Marketing footer resource link label for the status page",
   },
 });
