@@ -2314,22 +2314,14 @@ async function buildCrowdinLiveCatAllFiles(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
-  // Project-wide All Files omits the multi-file OR list so CROQL stays small.
-  // Job/sourcePath filters still need explicit file ids and may exceed Crowdin URL limits.
-  const scopedToSourcePaths = sourcePathFilter != null;
+  // All Files uses Crowdin Source Strings list (GET /projects/{id}/strings) project-wide.
+  // Never put a multi-file `id of file = … or …` CROQL in the query — that 414s on large projects.
+  // Queue/search filters may still use a short project-wide CROQL; file scope is applied client-side.
   const croql = buildCrowdinFileQueueCroql({
-    ...(scopedToSourcePaths ? { fileIds } : {}),
     targetLocale: input.targetLocale,
     queueFilter: paginationInput.queueFilter,
     search: paginationInput.search,
   });
-
-  if (scopedToSourcePaths && !croql) {
-    throw new TmsProviderLiveError(
-      "invalid_crowdin_project_or_file_id",
-      "Crowdin All Files CAT requires at least one project file.",
-    );
-  }
 
   if (croql && !isCrowdinCroqlWithinLimit(croql)) {
     throw new TmsProviderLiveError(
@@ -2338,36 +2330,71 @@ async function buildCrowdinLiveCatAllFiles(input: {
     );
   }
 
-  try {
-    const page = await client.listSourceStringsPage(projectId, {
-      croql: croql ?? undefined,
-      offset,
-      limit,
-    });
+  const allowedFileIds = new Set(fileIds);
 
+  try {
     const segments: TmsProviderLiveCatFile["segments"] = [];
-    for (const sourceString of page.strings) {
-      const file = sourceString.fileId != null ? (fileById.get(sourceString.fileId) ?? null) : null;
-      if (!file) {
-        continue;
+    // Over-fetch Crowdin pages until we fill `limit` strings that belong to allowed files,
+    // or exhaust the project. Needed when job sourcePaths / non-CAT files thin the stream.
+    const batchLimit = Math.min(500, Math.max(limit * 5, 50));
+    let crowdinOffset = 0;
+    let skippedMatches = 0;
+    let crowdinHasMore = true;
+    let batches = 0;
+    const maxBatches = 25;
+
+    while (segments.length < limit && crowdinHasMore && batches < maxBatches) {
+      batches += 1;
+      const page = await client.listSourceStringsPage(projectId, {
+        croql: croql ?? undefined,
+        offset: crowdinOffset,
+        limit: batchLimit,
+      });
+
+      for (const sourceString of page.strings) {
+        const fileId = sourceString.fileId;
+        if (fileId == null || !allowedFileIds.has(fileId)) {
+          continue;
+        }
+
+        const file = fileById.get(fileId);
+        if (!file) {
+          continue;
+        }
+
+        if (skippedMatches < offset) {
+          skippedMatches += 1;
+          continue;
+        }
+
+        segments.push({
+          externalStringId: String(sourceString.id),
+          key: sourceString.identifier,
+          sourceText: crowdinCatSourceTextValue(sourceString.text),
+          context: sourceString.context,
+          type: sourceString.type ?? null,
+          sourcePath: file.sourcePath,
+          ...(file.provider?.format != null ? { format: file.provider.format } : {}),
+          ...(file.provider?.externalResourceId
+            ? { externalResourceId: file.provider.externalResourceId }
+            : {}),
+          ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
+        });
+
+        if (segments.length >= limit) {
+          break;
+        }
       }
 
-      segments.push({
-        externalStringId: String(sourceString.id),
-        key: sourceString.identifier,
-        sourceText: crowdinCatSourceTextValue(sourceString.text),
-        context: sourceString.context,
-        type: sourceString.type ?? null,
-        sourcePath: file.sourcePath,
-        ...(file.provider?.format != null ? { format: file.provider.format } : {}),
-        ...(file.provider?.externalResourceId
-          ? { externalResourceId: file.provider.externalResourceId }
-          : {}),
-        ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
-      });
+      crowdinHasMore = page.hasMore;
+      crowdinOffset += page.strings.length;
+      if (page.strings.length === 0) {
+        break;
+      }
     }
 
-    const totalCount = page.hasMore ? offset + segments.length + 1 : offset + segments.length;
+    const hasMore = segments.length >= limit;
+    const totalCount = hasMore ? offset + segments.length + 1 : offset + segments.length;
 
     const pagination = paginationInput.paginated
       ? buildCatFilePagination({
@@ -2375,7 +2402,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
           limit,
           returnedCount: segments.length,
           totalCount,
-          hasMore: page.hasMore,
+          hasMore,
         })
       : undefined;
 
