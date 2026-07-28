@@ -24,9 +24,9 @@ describe("markdown mention helpers", () => {
     expect(mentionHrefForUser("11111111-1111-4111-8111-111111111111")).toBe(
       "mention:user:11111111-1111-4111-8111-111111111111",
     );
-    expect(
-      mentionHrefForIssue("22222222-2222-4222-8222-222222222222", "project_website"),
-    ).toBe("mention:issue:22222222-2222-4222-8222-222222222222:project_website");
+    expect(mentionHrefForIssue("22222222-2222-4222-8222-222222222222", "project_website")).toBe(
+      "mention:issue:22222222-2222-4222-8222-222222222222:project_website",
+    );
     expect(parseMentionHref("mention:user:11111111-1111-4111-8111-111111111111")).toEqual({
       kind: "user",
       id: "11111111-1111-4111-8111-111111111111",

@@ -47,18 +47,17 @@ export const issueCommentMessages = defineMessages({
   },
   deleteConfirmTitle: {
     defaultMessage: "Delete comment?",
-    id: "8qKp2nVxLm",
+    id: "q94QnHzO33",
     description: "Title for the delete issue comment confirmation dialog",
   },
   deleteConfirmDescription: {
-    defaultMessage:
-      "This cannot be undone. Any replies to this comment will also be deleted.",
-    id: "R4mN7wYsHt",
+    defaultMessage: "This cannot be undone. Any replies to this comment will also be deleted.",
+    id: "5mb6txBSWX",
     description: "Description for the delete issue comment confirmation dialog",
   },
   deleteConfirmAction: {
     defaultMessage: "Delete comment",
-    id: "pL9vC3xQeA",
+    id: "ZSs7hAN64v",
     description: "Confirm button to permanently delete an issue comment",
   },
   save: {
@@ -73,7 +72,7 @@ export const issueCommentMessages = defineMessages({
   },
   send: {
     defaultMessage: "Send",
-    id: "TblvRGacjD",
+    id: "0OYYyD2LOl",
     description: "Button to submit a new issue comment",
   },
   replyPlaceholder: {
@@ -83,7 +82,7 @@ export const issueCommentMessages = defineMessages({
   },
   leaveCommentPlaceholder: {
     defaultMessage: "Leave a comment…",
-    id: "k8Vw2mNpQr",
+    id: "8xIDpcJg4F",
     description: "Placeholder for the top-level issue comment composer",
   },
   leaveReplyPlaceholder: {
@@ -93,7 +92,7 @@ export const issueCommentMessages = defineMessages({
   },
   editPlaceholder: {
     defaultMessage: "Edit comment…",
-    id: "tY4Hs9LmXc",
+    id: "nRQFI6PW+w",
     description: "Placeholder while editing an existing issue comment",
   },
   deleted: {
