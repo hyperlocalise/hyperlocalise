@@ -128,6 +128,22 @@ func TestPlaceholderTokenCountsSignalFastPath(t *testing.T) {
 	if fallbackCounts["icu:name"] != 0 {
 		t.Fatalf("expected no icu:name when ParseInvariant fails, got %v", fallbackCounts)
 	}
+
+	// ICU plural/select blocks with an offset must keep a stable token key so
+	// scoring hard-fails stay aligned across Bolt token-count fast-paths.
+	withOffset := "{count, plural, offset:1 one {# item} other {# items}}"
+	offsetInv, offsetErr := icuparser.ParseInvariant(withOffset)
+	if offsetErr != nil {
+		t.Fatalf("expected ICU parse success for offset block, got %v", offsetErr)
+	}
+	offsetCounts, offsetTotal := placeholderTokenCounts(withOffset, offsetInv, offsetErr)
+	if offsetTotal == 0 {
+		t.Fatalf("expected offset ICU tokens, got total=%d counts=%v", offsetTotal, offsetCounts)
+	}
+	wantOffsetKey := "icu-block:count(offset:1):plural:one,other"
+	if offsetCounts[wantOffsetKey] != 1 {
+		t.Fatalf("expected %q token, got %v", wantOffsetKey, offsetCounts)
+	}
 }
 
 func TestEvaluatorNormalizedReferenceIgnoresPunctuationAroundPlaceholders(t *testing.T) {
