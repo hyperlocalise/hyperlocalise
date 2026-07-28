@@ -347,9 +347,212 @@ func isSelfClosingXMLStart(text string, endOffset int) bool {
 	return true
 }
 
+type tagSpan struct {
+	start int
+	end   int
+}
+
+func isAlphaNumDashColonDot(c byte) bool {
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') ||
+		c == '_' || c == '-' || c == ':' || c == '.'
+}
+
+func isNamespaceDeclared(prefix, namespaceAttrs string) bool {
+	if prefix == "" {
+		return true
+	}
+	search := "xmlns:" + prefix + "="
+	return strings.Contains(namespaceAttrs, search)
+}
+
+func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
+	var stack [8]tagSpan
+	depth := 0
+
+	i := 0
+	for i < len(value) {
+		if value[i] == '<' {
+			if i+1 >= len(value) {
+				return false
+			}
+
+			if value[i+1] == '/' {
+				// Closing tag
+				nameStart := i + 2
+				nameEnd := nameStart
+				for nameEnd < len(value) && isAlphaNumDashColonDot(value[nameEnd]) {
+					nameEnd++
+				}
+				if nameEnd == nameStart {
+					return false
+				}
+
+				idx := nameEnd
+				for idx < len(value) && isXMLWhitespace(value[idx]) {
+					idx++
+				}
+				if idx >= len(value) || value[idx] != '>' {
+					return false
+				}
+
+				tagName := value[nameStart:nameEnd]
+				if depth == 0 {
+					return false
+				}
+				depth--
+				expected := stack[depth]
+				if value[expected.start:expected.end] != tagName {
+					return false
+				}
+				i = idx + 1
+				continue
+			}
+
+			// Opening or self-closing tag
+			nameStart := i + 1
+			nameEnd := nameStart
+			for nameEnd < len(value) && isAlphaNumDashColonDot(value[nameEnd]) {
+				nameEnd++
+			}
+			if nameEnd == nameStart {
+				return false
+			}
+
+			tagName := value[nameStart:nameEnd]
+			colonIdx := strings.IndexByte(tagName, ':')
+			if colonIdx >= 0 {
+				prefix := tagName[:colonIdx]
+				if !isNamespaceDeclared(prefix, namespaceAttrs) {
+					return false
+				}
+			}
+
+			idx := nameEnd
+			selfClosing := false
+			for {
+				// Skip whitespace
+				for idx < len(value) && isXMLWhitespace(value[idx]) {
+					idx++
+				}
+				if idx >= len(value) {
+					return false
+				}
+
+				if value[idx] == '>' {
+					idx++
+					break
+				}
+
+				if value[idx] == '/' {
+					idx++
+					for idx < len(value) && isXMLWhitespace(value[idx]) {
+						idx++
+					}
+					if idx < len(value) && value[idx] == '>' {
+						selfClosing = true
+						idx++
+						break
+					}
+					return false
+				}
+
+				// Attribute name
+				attrStart := idx
+				for idx < len(value) && isAlphaNumDashColonDot(value[idx]) {
+					idx++
+				}
+				if idx == attrStart {
+					return false
+				}
+				attrName := value[attrStart:idx]
+				attrColon := strings.IndexByte(attrName, ':')
+				if attrColon >= 0 {
+					prefix := attrName[:attrColon]
+					if !isNamespaceDeclared(prefix, namespaceAttrs) {
+						return false
+					}
+				}
+
+				// Skip whitespace before '='
+				for idx < len(value) && isXMLWhitespace(value[idx]) {
+					idx++
+				}
+				if idx >= len(value) || value[idx] != '=' {
+					return false
+				}
+				idx++ // Skip '='
+
+				// Skip whitespace after '='
+				for idx < len(value) && isXMLWhitespace(value[idx]) {
+					idx++
+				}
+				if idx >= len(value) {
+					return false
+				}
+
+				quote := value[idx]
+				if quote != '"' && quote != '\'' {
+					return false
+				}
+				idx++ // Skip quote
+
+				valStart := idx
+				for idx < len(value) && value[idx] != quote {
+					if value[idx] == '<' {
+						return false
+					}
+					idx++
+				}
+				if idx >= len(value) {
+					return false
+				}
+				valEnd := idx
+				idx++ // Skip closing quote
+
+				if strings.ContainsAny(value[valStart:valEnd], "&") {
+					return false
+				}
+			}
+
+			if !selfClosing {
+				if depth >= len(stack) {
+					return false
+				}
+				stack[depth] = tagSpan{start: nameStart, end: nameEnd}
+				depth++
+			}
+			i = idx
+			continue
+		} else if value[i] == '&' {
+			semiOffset := strings.IndexByte(value[i+1:], ';')
+			if semiOffset < 0 {
+				return false
+			}
+			entity := value[i+1 : i+1+semiOffset]
+			if !isXMLTextEntityReference(entity) {
+				return false
+			}
+			i += 1 + semiOffset + 1
+			continue
+		} else {
+			i++
+		}
+	}
+
+	return depth == 0
+}
+
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
 	// BOLT OPTIMIZATION: Fast-path for strings without '<', '&', or '>' to skip expensive XML well-formedness checks.
 	if !strings.ContainsAny(value, "<&>") {
+		return value
+	}
+
+	// BOLT OPTIMIZATION: Zero-allocation fast-path to check XML fragment well-formedness
+	// without creating a bytes.Buffer or instantiating an xml.Decoder.
+	if fastIsXMLFragmentWellFormed(value, namespaceAttrs) {
 		return value
 	}
 

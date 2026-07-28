@@ -105,6 +105,47 @@ func TestAndroidXMLResourcesParserRejectsUnsupportedTranslatableConstructs(t *te
 	}
 }
 
+func TestFastIsXMLFragmentWellFormed(t *testing.T) {
+	namespaceAttrs := ` xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools"`
+
+	tests := []struct {
+		name   string
+		val    string
+		expect bool
+	}{
+		{"plain text", "Hello World", true},
+		{"simple bold", "<b>Hello</b>", true},
+		{"multiple tags", "<b><i>Hello</i></b>", true},
+		{"xliff declared", `<xliff:g id="user">%1$s</xliff:g>`, true},
+		{"xliff undeclared", `<foo:g id="user">%1$s</foo:g>`, false},
+		{"attribute double quotes", `<a href="url">link</a>`, true},
+		{"attribute single quotes", `<a href='url'>link</a>`, true},
+		{"self closing tag", `<img src="foo.png" />`, true},
+		{"self closing tag with space before bracket", `<img src="foo.png"  /  >`, true},
+		{"trailing space inside tag", `<b >hello</b>`, true},
+		{"valid entity", "hello &amp; world", true},
+		{"invalid entity", "hello &unknown; world", false},
+		{"unclosed tag", "<b>hello", false},
+		{"mismatched tag name", "<b>hello</i>", false},
+		{"mismatched tag case", "<b>hello</B>", false},
+		{"unclosed quote", `<a href="url>link</a>`, false},
+		{"missing quote", `<a href=url>link</a>`, false},
+		{"ampersand in attribute value", `<a href="url&amp;x">link</a>`, false},
+		{"unclosed entity reference", "hello &amp world", false},
+		{"unclosed element tag", "<b", false},
+		{"empty element name", "<>", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := fastIsXMLFragmentWellFormed(tt.val, namespaceAttrs)
+			if got != tt.expect {
+				t.Errorf("fastIsXMLFragmentWellFormed(%q) = %v, want %v", tt.val, got, tt.expect)
+			}
+		})
+	}
+}
+
 func TestIsAndroidStringResourcePath(t *testing.T) {
 	for _, tc := range []struct {
 		path string
