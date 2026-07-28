@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
@@ -38,7 +38,10 @@ import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
-import { allocateUniqueProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import {
+  allocateUniqueProjectIdentifier,
+  isProjectIdentifierTaken,
+} from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import {
   createRepositorySourceFileVersion,
@@ -363,16 +366,10 @@ const projectStore: ProjectStore = {
         });
       }
 
-      const [taken] = await db
-        .select({ id: schema.projects.id })
-        .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.identifier, parsedIdentifier.data),
-            ne(schema.projects.id, projectId),
-          ),
-        )
-        .limit(1);
+      const taken = await isProjectIdentifierTaken({
+        identifier: parsedIdentifier.data,
+        excludeProjectId: projectId,
+      });
 
       if (taken) {
         return err({

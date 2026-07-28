@@ -34,8 +34,16 @@ export const issueIdSchema = z
   .trim()
   .regex(/^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/, "issue id must look like PREFIX-123");
 
+const ISSUE_IDENTIFIER_PREFIX_PATTERN = /^([A-Z][A-Z0-9]{0,9})-[1-9][0-9]*$/;
+
 export function formatIssueId(projectIdentifier: string, number: number) {
   return `${projectIdentifier}-${number}`;
+}
+
+/** Extract the project prefix from a PREFIX-N issue identifier, or null if invalid. */
+export function extractProjectIdentifierPrefix(issueIdentifier: string): string | null {
+  const match = ISSUE_IDENTIFIER_PREFIX_PATTERN.exec(issueIdentifier.trim());
+  return match?.[1] ?? null;
 }
 
 /**

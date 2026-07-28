@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   deriveProjectIdentifierCandidate,
+  extractProjectIdentifierPrefix,
   formatIssueId,
   issueIdSchema,
   projectIssueIdentifierSchema,
@@ -49,6 +50,18 @@ describe("issueIdSchema", () => {
 describe("formatIssueId", () => {
   it("joins prefix and number", () => {
     expect(formatIssueId("HL", 123)).toBe("HL-123");
+  });
+});
+
+describe("extractProjectIdentifierPrefix", () => {
+  it("extracts PREFIX from PREFIX-N", () => {
+    expect(extractProjectIdentifierPrefix("HL-123")).toBe("HL");
+    expect(extractProjectIdentifierPrefix("APP2-1")).toBe("APP2");
+  });
+
+  it("returns null for non-matching identifiers", () => {
+    expect(extractProjectIdentifierPrefix("not-an-id")).toBeNull();
+    expect(extractProjectIdentifierPrefix("2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21")).toBeNull();
   });
 });
 
