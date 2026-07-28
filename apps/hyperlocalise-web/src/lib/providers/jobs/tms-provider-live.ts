@@ -2335,8 +2335,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
     search: paginationInput.search,
   });
 
-  const useFileScopedCroql =
-    croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
+  const useFileScopedCroql = croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
 
   if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
     throw new TmsProviderLiveError(
