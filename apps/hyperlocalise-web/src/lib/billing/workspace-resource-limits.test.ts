@@ -19,6 +19,7 @@ import { beforeAll, describe, expect, it, afterEach } from "vite-plus/test";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import {
   ensureWorkspaceResourceLimitAvailable,
   getWorkspaceResourceUsage,
@@ -63,6 +64,7 @@ describe("workspace resource limits", () => {
 
     await db.insert(schema.projects).values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       createdByUserId: user.id,
       name: "Existing project",
@@ -126,6 +128,7 @@ describe("workspace resource limits", () => {
               .insert(schema.projects)
               .values({
                 id: `project_${randomUUID()}`,
+                identifier: uniqueTestProjectIdentifier(),
                 organizationId: organization.id,
                 createdByUserId: user.id,
                 name: "Concurrent project",

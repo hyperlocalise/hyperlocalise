@@ -102,7 +102,7 @@ export function createIssueSheetIssue(
   overrides: Partial<IssueSheetIssueFixture> = {},
 ): IssueSheetIssueFixture {
   return {
-    id: "issue_001",
+    id: "WEB-1",
     title: "Source string needs context",
     description: "The CTA is ambiguous.",
     issueType: "context_request",
@@ -133,7 +133,7 @@ export function createIssueSheetIssue(
 export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
   createIssueSheetIssue(),
   createIssueSheetIssue({
-    id: "issue_002",
+    id: "WEB-2",
     title: "Translation mistake in checkout",
     description: "Payment button label is too long in French.",
     issueType: "translation_mistake",
@@ -151,7 +151,7 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     updatedAt: iso(-3_600_000),
   }),
   createIssueSheetIssue({
-    id: "issue_003",
+    id: "WEB-3",
     title: "QA failure on hero headline",
     description: "Length check failed for German headline.",
     issueType: "qa_failure",

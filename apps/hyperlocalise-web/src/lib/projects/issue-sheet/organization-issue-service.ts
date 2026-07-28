@@ -34,6 +34,7 @@ const assigneeUsers = alias(schema.users, "org_issue_assignee_users");
 
 export type OrganizationIssueListItem = {
   id: string;
+  number: number;
   projectId: string;
   projectName: string;
   title: string;
@@ -149,6 +150,7 @@ export class OrganizationIssueService {
       query,
       searchTargets: search
         ? [
+            ilike(schema.issueSheetIssues.id, search),
             ilike(schema.issueSheetIssues.title, search),
             ilike(schema.issueSheetIssues.description, search),
             ilike(schema.issueSheetIssues.sourcePath, search),
@@ -169,6 +171,7 @@ export class OrganizationIssueService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        number: schema.issueSheetIssues.number,
         projectId: schema.issueSheetIssues.projectId,
         projectName: schema.projects.name,
         title: schema.issueSheetIssues.title,
@@ -234,6 +237,7 @@ export class OrganizationIssueService {
     return {
       issues: rows.map((row) => ({
         id: row.id,
+        number: row.number,
         projectId: row.projectId,
         projectName: row.projectName,
         title: row.title,

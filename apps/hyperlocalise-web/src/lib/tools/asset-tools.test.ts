@@ -23,6 +23,7 @@ vi.hoisted(() => {
 
 import { db, schema } from "@/lib/database";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createQueryGlossaryTool, createQueryTranslationMemoryTool } from "./asset-tools";
 
@@ -59,6 +60,7 @@ async function createProject(organizationId: string) {
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       name: "Launch Site",
       description: "",

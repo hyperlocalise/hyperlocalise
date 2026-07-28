@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { isContentfulPublishFromRecentHyperlocaliseWriteback } from "./events";
 
@@ -45,6 +46,7 @@ async function seedContentfulWritebackScope() {
 
       await db.insert(schema.projects).values({
         id: projectId,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId,
         createdByUserId: userId,
         name: "Website",

@@ -229,6 +229,9 @@ export function IssuesPageView({
                       className="font-medium text-foreground hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
+                      <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
+                        {issue.id}
+                      </span>
                       {issue.title}
                     </Link>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">

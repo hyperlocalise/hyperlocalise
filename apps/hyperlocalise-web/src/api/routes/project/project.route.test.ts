@@ -21,6 +21,7 @@ import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
 import type {
@@ -102,6 +103,7 @@ describe("project detail route", () => {
 
     await db.insert(schema.projects).values({
       id: projectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       teamId: null,
       createdByUserId: userId,

@@ -17,6 +17,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import {
@@ -66,6 +67,7 @@ async function seedWorkspaceAutomationScope() {
 
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId,
     createdByUserId: userId,
     name: "Website",

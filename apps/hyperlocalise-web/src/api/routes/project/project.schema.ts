@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   localeInputSchema,
@@ -82,6 +83,7 @@ export const updateProjectBodySchema = z
     teamId: z.string().uuid().optional(),
     sourceLocale: localeInputSchema.optional(),
     targetLocales: projectTargetLocalesSchema.optional(),
+    identifier: projectIssueIdentifierSchema.optional(),
   })
   .refine(
     (value) =>
@@ -90,7 +92,8 @@ export const updateProjectBodySchema = z
       value.translationContext !== undefined ||
       value.teamId !== undefined ||
       value.sourceLocale !== undefined ||
-      value.targetLocales !== undefined,
+      value.targetLocales !== undefined ||
+      value.identifier !== undefined,
     {
       message: "at least one field must be provided",
     },
@@ -121,6 +124,7 @@ export const projectRecordSchema = z.object({
   teamId: z.string().uuid().nullable(),
   createdByUserId: z.string().nullable(),
   name: z.string(),
+  identifier: z.string(),
   description: z.string(),
   translationContext: z.string(),
   source: z.enum(["native", "external_tms"]),

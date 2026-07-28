@@ -32,7 +32,7 @@ export function createOrganizationIssue(
   overrides: Partial<OrganizationIssue> = {},
 ): OrganizationIssue {
   return {
-    id: "issue_001",
+    id: "WEB-1",
     projectId: "project_website",
     projectName: "Website localization",
     title: "Source string needs context",
@@ -55,7 +55,7 @@ export function createOrganizationIssue(
 export const organizationIssuesFixture: OrganizationIssue[] = [
   createOrganizationIssue(),
   createOrganizationIssue({
-    id: "issue_002",
+    id: "WEB-2",
     title: "Translation mistake in checkout",
     description: "Payment button label is too long in French.",
     issueType: "translation_mistake",
@@ -66,7 +66,7 @@ export const organizationIssuesFixture: OrganizationIssue[] = [
     updatedAt: iso(-3_600_000),
   }),
   createOrganizationIssue({
-    id: "issue_003",
+    id: "MOB-1",
     projectId: "project_mobile",
     projectName: "Mobile app",
     title: "Glossary violation in onboarding",
@@ -80,7 +80,7 @@ export const organizationIssuesFixture: OrganizationIssue[] = [
     updatedAt: iso(-7_200_000),
   }),
   createOrganizationIssue({
-    id: "issue_004",
+    id: "WEB-3",
     title: "QA failure on hero headline",
     description: "Length check failed for German headline.",
     issueType: "qa_failure",

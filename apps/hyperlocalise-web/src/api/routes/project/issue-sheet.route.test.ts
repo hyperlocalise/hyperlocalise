@@ -16,6 +16,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -536,6 +537,7 @@ Second import issue,Done,EXT-2,P2`;
       .insert(schema.projects)
       .values({
         id: `project_${crypto.randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: project.teamId,
         createdByUserId: user.id,

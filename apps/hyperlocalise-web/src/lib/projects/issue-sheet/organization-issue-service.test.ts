@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { OrganizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -29,6 +30,7 @@ async function createProjectForIdentity() {
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       teamId: team.id,
       createdByUserId: user.id,
@@ -73,10 +75,7 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
 
-    const issue = await organizationIssueService.getById(
-      auth,
-      "00000000-0000-4000-8000-000000000000",
-    );
+    const issue = await organizationIssueService.getById(auth, "MISSING-1");
     expect(issue).toBeNull();
   });
 
@@ -115,6 +114,7 @@ describe("IssueSheetService.getIssue", () => {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: project.teamId,
         createdByUserId: user.id,

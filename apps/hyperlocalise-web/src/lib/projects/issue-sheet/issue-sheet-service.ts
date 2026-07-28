@@ -22,6 +22,7 @@ import {
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema } from "@/lib/database";
+import { allocateNextIssueId } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import {
   runIssueSheetCsvImport,
@@ -50,6 +51,7 @@ export type IssueSheetColumn = {
 
 export type IssueSheetIssue = {
   id: string;
+  number: number;
   title: string;
   description: string;
   issueType: string;
@@ -125,6 +127,7 @@ const assigneeUsers = alias(schema.users, "assignee_users");
 
 type IssueRow = {
   id: string;
+  number: number;
   title: string;
   description: string;
   issueType: string;
@@ -168,6 +171,7 @@ function formatUser(row: {
 function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheetIssue {
   return {
     id: row.id,
+    number: row.number,
     title: row.title,
     description: row.description,
     issueType: row.issueType,
@@ -356,34 +360,47 @@ export class IssueSheetService {
       return existing;
     }
 
-    const [issue] = await this.database
-      .insert(schema.issueSheetIssues)
-      .values({
-        organizationId: input.organizationId,
+    const createdId = await this.database.transaction(async (tx) => {
+      const allocated = await allocateNextIssueId({
         projectId: input.projectId,
-        title: input.body.title,
-        description: input.body.description ?? "",
-        issueType: input.body.issueType ?? "general_question",
-        status: input.body.status ?? "open",
-        targetLocale: input.body.targetLocale ?? null,
-        sourcePath: input.body.sourcePath ?? null,
-        segmentId: input.body.segmentId ?? null,
-        translationKeyId: input.body.translationKeyId ?? null,
-        linkedCommentId: input.body.linkedCommentId ?? null,
-        linkedAgentRunId: input.body.linkedAgentRunId ?? null,
-        linkKind: input.body.linkKind ?? null,
-        linkLabel: input.body.linkLabel ?? null,
-        linkUrl: input.body.linkUrl ?? null,
-        externalRef: input.body.externalRef ?? null,
-        reporterUserId: input.actorUserId,
-        assigneeUserId: input.body.assigneeUserId ?? null,
-        resolvedAt:
-          input.body.status === "resolved" || input.body.status === "wont_fix" ? new Date() : null,
-      })
-      .onConflictDoNothing()
-      .returning({ id: schema.issueSheetIssues.id });
+        database: tx,
+      });
 
-    if (!issue) {
+      const [issue] = await tx
+        .insert(schema.issueSheetIssues)
+        .values({
+          id: allocated.id,
+          number: allocated.number,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          title: input.body.title,
+          description: input.body.description ?? "",
+          issueType: input.body.issueType ?? "general_question",
+          status: input.body.status ?? "open",
+          targetLocale: input.body.targetLocale ?? null,
+          sourcePath: input.body.sourcePath ?? null,
+          segmentId: input.body.segmentId ?? null,
+          translationKeyId: input.body.translationKeyId ?? null,
+          linkedCommentId: input.body.linkedCommentId ?? null,
+          linkedAgentRunId: input.body.linkedAgentRunId ?? null,
+          linkKind: input.body.linkKind ?? null,
+          linkLabel: input.body.linkLabel ?? null,
+          linkUrl: input.body.linkUrl ?? null,
+          externalRef: input.body.externalRef ?? null,
+          reporterUserId: input.actorUserId,
+          assigneeUserId: input.body.assigneeUserId ?? null,
+          resolvedAt:
+            input.body.status === "resolved" || input.body.status === "wont_fix"
+              ? new Date()
+              : null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.issueSheetIssues.id });
+
+      return issue?.id ?? null;
+    });
+
+    if (!createdId) {
       const conflicted = await this.findExistingLinkedIssue(input);
       if (conflicted) {
         return conflicted;
@@ -395,7 +412,7 @@ export class IssueSheetService {
       await this.setValue({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: issue.id,
+        issueId: createdId,
         body: { columnKey: "priority", value: input.body.priority },
       });
     }
@@ -403,7 +420,7 @@ export class IssueSheetService {
     const created = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: issue.id,
+      issueId: createdId,
       actorUserId: input.actorUserId,
     });
     if (!created) {
@@ -681,6 +698,7 @@ export class IssueSheetService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        number: schema.issueSheetIssues.number,
         title: schema.issueSheetIssues.title,
         description: schema.issueSheetIssues.description,
         issueType: schema.issueSheetIssues.issueType,

@@ -13,7 +13,9 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -50,6 +52,13 @@ export const projects = pgTable(
     }),
     // Human-readable project name shown in app lists and settings.
     name: text("name").notNull(),
+    // Short prefix for human-readable issue IDs (e.g. HL → HL-123). Globally unique.
+    // Default is only for schema migrations on existing rows; app code always sets a real prefix.
+    identifier: text("identifier")
+      .notNull()
+      .default(sql`'P' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 9))`),
+    // Last allocated per-project issue serial number.
+    issueNumberSeq: integer("issue_number_seq").notNull().default(0),
     // Optional long-form description for operator context.
     description: text("description").notNull().default(""),
     // Shared project-level translation guidance injected into job execution.
@@ -96,6 +105,7 @@ export const projects = pgTable(
   },
   (table) => [
     uniqueIndex("projects_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("projects_identifier_key").on(table.identifier),
     uniqueIndex("projects_org_provider_external_project_key").on(
       table.organizationId,
       table.externalProviderKind,
@@ -104,5 +114,7 @@ export const projects = pgTable(
     index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_projects_team_id").on(table.teamId),
     index("idx_projects_created_by_user_id").on(table.createdByUserId),
+    check("projects_identifier_format_check", sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`),
+    check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
   ],
 );

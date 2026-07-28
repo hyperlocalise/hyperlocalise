@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { completeAgentRun, createAgentRun, startAgentRun } from "../agent-runs/agent-runs";
 import { serializeAgentRunProposalItem } from "./agent-run-proposals";
@@ -79,6 +80,7 @@ describe("provider-agent-writeback", () => {
 
     await db.insert(schema.projects).values({
       id: projectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       name: "External TMS Project",
       source: "external_tms",
@@ -214,6 +216,7 @@ describe("provider-agent-writeback", () => {
 
     await db.insert(schema.projects).values({
       id: projectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       name: "External TMS Project",
       source: "external_tms",

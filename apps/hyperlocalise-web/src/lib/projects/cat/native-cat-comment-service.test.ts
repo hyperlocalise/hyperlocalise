@@ -23,6 +23,7 @@ import {
   upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { NativeCatCommentService } from "./native-cat-comment-service";
 
@@ -51,6 +52,7 @@ describe("NativeCatCommentService.resolve", () => {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: team.id,
         createdByUserId: authorUser.id,
@@ -122,6 +124,7 @@ describe("NativeCatCommentService.resolve", () => {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: team.id,
         createdByUserId: authorUser.id,

@@ -78,9 +78,9 @@ export const issueListFiltersBarMessages = defineMessages({
     description: "Label for the issue list project filter",
   },
   searchPlaceholder: {
-    defaultMessage: "Search title, description, or source path",
-    id: "GPvLe8OXlJ",
-    description: "Default placeholder for the issue list search input",
+    defaultMessage: "Search ID, title, description, or source path",
+    id: "OGfnfxue9S",
+    description: "Placeholder for the issue list search field",
   },
   localePlaceholder: {
     defaultMessage: "e.g. de-DE",

@@ -22,6 +22,7 @@ vi.hoisted(() => {
 });
 
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { listGlossaryTermsForProject } from "./query-glossary-terms";
 
@@ -47,6 +48,7 @@ async function createProject(organizationId: string) {
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       name: "Launch Site",
       description: "",

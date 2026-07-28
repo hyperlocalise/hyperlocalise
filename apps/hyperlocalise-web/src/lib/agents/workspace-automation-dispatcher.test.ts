@@ -19,6 +19,7 @@ import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
 
 import { createContentfulConnection } from "@/lib/contentful/connections";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createWorkspaceAutomation, listWorkspaceAutomationRuns } from "./workspace-automations";
 
@@ -62,6 +63,7 @@ async function seedDispatchScope() {
   const projectId = `project-${organizationId.slice(0, 8)}`;
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId,
     createdByUserId: userId,
     name: "Website",

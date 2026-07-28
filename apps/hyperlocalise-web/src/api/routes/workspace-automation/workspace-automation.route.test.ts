@@ -48,6 +48,7 @@ vi.mock("@/workflows/adapters", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 const client = testClient(createApp());
 const fixture = createAuthTestFixture();
@@ -79,6 +80,7 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
   const projectId = `project-${crypto.randomUUID()}`;
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId: input.organizationId,
     createdByUserId: input.userId ?? null,
     name: "Website",
