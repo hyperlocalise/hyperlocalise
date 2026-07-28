@@ -14,7 +14,8 @@
  */
 import { useCallback, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { ArrowUp01Icon } from "@hugeicons/core-free-icons";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -23,6 +24,7 @@ import {
   type MarkdownMentionConfig,
 } from "@/components/markdown-editor/markdown-editor";
 import { markdownEditorMessages } from "@/components/markdown-editor/markdown-editor.messages";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
@@ -35,6 +37,8 @@ type IssueCommentComposerProps = {
   parentId?: string | null;
   replyToName?: string | null;
   disabled?: boolean;
+  /** Compact footer row inside a root comment card (Linear-style). */
+  variant?: "card" | "inline";
   onCancel?: () => void;
   onSubmit: (input: {
     body: string;
@@ -44,6 +48,15 @@ type IssueCommentComposerProps = {
   }) => Promise<void> | void;
 };
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function IssueCommentComposer({
   organizationSlug,
   projectId,
@@ -51,12 +64,20 @@ export function IssueCommentComposer({
   parentId = null,
   replyToName = null,
   disabled = false,
+  variant = "card",
   onCancel,
   onSubmit,
 }: IssueCommentComposerProps) {
   const intl = useIntl();
+  const { user } = useAuth();
   const [value, setValue] = useState("");
+  const [editorKey, setEditorKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.email ||
+    intl.formatMessage(messages.unknownAuthor);
 
   const mentionConfig = useMemo<MarkdownMentionConfig>(
     () => ({
@@ -94,13 +115,13 @@ export function IssueCommentComposer({
           };
         };
         return {
-          users: body.mentionSuggestions.users.map((user) => ({
+          users: body.mentionSuggestions.users.map((entry) => ({
             kind: "user" as const,
-            id: `user:${user.userId}`,
-            userId: user.userId,
-            displayName: user.displayName,
-            avatarUrl: user.avatarUrl,
-            isAgent: user.isAgent,
+            id: `user:${entry.userId}`,
+            userId: entry.userId,
+            displayName: entry.displayName,
+            avatarUrl: entry.avatarUrl,
+            isAgent: entry.isAgent,
           })),
           issues: body.mentionSuggestions.issues.map((issue) => ({
             kind: "issue" as const,
@@ -132,34 +153,95 @@ export function IssueCommentComposer({
         mentionedIssueIds: mentions.mentionedIssueIds,
       });
       setValue("");
+      setEditorKey((key) => key + 1);
     } finally {
       setIsSubmitting(false);
     }
   }, [disabled, isSubmitting, onSubmit, parentId, value]);
 
+  const placeholder = replyToName
+    ? intl.formatMessage(messages.replyPlaceholder, { name: replyToName })
+    : variant === "inline"
+      ? intl.formatMessage(messages.leaveReplyPlaceholder)
+      : intl.formatMessage(messages.leaveCommentPlaceholder);
+
+  const canSubmit = !disabled && !isSubmitting && Boolean(value.trim());
+
+  if (variant === "inline") {
+    return (
+      <div className={cn("flex items-start gap-2", disabled && "opacity-60")}>
+        <Avatar size="sm" className="mt-0.5 size-6">
+          {user?.profilePictureUrl ? <AvatarImage src={user.profilePictureUrl} alt="" /> : null}
+          <AvatarFallback className="text-[10px]">{initials(displayName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <MarkdownEditor
+            key={editorKey}
+            value={value}
+            onChange={setValue}
+            disabled={disabled || isSubmitting}
+            chrome="minimal"
+            compact
+            mentionConfig={mentionConfig}
+            placeholder={placeholder}
+            className="min-h-6 border-0 bg-transparent p-0 shadow-none"
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onCancel ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              <FormattedMessage {...messages.cancel} />
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon-sm"
+            className="size-7 rounded-full text-muted-foreground disabled:opacity-40"
+            disabled={!canSubmit}
+            aria-label={intl.formatMessage(messages.send)}
+            onClick={() => void handleSubmit()}
+          >
+            <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={cn("rounded-xl border border-border bg-muted/40 p-2", disabled && "opacity-60")}
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-card shadow-xs",
+        disabled && "opacity-60",
+      )}
     >
-      <MarkdownEditor
-        value={value}
-        onChange={setValue}
-        disabled={disabled || isSubmitting}
-        chrome="minimal"
-        mentionConfig={mentionConfig}
-        placeholder={
-          replyToName
-            ? intl.formatMessage(messages.replyPlaceholder, { name: replyToName })
-            : intl.formatMessage(markdownEditorMessages.commentPlaceholder)
-        }
-        className="min-h-[4rem]"
-      />
-      <div className="mt-2 flex items-center justify-end gap-2">
+      <div className="px-3.5 pt-3 pb-1.5">
+        <MarkdownEditor
+          key={editorKey}
+          value={value}
+          onChange={setValue}
+          disabled={disabled || isSubmitting}
+          chrome="minimal"
+          mentionConfig={mentionConfig}
+          placeholder={placeholder}
+          className="min-h-14 border-0 bg-transparent p-0 shadow-none"
+        />
+      </div>
+      <div className="flex items-center justify-end gap-1 px-2.5 pb-2.5">
         {onCancel ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            className="mr-auto h-7 px-2 text-xs"
             onClick={onCancel}
             disabled={isSubmitting}
           >
@@ -168,12 +250,14 @@ export function IssueCommentComposer({
         ) : null}
         <Button
           type="button"
-          size="sm"
-          disabled={disabled || isSubmitting || !value.trim()}
+          variant="secondary"
+          size="icon-sm"
+          className="size-7 rounded-full text-muted-foreground disabled:opacity-40"
+          disabled={!canSubmit}
+          aria-label={intl.formatMessage(messages.send)}
           onClick={() => void handleSubmit()}
         >
-          <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={1.8} className="size-3.5" />
-          <FormattedMessage {...messages.send} />
+          <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-3.5" />
         </Button>
       </div>
     </div>

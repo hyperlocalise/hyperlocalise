@@ -492,12 +492,6 @@ export const IssueDetailPanel = forwardRef<
           />
         </section>
 
-        <IssueCommentThread
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          issueId={issue.id}
-        />
-
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
             <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
@@ -532,6 +526,12 @@ export const IssueDetailPanel = forwardRef<
             </div>
           </section>
         ) : null}
+
+        <IssueCommentThread
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          issueId={issue.id}
+        />
       </div>
 
       <aside className="flex min-h-0 flex-col gap-1 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">

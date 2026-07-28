@@ -20,9 +20,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 import type { MarkdownMentionSuggestion } from "./markdown-editor-mention-types";
+
+const MENTION_SKELETON_ROW_COUNT = 5;
 
 export type MarkdownMentionListHandle = {
   onKeyDown: (event: globalThis.KeyboardEvent) => boolean;
@@ -30,6 +33,7 @@ export type MarkdownMentionListHandle = {
 
 type MarkdownMentionListProps = {
   items: MarkdownMentionSuggestion[];
+  loading?: boolean;
   emptyLabel: string;
   usersSectionLabel: string;
   issuesSectionLabel: string;
@@ -65,9 +69,23 @@ function IssueStatusIcon({ status }: { status: string }) {
   );
 }
 
+function MentionListSkeleton() {
+  return (
+    <div className="grid gap-1 p-0.5" aria-busy="true" aria-live="polite">
+      {Array.from({ length: MENTION_SKELETON_ROW_COUNT }, (_, index) => (
+        <div key={index} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+          <Skeleton className="size-6 shrink-0 rounded-full" />
+          <Skeleton className="h-4 flex-1 rounded-md" />
+          {index > 2 ? <Skeleton className="h-4 w-14 shrink-0 rounded-md" /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const MarkdownMentionList = forwardRef<MarkdownMentionListHandle, MarkdownMentionListProps>(
   function MarkdownMentionList(
-    { items, emptyLabel, usersSectionLabel, issuesSectionLabel, command },
+    { items, loading = false, emptyLabel, usersSectionLabel, issuesSectionLabel, command },
     ref,
   ) {
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -80,20 +98,27 @@ export const MarkdownMentionList = forwardRef<MarkdownMentionListHandle, Markdow
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event: globalThis.KeyboardEvent) => {
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          if (items.length === 0) {
+        if (loading || items.length === 0) {
+          if (
+            event.key === "ArrowUp" ||
+            event.key === "ArrowDown" ||
+            event.key === "Enter" ||
+            event.key === "Tab"
+          ) {
+            event.preventDefault();
             return true;
           }
+          return false;
+        }
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
           setSelectedIndex((index) => (index + items.length - 1) % items.length);
           return true;
         }
 
         if (event.key === "ArrowDown") {
           event.preventDefault();
-          if (items.length === 0) {
-            return true;
-          }
           setSelectedIndex((index) => (index + 1) % items.length);
           return true;
         }
@@ -168,7 +193,9 @@ export const MarkdownMentionList = forwardRef<MarkdownMentionListHandle, Markdow
         role="listbox"
         data-markdown-mention-menu=""
       >
-        {items.length === 0 ? (
+        {loading ? (
+          <MentionListSkeleton />
+        ) : items.length === 0 ? (
           <p className="px-2.5 py-2 text-sm text-muted-foreground">{emptyLabel}</p>
         ) : (
           <>
@@ -217,6 +244,7 @@ export function createMarkdownMentionSuggestionRender(
 
   const renderList = (props: {
     items: MarkdownMentionSuggestion[];
+    loading: boolean;
     command: (item: MarkdownMentionSuggestion) => void;
   }) => {
     if (!root) {
@@ -229,6 +257,7 @@ export function createMarkdownMentionSuggestionRender(
           listHandle = instance;
         }}
         items={props.items}
+        loading={props.loading}
         emptyLabel={labels.emptyLabel}
         usersSectionLabel={labels.usersSectionLabel}
         issuesSectionLabel={labels.issuesSectionLabel}
@@ -246,6 +275,7 @@ export function createMarkdownMentionSuggestionRender(
       root = createRoot(element);
       renderList({
         items: props.items,
+        loading: props.loading,
         command: (item) => props.command(item),
       });
       unmountFloating = props.mount(element);
@@ -253,6 +283,7 @@ export function createMarkdownMentionSuggestionRender(
     onUpdate: (props: SuggestionProps<MarkdownMentionSuggestion, MarkdownMentionSuggestion>) => {
       renderList({
         items: props.items,
+        loading: props.loading,
         command: (item) => props.command(item),
       });
     },

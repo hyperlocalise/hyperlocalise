@@ -24,18 +24,29 @@ describe("markdown mention helpers", () => {
     expect(mentionHrefForUser("11111111-1111-4111-8111-111111111111")).toBe(
       "mention:user:11111111-1111-4111-8111-111111111111",
     );
-    expect(mentionHrefForIssue("22222222-2222-4222-8222-222222222222")).toBe(
-      "mention:issue:22222222-2222-4222-8222-222222222222",
-    );
+    expect(
+      mentionHrefForIssue("22222222-2222-4222-8222-222222222222", "project_website"),
+    ).toBe("mention:issue:22222222-2222-4222-8222-222222222222:project_website");
     expect(parseMentionHref("mention:user:11111111-1111-4111-8111-111111111111")).toEqual({
       kind: "user",
       id: "11111111-1111-4111-8111-111111111111",
     });
+    expect(
+      parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222:project_website"),
+    ).toEqual({
+      kind: "issue",
+      id: "22222222-2222-4222-8222-222222222222",
+      projectId: "project_website",
+    });
+  });
+
+  it("rejects issue mention hrefs without project id", () => {
+    expect(parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222")).toBeNull();
   });
 
   it("extracts user and issue ids from markdown", () => {
     const markdown =
-      "Hello [@Ada](mention:user:11111111-1111-4111-8111-111111111111) see [@HL-1](mention:issue:22222222-2222-4222-8222-222222222222)";
+      "Hello [@Ada](mention:user:11111111-1111-4111-8111-111111111111) see [@HL-1](mention:issue:22222222-2222-4222-8222-222222222222:project_website)";
     expect(extractMentionIdsFromMarkdown(markdown)).toEqual({
       mentionedUserIds: ["11111111-1111-4111-8111-111111111111"],
       mentionedIssueIds: ["22222222-2222-4222-8222-222222222222"],

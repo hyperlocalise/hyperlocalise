@@ -46,23 +46,34 @@ export type MarkdownMentionConfig = {
   issuesSectionLabel: string;
 };
 
+export type ParsedMarkdownMention =
+  | { kind: "user"; id: string }
+  | { kind: "issue"; id: string; projectId: string };
+
 export function mentionHrefForUser(userId: string) {
   return `mention:user:${userId}`;
 }
 
-export function mentionHrefForIssue(issueId: string) {
-  return `mention:issue:${issueId}`;
+export function mentionHrefForIssue(issueId: string, projectId: string) {
+  return `mention:issue:${issueId}:${encodeURIComponent(projectId)}`;
 }
 
-export function parseMentionHref(href: string): {
-  kind: "user" | "issue";
-  id: string;
-} | null {
-  const match = /^mention:(user|issue):(.+)$/.exec(href);
-  if (!match) {
-    return null;
+export function parseMentionHref(href: string): ParsedMarkdownMention | null {
+  const userMatch = /^mention:user:(.+)$/.exec(href);
+  if (userMatch?.[1]) {
+    return { kind: "user", id: userMatch[1] };
   }
-  return { kind: match[1] as "user" | "issue", id: match[2]! };
+
+  const issueMatch = /^mention:issue:([^:]+):(.+)$/.exec(href);
+  if (issueMatch?.[1] && issueMatch[2]) {
+    return {
+      kind: "issue",
+      id: issueMatch[1],
+      projectId: decodeURIComponent(issueMatch[2]),
+    };
+  }
+
+  return null;
 }
 
 export function extractMentionIdsFromMarkdown(markdown: string): {

@@ -45,6 +45,22 @@ export const issueCommentMessages = defineMessages({
     id: "PFZxqLi3PC",
     description: "Button to delete an issue comment",
   },
+  deleteConfirmTitle: {
+    defaultMessage: "Delete comment?",
+    id: "8qKp2nVxLm",
+    description: "Title for the delete issue comment confirmation dialog",
+  },
+  deleteConfirmDescription: {
+    defaultMessage:
+      "This cannot be undone. Any replies to this comment will also be deleted.",
+    id: "R4mN7wYsHt",
+    description: "Description for the delete issue comment confirmation dialog",
+  },
+  deleteConfirmAction: {
+    defaultMessage: "Delete comment",
+    id: "pL9vC3xQeA",
+    description: "Confirm button to permanently delete an issue comment",
+  },
   save: {
     defaultMessage: "Save",
     id: "WGdyHUxjsB",
@@ -56,7 +72,7 @@ export const issueCommentMessages = defineMessages({
     description: "Button to cancel editing or replying to a comment",
   },
   send: {
-    defaultMessage: "Comment",
+    defaultMessage: "Send",
     id: "TblvRGacjD",
     description: "Button to submit a new issue comment",
   },
@@ -64,6 +80,21 @@ export const issueCommentMessages = defineMessages({
     defaultMessage: "Reply to {name}…",
     id: "NfaH4ei+PF",
     description: "Placeholder when replying to a specific comment author",
+  },
+  leaveCommentPlaceholder: {
+    defaultMessage: "Leave a comment…",
+    id: "k8Vw2mNpQr",
+    description: "Placeholder for the top-level issue comment composer",
+  },
+  leaveReplyPlaceholder: {
+    defaultMessage: "Leave a reply…",
+    id: "D31YyOoRzS",
+    description: "Placeholder for the inline reply row on a root comment card",
+  },
+  editPlaceholder: {
+    defaultMessage: "Edit comment…",
+    id: "tY4Hs9LmXc",
+    description: "Placeholder while editing an existing issue comment",
   },
   deleted: {
     defaultMessage: "Comment deleted",

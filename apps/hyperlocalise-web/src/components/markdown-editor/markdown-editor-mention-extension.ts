@@ -46,7 +46,8 @@ export function createMarkdownMentionExtension(getConfig: () => MarkdownMentionC
           pluginKey: markdownMentionPluginKey,
           char: "@",
           allowedPrefixes: [" ", "\n"],
-          startOfLine: true,
+          startOfLine: false,
+          debounce: 200,
           floatingUi: {
             strategy: "fixed",
           },
@@ -59,11 +60,11 @@ export function createMarkdownMentionExtension(getConfig: () => MarkdownMentionC
             return [...result.users, ...result.issues];
           },
           command: ({ editor, range, props }) => {
-            const label = props.kind === "user" ? props.displayName : props.displayKey;
+            const label = props.kind === "user" ? props.displayName : props.title;
             const href =
               props.kind === "user"
                 ? mentionHrefForUser(props.userId)
-                : mentionHrefForIssue(props.issueId);
+                : mentionHrefForIssue(props.issueId, props.projectId);
 
             editor
               .chain()

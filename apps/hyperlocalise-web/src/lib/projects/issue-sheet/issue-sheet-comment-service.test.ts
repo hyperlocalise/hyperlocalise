@@ -192,7 +192,7 @@ describe("IssueSheetCommentService", () => {
       actorUserId: user.id,
       role: "admin",
       body: {
-        body: "See @[ISSUE](mention:issue:00000000-0000-4000-8000-000000000001)",
+        body: "See @[ISSUE](mention:issue:00000000-0000-4000-8000-000000000001:other_project)",
         mentionedIssueIds: ["00000000-0000-4000-8000-000000000001"],
       },
     });
