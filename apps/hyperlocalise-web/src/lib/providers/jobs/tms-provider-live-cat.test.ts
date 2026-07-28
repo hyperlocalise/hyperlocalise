@@ -1527,7 +1527,7 @@ describe("getTmsProviderLiveCatAllFiles", () => {
     await fixture.cleanup();
   });
 
-  it("loads project-wide All Files without a multi-file CROQL OR list", async () => {
+  it("scopes small All Files queues with a file CROQL so pagination stays accurate", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -1588,8 +1588,8 @@ describe("getTmsProviderLiveCatAllFiles", () => {
       }
 
       if (path.includes("/projects/42/strings?")) {
-        expect(path).not.toContain("id%20of%20file");
-        expect(path).not.toContain("croql=");
+        expect(path).toContain("croql=");
+        expect(path).toContain("id%20of%20file");
         expect(path).toContain("limit=");
         expect(path).toContain("offset=");
         return new Response(
@@ -1645,7 +1645,131 @@ describe("getTmsProviderLiveCatAllFiles", () => {
     ]);
   });
 
-  it("lists many scoped files via Source Strings without a multi-file CROQL", async () => {
+  it("scopes job sourcePaths with file CROQL instead of project-wide pagination", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?") || path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+              {
+                data: {
+                  id: 102,
+                  branchId: null,
+                  directoryId: null,
+                  name: "about.json",
+                  title: "about.json",
+                  type: "json",
+                  path: "/about.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+              {
+                data: {
+                  id: 103,
+                  branchId: null,
+                  directoryId: null,
+                  name: "other.json",
+                  title: "other.json",
+                  type: "json",
+                  path: "/other.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?")) {
+        // Job-scoped All Files must ask Crowdin for only the in-scope files. Project-wide
+        // offset/limit + client filtering would skip job strings buried later in the project.
+        expect(decodeURIComponent(path)).toContain("id of file = 101");
+        expect(decodeURIComponent(path)).toContain("id of file = 102");
+        expect(decodeURIComponent(path)).not.toContain("id of file = 103");
+        expect(path).toContain("croql=");
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 2001,
+                  projectId: 42,
+                  fileId: 102,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "about.title",
+                  text: "About",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
+      actorUserId: user.id,
+      sourcePaths: ["home.json", "about.json"],
+      pagination: {
+        offset: 0,
+        limit: 50,
+        search: undefined,
+        queueFilter: "untranslated",
+        paginated: true,
+      },
+    });
+
+    expect(catFile.segments).toEqual([
+      expect.objectContaining({
+        externalStringId: "2001",
+        key: "about.title",
+        sourcePath: "about.json",
+      }),
+    ]);
+  });
+
+  it("lists many project files via Source Strings without a multi-file CROQL", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -1714,11 +1838,8 @@ describe("getTmsProviderLiveCatAllFiles", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const sourcePaths = files.map((file) => file.data.name);
-
     const catFile = await getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
       actorUserId: user.id,
-      sourcePaths,
       pagination: {
         offset: 0,
         limit: 50,
@@ -1735,6 +1856,75 @@ describe("getTmsProviderLiveCatAllFiles", () => {
         sourcePath: "file-0.json",
       }),
     ]);
+  });
+
+  it("rejects narrowed sourcePaths when the file CROQL would exceed the soft cap", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fileCount = 260;
+    const files = Array.from({ length: fileCount }, (_, index) => ({
+      data: {
+        id: 1000 + index,
+        branchId: null,
+        directoryId: null,
+        name: `file-${index}.json`,
+        title: `file-${index}.json`,
+        type: "json",
+        path: `/file-${index}.json`,
+        status: "active",
+        revisionId: 1,
+      },
+    }));
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?") || path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(JSON.stringify({ data: files }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?")) {
+        throw new Error("Crowdin strings must not be listed when narrowed CROQL is too large");
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    // Omit one file so sourcePaths is a true subset; project-wide pagination would be wrong.
+    const sourcePaths = files.slice(0, fileCount - 1).map((file) => file.data.name);
+
+    await expect(
+      getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
+        actorUserId: user.id,
+        sourcePaths,
+        pagination: {
+          offset: 0,
+          limit: 50,
+          search: undefined,
+          queueFilter: "all",
+          paginated: true,
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "crowdin_cat_all_files_query_too_large",
+      message: CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    });
   });
 
   it("maps Crowdin 414 responses to a select-a-file All Files error", async () => {

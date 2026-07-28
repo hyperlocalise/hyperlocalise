@@ -2258,12 +2258,21 @@ async function buildCrowdinLiveCatAllFiles(input: {
   const sourcePathFilter =
     input.sourcePaths && input.sourcePaths.length > 0 ? new Set(input.sourcePaths) : null;
 
-  const catFiles = files
+  const allCatFiles = files
     .filter((file) => supportsLiveProviderCat(input.context.providerKind, file))
-    .filter((file) => (sourcePathFilter ? sourcePathFilter.has(file.sourcePath) : true))
     .toSorted((left, right) =>
       left.sourcePath.localeCompare(right.sourcePath, undefined, { sensitivity: "base" }),
     );
+
+  const catFiles = sourcePathFilter
+    ? allCatFiles.filter((file) => sourcePathFilter.has(file.sourcePath))
+    : allCatFiles;
+
+  // Job All Files passes a subset of sourcePaths. Project-wide string pagination + client-side
+  // filtering drops/skips in-scope strings (empty/sparse pages). Only fall back to project-wide
+  // listing when the file OR list would 414 *and* the request is not narrowed to a subset.
+  const isNarrowedSourcePathFilter =
+    sourcePathFilter != null && catFiles.length < allCatFiles.length;
 
   const fileById = new Map<number, TmsProviderLiveFile>();
   const fileIds: number[] = [];
@@ -2314,14 +2323,29 @@ async function buildCrowdinLiveCatAllFiles(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
-  // All Files uses Crowdin Source Strings list (GET /projects/{id}/strings) project-wide.
-  // Never put a multi-file `id of file = … or …` CROQL in the query — that 414s on large projects.
-  // Queue/search filters may still use a short project-wide CROQL; file scope is applied client-side.
-  const croql = buildCrowdinFileQueueCroql({
+  const croqlWithFiles = buildCrowdinFileQueueCroql({
+    fileIds,
     targetLocale: input.targetLocale,
     queueFilter: paginationInput.queueFilter,
     search: paginationInput.search,
   });
+  const croqlProjectWide = buildCrowdinFileQueueCroql({
+    targetLocale: input.targetLocale,
+    queueFilter: paginationInput.queueFilter,
+    search: paginationInput.search,
+  });
+
+  const useFileScopedCroql =
+    croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
+
+  if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
+    throw new TmsProviderLiveError(
+      "crowdin_cat_all_files_query_too_large",
+      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    );
+  }
+
+  const croql = useFileScopedCroql ? croqlWithFiles : croqlProjectWide;
 
   if (croql && !isCrowdinCroqlWithinLimit(croql)) {
     throw new TmsProviderLiveError(
