@@ -9087,6 +9087,10 @@
     "defaultMessage": "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
     "description": "Built-in TMS integration description on the integrations page"
   },
+  "az1dhUOnH0": {
+    "defaultMessage": "Status",
+    "description": "Marketing footer resource link label for the status page"
+  },
   "b+pVg94kFI": {
     "defaultMessage": "Email",
     "description": "Email agent integration name on the integrations page"
