@@ -615,7 +615,7 @@
     "defaultMessage": "Déclencheurs"
   },
   "17dOLN4clX": {
-    "defaultMessage": "Hyperlocalise Startup Program"
+    "defaultMessage": "Programme Hyperlocalise pour les startups"
   },
   "18VKZNqtbO": {
     "defaultMessage": "Nécessite une révision"
@@ -708,7 +708,7 @@
     "defaultMessage": "Assignee"
   },
   "1db+Z84NPJ": {
-    "defaultMessage": "Apply for the Hyperlocalise Startup Program — up to 80% off Growth for early-stage teams going global with a native TMS and AI agent workflow."
+    "defaultMessage": "Postulez au programme Startup Hyperlocalise — jusqu’à 80 % de réduction sur Growth pour les équipes en phase de démarrage qui se lancent à l’international grâce à un TMS natif et à un flux de travail avec agent IA."
   },
   "1e/ZaE2rH7": {
     "defaultMessage": "Projets en cours récupérés auprès de votre fournisseur TMS connecté."
@@ -945,7 +945,7 @@
     "defaultMessage": "Projet supprimé"
   },
   "2lPB6SLWPB": {
-    "defaultMessage": "Trusted by teams going global early"
+    "defaultMessage": "La confiance des équipes qui se développent à l’international dès le début"
   },
   "2mcGAlQ7te": {
     "defaultMessage": "Aucune action en attente pour le moment. Commencez une nouvelle demande ou parcourez les projets lorsque vous serez prêt à continuer."
@@ -1416,7 +1416,7 @@
     "defaultMessage": "Système"
   },
   "5Eha9aNTjn": {
-    "defaultMessage": "Built for teams scaling into new markets"
+    "defaultMessage": "Conçu pour les équipes qui se développent sur de nouveaux marchés"
   },
   "5FDuQWvCGc": {
     "defaultMessage": "Prévisualiser l’importation"
@@ -1767,7 +1767,7 @@
     "defaultMessage": "Workspace slug"
   },
   "79OV0Q8xnc": {
-    "defaultMessage": "The maximum discount is 80% off Growth list pricing. The final amount depends on stage, scope, and fit. We share a clear number on the demo — nothing is charged until you agree."
+    "defaultMessage": "La remise maximale est de 80 % sur le tarif catalogue Growth. Le montant final dépend du stade, du périmètre et de l’adéquation. Nous vous communiquons un montant clair lors de la démonstration — rien ne vous est facturé tant que vous n’avez pas donné votre accord."
   },
   "79wF7UTpnH": {
     "defaultMessage": "Drift"
@@ -1959,7 +1959,7 @@
     "defaultMessage": "Confidence"
   },
   "8ACcRRFoOD": {
-    "defaultMessage": "New markets are not copy-paste"
+    "defaultMessage": "Les nouveaux marchés ne sont pas transposables tels quels"
   },
   "8Aop7svU4q": {
     "defaultMessage": "Loading file…"
@@ -2052,7 +2052,7 @@
     "defaultMessage": "Priority"
   },
   "8akRFF2klx": {
-    "defaultMessage": "The Startup Program is aimed at early-stage teams. Larger companies should still request a demo — we can discuss Growth or Enterprise options that fit your organisation."
+    "defaultMessage": "Le programme Startup s’adresse aux équipes en phase de démarrage. Les grandes entreprises peuvent tout de même demander une démonstration : nous pouvons discuter des offres Growth ou Enterprise adaptées à votre organisation."
   },
   "8akVFVMFrZ": {
     "defaultMessage": "Expand Sidebar"
@@ -2256,7 +2256,7 @@
     "defaultMessage": "allemand (Allemagne)"
   },
   "9XeOGxKmUC": {
-    "defaultMessage": "No. Hyperlocalise includes a native TMS with an AI agent workflow, so startups can manage strings, drafts, and review without standing up a separate translation stack. Connect GitHub and Slack when you are ready to automate intake and release."
+    "defaultMessage": "Non. Hyperlocalise inclut un TMS natif avec un workflow d’agent IA, afin que les startups puissent gérer les chaînes, les brouillons et la révision sans mettre en place une pile de traduction distincte. Connectez GitHub et Slack lorsque vous serez prêt à automatiser la réception et la mise en production."
   },
   "9YNv5fx63k": {
     "defaultMessage": "Coréen (Corée du Sud)"
@@ -2796,7 +2796,7 @@
     "defaultMessage": "Mettre à jour la connexion"
   },
   "CR4EdyZSZI": {
-    "defaultMessage": "Who is eligible?"
+    "defaultMessage": "Qui est éligible ?"
   },
   "CRRbrB6ehg": {
     "defaultMessage": "Portes d’évaluation"
@@ -3018,7 +3018,7 @@
     "defaultMessage": "GitHub"
   },
   "DRg3CQC9an": {
-    "defaultMessage": "Selected for the 2026 Slator Language AI 50 Under 50."
+    "defaultMessage": "Sélectionnée pour le Slator Language AI 50 Under 50 de 2026."
   },
   "DRi2LRug2G": {
     "defaultMessage": "Gras"
@@ -4155,7 +4155,7 @@
     "defaultMessage": "Copié"
   },
   "K+l0K4IDAZ": {
-    "defaultMessage": "Request a demo from this page. On the call we review your stage, product workflow, and localisation needs, then confirm whether startup pricing applies."
+    "defaultMessage": "Demandez une démonstration depuis cette page. Lors de l’appel, nous examinons votre stade de développement, votre flux de travail produit et vos besoins en localisation, puis nous confirmons si la tarification pour les startups s’applique."
   },
   "K0I+hdjpXe": {
     "defaultMessage": "Plan usage, payment method, invoices, and billing contacts."
@@ -5334,7 +5334,7 @@
     "defaultMessage": "Activez l’agent de messagerie dans <link>Intégrations</link> pour utiliser les notifications par e-mail."
   },
   "QmJs3YzCjV": {
-    "defaultMessage": "What does \"up to 80% off\" mean?"
+    "defaultMessage": "Que signifie « jusqu’à 80 % de réduction » ?"
   },
   "QmXtxyLvCd": {
     "defaultMessage": "Connectez votre compte OpenAI"
@@ -5466,7 +5466,7 @@
     "defaultMessage": "Échec du démarrage de la connexion à {provider}"
   },
   "RXXOOcxbRk": {
-    "defaultMessage": "Applying for the Growth plan"
+    "defaultMessage": "Demande d’adhésion au forfait Growth"
   },
   "RZBs1fe1V3": {
     "defaultMessage": "Hyperlocaliser | Plateforme de localisation pour l’ère agentique"
@@ -5619,7 +5619,7 @@
     "defaultMessage": "Terminé"
   },
   "SLg8IXCI6V": {
-    "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team."
+    "defaultMessage": "Les petites équipes ne peuvent pas se permettre un nouveau processus pour chaque pays. Vous avez besoin d’un moyen de déployer les lancements sur de nouveaux marchés sans submerger l’équipe produit."
   },
   "SNl5ipNJ6A": {
     "defaultMessage": "Illimité"
@@ -5766,7 +5766,7 @@
     "defaultMessage": "Workflows déterministes planifiés et déclenchés par GitHub"
   },
   "TC3oIavSPO": {
-    "defaultMessage": "Growth should not create busywork"
+    "defaultMessage": "La croissance ne devrait pas créer de tâches superflues"
   },
   "TDQxQUihFM": {
     "defaultMessage": "Aucun fichier pris en charge n’a été sélectionné."
@@ -5820,7 +5820,7 @@
     "defaultMessage": "Display name"
   },
   "TRlFNEhzfJ": {
-    "defaultMessage": "Apply for startup pricing"
+    "defaultMessage": "Postulez au tarif startup"
   },
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
@@ -5913,7 +5913,7 @@
     "defaultMessage": "Progression"
   },
   "Tyhk/abQFS": {
-    "defaultMessage": "What is the Hyperlocalise Startup Program?"
+    "defaultMessage": "Qu’est-ce que le programme de startups Hyperlocalise ?"
   },
   "U+Ll/sGDKs": {
     "defaultMessage": "Enregistrement…"
@@ -6099,10 +6099,10 @@
     "defaultMessage": "Gérer"
   },
   "V5fRx/1XLP": {
-    "defaultMessage": "New Hyperlocalise customer"
+    "defaultMessage": "Nouveau client Hyperlocalise"
   },
   "V8A7lWd26M": {
-    "defaultMessage": "It is pricing support for early-stage startups adopting Hyperlocalise Growth. Qualifying teams can receive up to 80% off for their first 12 months, or while they still meet the program criteria. Exact terms are confirmed on the demo."
+    "defaultMessage": "Il s’agit d’une aide tarifaire destinée aux startups en phase de démarrage qui adoptent Hyperlocalise Growth. Les équipes éligibles peuvent bénéficier d’une remise allant jusqu’à 80 % pendant leurs 12 premiers mois, ou tant qu’elles remplissent les critères du programme. Les conditions exactes sont confirmées lors de la démonstration."
   },
   "V8Rg1mvKHG": {
     "defaultMessage": "Connexion Contentful enregistrée"
@@ -6513,7 +6513,7 @@
     "defaultMessage": "Changed: {fields}"
   },
   "XHI21GKve1": {
-    "defaultMessage": "Entering a new market should feel like growth, not a second product launch that stalls the company."
+    "defaultMessage": "Entrer sur un nouveau marché doit être synonyme de croissance, et non d’un deuxième lancement de produit qui met l’entreprise à l’arrêt."
   },
   "XHTRGbNDAl": {
     "defaultMessage": "Personal access token"
@@ -6990,7 +6990,7 @@
     "defaultMessage": "Connecté"
   },
   "ZnysOZy/rI": {
-    "defaultMessage": "See pricing"
+    "defaultMessage": "Voir les tarifs"
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Rechercher des dépôts"
@@ -7191,7 +7191,7 @@
     "defaultMessage": "Télécharger"
   },
   "ambL1h5gLQ": {
-    "defaultMessage": "How do I apply?"
+    "defaultMessage": "Comment puis-je postuler ?"
   },
   "anZVyDdEfq": {
     "defaultMessage": "Laissez vide pour l’API Smartling standard. Pour un hôte personnalisé, incluez le chemin d’API d’authentification, par exemple https://api.smartling.com/auth-api/v2."
@@ -7225,6 +7225,9 @@
   },
   "ayMjHyvmox": {
     "defaultMessage": "TMS intégré pour les projets, les tâches, les fichiers et les mémoires de traduction. Aucun fournisseur externe requis."
+  },
+  "az1dhUOnH0": {
+    "defaultMessage": "Status"
   },
   "b+pVg94kFI": {
     "defaultMessage": "E-mail"
@@ -7674,7 +7677,7 @@
     "defaultMessage": "Search: {value}"
   },
   "diE57pixFS": {
-    "defaultMessage": "Recognition"
+    "defaultMessage": "Reconnaissance"
   },
   "dj9zRisspO": {
     "defaultMessage": "Les problèmes n’ont pas pu être chargés."
@@ -8004,7 +8007,7 @@
     "defaultMessage": "Save description"
   },
   "fNsrVmOrc3": {
-    "defaultMessage": "Early-stage startups can get up to 80% off the Growth plan for the first 12 months, or while you qualify. We confirm fit and pricing on the demo."
+    "defaultMessage": "Les startups en phase de démarrage peuvent bénéficier d’une remise allant jusqu’à 80 % sur le forfait Growth pendant les 12 premiers mois, ou tant qu’elles remplissent les critères d’éligibilité. Nous confirmons l’éligibilité et le tarif lors de la démonstration."
   },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
@@ -8139,7 +8142,7 @@
     "defaultMessage": "Supprimer {branch}"
   },
   "g5f066LmY+": {
-    "defaultMessage": "Move while the opportunity is open"
+    "defaultMessage": "Agissez tant que l’opportunité est ouverte"
   },
   "g7kCok/oT0": {
     "defaultMessage": "Edit project..."
@@ -8298,7 +8301,7 @@
     "defaultMessage": "Archivée"
   },
   "grODyw1HO9": {
-    "defaultMessage": "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally."
+    "defaultMessage": "Chaque marché implique des attentes clients, une langue et des exigences de conformité différentes. Une expansion ne fonctionne que si votre produit reste adapté aux spécificités locales."
   },
   "gso6nAA1gq": {
     "defaultMessage": "Agent Slack désactivé"
@@ -8337,7 +8340,7 @@
     "defaultMessage": "Primary conversion button for the public waitlist."
   },
   "h/oYoN5Oui": {
-    "defaultMessage": "New markets. 100x momentum."
+    "defaultMessage": "Nouveaux marchés. Un élan multiplié par 100."
   },
   "h0dd/MaO2f": {
     "defaultMessage": "Recueillez les modifications de chaînes, les descriptions de PR, les fils de discussion Slack et les notes de lancement afin que les traducteurs voient pourquoi le texte a changé, et pas seulement le diff."
@@ -8361,7 +8364,7 @@
     "defaultMessage": "Source upload"
   },
   "h3G4KiByU3": {
-    "defaultMessage": "Our company is larger than 50 employees. Can we still apply?"
+    "defaultMessage": "Notre entreprise compte plus de 50 employés. Pouvons-nous quand même postuler ?"
   },
   "h3qjecOeg8": {
     "defaultMessage": "Open {projectName} in provider"
@@ -8526,7 +8529,7 @@
     "defaultMessage": "Clear filters"
   },
   "hsNMISsI79": {
-    "defaultMessage": "80% off Growth to launch globally in days."
+    "defaultMessage": "80 % de réduction sur Growth pour un lancement mondial en quelques jours."
   },
   "huDfeEPmkj": {
     "defaultMessage": "Agnostique vis-à-vis du TMS"
@@ -8985,7 +8988,7 @@
     "defaultMessage": "Vérification CI"
   },
   "k/fYpNgsXA": {
-    "defaultMessage": "Hyperlocalise for Startups | Up to 80% off Growth"
+    "defaultMessage": "Hyperlocalise pour les startups | Jusqu’à 80 % de réduction sur Growth"
   },
   "k0oDzsZOu6": {
     "defaultMessage": "Paramètres indisponibles"
@@ -9288,7 +9291,7 @@
     "defaultMessage": "{spaceId}/{environmentId}"
   },
   "lSzcdHw8Ko": {
-    "defaultMessage": "Who can apply"
+    "defaultMessage": "Qui peut postuler"
   },
   "lT0LhQ0lGx": {
     "defaultMessage": "Chargement des types de contenu…"
@@ -9939,7 +9942,7 @@
     "defaultMessage": "Supprimer"
   },
   "pOCBt3fv7m": {
-    "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit."
+    "defaultMessage": "Le programme est conçu pour les nouveaux clients d’Hyperlocalise qui en sont aux premiers stades de leur développement — généralement moins de 50 employés ou n’ayant pas encore effectué de série B — et qui envisagent le forfait Growth. Si vous avez un doute, demandez une démonstration et nous confirmerons si le programme vous convient."
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send"
@@ -10062,7 +10065,7 @@
     "defaultMessage": "Majeure"
   },
   "q1gTXMRwMD": {
-    "defaultMessage": "Early-stage, typically under 50 employees or pre-Series B"
+    "defaultMessage": "En phase de démarrage, généralement moins de 50 employés ou avant la série B"
   },
   "q1odur6ptQ": {
     "defaultMessage": "No Ahrefs connections yet."
@@ -10107,7 +10110,7 @@
     "defaultMessage": "Révision humaine dans votre TMS avant la republication vers Canva"
   },
   "qBHY8te/JC": {
-    "defaultMessage": "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you."
+    "defaultMessage": "Les entreprises qui réussissent lancent leurs produits et leurs activités marketing sur de nouveaux marchés en quelques jours, et non après un long cycle de mise en place. La rapidité compte lorsque l’opportunité se présente."
   },
   "qBw0XsEKyN": {
     "defaultMessage": "Restez flexible entre les fournisseurs et les plateformes"
@@ -10641,7 +10644,7 @@
     "defaultMessage": "Documentation produit"
   },
   "t9u0C/3PvD": {
-    "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth."
+    "defaultMessage": "Réservez une démo. Nous confirmerons votre éligibilité et vous présenterons le tarif startup, avec 80 % de réduction sur Growth."
   },
   "tCUf/LZUI9": {
     "defaultMessage": "Transformez les demandes Slack et les tableaux Canva en travaux de localisation cadrés, avec le contexte joint dès le départ."
@@ -11151,7 +11154,7 @@
     "defaultMessage": "Copier le nom"
   },
   "vgj4VLCd7U": {
-    "defaultMessage": "Backed by Australia and New Zealand's leading startup accelerator."
+    "defaultMessage": "Soutenu par le principal accélérateur de startups d’Australie et de Nouvelle-Zélande."
   },
   "viq5/Imoma": {
     "defaultMessage": "Espace de travail"
@@ -11508,7 +11511,7 @@
     "defaultMessage": "Nous avons créé l’espace de travail, mais nous n’avons pas pu préparer son URL. Veuillez réessayer."
   },
   "xXvQeFYygi": {
-    "defaultMessage": "Ready for the next market?"
+    "defaultMessage": "Prêt à conquérir le prochain marché ?"
   },
   "xYeE5w8BlW": {
     "defaultMessage": "Name, project, or external ID..."
@@ -11550,7 +11553,7 @@
     "defaultMessage": "Manual"
   },
   "xkvlRbfU7k": {
-    "defaultMessage": "Tourfinder launched Vietnamese and Japanese marketing in days, not months."
+    "defaultMessage": "Tourfinder a lancé son marketing en vietnamien et en japonais en quelques jours, et non en quelques mois."
   },
   "xm2niAeH2y": {
     "defaultMessage": "New AI chat"
@@ -11667,7 +11670,7 @@
     "defaultMessage": "Intake"
   },
   "yGq0s5/abu": {
-    "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?"
+    "defaultMessage": "Ai-je besoin de Crowdin, de Lokalise ou d’un autre TMS au préalable ?"
   },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}"

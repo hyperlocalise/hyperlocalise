@@ -615,7 +615,7 @@
     "defaultMessage": "触发器"
   },
   "17dOLN4clX": {
-    "defaultMessage": "Hyperlocalise Startup Program"
+    "defaultMessage": "Hyperlocalise 创业计划"
   },
   "18VKZNqtbO": {
     "defaultMessage": "需要审核"
@@ -708,7 +708,7 @@
     "defaultMessage": "Assignee"
   },
   "1db+Z84NPJ": {
-    "defaultMessage": "Apply for the Hyperlocalise Startup Program — up to 80% off Growth for early-stage teams going global with a native TMS and AI agent workflow."
+    "defaultMessage": "申请 Hyperlocalise 初创企业计划——为正在借助原生 TMS 和 AI 代理工作流走向全球的早期团队提供 Growth 方案最高 80% 的折扣。"
   },
   "1e/ZaE2rH7": {
     "defaultMessage": "Live jobs fetched from your connected TMS provider."
@@ -945,7 +945,7 @@
     "defaultMessage": "Project deleted"
   },
   "2lPB6SLWPB": {
-    "defaultMessage": "Trusted by teams going global early"
+    "defaultMessage": "深受早期布局全球化的团队信赖"
   },
   "2mcGAlQ7te": {
     "defaultMessage": "No pending actions right now. Start a new request or browse projects when you’re ready to continue."
@@ -1416,7 +1416,7 @@
     "defaultMessage": "系统"
   },
   "5Eha9aNTjn": {
-    "defaultMessage": "Built for teams scaling into new markets"
+    "defaultMessage": "为拓展新市场的团队而打造"
   },
   "5FDuQWvCGc": {
     "defaultMessage": "Preview import"
@@ -1767,7 +1767,7 @@
     "defaultMessage": "Workspace slug"
   },
   "79OV0Q8xnc": {
-    "defaultMessage": "The maximum discount is 80% off Growth list pricing. The final amount depends on stage, scope, and fit. We share a clear number on the demo — nothing is charged until you agree."
+    "defaultMessage": "最高可享 Growth 标准价格 8 折优惠。最终金额取决于发展阶段、项目范围和匹配度。我们会在演示中明确告知具体金额——在您同意之前不会收取任何费用。"
   },
   "79wF7UTpnH": {
     "defaultMessage": "Drift"
@@ -1959,7 +1959,7 @@
     "defaultMessage": "Confidence"
   },
   "8ACcRRFoOD": {
-    "defaultMessage": "New markets are not copy-paste"
+    "defaultMessage": "新市场不能简单复制粘贴"
   },
   "8Aop7svU4q": {
     "defaultMessage": "Loading file…"
@@ -2052,7 +2052,7 @@
     "defaultMessage": "Priority"
   },
   "8akRFF2klx": {
-    "defaultMessage": "The Startup Program is aimed at early-stage teams. Larger companies should still request a demo — we can discuss Growth or Enterprise options that fit your organisation."
+    "defaultMessage": "创业计划面向处于早期阶段的团队。规模较大的公司仍应申请演示，我们可以讨论适合您组织的成长版或企业版方案。"
   },
   "8akVFVMFrZ": {
     "defaultMessage": "Expand Sidebar"
@@ -2256,7 +2256,7 @@
     "defaultMessage": "德语（德国）"
   },
   "9XeOGxKmUC": {
-    "defaultMessage": "No. Hyperlocalise includes a native TMS with an AI agent workflow, so startups can manage strings, drafts, and review without standing up a separate translation stack. Connect GitHub and Slack when you are ready to automate intake and release."
+    "defaultMessage": "不需要。Hyperlocalise 内置原生 TMS，并提供 AI 代理工作流，因此初创公司无需另行搭建翻译技术栈，即可管理字符串、草稿和审核。准备好自动化处理接收和发布流程后，再连接 GitHub 和 Slack。"
   },
   "9YNv5fx63k": {
     "defaultMessage": "韩语（韩国）"
@@ -2796,7 +2796,7 @@
     "defaultMessage": "更新连接"
   },
   "CR4EdyZSZI": {
-    "defaultMessage": "Who is eligible?"
+    "defaultMessage": "谁符合资格？"
   },
   "CRRbrB6ehg": {
     "defaultMessage": "评估关卡"
@@ -3018,7 +3018,7 @@
     "defaultMessage": "GitHub"
   },
   "DRg3CQC9an": {
-    "defaultMessage": "Selected for the 2026 Slator Language AI 50 Under 50."
+    "defaultMessage": "入选 2026 年 Slator 语言 AI 50 位 50 岁以下人士榜单。"
   },
   "DRi2LRug2G": {
     "defaultMessage": "加粗"
@@ -4155,7 +4155,7 @@
     "defaultMessage": "已复制"
   },
   "K+l0K4IDAZ": {
-    "defaultMessage": "Request a demo from this page. On the call we review your stage, product workflow, and localisation needs, then confirm whether startup pricing applies."
+    "defaultMessage": "通过此页面申请演示。通话中，我们会了解您所处的发展阶段、产品工作流程和本地化需求，然后确认是否适用初创企业定价。"
   },
   "K0I+hdjpXe": {
     "defaultMessage": "Plan usage, payment method, invoices, and billing contacts."
@@ -5334,7 +5334,7 @@
     "defaultMessage": "Enable the email agent in <link>Integrations</link> to use email notifications."
   },
   "QmJs3YzCjV": {
-    "defaultMessage": "What does \"up to 80% off\" mean?"
+    "defaultMessage": "“最高可享受八折优惠”是什么意思？"
   },
   "QmXtxyLvCd": {
     "defaultMessage": "连接你的 OpenAI 账户"
@@ -5466,7 +5466,7 @@
     "defaultMessage": "启动 {provider} 连接失败"
   },
   "RXXOOcxbRk": {
-    "defaultMessage": "Applying for the Growth plan"
+    "defaultMessage": "申请 Growth 计划"
   },
   "RZBs1fe1V3": {
     "defaultMessage": "超本地化 | 面向智能体时代的本地化平台"
@@ -5619,7 +5619,7 @@
     "defaultMessage": "Completed"
   },
   "SLg8IXCI6V": {
-    "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team."
+    "defaultMessage": "小团队无法为每个国家都采用一套新流程。你需要一种能够扩展市场发布、同时又不会让产品团队疲于应付的方法。"
   },
   "SNl5ipNJ6A": {
     "defaultMessage": "无限制"
@@ -5766,7 +5766,7 @@
     "defaultMessage": "定时触发和由 GitHub 触发的确定性工作流"
   },
   "TC3oIavSPO": {
-    "defaultMessage": "Growth should not create busywork"
+    "defaultMessage": "增长不应带来额外的琐事需求"
   },
   "TDQxQUihFM": {
     "defaultMessage": "No supported files were selected."
@@ -5820,7 +5820,7 @@
     "defaultMessage": "Display name"
   },
   "TRlFNEhzfJ": {
-    "defaultMessage": "Apply for startup pricing"
+    "defaultMessage": "申请创业公司定价"
   },
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
@@ -5913,7 +5913,7 @@
     "defaultMessage": "Progress"
   },
   "Tyhk/abQFS": {
-    "defaultMessage": "What is the Hyperlocalise Startup Program?"
+    "defaultMessage": "什么是 Hyperlocalise 创业公司计划？"
   },
   "U+Ll/sGDKs": {
     "defaultMessage": "Saving..."
@@ -6099,10 +6099,10 @@
     "defaultMessage": "管理"
   },
   "V5fRx/1XLP": {
-    "defaultMessage": "New Hyperlocalise customer"
+    "defaultMessage": "新的 Hyperlocalise 客户"
   },
   "V8A7lWd26M": {
-    "defaultMessage": "It is pricing support for early-stage startups adopting Hyperlocalise Growth. Qualifying teams can receive up to 80% off for their first 12 months, or while they still meet the program criteria. Exact terms are confirmed on the demo."
+    "defaultMessage": "这是为采用 Hyperlocalise Growth 的早期初创公司提供的定价支持。符合条件的团队在前 12 个月内，或在仍符合项目标准期间，可享受最高 80% 的折扣。具体条款将在演示中确认。"
   },
   "V8Rg1mvKHG": {
     "defaultMessage": "Contentful 连接已保存"
@@ -6513,7 +6513,7 @@
     "defaultMessage": "Changed: {fields}"
   },
   "XHI21GKve1": {
-    "defaultMessage": "Entering a new market should feel like growth, not a second product launch that stalls the company."
+    "defaultMessage": "进入新市场应当让人感受到增长，而不是像重新推出一个产品那样拖累公司发展。"
   },
   "XHTRGbNDAl": {
     "defaultMessage": "个人访问令牌"
@@ -6885,7 +6885,7 @@
     "defaultMessage": "Can access projects and work assigned to this team."
   },
   "Z99fVSK2K8": {
-    "defaultMessage": "Slator Language AI 50 Under 50"
+    "defaultMessage": "Slator Language AI 50 位 50 岁以下精英"
   },
   "Z9kckxHp8S": {
     "defaultMessage": "Unavailable"
@@ -6990,7 +6990,7 @@
     "defaultMessage": "已连接"
   },
   "ZnysOZy/rI": {
-    "defaultMessage": "See pricing"
+    "defaultMessage": "查看定价"
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "搜索仓库"
@@ -7191,7 +7191,7 @@
     "defaultMessage": "Download"
   },
   "ambL1h5gLQ": {
-    "defaultMessage": "How do I apply?"
+    "defaultMessage": "如何申请？"
   },
   "anZVyDdEfq": {
     "defaultMessage": "留空以使用标准 Smartling API。对于自定义主机，请包含 auth API 路径，例如 https://api.smartling.com/auth-api/v2。"
@@ -7225,6 +7225,9 @@
   },
   "ayMjHyvmox": {
     "defaultMessage": "用于项目、任务、文件和翻译记忆库的内置 TMS。无需外部提供商。"
+  },
+  "az1dhUOnH0": {
+    "defaultMessage": "Status"
   },
   "b+pVg94kFI": {
     "defaultMessage": "电子邮件"
@@ -7674,7 +7677,7 @@
     "defaultMessage": "Search: {value}"
   },
   "diE57pixFS": {
-    "defaultMessage": "Recognition"
+    "defaultMessage": "认可"
   },
   "dj9zRisspO": {
     "defaultMessage": "Issues could not be loaded."
@@ -7989,7 +7992,7 @@
     "defaultMessage": "Words to do"
   },
   "fJ0e9/fLRw": {
-    "defaultMessage": "Startups"
+    "defaultMessage": "初创企业"
   },
   "fK68dbaITk": {
     "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>"
@@ -8004,7 +8007,7 @@
     "defaultMessage": "Save description"
   },
   "fNsrVmOrc3": {
-    "defaultMessage": "Early-stage startups can get up to 80% off the Growth plan for the first 12 months, or while you qualify. We confirm fit and pricing on the demo."
+    "defaultMessage": "早期初创企业在前 12 个月内或符合资格期间，可享受 Growth 方案最高 8 折优惠。我们将在演示中确认是否符合条件及具体价格。"
   },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
@@ -8025,7 +8028,7 @@
     "defaultMessage": "Track localization issues in Hyperlocalise, then link rows to CAT segments, native issues, provider threads, or external context."
   },
   "fWWcDn9s5p": {
-    "defaultMessage": "Startups"
+    "defaultMessage": "初创企业"
   },
   "fXIJvHCrL6": {
     "defaultMessage": "上一段"
@@ -8139,7 +8142,7 @@
     "defaultMessage": "移除 {branch}"
   },
   "g5f066LmY+": {
-    "defaultMessage": "Move while the opportunity is open"
+    "defaultMessage": "趁机会尚存，立即行动"
   },
   "g7kCok/oT0": {
     "defaultMessage": "Edit project..."
@@ -8298,7 +8301,7 @@
     "defaultMessage": "Archived"
   },
   "grODyw1HO9": {
-    "defaultMessage": "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally."
+    "defaultMessage": "每个市场都有不同的客户期望、语言和合规要求。只有当您的产品在当地仍然给人恰到好处的感觉时，扩展才会奏效。"
   },
   "gso6nAA1gq": {
     "defaultMessage": "Slack 代理已禁用"
@@ -8337,7 +8340,7 @@
     "defaultMessage": "Primary conversion button for the public waitlist."
   },
   "h/oYoN5Oui": {
-    "defaultMessage": "New markets. 100x momentum."
+    "defaultMessage": "新市场。100 倍势能。"
   },
   "h0dd/MaO2f": {
     "defaultMessage": "汇集字符串变更、PR 描述、Slack 线程和发布简报，让译者了解文案为何发生变化，而不只是看到差异。"
@@ -8361,7 +8364,7 @@
     "defaultMessage": "源上传"
   },
   "h3G4KiByU3": {
-    "defaultMessage": "Our company is larger than 50 employees. Can we still apply?"
+    "defaultMessage": "我们公司员工人数超过 50 人，还可以申请吗？"
   },
   "h3qjecOeg8": {
     "defaultMessage": "Open {projectName} in provider"
@@ -8526,7 +8529,7 @@
     "defaultMessage": "Clear filters"
   },
   "hsNMISsI79": {
-    "defaultMessage": "80% off Growth to launch globally in days."
+    "defaultMessage": "Growth 版立减 80%，几天内即可面向全球推出。"
   },
   "huDfeEPmkj": {
     "defaultMessage": "与 TMS 无关"
@@ -8985,7 +8988,7 @@
     "defaultMessage": "CI 检查"
   },
   "k/fYpNgsXA": {
-    "defaultMessage": "Hyperlocalise for Startups | Up to 80% off Growth"
+    "defaultMessage": "Hyperlocalise 创业公司专属 | Growth 方案最高可享 8 折優惠"
   },
   "k0oDzsZOu6": {
     "defaultMessage": "设置不可用"
@@ -9288,7 +9291,7 @@
     "defaultMessage": "{spaceId}/{environmentId}"
   },
   "lSzcdHw8Ko": {
-    "defaultMessage": "Who can apply"
+    "defaultMessage": "谁可以申请"
   },
   "lT0LhQ0lGx": {
     "defaultMessage": "正在加载内容类型…"
@@ -9939,7 +9942,7 @@
     "defaultMessage": "Remove"
   },
   "pOCBt3fv7m": {
-    "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit."
+    "defaultMessage": "该计划面向 Hyperlocalise 的新客户，适合处于早期阶段的企业——通常员工人数少于 50 人或尚未完成 B 轮融资——并有意选择 Growth 计划。如果您不确定是否符合条件，请申请演示，我们会确认是否适合。"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send"
@@ -10062,7 +10065,7 @@
     "defaultMessage": "Major"
   },
   "q1gTXMRwMD": {
-    "defaultMessage": "Early-stage, typically under 50 employees or pre-Series B"
+    "defaultMessage": "早期阶段，通常员工人数少于 50 人或尚未完成 B 轮融资"
   },
   "q1odur6ptQ": {
     "defaultMessage": "No Ahrefs connections yet."
@@ -10107,7 +10110,7 @@
     "defaultMessage": "在发布回 Canva 之前，在您的 TMS 中进行人工审核"
   },
   "qBHY8te/JC": {
-    "defaultMessage": "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you."
+    "defaultMessage": "赢得竞争的公司，能在几天内，而不是经历漫长的准备周期后，迅速在新市场推出产品并开展营销。当机会就在眼前时，速度至关重要。"
   },
   "qBw0XsEKyN": {
     "defaultMessage": "在不同提供商和平台之间保持灵活"
@@ -10641,7 +10644,7 @@
     "defaultMessage": "产品文档"
   },
   "t9u0C/3PvD": {
-    "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth."
+    "defaultMessage": "预约演示。我们会确认您是否符合条件，并向您展示 Growth 方案 8 折的初创企业价格。"
   },
   "tCUf/LZUI9": {
     "defaultMessage": "将 Slack 请求和 Canva 画板转化为范围明确的本地化工作，从一开始就附带相关上下文。"
@@ -11151,7 +11154,7 @@
     "defaultMessage": "复制名称"
   },
   "vgj4VLCd7U": {
-    "defaultMessage": "Backed by Australia and New Zealand's leading startup accelerator."
+    "defaultMessage": "由澳大利亚和新西兰领先的初创企业加速器支持。"
   },
   "viq5/Imoma": {
     "defaultMessage": "工作区"
@@ -11508,7 +11511,7 @@
     "defaultMessage": "已创建工作区，但无法准备其 URL。请重试。"
   },
   "xXvQeFYygi": {
-    "defaultMessage": "Ready for the next market?"
+    "defaultMessage": "准备好进军下一个市场了吗？"
   },
   "xYeE5w8BlW": {
     "defaultMessage": "Name, project, or external ID..."
@@ -11550,7 +11553,7 @@
     "defaultMessage": "Manual"
   },
   "xkvlRbfU7k": {
-    "defaultMessage": "Tourfinder launched Vietnamese and Japanese marketing in days, not months."
+    "defaultMessage": "Tourfinder 在几天内就推出了越南语和日语营销内容，而不是几个月。"
   },
   "xm2niAeH2y": {
     "defaultMessage": "New AI chat"
@@ -11667,7 +11670,7 @@
     "defaultMessage": "接收"
   },
   "yGq0s5/abu": {
-    "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?"
+    "defaultMessage": "我是否需要先使用 Crowdin、Lokalise 或其他 TMS？"
   },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}"

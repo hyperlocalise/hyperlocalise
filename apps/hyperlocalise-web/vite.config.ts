@@ -27,12 +27,19 @@ const formatjsRulesOff = Object.fromEntries(
   }).map(([rule]) => [rule, "off"]),
 );
 
+// Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
+const translatedLocales = ["de-DE", "fr-FR", "vi-VN", "zh-CN"] as const;
+const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
+  `_posts/${locale}/**`,
+  `lang/${locale}.json`,
+]);
+
 export default defineConfig({
   fmt: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
   },
   lint: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {

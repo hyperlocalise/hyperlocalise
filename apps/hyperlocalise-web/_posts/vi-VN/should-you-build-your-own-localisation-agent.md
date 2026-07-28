@@ -210,15 +210,15 @@ Nói cách khác, hãy làm chủ năng lực bản địa hóa của bạn. Hã
 
 Trước khi phê duyệt bản dựng nội bộ, hãy đặt các câu hỏi sau:
 
-| Câu hỏi                                                               | Tín hiệu mạnh hơn để xây dựng                             | Tín hiệu mạnh hơn để sử dụng nền tảng                                          |
-| --------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Công nghệ bản địa hóa có phải là một phần của sản phẩm cốt lõi không? | Có, công nghệ này trực tiếp tạo sự khác biệt cho sản phẩm | Không, công nghệ này hỗ trợ mở rộng sản phẩm                                   |
-| Các quy trình thực sự độc đáo phải không?                             | Các hệ thống hiện có không thể hỗ trợ chúng               | Chúng có thể được xử lý thông qua cấu hình hoặc tích hợp                       |
-| Ai sẽ chịu trách nhiệm về hệ thống sau khi ra mắt?                    | Một nhóm nền tảng chuyên trách                            | Một nhóm dự án tạm thời hoặc một kỹ sư riêng lẻ                                |
-| Bạn có thể đánh giá chất lượng trên mọi thị trường mục tiêu không?    | Bạn có các chuyên gia ngôn ngữ và cơ sở hạ tầng đánh giá  | Bạn chủ yếu cần các quy trình đã được kiểm chứng và đánh giá của con người     |
-| Doanh nghiệp cần thấy được giá trị nhanh đến mức nào?                 | Công ty có thể đầu tư trong một khoảng thời gian dài hơn  | Đội ngũ cần sớm cải thiện hoạt động                                            |
-| Bạn đã sẵn sàng duy trì mọi tích hợp chưa?                            | Quyền sở hữu tích hợp có giá trị chiến lược               | Việc bảo trì sẽ khiến bạn xao nhãng khỏi công việc phát triển sản phẩm cốt lõi |
-| Quyền sở hữu nội bộ có tạo ra lợi thế bền vững không?                 | Có, năng lực này khó để các đối thủ cạnh tranh tái tạo    | Không, giá trị chính đến từ việc sử dụng năng lực này một cách hiệu quả        |
+| Câu hỏi                                             | Tín hiệu mạnh hơn để xây dựng                              | Tín hiệu mạnh hơn để sử dụng nền tảng                              |
+| ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| Công nghệ bản địa hóa có phải là một phần của sản phẩm cốt lõi không? | Có, công nghệ này trực tiếp tạo sự khác biệt cho sản phẩm | Không, công nghệ này hỗ trợ mở rộng sản phẩm |
+| Các quy trình thực sự độc đáo phải không?                  | Các hệ thống hiện có không thể hỗ trợ chúng                          | Chúng có thể được xử lý thông qua cấu hình hoặc tích hợp       |
+| Ai sẽ chịu trách nhiệm về hệ thống sau khi ra mắt? | Một nhóm nền tảng chuyên trách | Một nhóm dự án tạm thời hoặc một kỹ sư riêng lẻ |
+| Bạn có thể đánh giá chất lượng trên mọi thị trường mục tiêu không? | Bạn có các chuyên gia ngôn ngữ và cơ sở hạ tầng đánh giá       | Bạn chủ yếu cần các quy trình đã được kiểm chứng và đánh giá của con người           |
+| Doanh nghiệp cần thấy được giá trị nhanh đến mức nào? | Công ty có thể đầu tư trong một khoảng thời gian dài hơn | Đội ngũ cần sớm cải thiện hoạt động |
+| Bạn đã sẵn sàng duy trì mọi tích hợp chưa?      | Quyền sở hữu tích hợp có giá trị chiến lược               | Việc bảo trì sẽ khiến bạn xao nhãng khỏi công việc phát triển sản phẩm cốt lõi              |
+| Quyền sở hữu nội bộ có tạo ra lợi thế bền vững không? | Có, năng lực này khó để các đối thủ cạnh tranh tái tạo | Không, giá trị chính đến từ việc sử dụng năng lực này một cách hiệu quả |
 
 Câu hỏi cuối cùng là câu hỏi quan trọng nhất.
 
