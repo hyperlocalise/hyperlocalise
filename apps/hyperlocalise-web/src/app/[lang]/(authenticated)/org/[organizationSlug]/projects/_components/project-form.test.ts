@@ -24,6 +24,7 @@ function createProject(overrides: Partial<ApiProject> = {}): ApiProject {
   return {
     id: "project_1234abcd",
     name: "Website Launch",
+    identifier: "WL",
     description: "Marketing site refresh",
     translationContext: "Use a concise launch voice.",
     sourceLocale: "en-US",
@@ -40,6 +41,7 @@ describe("project form helpers", () => {
 
     expect(values).toEqual({
       name: "Website Launch",
+      identifier: "WL",
       description: "Marketing site refresh",
       translationContext: "Use a concise launch voice.",
       sourceLocale: "en-US",
@@ -50,6 +52,7 @@ describe("project form helpers", () => {
   it("validates required name and supported field lengths", () => {
     const errors = validateProjectForm({
       name: "   ",
+      identifier: "",
       description: "x".repeat(10_001),
       translationContext: "x".repeat(20_001),
       sourceLocale: "en-US",
@@ -67,6 +70,7 @@ describe("project form helpers", () => {
   it("rejects source locale in target locales", () => {
     const errors = validateProjectForm({
       name: "Docs",
+      identifier: "DOCS",
       description: "",
       translationContext: "",
       sourceLocale: "en-US",
@@ -81,6 +85,7 @@ describe("project form helpers", () => {
       toProjectPayload(
         {
           name: "  Docs  ",
+          identifier: "",
           description: "  Product docs  ",
           translationContext: "  Keep it crisp.  ",
           sourceLocale: "en",
@@ -102,6 +107,7 @@ describe("project form helpers", () => {
       toProjectPayload(
         {
           name: "Docs",
+          identifier: "",
           description: "",
           translationContext: "",
           sourceLocale: "en-US",
