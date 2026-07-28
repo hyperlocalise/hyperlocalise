@@ -115,6 +115,11 @@ export const marketingPageMessages = defineMessages({
     id: "qgNLOHiYyJ",
     description: "Marketing footer resource link label for the company page",
   },
+  footerStatus: {
+    defaultMessage: "Status",
+    id: "vKKxRpw7Y7",
+    description: "Marketing footer resource link label for the status page",
+  },
 });
 
 export type MarketingPageMessageKey = keyof typeof marketingPageMessages;

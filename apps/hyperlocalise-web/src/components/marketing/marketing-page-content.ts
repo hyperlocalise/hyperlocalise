@@ -19,6 +19,7 @@ export const githubReleasesUrl = "https://github.com/hyperlocalise/hyperlocalise
 export const docsUrl = "https://hyperlocalise.dev";
 export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 export const contactUrl = "mailto:minh@hyperlocalise.com";
+export const statusUrl = "https://status.hyperlocalise.com/";
 export const linkedInCompanyUrl = "https://www.linkedin.com/company/hyperlocalise/";
 
 export type MarketingFooterLink = {
@@ -80,6 +81,7 @@ export const footerColumns: MarketingFooterColumn[] = [
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerContact", href: contactUrl },
+      { labelKey: "footerStatus", href: statusUrl },
     ],
   },
   {
