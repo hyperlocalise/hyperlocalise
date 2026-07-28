@@ -366,19 +366,21 @@ const projectStore: ProjectStore = {
         });
       }
 
-      const taken = await isProjectIdentifierTaken({
-        identifier: parsedIdentifier.data,
-        excludeProjectId: projectId,
-      });
-
-      if (taken) {
-        return err({
-          code: "identifier_taken",
-          message: "Project identifier is already in use",
+      if (parsedIdentifier.data !== existing.identifier) {
+        const taken = await isProjectIdentifierTaken({
+          identifier: parsedIdentifier.data,
+          excludeProjectId: projectId,
         });
-      }
 
-      updateValues.identifier = parsedIdentifier.data;
+        if (taken) {
+          return err({
+            code: "identifier_taken",
+            message: "Project identifier is already in use",
+          });
+        }
+
+        updateValues.identifier = parsedIdentifier.data;
+      }
     }
 
     if (teamId !== undefined) {
