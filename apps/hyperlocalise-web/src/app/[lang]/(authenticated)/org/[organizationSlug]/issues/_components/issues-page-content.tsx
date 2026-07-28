@@ -119,7 +119,7 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       buildIssueDetailHref({
         organizationSlug,
         projectId: issue.projectId,
-        issueId: issue.id,
+        issueId: issue.identifier,
       }),
     );
   };

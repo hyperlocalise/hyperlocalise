@@ -427,15 +427,15 @@ export function IssueSheetPageContent({
                     key={issue.id}
                     tabIndex={0}
                     className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    onClick={() => openIssueRow(issue.id)}
-                    onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
+                    onClick={() => openIssueRow(issue.identifier)}
+                    onKeyDown={(event) => handleIssueRowKeyDown(event, issue.identifier)}
                   >
                     <td className="max-w-80 px-4 py-3">
                       <Link
                         href={buildIssueDetailHref({
                           organizationSlug,
                           projectId,
-                          issueId: issue.id,
+                          issueId: issue.identifier,
                         })}
                         className="font-medium text-foreground hover:underline"
                         onClick={(event) => event.stopPropagation()}
@@ -467,7 +467,7 @@ export function IssueSheetPageContent({
                         items={statusItems}
                         onValueChange={(value) =>
                           updateIssue.mutate({
-                            issueId: issue.id,
+                            issueId: issue.identifier,
                             body: { status: value },
                           })
                         }
@@ -502,7 +502,7 @@ export function IssueSheetPageContent({
                         items={issueTypeItems}
                         onValueChange={(value) =>
                           updateIssue.mutate({
-                            issueId: issue.id,
+                            issueId: issue.identifier,
                             body: { issueType: value },
                           })
                         }
@@ -547,7 +547,7 @@ export function IssueSheetPageContent({
                           emptyValue={emptyValue}
                           onChange={(value) =>
                             setValue.mutate({
-                              issueId: issue.id,
+                              issueId: issue.identifier,
                               columnKey: column.key,
                               value,
                             })

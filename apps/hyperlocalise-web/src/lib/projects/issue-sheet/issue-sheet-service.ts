@@ -363,7 +363,7 @@ export class IssueSheetService {
       return existing;
     }
 
-    const createdId = await this.database.transaction(async (tx) => {
+    const created = await this.database.transaction(async (tx) => {
       const allocated = await allocateNextIssueIdentifier({
         projectId: input.projectId,
         database: tx,
@@ -398,12 +398,15 @@ export class IssueSheetService {
               : null,
         })
         .onConflictDoNothing()
-        .returning({ id: schema.issueSheetIssues.id });
+        .returning({
+          id: schema.issueSheetIssues.id,
+          identifier: schema.issueSheetIssues.identifier,
+        });
 
-      return issue?.id ?? null;
+      return issue ?? null;
     });
 
-    if (!createdId) {
+    if (!created) {
       const conflicted = await this.findExistingLinkedIssue(input);
       if (conflicted) {
         return conflicted;
@@ -415,21 +418,21 @@ export class IssueSheetService {
       await this.setValue({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: createdId,
+        issueId: created.identifier,
         body: { columnKey: "priority", value: input.body.priority },
       });
     }
 
-    const created = await this.getIssueById({
+    const loaded = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: createdId,
+      issueId: created.identifier,
       actorUserId: input.actorUserId,
     });
-    if (!created) {
+    if (!loaded) {
       throw new Error("issue_sheet_issue_load_failed");
     }
-    return created;
+    return loaded;
   }
 
   async updateIssue(input: {
@@ -467,7 +470,7 @@ export class IssueSheetService {
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.id, input.issueId),
+          eq(schema.issueSheetIssues.identifier, input.issueId),
         ),
       )
       .returning({ id: schema.issueSheetIssues.id });
@@ -501,7 +504,7 @@ export class IssueSheetService {
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.id, input.issueId),
+          eq(schema.issueSheetIssues.identifier, input.issueId),
         ),
       )
       .limit(1);
@@ -537,7 +540,7 @@ export class IssueSheetService {
       .values({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId: issue.id,
         columnId: column.id,
         value,
         computedAt: column.type === "enrichment" ? new Date() : null,
@@ -612,7 +615,10 @@ export class IssueSheetService {
     conditions: SQL[],
   ) {
     const [existing] = await this.database
-      .select({ id: schema.issueSheetIssues.id })
+      .select({
+        id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
+      })
       .from(schema.issueSheetIssues)
       .where(and(...conditions))
       .orderBy(desc(schema.issueSheetIssues.createdAt))
@@ -625,7 +631,7 @@ export class IssueSheetService {
     return this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: existing.id,
+      issueId: existing.identifier,
       actorUserId: input.actorUserId,
     });
   }
@@ -650,7 +656,7 @@ export class IssueSheetService {
       [
         eq(schema.issueSheetIssues.organizationId, input.organizationId),
         eq(schema.issueSheetIssues.projectId, input.projectId),
-        eq(schema.issueSheetIssues.id, input.issueId),
+        eq(schema.issueSheetIssues.identifier, input.issueId),
       ],
       {
         limit: 1,
@@ -768,7 +774,7 @@ export class IssueSheetService {
       }),
     ];
     if ("issueId" in input && input.issueId) {
-      conditions.push(eq(schema.issueSheetIssues.id, input.issueId));
+      conditions.push(eq(schema.issueSheetIssues.identifier, input.issueId));
     }
 
     return conditions;

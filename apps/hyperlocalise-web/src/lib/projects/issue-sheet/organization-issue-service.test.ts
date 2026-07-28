@@ -61,7 +61,7 @@ describe("OrganizationIssueService.getById", () => {
       },
     });
 
-    const issue = await organizationIssueService.getById(auth, created.id);
+    const issue = await organizationIssueService.getById(auth, created.identifier);
     expect(issue).toMatchObject({
       id: created.id,
       identifier: created.identifier,
@@ -77,10 +77,7 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
 
-    const issue = await organizationIssueService.getById(
-      auth,
-      "00000000-0000-4000-8000-000000000099",
-    );
+    const issue = await organizationIssueService.getById(auth, "ZZZ-99999");
     expect(issue).toBeNull();
   });
 
@@ -103,10 +100,10 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(outsider.identity);
     const outsiderAuth = globalThis.__testApiAuthContext!;
 
-    expect(await organizationIssueService.getById(ownerAuth, created.id)).toMatchObject({
+    expect(await organizationIssueService.getById(ownerAuth, created.identifier)).toMatchObject({
       id: created.id,
     });
-    expect(await organizationIssueService.getById(outsiderAuth, created.id)).toBeNull();
+    expect(await organizationIssueService.getById(outsiderAuth, created.identifier)).toBeNull();
   });
 });
 
@@ -144,7 +141,7 @@ describe("IssueSheetService.getIssue", () => {
     const sameProject = await issueSheetService.getIssue({
       organizationId: organization.id,
       projectId: project.id,
-      issueId: created.id,
+      issueId: created.identifier,
       actorUserId: user.id,
     });
     expect(sameProject?.id).toBe(created.id);
@@ -152,7 +149,7 @@ describe("IssueSheetService.getIssue", () => {
     const otherProjectIssue = await issueSheetService.getIssue({
       organizationId: organization.id,
       projectId: otherProject.id,
-      issueId: created.id,
+      issueId: created.identifier,
       actorUserId: user.id,
     });
     expect(otherProjectIssue).toBeNull();

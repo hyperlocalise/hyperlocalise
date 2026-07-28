@@ -51,6 +51,7 @@ const projectFixture = createProjectTestFixture();
 type IssueResponse = {
   issue: {
     id: string;
+    identifier: string;
     title: string;
     issueType: string;
     status: string;
@@ -176,7 +177,7 @@ describe("Issue Sheet routes", () => {
     const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
     expect(viewWithStatusBody.issues).toHaveLength(0);
 
-    const issueId = createdBody.issue.id;
+    const issueId = createdBody.issue.identifier;
 
     const getIssueResponse = await requestJson(
       issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
@@ -184,11 +185,11 @@ describe("Issue Sheet routes", () => {
     );
     expect(getIssueResponse.status).toBe(200);
     const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
-    expect(getIssueBody.issue.id).toBe(issueId);
+    expect(getIssueBody.issue.identifier).toBe(issueId);
     expect(getIssueBody.issue.title).toBe("Source string needs context");
 
     const missingIssueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      issueSheetUrl(organizationSlug, project.id, "/ZZZ-99999"),
       { headers },
     );
     expect(missingIssueResponse.status).toBe(404);
@@ -295,7 +296,7 @@ describe("Issue Sheet routes", () => {
     const firstBody = (await first.json()) as IssueResponse;
 
     const resolveResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${firstBody.issue.id}`),
+      issueSheetUrl(organizationSlug, project.id, `/${firstBody.issue.identifier}`),
       {
         method: "PATCH",
         headers,
@@ -561,7 +562,7 @@ Second import issue,Done,EXT-2,P2`;
     const created = (await createResponse.json()) as IssueResponse;
 
     const crossProjectResponse = await requestJson(
-      issueSheetUrl(organizationSlug, otherProject.id, `/${created.issue.id}`),
+      issueSheetUrl(organizationSlug, otherProject.id, `/${created.issue.identifier}`),
       { headers },
     );
     expect(crossProjectResponse.status).toBe(404);
@@ -570,7 +571,7 @@ Second import issue,Done,EXT-2,P2`;
     });
 
     const missingResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      issueSheetUrl(organizationSlug, project.id, "/ZZZ-99999"),
       { headers },
     );
     expect(missingResponse.status).toBe(404);
@@ -595,7 +596,7 @@ Second import issue,Done,EXT-2,P2`;
     const created = (await createResponse.json()) as IssueResponse;
 
     const response = await requestJson(
-      issueSheetUrl(ownerSlug, owner.project.id, `/${created.issue.id}`),
+      issueSheetUrl(ownerSlug, owner.project.id, `/${created.issue.identifier}`),
       { headers: outsiderHeaders },
     );
     expect(response.status).toBe(404);

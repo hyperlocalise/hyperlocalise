@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { issueSheetImportContentExceedsByteLimit } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
 
 import { projectIdParamsSchema } from "./project.schema";
@@ -45,7 +46,7 @@ export const issueSheetColumnLayerSchema = z.enum(["system", "generated", "custo
 
 export const issueSheetParamsSchema = projectIdParamsSchema;
 export const issueSheetIssueParamsSchema = projectIdParamsSchema.extend({
-  issueId: z.string().uuid(),
+  issueId: issueIdSchema,
 });
 export const issueSheetColumnParamsSchema = projectIdParamsSchema.extend({
   columnId: z.string().uuid(),

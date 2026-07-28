@@ -399,8 +399,8 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as { issue: { id: string } };
-      const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.id)}`;
+      const body = (await response.json()) as { issue: { id: string; identifier: string } };
+      const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.identifier)}`;
 
       toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
         action: {

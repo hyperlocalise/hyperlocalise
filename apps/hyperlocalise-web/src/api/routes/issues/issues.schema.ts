@@ -19,9 +19,10 @@ import {
   issueSheetSortDirSchema,
   issueSheetSortSchema,
 } from "@/api/routes/project/issue-sheet.schema";
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 export const organizationIssueSheetIssueParamsSchema = z.object({
-  issueId: z.string().uuid(),
+  issueId: issueIdSchema,
 });
 
 export const organizationIssuesQuerySchema = z.object({

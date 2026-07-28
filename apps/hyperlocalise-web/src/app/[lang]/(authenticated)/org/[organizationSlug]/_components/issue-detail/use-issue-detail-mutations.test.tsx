@@ -108,7 +108,7 @@ describe("useIssueDetailMutations", () => {
         useIssueDetailMutations({
           organizationSlug,
           projectId,
-          issueId: issue.id,
+          issueId: issue.identifier,
         }),
       { wrapper: createWrapper(queryClient) },
     );
@@ -174,7 +174,7 @@ describe("useIssueDetailMutations", () => {
         queries: { retry: false },
       },
     });
-    const queryKey = issueDetailQueryKey(organizationSlug, projectId, issue.id);
+    const queryKey = issueDetailQueryKey(organizationSlug, projectId, issue.identifier);
     queryClient.setQueryData(queryKey, issue);
 
     const { result } = renderHook(
@@ -182,7 +182,7 @@ describe("useIssueDetailMutations", () => {
         useIssueDetailMutations({
           organizationSlug,
           projectId,
-          issueId: issue.id,
+          issueId: issue.identifier,
         }),
       { wrapper: createWrapper(queryClient) },
     );
@@ -253,7 +253,7 @@ describe("useIssueDetailMutations", () => {
         useIssueDetailMutations({
           organizationSlug,
           projectId,
-          issueId: issue.id,
+          issueId: issue.identifier,
         }),
       { wrapper: createWrapper(queryClient) },
     );

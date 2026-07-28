@@ -225,7 +225,7 @@ export function IssuesPageView({
                       href={buildIssueDetailHref({
                         organizationSlug,
                         projectId: issue.projectId,
-                        issueId: issue.id,
+                        issueId: issue.identifier,
                       })}
                       className="font-medium text-foreground hover:underline"
                       onClick={(event) => event.stopPropagation()}

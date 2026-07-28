@@ -109,7 +109,7 @@ export class OrganizationIssueService {
       .where(
         and(
           eq(schema.issueSheetIssues.organizationId, organizationId),
-          eq(schema.issueSheetIssues.id, issueId),
+          eq(schema.issueSheetIssues.identifier, issueId),
           accessibleProjectsWhere,
           issueProjectJoin,
         ),
@@ -124,7 +124,7 @@ export class OrganizationIssueService {
     const issue = await this.issueSheetService.getIssue({
       organizationId,
       projectId: row.projectId,
-      issueId: row.id,
+      issueId,
       actorUserId: auth.user.localUserId,
     });
     if (!issue) {
