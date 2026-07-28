@@ -154,7 +154,7 @@ export function buildIssueListFilterConditions(input: {
   if (query.search) {
     const search = `%${query.search}%`;
     const targets = input.searchTargets ?? [
-      ilike(schema.issueSheetIssues.id, search),
+      ilike(schema.issueSheetIssues.identifier, search),
       ilike(schema.issueSheetIssues.title, search),
       ilike(schema.issueSheetIssues.description, search),
       ilike(schema.issueSheetIssues.sourcePath, search),

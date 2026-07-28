@@ -41,6 +41,7 @@ export type IssueSheetColumnFixture = {
 
 export type IssueSheetIssueFixture = {
   id: string;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -102,7 +103,8 @@ export function createIssueSheetIssue(
   overrides: Partial<IssueSheetIssueFixture> = {},
 ): IssueSheetIssueFixture {
   return {
-    id: "WEB-1",
+    id: "2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21",
+    identifier: "WEB-1",
     title: "Source string needs context",
     description: "The CTA is ambiguous.",
     issueType: "context_request",
@@ -133,7 +135,8 @@ export function createIssueSheetIssue(
 export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
   createIssueSheetIssue(),
   createIssueSheetIssue({
-    id: "WEB-2",
+    id: "3a5e9e8c-8d53-4ae9-cd0a-1b0a5d4a6e32",
+    identifier: "WEB-2",
     title: "Translation mistake in checkout",
     description: "Payment button label is too long in French.",
     issueType: "translation_mistake",
@@ -151,7 +154,8 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     updatedAt: iso(-3_600_000),
   }),
   createIssueSheetIssue({
-    id: "WEB-3",
+    id: "4b6f0f9d-9e64-4bf0-de1b-2c1b6e5b7f43",
+    identifier: "WEB-3",
     title: "QA failure on hero headline",
     description: "Length check failed for German headline.",
     issueType: "qa_failure",

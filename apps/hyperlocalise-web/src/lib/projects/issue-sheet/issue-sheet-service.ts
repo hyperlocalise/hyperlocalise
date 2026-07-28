@@ -22,7 +22,7 @@ import {
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema } from "@/lib/database";
-import { allocateNextIssueId } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import {
   runIssueSheetCsvImport,
@@ -51,6 +51,7 @@ export type IssueSheetColumn = {
 
 export type IssueSheetIssue = {
   id: string;
+  identifier: string;
   number: number;
   title: string;
   description: string;
@@ -127,6 +128,7 @@ const assigneeUsers = alias(schema.users, "assignee_users");
 
 type IssueRow = {
   id: string;
+  identifier: string;
   number: number;
   title: string;
   description: string;
@@ -171,6 +173,7 @@ function formatUser(row: {
 function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheetIssue {
   return {
     id: row.id,
+    identifier: row.identifier,
     number: row.number,
     title: row.title,
     description: row.description,
@@ -361,7 +364,7 @@ export class IssueSheetService {
     }
 
     const createdId = await this.database.transaction(async (tx) => {
-      const allocated = await allocateNextIssueId({
+      const allocated = await allocateNextIssueIdentifier({
         projectId: input.projectId,
         database: tx,
       });
@@ -369,7 +372,7 @@ export class IssueSheetService {
       const [issue] = await tx
         .insert(schema.issueSheetIssues)
         .values({
-          id: allocated.id,
+          identifier: allocated.identifier,
           number: allocated.number,
           organizationId: input.organizationId,
           projectId: input.projectId,
@@ -698,6 +701,7 @@ export class IssueSheetService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
         number: schema.issueSheetIssues.number,
         title: schema.issueSheetIssues.title,
         description: schema.issueSheetIssues.description,

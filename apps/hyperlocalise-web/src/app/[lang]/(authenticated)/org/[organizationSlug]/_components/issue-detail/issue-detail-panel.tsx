@@ -456,11 +456,11 @@ export const IssueDetailPanel = forwardRef<
             type="button"
             className="font-mono text-xs text-muted-foreground tabular-nums hover:text-foreground"
             onClick={() => {
-              void navigator.clipboard.writeText(issue.id);
+              void navigator.clipboard.writeText(issue.identifier);
               toast.success(intl.formatMessage(messages.copiedIssueId));
             }}
           >
-            {issue.id}
+            {issue.identifier}
           </button>
         </div>
         <Textarea

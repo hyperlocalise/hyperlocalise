@@ -72,6 +72,7 @@ type IssueSheetColumn = {
 
 type IssueSheetIssue = {
   id: string;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -440,7 +441,7 @@ export function IssueSheetPageContent({
                         onClick={(event) => event.stopPropagation()}
                       >
                         <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
-                          {issue.id}
+                          {issue.identifier}
                         </span>
                         {issue.title}
                       </Link>

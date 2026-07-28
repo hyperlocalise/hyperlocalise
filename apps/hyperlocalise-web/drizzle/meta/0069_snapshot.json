@@ -1,5 +1,5 @@
 {
-  "id": "2362b29b-292c-4f51-bd86-b8a4a3f3b36f",
+  "id": "faacb6d0-fe83-41d5-9247-1f6f7610727c",
   "prevId": "83dd22d3-f7ab-4b46-9e45-f7e80be3a1e8",
   "version": "7",
   "dialect": "postgresql",
@@ -14673,9 +14673,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "organization_id": {
           "name": "organization_id",
@@ -14695,6 +14696,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "(floor(random() * 2147483646) + 1)::integer"
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'I' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)) || '-' || ((floor(random() * 2147483646) + 1)::integer)::text"
         },
         "title": {
           "name": "title",
@@ -14941,6 +14949,27 @@
           "method": "btree",
           "with": {}
         },
+        "issue_sheet_issues_project_identifier_key": {
+          "name": "issue_sheet_issues_project_identifier_key",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "identifier",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "issue_sheet_issues_project_external_ref_key": {
           "name": "issue_sheet_issues_project_external_ref_key",
           "columns": [
@@ -15093,7 +15122,7 @@
         },
         "issue_id": {
           "name": "issue_id",
-          "type": "text",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },

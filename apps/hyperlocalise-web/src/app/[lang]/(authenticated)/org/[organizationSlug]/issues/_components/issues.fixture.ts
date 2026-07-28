@@ -32,7 +32,8 @@ export function createOrganizationIssue(
   overrides: Partial<OrganizationIssue> = {},
 ): OrganizationIssue {
   return {
-    id: "WEB-1",
+    id: "2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21",
+    identifier: "WEB-1",
     projectId: "project_website",
     projectName: "Website localization",
     title: "Source string needs context",
@@ -55,7 +56,8 @@ export function createOrganizationIssue(
 export const organizationIssuesFixture: OrganizationIssue[] = [
   createOrganizationIssue(),
   createOrganizationIssue({
-    id: "WEB-2",
+    id: "3a5e9e8c-8d53-4ae9-cd0a-1b0a5d4a6e32",
+    identifier: "WEB-2",
     title: "Translation mistake in checkout",
     description: "Payment button label is too long in French.",
     issueType: "translation_mistake",
@@ -66,7 +68,8 @@ export const organizationIssuesFixture: OrganizationIssue[] = [
     updatedAt: iso(-3_600_000),
   }),
   createOrganizationIssue({
-    id: "MOB-1",
+    id: "5c7a1a0e-0f75-4cf1-ef2c-3d2c7f6c8a54",
+    identifier: "MOB-1",
     projectId: "project_mobile",
     projectName: "Mobile app",
     title: "Glossary violation in onboarding",
@@ -80,7 +83,8 @@ export const organizationIssuesFixture: OrganizationIssue[] = [
     updatedAt: iso(-7_200_000),
   }),
   createOrganizationIssue({
-    id: "WEB-3",
+    id: "4b6f0f9d-9e64-4bf0-de1b-2c1b6e5b7f43",
+    identifier: "WEB-3",
     title: "QA failure on hero headline",
     description: "Length check failed for German headline.",
     issueType: "qa_failure",

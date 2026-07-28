@@ -64,9 +64,11 @@ describe("OrganizationIssueService.getById", () => {
     const issue = await organizationIssueService.getById(auth, created.id);
     expect(issue).toMatchObject({
       id: created.id,
+      identifier: created.identifier,
       title: "Service issue",
       projectId: project.id,
     });
+    expect(issue?.identifier).toMatch(/^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/);
     expect(issue?.projectName).toBe("Service Test Project");
   });
 
@@ -75,7 +77,10 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
 
-    const issue = await organizationIssueService.getById(auth, "MISSING-1");
+    const issue = await organizationIssueService.getById(
+      auth,
+      "00000000-0000-4000-8000-000000000099",
+    );
     expect(issue).toBeNull();
   });
 

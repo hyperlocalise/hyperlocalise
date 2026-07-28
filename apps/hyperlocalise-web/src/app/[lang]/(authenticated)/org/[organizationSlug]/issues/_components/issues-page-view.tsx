@@ -33,6 +33,7 @@ export const ISSUES_PAGE_SIZE = 50;
 
 export type OrganizationIssue = {
   id: string;
+  identifier: string;
   projectId: string;
   projectName: string;
   title: string;
@@ -230,7 +231,7 @@ export function IssuesPageView({
                       onClick={(event) => event.stopPropagation()}
                     >
                       <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
-                        {issue.id}
+                        {issue.identifier}
                       </span>
                       {issue.title}
                     </Link>

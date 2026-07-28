@@ -14,7 +14,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema } from "@/lib/database";
-import { allocateNextIssueId } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import {
   countIssueSheetImportCreateMappings,
@@ -401,7 +401,7 @@ export async function runIssueSheetCsvImport(
 
   await db.transaction(async (tx) => {
     for (const row of rowsToCreate) {
-      const allocated = await allocateNextIssueId({
+      const allocated = await allocateNextIssueIdentifier({
         projectId: input.projectId,
         database: tx,
       });
@@ -409,7 +409,7 @@ export async function runIssueSheetCsvImport(
       const [issue] = await tx
         .insert(schema.issueSheetIssues)
         .values({
-          id: allocated.id,
+          identifier: allocated.identifier,
           number: allocated.number,
           organizationId: input.organizationId,
           projectId: input.projectId,

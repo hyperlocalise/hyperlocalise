@@ -26,6 +26,7 @@ const projectId = "00000000-0000-4000-8000-000000000010";
 
 const issue: IssueDetailIssue = {
   id: "00000000-0000-4000-8000-000000000001",
+  identifier: "TEST-1",
   title: "Original title",
   description: "Original description",
   issueType: "general_question",

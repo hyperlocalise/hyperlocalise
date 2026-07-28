@@ -36,6 +36,7 @@ export type IssueLinkKindValue = (typeof issueLinkKindValues)[number];
 
 export type IssueDetailIssue = {
   id: string;
+  identifier: string;
   number?: number;
   title: string;
   description: string;

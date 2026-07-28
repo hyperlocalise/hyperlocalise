@@ -42,13 +42,14 @@ export async function allocateUniqueProjectIdentifier(input: {
 }
 
 /**
- * Atomically allocate the next per-project issue id (PREFIX-N).
+ * Atomically allocate the next per-project issue identifier (PREFIX-N).
  * Must run inside the same transaction as the issue insert.
+ * UUID primary key is assigned by the database default.
  */
-export async function allocateNextIssueId(input: {
+export async function allocateNextIssueIdentifier(input: {
   projectId: string;
   database?: DatabaseClient;
-}): Promise<{ id: string; number: number; projectIdentifier: string }> {
+}): Promise<{ identifier: string; number: number; projectIdentifier: string }> {
   const database = input.database ?? db;
   const [row] = await database
     .update(schema.projects)
@@ -69,6 +70,6 @@ export async function allocateNextIssueId(input: {
   return {
     number: row.number,
     projectIdentifier: row.projectIdentifier,
-    id: formatIssueId(row.projectIdentifier, row.number),
+    identifier: formatIssueId(row.projectIdentifier, row.number),
   };
 }
