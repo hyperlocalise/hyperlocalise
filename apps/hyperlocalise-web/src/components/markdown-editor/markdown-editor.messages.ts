@@ -130,6 +130,26 @@ export const markdownEditorMessages = defineMessages({
     id: "lUH3RGUMfU",
     description: "Empty state when slash command filter matches nothing",
   },
+  mentionEmpty: {
+    defaultMessage: "No matching people or issues",
+    id: "Kw73KEGJmb",
+    description: "Empty state when @ mention filter matches nothing",
+  },
+  mentionUsersSection: {
+    defaultMessage: "Users",
+    id: "GqfMhL6Yw/",
+    description: "Section header for people in the @ mention popover",
+  },
+  mentionIssuesSection: {
+    defaultMessage: "Issues",
+    id: "BOD7YPsYm8",
+    description: "Section header for issues in the @ mention popover",
+  },
+  commentPlaceholder: {
+    defaultMessage: "Leave a comment… Use @ to mention",
+    id: "bMFBHYX/jE",
+    description: "Placeholder for the issue comment markdown composer",
+  },
   slashHeading1Title: {
     defaultMessage: "Heading 1",
     id: "sQepOjPr4u",

@@ -54,11 +54,9 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
-import { formatRelativeTimestamp } from "../workspace-files-shared";
-import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
-import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { IssueMarkdownField } from "./issue-markdown-field";
 import { issueMarkdownFieldMessages as markdownFieldMessages } from "./issue-markdown-field.messages";
+import { IssueCommentThread } from "./issue-comment-thread";
 import {
   buildIssueCatHref,
   isExternalHttpUrl,
@@ -75,6 +73,9 @@ import {
 } from "./issue-detail-utils";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
+import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
+import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
+import { formatRelativeTimestamp } from "../workspace-files-shared";
 
 type WorkspaceMember = {
   userId: string;
@@ -490,6 +491,12 @@ export const IssueDetailPanel = forwardRef<
             ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
           />
         </section>
+
+        <IssueCommentThread
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          issueId={issue.id}
+        />
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">

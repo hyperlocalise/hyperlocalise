@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -161,5 +162,61 @@ export const issueSheetRowValues = pgTable(
     uniqueIndex("issue_sheet_row_values_issue_column").on(table.issueId, table.columnId),
     index("idx_issue_sheet_row_values_org_project").on(table.organizationId, table.projectId),
     index("idx_issue_sheet_row_values_column").on(table.columnId),
+  ],
+);
+
+/**
+ * Stores discussion comments on issue sheet issues using Path Enumeration
+ * (materialized path) for threaded replies without recursive CTEs.
+ */
+export const issueSheetComments = pgTable(
+  "issue_sheet_comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id"),
+    path: text("path").notNull(),
+    depth: integer("depth").notNull().default(0),
+    authorUserId: uuid("author_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    body: text("body").notNull(),
+    mentionedUserIds: jsonb("mentioned_user_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    mentionedIssueIds: jsonb("mentioned_issue_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+      name: "issue_sheet_comments_parent_id_issue_sheet_comments_id_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("issue_sheet_comments_issue_path_key").on(table.issueId, table.path),
+    index("idx_issue_sheet_comments_issue_path").on(table.issueId, table.path),
+    index("idx_issue_sheet_comments_issue_created").on(table.issueId, table.createdAt, table.id),
+    index("idx_issue_sheet_comments_org_project_issue").on(
+      table.organizationId,
+      table.projectId,
+      table.issueId,
+    ),
+    index("idx_issue_sheet_comments_parent").on(table.parentId),
   ],
 );

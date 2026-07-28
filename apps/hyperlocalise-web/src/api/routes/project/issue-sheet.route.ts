@@ -23,6 +23,7 @@ import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace
 import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
+import { createIssueSheetCommentRoutes } from "./issue-sheet-comments.route";
 import {
   issueSheetColumnParamsSchema,
   issueSheetCreateColumnBodySchema,
@@ -104,6 +105,7 @@ async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, proje
 export function createIssueSheetRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", requireWorkspaceIssuesFeature)
+    .route("/:issueId/comments", createIssueSheetCommentRoutes())
     .get("/", validateIssueSheetParams, validateIssueSheetQuery, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);

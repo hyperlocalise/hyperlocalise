@@ -34,14 +34,19 @@ import {
   createMarkdownSlashCommandExtension,
   type MarkdownSlashCommandConfig,
 } from "./markdown-editor-slash-extension";
+import { createMarkdownMentionExtension } from "./markdown-editor-mention-extension";
+import type { MarkdownMentionConfig } from "./markdown-editor-mention-types";
 import { MarkdownEditorToolbar } from "./markdown-editor-toolbar";
+
+export type { MarkdownMentionConfig } from "./markdown-editor-mention-types";
+export { extractMentionIdsFromMarkdown } from "./markdown-editor-mention-types";
 
 function isMarkdownEditorChromeTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
     Boolean(
       target.closest(
-        "[data-markdown-slash-menu], [data-markdown-bubble-menu], [data-markdown-toolbar]",
+        "[data-markdown-slash-menu], [data-markdown-bubble-menu], [data-markdown-toolbar], [data-markdown-mention-menu]",
       ),
     )
   );
@@ -62,6 +67,7 @@ const markdownEditorContentClassName = cn(
   "[&_li[data-type=taskItem]_div]:flex-1",
   "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-subtle-foreground",
   "[&_a]:text-foreground [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-muted-foreground",
+  "[&_a[href^='mention:']]:rounded-md [&_a[href^='mention:']]:bg-muted [&_a[href^='mention:']]:px-1 [&_a[href^='mention:']]:py-0.5 [&_a[href^='mention:']]:no-underline [&_a[href^='mention:']]:decoration-transparent",
   "[&_code]:rounded [&_code]:bg-skeleton [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em]",
   "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-skeleton [&_pre]:p-3",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
@@ -77,20 +83,35 @@ const markdownBaseExtensions = [
   Link.configure({
     openOnClick: false,
     linkOnPaste: true,
+    protocols: ["http", "https", "mailto", "mention"],
+    isAllowedUri: (url, ctx) => {
+      try {
+        if (url.startsWith("mention:")) {
+          return true;
+        }
+        return ctx.defaultValidate(url);
+      } catch {
+        return false;
+      }
+    },
   }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Markdown,
 ] as unknown as Extensions;
 
-function useMarkdownEditorExtensions(getSlashConfig: () => MarkdownSlashCommandConfig) {
+function useMarkdownEditorExtensions(
+  getSlashConfig: () => MarkdownSlashCommandConfig,
+  getMentionConfig: () => MarkdownMentionConfig | null,
+) {
   return useMemo(
     () =>
       [
         ...markdownBaseExtensions,
         createMarkdownSlashCommandExtension(getSlashConfig),
+        createMarkdownMentionExtension(getMentionConfig),
       ] as unknown as Extensions,
-    [getSlashConfig],
+    [getSlashConfig, getMentionConfig],
   );
 }
 
@@ -103,6 +124,7 @@ export function MarkdownEditor({
   placeholder,
   ariaLabel,
   chrome = "default",
+  mentionConfig = null,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -113,6 +135,7 @@ export function MarkdownEditor({
   ariaLabel?: string;
   /** Minimal inline chrome omits the bordered shell; toolbar still shows when editable. */
   chrome?: "default" | "minimal";
+  mentionConfig?: MarkdownMentionConfig | null;
 }) {
   const intl = useIntl();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -129,8 +152,11 @@ export function MarkdownEditor({
       filterMarkdownSlashCommandItems(buildMarkdownSlashCommandItems(intl), query),
     emptyLabel: intl.formatMessage(markdownEditorMessages.slashEmpty),
   };
+  const mentionConfigRef = useRef<MarkdownMentionConfig | null>(null);
+  mentionConfigRef.current = mentionConfig;
   const getSlashConfig = useCallback(() => slashConfigRef.current, []);
-  const editorExtensions = useMarkdownEditorExtensions(getSlashConfig);
+  const getMentionConfig = useCallback(() => mentionConfigRef.current, []);
+  const editorExtensions = useMarkdownEditorExtensions(getSlashConfig, getMentionConfig);
   const resolvedPlaceholder = placeholder ?? intl.formatMessage(markdownEditorMessages.placeholder);
   const resolvedAriaLabel =
     ariaLabel ?? intl.formatMessage(markdownEditorMessages.taskDescriptionAria);
