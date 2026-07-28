@@ -28,6 +28,7 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["crowdin_auth_invalid", 401],
     ["no_active_tms_provider", 404],
     ["invalid_encoded_job_id", 400],
+    ["crowdin_cat_all_files_query_too_large", 400],
     ["invalid_smartling_project_id", 400],
     ["invalid_smartling_string_id", 400],
     ["smartling_auth_invalid", 401],

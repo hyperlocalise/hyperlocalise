@@ -15,7 +15,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildCrowdinFileQueueCroql,
   buildCrowdinFileSearchCroql,
+  CROWDIN_CROQL_MAX_ENCODED_LENGTH,
   escapeCrowdinCroqlString,
+  getCrowdinCroqlEncodedLength,
+  isCrowdinCroqlWithinLimit,
 } from "./crowdin-api";
 
 describe("buildCrowdinFileQueueCroql", () => {
@@ -82,6 +85,27 @@ describe("buildCrowdinFileQueueCroql", () => {
         queueFilter: "all",
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("Crowdin CROQL size limits", () => {
+  it("reports encoded length and accepts queries under the soft cap", () => {
+    const croql = "id of file = 1";
+    expect(getCrowdinCroqlEncodedLength(croql)).toBe(encodeURIComponent(croql).length);
+    expect(isCrowdinCroqlWithinLimit(croql)).toBe(true);
+  });
+
+  it("rejects multi-file OR queries that exceed the encoded soft cap", () => {
+    const fileIds = Array.from({ length: 250 }, (_, index) => 100_000 + index);
+    const croql = buildCrowdinFileQueueCroql({
+      fileIds,
+      targetLocale: "fr",
+      queueFilter: "all",
+    });
+
+    expect(croql).toBeDefined();
+    expect(getCrowdinCroqlEncodedLength(croql!)).toBeGreaterThan(CROWDIN_CROQL_MAX_ENCODED_LENGTH);
+    expect(isCrowdinCroqlWithinLimit(croql!)).toBe(false);
   });
 });
 

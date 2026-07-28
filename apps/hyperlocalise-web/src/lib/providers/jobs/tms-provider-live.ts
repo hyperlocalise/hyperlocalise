@@ -30,16 +30,17 @@ import {
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
 import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
-import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import {
+  buildCrowdinFileQueueCroql,
   CrowdinApiClient,
   CrowdinApiError,
+  isCrowdinCroqlWithinLimit,
   type CrowdinProject,
   type CrowdinLanguageTranslation,
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
   getPhraseUserConnection,
@@ -2191,6 +2192,9 @@ export async function getTmsProviderLiveCatFile(
   });
 }
 
+export const CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE =
+  "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.";
+
 export async function getTmsProviderLiveCatAllFiles(
   organizationId: string,
   externalProjectId: string,
@@ -2310,22 +2314,33 @@ async function buildCrowdinLiveCatAllFiles(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
+  // Project-wide All Files omits the multi-file OR list so CROQL stays small.
+  // Job/sourcePath filters still need explicit file ids and may exceed Crowdin URL limits.
+  const scopedToSourcePaths = sourcePathFilter != null;
   const croql = buildCrowdinFileQueueCroql({
-    fileIds,
+    ...(scopedToSourcePaths ? { fileIds } : {}),
     targetLocale: input.targetLocale,
     queueFilter: paginationInput.queueFilter,
     search: paginationInput.search,
   });
-  if (!croql) {
+
+  if (scopedToSourcePaths && !croql) {
     throw new TmsProviderLiveError(
       "invalid_crowdin_project_or_file_id",
       "Crowdin All Files CAT requires at least one project file.",
     );
   }
 
+  if (croql && !isCrowdinCroqlWithinLimit(croql)) {
+    throw new TmsProviderLiveError(
+      "crowdin_cat_all_files_query_too_large",
+      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    );
+  }
+
   try {
     const page = await client.listSourceStringsPage(projectId, {
-      croql,
+      croql: croql ?? undefined,
       offset,
       limit,
     });
@@ -2377,6 +2392,13 @@ async function buildCrowdinLiveCatAllFiles(input: {
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    if (error instanceof CrowdinApiError && (error.status === 400 || error.status === 414)) {
+      throw new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+      );
     }
 
     throw error;

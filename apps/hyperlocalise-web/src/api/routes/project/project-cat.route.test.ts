@@ -327,6 +327,46 @@ describe("project file CAT routes", () => {
     expect(getTmsProviderLiveCatAllFilesMock).toHaveBeenCalled();
   });
 
+  it("returns a select-a-file message when Crowdin All Files CROQL is too large", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    getTmsProviderLiveCatAllFilesMock.mockRejectedValue(
+      new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.",
+      ),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "crowdin_cat_all_files_query_too_large",
+      message:
+        "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.",
+    });
+  });
+
   it("returns Crowdin AI recommendations for an encoded provider project", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({

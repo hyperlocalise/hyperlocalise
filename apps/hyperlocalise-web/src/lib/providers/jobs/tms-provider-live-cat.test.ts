@@ -20,6 +20,8 @@ import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { isErr } from "@/lib/primitives/result/results";
 import { upsertCrowdinPatProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
+  CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+  getTmsProviderLiveCatAllFiles,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
@@ -1505,5 +1507,277 @@ describe("getTmsProviderLiveCatSegmentTarget", () => {
     expect(requestedPaths.some((path) => path.includes("/branches?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/directories?"))).toBe(false);
     expect(requestedPaths.some((path) => path.includes("/files?"))).toBe(false);
+  });
+});
+
+describe("getTmsProviderLiveCatAllFiles", () => {
+  let originalFetch: typeof fetch;
+
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("loads project-wide All Files without a multi-file CROQL OR list", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+              {
+                data: {
+                  id: 102,
+                  branchId: null,
+                  directoryId: null,
+                  name: "about.json",
+                  title: "about.json",
+                  type: "json",
+                  path: "/about.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?")) {
+        expect(path).not.toContain("id%20of%20file");
+        expect(path).not.toContain("croql=");
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hero.title",
+                  text: "Hello",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
+      actorUserId: user.id,
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        search: undefined,
+        queueFilter: "all",
+        paginated: true,
+      },
+    });
+
+    expect(catFile).toMatchObject({
+      sourcePath: "*",
+      filename: "All Files",
+      targetLocale: "fr",
+    });
+    expect(catFile.segments).toEqual([
+      expect.objectContaining({
+        externalStringId: "1001",
+        key: "hero.title",
+        sourcePath: "home.json",
+      }),
+    ]);
+  });
+
+  it("rejects scoped All Files when the multi-file CROQL exceeds the soft cap", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fileCount = 250;
+    const files = Array.from({ length: fileCount }, (_, index) => ({
+      data: {
+        id: 1000 + index,
+        branchId: null,
+        directoryId: null,
+        name: `file-${index}.json`,
+        title: `file-${index}.json`,
+        type: "json",
+        path: `/file-${index}.json`,
+        status: "active",
+        revisionId: 1,
+      },
+    }));
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?") || path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(JSON.stringify({ data: files }), { status: 200 });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const sourcePaths = files.map((file) => file.data.name);
+
+    await expect(
+      getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
+        actorUserId: user.id,
+        sourcePaths,
+        pagination: {
+          offset: 0,
+          limit: 50,
+          search: undefined,
+          queueFilter: "all",
+          paginated: true,
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "crowdin_cat_all_files_query_too_large",
+      message: CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    });
+
+    const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedPaths.some((path) => path.includes("/projects/42/strings?"))).toBe(false);
+  });
+
+  it("maps Crowdin 400 responses to a select-a-file All Files error", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?") || path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 1,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?")) {
+        return new Response(JSON.stringify({ error: { message: "Invalid croql" } }), {
+          status: 400,
+        });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      getTmsProviderLiveCatAllFiles(organization.id, "42", "fr", {
+        actorUserId: user.id,
+        pagination: {
+          offset: 0,
+          limit: 50,
+          search: undefined,
+          queueFilter: "untranslated",
+          paginated: true,
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "crowdin_cat_all_files_query_too_large",
+      message: CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    });
   });
 });

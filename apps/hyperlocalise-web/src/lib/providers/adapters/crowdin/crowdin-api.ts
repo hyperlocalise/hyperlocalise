@@ -61,6 +61,20 @@ export function escapeCrowdinCroqlString(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+/**
+ * Soft cap for an encoded Crowdin `croql` query param.
+ * Proxies and gateways often reject URLs near 8KB; keep headroom for path + other params.
+ */
+export const CROWDIN_CROQL_MAX_ENCODED_LENGTH = 4000;
+
+export function getCrowdinCroqlEncodedLength(croql: string): number {
+  return encodeURIComponent(croql).length;
+}
+
+export function isCrowdinCroqlWithinLimit(croql: string): boolean {
+  return getCrowdinCroqlEncodedLength(croql) <= CROWDIN_CROQL_MAX_ENCODED_LENGTH;
+}
+
 export function buildCrowdinFileQueueCroql(input: {
   fileId?: number;
   fileIds?: readonly number[];
