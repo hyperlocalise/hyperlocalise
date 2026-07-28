@@ -63,6 +63,16 @@ type AITranslateRequest struct {
 	Strings []string `json:"strings"`
 	// Target language identifier.
 	TargetLanguageID string `json:"targetLanguageId"`
+	// Source language identifier. Optional.
+	SourceLanguageID string `json:"sourceLanguageId,omitempty"`
+	// AI Prompt identifier. Optional.
+	AIPromptID int `json:"aiPromptId,omitempty"`
+	// TM identifiers. Optional.
+	TMIDs []int `json:"tmIds,omitempty"`
+	// Glossary identifiers. Optional.
+	GlossaryIDs []int `json:"glossaryIds,omitempty"`
+	// Instructions for translation. Optional.
+	Instructions []string `json:"instructions,omitempty"`
 }
 
 // Validate checks if the request is valid.
@@ -89,7 +99,9 @@ type AITranslateResponse struct {
 
 // AITranslate represents the AI translation result.
 type AITranslate struct {
-	Translations []string `json:"translations"`
+	SourceLanguageID string   `json:"sourceLanguageId"`
+	TargetLanguageID string   `json:"targetLanguageId"`
+	Translations     []string `json:"translations"`
 }
 
 // FineTuningDatasetResponse defines the structure of a response when
