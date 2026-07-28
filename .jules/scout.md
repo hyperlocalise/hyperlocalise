@@ -175,3 +175,7 @@
 ## 2026-10-15 - [I18N Config Locale Validation Edge Cases]
 **Learning:** Testing config validation rules (like locales, targets, and fallbacks) with malformed JSON structure, empty values, spaces, and invalid regex characters (e.g. `?`) ensures that user configuration errors are caught immediately during validation rather than manifesting as silent errors during file lookup.
 **Action:** Always include comprehensive, table-driven validation tests for core configuration files when adding or modifying validation rules.
+
+## 2026-10-16 - [Japanese Script Validity Verification]
+**Learning:** The localization evaluator's script validation helper (`localeValidityScore`) maps the Jpan script (e.g. for `ja-JP`) strictly to `unicode.Han` (Kanji). This means translations composed entirely of Hiragana (e.g., `"こんにちは"`) or Katakana (e.g., `"テレビ"`) will fail the script-compatibility check despite being valid Japanese, because they do not contain Han characters.
+**Action:** When testing the `Jpan` script or `ja-JP` locales in evaluator unit tests, ensure the translation text includes at least one Kanji (Han) character (such as `"今日"`) to satisfy the validator's character-set requirements.
