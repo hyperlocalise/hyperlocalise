@@ -1588,8 +1588,9 @@ describe("getTmsProviderLiveCatAllFiles", () => {
       }
 
       if (path.includes("/projects/42/strings?")) {
-        expect(path).toContain("croql=");
-        expect(path).toContain("id%20of%20file");
+        const croql = new URL(path).searchParams.get("croql") ?? "";
+        expect(croql).toContain("id of file = 101");
+        expect(croql).toContain("id of file = 102");
         expect(path).toContain("limit=");
         expect(path).toContain("offset=");
         return new Response(
@@ -1717,10 +1718,11 @@ describe("getTmsProviderLiveCatAllFiles", () => {
       if (path.includes("/projects/42/strings?")) {
         // Job-scoped All Files must ask Crowdin for only the in-scope files. Project-wide
         // offset/limit + client filtering would skip job strings buried later in the project.
-        expect(decodeURIComponent(path)).toContain("id of file = 101");
-        expect(decodeURIComponent(path)).toContain("id of file = 102");
-        expect(decodeURIComponent(path)).not.toContain("id of file = 103");
-        expect(path).toContain("croql=");
+        const croql = new URL(path).searchParams.get("croql") ?? "";
+        expect(croql).toContain("id of file = 101");
+        expect(croql).toContain("id of file = 102");
+        expect(croql).not.toContain("id of file = 103");
+        expect(croql).toContain("is translated");
         return new Response(
           JSON.stringify({
             data: [
