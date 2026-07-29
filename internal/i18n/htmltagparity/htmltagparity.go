@@ -28,6 +28,18 @@ func Mismatch(sourceValue, targetValue string) bool {
 	return !slices.Equal(sourceTags, targetTags)
 }
 
+// maxTagSliceCap bounds pre-allocation from strings.Count(s, "<").
+// Literal '<' in code/comparisons can approach len(s); without a cap that
+// reserves one string header per '<' (~16B on 64-bit) even when few tags append.
+const maxTagSliceCap = 32
+
+func tagSliceCap(numTags int) int {
+	if numTags > maxTagSliceCap {
+		return maxTagSliceCap
+	}
+	return numTags
+}
+
 // collectMarkupTags scans the string and collects normalized markup tag names
 // in a single pass with minimal heap allocations by fusing tag discovery, name extraction, and filtering.
 func collectMarkupTags(s string) []string {
@@ -36,7 +48,7 @@ func collectMarkupTags(s string) []string {
 	if numTags == 0 {
 		return nil
 	}
-	out := make([]string, 0, numTags)
+	out := make([]string, 0, tagSliceCap(numTags))
 	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
 	for i := 0; i < len(s); {
 		idx := strings.IndexByte(s[i:], '<')
@@ -111,7 +123,7 @@ func findAllTags(s string) []string {
 	if numTags == 0 {
 		return nil
 	}
-	out := make([]string, 0, numTags)
+	out := make([]string, 0, tagSliceCap(numTags))
 	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
 	for i := 0; i < len(s); {
 		idx := strings.IndexByte(s[i:], '<')

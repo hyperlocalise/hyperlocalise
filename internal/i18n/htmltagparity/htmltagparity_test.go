@@ -1,6 +1,36 @@
 package htmltagparity
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestTagSliceCap(t *testing.T) {
+	if got := tagSliceCap(0); got != 0 {
+		t.Fatalf("tagSliceCap(0) = %d, want 0", got)
+	}
+	if got := tagSliceCap(8); got != 8 {
+		t.Fatalf("tagSliceCap(8) = %d, want 8", got)
+	}
+	if got := tagSliceCap(maxTagSliceCap); got != maxTagSliceCap {
+		t.Fatalf("tagSliceCap(%d) = %d, want %d", maxTagSliceCap, got, maxTagSliceCap)
+	}
+	if got := tagSliceCap(maxTagSliceCap + 1000); got != maxTagSliceCap {
+		t.Fatalf("tagSliceCap(%d) = %d, want %d", maxTagSliceCap+1000, got, maxTagSliceCap)
+	}
+}
+
+func TestCollectMarkupTagsManyLiteralAngles(t *testing.T) {
+	// Many '<' that are not markup must not be treated as tags, and must not
+	// force an unbounded capacity allocation (covered via tagSliceCap).
+	s := strings.Repeat("a < b ", 200)
+	if tags := collectMarkupTags(s); tags != nil {
+		t.Fatalf("collectMarkupTags() = %v, want nil", tags)
+	}
+	if Mismatch(s, s+"c") {
+		t.Fatalf("literal '<' comparisons should not cause a mismatch")
+	}
+}
 
 func TestMismatchEqualTags(t *testing.T) {
 	src := `Hello <strong>world</strong>`
