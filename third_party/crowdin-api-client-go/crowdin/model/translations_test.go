@@ -491,6 +491,25 @@ func TestExportTranslationRequestValidate(t *testing.T) {
 			},
 			err: "exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request",
 		},
+		{
+			name: "exportApprovedOnly true and exportStringsThatPassedWorkflow both true",
+			req: &ExportTranslationRequest{
+				TargetLanguageID:                "uk",
+				ExportApprovedOnly:              toPtr(true),
+				ExportStringsThatPassedWorkflow: toPtr(true),
+			},
+			err: "exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request",
+		},
+		{
+			name: "exportApprovedOnly true with explicit zero approvals and workflow true is valid",
+			req: &ExportTranslationRequest{
+				TargetLanguageID:                "uk",
+				ExportApprovedOnly:              toPtr(true),
+				ExportWithMinApprovalsCount:     toPtr(0),
+				ExportStringsThatPassedWorkflow: toPtr(true),
+			},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {

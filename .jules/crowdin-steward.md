@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-07-29 - Validate derived exportWithMinApprovalsCount from exportApprovedOnly
+
+**Learning:** `ExportTranslationRequest.MarshalJSON` maps `exportApprovedOnly=true` to `exportWithMinApprovalsCount=1` when no explicit approval count is set. Validating only the explicit `ExportWithMinApprovalsCount` field let `exportApprovedOnly=true` + `exportStringsThatPassedWorkflow=true` pass client validation and still serialize into the incompatible API pair.
+
+**Action:** Updated `ExportTranslationRequest.Validate()` to apply the same derived approvals-count logic as `MarshalJSON` before enforcing mutual exclusivity with `exportStringsThatPassedWorkflow`, and added regression tests covering both the derived and explicit-zero cases.
+
 ## 2026-12-20 - Add ExportTranslationRequest validation parity
 
 **Learning:** In Crowdin API v2, the Export Project Translation request body contains several fields that are strictly mutually exclusive, such as `branchIds`, `directoryIds`, and `fileIds` (only one can be targeted per request), as well as boolean flag pairs like `skipUntranslatedStrings`/`skipUntranslatedFiles` and `exportWithMinApprovalsCount`/`exportStringsThatPassedWorkflow`. Lacking client-side validation for these constraints could lead to invalid payloads being transmitted and failing at the API gateway layer.

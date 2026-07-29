@@ -697,8 +697,15 @@ func (r *ExportTranslationRequest) Validate() error {
 		return errors.New("skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request")
 	}
 
-	if (r.ExportWithMinApprovalsCount != nil && r.ExportStringsThatPassedWorkflow != nil) &&
-		(*r.ExportWithMinApprovalsCount > 0 && *r.ExportStringsThatPassedWorkflow) {
+	// MarshalJSON maps exportApprovedOnly=true to exportWithMinApprovalsCount=1 when
+	// ExportWithMinApprovalsCount is unset, so validate the effective approvals count.
+	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
+	if r.ExportApprovedOnly != nil && *r.ExportApprovedOnly && exportWithMinApprovalsCount == nil {
+		minApprovalsCount := 1
+		exportWithMinApprovalsCount = &minApprovalsCount
+	}
+	if (exportWithMinApprovalsCount != nil && r.ExportStringsThatPassedWorkflow != nil) &&
+		(*exportWithMinApprovalsCount > 0 && *r.ExportStringsThatPassedWorkflow) {
 		return errors.New("exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request")
 	}
 
