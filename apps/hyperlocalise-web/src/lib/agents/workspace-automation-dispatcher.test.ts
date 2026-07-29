@@ -33,7 +33,10 @@ import {
   dispatchContentfulWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationsForContentfulWebhook,
+  dispatchWorkspaceAutomationsForGithubPush,
+  dispatchWorkspaceAutomationsForSourceUpload,
 } from "./workspace-automation-dispatcher";
+import { buildWorkspaceGithubPushAutomationIdempotencyKey } from "./workspace-automation-idempotency";
 
 const organizationIds: string[] = [];
 
@@ -674,5 +677,216 @@ describe("workspace automation dispatcher", () => {
     });
     expect(articleRuns).toHaveLength(0);
     expect(blogPostRuns).toHaveLength(1);
+  });
+
+  it("dispatches matching GitHub push automations and skips non-matching ones", async () => {
+    const scope = await seedDispatchScope();
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Validate main pushes",
+        instructions: "Run validation on main.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "github", branches: ["main"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            pushSource: false,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Release-only push",
+        instructions: "Run validation on release branches.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "github", branches: ["release/*"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            pushSource: false,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Agent-only GitHub automation",
+        instructions: "Use the GitHub agent.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "manual" },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: ["workflow-1"] };
+      },
+    };
+
+    const first = await dispatchWorkspaceAutomationsForGithubPush({
+      deliveryId: "delivery-github-1",
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.repository.id,
+      branch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+      queue,
+    });
+    const second = await dispatchWorkspaceAutomationsForGithubPush({
+      deliveryId: "delivery-github-1",
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.repository.id,
+      branch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+      queue,
+    });
+
+    expect(first).toHaveLength(1);
+    expect(first[0]?.outcome).toBe("enqueued");
+    expect(second).toHaveLength(1);
+    expect(second[0]?.inserted).toBe(false);
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: matching.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.idempotencyKey).toBe(
+      buildWorkspaceGithubPushAutomationIdempotencyKey({
+        automationId: matching.id,
+        configVersion: matching.configVersion,
+        githubDeliveryId: "delivery-github-1",
+      }),
+    );
+    expect(runs[0]?.inputSnapshot).toMatchObject({
+      githubDeliveryId: "delivery-github-1",
+      pushBranch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+    });
+  });
+
+  it("dispatches source-upload automations scoped to the matching project", async () => {
+    const scope = await seedDispatchScope();
+    const otherProjectId = `project-other-${scope.organizationId.slice(0, 8)}`;
+    await db.insert(schema.projects).values({
+      id: otherProjectId,
+      organizationId: scope.organizationId,
+      createdByUserId: scope.userId,
+      name: "Other project",
+    });
+
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Translate uploads",
+        instructions: "Create a native TMS job for uploads.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "source_upload" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          translation: {
+            enabled: true,
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+        },
+      }),
+    );
+    const otherProjectAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Other project uploads",
+        instructions: "Should not run for this project.",
+        projectId: otherProjectId,
+        triggerConfig: { mode: "source_upload" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          translation: {
+            enabled: true,
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: ["workflow-1"] };
+      },
+    };
+
+    const results = await dispatchWorkspaceAutomationsForSourceUpload({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourceFileId: "file-1",
+      sourceFileVersionId: "version-1",
+      sourcePath: "locales/en.json",
+      queue,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.outcome).toBe("enqueued");
+    expect(enqueued).toHaveLength(1);
+
+    const matchingRuns = await listWorkspaceAutomationRuns({
+      automationId: matching.id,
+      organizationId: scope.organizationId,
+    });
+    const otherRuns = await listWorkspaceAutomationRuns({
+      automationId: otherProjectAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(matchingRuns).toHaveLength(1);
+    expect(otherRuns).toHaveLength(0);
+    expect(matchingRuns[0]?.inputSnapshot).toMatchObject({
+      projectId: scope.projectId,
+      sourceFileId: "file-1",
+      sourceFileVersionId: "version-1",
+      sourcePath: "locales/en.json",
+    });
   });
 });

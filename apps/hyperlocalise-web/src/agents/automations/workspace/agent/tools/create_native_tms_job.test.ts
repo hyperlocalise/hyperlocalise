@@ -182,4 +182,81 @@ describe("createNativeTmsJobTool", () => {
     expect(result).toEqual(existing);
     expect(mocks.createFileTranslationJob).not.toHaveBeenCalled();
   });
+
+  it("rejects missing source upload context and project rows", async () => {
+    const missingContext = session({
+      inputSnapshot: { projectId: "project-1" },
+    });
+    await expect(
+      createNativeTmsJobTool(missingContext).execute!(
+        {},
+        {
+          toolCallId: "call-1",
+          messages: [],
+          context: {},
+        },
+      ),
+    ).rejects.toThrow("source_upload_context_missing");
+
+    mocks.selectLimit.mockResolvedValueOnce([]);
+    await expect(
+      createNativeTmsJobTool(session()).execute!(
+        {},
+        {
+          toolCallId: "call-2",
+          messages: [],
+          context: {},
+        },
+      ),
+    ).rejects.toThrow("translation_project_not_found");
+  });
+
+  it("uses configured target locales when project locales are not selected", async () => {
+    const currentSession = session();
+    currentSession.automation.toolConfig.translation = {
+      enabled: true,
+      useProjectTargetLocales: false,
+      targetLocales: ["ja-JP"],
+    };
+    const tool = createNativeTmsJobTool(currentSession);
+
+    const result = await tool.execute!(
+      { summary: "explicit locales" },
+      {
+        toolCallId: "call-3",
+        messages: [],
+        context: {},
+      },
+    );
+
+    expect(result).toMatchObject({
+      targetLocales: ["ja-JP"],
+      summary: "explicit locales",
+    });
+    expect(mocks.createFileTranslationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetLocales: ["ja-JP"],
+      }),
+    );
+  });
+
+  it("rejects empty configured target locales", async () => {
+    const currentSession = session();
+    currentSession.automation.toolConfig.translation = {
+      enabled: true,
+      useProjectTargetLocales: false,
+      targetLocales: [],
+    };
+
+    await expect(
+      createNativeTmsJobTool(currentSession).execute!(
+        {},
+        {
+          toolCallId: "call-4",
+          messages: [],
+          context: {},
+        },
+      ),
+    ).rejects.toThrow("translation_target_locales_missing");
+  });
 });
