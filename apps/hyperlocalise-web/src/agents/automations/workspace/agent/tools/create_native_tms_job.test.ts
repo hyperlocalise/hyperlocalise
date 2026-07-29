@@ -67,12 +67,12 @@ function session(
     status: "active",
     name: "Translate on source upload",
     instructions: "",
+    projectId: "project-1",
     triggerConfig: { mode: "source_upload" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
       translation: {
         enabled: true,
-        projectId: "project-1",
         useProjectTargetLocales: true,
         targetLocales: [],
       },

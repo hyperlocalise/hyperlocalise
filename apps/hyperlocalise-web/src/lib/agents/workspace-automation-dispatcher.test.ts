@@ -128,6 +128,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Scheduled validation",
         instructions: "Run validation on a schedule.",
+        projectId: scope.projectId,
         triggerConfig: {
           mode: "scheduled",
           schedule: {
@@ -144,7 +145,6 @@ describe("workspace automation dispatcher", () => {
           github: {
             enabled: true,
             mode: "sync",
-            projectId: scope.projectId,
             pushSource: false,
             pullTranslations: false,
             validation: true,
@@ -233,13 +233,13 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Translate Contentful article",
         instructions: "Translate Contentful updates.",
+        projectId: scope.projectId,
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: contentfulConnection.connection.id,
-            projectId: scope.projectId,
             sourceLocale: "de-DE",
             targetLocales: ["fr-FR"],
             contentTypeIds: ["helpCenterArticle"],
@@ -258,6 +258,7 @@ describe("workspace automation dispatcher", () => {
           authorUserId: scope.userId,
           name: `Newer GitHub automation ${index}`,
           instructions: "Run validation on pushes.",
+          projectId: scope.projectId,
           triggerConfig: { mode: "github", branches: ["main"] },
           repositoryTarget: {
             kind: "github",
@@ -267,7 +268,6 @@ describe("workspace automation dispatcher", () => {
             github: {
               enabled: true,
               mode: "sync",
-              projectId: scope.projectId,
               pushSource: false,
               pullTranslations: false,
               validation: true,
@@ -332,7 +332,6 @@ describe("workspace automation dispatcher", () => {
     const baseToolConfig = {
       enabled: true,
       connectionId: contentfulConnection.connection.id,
-      projectId: scope.projectId,
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
       contentTypeIds: ["helpCenterArticle"],
@@ -349,6 +348,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Scheduled Contentful without project",
         instructions: "Translate on schedule.",
+        projectId: scope.projectId,
         triggerConfig: {
           mode: "scheduled",
           schedule: {
@@ -364,12 +364,7 @@ describe("workspace automation dispatcher", () => {
     );
     const missingProjectAutomationRecord = {
       ...missingProjectAutomation,
-      toolConfig: {
-        contentful: {
-          ...baseToolConfig,
-          projectId: undefined,
-        },
-      },
+      projectId: null,
     };
 
     const missingProjectResult = await dispatchContentfulWorkspaceAutomationForSchedule({
@@ -398,6 +393,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Scheduled Contentful without source locale",
         instructions: "Translate on schedule.",
+        projectId: scope.projectId,
         triggerConfig: {
           mode: "scheduled",
           schedule: {
@@ -447,6 +443,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Scheduled Contentful without target locales",
         instructions: "Translate on schedule.",
+        projectId: scope.projectId,
         triggerConfig: {
           mode: "scheduled",
           schedule: {
@@ -510,13 +507,13 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Contentful webhook translation",
         instructions: "Translate Contentful entries from webhooks.",
+        projectId: scope.projectId,
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: contentfulConnection.connection.id,
-            projectId: scope.projectId,
             sourceLocale: "en-US",
             targetLocales: ["fr-FR"],
             contentTypeIds: ["helpCenterArticle"],
@@ -597,13 +594,13 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Translate article entries",
         instructions: "Translate article updates.",
+        projectId: scope.projectId,
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: contentfulConnection.connection.id,
-            projectId: scope.projectId,
             sourceLocale: "en-US",
             targetLocales: ["fr-FR"],
             contentTypeIds: ["article"],
@@ -621,13 +618,13 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Translate blog post entries",
         instructions: "Translate blog post updates.",
+        projectId: scope.projectId,
         triggerConfig: { mode: "contentful" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: contentfulConnection.connection.id,
-            projectId: scope.projectId,
             sourceLocale: "en-US",
             targetLocales: ["fr-FR"],
             contentTypeIds: ["blogPost"],

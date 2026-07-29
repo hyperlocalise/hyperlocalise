@@ -79,13 +79,13 @@ function session(input: {
     status: "active",
     name: input.automationName ?? "Translate Contentful article",
     instructions: "",
+    projectId: "00000000-0000-4000-8000-000000000002",
     triggerConfig: { mode: "contentful" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
       contentful: {
         enabled: true,
         connectionId: "00000000-0000-4000-8000-000000000001",
-        projectId: "00000000-0000-4000-8000-000000000002",
         sourceLocale: "en",
         targetLocales: ["fr-FR"],
         contentTypeIds: [],

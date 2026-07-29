@@ -50,13 +50,13 @@ function automation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Test automation",
     instructions: "",
+    projectId: "project-1",
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
       github: {
         enabled: true,
         mode: "sync",
-        projectId: "project-1",
         pushSource: true,
         pullTranslations: false,
         validation: false,

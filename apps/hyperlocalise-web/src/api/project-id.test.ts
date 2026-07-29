@@ -105,16 +105,14 @@ describe("project id schemas", () => {
     ).toBe(decoded);
     expect(
       workspaceAutomationConfigSchema.parse({
+        projectId: encoded,
         triggerConfig: { mode: "manual" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
-          github: { enabled: true, projectId: encoded },
-          contentful: { enabled: true, projectId: encoded },
+          github: { enabled: true },
+          contentful: { enabled: true },
         },
-      }).toolConfig,
-    ).toMatchObject({
-      github: { projectId: decoded },
-      contentful: { projectId: decoded },
-    });
+      }).projectId,
+    ).toBe(decoded);
   });
 });

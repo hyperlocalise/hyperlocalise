@@ -55,6 +55,7 @@ describe("runWorkspaceAutomationScheduler", () => {
       status: "active" as const,
       name: "Scheduled Contentful on GitHub repo",
       instructions: "",
+      projectId: "project-1",
       triggerConfig: {
         mode: "scheduled" as const,
         schedule: { cadence: "daily" as const, hourUtc: 8, timezone: "UTC" },
@@ -67,7 +68,6 @@ describe("runWorkspaceAutomationScheduler", () => {
         contentful: {
           enabled: true,
           connectionId: "conn-1",
-          projectId: "project-1",
           sourceLocale: "en",
           targetLocales: ["de"],
           contentTypeIds: [],
@@ -79,7 +79,6 @@ describe("runWorkspaceAutomationScheduler", () => {
         github: {
           enabled: true,
           mode: "agent" as const,
-          projectId: "project-1",
           pushSource: false,
           pullTranslations: false,
           validation: false,

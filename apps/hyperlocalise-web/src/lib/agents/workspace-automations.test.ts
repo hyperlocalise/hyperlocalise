@@ -158,6 +158,7 @@ describe("workspace automations", () => {
       authorUserId: scope.userId,
       name: "Broken GitHub automation",
       instructions: "Run GitHub automation.",
+      projectId: scope.projectId,
       toolConfig: {
         github: {
           enabled: true,
@@ -197,7 +198,7 @@ describe("workspace automations", () => {
     if (missingProject.ok) {
       throw new Error("expected validation error");
     }
-    expect(missingProject.error.code).toBe("github_project_required");
+    expect(missingProject.error.code).toBe("project_required");
   });
 
   it("rejects scheduled automations without a GitHub or Contentful workflow", async () => {
@@ -284,12 +285,12 @@ describe("workspace automations", () => {
       authorUserId: scope.userId,
       name: "Scheduled Contentful automation",
       instructions: "Translate the configured entry on a schedule.",
+      projectId: scope.projectId,
       triggerConfig,
       toolConfig: {
         contentful: {
           enabled: true,
           connectionId: crypto.randomUUID(),
-          projectId: scope.projectId,
           sourceLocale: "en",
           targetLocales: ["fr"],
           contentTypeIds: ["article"],
@@ -329,6 +330,7 @@ describe("workspace automations", () => {
         authorUserId: scope.userId,
         name: "Due GitHub automation",
         instructions: "Run GitHub automation first.",
+        projectId: scope.projectId,
         repositoryTarget: {
           kind: "github",
           githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
@@ -338,7 +340,6 @@ describe("workspace automations", () => {
           github: {
             enabled: true,
             mode: "sync",
-            projectId: scope.projectId,
             pushSource: true,
             pullTranslations: false,
             validation: false,
@@ -353,12 +354,12 @@ describe("workspace automations", () => {
         authorUserId: scope.userId,
         name: "Earlier due Contentful automation",
         instructions: "Run Contentful automation first.",
+        projectId: scope.projectId,
         triggerConfig,
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: crypto.randomUUID(),
-            projectId: scope.projectId,
             sourceLocale: "en",
             entryId: "entry-scheduled-1",
             targetLocales: ["fr"],
@@ -378,12 +379,12 @@ describe("workspace automations", () => {
         authorUserId: scope.userId,
         name: "Later due Contentful automation",
         instructions: "Run Contentful automation second.",
+        projectId: scope.projectId,
         triggerConfig,
         toolConfig: {
           contentful: {
             enabled: true,
             connectionId: crypto.randomUUID(),
-            projectId: scope.projectId,
             sourceLocale: "en",
             entryId: "entry-scheduled-2",
             targetLocales: ["fr"],
@@ -427,6 +428,7 @@ describe("workspace automations", () => {
         authorUserId: scope.userId,
         name: "Repository automation",
         instructions: "Run repository automation.",
+        projectId: scope.projectId,
         repositoryTarget: {
           kind: "github",
           githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
@@ -443,7 +445,6 @@ describe("workspace automations", () => {
           github: {
             enabled: true,
             mode: "sync",
-            projectId: scope.projectId,
             pushSource: true,
             pullTranslations: false,
             validation: true,

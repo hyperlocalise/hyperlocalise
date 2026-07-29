@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -77,7 +77,6 @@ const githubToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     mode: z.enum(["agent", "sync"]).default("sync"),
-    projectId: optionalProjectIdSchema,
     pushSource: z.boolean().default(false),
     pullTranslations: z.boolean().default(false),
     validation: z.boolean().default(false),
@@ -110,7 +109,6 @@ const contentfulToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     connectionId: z.string().uuid().optional(),
-    projectId: optionalProjectIdSchema,
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     entryId: z.string().trim().min(1).max(256).optional(),
     contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
@@ -134,7 +132,6 @@ const contentfulToolConfigSchema = z
 const translationToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
-    projectId: optionalProjectIdSchema,
     useProjectTargetLocales: z.boolean().default(true),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
   })
@@ -182,6 +179,7 @@ const toolConfigSchema = z
   .default({});
 
 export const workspaceAutomationConfigSchema = z.object({
+  projectId: optionalProjectIdSchema,
   triggerConfig: triggerConfigSchema,
   repositoryTarget: repositoryTargetSchema,
   toolConfig: toolConfigSchema,
@@ -208,7 +206,10 @@ export type WorkspaceAutomationConfigValidationError =
       code: "github_repository_target_required";
       message: "Enabled GitHub tools require a GitHub repository target.";
     }
-  | { code: "github_project_required"; message: "Enabled GitHub tools require a project." }
+  | {
+      code: "project_required";
+      message: "Choose a Hyperlocalise project for this automation.";
+    }
   | {
       code: "github_trigger_required";
       message: "Enabled GitHub tools require a scheduled or GitHub push trigger.";
@@ -228,10 +229,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "contentful_connection_required";
       message: "Enabled Contentful tools require a Contentful connection.";
-    }
-  | {
-      code: "contentful_project_required";
-      message: "Enabled Contentful tools require a project.";
     }
   | {
       code: "contentful_target_locales_required";
@@ -256,10 +253,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "email_recipients_required";
       message: "Add at least one email recipient for automation notifications.";
-    }
-  | {
-      code: "translation_project_required";
-      message: "Enabled translation tools require a project.";
     }
   | {
       code: "translation_target_locales_required";
@@ -344,6 +337,7 @@ export type WorkspaceAutomationRecord = {
   status: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  projectId: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
@@ -352,6 +346,53 @@ export type WorkspaceAutomationRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+function readOptionalProjectId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function hoistLegacyWorkspaceAutomationProjectId(
+  toolConfig: Record<string, unknown> | WorkspaceAutomationToolConfig,
+): string | null {
+  const contentful =
+    toolConfig.contentful && typeof toolConfig.contentful === "object"
+      ? (toolConfig.contentful as { projectId?: unknown }).projectId
+      : undefined;
+  const translation =
+    toolConfig.translation && typeof toolConfig.translation === "object"
+      ? (toolConfig.translation as { projectId?: unknown }).projectId
+      : undefined;
+  const github =
+    toolConfig.github && typeof toolConfig.github === "object"
+      ? (toolConfig.github as { projectId?: unknown }).projectId
+      : undefined;
+
+  return (
+    readOptionalProjectId(contentful) ??
+    readOptionalProjectId(translation) ??
+    readOptionalProjectId(github)
+  );
+}
+
+export function workspaceAutomationNeedsProject(input: {
+  triggerConfig: WorkspaceAutomationTriggerConfig;
+  toolConfig: WorkspaceAutomationToolConfig;
+}): boolean {
+  if (input.triggerConfig.mode === "source_upload") {
+    return true;
+  }
+  if (hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)) {
+    return true;
+  }
+  if (hasWorkspaceAutomationTranslationWorkflow(input.toolConfig)) {
+    return true;
+  }
+  return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
+}
 
 export type WorkspaceAutomationRunRecord = {
   id: string;
@@ -385,10 +426,25 @@ function normalizeToolConfig(value: Record<string, unknown>): WorkspaceAutomatio
 }
 
 function validateWorkspaceAutomationConfig(input: {
+  projectId?: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
 }): Result<void, WorkspaceAutomationConfigValidationError> {
+  const projectId = readOptionalProjectId(input.projectId);
+  if (
+    workspaceAutomationNeedsProject({
+      triggerConfig: input.triggerConfig,
+      toolConfig: input.toolConfig,
+    }) &&
+    !projectId
+  ) {
+    return err({
+      code: "project_required",
+      message: "Choose a Hyperlocalise project for this automation.",
+    });
+  }
+
   const githubTools = input.toolConfig.github;
   if (githubTools?.enabled) {
     if (
@@ -410,23 +466,14 @@ function validateWorkspaceAutomationConfig(input: {
           message: "GitHub repo agent automations support scheduled or manual triggers only.",
         });
       }
-    } else {
-      if (!githubTools.projectId) {
-        return err({
-          code: "github_project_required",
-          message: "Enabled GitHub tools require a project.",
-        });
-      }
-
-      if (
-        input.triggerConfig.mode === "github" &&
-        (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
-      ) {
-        return err({
-          code: "github_push_branches_required",
-          message: "GitHub push triggers require at least one branch pattern.",
-        });
-      }
+    } else if (
+      input.triggerConfig.mode === "github" &&
+      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+    ) {
+      return err({
+        code: "github_push_branches_required",
+        message: "GitHub push triggers require at least one branch pattern.",
+      });
     }
   }
 
@@ -448,12 +495,6 @@ function validateWorkspaceAutomationConfig(input: {
       return err({
         code: "contentful_connection_required",
         message: "Enabled Contentful tools require a Contentful connection.",
-      });
-    }
-    if (!contentfulTools.projectId) {
-      return err({
-        code: "contentful_project_required",
-        message: "Enabled Contentful tools require a project.",
       });
     }
     if (contentfulTools.targetLocales.length === 0) {
@@ -488,13 +529,6 @@ function validateWorkspaceAutomationConfig(input: {
 
   const translationTools = input.toolConfig.translation;
   if (translationTools?.enabled) {
-    if (!translationTools.projectId) {
-      return err({
-        code: "translation_project_required",
-        message: "Enabled translation tools require a project.",
-      });
-    }
-
     if (!translationTools.useProjectTargetLocales && translationTools.targetLocales.length === 0) {
       return err({
         code: "translation_target_locales_required",
@@ -735,6 +769,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
 }
 
 function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
+  const rawToolConfig = (row.toolConfig ?? {}) as Record<string, unknown>;
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -742,9 +777,12 @@ function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
     status: row.status,
     name: row.name,
     instructions: row.instructions,
+    projectId:
+      readOptionalProjectId(row.projectId) ??
+      hoistLegacyWorkspaceAutomationProjectId(rawToolConfig),
     triggerConfig: normalizeTriggerConfig(row.triggerConfig),
     repositoryTarget: normalizeRepositoryTarget(row.repositoryTarget),
-    toolConfig: normalizeToolConfig(row.toolConfig),
+    toolConfig: normalizeToolConfig(rawToolConfig),
     configVersion: row.configVersion,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -789,6 +827,7 @@ export async function createWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
@@ -796,11 +835,14 @@ export async function createWorkspaceAutomation(input: {
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
   const config = workspaceAutomationConfigSchema.parse({
+    projectId: input.projectId ?? undefined,
     triggerConfig: input.triggerConfig ?? {},
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
+  const projectId = readOptionalProjectId(config.projectId);
   const validation = validateWorkspaceAutomationConfig({
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
@@ -816,6 +858,7 @@ export async function createWorkspaceAutomation(input: {
     status: input.status ?? "active",
     name: input.name,
     instructions: input.instructions,
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
@@ -855,6 +898,7 @@ export async function createWorkspaceAutomation(input: {
         status: input.status ?? "active",
         name: input.name,
         instructions: input.instructions,
+        projectId,
         triggerConfig: config.triggerConfig,
         githubInstallationRepositoryId:
           config.repositoryTarget.kind === "github"
@@ -888,6 +932,7 @@ export async function updateWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name?: string;
   instructions?: string;
+  projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
@@ -904,24 +949,32 @@ export async function updateWorkspaceAutomation(input: {
 
   const configChanged =
     input.instructions !== undefined ||
+    input.projectId !== undefined ||
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined;
 
   const config = configChanged
     ? workspaceAutomationConfigSchema.parse({
+        projectId:
+          input.projectId !== undefined
+            ? (input.projectId ?? undefined)
+            : (existing.projectId ?? undefined),
         triggerConfig: input.triggerConfig ?? existing.triggerConfig,
         repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
         toolConfig: input.toolConfig ?? existing.toolConfig,
       })
     : {
+        projectId: existing.projectId ?? undefined,
         triggerConfig: existing.triggerConfig,
         repositoryTarget: existing.repositoryTarget,
         toolConfig: existing.toolConfig,
       };
+  const projectId = readOptionalProjectId(config.projectId);
 
   if (configChanged) {
     const validation = validateWorkspaceAutomationConfig({
+      projectId,
       triggerConfig: config.triggerConfig,
       repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
@@ -936,6 +989,7 @@ export async function updateWorkspaceAutomation(input: {
     status: input.status ?? existing.status,
     name: input.name ?? existing.name,
     instructions: input.instructions ?? existing.instructions,
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
@@ -991,6 +1045,13 @@ export async function updateWorkspaceAutomation(input: {
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+        ...(configChanged
+          ? {
+              projectId,
+              // Re-persist normalized tool config so legacy per-tool projectIds are stripped.
+              toolConfig: config.toolConfig,
+            }
+          : {}),
         ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
         ...(input.repositoryTarget !== undefined
           ? {
@@ -1001,7 +1062,6 @@ export async function updateWorkspaceAutomation(input: {
               repositoryTarget: config.repositoryTarget,
             }
           : {}),
-        ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
         ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
           ? { nextRunAt: resolvedNextRunAt }
           : {}),
@@ -1136,7 +1196,13 @@ export async function listSourceUploadWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.status, "active"),
         sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'source_upload'`,
         sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'`,
-        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}`,
+        or(
+          eq(schema.workspaceAutomations.projectId, input.projectId),
+          and(
+            isNull(schema.workspaceAutomations.projectId),
+            sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}`,
+          ),
+        ),
       ),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))

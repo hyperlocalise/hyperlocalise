@@ -33,13 +33,13 @@ function baseAutomation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Contentful + GitHub automation",
     instructions: "",
+    projectId: "project-1",
     triggerConfig: { mode: "contentful" },
     repositoryTarget: { kind: "github", githubInstallationRepositoryId: "repo-install-1" },
     toolConfig: {
       contentful: {
         enabled: true,
         connectionId: "conn-1",
-        projectId: "project-1",
         sourceLocale: "en",
         targetLocales: ["de"],
         contentTypeIds: [],
@@ -51,7 +51,6 @@ function baseAutomation(): WorkspaceAutomationRecord {
       github: {
         enabled: true,
         mode: "sync",
-        projectId: "project-1",
         pushSource: true,
         pullTranslations: false,
         validation: false,

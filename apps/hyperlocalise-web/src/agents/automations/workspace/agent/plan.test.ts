@@ -24,6 +24,7 @@ function automation(overrides: Partial<WorkspaceAutomationRecord> = {}): Workspa
     status: "active",
     name: "Test automation",
     instructions: "",
+    projectId: null,
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
     toolConfig: {},
@@ -39,11 +40,11 @@ describe("buildWorkspaceOrchestratorPlan", () => {
   it("orders workflow tools before notifications", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
+        projectId: "project-1",
         toolConfig: {
           github: {
             enabled: true,
             mode: "sync",
-            projectId: "project-1",
             pushSource: true,
             pullTranslations: false,
             validation: false,
@@ -59,11 +60,11 @@ describe("buildWorkspaceOrchestratorPlan", () => {
   it("puts contentful before github when template skill targets contentful", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
+        projectId: "project-1",
         toolConfig: {
           github: {
             enabled: true,
             mode: "sync",
-            projectId: "project-1",
             pushSource: true,
             pullTranslations: false,
             validation: false,
@@ -71,7 +72,6 @@ describe("buildWorkspaceOrchestratorPlan", () => {
           contentful: {
             enabled: true,
             connectionId: "conn-1",
-            projectId: "project-1",
             sourceLocale: "en",
             targetLocales: ["de"],
             contentTypeIds: [],
@@ -96,11 +96,11 @@ describe("buildWorkspaceOrchestratorPlan", () => {
   it("plans native TMS create then assign when translation workflow is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
+        projectId: "project-1",
         triggerConfig: { mode: "source_upload" },
         toolConfig: {
           translation: {
             enabled: true,
-            projectId: "project-1",
             useProjectTargetLocales: true,
             targetLocales: [],
           },

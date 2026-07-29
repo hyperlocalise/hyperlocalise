@@ -68,9 +68,9 @@ describe("workspace automation view model", () => {
       name: "Nightly validation",
       instructions: "Validate repository changes.",
       triggerMode: "scheduled" as const,
+      projectId: "project-1",
       githubEnabled: true,
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
-      githubProjectId: "project-1",
       validationEnabled: true,
       slackEnabled: true,
       slackChannelId: "C123",
@@ -80,6 +80,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig.mode).toBe("scheduled");
     expect(payload.repositoryTarget).toEqual({
       kind: "github",
@@ -87,9 +88,9 @@ describe("workspace automation view model", () => {
     });
     expect(payload.toolConfig.github).toMatchObject({
       enabled: true,
-      projectId: "project-1",
       validation: true,
     });
+    expect(payload.toolConfig.github).not.toHaveProperty("projectId");
     expect(payload.toolConfig.slack).toEqual({
       enabled: true,
       channelId: "C123",
@@ -171,9 +172,10 @@ describe("workspace automation view model", () => {
       pullTranslations: false,
       validation: false,
     });
-    expect(
-      formStateToWorkspaceAutomationPayload(form).toolConfig.github?.projectId,
-    ).toBeUndefined();
+    expect(formStateToWorkspaceAutomationPayload(form).projectId).toBeUndefined();
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.github).not.toHaveProperty(
+      "projectId",
+    );
   });
 
   it("maps Contentful tool settings to API payload", () => {
@@ -182,9 +184,9 @@ describe("workspace automation view model", () => {
       name: "Translate Contentful updates",
       instructions: "Translate updates.",
       triggerMode: "contentful" as const,
+      projectId: "project-1",
       contentfulEnabled: true,
       contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
-      contentfulProjectId: "project-1",
       contentfulSourceLocale: "de-DE",
       contentfulTargetLocales: ["fr-FR", "de-DE"],
       contentfulContentTypeIds: ["helpCenterArticle"],
@@ -194,17 +196,18 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig).toEqual({ mode: "contentful" });
     expect(payload.toolConfig.contentful).toMatchObject({
       enabled: true,
       connectionId: "11111111-1111-4111-8111-111111111111",
-      projectId: "project-1",
       sourceLocale: "de-DE",
       targetLocales: ["fr-FR", "de-DE"],
       contentTypeIds: ["helpCenterArticle"],
       runQa: true,
       writeDrafts: true,
     });
+    expect(payload.toolConfig.contentful).not.toHaveProperty("projectId");
   });
 
   it("requires Contentful connection, project, and locales when enabled", () => {
@@ -215,7 +218,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       contentfulConnectionId: "Choose a Contentful connection.",
-      contentfulProjectId: "Choose a Hyperlocalise project.",
+      projectId: "Choose a Hyperlocalise project.",
       contentfulTargetLocales: "Add at least one target locale.",
     });
   });
@@ -226,20 +229,21 @@ describe("workspace automation view model", () => {
       name: "Translate uploads",
       instructions: "Queue jobs after each upload.",
       triggerMode: "source_upload" as const,
+      projectId: "project-1",
       translationEnabled: true,
-      translationProjectId: "project-1",
       translationUseProjectTargetLocales: true,
     };
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig).toEqual({ mode: "source_upload" });
     expect(payload.toolConfig.translation).toEqual({
       enabled: true,
-      projectId: "project-1",
       useProjectTargetLocales: true,
       targetLocales: [],
     });
+    expect(payload.toolConfig.translation).not.toHaveProperty("projectId");
   });
 
   it("requires translation tool when source upload trigger is selected", () => {
