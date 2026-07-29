@@ -43,6 +43,7 @@ export function createAutomationSummary(
     status: "active",
     name: "Validate localisation on push",
     instructions: "Validate source and translation changes on every push.",
+    projectId: "project-1",
     triggerConfig: {
       mode: "github",
       branches: ["main"],
