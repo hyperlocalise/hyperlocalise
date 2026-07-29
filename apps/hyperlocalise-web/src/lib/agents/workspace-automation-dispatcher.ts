@@ -83,7 +83,7 @@ function resolveContentfulDispatchSkipReason(input: {
   if (!contentful?.connectionId) {
     return "contentful_connection_missing";
   }
-  if (!contentful.projectId) {
+  if (!input.automation.projectId?.trim()) {
     return "contentful_project_missing";
   }
   if (!contentful.sourceLocale?.trim()) {

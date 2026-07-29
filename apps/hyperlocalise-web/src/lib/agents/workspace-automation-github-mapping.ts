@@ -62,7 +62,8 @@ export function workspaceAutomationToGithubSettings(
   automation: WorkspaceAutomationRecord,
 ): GithubRepositoryAutomationSettings | null {
   const github = automation.toolConfig.github;
-  if (!hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) || !github?.projectId) {
+  const projectId = automation.projectId?.trim() || null;
+  if (!hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) || !github || !projectId) {
     return null;
   }
 
@@ -75,11 +76,11 @@ export function workspaceAutomationToGithubSettings(
     workflows: {
       pushSource: {
         enabled: github.pushSource,
-        projectId: github.projectId,
+        projectId,
       },
       pullTranslations: {
         enabled: github.pullTranslations,
-        projectId: github.projectId,
+        projectId,
       },
       validation: {
         enabled: github.validation,

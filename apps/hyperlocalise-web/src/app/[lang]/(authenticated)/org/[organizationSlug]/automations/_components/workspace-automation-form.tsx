@@ -84,7 +84,10 @@ import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
-import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
+import {
+  applyWorkspaceAutomationProjectSelection,
+  workspaceAutomationFormCanActivate,
+} from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import { cn } from "@/lib/primitives/cn";
 
@@ -313,7 +316,7 @@ function triggerSummary(
   }
 
   if (form.triggerMode === "source_upload") {
-    const project = projects.find((entry) => entry.id === form.translationProjectId);
+    const project = projects.find((entry) => entry.id === form.projectId);
     return project?.name
       ? intl.formatMessage(workspaceAutomationFormMessages.sourceUploadSummary, {
           project: project.name,
@@ -491,7 +494,7 @@ function HeaderProjectSelector({
   const selectableProjects = usesTranslationProject
     ? projects.filter((project) => project.source !== "external_tms")
     : projects;
-  const activeProjectId = usesTranslationProject ? form.translationProjectId : form.githubProjectId;
+  const activeProjectId = form.projectId;
   const selectedProject = selectableProjects.find((project) => project.id === activeProjectId);
   const triggerLabel =
     selectedProject?.name ??
@@ -500,20 +503,19 @@ function HeaderProjectSelector({
       : intl.formatMessage(workspaceAutomationFormMessages.selectProject));
 
   function handleProjectSelect(projectId: string) {
-    if (usesTranslationProject) {
-      onChange({
-        ...form,
-        translationProjectId: projectId,
-        ...(form.githubEnabled ? { githubProjectId: projectId } : {}),
-      });
-      return;
-    }
-
-    onChange({
-      ...form,
-      githubProjectId: projectId,
-      ...(form.translationEnabled ? { translationProjectId: projectId } : {}),
-    });
+    const project = projects.find((entry) => entry.id === projectId);
+    onChange(
+      applyWorkspaceAutomationProjectSelection(
+        form,
+        projectId,
+        project
+          ? {
+              sourceLocale: project.sourceLocale,
+              targetLocales: project.targetLocales,
+            }
+          : undefined,
+      ),
+    );
   }
 
   return (
@@ -827,7 +829,6 @@ function AddTriggerMenu({
                   triggerMode: "source_upload",
                   translationEnabled: true,
                   translationUseProjectTargetLocales: true,
-                  translationProjectId: form.translationProjectId || form.githubProjectId || "",
                 })
               }
             >
@@ -1165,7 +1166,6 @@ function AddToolMenu({
                   githubMode: "agent",
                   repositoryTargetKind: "github",
                   githubInstallationRepositoryId: defaultRepositoryId,
-                  githubProjectId: "",
                   pushSourceEnabled: false,
                   pullTranslationsEnabled: false,
                   validationEnabled: false,
@@ -1277,7 +1277,6 @@ function AddToolMenu({
                   ...form,
                   translationEnabled: true,
                   translationUseProjectTargetLocales: true,
-                  translationProjectId: form.translationProjectId || form.githubProjectId || "",
                   triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
                 })
               }
@@ -1495,15 +1494,10 @@ function ToolsSettings({
   );
   const ahrefsConnected = enabledAhrefsConnections.length > 0;
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
-  const selectedContentfulProject = projects.find(
-    (project) => project.id === form.contentfulProjectId,
-  );
-  const contentfulAvailableTargetLocales = selectedContentfulProject?.targetLocales ?? [];
+  const selectedProject = projects.find((project) => project.id === form.projectId);
+  const contentfulAvailableTargetLocales = selectedProject?.targetLocales ?? [];
   const showContentfulEntryId = form.triggerMode === "scheduled";
-  const selectedTranslationProject = projects.find(
-    (project) => project.id === form.translationProjectId,
-  );
-  const translationAvailableTargetLocales = selectedTranslationProject?.targetLocales ?? [];
+  const translationAvailableTargetLocales = selectedProject?.targetLocales ?? [];
   const translationTargetLocalesFieldId = "translation-target-locales";
   const intl = useIntl();
   const [memoriesOpen, setMemoriesOpen] = useState(false);
@@ -1878,76 +1872,26 @@ function ToolsSettings({
                 </Select>
                 <FieldError message={errors.contentfulConnectionId} />
               </div>
-              <div
-                className={cn(
-                  "grid gap-2",
-                  showContentfulEntryId ? "md:grid-cols-2" : "md:grid-cols-1",
-                )}
-              >
+              {showContentfulEntryId ? (
                 <div className="grid gap-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    <FormattedMessage {...workspaceAutomationFormMessages.projectLabel} />
+                  <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
+                    <FormattedMessage {...workspaceAutomationFormMessages.entryIdLabel} />
                   </Label>
-                  <Select
-                    value={form.contentfulProjectId || undefined}
+                  <Input
+                    id="contentful-entry-id"
+                    value={form.contentfulEntryId}
                     disabled={disabled}
-                    onValueChange={(value) => {
-                      if (!value) {
-                        return;
-                      }
-                      const project = projects.find((entry) => entry.id === value);
-                      onChange({
-                        ...form,
-                        contentfulProjectId: value,
-                        contentfulSourceLocale:
-                          project?.sourceLocale ?? form.contentfulSourceLocale,
-                        contentfulTargetLocales:
-                          project?.targetLocales && form.contentfulTargetLocales.length === 0
-                            ? project.targetLocales
-                            : form.contentfulTargetLocales.filter((locale) =>
-                                project?.targetLocales.includes(locale),
-                              ),
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-full rounded-lg">
-                      <span className="truncate">
-                        {projects.find((project) => project.id === form.contentfulProjectId)
-                          ?.name ??
-                          intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldError message={errors.contentfulProjectId} />
+                    className="h-8 rounded-lg text-sm"
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.contentfulEntryIdPlaceholder,
+                    )}
+                    onChange={(event) =>
+                      onChange({ ...form, contentfulEntryId: event.target.value })
+                    }
+                  />
+                  <FieldError message={errors.contentfulEntryId} />
                 </div>
-                {showContentfulEntryId ? (
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
-                      <FormattedMessage {...workspaceAutomationFormMessages.entryIdLabel} />
-                    </Label>
-                    <Input
-                      id="contentful-entry-id"
-                      value={form.contentfulEntryId}
-                      disabled={disabled}
-                      className="h-8 rounded-lg text-sm"
-                      placeholder={intl.formatMessage(
-                        workspaceAutomationFormMessages.contentfulEntryIdPlaceholder,
-                      )}
-                      onChange={(event) =>
-                        onChange({ ...form, contentfulEntryId: event.target.value })
-                      }
-                    />
-                    <FieldError message={errors.contentfulEntryId} />
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
               <div className="grid gap-1.5">
                 <Label
                   id={contentfulTargetLocalesFieldId}
@@ -2027,7 +1971,6 @@ function ToolsSettings({
                   onChange({
                     ...form,
                     translationEnabled: false,
-                    translationProjectId: "",
                     translationTargetLocales: [],
                     triggerMode: form.triggerMode === "source_upload" ? "manual" : form.triggerMode,
                   })
@@ -2646,8 +2589,7 @@ export function WorkspaceAutomationEditor({
             })}
           </span>
         </div>
-        <FieldError message={errors.githubProjectId} />
-        <FieldError message={errors.translationProjectId} />
+        <FieldError message={errors.projectId} />
         {!canActivate ? (
           <p className="text-xs text-muted-foreground">
             <FormattedMessage {...workspaceAutomationFormMessages.activateRequiresTool} />

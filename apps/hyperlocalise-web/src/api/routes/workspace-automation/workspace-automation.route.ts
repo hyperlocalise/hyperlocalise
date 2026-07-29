@@ -174,6 +174,7 @@ async function contentfulConnectionExists(input: { organizationId: string; conne
 
 async function validateAutomationReferences(input: {
   organizationId: string;
+  projectId?: string | null;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
 }): Promise<
@@ -204,22 +205,11 @@ async function validateAutomationReferences(input: {
     }
   }
 
-  const projectId = input.toolConfig.github?.projectId;
+  const projectId = typeof input.projectId === "string" ? input.projectId.trim() : "";
   if (projectId) {
     const foundProject = await projectExists({
       organizationId: input.organizationId,
       projectId,
-    });
-    if (!foundProject) {
-      return "project_not_found";
-    }
-  }
-
-  const contentfulProjectId = input.toolConfig.contentful?.projectId;
-  if (contentfulProjectId) {
-    const foundProject = await projectExists({
-      organizationId: input.organizationId,
-      projectId: contentfulProjectId,
     });
     if (!foundProject) {
       return "project_not_found";
@@ -329,6 +319,7 @@ export function createWorkspaceAutomationRoutes() {
 
       const referenceError = await validateAutomationReferences({
         organizationId,
+        projectId: payload.projectId,
         repositoryTarget: payload.repositoryTarget,
         toolConfig: payload.toolConfig,
       });
@@ -343,6 +334,7 @@ export function createWorkspaceAutomationRoutes() {
           status: payload.status,
           name: payload.name,
           instructions: payload.instructions,
+          projectId: payload.projectId ?? null,
           triggerConfig: payload.triggerConfig,
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,
@@ -410,6 +402,7 @@ export function createWorkspaceAutomationRoutes() {
 
       const referenceError = await validateAutomationReferences({
         organizationId,
+        projectId: payload.projectId !== undefined ? payload.projectId : existing.projectId,
         repositoryTarget: payload.repositoryTarget ?? existing.repositoryTarget,
         toolConfig: payload.toolConfig ?? existing.toolConfig,
       });
@@ -424,6 +417,7 @@ export function createWorkspaceAutomationRoutes() {
           status: payload.status,
           name: payload.name,
           instructions: payload.instructions,
+          projectId: payload.projectId,
           triggerConfig: payload.triggerConfig,
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,

@@ -66,7 +66,8 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
       const entryIdOverride =
         "entryId" in input && typeof input.entryId === "string" ? input.entryId : undefined;
       const contentful = session.automation.toolConfig.contentful;
-      if (!contentful?.enabled || !contentful.connectionId || !contentful.projectId) {
+      const projectId = session.automation.projectId?.trim() || null;
+      if (!contentful?.enabled || !contentful.connectionId || !projectId) {
         throw new Error("contentful_workflow_not_configured");
       }
 
@@ -136,7 +137,7 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
           : await createContentfulTranslationRun({
               organizationId: session.organizationId,
               connectionId: contentful.connectionId,
-              projectId: contentful.projectId,
+              projectId,
               workspaceAutomationRunId: session.run.id,
               webhookEventId:
                 typeof snapshot.contentfulWebhookEventId === "string"

@@ -559,11 +559,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "dCR6D4Achx",
     description: "Contentful connection option label when the connection is disabled",
   },
-  projectLabel: {
-    defaultMessage: "Project",
-    id: "JqELr8GP9s",
-    description: "Label for the project select in Contentful settings",
-  },
   entryIdLabel: {
     defaultMessage: "Entry ID",
     id: "auMBZJ74kN",

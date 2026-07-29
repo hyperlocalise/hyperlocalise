@@ -36,7 +36,8 @@ export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
     }),
     execute: async ({ summary }) => {
       const translationConfig = session.automation.toolConfig.translation;
-      if (!translationConfig?.enabled || !translationConfig.projectId) {
+      const automationProjectId = session.automation.projectId?.trim() || null;
+      if (!translationConfig?.enabled || !automationProjectId) {
         throw new Error("translation_workflow_not_configured");
       }
 
@@ -51,7 +52,7 @@ export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
       const sourceFileVersionId =
         typeof snapshot.sourceFileVersionId === "string" ? snapshot.sourceFileVersionId : null;
       const projectId =
-        typeof snapshot.projectId === "string" ? snapshot.projectId : translationConfig.projectId;
+        typeof snapshot.projectId === "string" ? snapshot.projectId : automationProjectId;
 
       if (!sourceFileId || !sourceFileVersionId) {
         throw new Error("source_upload_context_missing");
