@@ -179,3 +179,7 @@
 ## 2026-10-16 - [Japanese Script Validity Verification]
 **Learning:** The localization evaluator's script validation helper (`localeValidityScore`) maps the Jpan script (e.g. for `ja-JP`) strictly to `unicode.Han` (Kanji). This means translations composed entirely of Hiragana (e.g., `"こんにちは"`) or Katakana (e.g., `"テレビ"`) will fail the script-compatibility check despite being valid Japanese, because they do not contain Han characters.
 **Action:** When testing the `Jpan` script or `ja-JP` locales in evaluator unit tests, ensure the translation text includes at least one Kanji (Han) character (such as `"今日"`) to satisfy the validator's character-set requirements.
+
+## 2026-10-18 - [Unicode Locale Normalization and Casing Fallback]
+**Learning:** Checking or optimizing ASCII lowercase with custom fast paths (e.g. `isAlreadyLower`) must carefully handle non-ASCII characters by falling back to standard Unicode methods (`strings.ToLower`) to avoid corrupted normalization or incomplete deduplication across international scripts (e.g. Cyrillic, Greek, Arabic, Hebrew, and CJK).
+**Action:** When working on locale-processing libraries, always add tests representing multiple non-ASCII language and script codes to guarantee Unicode safety and deterministic deduplication.
