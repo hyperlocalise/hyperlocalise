@@ -17,7 +17,6 @@ import type {
   WorkspaceAutomationToolConfig,
   WorkspaceAutomationTriggerConfig,
 } from "./workspace-automations";
-import { workspaceAutomationNeedsProject } from "./workspace-automations";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -73,6 +72,19 @@ export type WorkspaceAutomationFormState = {
   ahrefsEnabled: boolean;
   ahrefsConnectionId: string;
 };
+
+function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState): boolean {
+  if (form.triggerMode === "source_upload") {
+    return true;
+  }
+  if (form.contentfulEnabled) {
+    return true;
+  }
+  if (form.translationEnabled) {
+    return true;
+  }
+  return form.githubEnabled && form.githubMode === "sync";
+}
 
 export type WorkspaceAutomationFieldErrors = Partial<
   Record<
@@ -461,14 +473,7 @@ export function validateWorkspaceAutomationFormState(
     errors.instructions = "Instructions are required.";
   }
 
-  const payload = formStateToWorkspaceAutomationPayload(form);
-  if (
-    workspaceAutomationNeedsProject({
-      triggerConfig: payload.triggerConfig,
-      toolConfig: payload.toolConfig,
-    }) &&
-    !form.projectId.trim()
-  ) {
+  if (workspaceAutomationFormNeedsProject(form) && !form.projectId.trim()) {
     errors.projectId = "Choose a Hyperlocalise project.";
   }
 
