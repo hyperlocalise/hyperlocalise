@@ -62,7 +62,7 @@ func TestContainsXMLTextEntityReference(t *testing.T) {
 		{"&quot;", true},
 		{"&#10;", true},
 		{"&#x0A;", true},
-		{"&#X0A;", true},
+		{"&#X0A;", false},
 		{"&unknown;", false},
 		{"&unknown; &amp;", true},
 		{"&incomplete", false},

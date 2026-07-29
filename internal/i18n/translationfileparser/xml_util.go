@@ -57,7 +57,9 @@ func isXMLTextEntityReference(entity string) bool {
 	case "amp", "lt", "gt", "apos", "quot":
 		return true
 	}
-	if strings.HasPrefix(entity, "#x") || strings.HasPrefix(entity, "#X") {
+	// XML requires lowercase 'x' in hexadecimal character references (&#x...;).
+	// encoding/xml rejects &#X...;, so the fast path must too.
+	if strings.HasPrefix(entity, "#x") {
 		return isXMLHexCharacterReference(entity[2:])
 	}
 	if strings.HasPrefix(entity, "#") {

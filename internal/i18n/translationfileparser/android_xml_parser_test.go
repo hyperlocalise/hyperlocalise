@@ -117,6 +117,11 @@ func TestEncodeAndroidResourceValueEscapesFastPathRejects(t *testing.T) {
 			want: `&amp;#0;`,
 		},
 		{
+			name: "uppercase hex character reference",
+			val:  `&#X41;`,
+			want: `&amp;#X41;`,
+		},
+		{
 			name: "well formed markup unchanged",
 			val:  `<b>Hello</b>`,
 			want: `<b>Hello</b>`,
@@ -170,6 +175,7 @@ func TestFastIsXMLFragmentWellFormed(t *testing.T) {
 		{"valid entity", "hello &amp; world", true},
 		{"valid numeric entity", "hello &#32; world", true},
 		{"valid hex entity", "hello &#xA0; world", true},
+		{"uppercase hex entity marker", "hello &#X41; world", false},
 		{"invalid entity", "hello &unknown; world", false},
 		{"null character reference", "&#0;", false},
 		{"noncharacter reference", "&#xFFFE;", false},

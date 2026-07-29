@@ -32,6 +32,8 @@ func TestFastPathNeverAcceptsWhatDecoderRejects(t *testing.T) {
 		`hello ]]> world`,
 		`<b>]]></b>`,
 		`&#0;`,
+		`&#X41;`,
+		`&#X0A;`,
 		`&#xFFFE;`,
 		`&#xFFFF;`,
 		`&#x110000;`,
