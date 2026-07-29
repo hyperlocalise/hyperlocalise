@@ -5,9 +5,15 @@ package htmltagparity
 import (
 	"slices"
 	"strings"
+	"unsafe"
 
 	"golang.org/x/net/html/atom"
 )
+
+// stringToBytes converts a string to a byte slice without memory allocation.
+func stringToBytes(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
+}
 
 // Mismatch reports whether the normalized HTML tag name sequences differ
 // between source and target (same semantics as check hasHTMLTagMismatch).
@@ -25,7 +31,12 @@ func Mismatch(sourceValue, targetValue string) bool {
 // collectMarkupTags scans the string and collects normalized markup tag names
 // in a single pass with minimal heap allocations by fusing tag discovery, name extraction, and filtering.
 func collectMarkupTags(s string) []string {
-	var out []string
+	// BOLT OPTIMIZATION: Precompute and pre-allocate the output slice to avoid slice growth and re-allocations.
+	numTags := strings.Count(s, "<")
+	if numTags == 0 {
+		return nil
+	}
+	out := make([]string, 0, numTags)
 	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
 	for i := 0; i < len(s); {
 		idx := strings.IndexByte(s[i:], '<')
@@ -74,10 +85,6 @@ func collectMarkupTags(s string) []string {
 				raw := s[start : j+1]
 				name := extractTagName(raw)
 				if name != "" && isLikelyMarkupTag(raw, name) {
-					if out == nil {
-						// Heuristic: pre-allocate 4 slots to avoid small re-allocations
-						out = make([]string, 0, 4)
-					}
 					out = append(out, name)
 				}
 				i = j + 1
@@ -92,11 +99,19 @@ func collectMarkupTags(s string) []string {
 			continue
 		}
 	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 
 func findAllTags(s string) []string {
-	var out []string
+	// BOLT OPTIMIZATION: Precompute and pre-allocate the output slice to avoid slice growth and re-allocations.
+	numTags := strings.Count(s, "<")
+	if numTags == 0 {
+		return nil
+	}
+	out := make([]string, 0, numTags)
 	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
 	for i := 0; i < len(s); {
 		idx := strings.IndexByte(s[i:], '<')
@@ -154,6 +169,9 @@ func findAllTags(s string) []string {
 			i++
 			continue
 		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -261,7 +279,7 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 	// This avoids allocating a []byte slice for Lookup.
 	if htmlAtoms[tag] {
 		return true
-	} else if a := atom.Lookup([]byte(tag)); a != 0 {
+	} else if a := atom.Lookup(stringToBytes(tag)); a != 0 {
 		// 'name' and 'id' are common path/template placeholders that are atoms but
 		// not standard HTML elements. We only treat them as markup if they have
 		// attributes (checked below).
