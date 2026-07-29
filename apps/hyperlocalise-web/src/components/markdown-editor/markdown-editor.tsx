@@ -107,14 +107,13 @@ function tryHandleMentionClick(
   if (!href) {
     return false;
   }
-  const mention = parseMentionHref(href);
-  if (!mention) {
-    return false;
-  }
   // Always block browser navigation for mention: links (target=_blank etc.).
   event.preventDefault();
   event.stopPropagation();
-  onMentionNavigate?.(mention);
+  const mention = parseMentionHref(href);
+  if (mention) {
+    onMentionNavigate?.(mention);
+  }
   return true;
 }
 
@@ -178,6 +177,7 @@ export function MarkdownEditor({
   chrome = "default",
   compact = false,
   mentionConfig = null,
+  onMentionNavigate,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -191,6 +191,7 @@ export function MarkdownEditor({
   /** Shorter min-height for single-line composers (e.g. comment reply footer). */
   compact?: boolean;
   mentionConfig?: MarkdownMentionConfig | null;
+  onMentionNavigate?: (mention: ParsedMarkdownMention) => void;
 }) {
   const intl = useIntl();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -198,6 +199,8 @@ export function MarkdownEditor({
   const linkPromptOpenRef = useRef(false);
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
+  const onMentionNavigateRef = useRef(onMentionNavigate);
+  onMentionNavigateRef.current = onMentionNavigate;
   const slashConfigRef = useRef<MarkdownSlashCommandConfig>({
     resolveItems: () => [],
     emptyLabel: "",
@@ -270,6 +273,8 @@ export function MarkdownEditor({
         class: editorContentClassName,
         "aria-label": resolvedAriaLabel,
       },
+      handleClick: (_view, _pos, event) =>
+        tryHandleMentionClick(event, onMentionNavigateRef.current),
       handleDOMEvents: {
         blur: (_view) => {
           scheduleBlurCommit(() => _view.hasFocus());
@@ -331,6 +336,8 @@ export function MarkdownEditor({
           class: editorContentClassName,
           "aria-label": resolvedAriaLabel,
         },
+        handleClick: (_view, _pos, event) =>
+          tryHandleMentionClick(event, onMentionNavigateRef.current),
         handleDOMEvents: {
           blur: (_view) => {
             scheduleBlurCommit(() => editor.view.hasFocus());
@@ -340,6 +347,23 @@ export function MarkdownEditor({
       },
     });
   }, [editor, editorContentClassName, resolvedAriaLabel, scheduleBlurCommit]);
+
+  // Editable TipTap leaves Link clicks to the browser when openOnClick is false.
+  // Capture mention: navigation so drafts don't open raw mention URLs.
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const dom = editor.view.dom;
+    const onClick = (event: MouseEvent) => {
+      tryHandleMentionClick(event, onMentionNavigateRef.current);
+    };
+    dom.addEventListener("click", onClick, true);
+    return () => {
+      dom.removeEventListener("click", onClick, true);
+    };
+  }, [editor]);
 
   if (!editor) {
     return (

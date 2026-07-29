@@ -44,6 +44,12 @@ describe("markdown mention helpers", () => {
     expect(parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222")).toBeNull();
   });
 
+  it("rejects issue mention hrefs with malformed project id encoding", () => {
+    expect(
+      parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222:%"),
+    ).toBeNull();
+  });
+
   it("extracts user and issue ids from markdown", () => {
     const markdown =
       "Hello [@Ada](mention:user:11111111-1111-4111-8111-111111111111) see [@HL-1](mention:issue:22222222-2222-4222-8222-222222222222:project_website)";

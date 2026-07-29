@@ -159,6 +159,7 @@ function IssueCommentBody({
               chrome="minimal"
               compact
               mentionConfig={mentionConfig}
+              onMentionNavigate={handleMentionNavigate}
               placeholder={intl.formatMessage(messages.editPlaceholder)}
               disabled={updateComment.isPending}
             />

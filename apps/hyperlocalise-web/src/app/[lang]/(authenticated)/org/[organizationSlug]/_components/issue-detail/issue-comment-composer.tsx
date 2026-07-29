@@ -22,6 +22,7 @@ import {
   extractMentionIdsFromMarkdown,
   MarkdownEditor,
   type MarkdownMentionConfig,
+  type ParsedMarkdownMention,
 } from "@/components/markdown-editor/markdown-editor";
 import { markdownEditorMessages } from "@/components/markdown-editor/markdown-editor.messages";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
 import { issueCommentMessages as messages } from "./issue-comment.messages";
+import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
+import { buildIssueDetailHref } from "./issue-detail-utils";
 
 type IssueCommentComposerProps = {
   organizationSlug: string;
@@ -70,6 +73,7 @@ export function IssueCommentComposer({
 }: IssueCommentComposerProps) {
   const intl = useIntl();
   const { user } = useAuth();
+  const navigateGuarded = useIssueDetailGuardedNavigate();
   const [value, setValue] = useState("");
   const [editorKey, setEditorKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +82,23 @@ export function IssueCommentComposer({
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email ||
     intl.formatMessage(messages.unknownAuthor);
+
+  const handleMentionNavigate = useCallback(
+    (mention: ParsedMarkdownMention) => {
+      if (mention.kind === "issue") {
+        navigateGuarded(
+          buildIssueDetailHref({
+            organizationSlug,
+            projectId: mention.projectId,
+            issueId: mention.id,
+          }),
+        );
+        return;
+      }
+      navigateGuarded(`/org/${encodeURIComponent(organizationSlug)}/members`);
+    },
+    [navigateGuarded, organizationSlug],
+  );
 
   const mentionConfig = useMemo<MarkdownMentionConfig>(
     () => ({
@@ -183,6 +204,7 @@ export function IssueCommentComposer({
             chrome="minimal"
             compact
             mentionConfig={mentionConfig}
+            onMentionNavigate={handleMentionNavigate}
             placeholder={placeholder}
             className="min-h-6 border-0 bg-transparent p-0 shadow-none"
           />
@@ -231,6 +253,7 @@ export function IssueCommentComposer({
           disabled={disabled || isSubmitting}
           chrome="minimal"
           mentionConfig={mentionConfig}
+          onMentionNavigate={handleMentionNavigate}
           placeholder={placeholder}
           className="min-h-14 border-0 bg-transparent p-0 shadow-none"
         />

@@ -204,6 +204,7 @@ export const IssueDetailPanel = forwardRef<
   });
 
   const membersQuery = useQuery({
+    // Must match members-page-content: same key, same envelope shape.
     queryKey: ["workspace-members", organizationSlug],
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
@@ -212,10 +213,9 @@ export const IssueDetailPanel = forwardRef<
       if (!response.ok) {
         throw new Error("Failed to load members");
       }
-      const body = (await response.json()) as {
+      return (await response.json()) as {
         members: WorkspaceMember[];
       };
-      return body.members.filter((member) => member.status === "active");
     },
   });
 
@@ -364,7 +364,9 @@ export const IssueDetailPanel = forwardRef<
   );
 
   const assigneeItems = useMemo(() => {
-    const members = membersQuery.data ?? [];
+    const members = (membersQuery.data?.members ?? []).filter(
+      (member) => member.status === "active",
+    );
     return [
       {
         value: "unassigned",

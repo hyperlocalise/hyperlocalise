@@ -94,6 +94,22 @@ function formatDisplayName(row: {
   return name || row.email || "Unknown";
 }
 
+const CREATED_AT_CURSOR_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseCreatedAtCursor(cursor: string): { createdAt: string; id: string } | null {
+  const separatorIndex = cursor.indexOf("|");
+  if (separatorIndex <= 0 || separatorIndex === cursor.length - 1) {
+    return null;
+  }
+  const createdAt = cursor.slice(0, separatorIndex);
+  const id = cursor.slice(separatorIndex + 1);
+  if (Number.isNaN(Date.parse(createdAt)) || !CREATED_AT_CURSOR_UUID_PATTERN.test(id)) {
+    return null;
+  }
+  return { createdAt, id };
+}
+
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -276,10 +292,11 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       if (input.query.sort === "thread") {
         conditions.push(gt(schema.issueSheetComments.path, input.query.cursor));
       } else {
-        const [cursorCreatedAt, cursorId] = input.query.cursor.split("|");
-        if (cursorCreatedAt && cursorId) {
+        // created_at cursors are validated as isoTimestamp|uuid by the list query schema.
+        const parsedCursor = parseCreatedAtCursor(input.query.cursor);
+        if (parsedCursor) {
           conditions.push(
-            sql`(${schema.issueSheetComments.createdAt}, ${schema.issueSheetComments.id}) > (${cursorCreatedAt}::timestamptz, ${cursorId}::uuid)`,
+            sql`(${schema.issueSheetComments.createdAt}, ${schema.issueSheetComments.id}) > (${parsedCursor.createdAt}::timestamptz, ${parsedCursor.id}::uuid)`,
           );
         }
       }

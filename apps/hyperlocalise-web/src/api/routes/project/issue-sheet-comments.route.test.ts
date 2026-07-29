@@ -372,6 +372,22 @@ describe("Issue sheet comment routes", () => {
     ).toBe(3);
   });
 
+  it("rejects malformed created_at cursors", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const issueId = await createIssue(organizationSlug, project.id, headers);
+
+    const response = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
+      headers,
+      query: { sort: "created_at", cursor: "not-a-date|not-a-uuid" },
+    });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_issue_comment_query",
+    });
+  });
+
   it("removes comments when the parent issue is deleted", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

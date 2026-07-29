@@ -58,6 +58,14 @@ export function mentionHrefForIssue(issueId: string, projectId: string) {
   return `mention:issue:${issueId}:${encodeURIComponent(projectId)}`;
 }
 
+function tryDecodeURIComponent(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
 export function parseMentionHref(href: string): ParsedMarkdownMention | null {
   const userMatch = /^mention:user:(.+)$/.exec(href);
   if (userMatch?.[1]) {
@@ -66,10 +74,14 @@ export function parseMentionHref(href: string): ParsedMarkdownMention | null {
 
   const issueMatch = /^mention:issue:([^:]+):(.+)$/.exec(href);
   if (issueMatch?.[1] && issueMatch[2]) {
+    const projectId = tryDecodeURIComponent(issueMatch[2]);
+    if (!projectId) {
+      return null;
+    }
     return {
       kind: "issue",
       id: issueMatch[1],
-      projectId: decodeURIComponent(issueMatch[2]),
+      projectId,
     };
   }
 
