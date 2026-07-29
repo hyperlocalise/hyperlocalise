@@ -13,6 +13,8 @@
 import { and, asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
 import { isOrganizationAdminRole } from "@/api/auth/policy";
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
+import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
@@ -225,17 +227,19 @@ export class IssueSheetCommentService extends ProjectServiceBase {
   }
 
   private async validateMentions(input: {
-    organizationId: string;
+    auth: ApiAuthContext;
     mentionedUserIds: string[];
     mentionedIssueIds: string[];
   }): Promise<IssueSheetCommentServiceError | null> {
+    const organizationId = input.auth.organization.localOrganizationId;
+
     if (input.mentionedUserIds.length > 0) {
       const members = await this.database
         .select({ userId: schema.organizationMemberships.userId })
         .from(schema.organizationMemberships)
         .where(
           and(
-            eq(schema.organizationMemberships.organizationId, input.organizationId),
+            eq(schema.organizationMemberships.organizationId, organizationId),
             inArray(schema.organizationMemberships.userId, input.mentionedUserIds),
           ),
         );
@@ -245,13 +249,17 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     }
 
     if (input.mentionedIssueIds.length > 0) {
+      // Match mention-suggestions: only issues in projects the actor can access.
+      const accessibleProjectsWhere = await buildAccessibleProjectsWhere(input.auth);
       const issues = await this.database
         .select({ id: schema.issueSheetIssues.id })
         .from(schema.issueSheetIssues)
+        .innerJoin(schema.projects, eq(schema.issueSheetIssues.projectId, schema.projects.id))
         .where(
           and(
-            eq(schema.issueSheetIssues.organizationId, input.organizationId),
+            eq(schema.issueSheetIssues.organizationId, organizationId),
             inArray(schema.issueSheetIssues.id, input.mentionedIssueIds),
+            accessibleProjectsWhere,
           ),
         );
       if (issues.length !== new Set(input.mentionedIssueIds).size) {
@@ -365,6 +373,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     issueId: string;
     actorUserId: string;
     role: OrganizationMembershipRole;
+    auth: ApiAuthContext;
     body: IssueSheetCommentCreateInput;
   }): Promise<
     { ok: true; value: IssueSheetComment } | { ok: false; error: IssueSheetCommentServiceError }
@@ -377,7 +386,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     const mentionedUserIds = [...new Set(input.body.mentionedUserIds ?? [])];
     const mentionedIssueIds = [...new Set(input.body.mentionedIssueIds ?? [])];
     const mentionError = await this.validateMentions({
-      organizationId: input.organizationId,
+      auth: input.auth,
       mentionedUserIds,
       mentionedIssueIds,
     });
@@ -428,17 +437,22 @@ export class IssueSheetCommentService extends ProjectServiceBase {
           mentionedUserIds,
           mentionedIssueIds,
         })
-        .returning({ id: schema.issueSheetComments.id });
+        .returning({
+          id: schema.issueSheetComments.id,
+        });
 
       if (!inserted) {
         throw new Error("failed_to_insert_comment");
       }
 
-      const path = parentPath ? `${parentPath}.${inserted.id}` : inserted.id;
-
+      // Microsecond epoch from Postgres keeps lexicographic order when inserts
+      // share the same JavaScript millisecond.
+      const segmentSql = sql`lpad(((extract(epoch from ${schema.issueSheetComments.createdAt}) * 1000000)::bigint)::text, 20, '0') || '_' || ${schema.issueSheetComments.id}::text`;
       await tx
         .update(schema.issueSheetComments)
-        .set({ path })
+        .set({
+          path: parentPath ? sql`${parentPath} || '.' || ${segmentSql}` : segmentSql,
+        })
         .where(eq(schema.issueSheetComments.id, inserted.id));
 
       const [row] = await tx
@@ -479,6 +493,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     commentId: string;
     actorUserId: string;
     role: OrganizationMembershipRole;
+    auth: ApiAuthContext;
     body: IssueSheetCommentUpdateInput;
   }): Promise<
     { ok: true; value: IssueSheetComment } | { ok: false; error: IssueSheetCommentServiceError }
@@ -516,7 +531,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     const mentionedUserIds = [...new Set(input.body.mentionedUserIds ?? [])];
     const mentionedIssueIds = [...new Set(input.body.mentionedIssueIds ?? [])];
     const mentionError = await this.validateMentions({
-      organizationId: input.organizationId,
+      auth: input.auth,
       mentionedUserIds,
       mentionedIssueIds,
     });

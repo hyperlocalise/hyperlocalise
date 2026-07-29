@@ -162,7 +162,7 @@ describe("Issue sheet comment routes", () => {
       canEdit: true,
       canDelete: true,
     });
-    expect(created.issueComment.path).toBe(created.issueComment.id);
+    expect(created.issueComment.path).toMatch(new RegExp(`^\\d{20}_${created.issueComment.id}$`));
 
     const replyResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       method: "POST",
@@ -176,7 +176,11 @@ describe("Issue sheet comment routes", () => {
       parentId: created.issueComment.id,
       depth: 1,
     });
-    expect(reply.issueComment.path).toBe(`${created.issueComment.id}.${reply.issueComment.id}`);
+    expect(reply.issueComment.path).toBe(
+      `${created.issueComment.path}.${reply.issueComment.path.split(".").at(-1)}`,
+    );
+    expect(reply.issueComment.path.startsWith(`${created.issueComment.path}.`)).toBe(true);
+    expect(reply.issueComment.path.endsWith(`_${reply.issueComment.id}`)).toBe(true);
 
     const listResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       headers,

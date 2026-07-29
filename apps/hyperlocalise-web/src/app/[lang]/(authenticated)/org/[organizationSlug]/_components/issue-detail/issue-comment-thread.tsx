@@ -68,9 +68,9 @@ function groupCommentThreads(comments: IssueComment[]) {
 
   return roots.map((root) => ({
     root,
-    replies: comments.filter(
-      (comment) => comment.depth > 0 && comment.path.startsWith(`${root.path}.`),
-    ),
+    replies: comments
+      .filter((comment) => comment.depth > 0 && comment.path.startsWith(`${root.path}.`))
+      .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)),
   }));
 }
 

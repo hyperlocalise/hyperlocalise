@@ -123,6 +123,7 @@ export function createIssueSheetCommentRoutes() {
         issueId: params.issueId,
         actorUserId: c.var.auth.user.localUserId,
         role: c.var.auth.membership.role,
+        auth: c.var.auth,
         body: c.req.valid("json"),
       });
       if (!result.ok) {
@@ -144,6 +145,7 @@ export function createIssueSheetCommentRoutes() {
         commentId: params.commentId,
         actorUserId: c.var.auth.user.localUserId,
         role: c.var.auth.membership.role,
+        auth: c.var.auth,
         body: c.req.valid("json"),
       });
       if (!result.ok) {
