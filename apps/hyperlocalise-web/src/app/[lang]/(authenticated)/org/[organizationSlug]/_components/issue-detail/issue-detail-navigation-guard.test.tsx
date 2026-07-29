@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -20,11 +20,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import {
   getInternalNavigationHrefFromClick,
   IssueDetailNavigationGuard,
+  useIssueDetailGuardedNavigate,
 } from "./issue-detail-navigation-guard";
 import type { IssueDetailPanelHandle } from "./issue-detail-panel";
 
+const pushMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock }),
 }));
 
 function createDirtyPanel(): IssueDetailPanelHandle {
@@ -75,12 +78,16 @@ describe("getInternalNavigationHrefFromClick", () => {
   });
 });
 
-function GuardHarness({ isDirty }: { isDirty: boolean }) {
+function GuardHarness({ isDirty, children }: { isDirty: boolean; children?: ReactNode }) {
   const panelRef = useRef<IssueDetailPanelHandle | null>(null);
   if (panelRef.current === null) {
     panelRef.current = createDirtyPanel();
   }
-  return <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDirty} />;
+  return (
+    <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDirty}>
+      {children}
+    </IssueDetailNavigationGuard>
+  );
 }
 
 describe("IssueDetailNavigationGuard", () => {
@@ -156,5 +163,37 @@ describe("IssueDetailNavigationGuard", () => {
       "",
       expect.stringContaining("/org/acme/issue"),
     );
+  });
+
+  it("routes programmatic navigation through the dirty-state guard", async () => {
+    pushMock.mockClear();
+
+    function NavigateButton() {
+      const navigateGuarded = useIssueDetailGuardedNavigate();
+      return (
+        <button type="button" onClick={() => navigateGuarded("/org/acme/members")}>
+          Go members
+        </button>
+      );
+    }
+
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <GuardHarness isDirty>
+          <NavigateButton />
+        </GuardHarness>
+      </IntlProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Go members" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/org/acme/members");
   });
 });

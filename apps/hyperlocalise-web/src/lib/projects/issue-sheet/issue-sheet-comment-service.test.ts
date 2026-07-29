@@ -257,11 +257,11 @@ describe("IssueSheetCommentService", () => {
     if (!threadList.ok) {
       return;
     }
-    expect(threadList.value.issueComments.map((comment) => comment.body)).toEqual([
-      "A",
-      "A-reply",
-      "B",
-    ]);
+    const threadBodies = threadList.value.issueComments.map((comment) => comment.body);
+    expect(threadBodies).toHaveLength(3);
+    expect(new Set(threadBodies)).toEqual(new Set(["A", "A-reply", "B"]));
+    // Path order keeps a reply immediately after its parent root.
+    expect(threadBodies.indexOf("A-reply")).toBe(threadBodies.indexOf("A") + 1);
 
     const pageOne = await commentService.list({
       organizationId,
@@ -276,6 +276,22 @@ describe("IssueSheetCommentService", () => {
       return;
     }
     expect(pageOne.value.issueComments).toHaveLength(2);
+    expect(pageOne.value.nextCursor).toBeTruthy();
+
+    const firstThreadPage = await commentService.list({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: user.id,
+      role: "admin",
+      query: { limit: 2, offset: 0, sort: "thread" },
+    });
+    expect(firstThreadPage.ok).toBe(true);
+    if (!firstThreadPage.ok) {
+      return;
+    }
+    expect(firstThreadPage.value.issueComments).toHaveLength(2);
+    expect(firstThreadPage.value.nextCursor).toBeTruthy();
 
     const cursorPage = await commentService.list({
       organizationId,
@@ -287,14 +303,22 @@ describe("IssueSheetCommentService", () => {
         limit: 2,
         offset: 0,
         sort: "thread",
-        cursor: first.value.path,
+        cursor: firstThreadPage.value.nextCursor!,
       },
     });
     expect(cursorPage.ok).toBe(true);
     if (!cursorPage.ok) {
       return;
     }
-    expect(cursorPage.value.issueComments.map((comment) => comment.body)).toEqual(["A-reply", "B"]);
+    expect(cursorPage.value.issueComments).toHaveLength(1);
+    expect(cursorPage.value.nextCursor).toBeNull();
+    expect(
+      new Set(
+        [...firstThreadPage.value.issueComments, ...cursorPage.value.issueComments].map(
+          (comment) => comment.id,
+        ),
+      ).size,
+    ).toBe(3);
   });
 
   it("cascades reply deletion when deleting a parent comment", async () => {

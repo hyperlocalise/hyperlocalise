@@ -236,6 +236,11 @@ describe("Issue sheet comment routes", () => {
       "translator",
     );
     const memberHeaders = await projectFixture.authHeadersFor(member);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: await projectFixture.getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
 
     const patchResponse = await requestJson(
       commentsUrl(organizationSlug, project.id, issueId, `/${created.issueComment.id}`),
@@ -266,6 +271,11 @@ describe("Issue sheet comment routes", () => {
     );
     const authorHeaders = await projectFixture.authHeadersFor(author);
     const adminHeaders = await projectFixture.authHeadersFor(adminIdentity);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: await projectFixture.getLocalUserId(author.user.workosUserId),
+      role: "member",
+    });
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
     const issueId = await createIssue(organizationSlug, project.id, adminHeaders);
 

@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
@@ -45,6 +44,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
 import { IssueCommentComposer } from "./issue-comment-composer";
 import { issueCommentMessages as messages } from "./issue-comment.messages";
+import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 import {
   useIssueCommentMutations,
@@ -90,7 +90,7 @@ function IssueCommentBody({
   indent?: number;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const navigateGuarded = useIssueDetailGuardedNavigate();
   const { updateComment, deleteComment } = useIssueCommentMutations({
     organizationSlug,
     projectId,
@@ -125,7 +125,7 @@ function IssueCommentBody({
 
   const handleMentionNavigate = (mention: ParsedMarkdownMention) => {
     if (mention.kind === "issue") {
-      router.push(
+      navigateGuarded(
         buildIssueDetailHref({
           organizationSlug,
           projectId: mention.projectId,
@@ -134,7 +134,7 @@ function IssueCommentBody({
       );
       return;
     }
-    router.push(`/org/${encodeURIComponent(organizationSlug)}/members`);
+    navigateGuarded(`/org/${encodeURIComponent(organizationSlug)}/members`);
   };
 
   return (
@@ -395,10 +395,12 @@ export function IssueCommentThread({
     },
   };
 
-  const threads = useMemo(
-    () => groupCommentThreads(commentsQuery.data?.issueComments ?? []),
-    [commentsQuery.data?.issueComments],
+  const comments = useMemo(
+    () => commentsQuery.data?.pages.flatMap((page) => page.issueComments) ?? [],
+    [commentsQuery.data?.pages],
   );
+  const threads = useMemo(() => groupCommentThreads(comments), [comments]);
+  const hasMore = Boolean(commentsQuery.hasNextPage);
 
   const handleCreate = async (input: {
     body: string;
@@ -429,7 +431,7 @@ export function IssueCommentThread({
         </TypographyP>
       ) : null}
 
-      {commentsQuery.data && commentsQuery.data.issueComments.length === 0 ? (
+      {commentsQuery.data && comments.length === 0 ? (
         <TypographyP className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.empty} />
         </TypographyP>
@@ -449,6 +451,26 @@ export function IssueCommentThread({
               onReply={handleCreate}
             />
           ))}
+        </div>
+      ) : null}
+
+      {hasMore ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={commentsQuery.isFetchingNextPage}
+            onClick={() => {
+              void commentsQuery.fetchNextPage();
+            }}
+          >
+            {commentsQuery.isFetchingNextPage ? (
+              <FormattedMessage {...messages.loadingMore} />
+            ) : (
+              <FormattedMessage {...messages.loadMore} />
+            )}
+          </Button>
         </div>
       ) : null}
 

@@ -70,14 +70,15 @@ export function IssueDetailPageContent({
       aria-busy={issueQuery.isLoading}
       aria-label={issueQuery.isLoading ? intl.formatMessage(messages.loadingAria) : undefined}
     >
-      <IssueDetailPanel
-        ref={panelRef}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        issueId={issueId}
-        onDirtyChange={setIsDraftDirty}
-      />
-      <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDraftDirty} />
+      <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDraftDirty}>
+        <IssueDetailPanel
+          ref={panelRef}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          issueId={issueId}
+          onDirtyChange={setIsDraftDirty}
+        />
+      </IssueDetailNavigationGuard>
     </main>
   );
 }

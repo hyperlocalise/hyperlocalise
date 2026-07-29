@@ -30,6 +30,16 @@ export const issueCommentMessages = defineMessages({
     id: "f8cyzFEbV0",
     description: "Error when issue comments fail to load",
   },
+  loadMore: {
+    defaultMessage: "Load more comments",
+    id: "ynWaUdVn9j",
+    description: "Button to load the next page of issue discussion comments",
+  },
+  loadingMore: {
+    defaultMessage: "Loading…",
+    id: "xdQ4upYwW8",
+    description: "Button label while more issue comments are loading",
+  },
   reply: {
     defaultMessage: "Reply",
     id: "a6vexhfCS6",

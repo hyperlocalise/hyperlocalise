@@ -291,8 +291,10 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         ? [asc(schema.issueSheetComments.path)]
         : [asc(schema.issueSheetComments.createdAt), asc(schema.issueSheetComments.id)];
 
+    // Always fetch one extra row so the first page (no cursor) can still
+    // produce a nextCursor when more comments remain.
     const useCursor = Boolean(input.query.cursor);
-    const fetchLimit = useCursor ? input.query.limit + 1 : input.query.limit;
+    const fetchLimit = input.query.limit + 1;
 
     const [rows, totalRow] = await Promise.all([
       this.database
@@ -318,7 +320,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         ),
     ]);
 
-    const hasMore = useCursor && rows.length > input.query.limit;
+    const hasMore = rows.length > input.query.limit;
     const pageRows = hasMore ? rows.slice(0, input.query.limit) : rows;
     const actor = { userId: input.actorUserId, role: input.role };
     const issueComments = pageRows.map((row) => toComment(row, actor));

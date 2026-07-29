@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
@@ -43,6 +43,14 @@ export type IssueComment = {
   canDelete: boolean;
 };
 
+export type IssueCommentsPage = {
+  issueComments: IssueComment[];
+  total: number;
+  nextCursor: string | null;
+};
+
+export const ISSUE_COMMENTS_PAGE_SIZE = 100;
+
 export function issueCommentsQueryKey(
   organizationSlug: string,
   projectId: string,
@@ -66,22 +74,27 @@ export function useIssueCommentsQuery({
   issueId: string;
   enabled?: boolean;
 }) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: issueCommentsQueryKey(organizationSlug, projectId, issueId),
     enabled,
-    queryFn: async () => {
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        sort: "thread",
+        limit: String(ISSUE_COMMENTS_PAGE_SIZE),
+      });
+      if (pageParam) {
+        params.set("cursor", pageParam);
+      }
       const response = await fetch(
-        `${commentsApiPath(organizationSlug, projectId, issueId)}?sort=thread&limit=100`,
+        `${commentsApiPath(organizationSlug, projectId, issueId)}?${params.toString()}`,
       );
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load comments");
       }
-      return (await response.json()) as {
-        issueComments: IssueComment[];
-        total: number;
-        nextCursor: string | null;
-      };
+      return (await response.json()) as IssueCommentsPage;
     },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 }
 
