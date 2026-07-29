@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // AndroidXMLResourcesParser parses Android string resource XML files.
@@ -359,6 +360,41 @@ func isAlphaNumDashColonDot(c byte) bool {
 		c == '_' || c == '-' || c == ':' || c == '.'
 }
 
+func isXMLNameStartByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		c == '_' || c == ':'
+}
+
+// isXMLNameFast validates ASCII XML names accepted by encoding/xml's nsname().
+// Non-ASCII names return false so the caller can fall back to the decoder.
+func isXMLNameFast(name string) bool {
+	if name == "" {
+		return false
+	}
+	if !isXMLNameStartByte(name[0]) {
+		return false
+	}
+
+	colonCount := 0
+	if name[0] == ':' {
+		colonCount = 1
+	}
+	for i := 1; i < len(name); i++ {
+		c := name[i]
+		if c >= 0x80 || !isAlphaNumDashColonDot(c) {
+			return false
+		}
+		if c == ':' {
+			colonCount++
+			if colonCount > 1 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func isNamespaceDeclared(prefix, namespaceAttrs string) bool {
 	if prefix == "" {
 		return true
@@ -389,6 +425,11 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 					return false
 				}
 
+				tagName := value[nameStart:nameEnd]
+				if !isXMLNameFast(tagName) {
+					return false
+				}
+
 				idx := nameEnd
 				for idx < len(value) && isXMLWhitespace(value[idx]) {
 					idx++
@@ -397,7 +438,6 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 					return false
 				}
 
-				tagName := value[nameStart:nameEnd]
 				if depth == 0 {
 					return false
 				}
@@ -421,6 +461,9 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 			}
 
 			tagName := value[nameStart:nameEnd]
+			if !isXMLNameFast(tagName) {
+				return false
+			}
 			colonIdx := strings.IndexByte(tagName, ':')
 			if colonIdx >= 0 {
 				prefix := tagName[:colonIdx]
@@ -447,9 +490,7 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 
 				if value[idx] == '/' {
 					idx++
-					for idx < len(value) && isXMLWhitespace(value[idx]) {
-						idx++
-					}
+					// XML requires "/>" with no whitespace between '/' and '>'.
 					if idx < len(value) && value[idx] == '>' {
 						selfClosing = true
 						idx++
@@ -467,6 +508,9 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 					return false
 				}
 				attrName := value[attrStart:idx]
+				if !isXMLNameFast(attrName) {
+					return false
+				}
 				attrColon := strings.IndexByte(attrName, ':')
 				if attrColon >= 0 {
 					prefix := attrName[:attrColon]
@@ -498,22 +542,21 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 				}
 				idx++ // Skip quote
 
-				valStart := idx
 				for idx < len(value) && value[idx] != quote {
-					if value[idx] == '<' {
+					c := value[idx]
+					if c == '<' || c == '&' {
 						return false
 					}
-					idx++
+					size := scanXMLCharSize(value, idx)
+					if size <= 0 {
+						return false
+					}
+					idx += size
 				}
 				if idx >= len(value) {
 					return false
 				}
-				valEnd := idx
 				idx++ // Skip closing quote
-
-				if strings.ContainsAny(value[valStart:valEnd], "&") {
-					return false
-				}
 			}
 
 			if !selfClosing {
@@ -536,12 +579,43 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 			}
 			i += 1 + semiOffset + 1
 			continue
-		} else {
+		} else if value[i] == ']' {
+			// XML forbids the character-data terminator "]]>" outside CDATA.
+			if i+2 < len(value) && value[i+1] == ']' && value[i+2] == '>' {
+				return false
+			}
 			i++
+			continue
+		} else {
+			size := scanXMLCharSize(value, i)
+			if size <= 0 {
+				return false
+			}
+			i += size
 		}
 	}
 
 	return depth == 0
+}
+
+// scanXMLCharSize returns the byte length of the XML Char at value[i], or 0 if
+// the byte sequence is not a legal XML character.
+func scanXMLCharSize(value string, i int) int {
+	c := value[i]
+	if c < 0x80 {
+		if c == 0x09 || c == 0x0A || c == 0x0D || c >= 0x20 {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(value[i:])
+	if r == utf8.RuneError && size == 1 {
+		return 0
+	}
+	if !isXMLCharacterRange(r) {
+		return 0
+	}
+	return size
 }
 
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {

@@ -89,6 +89,49 @@ func TestMarshalAndroidXMLResourcesEscapesInvalidXMLText(t *testing.T) {
 	}
 }
 
+func TestEncodeAndroidResourceValueEscapesFastPathRejects(t *testing.T) {
+	namespaceAttrs := ` xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2"`
+	tests := []struct {
+		name string
+		val  string
+		want string
+	}{
+		{
+			name: "whitespace after self-closing slash",
+			val:  `<img src="foo.png" /  >`,
+			want: `&lt;img src="foo.png" /  &gt;`,
+		},
+		{
+			name: "invalid element name",
+			val:  `<1a>x</1a>`,
+			want: `&lt;1a&gt;x&lt;/1a&gt;`,
+		},
+		{
+			name: "forbidden cdata terminator",
+			val:  `hello ]]> world`,
+			want: `hello ]]&gt; world`,
+		},
+		{
+			name: "illegal character reference",
+			val:  `&#0;`,
+			want: `&amp;#0;`,
+		},
+		{
+			name: "well formed markup unchanged",
+			val:  `<b>Hello</b>`,
+			want: `<b>Hello</b>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := encodeAndroidResourceValue(tt.val, namespaceAttrs); got != tt.want {
+				t.Fatalf("encodeAndroidResourceValue(%q) = %q, want %q", tt.val, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAndroidXMLResourcesParserRejectsUnsupportedTranslatableConstructs(t *testing.T) {
 	content := []byte(`<resources>
   <string-array name="tabs">
@@ -121,10 +164,25 @@ func TestFastIsXMLFragmentWellFormed(t *testing.T) {
 		{"attribute double quotes", `<a href="url">link</a>`, true},
 		{"attribute single quotes", `<a href='url'>link</a>`, true},
 		{"self closing tag", `<img src="foo.png" />`, true},
-		{"self closing tag with space before bracket", `<img src="foo.png"  /  >`, true},
+		{"self closing tag without space", `<img src="foo.png"/>`, true},
+		{"self closing tag with space between slash and bracket", `<img src="foo.png"  /  >`, false},
 		{"trailing space inside tag", `<b >hello</b>`, true},
 		{"valid entity", "hello &amp; world", true},
+		{"valid numeric entity", "hello &#32; world", true},
+		{"valid hex entity", "hello &#xA0; world", true},
 		{"invalid entity", "hello &unknown; world", false},
+		{"null character reference", "&#0;", false},
+		{"noncharacter reference", "&#xFFFE;", false},
+		{"out of range character reference", "&#x110000;", false},
+		{"forbidden cdata terminator", "hello ]]> world", false},
+		{"forbidden cdata terminator in markup", "<b>]]></b>", false},
+		{"nul in text", "hello\x00world", false},
+		{"control char in text", "hello\x01world", false},
+		{"noncharacter in text", "<b>\uFFFE</b>", false},
+		{"name starting with digit", "<1a>x</1a>", false},
+		{"name with multiple colons", "<a:b:c>x</a:b:c>", false},
+		{"name starting with hyphen", "<-a>x</-a>", false},
+		{"name starting with dot", "<.a>x</.a>", false},
 		{"unclosed tag", "<b>hello", false},
 		{"mismatched tag name", "<b>hello</i>", false},
 		{"mismatched tag case", "<b>hello</B>", false},

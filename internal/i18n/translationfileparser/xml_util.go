@@ -67,15 +67,56 @@ func isXMLTextEntityReference(entity string) bool {
 }
 
 func isXMLDecimalCharacterReference(s string) bool {
+	return isValidXMLCharacterReferenceDigits(s, 10)
+}
+
+// isXMLCharacterRange reports whether r is in the XML 1.0 Char production,
+// matching encoding/xml's isInCharacterRange.
+func isXMLCharacterRange(r rune) bool {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		(r >= 0x20 && r <= 0xD7FF) ||
+		(r >= 0xE000 && r <= 0xFFFD) ||
+		(r >= 0x10000 && r <= 0x10FFFF)
+}
+
+func isValidXMLCharacterReferenceDigits(s string, base int) bool {
 	if s == "" {
 		return false
 	}
+	var n uint64
 	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
+		c := s[i]
+		var v uint64
+		switch {
+		case c >= '0' && c <= '9':
+			v = uint64(c - '0')
+		case base == 16 && c >= 'a' && c <= 'f':
+			v = uint64(c-'a') + 10
+		case base == 16 && c >= 'A' && c <= 'F':
+			v = uint64(c-'A') + 10
+		default:
 			return false
 		}
+		if v >= uint64(base) {
+			return false
+		}
+		if n > (uint64(unicode.MaxRune)-v)/uint64(base) {
+			return false
+		}
+		n = n*uint64(base) + v
 	}
-	return true
+	if n > uint64(unicode.MaxRune) {
+		return false
+	}
+	r := rune(n)
+	// encoding/xml converts via string(rune(n)); invalid runes (e.g. surrogates)
+	// become U+FFFD, which is in the XML character range.
+	if !utf8.ValidRune(r) {
+		r = utf8.RuneError
+	}
+	return isXMLCharacterRange(r)
 }
 
 func isAllXMLWhitespace(data []byte) bool {
@@ -120,13 +161,5 @@ func attrValue(attrs []xml.Attr, name string) string {
 }
 
 func isXMLHexCharacterReference(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if (s[i] < '0' || s[i] > '9') && (s[i] < 'a' || s[i] > 'f') && (s[i] < 'A' || s[i] > 'F') {
-			return false
-		}
-	}
-	return true
+	return isValidXMLCharacterReferenceDigits(s, 16)
 }
