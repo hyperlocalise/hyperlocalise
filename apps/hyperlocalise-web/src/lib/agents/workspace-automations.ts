@@ -371,11 +371,17 @@ export function hoistLegacyWorkspaceAutomationProjectId(
       ? (toolConfig.github as { projectId?: unknown }).projectId
       : undefined;
 
-  return (
-    readOptionalProjectId(contentful) ??
-    readOptionalProjectId(translation) ??
-    readOptionalProjectId(github)
-  );
+  // Only hoist when every non-empty legacy tool projectId agrees. The pre-header
+  // UI let Contentful diverge from the header-owned GitHub/translation pickers;
+  // preferring one winner would silently run those tools against the wrong project.
+  const distinctProjectIds = [
+    ...new Set(
+      [contentful, translation, github]
+        .map((value) => readOptionalProjectId(value))
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+  return distinctProjectIds.length === 1 ? (distinctProjectIds[0] ?? null) : null;
 }
 
 export function workspaceAutomationNeedsProject(input: {
