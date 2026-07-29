@@ -45,9 +45,7 @@ describe("markdown mention helpers", () => {
   });
 
   it("rejects issue mention hrefs with malformed project id encoding", () => {
-    expect(
-      parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222:%"),
-    ).toBeNull();
+    expect(parseMentionHref("mention:issue:22222222-2222-4222-8222-222222222222:%")).toBeNull();
   });
 
   it("extracts user and issue ids from markdown", () => {
