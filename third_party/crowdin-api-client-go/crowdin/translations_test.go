@@ -1110,53 +1110,102 @@ func TestTranslationsService_CancelBuild(t *testing.T) {
 }
 
 func TestTranslationsService_ExportProjectTranslation(t *testing.T) {
-	client, mux, teardown := setupClient()
-	defer teardown()
+	tests := []struct {
+		name            string
+		req             *model.ExportTranslationRequest
+		expectedReqBody string
+	}{
+		{
+			name: "with branchIds",
+			req: &model.ExportTranslationRequest{
+				TargetLanguageID:        "uk",
+				Format:                  "xliff",
+				LabelIDs:                []int{1},
+				BranchIDs:               []int{2},
+				SkipUntranslatedStrings: ToPtr(false),
+				SkipUntranslatedFiles:   ToPtr(false),
+				ExportApprovedOnly:      ToPtr(false),
+			},
+			expectedReqBody: `{
+				"targetLanguageId": "uk",
+				"format": "xliff",
+				"labelIds": [1],
+				"branchIds": [2],
+				"skipUntranslatedStrings": false,
+				"skipUntranslatedFiles": false
+			}`,
+		},
+		{
+			name: "with directoryIds",
+			req: &model.ExportTranslationRequest{
+				TargetLanguageID:        "uk",
+				Format:                  "xliff",
+				LabelIDs:                []int{1},
+				DirectoryIDs:            []int{3},
+				SkipUntranslatedStrings: ToPtr(false),
+				SkipUntranslatedFiles:   ToPtr(false),
+				ExportApprovedOnly:      ToPtr(false),
+			},
+			expectedReqBody: `{
+				"targetLanguageId": "uk",
+				"format": "xliff",
+				"labelIds": [1],
+				"directoryIds": [3],
+				"skipUntranslatedStrings": false,
+				"skipUntranslatedFiles": false
+			}`,
+		},
+		{
+			name: "with fileIds",
+			req: &model.ExportTranslationRequest{
+				TargetLanguageID:        "uk",
+				Format:                  "xliff",
+				LabelIDs:                []int{1},
+				FileIDs:                 []int{4},
+				SkipUntranslatedStrings: ToPtr(false),
+				SkipUntranslatedFiles:   ToPtr(false),
+				ExportApprovedOnly:      ToPtr(false),
+			},
+			expectedReqBody: `{
+				"targetLanguageId": "uk",
+				"format": "xliff",
+				"labelIds": [1],
+				"fileIds": [4],
+				"skipUntranslatedStrings": false,
+				"skipUntranslatedFiles": false
+			}`,
+		},
+	}
 
-	const path = "/api/v2/projects/1/translations/exports"
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodPost)
-		testURL(t, r, path)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, mux, teardown := setupClient()
+			defer teardown()
 
-		expectedReqBody := `{
-			"targetLanguageId": "uk",
-			"format": "xliff",
-			"labelIds": [1],
-			"branchIds": [2],
-			"directoryIds": [3],
-			"fileIds": [4],
-			"skipUntranslatedStrings": false,
-			"skipUntranslatedFiles": false
-		}`
-		testJSONBody(t, r, expectedReqBody)
+			const path = "/api/v2/projects/1/translations/exports"
+			mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+				testMethod(t, r, http.MethodPost)
+				testURL(t, r, path)
+				testJSONBody(t, r, tt.expectedReqBody)
 
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{
-			"data": {
-				"url": "https://production-enterprise-importer.downloads.crowdin.com/992000002/2/14.xliff?response-content-disposition",
-				"expireIn": "2023-09-20T10:31:21+00:00"
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprint(w, `{
+					"data": {
+						"url": "https://production-enterprise-importer.downloads.crowdin.com/992000002/2/14.xliff?response-content-disposition",
+						"expireIn": "2023-09-20T10:31:21+00:00"
+					}
+				}`)
+			})
+
+			downloadLink, resp, err := client.Translations.ExportProjectTranslation(context.Background(), 1, tt.req)
+			require.NoError(t, err)
+
+			expected := &model.DownloadLink{
+				URL:      "https://production-enterprise-importer.downloads.crowdin.com/992000002/2/14.xliff?response-content-disposition",
+				ExpireIn: "2023-09-20T10:31:21+00:00",
 			}
-		}`)
-	})
-
-	req := &model.ExportTranslationRequest{
-		TargetLanguageID:        "uk",
-		Format:                  "xliff",
-		LabelIDs:                []int{1},
-		BranchIDs:               []int{2},
-		DirectoryIDs:            []int{3},
-		FileIDs:                 []int{4},
-		SkipUntranslatedStrings: ToPtr(false),
-		SkipUntranslatedFiles:   ToPtr(false),
-		ExportApprovedOnly:      ToPtr(false),
+			assert.Equal(t, expected, downloadLink)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+		})
 	}
-	downloadLink, resp, err := client.Translations.ExportProjectTranslation(context.Background(), 1, req)
-	require.NoError(t, err)
-
-	expected := &model.DownloadLink{
-		URL:      "https://production-enterprise-importer.downloads.crowdin.com/992000002/2/14.xliff?response-content-disposition",
-		ExpireIn: "2023-09-20T10:31:21+00:00",
-	}
-	assert.Equal(t, expected, downloadLink)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }

@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-20 - Add ExportTranslationRequest validation parity
+
+**Learning:** In Crowdin API v2, the Export Project Translation request body contains several fields that are strictly mutually exclusive, such as `branchIds`, `directoryIds`, and `fileIds` (only one can be targeted per request), as well as boolean flag pairs like `skipUntranslatedStrings`/`skipUntranslatedFiles` and `exportWithMinApprovalsCount`/`exportStringsThatPassedWorkflow`. Lacking client-side validation for these constraints could lead to invalid payloads being transmitted and failing at the API gateway layer.
+
+**Action:** Added validations to `ExportTranslationRequest.Validate()` in `model/translations.go` to enforce these mutual exclusivity constraints and expanded the unit test suite in `model/translations_test.go` and `translations_test.go` to assert correct validation behavior and request alignment.
+
 ## 2026-12-19 - Align AI Translate with Crowdin API v2
 
 **Learning:** The `POST /ai/translate` endpoint accepts several optional body fields like `sourceLanguageId`, `aiPromptId`, `tmIds`, `glossaryIds`, and `instructions` to customize on-demand translations. Additionally, its response contains `sourceLanguageId` and `targetLanguageId`. The initial SDK implementation was heavily simplified and missing these fields, which prevented utilizing Corporate AI pipelines with custom glossaries and translation memories.

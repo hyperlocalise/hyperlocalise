@@ -678,6 +678,30 @@ func (r *ExportTranslationRequest) Validate() error {
 		return errors.New("targetLanguageId is required")
 	}
 
+	var count int
+	if len(r.BranchIDs) > 0 {
+		count++
+	}
+	if len(r.DirectoryIDs) > 0 {
+		count++
+	}
+	if len(r.FileIDs) > 0 {
+		count++
+	}
+	if count > 1 {
+		return errors.New("only one of branchIds, directoryIds, or fileIds may be set")
+	}
+
+	if (r.SkipUntranslatedStrings != nil && r.SkipUntranslatedFiles != nil) &&
+		(*r.SkipUntranslatedStrings && *r.SkipUntranslatedFiles) {
+		return errors.New("skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request")
+	}
+
+	if (r.ExportWithMinApprovalsCount != nil && r.ExportStringsThatPassedWorkflow != nil) &&
+		(*r.ExportWithMinApprovalsCount > 0 && *r.ExportStringsThatPassedWorkflow) {
+		return errors.New("exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request")
+	}
+
 	return nil
 }
 

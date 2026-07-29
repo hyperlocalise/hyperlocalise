@@ -422,12 +422,74 @@ func TestExportTranslationRequestValidate(t *testing.T) {
 			err:  "targetLanguageId is required",
 		},
 		{
-			name: "valid request",
+			name: "valid request with fileIds",
 			req: &ExportTranslationRequest{
 				TargetLanguageID: "uk", Format: "xliff", FileIDs: []int{1}, LabelIDs: []int{4},
 				SkipUntranslatedFiles: toPtr(false), ExportApprovedOnly: toPtr(false),
 			},
 			valid: true,
+		},
+		{
+			name: "valid request with branchIds",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", Format: "xliff", BranchIDs: []int{1}, LabelIDs: []int{4},
+				SkipUntranslatedFiles: toPtr(false), ExportApprovedOnly: toPtr(false),
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with directoryIds",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", Format: "xliff", DirectoryIDs: []int{1}, LabelIDs: []int{4},
+				SkipUntranslatedFiles: toPtr(false), ExportApprovedOnly: toPtr(false),
+			},
+			valid: true,
+		},
+		{
+			name: "branchIds and directoryIds together",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", BranchIDs: []int{1}, DirectoryIDs: []int{2},
+			},
+			err: "only one of branchIds, directoryIds, or fileIds may be set",
+		},
+		{
+			name: "branchIds and fileIds together",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", BranchIDs: []int{1}, FileIDs: []int{2},
+			},
+			err: "only one of branchIds, directoryIds, or fileIds may be set",
+		},
+		{
+			name: "directoryIds and fileIds together",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", DirectoryIDs: []int{1}, FileIDs: []int{2},
+			},
+			err: "only one of branchIds, directoryIds, or fileIds may be set",
+		},
+		{
+			name: "all three together",
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", BranchIDs: []int{1}, DirectoryIDs: []int{2}, FileIDs: []int{3},
+			},
+			err: "only one of branchIds, directoryIds, or fileIds may be set",
+		},
+		{
+			name: "skipUntranslatedStrings and skipUntranslatedFiles both true",
+			req: &ExportTranslationRequest{
+				TargetLanguageID:        "uk",
+				SkipUntranslatedStrings: toPtr(true),
+				SkipUntranslatedFiles:   toPtr(true),
+			},
+			err: "skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request",
+		},
+		{
+			name: "exportWithMinApprovalsCount > 0 and exportStringsThatPassedWorkflow both true",
+			req: &ExportTranslationRequest{
+				TargetLanguageID:                "uk",
+				ExportWithMinApprovalsCount:     toPtr(1),
+				ExportStringsThatPassedWorkflow: toPtr(true),
+			},
+			err: "exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request",
 		},
 	}
 
