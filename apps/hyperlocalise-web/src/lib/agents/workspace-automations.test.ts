@@ -22,6 +22,7 @@ import { claimGithubRepositoryAutomationJob } from "./github/github-repository-a
 import {
   createWorkspaceAutomation,
   createWorkspaceAutomationRun,
+  hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
@@ -707,5 +708,121 @@ describe("workspace automations", () => {
 
     expect(firstPage.map((item) => item.inputSnapshot)).toEqual([{ index: 3 }, { index: 2 }]);
     expect(secondPage.map((item) => item.inputSnapshot)).toEqual([{ index: 1 }]);
+  });
+
+  it("rejects Slack, email, and MCP tools when integrations are missing or disabled", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Integration gated automation",
+      instructions: "Notify operators.",
+      projectId: scope.projectId,
+      triggerConfig: { mode: "manual" as const },
+      repositoryTarget: { kind: "none" as const },
+    };
+
+    const slackMissing = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        slack: { enabled: true, channelId: "C123" },
+      },
+    });
+    expect(slackMissing.ok).toBe(false);
+    if (slackMissing.ok) {
+      throw new Error("expected slack validation error");
+    }
+    expect(slackMissing.error.code).toBe("slack_not_connected");
+
+    await db.insert(schema.connectors).values({
+      organizationId: scope.organizationId,
+      kind: "email",
+      enabled: false,
+    });
+    const emailDisabled = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        email: { enabled: true, recipients: ["ops@example.test"] },
+      },
+    });
+    expect(emailDisabled.ok).toBe(false);
+    if (emailDisabled.ok) {
+      throw new Error("expected email validation error");
+    }
+    expect(emailDisabled.error.code).toBe("email_not_connected");
+
+    const mcpMissing = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        mcp: {
+          enabled: true,
+          connectionId: "11111111-1111-4111-8111-111111111111",
+        },
+      },
+    });
+    expect(mcpMissing.ok).toBe(false);
+    if (mcpMissing.ok) {
+      throw new Error("expected mcp not-found validation error");
+    }
+    expect(mcpMissing.error.code).toBe("mcp_connection_not_found");
+
+    const [mcpConnection] = await db
+      .insert(schema.mcpServerConnections)
+      .values({
+        organizationId: scope.organizationId,
+        createdByUserId: scope.userId,
+        displayName: "Disabled MCP",
+        serverUrl: "https://mcp.example.test/mcp",
+        transport: "http",
+        authKind: "none",
+        enabled: false,
+        encryptionAlgorithm: "aes-256-gcm",
+        ciphertext: "ciphertext",
+        iv: "iv",
+        authTag: "tag",
+        maskedTokenSuffix: "none",
+      })
+      .returning();
+    if (!mcpConnection) {
+      throw new Error("failed to seed mcp connection");
+    }
+
+    const mcpDisabled = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        mcp: {
+          enabled: true,
+          connectionId: mcpConnection.id,
+        },
+      },
+    });
+    expect(mcpDisabled.ok).toBe(false);
+    if (mcpDisabled.ok) {
+      throw new Error("expected mcp disabled validation error");
+    }
+    expect(mcpDisabled.error.code).toBe("mcp_not_connected");
+  });
+
+  it("hoists legacy nested project IDs from tool config", () => {
+    expect(
+      hoistLegacyWorkspaceAutomationProjectId({
+        github: { projectId: " github-project " },
+      }),
+    ).toBe("github-project");
+    expect(
+      hoistLegacyWorkspaceAutomationProjectId({
+        contentful: { projectId: "contentful-project" },
+        translation: { projectId: "translation-project" },
+        github: { projectId: "github-project" },
+      }),
+    ).toBe("contentful-project");
+    expect(
+      hoistLegacyWorkspaceAutomationProjectId({
+        translation: { projectId: "translation-project" },
+        github: { projectId: "github-project" },
+      }),
+    ).toBe("translation-project");
+    expect(hoistLegacyWorkspaceAutomationProjectId({ github: { projectId: "   " } })).toBeNull();
+    expect(hoistLegacyWorkspaceAutomationProjectId({})).toBeNull();
   });
 });
