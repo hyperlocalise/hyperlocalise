@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.hoisted(() => {
@@ -33,8 +45,8 @@ vi.mock("@vercel/sandbox", () => ({
   },
 }));
 
-vi.mock("@/lib/translation/sandbox-translation", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/translation/sandbox-translation")>();
+vi.mock("@/lib/translation/sandbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/translation/sandbox")>();
   return {
     ...actual,
     createTranslationSandbox: vi.fn(async () => ({ sandboxId: "sandbox_qa_1" })),
@@ -107,7 +119,7 @@ describe("hl check sandbox integration", () => {
     });
 
     expect(findings.some((finding) => finding.checkType === "placeholder_mismatch")).toBe(true);
-    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");
     expect(stopTranslationSandbox).toHaveBeenCalledWith("sandbox_qa_1");
   });
 });

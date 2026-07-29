@@ -1,0 +1,123 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+const RECENT_PROJECTS_STORAGE_VERSION = 1;
+const RECENT_PROJECTS_LIMIT = 20;
+
+export type RecentProjectVisit = {
+  projectId: string;
+  visitedAt: number;
+};
+
+type RecentProjectsStorage = Pick<Storage, "getItem" | "setItem">;
+
+function recentProjectsStorageKey(organizationSlug: string) {
+  return `hyperlocalise:recent-projects:v${RECENT_PROJECTS_STORAGE_VERSION}:${organizationSlug}`;
+}
+
+function getBrowserStorage() {
+  try {
+    return typeof window === "undefined" ? undefined : window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecentProjectVisit(value: unknown): value is RecentProjectVisit {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const visit = value as Partial<RecentProjectVisit>;
+  return (
+    typeof visit.projectId === "string" &&
+    visit.projectId.length > 0 &&
+    typeof visit.visitedAt === "number" &&
+    Number.isFinite(visit.visitedAt)
+  );
+}
+
+export function readRecentProjectVisits(
+  organizationSlug: string,
+  storage: RecentProjectsStorage | undefined = getBrowserStorage(),
+): RecentProjectVisit[] {
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    const value = storage.getItem(recentProjectsStorageKey(organizationSlug));
+    if (!value) {
+      return [];
+    }
+
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter(isRecentProjectVisit)
+      .toSorted((left, right) => right.visitedAt - left.visitedAt)
+      .slice(0, RECENT_PROJECTS_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+export function recordRecentProjectVisit(
+  organizationSlug: string,
+  projectId: string,
+  options?: {
+    storage?: RecentProjectsStorage;
+    visitedAt?: number;
+  },
+) {
+  const storage = options?.storage ?? getBrowserStorage();
+  if (!storage || !projectId) {
+    return;
+  }
+
+  const visits = readRecentProjectVisits(organizationSlug, storage).filter(
+    (visit) => visit.projectId !== projectId,
+  );
+  visits.unshift({
+    projectId,
+    visitedAt: options?.visitedAt ?? Date.now(),
+  });
+
+  try {
+    storage.setItem(
+      recentProjectsStorageKey(organizationSlug),
+      JSON.stringify(visits.slice(0, RECENT_PROJECTS_LIMIT)),
+    );
+  } catch {
+    // Recent history is an enhancement; navigation must still succeed.
+  }
+}
+
+export function resolveRecentProjects(
+  organizationSlug: string,
+  projects: readonly { id: string; name: string }[],
+  options?: {
+    storage?: RecentProjectsStorage;
+    limit?: number;
+  },
+) {
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const limit = options?.limit ?? 5;
+
+  return readRecentProjectVisits(organizationSlug, options?.storage)
+    .map((visit) => projectsById.get(visit.projectId))
+    .filter((project): project is { id: string; name: string } => project !== undefined)
+    .slice(0, limit);
+}

@@ -1,17 +1,30 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
-import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { agentRunHasReviewableProposals } from "@/lib/providers/agent-runs/agent-run-proposals";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
@@ -38,6 +51,7 @@ import {
   type ProviderActionAvailability,
   type ProviderBackedJobFields,
 } from "./job-detail-types";
+import { jobProviderDetailSectionViewMessages as messages } from "./job-provider-detail-section-view.messages";
 
 export type JobProviderExternalLinkRenderer = (props: { href: string; label: string }) => ReactNode;
 
@@ -64,10 +78,14 @@ export type JobProviderDiffReviewRenderer = (props: {
 }) => ReactNode;
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  const intl = useIntl();
+
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 wrap-break-word text-sm text-subtle-foreground">
+        {value ?? intl.formatMessage(messages.emptyValue)}
+      </dd>
     </div>
   );
 }
@@ -105,7 +123,7 @@ function defaultRenderExternalLink({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+      className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
     >
       {label}
     </Link>
@@ -145,35 +163,46 @@ export function JobProviderDetailSectionView({
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
-  const visibleActions = (job.providerActions ?? []).filter((action) => action.visible);
+  const intl = useIntl();
+  const visibleActions = (job.providerActions ?? []).filter(
+    (action) => action.visible && action.id !== "translate_with_agent",
+  );
   const crowdinDescription =
     getProviderPayloadString(job.externalProviderPayload, "description")?.trim() ?? "";
+  const [sourceFilesExpanded, setSourceFilesExpanded] = useState(false);
 
   return (
     <>
       {showProviderMetadata ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+        <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-              Provider Details
+              <FormattedMessage {...messages.providerDetailsHeading} />
             </TypographyH2>
             <Badge variant="outline" className="rounded-full capitalize">
               {job.externalProviderKind}
             </Badge>
           </div>
-          <dl className="mt-3 divide-y divide-foreground/8">
-            <DetailRow label="Provider title" value={job.externalTitle} />
-            <DetailRow label="Provider status" value={job.externalStatus} />
-            <DetailRow label="Sync state" value={job.externalSyncState} />
-            <DetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
+          <dl className="mt-3 divide-y divide-border">
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderTitle)}
+              value={job.externalTitle}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderStatus)}
+              value={job.externalStatus}
+            />
             {job.externalProviderKind === "crowdin" ? (
               <>
                 <DetailRow
-                  label="Language"
-                  value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+                  label={intl.formatMessage(messages.labelLanguage)}
+                  value={
+                    getCrowdinLanguageLabel(job.externalProviderPayload) ??
+                    intl.formatMessage(messages.emptyValue)
+                  }
                 />
                 <DetailRow
-                  label="Target locales"
+                  label={intl.formatMessage(messages.labelTargetLocales)}
                   value={formatLocaleList(
                     getCrowdinTargetLocales(
                       job.externalProviderPayload,
@@ -182,50 +211,87 @@ export function JobProviderDetailSectionView({
                   )}
                 />
                 <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-sm text-foreground/42">Description</dt>
-                  <dd className="min-w-0 text-sm text-foreground/74">
+                  <dt className="text-sm text-muted-foreground">
+                    <FormattedMessage {...messages.labelDescription} />
+                  </dt>
+                  <dd className="min-w-0 text-sm text-subtle-foreground">
                     {crowdinDescription ? (
-                      <MarkdownDescriptionPreview
+                      <MarkdownPreview
                         value={crowdinDescription}
-                        className="border-foreground/8 bg-transparent"
+                        className="border-border bg-transparent"
                       />
                     ) : (
-                      "—"
+                      intl.formatMessage(messages.emptyValue)
                     )}
                   </dd>
                 </div>
               </>
             ) : (
-              <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
+              <DetailRow
+                label={intl.formatMessage(messages.labelTargetLocales)}
+                value={job.externalTargetLocales?.join(", ")}
+              />
             )}
-            <DetailRow label="Assignees" value={job.externalAssignedUsers?.join(", ")} />
-            <DetailRow label="Deadline" value={formatJobDetailDate(job.externalDueDate)} />
-            <DetailRow label="External job ID" value={job.externalJobId} />
-            <DetailRow label="External task ID" value={job.externalTaskId} />
             <DetailRow
-              label="Provider link"
+              label={intl.formatMessage(messages.labelAssignees)}
+              value={job.externalAssignedUsers?.join(", ")}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelDeadline)}
+              value={formatJobDetailDate(job.externalDueDate)}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelExternalJobId)}
+              value={job.externalJobId}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelExternalTaskId)}
+              value={job.externalTaskId}
+            />
+            <DetailRow
+              label={intl.formatMessage(messages.labelProviderLink)}
               value={
                 job.externalUrl
                   ? renderExternalLink({
                       href: job.externalUrl,
-                      label: `Open in ${job.externalProviderKind}`,
+                      label: intl.formatMessage(messages.openInProvider, {
+                        providerKind: job.externalProviderKind,
+                      }),
                     })
-                  : "—"
+                  : intl.formatMessage(messages.emptyValue)
               }
             />
-            <DetailRow label="Raw error" value={job.lastError} />
+            <DetailRow label={intl.formatMessage(messages.labelRawError)} value={job.lastError} />
           </dl>
         </section>
       ) : null}
 
-      {projectId && renderSourceFiles
-        ? renderSourceFiles({ job, organizationSlug, projectId })
-        : null}
+      {projectId && renderSourceFiles ? (
+        <section className="rounded-lg border border-border bg-muted p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+              <FormattedMessage {...messages.sourceFilesHeading} />
+            </TypographyH2>
+            {!sourceFilesExpanded ? (
+              <Button size="sm" variant="outline" onClick={() => setSourceFilesExpanded(true)}>
+                <FormattedMessage {...messages.showSourceFiles} />
+              </Button>
+            ) : null}
+          </div>
+          {sourceFilesExpanded ? (
+            renderSourceFiles({ job, organizationSlug, projectId })
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              <FormattedMessage {...messages.sourceFilesCollapsedHint} />
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {showAgentActions && visibleActions.length > 0 ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+        <section className="rounded-lg border border-border bg-muted p-5">
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            Agent Actions
+            <FormattedMessage {...messages.agentActionsHeading} />
           </TypographyH2>
           <div className="mt-4 flex flex-wrap gap-2">
             {visibleActions.map((action: ProviderActionAvailability) => (
@@ -238,7 +304,11 @@ export function JobProviderDetailSectionView({
                 onClick={() => onStartAgentRun?.(action.id)}
               >
                 <HugeiconsIcon icon={actionIcon(action.id)} strokeWidth={1.8} />
-                {pendingActionId === action.id ? "Starting..." : action.label}
+                {pendingActionId === action.id ? (
+                  <FormattedMessage {...messages.starting} />
+                ) : (
+                  action.label
+                )}
               </Button>
             ))}
           </div>
@@ -265,14 +335,18 @@ export function JobProviderDetailSectionView({
           })
         : null}
 
-      <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <section className="rounded-lg border border-border bg-muted p-5">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-          Agent Activity
+          <FormattedMessage {...messages.agentActivityHeading} />
         </TypographyH2>
-        {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-foreground/8" /> : null}
+        {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-skeleton" /> : null}
         {agentRunsError ? (
           <p className="mt-4 text-sm text-flame-100">
-            {agentRunsError instanceof Error ? agentRunsError.message : "Unable to load agent runs"}
+            {agentRunsError instanceof Error ? (
+              agentRunsError.message
+            ) : (
+              <FormattedMessage {...messages.unableToLoadAgentRuns} />
+            )}
           </p>
         ) : null}
         {agentRuns && agentRuns.length > 0 ? (
@@ -298,27 +372,41 @@ export function JobProviderDetailSectionView({
               return (
                 <li
                   key={run.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted.5 px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium capitalize text-foreground/82">
+                    <p className="text-sm font-medium capitalize text-foreground">
                       {run.kind.replaceAll("_", " ")}
                     </p>
-                    <p className="text-xs text-foreground/48">
-                      Started {formatJobDetailDate(run.createdAt)}
-                      {hasProposals ? ` · ${proposedCount} proposals` : null}
-                      {translationMemoryMatchCount > 0
-                        ? ` · ${translationMemoryMatchCount} TM match${translationMemoryMatchCount === 1 ? "" : "es"}`
-                        : null}
-                      {glossaryMatchCount > 0
-                        ? ` · ${glossaryMatchCount} glossary match${glossaryMatchCount === 1 ? "" : "es"}`
-                        : null}
+                    <p className="text-xs text-muted-foreground">
+                      {[
+                        intl.formatMessage(messages.startedAt, {
+                          date: formatJobDetailDate(run.createdAt),
+                        }),
+                        hasProposals
+                          ? intl.formatMessage(messages.proposalsCount, {
+                              count: proposedCount,
+                            })
+                          : null,
+                        translationMemoryMatchCount > 0
+                          ? intl.formatMessage(messages.tmMatchesCount, {
+                              count: translationMemoryMatchCount,
+                            })
+                          : null,
+                        glossaryMatchCount > 0
+                          ? intl.formatMessage(messages.glossaryMatchesCount, {
+                              count: glossaryMatchCount,
+                            })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {hasProposals ? (
                       <Badge variant="outline" className="rounded-full">
-                        Review proposals
+                        <FormattedMessage {...messages.reviewProposals} />
                       </Badge>
                     ) : null}
                     <Badge
@@ -334,7 +422,9 @@ export function JobProviderDetailSectionView({
           </ul>
         ) : null}
         {agentRuns && agentRuns.length === 0 ? (
-          <p className="mt-4 text-sm text-foreground/48">No agent runs yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <FormattedMessage {...messages.noAgentRunsYet} />
+          </p>
         ) : null}
       </section>
     </>

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -11,6 +23,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +46,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 import type { ProviderQaFinding, ProviderQaSeverity } from "@/lib/providers/provider-job-qa/types";
 import type { ProviderReviewThread } from "@/lib/providers/provider-job-review/types";
 import { cn } from "@/lib/primitives/cn";
@@ -62,6 +75,7 @@ import {
   type QaFindingGroupBy,
   type QaFindingWithId,
 } from "./job-qa-findings-model";
+import { jobQaFindingsSectionMessages as messages } from "./job-qa-findings-section.messages";
 
 function reviewThreadStateTone(state: ProviderReviewThread["state"]): Tone {
   switch (state) {
@@ -98,10 +112,11 @@ function ProviderReviewSummaryChips({
 }: {
   summary: { total: number; open: number; resolved: number };
 }) {
+  const intl = useIntl();
   const entries: Array<{ label: string; count: number; tone: Tone }> = [
-    { label: "Threads", count: summary.total, tone: "info" },
-    { label: "Open", count: summary.open, tone: "watch" },
-    { label: "Resolved", count: summary.resolved, tone: "safe" },
+    { label: intl.formatMessage(messages.threads), count: summary.total, tone: "info" },
+    { label: intl.formatMessage(messages.open), count: summary.open, tone: "watch" },
+    { label: intl.formatMessage(messages.resolved), count: summary.resolved, tone: "safe" },
   ];
 
   return (
@@ -112,7 +127,10 @@ function ProviderReviewSummaryChips({
           variant="outline"
           className={cn("rounded-full capitalize", toneClass(entry.tone))}
         >
-          {entry.label}: {entry.count}
+          <FormattedMessage
+            {...messages.summaryChip}
+            values={{ label: entry.label, count: entry.count }}
+          />
         </Badge>
       ))}
     </div>
@@ -143,7 +161,7 @@ function ProviderReviewThreadRow({
   const providerUrl = thread.providerContext.providerUrl;
 
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
@@ -155,36 +173,39 @@ function ProviderReviewThreadRow({
           >
             {formatReviewThreadStateLabel(thread.state)}
           </Badge>
-          <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+          <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
             {formatReviewThreadKindLabel(thread.kind)}
           </Badge>
           {thread.locale ? (
-            <Badge variant="outline" className="rounded-full text-foreground/62">
+            <Badge variant="outline" className="rounded-full text-subtle-foreground">
               {thread.locale}
             </Badge>
           ) : null}
           {thread.issueType ? (
-            <Badge variant="outline" className="rounded-full text-foreground/62">
+            <Badge variant="outline" className="rounded-full text-subtle-foreground">
               {thread.issueType.replaceAll("_", " ")}
             </Badge>
           ) : null}
         </div>
-        {body ? <p className="text-sm text-foreground/82">{body}</p> : null}
+        {body ? <p className="text-sm text-foreground">{body}</p> : null}
         {thread.comments.length > 1 ? (
-          <p className="text-xs text-foreground/48">
-            {thread.comments.length} comments in this thread
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage
+              {...messages.commentsInThread}
+              values={{ count: thread.comments.length }}
+            />
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/54">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {authorLabel ? <span>{authorLabel}</span> : null}
           {thread.createdAt ? <span>{thread.createdAt}</span> : null}
           {thread.item?.key ? <span className="font-mono">{thread.item.key}</span> : null}
           {contentHref ? (
             <Link
               href={contentHref}
-              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
             >
-              View in project files
+              <FormattedMessage {...messages.viewInProjectFiles} />
             </Link>
           ) : null}
           {providerUrl ? (
@@ -192,9 +213,9 @@ function ProviderReviewThreadRow({
               href={providerUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
             >
-              Open in TMS
+              <FormattedMessage {...messages.openInTms} />
             </Link>
           ) : null}
         </div>
@@ -208,20 +229,21 @@ function QaSummaryChips({
 }: {
   summary: { total: number; bySeverity: Record<string, number> };
 }) {
+  const intl = useIntl();
   const entries: Array<{ label: string; count: number; tone: Tone }> = [
-    { label: "Total", count: summary.total, tone: "info" },
+    { label: intl.formatMessage(messages.total), count: summary.total, tone: "info" },
     {
-      label: "Errors",
+      label: intl.formatMessage(messages.errors),
       count: summary.bySeverity.error ?? 0,
       tone: "risk",
     },
     {
-      label: "Warnings",
+      label: intl.formatMessage(messages.warnings),
       count: summary.bySeverity.warning ?? 0,
       tone: "watch",
     },
     {
-      label: "Info",
+      label: intl.formatMessage(messages.info),
       count: summary.bySeverity.info ?? 0,
       tone: "info",
     },
@@ -235,7 +257,10 @@ function QaSummaryChips({
           variant="outline"
           className={cn("rounded-full capitalize", toneClass(entry.tone))}
         >
-          {entry.label}: {entry.count}
+          <FormattedMessage
+            {...messages.summaryChip}
+            values={{ label: entry.label, count: entry.count }}
+          />
         </Badge>
       ))}
     </div>
@@ -270,7 +295,8 @@ function FindingRow({
   externalUrl: string | null;
   writeBack?: ProviderCommentWriteBackStatus;
 }) {
-  const writeBackLabel = formatProviderCommentWriteBackLabel(writeBack);
+  const intl = useIntl();
+  const writeBackLabel = formatProviderCommentWriteBackLabel(writeBack, intl);
   const writeBackComplete = isProviderCommentWriteBackComplete(writeBack);
   const commentProviderUrl = writeBack?.providerUrl ?? null;
 
@@ -284,15 +310,17 @@ function FindingRow({
     : null;
 
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="flex flex-wrap items-start gap-3">
         <label className="mt-0.5 flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            className="size-4 rounded border-input accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
             checked={selected}
             disabled={writeBackComplete}
-            title={writeBackComplete ? "This finding already has a provider comment" : undefined}
+            title={
+              writeBackComplete ? intl.formatMessage(messages.findingAlreadyHasComment) : undefined
+            }
             onChange={(event) => onToggle(finding.id, event.currentTarget.checked)}
           />
         </label>
@@ -304,22 +332,25 @@ function FindingRow({
             >
               {finding.severity}
             </Badge>
-            <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+            <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
               {formatCheckTypeLabel(finding.checkType)}
             </Badge>
             {finding.item.locale ? (
-              <Badge variant="outline" className="rounded-full text-foreground/62">
+              <Badge variant="outline" className="rounded-full text-subtle-foreground">
                 {finding.item.locale}
               </Badge>
             ) : null}
             {finding.item.field ? (
-              <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+              <Badge variant="outline" className="rounded-full capitalize text-subtle-foreground">
                 {finding.item.field}
               </Badge>
             ) : null}
             {typeof finding.confidence === "number" ? (
-              <Badge variant="outline" className="rounded-full text-foreground/62">
-                {Math.round(finding.confidence * 100)}% confidence
+              <Badge variant="outline" className="rounded-full text-subtle-foreground">
+                <FormattedMessage
+                  {...messages.confidencePercent}
+                  values={{ percent: Math.round(finding.confidence * 100) }}
+                />
               </Badge>
             ) : null}
             {writeBackLabel && writeBack ? (
@@ -334,18 +365,18 @@ function FindingRow({
               </Badge>
             ) : null}
           </div>
-          <p className="text-sm text-foreground/82">{finding.message}</p>
+          <p className="text-sm text-foreground">{finding.message}</p>
           {finding.suggestedFix ? (
-            <p className="text-xs text-foreground/48">{finding.suggestedFix}</p>
+            <p className="text-xs text-muted-foreground">{finding.suggestedFix}</p>
           ) : null}
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="font-mono text-foreground/54">{finding.item.key}</span>
+            <span className="font-mono text-muted-foreground">{finding.item.key}</span>
             {contentHref ? (
               <Link
                 href={contentHref}
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
-                View in project files
+                <FormattedMessage {...messages.viewInProjectFiles} />
               </Link>
             ) : null}
             {externalUrl ? (
@@ -353,9 +384,9 @@ function FindingRow({
                 href={externalUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
-                Open in TMS
+                <FormattedMessage {...messages.openInTms} />
               </Link>
             ) : null}
             {commentProviderUrl ? (
@@ -363,14 +394,17 @@ function FindingRow({
                 href={commentProviderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                className="text-foreground underline decoration-border underline-offset-4 hover:decoration-muted-foreground"
               >
-                View provider comment
+                <FormattedMessage {...messages.viewProviderComment} />
               </Link>
             ) : null}
             {writeBack?.status === "failed" ? (
-              <span className="text-foreground/48" title={writeBack.message?.trim() || undefined}>
-                Could not post provider comment
+              <span
+                className="text-muted-foreground"
+                title={writeBack.message?.trim() || undefined}
+              >
+                <FormattedMessage {...messages.couldNotPostComment} />
               </span>
             ) : null}
           </div>
@@ -399,6 +433,7 @@ export function JobQaFindingsSection({
   providerActions: ProviderActionAvailability[];
   onAgentRunStarted: () => Promise<void>;
 }) {
+  const intl = useIntl();
   const [groupBy, setGroupBy] = useState<QaFindingGroupBy>("severity");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [localeFilter, setLocaleFilter] = useState("all");
@@ -497,8 +532,8 @@ export function JobQaFindingsSection({
   );
 
   const groupedFindings = useMemo(
-    () => groupFindings(filteredFindings, groupBy),
-    [filteredFindings, groupBy],
+    () => groupFindings(filteredFindings, groupBy, intl),
+    [filteredFindings, groupBy, intl],
   );
 
   const selectedFindings = useMemo(
@@ -525,7 +560,9 @@ export function JobQaFindingsSection({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to run QA checks"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToRunQaChecks)),
+        );
       }
 
       const body = (await response.json()) as {
@@ -541,10 +578,14 @@ export function JobQaFindingsSection({
     onSuccess: (qaReport) => {
       setInlineReport(qaReport);
       setSelectedIds(new Set());
-      toast.success(`QA checks finished with ${qaReport.summary.total} findings`);
+      toast.success(
+        intl.formatMessage(messages.qaChecksFinished, { count: qaReport.summary.total }),
+      );
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to run QA checks");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToRunQaChecks),
+      );
     },
   });
 
@@ -566,7 +607,9 @@ export function JobQaFindingsSection({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent run"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToStartAgentRun)),
+        );
       }
 
       return response.json();
@@ -574,10 +617,12 @@ export function JobQaFindingsSection({
     onSuccess: async () => {
       setSelectedIds(new Set());
       await onAgentRunStarted();
-      toast.success("Agent run queued");
+      toast.success(intl.formatMessage(messages.agentRunQueued));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent run");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToStartAgentRun),
+      );
     },
   });
 
@@ -626,15 +671,14 @@ export function JobQaFindingsSection({
   ).length;
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+    <section className="rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            Review findings
+            <FormattedMessage {...messages.reviewFindingsHeading} />
           </TypographyH2>
-          <p className="mt-1 text-sm text-foreground/48">
-            Inspect issues from agent review or QA checks before writing back to the TMS. Filter by
-            locale or check type, then act on selected findings.
+          <p className="mt-1 text-sm text-muted-foreground">
+            <FormattedMessage {...messages.reviewFindingsDescription} />
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -648,7 +692,11 @@ export function JobQaFindingsSection({
               title={runQaChecksAction.disabledReason}
               onClick={() => runSyncQa.mutate()}
             >
-              {runSyncQa.isPending ? "Running..." : "Run checks now"}
+              {runSyncQa.isPending ? (
+                <FormattedMessage {...messages.running} />
+              ) : (
+                <FormattedMessage {...messages.runChecksNow} />
+              )}
             </Button>
           ) : null}
           {fixQaAction?.visible ? (
@@ -659,7 +707,7 @@ export function JobQaFindingsSection({
               }
               title={
                 selectedFindings.length === 0
-                  ? "Select at least one finding"
+                  ? intl.formatMessage(messages.selectAtLeastOneFinding)
                   : fixQaAction.disabledReason
               }
               onClick={() =>
@@ -670,7 +718,10 @@ export function JobQaFindingsSection({
               }
             >
               <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-              Fix selected ({selectedFindings.length})
+              <FormattedMessage
+                {...messages.fixSelected}
+                values={{ count: selectedFindings.length }}
+              />
             </Button>
           ) : null}
           {commentAction?.visible ? (
@@ -687,8 +738,8 @@ export function JobQaFindingsSection({
                   ? commentAction.disabledReason
                   : commentableSelectedFindings.length === 0
                     ? selectedFindings.length > 0
-                      ? "Selected findings already have provider comments"
-                      : "Select at least one finding"
+                      ? intl.formatMessage(messages.selectedAlreadyHaveComments)
+                      : intl.formatMessage(messages.selectAtLeastOneFinding)
                     : undefined
               }
               onClick={() =>
@@ -699,28 +750,35 @@ export function JobQaFindingsSection({
               }
             >
               <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} />
-              Comment on selected ({commentableSelectedFindings.length})
+              <FormattedMessage
+                {...messages.commentOnSelected}
+                values={{ count: commentableSelectedFindings.length }}
+              />
             </Button>
           ) : null}
         </div>
       </div>
 
-      {agentRunsLoading ? <Skeleton className="mt-4 h-24 w-full bg-foreground/8" /> : null}
+      {agentRunsLoading ? <Skeleton className="mt-4 h-24 w-full bg-skeleton" /> : null}
 
       {activeQaRun ? (
         <p className="mt-4 rounded-md border border-bud-500/20 bg-bud-500/8 px-3 py-2 text-sm text-bud-300">
-          {activeQaRun.inputSnapshot?.action === "review_with_agent"
-            ? "Agent review is running. Results will refresh when the run completes."
-            : "QA checks are running. Results will refresh when the agent run completes."}
+          {activeQaRun.inputSnapshot?.action === "review_with_agent" ? (
+            <FormattedMessage {...messages.agentReviewRunning} />
+          ) : (
+            <FormattedMessage {...messages.qaChecksRunning} />
+          )}
         </p>
       ) : null}
 
       {providerReviewReport && providerReviewReport.summary.total > 0 ? (
-        <div className="mt-4 space-y-3 rounded-md border border-foreground/8 bg-foreground/2 px-4 py-4">
+        <div className="mt-4 space-y-3 rounded-md border border-border bg-muted px-4 py-4">
           <div>
-            <h3 className="text-sm font-medium text-foreground/82">Provider review threads</h3>
-            <p className="mt-1 text-sm text-foreground/48">
-              Issues and comments synced from the TMS for this job.
+            <h3 className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.providerReviewThreadsHeading} />
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <FormattedMessage {...messages.providerReviewThreadsDescription} />
             </p>
           </div>
           <ProviderReviewSummaryChips summary={providerReviewReport.summary} />
@@ -746,12 +804,12 @@ export function JobQaFindingsSection({
               <HugeiconsIcon
                 icon={Search01Icon}
                 strokeWidth={1.8}
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/40"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search key, message, or string id"
+                placeholder={intl.formatMessage(messages.searchPlaceholder)}
                 className="pl-9"
               />
             </div>
@@ -760,21 +818,31 @@ export function JobQaFindingsSection({
               onValueChange={(value) => setSeverityFilter(value ?? "all")}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Severity" />
+                <SelectValue placeholder={intl.formatMessage(messages.severityPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All severities</SelectItem>
-                <SelectItem value="error">Errors</SelectItem>
-                <SelectItem value="warning">Warnings</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="all">
+                  <FormattedMessage {...messages.allSeverities} />
+                </SelectItem>
+                <SelectItem value="error">
+                  <FormattedMessage {...messages.errors} />
+                </SelectItem>
+                <SelectItem value="warning">
+                  <FormattedMessage {...messages.warnings} />
+                </SelectItem>
+                <SelectItem value="info">
+                  <FormattedMessage {...messages.info} />
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select value={localeFilter} onValueChange={(value) => setLocaleFilter(value ?? "all")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Locale" />
+                <SelectValue placeholder={intl.formatMessage(messages.localePlaceholder)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All locales</SelectItem>
+                <SelectItem value="all">
+                  <FormattedMessage {...messages.allLocales} />
+                </SelectItem>
                 {filterOptions.locales.map((locale) => (
                   <SelectItem key={locale} value={locale}>
                     {locale}
@@ -787,10 +855,12 @@ export function JobQaFindingsSection({
               onValueChange={(value) => setCheckTypeFilter(value ?? "all")}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Check type" />
+                <SelectValue placeholder={intl.formatMessage(messages.checkTypePlaceholder)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All check types</SelectItem>
+                <SelectItem value="all">
+                  <FormattedMessage {...messages.allCheckTypes} />
+                </SelectItem>
                 {filterOptions.checkTypes.map((checkType) => (
                   <SelectItem key={checkType} value={checkType}>
                     {formatCheckTypeLabel(checkType)}
@@ -806,20 +876,42 @@ export function JobQaFindingsSection({
               onValueChange={(value) => setGroupBy(value as QaFindingGroupBy)}
             >
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Group by" />
+                <SelectValue placeholder={intl.formatMessage(messages.groupByPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="severity">Group by severity</SelectItem>
-                <SelectItem value="locale">Group by locale</SelectItem>
-                <SelectItem value="checkType">Group by check type</SelectItem>
-                <SelectItem value="key">Group by key</SelectItem>
+                <SelectItem value="severity">
+                  <FormattedMessage {...messages.groupBySeverity} />
+                </SelectItem>
+                <SelectItem value="locale">
+                  <FormattedMessage {...messages.groupByLocale} />
+                </SelectItem>
+                <SelectItem value="checkType">
+                  <FormattedMessage {...messages.groupByCheckType} />
+                </SelectItem>
+                <SelectItem value="key">
+                  <FormattedMessage {...messages.groupByKey} />
+                </SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-foreground/48">
-              Showing {filteredCount} of {findingsWithIds.length}
-              {activeFilterCount > 0 || searchQuery.trim()
-                ? ` · ${activeFilterCount + (searchQuery.trim() ? 1 : 0)} filters active`
-                : ""}
+            <p className="text-sm text-muted-foreground">
+              {activeFilterCount > 0 || searchQuery.trim() ? (
+                <FormattedMessage
+                  {...messages.showingCountWithFilters}
+                  values={{
+                    filteredCount,
+                    totalCount: findingsWithIds.length,
+                    filtersCount: activeFilterCount + (searchQuery.trim() ? 1 : 0),
+                  }}
+                />
+              ) : (
+                <FormattedMessage
+                  {...messages.showingCount}
+                  values={{
+                    filteredCount,
+                    totalCount: findingsWithIds.length,
+                  }}
+                />
+              )}
             </p>
           </div>
 
@@ -834,21 +926,25 @@ export function JobQaFindingsSection({
                   <div key={group.key} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium capitalize text-foreground/82">
+                        <h3 className="text-sm font-medium capitalize text-foreground">
                           {group.label}
                         </h3>
-                        <Badge variant="outline" className="rounded-full text-foreground/54">
+                        <Badge variant="outline" className="rounded-full text-muted-foreground">
                           {group.findings.length}
                         </Badge>
                       </div>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-xs text-foreground/54"
+                        className="h-7 text-xs text-muted-foreground"
                         onClick={() => toggleGroup(group.findings, !groupSelected)}
                       >
                         <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} />
-                        {groupSelected ? "Deselect group" : "Select group"}
+                        {groupSelected ? (
+                          <FormattedMessage {...messages.deselectGroup} />
+                        ) : (
+                          <FormattedMessage {...messages.selectGroup} />
+                        )}
                       </Button>
                     </div>
                     <ul className="space-y-2">
@@ -870,41 +966,51 @@ export function JobQaFindingsSection({
               })}
             </div>
           ) : (
-            <p className="text-sm text-foreground/48">
-              No findings match the current filters.{" "}
-              <button
-                type="button"
-                className="underline decoration-foreground/24 underline-offset-4 hover:text-foreground"
-                onClick={() => {
-                  setSeverityFilter("all");
-                  setLocaleFilter("all");
-                  setCheckTypeFilter("all");
-                  setSearchQuery("");
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage
+                {...messages.noFindingsMatchFiltersWithClear}
+                values={{
+                  clear: (chunks) => (
+                    <button
+                      type="button"
+                      className="underline decoration-border underline-offset-4 hover:text-foreground"
+                      onClick={() => {
+                        setSeverityFilter("all");
+                        setLocaleFilter("all");
+                        setCheckTypeFilter("all");
+                        setSearchQuery("");
+                      }}
+                    >
+                      {chunks}
+                    </button>
+                  ),
                 }}
-              >
-                Clear filters
-              </button>
+              />
             </p>
           )}
         </div>
       ) : null}
 
       {!agentRunsLoading && !report && !activeQaRun ? (
-        <Empty className="mt-4 border border-dashed border-foreground/12">
+        <Empty className="mt-4 border border-dashed border-border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <HugeiconsIcon icon={ShieldEnergyIcon} strokeWidth={1.8} />
             </EmptyMedia>
-            <EmptyTitle>No QA findings yet</EmptyTitle>
+            <EmptyTitle>
+              <FormattedMessage {...messages.noQaFindingsYetTitle} />
+            </EmptyTitle>
             <EmptyDescription>
-              Run QA checks or an agent review on this TMS job to surface placeholder, ICU,
-              glossary, and translation issues here. When checks pass, this section will show a
-              clear no-issues state.
+              <FormattedMessage {...messages.noQaFindingsYetDescription} />
             </EmptyDescription>
           </EmptyHeader>
           {runQaChecksAction?.visible && runQaChecksAction.enabled ? (
             <Button size="sm" disabled={runSyncQa.isPending} onClick={() => runSyncQa.mutate()}>
-              {runSyncQa.isPending ? "Running..." : "Run QA checks"}
+              {runSyncQa.isPending ? (
+                <FormattedMessage {...messages.running} />
+              ) : (
+                <FormattedMessage {...messages.runQaChecks} />
+              )}
             </Button>
           ) : null}
         </Empty>
@@ -916,10 +1022,11 @@ export function JobQaFindingsSection({
             <EmptyMedia variant="icon">
               <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} />
             </EmptyMedia>
-            <EmptyTitle>No issues found</EmptyTitle>
+            <EmptyTitle>
+              <FormattedMessage {...messages.noIssuesFoundTitle} />
+            </EmptyTitle>
             <EmptyDescription>
-              The latest QA run completed without findings. Re-run checks after content changes to
-              refresh this view.
+              <FormattedMessage {...messages.noIssuesFoundDescription} />
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

@@ -1,13 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import {
   Add01Icon,
   ArrowLeft01Icon,
-  Delete01Icon,
+  MoreHorizontalCircle01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { TeamRole } from "@/api/routes/team/team.schema";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +33,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -46,19 +66,87 @@ import {
   listAssignableMembers,
   resolveTeamDetailPageState,
 } from "./teams-settings-view-model";
+import { teamDetailPageViewMessages } from "./team-detail-page-view.messages";
 
-function MembersTableHeader() {
+function MembersTableHeader({ showActions }: { showActions: boolean }) {
   return (
     <div
       role="row"
-      className="hidden grid-cols-[minmax(0,1.5fr)_12rem_2.5rem] gap-4 border-b border-foreground/8 px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-foreground/36 uppercase md:grid"
+      className={cn(
+        "hidden gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid",
+        showActions
+          ? "md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem]"
+          : "md:grid-cols-[minmax(0,1.5fr)_12rem]",
+      )}
     >
-      <div role="columnheader">Member</div>
-      <div role="columnheader">Role</div>
-      <div role="columnheader" className="text-right">
-        Actions
+      <div role="columnheader">
+        <FormattedMessage {...teamDetailPageViewMessages.columnMember} />
       </div>
+      <div role="columnheader">
+        <FormattedMessage {...teamDetailPageViewMessages.columnRole} />
+      </div>
+      {showActions ? (
+        <div role="columnheader" className="text-right">
+          <span className="sr-only">
+            <FormattedMessage {...teamDetailPageViewMessages.columnActions} />
+          </span>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function MemberRowActions({
+  member,
+  canRemove,
+  isRemovingMember,
+  onRemoveMember,
+}: {
+  member: TeamMemberRow;
+  canRemove: boolean;
+  isRemovingMember: boolean;
+  onRemoveMember: (member: TeamMemberRow) => void;
+}) {
+  const intl = useIntl();
+
+  if (!canRemove) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(
+              "rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground",
+              "opacity-100 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100",
+              "data-popup-open:opacity-100 aria-expanded:opacity-100",
+            )}
+            aria-label={intl.formatMessage(teamDetailPageViewMessages.actionsForMember, {
+              email: member.email,
+            })}
+            disabled={isRemovingMember}
+          />
+        }
+      >
+        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onRemoveMember(member)}
+            disabled={isRemovingMember}
+          >
+            <FormattedMessage {...teamDetailPageViewMessages.removeFromTeam} />
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -107,6 +195,7 @@ export function TeamDetailPageView({
   onRemoveMember: (workosUserId: string) => void;
   onRemovingMemberChange: (member: TeamMemberRow | null) => void;
 }) {
+  const intl = useIntl();
   const pageState = resolveTeamDetailPageState({
     team,
     canManageTeams,
@@ -127,20 +216,22 @@ export function TeamDetailPageView({
           render={<Link href={`/org/${organizationSlug}/teams`} />}
           variant="ghost"
           size="sm"
-          className="w-fit px-2 text-foreground/56 hover:text-foreground"
+          className="w-fit px-2 text-muted-foreground hover:text-foreground"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} />
-          Back to teams
+          <FormattedMessage {...teamDetailPageViewMessages.backToTeams} />
         </Button>
 
         <PageHeader
           icon={UserGroupIcon}
-          label="Team"
-          title={team?.name ?? "Team"}
+          label={intl.formatMessage(teamDetailPageViewMessages.pageLabel)}
+          title={team?.name ?? intl.formatMessage(teamDetailPageViewMessages.pageTitleFallback)}
           description={
             team
-              ? `Manage membership and roles for the ${team.slug} team.`
-              : "Load team membership and roles."
+              ? intl.formatMessage(teamDetailPageViewMessages.pageDescriptionWithSlug, {
+                  slug: team.slug,
+                })
+              : intl.formatMessage(teamDetailPageViewMessages.pageDescriptionLoading)
           }
           actions={
             pageState.canManageTeams && team ? (
@@ -151,27 +242,36 @@ export function TeamDetailPageView({
                 onClick={() => onEditOpenChange(true)}
                 disabled={isSavingTeam}
               >
-                Edit team
+                <FormattedMessage {...teamDetailPageViewMessages.editTeam} />
               </Button>
             ) : null
           }
         />
       </div>
 
-      <section aria-label="Team members" className="min-w-0">
+      <section
+        aria-label={intl.formatMessage(teamDetailPageViewMessages.sectionLabel)}
+        className="min-w-0"
+      >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">Members</TypographyP>
-            <TypographyP className="mt-1 text-sm text-foreground/52">
-              People assigned to this team can access its projects and jobs. Need someone new in the
-              workspace?{" "}
-              <Link
-                href={`/org/${organizationSlug}/members`}
-                className="font-medium text-foreground/72 underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Invite a member
-              </Link>
-              .
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...teamDetailPageViewMessages.membersHeading} />
+            </TypographyP>
+            <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <FormattedMessage
+                {...teamDetailPageViewMessages.membersDescription}
+                values={{
+                  invite: (chunks) => (
+                    <Link
+                      href={`/org/${organizationSlug}/members`}
+                      className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                }}
+              />
             </TypographyP>
           </div>
           {pageState.canManageMembers ? (
@@ -182,34 +282,38 @@ export function TeamDetailPageView({
               disabled={isAddingMember}
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Add member
+              <FormattedMessage {...teamDetailPageViewMessages.addMember} />
             </Button>
           ) : null}
         </div>
 
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-foreground/52">Loading team...</TypographyP>
+          <TypographyP className="py-8 text-sm text-muted-foreground">
+            <FormattedMessage {...teamDetailPageViewMessages.loading} />
+          </TypographyP>
         ) : error ? (
           <div className="py-8">
             <TypographyP className="text-sm font-medium text-flame-100">
-              Team failed to load.
+              <FormattedMessage {...teamDetailPageViewMessages.loadFailed} />
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-foreground/48">
-              {error instanceof Error ? error.message : "Refresh the page to try again."}
+            <TypographyP className="mt-1 text-xs text-muted-foreground">
+              {error instanceof Error
+                ? error.message
+                : intl.formatMessage(teamDetailPageViewMessages.loadFailedFallback)}
             </TypographyP>
           </div>
         ) : pageState.members.length === 0 ? (
           <div className="py-10">
             <TypographyP className="text-sm font-medium text-foreground">
-              No members on this team
+              <FormattedMessage {...teamDetailPageViewMessages.emptyTitle} />
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-foreground/52">
-              Add workspace members to start scoping projects and jobs to this team.
+            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              <FormattedMessage {...teamDetailPageViewMessages.emptyDescription} />
             </TypographyP>
           </div>
         ) : (
           <div role="table" className="min-w-0">
-            <MembersTableHeader />
+            <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
               const canUpdateRole = canUpdateTeamMemberRole({
@@ -227,7 +331,12 @@ export function TeamDetailPageView({
                 <div
                   key={member.workosUserId}
                   role="row"
-                  className="grid gap-4 border-t border-foreground/8 px-1 py-4 md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem] md:items-center"
+                  className={cn(
+                    "group/row grid gap-4 border-t border-border px-1 py-3 transition-colors hover:bg-muted/40 md:items-center",
+                    pageState.canManageMembers
+                      ? "md:grid-cols-[minmax(0,1.5fr)_12rem_2.5rem]"
+                      : "md:grid-cols-[minmax(0,1.5fr)_12rem]",
+                  )}
                 >
                   <div role="cell" className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -235,8 +344,8 @@ export function TeamDetailPageView({
                         {member.email}
                       </TypographyP>
                       {isCurrentUser ? (
-                        <span className="rounded-full border border-foreground/10 bg-foreground/4 px-2 py-0.5 text-xs font-medium text-foreground/58">
-                          You
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          <FormattedMessage {...teamDetailPageViewMessages.youBadge} />
                         </span>
                       ) : null}
                     </div>
@@ -244,8 +353,8 @@ export function TeamDetailPageView({
 
                   <div role="cell" className="min-w-0">
                     <div className="flex items-center justify-between gap-3 md:block">
-                      <span className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase md:hidden">
-                        Role
+                      <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
+                        <FormattedMessage {...teamDetailPageViewMessages.columnRole} />
                       </span>
                       {canUpdateRole ? (
                         <Select
@@ -262,12 +371,16 @@ export function TeamDetailPageView({
                           }}
                           disabled={updatingMemberRoleId === member.workosUserId}
                         >
-                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-foreground/10 bg-background/60 text-foreground/78 hover:bg-foreground/4">
-                            <SelectValue>{getTeamRoleLabel(member.role)}</SelectValue>
+                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
+                            <SelectValue>{getTeamRoleLabel(member.role, intl)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="manager">{getTeamRoleLabel("manager")}</SelectItem>
-                            <SelectItem value="member">{getTeamRoleLabel("member")}</SelectItem>
+                            <SelectItem value="manager">
+                              {getTeamRoleLabel("manager", intl)}
+                            </SelectItem>
+                            <SelectItem value="member">
+                              {getTeamRoleLabel("member", intl)}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
@@ -278,15 +391,15 @@ export function TeamDetailPageView({
                                 variant="outline"
                                 className={cn(
                                   "h-auto max-w-[12rem] truncate rounded-lg px-3 py-1.5 text-sm",
-                                  "border-foreground/12 bg-foreground/4 text-foreground/72",
+                                  "border-border bg-muted text-subtle-foreground",
                                 )}
                               >
-                                {getTeamRoleLabel(member.role)}
+                                {getTeamRoleLabel(member.role, intl)}
                               </Badge>
                             }
                           />
                           <TooltipContent side="bottom" align="start" className="max-w-xs">
-                            {getTeamRoleDescription(member.role)}
+                            {getTeamRoleDescription(member.role, intl)}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -294,27 +407,13 @@ export function TeamDetailPageView({
                   </div>
 
                   <div role="cell" className="flex items-center justify-end">
-                    {canRemove ? (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="border-foreground/10 bg-transparent text-foreground/52 hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => onRemovingMemberChange(member)}
-                              disabled={isRemovingMember}
-                              aria-label={`Remove ${member.email}`}
-                            >
-                              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
-                            </Button>
-                          }
-                        />
-                        <TooltipContent side="bottom" align="end">
-                          Remove from team
-                        </TooltipContent>
-                      </Tooltip>
+                    {pageState.canManageMembers ? (
+                      <MemberRowActions
+                        member={member}
+                        canRemove={canRemove}
+                        isRemovingMember={isRemovingMember}
+                        onRemoveMember={onRemovingMemberChange}
+                      />
                     ) : null}
                   </div>
                 </div>
@@ -328,8 +427,8 @@ export function TeamDetailPageView({
         <TeamDialog
           open={isEditOpen}
           mode="edit"
-          title="Edit team"
-          description="Update the team name or slug used for project scoping."
+          title={intl.formatMessage(teamDetailPageViewMessages.editTeamTitle)}
+          description={intl.formatMessage(teamDetailPageViewMessages.editTeamDescription)}
           initialValues={createTeamFormFromSummary(team)}
           isSaving={isSavingTeam}
           onOpenChange={onEditOpenChange}
@@ -349,18 +448,22 @@ export function TeamDetailPageView({
         open={removingMember !== null}
         onOpenChange={(open) => !open && onRemovingMemberChange(null)}
       >
-        <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Remove team member</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...teamDetailPageViewMessages.removeMemberTitle} />
+            </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? `${removingMember.email} will lose access to projects scoped to this team.`
+                ? intl.formatMessage(teamDetailPageViewMessages.removeMemberDescription, {
+                    email: removingMember.email,
+                  })
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onRemovingMemberChange(null)}>
-              Cancel
+              <FormattedMessage {...teamDetailPageViewMessages.cancel} />
             </Button>
             <Button
               type="button"
@@ -372,7 +475,7 @@ export function TeamDetailPageView({
                 }
               }}
             >
-              Remove member
+              <FormattedMessage {...teamDetailPageViewMessages.removeMemberConfirm} />
             </Button>
           </DialogFooter>
         </DialogContent>

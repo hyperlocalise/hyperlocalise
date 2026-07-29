@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -51,13 +63,18 @@ ${subagentSummaryLines}
 
 WHEN TO USE:
 - Translation requests with attached files → \`translation\`
+- Crowdin or TMS status for projects, files, or strings → \`translation\`
 - Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
+- Listing recent / newly changed source localization content via repository git history → \`repository\`
+- Recent changed keys plus translator context for each discovered key → \`repository\` (\`gitHistory\` then per-key context)
 - Any work that matches an agent description above
 
 WHEN NOT TO USE:
 - Simple questions you can answer without tools
 - Requests that need an agent that is unavailable (explain what is missing instead)
 - General repository architecture summaries, PR fixes, code review, or checks unless an agent explicitly supports them
+- Treating "recent translations" as a TMS/Crowdin progress question when a GitHub repository is connected — explore repository source history instead
+- Stopping after a recent-change changelog when the user also asked for context on those keys — continue with per-key find-context
 
 BEHAVIOR:
 - Agents run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps
@@ -65,8 +82,8 @@ BEHAVIOR:
 - Be explicit in instructions; agents cannot ask clarifying questions`,
     inputSchema: taskInputSchema,
     outputSchema: taskOutputSchema,
-    execute: async ({ subagentType, task, instructions }, { experimental_context }) => {
-      const runtimeResult = resolveAgentRuntimeContext(experimental_context);
+    execute: async ({ subagentType, task, instructions }, { context }) => {
+      const runtimeResult = resolveAgentRuntimeContext(context);
       if (isErr(runtimeResult)) {
         return {
           success: false,

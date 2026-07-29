@@ -1,16 +1,28 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { TmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import type { TmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   mapProviderStatusToNormalized,
   type ExternalTmsJobTaskMetadata,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 function normalizeDate(value: Date | string | null | undefined) {

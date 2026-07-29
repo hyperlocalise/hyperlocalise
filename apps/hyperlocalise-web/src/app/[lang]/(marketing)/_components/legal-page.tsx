@@ -1,7 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 type LegalPageProps = {
   eyebrow: string;
@@ -13,13 +27,18 @@ type LegalPageProps = {
 export function createLegalMetadata({
   title,
   description,
+  locale,
+  path,
 }: {
   title: string;
   description: string;
+  locale: AppLocale;
+  path: "/terms" | "/privacy";
 }): Metadata {
   return {
     title,
     description,
+    alternates: getLocalizedAlternates({ locale, path }),
   };
 }
 
@@ -48,8 +67,8 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
               </TypographyP>
             </div>
           </div>
-          <div className="mt-10 rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
-            <div className="space-y-8 text-base leading-7 text-foreground/88">{children}</div>
+          <div className="mt-10 rounded-3xl border border-border bg-background/95 p-6 shadow-sm sm:p-8">
+            <div className="space-y-8 text-base leading-7 text-foreground">{children}</div>
           </div>
         </div>
       </div>
@@ -69,5 +88,5 @@ export function LegalSection({ title, children }: { title: string; children: Rea
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="list-disc space-y-2 pl-6 marker:text-foreground/50">{children}</ul>;
+  return <ul className="list-disc space-y-2 pl-6 marker:text-muted-foreground">{children}</ul>;
 }

@@ -1,4 +1,16 @@
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 
 export type JobDetailRecord = {
   id: string;
@@ -6,7 +18,7 @@ export type JobDetailRecord = {
   projectName: string | null;
   createdByUserId: string | null;
   ownerUserId: string | null;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   inputPayload: unknown;
@@ -159,6 +171,10 @@ export function canRetryJob(job: JobDetailRecord) {
 
 export function canMarkJobFailed(job: JobDetailRecord) {
   return job.status === "queued" || job.status === "running";
+}
+
+export function canCancelJob(job: JobDetailRecord) {
+  return !isProviderBackedJob(job) && (job.status === "queued" || job.status === "running");
 }
 
 export function buildJobsListHref(organizationSlug: string, projectId: string) {

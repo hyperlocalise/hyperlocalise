@@ -1,60 +1,53 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Alert02Icon, ArrowUpRight01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 
-import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
+import { isLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { ProviderKindBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
+import { glossariesTableMessages } from "./glossaries-table.messages";
 
 function SourceLabel({ glossary }: { glossary: GlossaryListRow }) {
   if (glossary.source === "native") {
-    return <span className="text-xs text-foreground/48">Workspace</span>;
+    return (
+      <span className="text-xs text-muted-foreground">
+        <FormattedMessage {...glossariesTableMessages.sourceWorkspace} />
+      </span>
+    );
   }
 
   if (glossary.externalProviderKind) {
     return <ProviderKindBadge kind={glossary.externalProviderKind} />;
   }
 
-  return <span className="text-xs text-foreground/48">External TMS</span>;
-}
-
-function SyncHealthBadge({ glossary }: { glossary: GlossaryListRow }) {
-  if (glossary.source === "native") {
-    return (
-      <Badge variant="outline" className={toneClass("info")}>
-        Active
-      </Badge>
-    );
-  }
-
-  if (glossary.lastSyncErrorAt) {
-    return (
-      <Badge variant="destructive" className="text-[10px]">
-        <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="size-3" />
-        Sync error
-      </Badge>
-    );
-  }
-
-  if (glossary.syncState) {
-    return <SyncStateBadge syncState={glossary.syncState} />;
-  }
-
   return (
-    <Badge variant="outline" className="text-[10px] text-foreground/58">
-      Not synced
-    </Badge>
+    <span className="text-xs text-muted-foreground">
+      <FormattedMessage {...glossariesTableMessages.sourceExternalTms} />
+    </span>
   );
 }
 
@@ -69,15 +62,8 @@ function ResourceTypeBadge({ glossary }: { glossary: GlossaryListRow }) {
 }
 
 function TermCapabilityBadge({ glossary }: { glossary: GlossaryListRow }) {
-  const tone =
-    glossary.termCapabilityLabel === "Capabilities unknown"
-      ? "watch"
-      : glossary.termCapabilityLabel.includes("No ")
-        ? "watch"
-        : "safe";
-
   return (
-    <Badge variant="outline" className={toneClass(tone)}>
+    <Badge variant="outline" className={toneClass(glossary.termCapabilityTone)}>
       {glossary.termCapabilityLabel}
     </Badge>
   );
@@ -90,69 +76,71 @@ function GlossaryRow({
   glossary: GlossaryListRow;
   organizationSlug: string;
 }) {
+  const intl = useIntl();
   const sourceDetail =
     glossary.source === "native"
-      ? `${glossary.localePairLabel} · Updated ${glossary.updatedAt}`
+      ? intl.formatMessage(glossariesTableMessages.nativeSourceDetail, {
+          localePair: glossary.localePairLabel,
+          timestamp: glossary.updatedAt,
+        })
       : [
-          glossary.externalProviderKind ? providerLabel(glossary.externalProviderKind) : "Provider",
-          glossary.externalProjectId ? `Project ${glossary.externalProjectId}` : null,
-          glossary.lastSyncedAt ? `Synced ${glossary.lastSyncedAt}` : "Not synced yet",
+          glossary.externalProviderKind
+            ? providerLabel(glossary.externalProviderKind)
+            : intl.formatMessage(glossariesTableMessages.providerFallback),
+          glossary.externalProjectId
+            ? intl.formatMessage(glossariesTableMessages.projectId, {
+                projectId: glossary.externalProjectId,
+              })
+            : null,
         ]
           .filter(Boolean)
           .join(" · ");
 
   return (
-    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.35fr_0.95fr_0.75fr_1fr_auto] md:items-center">
+    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.35fr_0.95fr_0.75fr_1fr] md:items-center">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
             icon={BookOpenTextIcon}
             strokeWidth={1.7}
-            className="size-4 shrink-0 text-foreground/42"
+            className="size-4 shrink-0 text-muted-foreground"
           />
-          <Link
-            href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            {glossary.name}
-          </Link>
+          {isLiveProviderGlossaryId(glossary.id) ? (
+            <span className="truncate text-sm font-medium text-foreground">{glossary.name}</span>
+          ) : (
+            <Link
+              href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
+              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              {glossary.name}
+            </Link>
+          )}
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>
-        <TypographyP className="mt-1 text-xs text-foreground/42">{sourceDetail}</TypographyP>
-        {glossary.lastSyncErrorAt ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span className="mt-1 block text-xs text-destructive">
-                  Last sync failed {glossary.lastSyncErrorAt}
-                </span>
-              }
-            />
-            <TooltipContent side="bottom" align="start" className="max-w-xs">
-              <p className="text-xs">{glossary.lastSyncErrorMessage ?? "Unknown error"}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+        <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {glossary.projectLinkId ? (
             <>
               <Link
                 href={`/org/${organizationSlug}/projects/${glossary.projectLinkId}`}
-                className="text-xs text-foreground/58 underline-offset-2 hover:text-foreground hover:underline"
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
-                View linked project
+                <FormattedMessage {...glossariesTableMessages.viewLinkedProject} />
               </Link>
               <Link
                 href={`/org/${organizationSlug}/jobs`}
-                className="text-xs text-foreground/58 underline-offset-2 hover:text-foreground hover:underline"
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
-                View jobs
+                <FormattedMessage {...glossariesTableMessages.viewJobs} />
               </Link>
             </>
           ) : glossary.externalProjectId ? (
-            <span className="text-xs text-foreground/42">
-              External project {glossary.externalProjectId}
+            <span className="text-xs text-muted-foreground">
+              <FormattedMessage
+                {...glossariesTableMessages.externalProject}
+                values={{ projectId: glossary.externalProjectId }}
+              />
             </span>
           ) : null}
           {glossary.externalUrl ? (
@@ -160,22 +148,24 @@ function GlossaryRow({
               href={glossary.externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-foreground/58 hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              Open in provider
+              <FormattedMessage {...glossariesTableMessages.openInProvider} />
               <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.7} className="size-3.5" />
             </a>
           ) : null}
         </div>
       </div>
-      <TypographyP className="text-sm text-foreground/58">{glossary.localeSummary}</TypographyP>
-      <TypographyP className="text-sm text-foreground/58">
-        {glossary.termCountLabel} terms
+      <TypographyP className="text-sm text-muted-foreground">{glossary.localeSummary}</TypographyP>
+      <TypographyP className="text-sm text-muted-foreground">
+        <FormattedMessage
+          {...glossariesTableMessages.termCount}
+          values={{ countLabel: glossary.termCountLabel }}
+        />
       </TypographyP>
       <div className="flex flex-wrap gap-2">
         <TermCapabilityBadge glossary={glossary} />
       </div>
-      <SyncHealthBadge glossary={glossary} />
     </div>
   );
 }
@@ -198,21 +188,28 @@ export function GlossariesTable({
   emptyDescription: string;
   emptyAction?: ReactNode;
 }) {
+  const intl = useIntl();
+
   return (
-    <section aria-label="Glossaries" className="min-w-0">
+    <section
+      aria-label={intl.formatMessage(glossariesTableMessages.sectionLabel)}
+      className="min-w-0"
+    >
       {glossariesQuery.isLoading ? (
-        <TypographyP className="py-8 text-sm text-foreground/52">Loading glossaries...</TypographyP>
+        <TypographyP className="py-8 text-sm text-muted-foreground">
+          <FormattedMessage {...glossariesTableMessages.loading} />
+        </TypographyP>
       ) : null}
 
       {glossariesQuery.isError ? (
         <div className="py-8">
           <TypographyP className="text-sm font-medium text-flame-100">
-            Glossaries failed to load.
+            <FormattedMessage {...glossariesTableMessages.loadFailed} />
           </TypographyP>
-          <TypographyP className="mt-1 text-xs text-foreground/42">
+          <TypographyP className="mt-1 text-xs text-muted-foreground">
             {glossariesQuery.error instanceof Error
               ? glossariesQuery.error.message
-              : "Try refreshing the page."}
+              : intl.formatMessage(glossariesTableMessages.loadFailedFallback)}
           </TypographyP>
         </div>
       ) : null}
@@ -220,7 +217,7 @@ export function GlossariesTable({
       {glossariesQuery.isSuccess && glossaries.length === 0 ? (
         <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             {emptyDescription}
           </TypographyP>
           {emptyAction}
@@ -228,11 +225,11 @@ export function GlossariesTable({
       ) : null}
 
       {glossariesQuery.isSuccess && glossaries.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {glossaries.map((glossary, index) => (
             <div key={glossary.id}>
               <GlossaryRow glossary={glossary} organizationSlug={organizationSlug} />
-              {index < glossaries.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+              {index < glossaries.length - 1 ? <Separator className="bg-skeleton" /> : null}
             </div>
           ))}
         </div>
@@ -243,7 +240,7 @@ export function GlossariesTable({
 
 export function GlossariesEmptyAction({
   organizationSlug,
-  label = "Connect a provider",
+  label,
 }: {
   organizationSlug: string;
   label?: string;
@@ -255,7 +252,7 @@ export function GlossariesEmptyAction({
       variant="outline"
       size="sm"
     >
-      {label}
+      {label ?? <FormattedMessage {...glossariesTableMessages.connectProvider} />}
     </Button>
   );
 }

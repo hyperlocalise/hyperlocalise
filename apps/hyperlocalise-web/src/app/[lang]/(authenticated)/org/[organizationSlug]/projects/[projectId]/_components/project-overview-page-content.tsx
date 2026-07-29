@@ -1,20 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertCircleIcon,
-  File01Icon,
-  Settings02Icon,
-  Task01Icon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, File01Icon, LanguageCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
-import { jobsResponseSchema } from "@/api/routes/project/job.schema";
-import {
-  projectFilesResponseSchema,
-  type ProjectFileRecord,
-} from "@/api/routes/project/project.schema";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/primitives/cn";
+import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  projectFilesResponseSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 
 import { OverviewActionCard } from "../../../_components/overview/overview-action-card";
 import {
@@ -44,9 +53,14 @@ import {
   resolveFileLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
 import type { Tone } from "../../../_components/workspace-resource-shared";
+import { CreateJobDialog } from "../../../jobs/_components/create-job-dialog";
+import { getJobStatusMessage } from "../../../jobs/_components/jobs-page-view.messages";
 import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
+import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
+import { useProjectOpenJobCountQuery } from "./use-project-open-job-count";
+import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 
 function buildProjectJobHref(organizationSlug: string, projectId: string, jobId: string) {
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
@@ -70,49 +84,53 @@ function formatLocaleRoute(sourceLocale: string | null, targetLocales: readonly 
 }
 
 function buildHeroCopy(
-  project: ProjectListRow,
+  intl: IntlShape,
   filesNeedingAttention: number,
   pendingCount: number,
+  openJobCount: number,
 ) {
   if (pendingCount === 0) {
     return {
-      title: "You're all caught up",
-      description:
-        "No pending actions right now. Upload source files or review completed jobs when you're ready to continue.",
-      ctaLabel: "Browse files",
+      title: intl.formatMessage(messages.caughtUpHeroTitle),
+      description: intl.formatMessage(messages.caughtUpHeroDescription),
+      ctaLabel: intl.formatMessage(messages.browseFilesCta),
       ctaHref: "files",
     };
   }
 
   const parts: string[] = [];
-  if (project.openJobCount > 0) {
-    parts.push(`${project.openJobCount} open ${project.openJobCount === 1 ? "job" : "jobs"}`);
-  }
-  if (project.lastSyncErrorAt) {
-    parts.push("sync issue");
+  if (openJobCount > 0) {
+    parts.push(intl.formatMessage(messages.openJobsDetail, { count: openJobCount }));
   }
   if (filesNeedingAttention > 0) {
     parts.push(
-      `${filesNeedingAttention} ${filesNeedingAttention === 1 ? "file" : "files"} needing attention`,
+      intl.formatMessage(messages.filesNeedingAttentionDetail, {
+        count: filesNeedingAttention,
+      }),
     );
   }
 
   return {
-    title: "A few things need your attention",
-    description: `Pick up where you left off — ${parts.join(", ")}.`,
-    ctaLabel: "Pick up where you left off",
+    title: intl.formatMessage(messages.attentionHeroTitle),
+    description: intl.formatMessage(messages.attentionHeroDescription, {
+      details: parts.join(", "),
+    }),
+    ctaLabel: intl.formatMessage(messages.pickUpWhereYouLeftOffCta),
     ctaHref: "jobs",
   };
 }
 
-function formatJobStatusLine(job: ApiJob) {
-  return `${job.status.replaceAll("_", " ")} · updated ${formatRelativeTimestamp(job.updatedAt)}`;
+function formatJobStatusLine(intl: IntlShape, job: ApiJob) {
+  return intl.formatMessage(messages.jobStatusUpdated, {
+    status: intl.formatMessage(getJobStatusMessage(job.status)),
+    updated: formatRelativeTimestamp(job.updatedAt),
+  });
 }
 
-function formatFileStatusLine(file: ProjectFileRecord) {
+function formatFileStatusLine(intl: IntlShape, file: ProjectFileRecord) {
   const readiness = resolveFileLocaleReadiness(file);
-  const summary = summarizeLocaleReadiness(readiness);
-  return summary ?? "Needs attention";
+  const summary = summarizeLocaleReadiness(readiness, intl);
+  return summary ?? intl.formatMessage(messages.needsAttention);
 }
 
 function fileStatusTone(file: ProjectFileRecord): Tone {
@@ -143,12 +161,16 @@ export type ProjectOverviewPageContentViewProps = {
   project: ProjectListRow | null;
   isProjectLoading: boolean;
   isProjectError: boolean;
+  openJobCount: number;
+  isOpenJobCountLoading: boolean;
+  isOpenJobCountError: boolean;
   jobs: readonly ApiJob[];
   isJobsLoading: boolean;
   isJobsError: boolean;
   files: readonly ProjectFileRecord[];
   isFilesLoading: boolean;
   isFilesError: boolean;
+  onCreateJob?: () => void;
 };
 
 export function ProjectOverviewPageContentView({
@@ -157,80 +179,112 @@ export function ProjectOverviewPageContentView({
   project,
   isProjectLoading,
   isProjectError,
+  openJobCount,
+  isOpenJobCountLoading,
+  isOpenJobCountError,
   jobs,
   isJobsLoading,
   isJobsError,
   files,
   isFilesLoading,
   isFilesError,
+  onCreateJob,
 }: ProjectOverviewPageContentViewProps) {
+  const intl = useIntl();
   const filesNeedingAttention = countFilesNeedingAttention(files);
-  const pendingCount = project ? computeProjectPendingActionCount(project, files) : 0;
+  const pendingCount = project ? computeProjectPendingActionCount({ openJobCount }, files) : 0;
   const ongoingJobs = selectOngoingJobs(jobs);
   const attentionFiles = selectFilesNeedingAttention(files);
   const ongoingCount = ongoingJobs.length + attentionFiles.length;
   const readyToPullCount = project ? countReadyToPullFiles(files, project.targetLocales.length) : 0;
+  const showViewStrings = supportsCatAllFilesProvider(
+    parseProviderProjectId(projectId)?.providerKind,
+  );
 
-  const heroCopy = project ? buildHeroCopy(project, filesNeedingAttention, pendingCount) : null;
+  const heroCopy = project
+    ? buildHeroCopy(intl, filesNeedingAttention, pendingCount, openJobCount)
+    : null;
 
   const projectDescription =
     project?.descriptionValue ||
     project?.translationContextValue ||
-    "Project hub for localization work.";
+    intl.formatMessage(messages.defaultProjectDescription);
 
   const snapshotRows = project
     ? [
         {
-          label: "Locales",
+          label: intl.formatMessage(messages.snapshotLocales),
           value: formatLocaleRoute(project.sourceLocale, project.targetLocales),
         },
         {
-          label: "Source",
+          label: intl.formatMessage(messages.snapshotSource),
           value:
             project.source === "external_tms" && project.externalProviderKind
               ? providerLabel(project.externalProviderKind)
-              : "Native project",
+              : intl.formatMessage(messages.nativeProjectSource),
         },
         {
-          label: "Last sync",
-          value: project.lastSyncedAt
-            ? formatRelativeTimestamp(project.lastSyncedAt)
-            : "Not synced yet",
-        },
-        {
-          label: "Open jobs",
-          value: String(project.openJobCount),
+          label: intl.formatMessage(messages.snapshotOpenJobs),
+          value: isOpenJobCountLoading
+            ? "…"
+            : isOpenJobCountError
+              ? intl.formatMessage(messages.openJobsUnavailable)
+              : String(openJobCount),
         },
       ]
     : [];
 
+  const showHeaderActions = Boolean(project) && !isProjectLoading && !isProjectError;
+
   return (
     <ProjectPageShell className="gap-8">
-      <header className="space-y-2">
-        {isProjectLoading ? (
-          <>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-full max-w-xl" />
-          </>
-        ) : isProjectError ? (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              Project overview
-            </TypographyH1>
-            <TypographyP className="text-sm text-muted-foreground">
-              Unable to load project details. Refresh the page or try again in a moment.
-            </TypographyP>
-          </>
-        ) : (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              {project?.name ?? "Project"}
-            </TypographyH1>
-            <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              {projectDescription}
-            </TypographyP>
-          </>
-        )}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          {isProjectLoading ? (
+            <>
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-full max-w-xl" />
+            </>
+          ) : isProjectError ? (
+            <>
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                <FormattedMessage {...messages.projectOverviewFallbackTitle} />
+              </TypographyH1>
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.loadProjectError} />
+              </TypographyP>
+            </>
+          ) : (
+            <>
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                {project?.name ?? intl.formatMessage(messages.projectFallbackName)}
+              </TypographyH1>
+              <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                {projectDescription}
+              </TypographyP>
+            </>
+          )}
+        </div>
+
+        {showHeaderActions ? (
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {showViewStrings ? (
+              <Button
+                nativeButton={false}
+                render={<Link href={buildProjectPath(organizationSlug, projectId, "strings")} />}
+                size="sm"
+                variant="outline"
+              >
+                <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
+                <FormattedMessage {...messages.viewStrings} />
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" onClick={onCreateJob}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.createJob} />
+            </Button>
+          </div>
+        ) : null}
       </header>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -250,9 +304,9 @@ export function ProjectOverviewPageContentView({
               ctaHref={buildProjectPath(organizationSlug, projectId, heroCopy.ctaHref)}
             />
             <OverviewSnapshotCard
-              title="Project snapshot"
+              title={intl.formatMessage(messages.snapshotTitle)}
               rows={snapshotRows}
-              ctaLabel="View settings"
+              ctaLabel={intl.formatMessage(messages.viewSettings)}
               ctaHref={buildProjectPath(organizationSlug, projectId, "settings")}
             />
           </>
@@ -260,7 +314,10 @@ export function ProjectOverviewPageContentView({
       </section>
 
       <section className="space-y-4">
-        <OverviewSectionHeader title="Ongoing" count={ongoingCount} />
+        <OverviewSectionHeader
+          title={intl.formatMessage(messages.ongoingSection)}
+          count={ongoingCount}
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           {isJobsLoading || isFilesLoading ? (
@@ -274,24 +331,30 @@ export function ProjectOverviewPageContentView({
                 ongoingJobs.map((job) => (
                   <OverviewActionCard
                     key={job.id}
-                    category="Job"
+                    category={intl.formatMessage(messages.categoryJob)}
                     title={getJobName(job)}
-                    statusLine={formatJobStatusLine(job)}
+                    statusLine={formatJobStatusLine(intl, job)}
                     statusTone={jobTone(job.status)}
                     viewHref={buildProjectJobHref(organizationSlug, projectId, job.id)}
                   />
                 ))
               ) : (
-                <Card className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/2 py-0 ring-0">
+                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
                   <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
                     <div>
                       <TypographyP className="text-sm font-medium text-foreground">
-                        {isJobsError ? "Jobs unavailable" : "No active jobs"}
+                        {isJobsError ? (
+                          <FormattedMessage {...messages.jobsUnavailable} />
+                        ) : (
+                          <FormattedMessage {...messages.noActiveJobs} />
+                        )}
                       </TypographyP>
                       <TypographyP className="mt-1 text-sm text-muted-foreground">
-                        {isJobsError
-                          ? "We could not load jobs for this project."
-                          : "Queued, running, and review jobs will appear here."}
+                        {isJobsError ? (
+                          <FormattedMessage {...messages.jobsUnavailableDescription} />
+                        ) : (
+                          <FormattedMessage {...messages.noActiveJobsDescription} />
+                        )}
                       </TypographyP>
                     </div>
                     <Button
@@ -301,7 +364,7 @@ export function ProjectOverviewPageContentView({
                       size="sm"
                       className="w-fit rounded-full"
                     >
-                      View jobs
+                      <FormattedMessage {...messages.viewJobs} />
                     </Button>
                   </CardContent>
                 </Card>
@@ -311,24 +374,30 @@ export function ProjectOverviewPageContentView({
                 attentionFiles.map((file) => (
                   <OverviewActionCard
                     key={file.sourcePath}
-                    category="File"
+                    category={intl.formatMessage(messages.categoryFile)}
                     title={file.filename}
-                    statusLine={formatFileStatusLine(file)}
+                    statusLine={formatFileStatusLine(intl, file)}
                     statusTone={fileStatusTone(file)}
                     viewHref={buildProjectFileHref(organizationSlug, projectId, file.sourcePath)}
                   />
                 ))
               ) : (
-                <Card className="rounded-2xl border border-dashed border-foreground/10 bg-foreground/2 py-0 ring-0">
+                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
                   <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
                     <div>
                       <TypographyP className="text-sm font-medium text-foreground">
-                        {isFilesError ? "Files unavailable" : "No files need attention"}
+                        {isFilesError ? (
+                          <FormattedMessage {...messages.filesUnavailable} />
+                        ) : (
+                          <FormattedMessage {...messages.noFilesNeedAttention} />
+                        )}
                       </TypographyP>
                       <TypographyP className="mt-1 text-sm text-muted-foreground">
-                        {isFilesError
-                          ? "We could not load project files."
-                          : "Files with missing or changed translations will appear here."}
+                        {isFilesError ? (
+                          <FormattedMessage {...messages.filesUnavailableDescription} />
+                        ) : (
+                          <FormattedMessage {...messages.noFilesNeedAttentionDescription} />
+                        )}
                       </TypographyP>
                     </div>
                     <Button
@@ -340,7 +409,7 @@ export function ProjectOverviewPageContentView({
                       size="sm"
                       className="w-fit rounded-full"
                     >
-                      View files
+                      <FormattedMessage {...messages.viewFiles} />
                     </Button>
                   </CardContent>
                 </Card>
@@ -351,16 +420,22 @@ export function ProjectOverviewPageContentView({
       </section>
 
       {project && project.source === "native" && readyToPullCount > 0 ? (
-        <Card className="rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 ring-0">
+        <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
           <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <TypographyP className="text-sm font-medium text-foreground">
-                Ready to pull
+                <FormattedMessage {...messages.readyToPullTitle} />
               </TypographyP>
               <TypographyP className="mt-1 text-sm text-muted-foreground">
-                {readyToPullCount} {readyToPullCount === 1 ? "file has" : "files have"} completed
-                translations you can download or sync with{" "}
-                <span className="font-mono text-foreground/80">sync pull</span>.
+                <FormattedMessage
+                  {...messages.readyToPullDescription}
+                  values={{
+                    count: readyToPullCount,
+                    code: (chunks: ReactNode) => (
+                      <span className="font-mono text-foreground">{chunks}</span>
+                    ),
+                  }}
+                />
               </TypographyP>
             </div>
             <Button
@@ -371,76 +446,8 @@ export function ProjectOverviewPageContentView({
               className="w-fit rounded-full"
             >
               <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
-              Open files
+              <FormattedMessage {...messages.openFiles} />
             </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {project ? (
-        <Card
-          className={cn(
-            "rounded-2xl border py-0 ring-0",
-            project.lastSyncErrorAt
-              ? "border-flame-700/20 bg-flame-700/10"
-              : "border-foreground/8 bg-foreground/2.5",
-          )}
-        >
-          <CardContent className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              {project.lastSyncErrorAt ? (
-                <HugeiconsIcon
-                  icon={AlertCircleIcon}
-                  strokeWidth={1.8}
-                  className="mt-0.5 size-5 shrink-0 text-flame-100"
-                />
-              ) : null}
-              <div>
-                <TypographyP className="text-sm font-medium text-foreground">
-                  {project.lastSyncErrorAt ? "Sync needs attention" : "Sync health"}
-                </TypographyP>
-                <TypographyP className="mt-1 text-sm text-muted-foreground">
-                  {project.lastSyncErrorAt
-                    ? (project.lastSyncErrorMessage ?? "The last provider sync reported an error.")
-                    : project.lastSyncedAt
-                      ? `Last synced ${formatRelativeTimestamp(project.lastSyncedAt)}.`
-                      : "This project has not synced with a provider yet."}
-                </TypographyP>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "jobs")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} />
-                Jobs
-              </Button>
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "files")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
-                Files
-              </Button>
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "settings")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={Settings02Icon} strokeWidth={1.8} />
-                Settings
-              </Button>
-            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -455,31 +462,20 @@ export function ProjectOverviewPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  const intl = useIntl();
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
-
-  const jobsQuery = useQuery({
-    queryKey: ["project-overview-jobs", organizationSlug, projectId],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].jobs.$get({
-        param: { organizationSlug, projectId },
-        query: { limit: "5", open: true },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project jobs");
-      }
-      const { jobs } = await parseApiJsonResponse(
-        response,
-        jobsResponseSchema,
-        "Invalid project jobs response",
-      );
-      return jobs as ApiJob[];
-    },
+  const isLiveTmsProject = Boolean(parseProviderProjectId(projectId));
+  const openJobCountQuery = useProjectOpenJobCountQuery(organizationSlug, projectId, {
+    enabled: projectQuery.isSuccess,
+  });
+  const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
+    enabled: projectQuery.isSuccess,
   });
 
   const filesQuery = useQuery({
     queryKey: ["project-overview-files", organizationSlug, projectId],
+    enabled: projectQuery.isSuccess && !isLiveTmsProject,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -488,30 +484,53 @@ export function ProjectOverviewPageContent({
         query: { limit: "10" },
       });
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project files");
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(messages.loadProjectFilesFailed),
+        );
       }
       const { files } = await parseApiJsonResponse(
         response,
         projectFilesResponseSchema,
-        "Invalid project files response",
+        intl.formatMessage(messages.invalidProjectFilesResponse),
       );
       return files;
     },
   });
 
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
+
   return (
-    <ProjectOverviewPageContentView
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      project={projectQuery.data ?? null}
-      isProjectLoading={projectQuery.isLoading}
-      isProjectError={projectQuery.isError}
-      jobs={jobsQuery.data ?? []}
-      isJobsLoading={jobsQuery.isLoading}
-      isJobsError={jobsQuery.isError}
-      files={filesQuery.data ?? []}
-      isFilesLoading={filesQuery.isLoading}
-      isFilesError={filesQuery.isError}
-    />
+    <>
+      <ProjectOverviewPageContentView
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        project={projectQuery.data ?? null}
+        isProjectLoading={projectQuery.isLoading}
+        isProjectError={projectQuery.isError}
+        openJobCount={openJobCountQuery.data ?? 0}
+        isOpenJobCountLoading={openJobCountQuery.isLoading}
+        isOpenJobCountError={openJobCountQuery.isError}
+        jobs={jobsQuery.data ?? []}
+        isJobsLoading={jobsQuery.isLoading}
+        isJobsError={jobsQuery.isError}
+        files={filesQuery.data ?? []}
+        isFilesLoading={filesQuery.isLoading}
+        isFilesError={filesQuery.isError}
+        onCreateJob={() => setCreateJobOpen(true)}
+      />
+      <CreateJobDialog
+        open={createJobOpen}
+        onOpenChange={setCreateJobOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+        onCreated={async () => {
+          await Promise.all([jobsQuery.refetch(), openJobCountQuery.refetch()]);
+        }}
+      />
+    </>
   );
 }

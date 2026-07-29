@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.e2e.example
 
 # vercel
 .vercel
@@ -46,3 +47,5 @@ storybook-static
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+/.swc

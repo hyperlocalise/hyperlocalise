@@ -1,10 +1,37 @@
-import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { Metadata } from "next";
+
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { TypographyP } from "@/components/ui/typography";
 
-export const metadata = createLegalMetadata({
-  title: "Privacy policy",
-  description: "How Hyperlocalise handles account, usage, and provider-related data.",
-});
+import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+
+type PrivacyPageProps = {
+  params: Promise<{ lang: string }>;
+};
+
+export async function generateMetadata({ params }: PrivacyPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
+  return createLegalMetadata({
+    title: "Privacy policy",
+    description: "How Hyperlocalise handles account, usage, and provider-related data.",
+    locale,
+    path: "/privacy",
+  });
+}
 
 export default function PrivacyPage() {
   return (
@@ -16,6 +43,9 @@ export default function PrivacyPage() {
       <TypographyP>
         This page describes the default privacy posture for Hyperlocalise documentation and product
         surfaces.
+      </TypographyP>
+      <TypographyP>
+        Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.
       </TypographyP>
 
       <LegalSection title="Scope">
@@ -69,6 +99,9 @@ export default function PrivacyPage() {
           When you connect third-party AI providers, translation platforms, storage systems, or
           other integrations, your data may be sent to those services based on your configuration.
           Their handling of that data is governed by their own terms and privacy policies.
+        </TypographyP>
+        <TypographyP>
+          For data processing agreement requests, contact: <code>minh@hyperlocalise.com</code>
         </TypographyP>
       </LegalSection>
 
@@ -137,7 +170,7 @@ export default function PrivacyPage() {
 
       <LegalSection title="Contact">
         <TypographyP>
-          For privacy questions or requests, contact: <code>privacy@hyperlocalise.com</code>
+          For privacy questions or requests, contact: <code>minh@hyperlocalise.com</code>
         </TypographyP>
         <TypographyP>
           Effective date: <code>2026-04-17</code>

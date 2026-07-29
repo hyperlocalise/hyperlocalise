@@ -21,12 +21,16 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
-var hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+var (
+	hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+	errPullReconstructionSkipped        = errors.New("pull reconstruction skipped")
+)
 
 type hyperlocaliseSyncRuntime struct {
 	cfg        *config.I18NConfig
@@ -207,7 +211,26 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				continue
 			}
 
-			content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
+			var content []byte
+			if isHyperlocaliseImageFileFormat(plan.FileFormat) {
+				content, err = rt.client.downloadImageVariant(ctx, rt.projectID, plan.SourcePath, locale)
+				if err != nil {
+					if isHyperlocaliseNotFound(err) {
+						report.Skipped++
+						continue
+					}
+					report.Complete = false
+					return report, fmt.Errorf("download image variant for source %q locale %q: %w", plan.SourcePath, locale, err)
+				}
+				if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+					report.Complete = false
+					return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
+				}
+				report.Downloaded++
+				continue
+			}
+
+			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
 			if err != nil {
 				if isHyperlocaliseNotFound(err) {
 					report.Skipped++
@@ -216,7 +239,16 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				report.Complete = false
 				return report, fmt.Errorf("download translation for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
-			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+			exported, err := rt.reconstructPullFile(plan, locale, targetPath, content)
+			if errors.Is(err, errPullReconstructionSkipped) {
+				report.Skipped++
+				continue
+			}
+			if err != nil {
+				report.Complete = false
+				return report, fmt.Errorf("reconstruct translation for source %q locale %q: %w", plan.SourcePath, locale, err)
+			}
+			if err := writeFileAtomic(resolvedTargetPath, exported); err != nil {
 				report.Complete = false
 				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
 			}
@@ -247,6 +279,57 @@ func (rt *hyperlocaliseSyncRuntime) resolveTargetPath(targetPath string) (string
 	return candidate, nil
 }
 
+func pullAcceptsRawPrefilledExport(targetPath string) bool {
+	switch strings.ToLower(filepath.Ext(targetPath)) {
+	case ".json", ".jsonc":
+		return true
+	default:
+		return false
+	}
+}
+
+func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
+	var prefilled map[string]string
+	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
+		return nil, fmt.Errorf("parse translation export JSON: %w", err)
+	}
+
+	resolvedTargetPath, err := runsvc.ResolveExportPath(rt.configRoot, targetPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve target path %q: %w", targetPath, err)
+	}
+
+	if len(prefilled) == 0 && pullAcceptsRawPrefilledExport(resolvedTargetPath) {
+		return prefilledJSON, nil
+	}
+
+	sourcePath, err := runsvc.ResolveExportPath(rt.configRoot, plan.SourcePath)
+	if err != nil {
+		if pullAcceptsRawPrefilledExport(resolvedTargetPath) {
+			return prefilledJSON, nil
+		}
+		return nil, errPullReconstructionSkipped
+	}
+	if _, err := os.Stat(sourcePath); err != nil {
+		if os.IsNotExist(err) {
+			if pullAcceptsRawPrefilledExport(resolvedTargetPath) {
+				return prefilledJSON, nil
+			}
+			return nil, errPullReconstructionSkipped
+		}
+		return nil, fmt.Errorf("stat source file %q: %w", plan.SourcePath, err)
+	}
+
+	return runsvc.ExportPrefilledTarget(runsvc.ExportInput{
+		TargetPath:   resolvedTargetPath,
+		SourcePath:   sourcePath,
+		SourceLocale: plan.SourceLocale,
+		TargetLocale: locale,
+		Prefilled:    prefilled,
+		ProjectRoot:  rt.configRoot,
+	})
+}
+
 func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
 	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
 }
@@ -267,32 +350,45 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 	for _, bucketName := range bucketNames {
 		bucket := cfg.Buckets[bucketName]
 		for _, mapping := range bucket.Files {
-			sourcePath := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
-			fileFormat := inferHyperlocaliseFileFormat(sourcePath)
-			if fileFormat == "" {
-				return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
+			sourcePattern := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
+			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			if err != nil {
+				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
-			sourceHash := ""
-			if hashSources {
-				var err error
-				sourceHash, err = sha256File(sourcePath)
-				if err != nil {
-					return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+			for _, sourcePath := range sourcePaths {
+				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+					continue
 				}
+				fileFormat := inferHyperlocaliseFileFormat(sourcePath)
+				if fileFormat == "" {
+					return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
+				}
+				sourceHash := ""
+				if hashSources {
+					sourceHash, err = sha256File(sourcePath)
+					if err != nil {
+						return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+					}
+				}
+				targetPaths := make(map[string]string, len(targetLocales))
+				for _, locale := range targetLocales {
+					targetPattern := pathresolver.ResolveTargetPath(mapping.To, cfg.Locales.Source, locale)
+					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					if err != nil {
+						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+					}
+					targetPaths[locale] = targetPath
+				}
+				plans = append(plans, hyperlocaliseFilePlan{
+					Bucket:        bucketName,
+					SourcePath:    sourcePath,
+					SourceHash:    sourceHash,
+					FileFormat:    fileFormat,
+					SourceLocale:  cfg.Locales.Source,
+					TargetLocales: append([]string(nil), targetLocales...),
+					TargetPaths:   targetPaths,
+				})
 			}
-			targetPaths := make(map[string]string, len(targetLocales))
-			for _, locale := range targetLocales {
-				targetPaths[locale] = pathresolver.ResolveTargetPath(mapping.To, cfg.Locales.Source, locale)
-			}
-			plans = append(plans, hyperlocaliseFilePlan{
-				Bucket:        bucketName,
-				SourcePath:    sourcePath,
-				SourceHash:    sourceHash,
-				FileFormat:    fileFormat,
-				SourceLocale:  cfg.Locales.Source,
-				TargetLocales: append([]string(nil), targetLocales...),
-				TargetPaths:   targetPaths,
-			})
 		}
 	}
 
@@ -361,8 +457,23 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".png":
+		return "png"
+	case ".jpg", ".jpeg":
+		return "jpeg"
+	case ".webp":
+		return "webp"
 	default:
 		return ""
+	}
+}
+
+func isHyperlocaliseImageFileFormat(format string) bool {
+	switch format {
+	case "png", "jpeg", "webp":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -453,6 +564,43 @@ func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, 
 	}
 	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
 		return nil, fmt.Errorf("downloaded translation export exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
+	}
+	return content, nil
+}
+
+func (c *hyperlocaliseAPIClient) downloadImageVariant(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
+	query := url.Values{}
+	query.Set("sourcePath", sourcePath)
+	query.Set("locale", locale)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		c.baseURL+"/v1/projects/"+url.PathEscape(projectID)+"/images/download?"+query.Encode(),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	content, err := io.ReadAll(io.LimitReader(resp.Body, hyperlocaliseMaxDownloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
+		return nil, fmt.Errorf("downloaded image variant exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
 	}
 	return content, nil
 }

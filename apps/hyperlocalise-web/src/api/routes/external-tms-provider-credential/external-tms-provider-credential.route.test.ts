@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
@@ -6,6 +18,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import {
+  EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+  EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
+} from "@/lib/providers/adapters/crowdin/crowdin-test-urls";
 import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
@@ -82,6 +98,76 @@ describe("externalTmsProviderCredentialRoutes", () => {
         ),
       );
     expect(oauthStates).toHaveLength(0);
+  });
+
+  it("updates Crowdin OAuth app settings without requiring client credentials", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const initialResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin Production",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+          baseUrl: "https://crowdin.test/api/v2",
+        },
+      },
+      { headers },
+    );
+    expect(initialResponse.status).toBe(200);
+
+    const updateResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin Enterprise",
+          baseUrl: "https://enterprise.crowdin.test/api/v2",
+        },
+      },
+      { headers },
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const body = (await updateResponse.json()) as {
+      shouldConnectCrowdinUser: boolean;
+      externalTmsProviderCredential: {
+        displayName: string;
+        baseUrl: string | null;
+      };
+    };
+    expect(body.shouldConnectCrowdinUser).toBe(false);
+    expect(body.externalTmsProviderCredential.displayName).toBe("Crowdin Enterprise");
+    expect(body.externalTmsProviderCredential.baseUrl).toBe(
+      "https://enterprise.crowdin.test/api/v2",
+    );
+  });
+
+  it("rejects Crowdin OAuth app updates that only provide one client credential field", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin",
+          oauthClientId: "crowdin-client-id",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("consumes Crowdin OAuth callback state and links the signed-in user", async () => {
@@ -211,6 +297,127 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .where(eq(schema.crowdinUserOAuthStates.nonce, state))
       .limit(1);
     expect(oauthState?.consumedAt).toBeInstanceOf(Date);
+  });
+
+  it("links a Crowdin user with a personal access token against the configured base URL", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const auth = globalThis.__testApiAuthContext!;
+
+    await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin[
+      "pat-setup"
+    ].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin",
+          baseUrl: EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+        },
+      },
+      { headers },
+    );
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      if (href === EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL) {
+        return Response.json({
+          data: {
+            id: 151,
+            username: "enterprise-user",
+            email: null,
+            fullName: "Enterprise User",
+          },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${href}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.user.pat.$post(
+      {
+        param: { organizationSlug },
+        json: { personalAccessToken: "enterprise-pat-token" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      crowdinUserConnection: { crowdinUserId: number; username: string };
+    };
+    expect(body.crowdinUserConnection).toMatchObject({
+      crowdinUserId: 151,
+      username: "enterprise-user",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer enterprise-pat-token",
+        }),
+      }),
+    );
+
+    const [connection] = await db
+      .select()
+      .from(schema.crowdinUserConnections)
+      .where(
+        and(
+          eq(schema.crowdinUserConnections.organizationId, auth.organization.localOrganizationId),
+          eq(schema.crowdinUserConnections.userId, auth.user.localUserId),
+        ),
+      )
+      .limit(1);
+    expect(connection).toMatchObject({
+      crowdinUserId: 151,
+      username: "enterprise-user",
+      authMode: "pat",
+    });
+  });
+
+  it("returns a base URL hint when an enterprise PAT is verified against api.crowdin.com", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin[
+      "pat-setup"
+    ].$post(
+      {
+        param: { organizationSlug },
+        json: { displayName: "Crowdin" },
+      },
+      { headers },
+    );
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      if (href === "https://api.crowdin.com/api/v2/user") {
+        return Response.json({ error: { code: 401, message: "Unauthorized" } }, { status: 401 });
+      }
+
+      throw new Error(`Unexpected fetch: ${href}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.user.pat.$post(
+      {
+        param: { organizationSlug },
+        json: { personalAccessToken: "enterprise-pat-token" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "crowdin_pat_base_url_required",
+    });
   });
 
   it("saves Phrase OAuth app credentials without accepting API tokens", async () => {

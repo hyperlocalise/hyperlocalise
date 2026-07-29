@@ -93,6 +93,62 @@ func TestParseASTPluralNegativeSelector(t *testing.T) {
 	}
 }
 
+func TestParseSelfClosingTagsWithAttributes(t *testing.T) {
+	tests := []struct {
+		name        string
+		msg         string
+		expectedTag string
+	}{
+		{
+			name:        "simple self-closing with double quotes attribute",
+			msg:         `Hello<img src="foo.png"/>world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "space before slash and single quotes attribute",
+			msg:         `Hello<img src='foo.png' />world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "space after slash and multiple attributes",
+			msg:         `Hello<img class="img-fluid" src="foo.png" / >world`,
+			expectedTag: "img",
+		},
+		{
+			name:        "boolean attribute, spaces around slash",
+			msg:         `Hello<input disabled   /   >world`,
+			expectedTag: "input",
+		},
+		{
+			name:        "namespaced tag with mixed attributes",
+			msg:         `Hello<ui:image path='btn' disabled / >world`,
+			expectedTag: "ui:image",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.msg, err)
+			}
+			if len(elems) != 3 {
+				t.Fatalf("expected 3 elements, got %d: %+v", len(elems), elems)
+			}
+			tag, ok := elems[1].(TagElement)
+			if !ok {
+				t.Fatalf("expected tag element, got %T", elems[1])
+			}
+			if tag.Value != tt.expectedTag {
+				t.Errorf("expected tag name %q, got %q", tt.expectedTag, tag.Value)
+			}
+			if !tag.SelfClosing {
+				t.Errorf("expected tag to be self-closing")
+			}
+		})
+	}
+}
+
 func TestParseSelfClosingTagsWithWhitespace(t *testing.T) {
 	tests := []struct {
 		name string
@@ -535,6 +591,98 @@ func TestParseASTSelect(t *testing.T) {
 		if !ok || lit.Value != val {
 			t.Errorf("expected literal %q for option %q, got %v", val, opt.Selector, opt.Value[0])
 		}
+	}
+}
+
+func TestParseASTSelectOrdinalWithOffset(t *testing.T) {
+	// selectordinal blocks should support the offset parameter just like plural blocks.
+	tests := []struct {
+		name           string
+		msg            string
+		expectedOffset int
+	}{
+		{
+			name:           "no space",
+			msg:            "{count, selectordinal, offset:1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "space after colon",
+			msg:            "{count, selectordinal, offset: 1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "space before colon",
+			msg:            "{count, selectordinal, offset : 1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "multiple spaces",
+			msg:            "{count, selectordinal, offset  :  2 one {# item} other {# items}}",
+			expectedOffset: 2,
+		},
+		{
+			name:           "negative offset",
+			msg:            "{count, selectordinal, offset:-1 one {# item} other {# items}}",
+			expectedOffset: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse() failed: %v", err)
+			}
+			if len(elems) != 1 {
+				t.Fatalf("expected 1 element, got %d", len(elems))
+			}
+
+			pl, ok := elems[0].(PluralElement)
+			if !ok {
+				t.Fatalf("expected PluralElement, got %T", elems[0])
+			}
+			if pl.Value != "count" {
+				t.Errorf("expected argument %q, got %q", "count", pl.Value)
+			}
+			if pl.Type() != TypeSelectOrdinal {
+				t.Errorf("expected type %q, got %q", TypeSelectOrdinal, pl.Type())
+			}
+			if !pl.Ordinal {
+				t.Errorf("expected Ordinal to be true for selectordinal")
+			}
+			if pl.Offset != tt.expectedOffset {
+				t.Errorf("expected offset %d, got %d", tt.expectedOffset, pl.Offset)
+			}
+			if len(pl.Options) != 2 {
+				t.Fatalf("expected 2 options, got %d", len(pl.Options))
+			}
+
+			expectedSelectors := []string{"one", "other"}
+			expectedLiterals := []string{" item", " items"}
+
+			for i, opt := range pl.Options {
+				if opt.Selector != expectedSelectors[i] {
+					t.Errorf("option %d: expected selector %q, got %q", i, expectedSelectors[i], opt.Selector)
+				}
+				// Verify option body: PoundElement followed by LiteralElement
+				if len(opt.Value) != 2 {
+					t.Errorf("option %d: expected 2 elements, got %d", i, len(opt.Value))
+					continue
+				}
+				if opt.Value[0].Type() != TypePound {
+					t.Errorf("option %d: expected first element to be Pound, got %s", i, opt.Value[0].Type())
+				}
+				lit, ok := opt.Value[1].(LiteralElement)
+				if !ok {
+					t.Errorf("option %d: expected second element to be Literal, got %T", i, opt.Value[1])
+					continue
+				}
+				if lit.Value != expectedLiterals[i] {
+					t.Errorf("option %d: expected literal %q, got %q", i, expectedLiterals[i], lit.Value)
+				}
+			}
+		})
 	}
 }
 

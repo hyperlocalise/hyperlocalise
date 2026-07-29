@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import {
   fileNeedsAttentionFromReadiness,
@@ -34,7 +46,6 @@ export function countFilesNeedingAttention(files: readonly ProjectFileRecord[]) 
 export function computeProjectPendingActionCount(
   project: {
     openJobCount: number;
-    lastSyncErrorAt: string | null;
   },
   files: readonly ProjectFileRecord[],
 ) {
@@ -42,10 +53,6 @@ export function computeProjectPendingActionCount(
 
   if (project.openJobCount > 0) {
     count += project.openJobCount;
-  }
-
-  if (project.lastSyncErrorAt) {
-    count += 1;
   }
 
   count += countFilesNeedingAttention(files);

@@ -1,3 +1,14 @@
+# License
+
+This app is licensed under the Business Source License 1.1. See [`LICENSE`](./LICENSE).
+New Hyperlocalise-owned source files (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`,
+`.css`) must include the BSL header. Preserve separate notices on third-party or
+generated files. From the repository root:
+
+```bash
+node scripts/add-bsl-headers.mjs apps/hyperlocalise-web
+```
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -44,6 +55,15 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
+
+## Browser E2E (local only, not run in CI)
+
+Fixture-auth infrastructure and baseline Playwright specs live under [`src/e2e/`](src/e2e/) and [`src/lib/e2e/`](src/lib/e2e/). They are **not** wired into `vp test` — run unit tests with `vp test` as usual.
+
+- **Fixture auth**: set `E2E_AUTH_MODE=fixture` and a 32+ character `E2E_AUTH_SECRET` in `.env` (see [`.env.e2e.example`](.env.e2e.example)). Programmatic login: `POST /api/e2e/auth/session` with `X-E2E-Setup-Token`. Browser helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) use that API route. Disabled when `NODE_ENV=production` or `VERCEL_ENV=production`.
+- **Baseline specs**: [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/) use Playwright from Node. Flows include fixture auth login, dashboard overview, project creation, and onboarding workspace creation. To run them manually, start Postgres, migrate, build, and serve the app with fixture auth, then invoke Vitest against those files directly if needed.
+- **Commands**: run `vp run e2e:install` once to install Chromium and OS libraries (`playwright install --with-deps chromium`), then run `vp run test:e2e` while the fixture-auth app is available. Set `E2E_BASE_URL` when the app is not running at `http://localhost:3000`.
+- Vitest Browser Mode is not used for route-level e2e (it cannot `page.goto` external origins).
 
 <!-- END:hono-agent-rules -->
 
@@ -154,8 +174,7 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-  | { code: "unsupported_provider_model" }
-  | { code: "provider_validation_failed"; message: string };
+  { code: "unsupported_provider_model" } | { code: "provider_validation_failed"; message: string };
 
 async function validateCredential(
   input: CredentialInput,
@@ -302,4 +321,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check --fix` and `vp test` to validate changes.
+
 <!--VITE PLUS END-->

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Badge } from "@/components/ui/badge";
 import type { CarouselApi } from "@/components/ui/carousel";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
@@ -39,19 +51,30 @@ export const InlineCitationCardTrigger = ({
   sources,
   className,
   ...props
-}: InlineCitationCardTriggerProps) => (
-  <HoverCardTrigger
-    render={<Badge className={cn("ms-1 rounded-full", className)} variant="secondary" {...props} />}
-  >
-    {sources[0] ? (
-      <>
-        {new URL(sources[0]).hostname} {sources.length > 1 && `+${sources.length - 1}`}
-      </>
-    ) : (
-      "unknown"
-    )}
-  </HoverCardTrigger>
-);
+}: InlineCitationCardTriggerProps) => {
+  const intl = useIntl();
+  const firstSource = sources[0];
+  const additionalCount = sources.length > 1 ? sources.length - 1 : 0;
+  const label = firstSource
+    ? `${new URL(firstSource).hostname}${
+        additionalCount > 0
+          ? ` ${intl.formatMessage(inlineCitationMessages.additionalSources, {
+              count: additionalCount,
+            })}`
+          : ""
+      }`
+    : intl.formatMessage(inlineCitationMessages.unknownSource);
+
+  return (
+    <HoverCardTrigger
+      render={
+        <Badge className={cn("ms-1 rounded-full", className)} variant="secondary" {...props} />
+      }
+    >
+      {label}
+    </HoverCardTrigger>
+  );
+};
 
 export type InlineCitationCardBodyProps = ComponentProps<"div">;
 
@@ -121,6 +144,7 @@ export const InlineCitationCarouselIndex = ({
   className,
   ...props
 }: InlineCitationCarouselIndexProps) => {
+  const intl = useIntl();
   const api = useCarouselApi();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
@@ -155,7 +179,7 @@ export const InlineCitationCarouselIndex = ({
       )}
       {...props}
     >
-      {children ?? `${current}/${count}`}
+      {children ?? intl.formatMessage(inlineCitationMessages.carouselPage, { current, count })}
     </div>
   );
 };

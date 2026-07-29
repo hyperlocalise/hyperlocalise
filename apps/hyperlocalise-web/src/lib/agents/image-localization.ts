@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Message } from "chat";
 
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
@@ -10,6 +22,13 @@ type LocalizeImageAttachmentInput = {
   targetLocale?: string | null;
   instructions?: string | null;
   contextLines?: Array<string | null | undefined>;
+  billing?: {
+    organizationId: string;
+    operationKey: string;
+    source?: string;
+    interactionId?: string | null;
+    dimensions?: Record<string, string | number | boolean | null>;
+  };
 };
 
 export function getImageAttachments(message: Message): ImageLocalizationAttachment[] {
@@ -96,11 +115,14 @@ export function buildImageLocalizationPrompt(input: LocalizeImageAttachmentInput
 export async function localizeImageAttachment(input: LocalizeImageAttachmentInput) {
   const image = await getImageAttachmentData(input.attachment);
   const prompt = buildImageLocalizationPrompt(input);
-  const result = await regenerateImageFromAttachment(
-    image,
-    input.attachment.mimeType ?? "image/png",
-    prompt,
-  );
+  const result = input.billing
+    ? await regenerateImageFromAttachment(
+        image,
+        input.attachment.mimeType ?? "image/png",
+        prompt,
+        input.billing,
+      )
+    : await regenerateImageFromAttachment(image, input.attachment.mimeType ?? "image/png", prompt);
   const mimeType = result.mimeType || "image/png";
 
   return {

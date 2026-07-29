@@ -34,7 +34,8 @@ func (p CSVParser) Parse(content []byte) (map[string]string, error) {
 		return nil, err
 	}
 
-	out := map[string]string{}
+	// BOLT OPTIMIZATION: Use capacity hint for the output map to reduce re-allocations.
+	out := make(map[string]string, len(content)/64)
 	rowIdx := 2
 	for {
 		row, err := r.Read()
@@ -68,6 +69,8 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 	r := newCSVReader(bytes.NewReader(template), parser.Delimiter)
 
 	var buf bytes.Buffer
+	// BOLT OPTIMIZATION: Pre-allocate buffer capacity to minimize heap re-allocations.
+	buf.Grow(len(template))
 	w := csv.NewWriter(&buf)
 	if parser.Delimiter != 0 {
 		w.Comma = parser.Delimiter
@@ -100,6 +103,8 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 		return nil, fmt.Errorf("csv write header: %w", err)
 	}
 
+	// BOLT OPTIMIZATION: Only track keys that were actually found and updated
+	// in the template to reduce memory pressure during rendering.
 	seen := make(map[string]struct{}, len(values))
 	for {
 		row, err := r.Read()
@@ -116,8 +121,8 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 				if value, ok := values[key]; ok {
 					row = ensureCSVLen(row, valueIdx+1)
 					row[valueIdx] = value
+					seen[key] = struct{}{}
 				}
-				seen[key] = struct{}{}
 			}
 		}
 

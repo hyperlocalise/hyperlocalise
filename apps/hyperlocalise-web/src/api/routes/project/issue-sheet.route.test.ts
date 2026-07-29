@@ -1,0 +1,601 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import "dotenv/config";
+
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import { app } from "@/api/app";
+import { db, schema } from "@/lib/database";
+
+import { createProjectTestFixture } from "./project.fixture";
+
+const { resolveApiAuthContextFromSessionMock, workspaceIssuesFlagRunMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  workspaceIssuesFlagRunMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
+  };
+});
+
+const projectFixture = createProjectTestFixture();
+
+type IssueResponse = {
+  issue: {
+    id: string;
+    title: string;
+    issueType: string;
+    status: string;
+    targetLocale: string | null;
+    values: Record<string, unknown>;
+  };
+};
+
+type IssueSheetListResponse = {
+  issues: { id: string; title?: string; issueType?: string; status?: string }[];
+  columns: { key: string }[];
+  total: number;
+  summary: { open: number };
+};
+
+beforeAll(async () => {
+  await db.$client.query("select 1");
+});
+
+beforeEach(() => {
+  workspaceIssuesFlagRunMock.mockResolvedValue(true);
+});
+
+afterEach(async () => {
+  vi.clearAllMocks();
+  await projectFixture.cleanup();
+});
+
+function issueSheetUrl(organizationSlug: string, projectId: string, suffix = "") {
+  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet${suffix}`;
+}
+
+async function requestJson(
+  url: string,
+  input: {
+    method?: string;
+    headers: HeadersInit;
+    body?: unknown;
+    query?: Record<string, string>;
+  },
+) {
+  const query = input.query ? `?${new URLSearchParams(input.query).toString()}` : "";
+  return app.request(`${url}${query}`, {
+    method: input.method ?? "GET",
+    headers: {
+      ...(input.body ? { "Content-Type": "application/json" } : {}),
+      ...Object.fromEntries(new Headers(input.headers).entries()),
+    },
+    body: input.body ? JSON.stringify(input.body) : undefined,
+  });
+}
+
+describe("Issue Sheet routes", () => {
+  it("denies issue sheet access when the feature flag is disabled", async () => {
+    workspaceIssuesFlagRunMock.mockResolvedValue(false);
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "feature_unavailable",
+    });
+  });
+
+  it("creates, lists, updates, and enriches generic issue rows", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Source string needs context",
+        description: "The CTA is ambiguous.",
+        issueType: "context_request",
+        targetLocale: "de-DE",
+        sourcePath: "messages/home.json",
+        segmentId: "cta.save",
+        linkKind: "cat_segment",
+        linkLabel: "Open in CAT",
+        externalRef: "cat:home:de-DE:cta.save",
+        priority: "P1",
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+    const createdBody = (await createResponse.json()) as IssueResponse;
+    expect(createdBody.issue).toMatchObject({
+      title: "Source string needs context",
+      issueType: "context_request",
+      status: "open",
+      targetLocale: "de-DE",
+      values: { priority: "P1" },
+    });
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "all_open" },
+    });
+
+    expect(listResponse.status).toBe(200);
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(1);
+    expect(listBody.summary.open).toBe(1);
+    expect(listBody.columns.map((column) => column.key)).toEqual([
+      "priority",
+      "owner_note",
+      "context",
+    ]);
+
+    const viewWithStatusResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "all_open", status: "resolved" },
+    });
+
+    expect(viewWithStatusResponse.status).toBe(200);
+    const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
+    expect(viewWithStatusBody.issues).toHaveLength(0);
+
+    const issueId = createdBody.issue.id;
+
+    const getIssueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    expect(getIssueResponse.status).toBe(200);
+    const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
+    expect(getIssueBody.issue.id).toBe(issueId);
+    expect(getIssueBody.issue.title).toBe("Source string needs context");
+
+    const missingIssueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      { headers },
+    );
+    expect(missingIssueResponse.status).toBe(404);
+
+    const updateResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { status: "in_progress" },
+      },
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const updatedBody = (await updateResponse.json()) as IssueResponse;
+    expect(updatedBody.issue.status).toBe("in_progress");
+
+    const columnResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/columns"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          key: "sprint",
+          label: "Sprint",
+          type: "select",
+          config: { options: [{ id: "S24", label: "S24" }] },
+        },
+      },
+    );
+
+    expect(columnResponse.status).toBe(201);
+
+    const valueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/values`),
+      {
+        method: "PATCH",
+        headers,
+        body: { columnKey: "sprint", value: "S24" },
+      },
+    );
+
+    expect(valueResponse.status).toBe(200);
+  });
+
+  it("deduplicates open rows for the same external reference", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const payload = {
+      title: "Repeated CAT context request",
+      issueType: "context_request",
+      targetLocale: "fr-FR",
+      sourcePath: "messages/home.json",
+      segmentId: "headline",
+      externalRef: "cat:home:fr-FR:headline",
+    };
+
+    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+    const second = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    const firstBody = (await first.json()) as IssueResponse;
+    const secondBody = (await second.json()) as IssueResponse;
+    expect(secondBody.issue.id).toBe(firstBody.issue.id);
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { status: "all" },
+    });
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(1);
+  });
+
+  it("returns a resolved row for repeated external references", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const payload = {
+      title: "Resolved CAT context request",
+      issueType: "context_request",
+      targetLocale: "fr-FR",
+      sourcePath: "messages/home.json",
+      segmentId: "headline",
+      externalRef: "cat:home:fr-FR:resolved-headline",
+    };
+
+    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as IssueResponse;
+
+    const resolveResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${firstBody.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { status: "resolved" },
+      },
+    );
+    expect(resolveResponse.status).toBe(200);
+
+    const repeated = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+
+    expect(repeated.status).toBe(201);
+    const repeatedBody = (await repeated.json()) as IssueResponse;
+    expect(repeatedBody.issue.id).toBe(firstBody.issue.id);
+    expect(repeatedBody.issue.status).toBe("resolved");
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { status: "all" },
+    });
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(1);
+  });
+
+  it("imports issues from csv with dry run and duplicate skip", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const csv = `Summary,Status,External ID,Priority
+First import issue,Open,EXT-1,P1
+Second import issue,Done,EXT-2,P2`;
+
+    const mapping = [
+      { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+      { csvHeader: "Status", target: { kind: "system", field: "status" } },
+      { csvHeader: "External ID", target: { kind: "system", field: "external_ref" } },
+      {
+        csvHeader: "Priority",
+        target: { kind: "create", key: "csv_priority", label: "CSV Priority", type: "select" },
+      },
+    ];
+
+    const previewResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: true,
+          mapping,
+        },
+      },
+    );
+    expect(previewResponse.status).toBe(200);
+    const previewBody = (await previewResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(previewBody.import.created).toBe(2);
+    expect(previewBody.import.skippedDuplicates).toBe(0);
+
+    const importResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: false,
+          mapping,
+        },
+      },
+    );
+    expect(importResponse.status).toBe(201);
+    const importBody = (await importResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(importBody.import.created).toBe(2);
+
+    const reimportResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/import"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          content: csv,
+          dryRun: true,
+          mapping,
+        },
+      },
+    );
+    const reimportBody = (await reimportResponse.json()) as {
+      import: { created: number; skippedDuplicates: number };
+    };
+    expect(reimportBody.import.created).toBe(0);
+    expect(reimportBody.import.skippedDuplicates).toBe(2);
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { status: "all" },
+    });
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.issues).toHaveLength(2);
+  });
+
+  it("filters and sorts built-in views with stable pagination", async () => {
+    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const payloads = [
+      {
+        title: "QA triage candidate",
+        issueType: "qa_failure",
+        status: "open",
+        targetLocale: "de-DE",
+        priority: "P0",
+      },
+      {
+        title: "My work candidate",
+        issueType: "translation_mistake",
+        status: "open",
+        assigneeUserId: user.id,
+        targetLocale: "fr-FR",
+        priority: "P2",
+      },
+      {
+        title: "Source context candidate",
+        issueType: "source_mistake",
+        status: "in_progress",
+        targetLocale: "de-DE",
+        priority: "P1",
+      },
+    ] as const;
+
+    for (const payload of payloads) {
+      const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+      expect(response.status).toBe(201);
+    }
+
+    const qaTriage = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "qa_triage" },
+    });
+    const qaTriageBody = (await qaTriage.json()) as IssueSheetListResponse;
+    expect(qaTriageBody.issues.map((issue) => issue.title)).toEqual(["QA triage candidate"]);
+    expect(qaTriageBody.total).toBe(1);
+
+    const myWork = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { view: "my_work" },
+    });
+    const myWorkBody = (await myWork.json()) as IssueSheetListResponse;
+    expect(myWorkBody.issues.map((issue) => issue.title)).toEqual(["My work candidate"]);
+
+    const filtered = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        locale: "de-DE",
+        assignee: "unassigned",
+        sort: "priority",
+        sortDir: "asc",
+        limit: "10",
+        offset: "0",
+      },
+    });
+    const filteredBody = (await filtered.json()) as IssueSheetListResponse;
+    expect(filteredBody.issues.map((issue) => issue.title)).toEqual([
+      "QA triage candidate",
+      "Source context candidate",
+    ]);
+
+    const pageOne = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        sort: "priority",
+        limit: "2",
+        offset: "0",
+      },
+    });
+    const pageTwo = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: {
+        view: "all_open",
+        sort: "priority",
+        limit: "2",
+        offset: "2",
+      },
+    });
+    const pageOneBody = (await pageOne.json()) as IssueSheetListResponse;
+    const pageTwoBody = (await pageTwo.json()) as IssueSheetListResponse;
+    expect(pageOneBody.issues).toHaveLength(2);
+    expect(pageTwoBody.issues).toHaveLength(1);
+    expect(
+      new Set([...pageOneBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size,
+    ).toBe(3);
+  });
+
+  it("rejects duplicate system field mappings", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id, "/import"), {
+      method: "POST",
+      headers,
+      body: {
+        content: "Title,Summary\nIssue one,Issue two",
+        dryRun: true,
+        mapping: [
+          { csvHeader: "Title", target: { kind: "system", field: "title" } },
+          { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+        ],
+      },
+    });
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("invalid_issue_sheet_import_payload");
+  });
+
+  it("rejects cross-project and missing issue access on GET", async () => {
+    const { identity, organization, user, project } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [otherProject] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${crypto.randomUUID()}`,
+        organizationId: organization.id,
+        teamId: project.teamId,
+        createdByUserId: user.id,
+        name: "Other Project",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Owned by first project",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    const crossProjectResponse = await requestJson(
+      issueSheetUrl(organizationSlug, otherProject.id, `/${created.issue.id}`),
+      { headers },
+    );
+    expect(crossProjectResponse.status).toBe(404);
+    await expect(crossProjectResponse.json()).resolves.toMatchObject({
+      error: "issue_not_found",
+    });
+
+    const missingResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
+      { headers },
+    );
+    expect(missingResponse.status).toBe(404);
+  });
+
+  it("rejects cross-workspace issue access on GET", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const outsider = await projectFixture.createStoredProjectFixture();
+    const ownerHeaders = await projectFixture.authHeadersFor(owner.identity);
+    const outsiderHeaders = await projectFixture.authHeadersFor(outsider.identity);
+    const ownerSlug = owner.identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(ownerSlug, owner.project.id), {
+      method: "POST",
+      headers: ownerHeaders,
+      body: {
+        title: "Private org issue",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    const response = await requestJson(
+      issueSheetUrl(ownerSlug, owner.project.id, `/${created.issue.id}`),
+      { headers: outsiderHeaders },
+    );
+    expect(response.status).toBe(404);
+  });
+});

@@ -1,32 +1,50 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { TranslateIcon } from "@hugeicons/core-free-icons";
+import { useQuery } from "@tanstack/react-query";
+import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { toast } from "sonner";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
 
+import { CreateJobDialog } from "./create-job-dialog";
 import {
   JobsPageErrorMessage,
   JobsPageView,
   jobsStatusOptions,
+  type ApiJob,
+  type JobRow,
   type JobsErrorRenderer,
   type JobsLinkRenderer,
   type JobsScope,
   type JobsStatusFilter,
 } from "./jobs-page-view";
+import { jobsPageContentMessages } from "./jobs-page-content.messages";
 
 import {
   JOB_STATUS_FILTERS,
@@ -47,7 +65,7 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
         nativeButton={false}
         render={<Link href={href} />}
         variant="ghost"
-        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
+        className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-muted"
       >
         {children}
       </Button>
@@ -56,13 +74,7 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
 
   if (kind === "cat") {
     return (
-      <Button
-        nativeButton={false}
-        render={<Link href={href} />}
-        variant="outline"
-        size="sm"
-        className="w-fit"
-      >
+      <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
         <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
         {children}
       </Button>
@@ -96,6 +108,99 @@ const renderProductionJobsError: JobsErrorRenderer = ({ error, organizationSlug 
   return <JobsPageErrorMessage error={error} />;
 };
 
+type JobListResponse = ApiJob & { projectName?: string | null };
+
+function toJobRows(jobs: JobListResponse[]): JobRow[] {
+  return jobs.map((job) => ({
+    ...job,
+    projectName: job.projectName ?? null,
+  }));
+}
+
+function filterJobsByStatus(jobs: JobRow[], statusFilter: JobsStatusFilter): JobRow[] {
+  if (statusFilter === "all") {
+    return jobs;
+  }
+
+  return jobs.filter((job) => job.status === statusFilter);
+}
+
+function toNativeJobRows(jobs: JobRow[]): JobRow[] {
+  return jobs.filter(isNativeWorkspaceJob);
+}
+
+async function fetchNativeWorkspaceJobs(
+  organizationSlug: string,
+  statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
+  relationship?: "assigned" | "created",
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
+    param: { organizationSlug },
+    query: {
+      limit: "100",
+      ...(relationship ? { relationship } : {}),
+      ...(statusFilter === "all" ? {} : { status: statusFilter }),
+    },
+  });
+  if (!response.ok) {
+    throw await readApiResponseError(response, loadJobsFailedMessage);
+  }
+
+  const body = await response.json();
+  return body.jobs as JobListResponse[];
+}
+
+async function fetchNativeProjectJobs(
+  organizationSlug: string,
+  projectId: string,
+  statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
+    param: { organizationSlug, projectId },
+    query: {
+      limit: "100",
+      ...(statusFilter === "all" ? {} : { status: statusFilter }),
+    },
+  });
+  if (!response.ok) {
+    throw await readApiResponseError(response, loadJobsFailedMessage);
+  }
+
+  const body = await response.json();
+  return body.jobs as JobListResponse[];
+}
+
+async function fetchTmsWorkspaceJobs(
+  organizationSlug: string,
+  loadTmsJobsFailedMessage: string,
+  mine = false,
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
+    param: { organizationSlug },
+    query: { mine: mine ? "true" : "false" },
+  });
+
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
+}
+
+async function fetchTmsProjectJobs(
+  organizationSlug: string,
+  externalProjectId: string,
+  loadTmsJobsFailedMessage: string,
+  mine = false,
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
+    ":externalProjectId"
+  ].jobs.$get({
+    param: { organizationSlug, externalProjectId },
+    query: { mine: mine ? "true" : "false" },
+  });
+
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
+}
+
 export function JobsPageContent({
   organizationSlug,
   scope = "all",
@@ -105,155 +210,146 @@ export function JobsPageContent({
   scope?: JobsScope;
   projectId?: string;
 }) {
-  const queryClient = useQueryClient();
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
-  const jobsQueryKey = ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"];
-  const assignedJobsQueryKey = [
-    "jobs",
-    organizationSlug,
-    "assigned",
-    statusFilter,
-    projectId ?? "workspace",
-  ];
-  const createdJobsQueryKey = [
-    "jobs",
-    organizationSlug,
-    "created",
-    statusFilter,
-    projectId ?? "workspace",
-  ];
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
+  const isProviderProjectScope = Boolean(parsedProviderProject);
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const hasActiveTmsConnection = Boolean(activeTmsProviderQuery.data);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
-    enabled: Boolean(projectId) && !parsedProviderProject,
+    enabled: Boolean(projectId),
   });
-  const projectCapabilities = projectId
-    ? getProjectWorkspaceCapabilities({
-        projectId,
-        source: projectQuery.data?.source,
-      })
-    : null;
-  const canSyncProviderJobs = Boolean(projectCapabilities?.canSyncProviderJobs);
-  const syncJobsReady = parsedProviderProject
-    ? true
-    : projectQuery.isSuccess || projectQuery.isError;
+  const loadJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadJobsFailed);
+  const loadTmsJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadTmsJobsFailed);
 
-  const jobsQuery = useQuery({
-    queryKey: jobsQueryKey,
-    enabled: scope !== "personal",
+  const nativeJobsQueryKey = [
+    "jobs",
+    organizationSlug,
+    "native",
+    scope,
+    statusFilter,
+    projectId ?? "workspace",
+  ] as const;
+  const tmsJobsQueryKey = [
+    "jobs",
+    organizationSlug,
+    "tms-live",
+    scope,
+    statusFilter,
+    projectId ?? "workspace",
+  ] as const;
+
+  const nativeJobsQuery = useQuery({
+    queryKey: nativeJobsQueryKey,
+    enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[
-          ":projectId"
-        ].jobs.$get({
-          param: { organizationSlug, projectId },
-          query: {
-            limit: "100",
-            ...(statusFilter === "all" ? {} : { status: statusFilter }),
-          },
-        });
-        if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
-        const body = await response.json();
-        return body.jobs;
+        return fetchNativeProjectJobs(
+          organizationSlug,
+          projectId,
+          statusFilter,
+          loadJobsFailedMessage,
+        );
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
-        param: { organizationSlug },
-        query: {
-          limit: "100",
-          ...(statusFilter === "all" ? {} : { status: statusFilter }),
-        },
-      });
-      if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
-      const body = await response.json();
-      return body.jobs;
+      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage);
     },
   });
-  const assignedJobsQuery = useQuery({
-    queryKey: assignedJobsQueryKey,
+  const assignedNativeJobsQuery = useQuery({
+    queryKey: [...nativeJobsQueryKey, "assigned"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
-        param: { organizationSlug },
-        query: {
-          limit: "100",
-          relationship: "assigned",
-          ...(statusFilter === "all" ? {} : { status: statusFilter }),
-        },
-      });
-      if (!response.ok) throw await readApiResponseError(response, "Failed to load assigned jobs");
-      const body = await response.json();
-      return body.jobs;
-    },
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "assigned"),
   });
-  const createdJobsQuery = useQuery({
-    queryKey: createdJobsQueryKey,
+  const createdNativeJobsQuery = useQuery({
+    queryKey: [...nativeJobsQueryKey, "created"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
-        param: { organizationSlug },
-        query: {
-          limit: "100",
-          relationship: "created",
-          ...(statusFilter === "all" ? {} : { status: statusFilter }),
-        },
-      });
-      if (!response.ok) throw await readApiResponseError(response, "Failed to load created jobs");
-      const body = await response.json();
-      return body.jobs;
-    },
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "created"),
   });
-  const syncProviderJobs = useMutation({
-    mutationFn: async () => {
-      if (!projectId) {
-        throw new Error("Project job sync requires a project.");
+  const tmsJobsQuery = useQuery({
+    queryKey: tmsJobsQueryKey,
+    enabled: isProviderProjectScope || !projectId,
+    queryFn: async () => {
+      if (parsedProviderProject) {
+        return fetchTmsProjectJobs(
+          organizationSlug,
+          parsedProviderProject.externalProjectId,
+          loadTmsJobsFailedMessage,
+          scope === "personal",
+        );
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].jobs.sync.$post({
-        param: { organizationSlug, projectId },
-      });
-
-      if (response.status !== 202) {
-        throw await readApiResponseError(response, "Unable to sync provider jobs");
-      }
-
-      return response.json();
-    },
-    onSuccess: async (body) => {
-      await queryClient.invalidateQueries({ queryKey: jobsQueryKey });
-      toast.success(
-        body.providerJobSync.created ? "Job sync queued" : "Job sync is already queued",
+      return fetchTmsWorkspaceJobs(
+        organizationSlug,
+        loadTmsJobsFailedMessage,
+        scope === "personal",
       );
     },
-    onError: (error) => {
-      toast.error(error.message);
-    },
   });
 
+  const nativeJobs = toNativeJobRows(toJobRows(nativeJobsQuery.data ?? []));
+  const assignedNativeJobs = toNativeJobRows(toJobRows(assignedNativeJobsQuery.data ?? []));
+  const createdNativeJobs = toNativeJobRows(toJobRows(createdNativeJobsQuery.data ?? []));
+  const tmsJobs = filterJobsByStatus(toJobRows(tmsJobsQuery.data ?? []), statusFilter);
+
+  const nativeError =
+    nativeJobsQuery.error ?? assignedNativeJobsQuery.error ?? createdNativeJobsQuery.error;
+  const isNativeLoading =
+    scope === "personal"
+      ? assignedNativeJobsQuery.isLoading || createdNativeJobsQuery.isLoading
+      : nativeJobsQuery.isLoading;
+
+  const canCreateJob = Boolean(projectId);
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
+
   return (
-    <JobsPageView
-      assignedJobs={assignedJobsQuery.data ?? []}
-      createdJobs={createdJobsQuery.data ?? []}
-      error={jobsQuery.error ?? assignedJobsQuery.error ?? createdJobsQuery.error}
-      isLoading={
-        scope === "personal"
-          ? assignedJobsQuery.isLoading || createdJobsQuery.isLoading
-          : jobsQuery.isLoading
-      }
-      isSyncingProviderJobs={syncProviderJobs.isPending}
-      jobs={jobsQuery.data ?? []}
-      onSyncProviderJobs={
-        canSyncProviderJobs && syncJobsReady ? syncProviderJobs.mutate : undefined
-      }
-      onStatusFilterChange={setStatusFilter}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      renderError={renderProductionJobsError}
-      renderJobLink={renderProductionJobLink}
-      scope={scope}
-      statusFilter={statusFilter}
-    />
+    <>
+      <JobsPageView
+        assignedNativeJobs={assignedNativeJobs}
+        createdNativeJobs={createdNativeJobs}
+        hasActiveTmsConnection={
+          hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
+        }
+        headerActions={
+          canCreateJob ? (
+            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...jobsPageContentMessages.createJob} />
+            </Button>
+          ) : null
+        }
+        isNativeLoading={isNativeLoading}
+        isProviderProjectScope={isProviderProjectScope}
+        isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
+        nativeError={nativeError}
+        nativeJobs={nativeJobs}
+        onStatusFilterChange={setStatusFilter}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        renderError={renderProductionJobsError}
+        renderJobLink={renderProductionJobLink}
+        scope={scope}
+        statusFilter={statusFilter}
+        tmsError={tmsJobsQuery.error}
+        tmsJobs={tmsJobs}
+      />
+      {projectId ? (
+        <CreateJobDialog
+          open={createJobOpen}
+          onOpenChange={setCreateJobOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          targetLocales={targetLocales}
+          onCreated={async () => {
+            await Promise.all([nativeJobsQuery.refetch(), tmsJobsQuery.refetch()]);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 )
@@ -52,14 +53,12 @@ func (p JavaPropertiesParser) ParseWithContext(content []byte) (map[string]strin
 	}
 
 	values := make(map[string]string, len(doc.entries))
-	contextByKey := map[string]string{}
+	// BOLT OPTIMIZATION: Pre-allocate context map to avoid re-allocations during extraction.
+	contextByKey := make(map[string]string, len(doc.entries))
 	for _, entry := range doc.entries {
 		values[entry.key] = entry.sourceValue
-		if len(entry.comments) == 0 {
-			continue
-		}
-		context := strings.TrimSpace(strings.Join(entry.comments, "\n"))
-		if context != "" {
+		// BOLT OPTIMIZATION: Use formatPropertiesComments to avoid strings.Join allocations.
+		if context := formatPropertiesComments(entry.comments); context != "" {
 			contextByKey[entry.key] = context
 		}
 	}
@@ -96,13 +95,19 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		first := firstPropertiesNonWhitespace(rawLine)
 		if first >= len(rawLine) {
 			pendingComments = nil
-			currentLine += strings.Count(text[pos:next], "\n")
+			currentLine += countPropertiesLines(text[pos:next])
 			pos = next
 			continue
 		}
 		if rawLine[first] == '#' || rawLine[first] == '!' {
-			pendingComments = append(pendingComments, strings.TrimSpace(rawLine[first+1:]))
-			currentLine += strings.Count(text[pos:next], "\n")
+			// BOLT OPTIMIZATION: Defer strings.TrimSpace to formatPropertiesComments to avoid redundant allocations.
+			// Handle the common space after # and ! without fully trimming every line.
+			comment := rawLine[first+1:]
+			if len(comment) > 0 && (comment[0] == ' ' || comment[0] == '\t') {
+				comment = comment[1:]
+			}
+			pendingComments = append(pendingComments, comment)
+			currentLine += countPropertiesLines(text[pos:next])
 			pos = next
 			continue
 		}
@@ -122,7 +127,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		}
 		seen[entry.key] = entry.line
 		doc.entries = append(doc.entries, entry)
-		currentLine += strings.Count(text[pos:nextPos], "\n")
+		currentLine += countPropertiesLines(text[pos:nextPos])
 		pos = nextPos
 	}
 
@@ -308,7 +313,7 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 
 		if pNext >= len(text) {
 			// Accurately report the line where the dangling continuation was found.
-			errLine := lineNumber + strings.Count(text[start:pEnd], "\n")
+			errLine := lineNumber + countPropertiesLines(text[start:pEnd])
 			return propertiesLogicalLine{}, pNext, fmt.Errorf("line %d: continuation escape at end of file", errLine)
 		}
 
@@ -380,6 +385,12 @@ func skipPropertiesPhysicalWhitespace(s string, start, end int) int {
 
 func isPropertiesWhitespace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\f'
+}
+
+func countPropertiesLines(s string) int {
+	// Java properties lines can be terminated by \n, \r, or \r\n.
+	// We count all \n and all \r, then subtract \r\n to avoid double-counting.
+	return strings.Count(s, "\n") + strings.Count(s, "\r") - strings.Count(s, "\r\n")
 }
 
 func decodeJavaPropertiesEscapes(raw string) (string, error) {
@@ -455,7 +466,25 @@ func decodeJavaPropertiesUnicodeEscape(raw string, escapeIndex int) (rune, int, 
 }
 
 func encodeJavaPropertiesKey(s string) string {
+	if s == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: Fast-path to avoid strings.Builder allocation and rune
+	// scanning if no key characters require escaping.
+	needsEscaping := false
+	for _, r := range s {
+		if r == ' ' || r == '\\' || r == '=' || r == ':' || r == '#' || r == '!' ||
+			r == '\t' || r == '\n' || r == '\r' || r == '\f' || r < 0x20 || r > 0xFFFF {
+			needsEscaping = true
+			break
+		}
+	}
+	if !needsEscaping {
+		return s
+	}
+
 	var b strings.Builder
+	b.Grow(len(s) + 4)
 	for _, r := range s {
 		switch r {
 		case ' ':
@@ -483,8 +512,34 @@ func encodeJavaPropertiesKey(s string) string {
 }
 
 func encodeJavaPropertiesValue(s string) string {
-	var b strings.Builder
+	if s == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: Fast-path to avoid strings.Builder allocation and rune
+	// scanning if no value characters require escaping (including leading spaces).
+	needsEscaping := false
 	leadingSpace := true
+	for _, r := range s {
+		if r == ' ' {
+			if leadingSpace {
+				needsEscaping = true
+				break
+			}
+		} else {
+			leadingSpace = false
+			if r == '\\' || r == '\t' || r == '\n' || r == '\r' || r == '\f' || r < 0x20 || r > 0xFFFF {
+				needsEscaping = true
+				break
+			}
+		}
+	}
+	if !needsEscaping {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + 4)
+	leadingSpace = true
 	for _, r := range s {
 		switch r {
 		case ' ':
@@ -540,4 +595,56 @@ func writeJavaPropertiesEscapedRune(b *strings.Builder, r rune) bool {
 		return true
 	}
 	return false
+}
+
+func formatPropertiesComments(comments []string) string {
+	if len(comments) == 0 {
+		return ""
+	}
+
+	// Find the first and last lines that are not just whitespace.
+	firstIdx := -1
+	lastIdx := -1
+	for i, comment := range comments {
+		if strings.TrimSpace(comment) != "" {
+			if firstIdx == -1 {
+				firstIdx = i
+			}
+			lastIdx = i
+		}
+	}
+
+	if firstIdx == -1 {
+		return ""
+	}
+
+	// BOLT OPTIMIZATION: Fast-path for single non-empty comment to avoid strings.Builder.
+	if firstIdx == lastIdx {
+		return strings.TrimSpace(comments[firstIdx])
+	}
+
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
+	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
+	totalLen := 0
+	for i := firstIdx; i <= lastIdx; i++ {
+		totalLen += len(comments[i]) + 1
+	}
+	b.Grow(totalLen)
+
+	for i := firstIdx; i <= lastIdx; i++ {
+		line := comments[i]
+		if i == firstIdx {
+			line = strings.TrimLeftFunc(line, unicode.IsSpace)
+		}
+		if i == lastIdx {
+			line = strings.TrimRightFunc(line, unicode.IsSpace)
+		}
+		if i > firstIdx {
+			b.WriteByte('\n')
+		}
+		b.WriteString(line)
+	}
+
+	return b.String()
 }

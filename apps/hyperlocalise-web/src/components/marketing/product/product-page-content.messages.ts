@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { defineMessages } from "react-intl";
 
 export const productPageMessages = defineMessages({
@@ -19,18 +31,18 @@ export const productPageMessages = defineMessages({
     description: "Product page related links section description",
   },
   ctaJoinWaitlist: {
-    defaultMessage: "Join waitlist",
-    id: "/C52lRfZjE",
-    description: "Product page hero call-to-action to join the waitlist",
+    defaultMessage: "Request a Demo",
+    id: "E+xT1YvnbH",
+    description: "Product page hero call-to-action to request a demo",
   },
   ctaJoinEarlyAccess: {
-    defaultMessage: "Join early access",
-    id: "8OAyrxftUP",
-    description: "Product page bottom call-to-action to join early access",
+    defaultMessage: "Request a Demo",
+    id: "/GmJUPyDf/",
+    description: "Product page bottom call-to-action to request a demo",
   },
   productNavAgentsAutomation: {
-    defaultMessage: "Agents Automation",
-    id: "m/UWxMsKQI",
+    defaultMessage: "Agent Automation",
+    id: "ujk7Desyds",
     description: "Navigation label for the agents automation product page",
   },
   productNavNextGenCatTool: {
@@ -201,8 +213,8 @@ export const productPageMessages = defineMessages({
     description: "Meta description for the agents automation product page",
   },
   agentsAutomationHeroEyebrow: {
-    defaultMessage: "Agents Automation",
-    id: "hamQyEil8d",
+    defaultMessage: "Agent Automation",
+    id: "pYr1Qzb1sO",
     description: "Hero eyebrow for the agents automation product page",
   },
   agentsAutomationHeroHeadline: {
@@ -272,8 +284,8 @@ export const productPageMessages = defineMessages({
     description: "Bottom CTA description for the agents automation product page",
   },
   nextGenCatToolMetadataTitle: {
-    defaultMessage: "Review Translations With the Context Next to the String | Hyperlocalise",
-    id: "zwRYJHfFfL",
+    defaultMessage: "Review Translations Without Guessing What the String Means | Hyperlocalise",
+    id: "jeP5GjQn+Q",
     description: "Page title for the next-gen CAT tool product page",
   },
   nextGenCatToolMetadataDescription: {

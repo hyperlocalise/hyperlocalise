@@ -1,4 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
+
+import { err, ok } from "@/lib/primitives/result/results";
 
 // Mock environment and database before importing tools
 vi.mock("@/lib/env", () => ({
@@ -14,6 +28,15 @@ vi.mock("@/lib/billing/usage-control", () => ({
     translationJobs: "translation_jobs",
     agentRuns: "agent_runs",
   },
+}));
+
+const { assertOrganizationCanEnqueueTranslationJobInTransactionMock } = vi.hoisted(() => ({
+  assertOrganizationCanEnqueueTranslationJobInTransactionMock: vi.fn(async () => ok(undefined)),
+}));
+
+vi.mock("@/lib/security/organization-operation-budget", () => ({
+  assertOrganizationCanEnqueueTranslationJobInTransaction:
+    assertOrganizationCanEnqueueTranslationJobInTransactionMock,
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
@@ -81,6 +104,7 @@ describe("Agent Tools RBAC", () => {
     db: {
       transaction: vi.fn(async (cb) =>
         cb({
+          execute: vi.fn(async () => undefined),
           insert: vi.fn(() => ({
             values: vi.fn(() => ({
               returning: vi.fn(() => [{ id: "mutated_123" }]),
@@ -120,7 +144,7 @@ describe("Agent Tools RBAC", () => {
     } as any,
   });
 
-  const toolCallInfo = { toolCallId: "test-tool-call", messages: [] };
+  const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
   async function executeTool(tool: any, input: any) {
     if (!tool.execute) {
@@ -152,6 +176,30 @@ describe("Agent Tools RBAC", () => {
       });
       // It fails later because of enqueuing/db, but we check that it didn't fail at the RBAC check
       expect(result.error).not.toContain("permission");
+    });
+
+    it("denies job creation when the organization job budget is exceeded", async () => {
+      assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValueOnce(
+        err({
+          code: "organization_job_budget_exceeded",
+          message: "Organization job creation rate limit exceeded. Try again later.",
+        }),
+      );
+
+      const tool = createTranslationJobTool(mockCtx("admin"));
+      const result = await executeTool(tool, {
+        type: "string",
+        sourceText: "hello",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+
+      expect(assertOrganizationCanEnqueueTranslationJobInTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        "org_123",
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("rate limit exceeded");
     });
 
     it("denies file translation jobs for inaccessible workspace source files", async () => {

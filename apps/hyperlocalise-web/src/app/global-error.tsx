@@ -1,10 +1,32 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import * as Sentry from "@sentry/nextjs";
-import NextError from "next/error";
 import { useEffect } from "react";
 
-export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
+import { ErrorRecovery } from "@/components/error-recovery/error-recovery";
+
+import "./globals.css";
+
+const GLOBAL_ERROR_DOCUMENT_TITLE = "Page unavailable | Hyperlocalise";
+
+type GlobalErrorProps = {
+  error: Error & { digest?: string };
+  unstable_retry: () => void;
+};
+
+export default function GlobalError({ error, unstable_retry }: GlobalErrorProps) {
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
@@ -12,11 +34,17 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
   return (
     <html lang="en">
       <body>
-        {/* `NextError` is the default Next.js error page component. Its type
-        definition requires a `statusCode` prop. However, since the App Router
-        does not expose status codes for errors, we simply pass 0 to render a
-        generic error message. */}
-        <NextError statusCode={0} />
+        <title>{GLOBAL_ERROR_DOCUMENT_TITLE}</title>
+        <ErrorRecovery
+          title="We couldn't load this page"
+          description="The problem may be temporary. Try loading the page again, or return to your dashboard."
+          tryAgainLabel="Try again"
+          dashboardLabel="Go to dashboard"
+          supportLabel="Contact support"
+          dashboardHref="/dashboard"
+          retry={unstable_retry}
+          fullPage
+        />
       </body>
     </html>
   );

@@ -1,7 +1,20 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { TeamRole } from "@/api/routes/team/team.schema";
@@ -10,6 +23,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { createTeamsApi, type TeamMemberRow } from "./teams-api";
 import { toUpdateTeamPayload } from "./team-form";
 import { TeamDetailPageView } from "./team-detail-page-view";
+import { teamDetailPageContentMessages } from "./team-detail-page-content.messages";
 
 const teamsApi = createTeamsApi(apiClient);
 
@@ -34,6 +48,7 @@ export function TeamDetailPageContent({
   currentUserWorkosId: string;
   teamsApi?: typeof teamsApi;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -63,7 +78,7 @@ export function TeamDetailPageContent({
     onSuccess: async () => {
       setIsEditOpen(false);
       await invalidateTeam();
-      toast.success("Team updated");
+      toast.success(intl.formatMessage(teamDetailPageContentMessages.teamUpdated));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -76,7 +91,7 @@ export function TeamDetailPageContent({
     onSuccess: async () => {
       setIsAddMemberOpen(false);
       await invalidateTeam();
-      toast.success("Member added to team");
+      toast.success(intl.formatMessage(teamDetailPageContentMessages.memberAdded));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -88,7 +103,7 @@ export function TeamDetailPageContent({
       injectedTeamsApi.addTeamMember(organizationSlug, teamId, input),
     onSuccess: async () => {
       await invalidateTeam();
-      toast.success("Team role updated");
+      toast.success(intl.formatMessage(teamDetailPageContentMessages.roleUpdated));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -101,7 +116,7 @@ export function TeamDetailPageContent({
     onSuccess: async () => {
       setRemovingMember(null);
       await invalidateTeam();
-      toast.success("Member removed from team");
+      toast.success(intl.formatMessage(teamDetailPageContentMessages.memberRemoved));
     },
     onError: (error) => {
       toast.error(error.message);

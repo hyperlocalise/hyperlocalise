@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
@@ -8,7 +20,13 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
-import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
+import {
+  createWorkosIdentity,
+  createWorkosIdentityWithRole,
+  switchAuthContextOrganization,
+  toAuthOrganization,
+  withMembershipAccessSource,
+} from "@/test/auth-seed";
 import { cleanupWorkosTestRecords } from "./test-cleanup";
 
 declare global {
@@ -32,42 +50,6 @@ function testSessionTokenFromCookie(cookie: string | undefined) {
     .map((part) => part.trim())
     .find((part) => part.startsWith("wos-session="))
     ?.slice("wos-session=".length);
-}
-
-function withMembershipAccessSource<
-  T extends { workosMembershipId: string | null; role: OrganizationMembershipRole },
->(membership: T) {
-  return {
-    ...membership,
-    accessSource: resolveOrganizationMembershipAccessSource(membership.workosMembershipId),
-  };
-}
-
-function switchAuthContextOrganization(
-  authContext: ApiAuthContext,
-  organizationSlug: string | undefined,
-) {
-  if (!organizationSlug || authContext.organization.slug == null) {
-    return authContext;
-  }
-
-  const activeOrganization = authContext.organizations.find(
-    (organization) => organization.slug === organizationSlug,
-  );
-
-  if (!activeOrganization) {
-    return authContext;
-  }
-
-  return enrichAuthContextWithCapabilities({
-    ...authContext,
-    organization: activeOrganization,
-    activeOrganization,
-    membership: withMembershipAccessSource({
-      workosMembershipId: activeOrganization.membership.workosMembershipId ?? null,
-      role: activeOrganization.membership.role,
-    }),
-  });
 }
 
 globalThis.__resolveTestApiAuthContextFromSession = (options = {}) => {
@@ -111,36 +93,19 @@ export function createAuthTestFixture() {
     return records;
   }
 
-  function createWorkosIdentityWithRole(
-    role: WorkosAuthIdentity["membership"]["role"],
-  ): WorkosAuthIdentity {
-    const suffix = randomUUID();
-    const workosUserId = `user_${suffix}`;
-    const workosOrganizationId = `org_${suffix}`;
+  function trackIdentity(identity: WorkosAuthIdentity) {
     const records = currentTestRecords();
-
-    records.workosUserIds.add(workosUserId);
-    records.workosOrganizationIds.add(workosOrganizationId);
-
-    return {
-      user: {
-        workosUserId,
-        email: `${suffix}@example.com`,
-      },
-      organization: {
-        workosOrganizationId,
-        name: `Example Org ${suffix}`,
-        slug: `example-org-${suffix}`,
-      },
-      membership: {
-        workosMembershipId: `membership_${suffix}`,
-        role,
-      },
-    };
+    records.workosUserIds.add(identity.user.workosUserId);
+    records.workosOrganizationIds.add(identity.organization.workosOrganizationId);
+    return identity;
   }
 
-  function createWorkosIdentity(): WorkosAuthIdentity {
-    return createWorkosIdentityWithRole("admin");
+  function createTrackedWorkosIdentityWithRole(role: OrganizationMembershipRole) {
+    return trackIdentity(createWorkosIdentityWithRole(role));
+  }
+
+  function createTrackedWorkosIdentity() {
+    return createTrackedWorkosIdentityWithRole("admin");
   }
 
   function createWorkosIdentityForOrganization(
@@ -164,22 +129,6 @@ export function createAuthTestFixture() {
         workosMembershipId: `membership_${suffix}`,
         role,
       },
-    };
-  }
-
-  function toAuthOrganization(
-    organization: Awaited<ReturnType<typeof syncWorkosIdentity>>["organization"],
-    membership: Awaited<ReturnType<typeof syncWorkosIdentity>>["membership"],
-  ) {
-    return {
-      workosOrganizationId: organization.workosOrganizationId,
-      localOrganizationId: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-      membership: withMembershipAccessSource({
-        workosMembershipId: membership.workosMembershipId,
-        role: membership.role,
-      }),
     };
   }
 
@@ -261,12 +210,7 @@ export function createAuthTestFixture() {
     };
   }
 
-  async function createLocalWorkosIdentity(identity = createWorkosIdentity()) {
-    const records = currentTestRecords();
-
-    records.workosUserIds.add(identity.user.workosUserId);
-    records.workosOrganizationIds.add(identity.organization.workosOrganizationId);
-
+  async function createLocalWorkosIdentity(identity = createTrackedWorkosIdentity()) {
     const { user, organization, membership } = await syncWorkosIdentity(db, identity);
 
     return {
@@ -322,10 +266,12 @@ export function createAuthTestFixture() {
     authHeadersForOrganizations,
     cleanup,
     createLocalWorkosIdentity,
-    createWorkosIdentity,
+    createWorkosIdentity: createTrackedWorkosIdentity,
     createWorkosIdentityForOrganization,
-    createWorkosIdentityWithRole,
+    createWorkosIdentityWithRole: createTrackedWorkosIdentityWithRole,
     getLocalUserId,
     trackWorkosUserId,
   };
 }
+
+export { createWorkosIdentity };

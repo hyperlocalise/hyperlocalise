@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { generateTextMock } = vi.hoisted(() => ({
@@ -19,11 +31,8 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
 
 import {
   classifyConversation,
-  classificationHasIntent,
   fallbackConversationClassification,
-  getPrimarySuggestedMode,
   getRecentUserConversationText,
-  normalizeConversationIntents,
   shouldAttemptRepositoryContextResolution,
   shouldRequireRepositoryContextClarification,
   type ConversationClassification,
@@ -33,7 +42,6 @@ function repositoryClassification(
   overrides: Partial<ConversationClassification> = {},
 ): ConversationClassification {
   return {
-    intents: ["repository"],
     needsRepositoryTools: true,
     requiresPullRequest: false,
     shouldAskForRepositoryClarification: false,
@@ -44,29 +52,12 @@ function repositoryClassification(
   };
 }
 
-describe("conversation classifier routing", () => {
+describe("conversation classifier", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("normalizes multi-intent output and drops general when specific intents exist", () => {
-    expect(normalizeConversationIntents(["translation", "repository", "general"])).toEqual([
-      "translation",
-      "repository",
-    ]);
-  });
-
-  it("uses general orchestrator mode when translation and repository are both active", () => {
-    expect(getPrimarySuggestedMode(["translation", "repository"])).toBe("general");
-  });
-
-  it("accepts readonly intent arrays when normalizing", () => {
-    const intents = ["translation", "repository"] as const;
-
-    expect(normalizeConversationIntents(intents)).toEqual(["translation", "repository"]);
-  });
-
-  it("enables repository resolution when repository is among intents", () => {
+  it("enables repository resolution when repository tools are needed", () => {
     expect(
       shouldAttemptRepositoryContextResolution({
         classification: repositoryClassification(),
@@ -78,7 +69,6 @@ describe("conversation classifier routing", () => {
     expect(
       shouldAttemptRepositoryContextResolution({
         classification: repositoryClassification({
-          intents: ["repository"],
           needsRepositoryTools: false,
           continuesRepositoryThread: true,
         }),
@@ -91,20 +81,30 @@ describe("conversation classifier routing", () => {
     ).toBe(true);
   });
 
-  it("detects translation intent in multi-intent classification", () => {
-    const classification = repositoryClassification({
-      intents: ["translation", "repository"],
-    });
-    expect(classificationHasIntent(classification, "translation")).toBe(true);
-    expect(classificationHasIntent(classification, "repository")).toBe(true);
-  });
-
   it("uses model output for repository clarification", () => {
     expect(
       shouldRequireRepositoryContextClarification(
         repositoryClassification({ shouldAskForRepositoryClarification: true }),
       ),
     ).toBe(true);
+  });
+
+  it("requires clarification when repository tools are needed but context is unresolved", () => {
+    expect(
+      shouldRequireRepositoryContextClarification(
+        repositoryClassification({ shouldAskForRepositoryClarification: false }),
+        { repositoryContextStatus: "unresolved" },
+      ),
+    ).toBe(true);
+  });
+
+  it("does not require clarification when repository context resolved", () => {
+    expect(
+      shouldRequireRepositoryContextClarification(
+        repositoryClassification({ shouldAskForRepositoryClarification: false }),
+        { repositoryContextStatus: "resolved" },
+      ),
+    ).toBe(false);
   });
 
   it("builds recent user conversation text for classification", () => {
@@ -119,7 +119,6 @@ describe("conversation classifier routing", () => {
   it("classifies conversations through the AI SDK", async () => {
     generateTextMock.mockResolvedValueOnce({
       output: repositoryClassification({
-        intents: ["repository"],
         continuesRepositoryThread: true,
       }),
     });
@@ -134,12 +133,18 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
+        needsRepositoryTools: true,
         continuesRepositoryThread: true,
       }),
     );
 
     expect(generateTextMock).toHaveBeenCalledOnce();
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: expect.stringContaining("localization agent"),
+      }),
+    );
+    expect(generateTextMock.mock.calls[0]?.[0]).not.toHaveProperty("system");
   });
 
   it("includes a repository lookup example for context-of string questions", async () => {
@@ -159,7 +164,6 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         currentMessageSpecifiesRepository: false,
@@ -181,6 +185,46 @@ describe("conversation classifier routing", () => {
         ),
       }),
     );
+    expect(generateTextMock.mock.calls[0]?.[0].prompt).not.toContain(
+      "Organization Memory.md routing",
+    );
+  });
+
+  it("distinguishes organization Memory.md requests from repository context", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: repositoryClassification({
+        needsRepositoryTools: false,
+        shouldAskForRepositoryClarification: false,
+      }),
+    });
+
+    const classification = await classifyConversation({
+      currentMessage: "Yes, add that.",
+      conversationText: "Should we add short checkout labels to Memory.md?\nYes, add that.",
+      hasFileAttachments: false,
+      hasStoredRepositoryContext: true,
+      knowledgeMemoryEnabled: true,
+      surface: "web",
+    });
+
+    expect(classification).toMatchObject({
+      needsRepositoryTools: false,
+      continuesRepositoryThread: false,
+      shouldAskForRepositoryClarification: false,
+    });
+    expect(
+      shouldAttemptRepositoryContextResolution({
+        classification,
+        storedRepositoryContext: {
+          resolved: true,
+          installationId: 1,
+          repositoryFullName: "acme/web",
+        },
+      }),
+    ).toBe(false);
+    const prompt = generateTextMock.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Organization Memory.md skill enabled: yes");
+    expect(prompt).toContain("An explicit Memory.md request starts an independent task");
   });
 
   it("keeps using model classification for stored repository context follow-ups", async () => {
@@ -201,7 +245,6 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: false,
         continuesRepositoryThread: true,
@@ -230,7 +273,7 @@ describe("conversation classifier routing", () => {
     );
   });
 
-  it("falls back to translation intent when attachments are present", () => {
+  it("falls back without repository tooling when classification fails", () => {
     expect(
       fallbackConversationClassification({
         hasFileAttachments: true,
@@ -238,7 +281,7 @@ describe("conversation classifier routing", () => {
       }),
     ).toEqual(
       expect.objectContaining({
-        intents: ["translation"],
+        needsRepositoryTools: false,
         confidence: 0,
       }),
     );

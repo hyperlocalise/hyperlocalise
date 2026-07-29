@@ -1,31 +1,50 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 import { cn } from "@/lib/primitives/cn";
+
+import { workspacePeopleNavMessages as messages } from "./workspace-people-nav.messages";
 
 type WorkspacePeopleSection = "teams" | "members";
 
 const peopleSections: readonly {
   id: WorkspacePeopleSection;
-  label: string;
-  description: string;
+  labelMessage: typeof messages.teams;
 }[] = [
   {
     id: "teams",
-    label: "Teams",
-    description: "Group workspace members into teams for project access.",
+    labelMessage: messages.teams,
   },
   {
     id: "members",
-    label: "Members",
-    description: "Invite people and manage workspace roles.",
+    labelMessage: messages.members,
   },
 ] as const;
 
-function resolveActiveSection(pathname: string, organizationSlug: string): WorkspacePeopleSection {
+function resolveActiveSection(
+  pathname: string | null,
+  organizationSlug: string,
+): WorkspacePeopleSection {
+  if (!pathname) {
+    return "teams";
+  }
+
   const basePath = `/org/${organizationSlug}`;
   const normalizedPath = stripAppLocalePrefix(pathname);
 
@@ -38,10 +57,11 @@ function resolveActiveSection(pathname: string, organizationSlug: string): Works
 
 export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: string }) {
   const pathname = usePathname();
+  const intl = useIntl();
   const activeSection = resolveActiveSection(pathname, organizationSlug);
 
   return (
-    <nav aria-label="Workspace people" className="border-b border-foreground/8">
+    <nav aria-label={intl.formatMessage(messages.navAriaLabel)} className="border-b border-border">
       <div className="flex flex-wrap gap-1">
         {peopleSections.map((section) => {
           const href = `/org/${organizationSlug}/${section.id}`;
@@ -57,10 +77,10 @@ export function WorkspacePeopleNav({ organizationSlug }: { organizationSlug: str
                 "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:transition-opacity",
                 isActive
                   ? "text-foreground after:bg-foreground after:opacity-100"
-                  : "text-foreground/56 hover:text-foreground after:opacity-0",
+                  : "text-muted-foreground hover:text-foreground after:opacity-0",
               )}
             >
-              {section.label}
+              <FormattedMessage {...section.labelMessage} />
             </Link>
           );
         })}

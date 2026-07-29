@@ -1,15 +1,27 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import Link from "next/link";
 import { type ReactNode } from "react";
-import { AiMagicIcon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ListIcon } from "lucide-react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type {
-  TmsProviderLiveJobComment,
-  TmsProviderLiveJobDetail,
-} from "@/lib/providers/tms-provider-live";
+import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
@@ -24,8 +36,9 @@ import {
   type JobDetailTaskDescriptionRenderer,
   type JobDetailTaskFilesRenderer,
 } from "./job-detail-task-view";
-import { buildJobsListHref, type ProviderActionAvailability } from "./job-detail-types";
+import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailTaskLayoutFromLiveJob } from "./job-detail-layout-helpers";
+import { providerLiveJobDetailViewMessages as messages } from "./provider-live-job-detail-view.messages";
 
 export type ProviderLiveDescriptionFieldRenderer = JobDetailTaskDescriptionRenderer;
 
@@ -39,17 +52,16 @@ export type ProviderLiveFilesSectionRenderer = (props: {
 export function ProviderLiveJobDetailView({
   buildJobsListHref: buildJobsListHrefProp = buildJobsListHref,
   canEditProviderJobDescription = false,
-  comments = [],
-  commentsError,
-  commentsLoading = false,
   error,
   isLoading,
   isRefreshing = false,
-  isTranslateWithAgentPending = false,
   job,
   jobId,
+  localeReadinessLoading = false,
+  localeReadinessOverride,
+  onDelete,
+  isDeleting = false,
   onRefresh,
-  onTranslateWithAgent,
   organizationSlug,
   projectId,
   renderBackLink = defaultRenderBackLink,
@@ -57,21 +69,20 @@ export function ProviderLiveJobDetailView({
   renderError = defaultRenderError,
   renderExternalLink,
   renderFilesSection,
-  translateWithAgentAction,
+  showComments = false,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
   canEditProviderJobDescription?: boolean;
-  comments?: TmsProviderLiveJobComment[];
-  commentsError?: unknown;
-  commentsLoading?: boolean;
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
-  isTranslateWithAgentPending?: boolean;
+  isDeleting?: boolean;
   job?: TmsProviderLiveJobDetail;
   jobId: string;
+  localeReadinessLoading?: boolean;
+  localeReadinessOverride?: Record<string, unknown> | null;
+  onDelete?: () => void;
   onRefresh?: () => void;
-  onTranslateWithAgent?: () => void;
   organizationSlug: string;
   projectId: string;
   renderBackLink?: JobDetailBackLinkRenderer;
@@ -79,21 +90,23 @@ export function ProviderLiveJobDetailView({
   renderError?: JobDetailErrorRenderer;
   renderExternalLink?: (props: { href: string; label: string }) => ReactNode;
   renderFilesSection?: ProviderLiveFilesSectionRenderer;
-  translateWithAgentAction?: ProviderActionAvailability | null;
+  showComments?: boolean;
 }) {
+  const intl = useIntl();
   const providerDescription = job
     ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
     : "";
   const canEditProviderDescription = Boolean(
     job && canEditProviderJobDescription && job.id.startsWith("ext:"),
   );
-  const showTranslateWithAgent = translateWithAgentAction?.visible ?? false;
-  const translateWithAgentDisabled =
-    !translateWithAgentAction?.enabled || isTranslateWithAgentPending || !onTranslateWithAgent;
-  const translateWithAgentLabel = isTranslateWithAgentPending
-    ? "Starting agent..."
-    : (translateWithAgentAction?.label ?? "Translate with agent");
-  const layout = job ? jobDetailTaskLayoutFromLiveJob(job) : null;
+  const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
+  const showViewStrings = job ? canOpenJobCat(job) && Boolean(catHref) : false;
+  const layout = job
+    ? jobDetailTaskLayoutFromLiveJob(job, intl, {
+        localeReadinessLoading,
+        localeReadinessOverride,
+      })
+    : null;
 
   const headerActions = job ? (
     <>
@@ -101,7 +114,9 @@ export function ProviderLiveJobDetailView({
         renderExternalLink ? (
           renderExternalLink({
             href: job.externalUrl,
-            label: `Open in ${job.externalProviderKind}`,
+            label: intl.formatMessage(messages.openInProvider, {
+              providerKind: job.externalProviderKind,
+            }),
           })
         ) : (
           <Button
@@ -109,7 +124,10 @@ export function ProviderLiveJobDetailView({
             render={
               <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
                 <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
-                Open in {job.externalProviderKind}
+                <FormattedMessage
+                  {...messages.openInProvider}
+                  values={{ providerKind: job.externalProviderKind }}
+                />
               </a>
             }
             size="sm"
@@ -118,29 +136,39 @@ export function ProviderLiveJobDetailView({
         )
       ) : null}
       {onRefresh ? (
-        <Button size="sm" variant="outline" disabled={isRefreshing} onClick={onRefresh}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={isRefreshing || isDeleting}
+          onClick={onRefresh}
+        >
           <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
+          {isRefreshing ? (
+            <FormattedMessage {...messages.refreshing} />
+          ) : (
+            <FormattedMessage {...messages.refresh} />
+          )}
         </Button>
       ) : null}
-      {showTranslateWithAgent ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                disabled={translateWithAgentDisabled}
-                onClick={onTranslateWithAgent}
-              >
-                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-                {translateWithAgentLabel}
-              </Button>
-            }
-          />
-          {translateWithAgentAction?.disabledReason ? (
-            <TooltipContent>{translateWithAgentAction.disabledReason}</TooltipContent>
-          ) : null}
-        </Tooltip>
+      {onDelete ? (
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={isRefreshing || isDeleting}
+          onClick={onDelete}
+        >
+          {isDeleting ? (
+            <FormattedMessage {...messages.deleting} />
+          ) : (
+            <FormattedMessage {...messages.deleteTask} />
+          )}
+        </Button>
+      ) : null}
+      {showViewStrings && catHref ? (
+        <Button size="sm" render={<Link href={catHref} />}>
+          <ListIcon />
+          <FormattedMessage {...messages.viewStrings} />
+        </Button>
       ) : null}
     </>
   ) : null;
@@ -174,10 +202,7 @@ export function ProviderLiveJobDetailView({
       canEditDescription={canEditProviderDescription}
       renderDescriptionField={renderDescriptionField}
       renderFilesSection={filesRenderer}
-      showComments={job?.externalProviderKind === "crowdin"}
-      comments={comments}
-      commentsLoading={commentsLoading}
-      commentsError={commentsError}
+      showComments={showComments}
     />
   );
 }

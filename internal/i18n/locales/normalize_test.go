@@ -36,11 +36,44 @@ func TestNormalizeListSplitsTrimsAndDeduplicates(t *testing.T) {
 			in:   []string{"en", "en-US", "en-GB"},
 			want: []string{"en", "en-US", "en-GB"},
 		},
+		{
+			name: "overlapping values across multiple strings",
+			in:   []string{"en-US, fr-FR", "de-DE, EN-US", "FR-fr, es-ES"},
+			want: []string{"en-US", "fr-FR", "de-DE", "es-ES"},
+		},
+		{
+			name: "first encounter casing wins",
+			in:   []string{"fr-ca", "FR-CA", "Fr-Ca"},
+			want: []string{"fr-ca"},
+		},
+		{
+			name: "various whitespace characters",
+			in:   []string{"en-US\t,\nfr-FR\r,\fde-DE\v"},
+			want: []string{"en-US", "fr-FR", "de-DE"},
+		},
+		{
+			name: "non-breaking space around comma",
+			in:   []string{"en-US\u00A0,\u00A0fr-FR"},
+			want: []string{"en-US", "fr-FR"},
+		},
+		{
+			name: "nil input",
+			in:   nil,
+			want: []string{},
+		},
+		{
+			name: "empty slice input",
+			in:   []string{},
+			want: []string{},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NormalizeList(tt.in)
+			if got == nil {
+				t.Errorf("NormalizeList() returned nil, want empty slice")
+			}
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("NormalizeList() = %#v, want %#v", got, tt.want)
 			}

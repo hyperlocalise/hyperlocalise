@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { and, eq, or } from "drizzle-orm";
@@ -11,7 +23,6 @@ import {
   isJobProviderActionAllowed,
   isReviewApproveAllowed,
 } from "@/api/auth/capability-guards";
-import { hasCapability } from "@/api/auth/policy";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import {
@@ -27,14 +38,17 @@ import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 import {
   formatUsageControlError,
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import {
+  assertOrganizationCanEnqueueTranslationJobInTransaction,
+  OrganizationJobBudgetExceededError,
+} from "@/lib/security/organization-operation-budget";
 import {
   getOrganizationJobById,
   listOrganizationJobs,
@@ -46,14 +60,13 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ProviderSyncQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 
 import {
-  forbiddenResponse,
+  projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
@@ -77,16 +90,11 @@ import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-source-files";
-import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { resolveProviderSourceFilesForJob } from "@/lib/providers/jobs/job-provider-source-files";
+import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/shared/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import {
-  enqueueProviderProjectJobSyncIntent,
-  maybeEnqueueProviderProjectJobSync,
-} from "@/lib/providers/provider-sync-intent";
 
 import {
   createJobAgentRunBodySchema,
@@ -104,7 +112,6 @@ import {
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
-  providerSyncQueue: ProviderSyncQueue;
 };
 
 type CreateWorkspaceJobRoutesOptions = {
@@ -355,20 +362,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return providerProjectUnavailableResponse(c, target);
       }
 
-      if (target.kind === "provider") {
-        const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
-          c.var.auth.organization.localOrganizationId,
-        );
-        if (credential && credential.providerKind === target.providerKind) {
-          maybeEnqueueProviderProjectJobSync({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerCredentialId: credential.id,
-            providerKind: credential.providerKind,
-            projectId: params.projectId,
-          });
-        }
-      }
-
       if (target.kind === "native") {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
@@ -387,7 +380,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -404,20 +397,53 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      const enrichedInputPayload =
+        payload.title && payload.title.trim().length > 0
+          ? {
+              ...inputPayload,
+              metadata: {
+                ...inputPayload.metadata,
+                title: payload.title.trim(),
+              },
+            }
+          : inputPayload;
 
       const localeValidation = validateJobLocalesAgainstProject(project, {
-        sourceLocale: inputPayload.sourceLocale,
-        targetLocales: inputPayload.targetLocales,
+        sourceLocale: enrichedInputPayload.sourceLocale,
+        targetLocales: enrichedInputPayload.targetLocales,
       });
       if (isErr(localeValidation)) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
       }
 
-      const jobBudget = await assertOrganizationCanEnqueueTranslationJob(
-        c.var.auth.organization.localOrganizationId,
-      );
-      if (isErr(jobBudget)) {
-        return c.json({ error: jobBudget.error.code, message: jobBudget.error.message }, 429);
+      let ownerUserId: string | null = null;
+      if (payload.ownerWorkosUserId) {
+        const [owner] = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .innerJoin(
+            schema.organizationMemberships,
+            eq(schema.organizationMemberships.userId, schema.users.id),
+          )
+          .where(
+            and(
+              eq(schema.users.workosUserId, payload.ownerWorkosUserId),
+              eq(
+                schema.organizationMemberships.organizationId,
+                c.var.auth.organization.localOrganizationId,
+              ),
+            ),
+          )
+          .limit(1);
+
+        if (!owner) {
+          return badRequestResponse(
+            c,
+            "owner_not_found",
+            "Assigned owner must be an organization member",
+          );
+        }
+        ownerUserId = owner.id;
       }
 
       if (payload.type === "file") {
@@ -431,7 +457,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
-        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return badRequestResponse(
             c,
@@ -453,54 +479,71 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const jobId = `job_${randomUUID()}`;
-      const [job] = await db.transaction(async (tx) => {
-        const sourceFileVersion =
-          payload.type === "file"
-            ? await ensureRepositorySourceFileVersionForStoredFile({
-                db: tx,
-                organizationId: c.var.auth.organization.localOrganizationId,
-                projectId: params.projectId,
-                fileId: payload.fileInput.sourceFileId,
-              })
-            : null;
+      let job;
+      try {
+        [job] = await db.transaction(async (tx) => {
+          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+            tx,
+            c.var.auth.organization.localOrganizationId,
+          );
+          if (isErr(jobBudget)) {
+            throw new OrganizationJobBudgetExceededError(jobBudget.error);
+          }
 
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values({
-            id: jobId,
+          const sourceFileVersion =
+            payload.type === "file"
+              ? await ensureRepositorySourceFileVersionForStoredFile({
+                  db: tx,
+                  organizationId: c.var.auth.organization.localOrganizationId,
+                  projectId: params.projectId,
+                  fileId: payload.fileInput.sourceFileId,
+                })
+              : null;
+
+          const [createdJob] = await tx
+            .insert(schema.jobs)
+            .values({
+              id: jobId,
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              createdByUserId: c.var.auth.user.localUserId,
+              ownerUserId,
+              kind: "translation",
+              status: "queued",
+              inputPayload: enrichedInputPayload,
+            })
+            .returning();
+
+          const [details] = await tx
+            .insert(schema.translationJobDetails)
+            .values({
+              jobId,
+              type: payload.type,
+              sourceFileVersionId: sourceFileVersion?.id ?? null,
+            })
+            .returning();
+
+          const usageEventResult = await reserveUsageEvent({
+            db: tx,
             organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            createdByUserId: c.var.auth.user.localUserId,
-            kind: "translation",
-            status: "queued",
-            inputPayload,
-          })
-          .returning();
-
-        const [details] = await tx
-          .insert(schema.translationJobDetails)
-          .values({
+            featureId: usageFeatureIds.translationJobs,
+            operationKey: `job:${jobId}:translation_jobs`,
+            source: "translation_job_create",
             jobId,
-            type: payload.type,
-            sourceFileVersionId: sourceFileVersion?.id ?? null,
-          })
-          .returning();
+            quantity: 1,
+          });
+          if (isErr(usageEventResult)) {
+            throw new Error(formatUsageControlError(usageEventResult.error));
+          }
 
-        const usageEventResult = await reserveUsageEvent({
-          db: tx,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          featureId: usageFeatureIds.translationJobs,
-          operationKey: `job:${jobId}:translation_jobs`,
-          source: "translation_job_create",
-          jobId,
-          quantity: 1,
+          return [{ ...createdJob, type: details.type }];
         });
-        if (isErr(usageEventResult)) {
-          throw new Error(formatUsageControlError(usageEventResult.error));
+      } catch (error) {
+        if (error instanceof OrganizationJobBudgetExceededError) {
+          return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
         }
-
-        return [{ ...createdJob, type: details.type }];
-      });
+        throw error;
+      }
 
       try {
         await options.jobQueue.enqueue({
@@ -527,67 +570,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job: createdJob }, 201);
-    })
-    .post("/sync", validateProjectParams, async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-      if (target.kind !== "provider") {
-        return badRequestResponse(
-          c,
-          "provider_project_required",
-          "Job sync is only available for external TMS projects",
-        );
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const credential =
-        await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-      if (!credential || credential.providerKind !== target.providerKind) {
-        return providerProjectUnavailableResponse(c, {
-          kind: "provider_unavailable",
-          error: "provider_project_not_available",
-          message: `Project belongs to ${target.providerKind}, but no matching active provider is available`,
-        });
-      }
-
-      const result = await enqueueProviderProjectJobSyncIntent({
-        organizationId,
-        providerCredentialId: credential.id,
-        providerKind: credential.providerKind,
-        projectId: params.projectId,
-        cause: "manual",
-      });
-      let workflowRun: { ids: string[] };
-      try {
-        workflowRun = await options.providerSyncQueue.enqueue({
-          providerSyncIntentId: result.intentId,
-          organizationId,
-        });
-      } catch {
-        return serviceUnavailableResponse(
-          c,
-          "provider_sync_queue_unavailable",
-          "Provider sync workflow could not be started",
-        );
-      }
-
-      return c.json(
-        {
-          providerJobSync: {
-            intentId: result.intentId,
-            created: result.created,
-            workflowRunIds: workflowRun.ids,
-          },
-        },
-        202,
-      );
     })
     .get("/:jobId", validateJobParams, async (c) => {
       const params = c.req.valid("param");
@@ -714,7 +696,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       validateUpdateAgentRunProposalReviewBody,
       async (c) => {
         if (!isReviewApproveAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -892,7 +874,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const payload = c.req.valid("json");
 
         if (!isJobProviderActionAllowed(c.var.auth.membership.role, payload.action)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
@@ -1053,7 +1035,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     )
     .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1132,7 +1114,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1261,7 +1243,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1385,7 +1367,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/mark-failed", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1411,6 +1393,69 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             .set({ outcomeKind: "error" })
             .where(eq(schema.translationJobDetails.jobId, params.jobId));
         }
+
+        return job;
+      });
+
+      if (!updatedJob) {
+        const [existingJob] = await db
+          .select({ id: schema.jobs.id })
+          .from(schema.jobs)
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+          .limit(1);
+
+        return existingJob
+          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
+          : notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const updatedJob = await db.transaction(async (tx) => {
+        const [job] = await tx
+          .update(schema.jobs)
+          .set({
+            status: "cancelled",
+            workflowRunId: null,
+            lastError: null,
+            outcomePayload: {
+              code: "cancelled_by_user",
+              message: "Cancelled by user",
+            },
+            completedAt: new Date(),
+          })
+          .where(await activeJobWhere(c.var.auth, params.jobId))
+          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
 
         return job;
       });

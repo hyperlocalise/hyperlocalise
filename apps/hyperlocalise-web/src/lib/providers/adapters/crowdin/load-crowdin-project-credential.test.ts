@@ -1,0 +1,83 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import "dotenv/config";
+
+import { describe, expect, it, vi } from "vite-plus/test";
+
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { crowdinAuth } from "./crowdin-auth";
+
+const getActiveCredentialMock = vi.fn();
+
+vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
+  getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
+    getActiveCredentialMock(...args),
+}));
+
+vi.mock("@/lib/security/provider-credential-crypto", () => ({
+  decryptProviderCredential: vi.fn(),
+  unwrapProviderCredentialCrypto: vi.fn((value: unknown) => value),
+}));
+
+vi.mock("@/lib/database", () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => []),
+        })),
+      })),
+    })),
+  },
+  schema: {
+    projects: {
+      externalProjectId: "external_project_id",
+      externalProviderCredentialId: "external_provider_credential_id",
+      externalProviderKind: "external_provider_kind",
+      id: "id",
+      organizationId: "organization_id",
+      source: "source",
+    },
+    organizationExternalTmsProviderCredentials: {
+      organizationId: "organization_id",
+      providerKind: "provider_kind",
+      id: "id",
+    },
+  },
+}));
+
+describe("loadCrowdinProjectCredential", () => {
+  it("resolves encoded external project ids from the active Crowdin credential", async () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const credential = {
+      id: "cred_1",
+      providerKind: "crowdin",
+      authMode: "oauth",
+    };
+
+    getActiveCredentialMock.mockResolvedValueOnce(credential);
+
+    const result = await crowdinAuth.loadProjectCredential({
+      organizationId: "org_1",
+      projectId,
+    });
+
+    expect(result).toEqual({
+      externalProjectId: "902807",
+      credential,
+    });
+  });
+});

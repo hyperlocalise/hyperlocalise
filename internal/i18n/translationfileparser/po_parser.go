@@ -117,6 +117,7 @@ func consumePOLine(
 		return nil
 	}
 	if strings.HasPrefix(line, "#") {
+		*activeField = ""
 		return nil
 	}
 
@@ -137,6 +138,7 @@ func consumePOLine(
 	case strings.HasPrefix(line, "\""):
 		return handlePOContinuation(lineNumber, line, currentMsgID, currentMsgStr, *activeField)
 	default:
+		*activeField = ""
 		return nil
 	}
 }

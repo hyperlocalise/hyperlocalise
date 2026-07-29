@@ -1,14 +1,62 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { infoMock } = vi.hoisted(() => ({
+  infoMock: vi.fn(),
+}));
+
+vi.mock("@/lib/log", () => ({
+  createLogger: vi.fn(() => ({
+    info: infoMock,
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  })),
+}));
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
 
 describe("CrowdinApiClient", () => {
+  beforeEach(() => {
+    infoMock.mockClear();
+  });
+
   function createClient(fetchFn: typeof fetch) {
     return new CrowdinApiClient({
       token: "test-token",
       baseUrl: "https://api.crowdin.test/api/v2",
       fetchFn,
     });
+  }
+
+  function createTaskPayload(id: number, projectId = 1) {
+    return {
+      data: {
+        id,
+        projectId,
+        type: 0,
+        status: "todo",
+        title: `Task ${id}`,
+        description: null,
+        languageId: "fr",
+        fileIds: [],
+        assignees: [],
+        deadline: null,
+        webUrl: `https://crowdin.com/project/${projectId}/tasks/${id}`,
+      },
+    };
   }
 
   it("lists projects with pagination", async () => {
@@ -179,7 +227,7 @@ describe("CrowdinApiClient", () => {
     await client.listProjects();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.crowdin.com/api/v2/projects?limit=500&offset=0",
+      "https://api.crowdin.com/api/v2/projects?limit=500&offset=0&orderBy=lastActivity%20desc",
       expect.anything(),
     );
   });
@@ -197,7 +245,7 @@ describe("CrowdinApiClient", () => {
     await client.listProjects();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://enterprise.crowdin.com/api/v2/projects?limit=500&offset=0",
+      "https://enterprise.crowdin.com/api/v2/projects?limit=500&offset=0&orderBy=lastActivity%20desc",
       expect.anything(),
     );
   });
@@ -526,14 +574,103 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("gets a source string by numeric id", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/strings/1001");
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1001,
+            projectId: 1,
+            fileId: 101,
+            branchId: null,
+            directoryId: null,
+            identifier: "hello",
+            text: "Hello",
+            type: "text",
+            context: null,
+            labelIds: null,
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const string = await client.getSourceString(1, 1001);
+
+    expect(string).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null when a source string id is not found", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ errors: [] }), { status: 404 }),
+    ) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await expect(client.getSourceString(1, 9999)).resolves.toBeNull();
+  });
+
+  it("gets multiple source strings by numeric id", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (path.endsWith("/strings/1001")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 1001,
+              projectId: 1,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "hello",
+              text: "Hello",
+              type: "text",
+              context: null,
+              labelIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path.endsWith("/strings/1002")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 1002,
+              projectId: 1,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "world",
+              text: "World",
+              type: "text",
+              context: null,
+              labelIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ errors: [] }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const strings = await client.getSourceStringsByIds(1, [1001, 1002, 9999]);
+
+    expect(strings.map((entry) => entry.id)).toEqual([1001, 1002]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("lists source strings by croql", async () => {
     const fetchMock = vi.fn(async (url) => {
-      expect(String(url)).toContain("croql=id+in+%281001%2C1002%29");
+      expect(String(url)).toContain("croql=identifier+%3D+%22hello%22");
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
     }) as unknown as typeof fetch;
 
     const client = createClient(fetchMock);
-    await client.listSourceStrings(1, { croql: "id in (1001,1002)" });
+    await client.listSourceStrings(1, { croql: 'identifier = "hello"' });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -569,6 +706,25 @@ describe("CrowdinApiClient", () => {
 
     const client = createClient(fetchMock);
     await client.listStringCommentsForStrings(1, [1001], { type: "comment" });
+  });
+
+  it("lists string comments scoped to targetLanguageId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/comments?");
+      expect(path).toContain("stringId=1001");
+      expect(path).toContain("type=issue");
+      expect(path).toContain("targetLanguageId=fr");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listStringComments(1, {
+      stringId: 1001,
+      type: "issue",
+      issueStatus: "unresolved",
+      targetLanguageId: "fr",
+    });
   });
 
   it("lists translation approvals with fileId and languageId", async () => {
@@ -619,8 +775,13 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("lists tasks", async () => {
-    const fetchMock = vi.fn(async () => {
+  it("lists tasks with live list defaults", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/tasks?");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
+
       return new Response(
         JSON.stringify({
           data: [
@@ -654,6 +815,112 @@ describe("CrowdinApiClient", () => {
       title: "French translations",
       status: "in_progress",
     });
+  });
+
+  it("paginates project tasks when fetchAll is true", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+      const offset = requestUrl.searchParams.get("offset");
+
+      expect(requestUrl.pathname).toBe("/api/v2/projects/1/tasks");
+      expect(requestUrl.searchParams.get("limit")).toBe("500");
+      expect(requestUrl.searchParams.get("orderBy")).toBeNull();
+
+      if (offset === "0") {
+        return new Response(
+          JSON.stringify({
+            data: Array.from({ length: 500 }, (_, index) => createTaskPayload(index + 1)),
+          }),
+          { status: 200 },
+        );
+      }
+
+      expect(offset).toBe("500");
+      return new Response(JSON.stringify({ data: [createTaskPayload(501)] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listTasks(1, { fetchAll: true });
+
+    expect(tasks).toHaveLength(501);
+    expect(tasks[0]?.id).toBe(1);
+    expect(tasks.at(-1)?.id).toBe(501);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("lists user tasks with live list defaults", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/user/tasks?");
+      expect(path).toContain("projectId=1");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 3001,
+                projectId: 1,
+                type: 0,
+                status: "todo",
+                title: "Assigned task",
+                description: null,
+                languageId: "de",
+                fileIds: [],
+                assignees: [{ id: 2, username: "me" }],
+                deadline: null,
+                webUrl: "https://crowdin.com/project/1/tasks/3001",
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listUserTasks({ projectId: 1 });
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      id: 3001,
+      projectId: 1,
+      title: "Assigned task",
+    });
+  });
+
+  it("paginates user tasks when fetchAll is true", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+      const offset = requestUrl.searchParams.get("offset");
+
+      expect(requestUrl.pathname).toBe("/api/v2/user/tasks");
+      expect(requestUrl.searchParams.get("projectId")).toBe("1");
+      expect(requestUrl.searchParams.get("limit")).toBe("500");
+      expect(requestUrl.searchParams.get("orderBy")).toBeNull();
+
+      if (offset === "0") {
+        return new Response(
+          JSON.stringify({
+            data: Array.from({ length: 500 }, (_, index) => createTaskPayload(index + 1)),
+          }),
+          { status: 200 },
+        );
+      }
+
+      expect(offset).toBe("500");
+      return new Response(JSON.stringify({ data: [createTaskPayload(501)] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listUserTasks({ projectId: 1, fetchAll: true });
+
+    expect(tasks).toHaveLength(501);
+    expect(tasks[0]?.id).toBe(1);
+    expect(tasks.at(-1)?.id).toBe(501);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("gets a task and uploads translations through storage", async () => {
@@ -1008,5 +1275,96 @@ describe("CrowdinApiClient", () => {
       translationProgress: 80,
       approvalProgress: 60,
     });
+  });
+
+  it("lists file language progress with language filter", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain("/projects/1/files/9/languages/progress");
+      expect(url).toContain("languageIds=fr");
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                languageId: "fr",
+                words: { total: 20, translated: 10, approved: 5 },
+                phrases: { total: 10, translated: 5, approved: 2 },
+                translationProgress: 50,
+                approvalProgress: 25,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const progress = await client.listFileLanguageProgress(1, 9, { languageIds: ["fr"] });
+
+    expect(progress[0]?.languageId).toBe("fr");
+    expect(progress[0]?.translationProgress).toBe(50);
+  });
+
+  it("logs each API request with method and endpoint", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1,
+            username: "tester",
+            email: "tester@example.com",
+            fullName: "Tester",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.getAuthenticatedUser();
+
+    expect(infoMock).toHaveBeenCalledWith(
+      {
+        method: "GET",
+        endpoint: "https://api.crowdin.test/api/v2/user",
+      },
+      "Crowdin API request",
+    );
+  });
+
+  it("uses globalThis.fetch when fetchFn is omitted", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1,
+            username: "tester",
+            email: "tester@example.com",
+            fullName: "Tester",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const client = new CrowdinApiClient({
+        token: "test-token",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      });
+      await client.getAuthenticatedUser();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/user",
+      expect.objectContaining({ method: "GET", redirect: "error" }),
+    );
   });
 });

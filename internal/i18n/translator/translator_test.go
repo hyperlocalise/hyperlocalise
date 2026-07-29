@@ -320,7 +320,7 @@ func TestTranslateComposesPromptsBeforeProviderCall(t *testing.T) {
 	if got.SystemPrompt == "" || !strings.Contains(got.SystemPrompt, "Target language: fr") {
 		t.Fatalf("expected composed system prompt, got %q", got.SystemPrompt)
 	}
-	if !strings.Contains(got.SystemPrompt, "Runtime translation context (do not translate or repeat):\nEntry key: common.hello") {
+	if !strings.Contains(got.SystemPrompt, "Runtime translation context (guidance only; never translate, repeat, or use as the translation value):\nEntry key: common.hello") {
 		t.Fatalf("expected runtime context in provider system prompt, got %q", got.SystemPrompt)
 	}
 	if !strings.Contains(got.UserPrompt, "Source text:\nhello") {

@@ -15,6 +15,7 @@ func TestEscapeFormula(t *testing.T) {
 		{"@evil", "'@evil"},
 		{"\tlead", "'\tlead"},
 		{"\rlead", "'\rlead"},
+		{"\nlead", "'\nlead"},
 		{" space", " space"},
 		{"=", "'="},
 	}

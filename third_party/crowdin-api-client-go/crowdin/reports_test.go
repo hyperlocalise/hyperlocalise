@@ -40,7 +40,7 @@ func TestReportsService_GetArchive(t *testing.T) {
 
 	expected := &model.ReportArchive{
 		ID:        12,
-		ScopeType: "project",
+		ScopeType: model.ReportScopeTypeProject,
 		ScopeID:   35,
 		UserID:    35,
 		Name:      "string",
@@ -80,7 +80,7 @@ func TestReportsService_ListArchive(t *testing.T) {
 		{
 			name: "with options",
 			opts: &model.ReportArchivesListOptions{
-				ScopeType:   "project",
+				ScopeType:   model.ReportScopeTypeProject,
 				ScopeID:     35,
 				ListOptions: model.ListOptions{Offset: 10, Limit: 10},
 			},
@@ -127,7 +127,7 @@ func TestReportsService_ListArchive(t *testing.T) {
 			expected := []*model.ReportArchive{
 				{
 					ID:        12,
-					ScopeType: "project",
+					ScopeType: model.ReportScopeTypeProject,
 					ScopeID:   35,
 					UserID:    35,
 					Name:      "string",

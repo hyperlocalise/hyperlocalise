@@ -1,10 +1,25 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildCrowdinFileQueueCroql,
   buildCrowdinFileSearchCroql,
+  CROWDIN_CROQL_MAX_ENCODED_LENGTH,
   escapeCrowdinCroqlString,
-} from "./crowdin-croql";
+  getCrowdinCroqlEncodedLength,
+  isCrowdinCroqlWithinLimit,
+} from "./crowdin-api";
 
 describe("buildCrowdinFileQueueCroql", () => {
   it("scopes untranslated segments to a file and target locale", () => {
@@ -42,6 +57,55 @@ describe("buildCrowdinFileQueueCroql", () => {
     ).toBe(
       'id of file = 9 and count of languages summary where (language = @language:"fr" and is translated and not is approved) > 0 and count of comments where (has unresolved issue) = 0',
     );
+  });
+
+  it("builds project-wide croql without a file scope", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        targetLocale: "fr",
+        queueFilter: "untranslated",
+      }),
+    ).toBe('count of languages summary where (language = @language:"fr" and is translated) = 0');
+  });
+
+  it("scopes to multiple file ids with or", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileIds: [10, 20],
+        targetLocale: "fr",
+        queueFilter: "all",
+      }),
+    ).toBe("(id of file = 10 or id of file = 20)");
+  });
+
+  it("returns undefined when there are no filters", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        targetLocale: "fr",
+        queueFilter: "all",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("Crowdin CROQL size limits", () => {
+  it("reports encoded length and accepts queries under the soft cap", () => {
+    const croql = "id of file = 1";
+    expect(getCrowdinCroqlEncodedLength(croql)).toBe(encodeURIComponent(croql).length);
+    expect(isCrowdinCroqlWithinLimit(croql)).toBe(true);
+  });
+
+  it("rejects multi-file OR queries that exceed the encoded soft cap", () => {
+    const fileIds = Array.from({ length: 250 }, (_, index) => 100_000 + index);
+    const croql = buildCrowdinFileQueueCroql({
+      fileIds,
+      targetLocale: "fr",
+      queueFilter: "all",
+    });
+
+    expect(croql).toBeDefined();
+    expect(getCrowdinCroqlEncodedLength(croql!)).toBeGreaterThan(CROWDIN_CROQL_MAX_ENCODED_LENGTH);
+    expect(isCrowdinCroqlWithinLimit(croql!)).toBe(false);
   });
 });
 

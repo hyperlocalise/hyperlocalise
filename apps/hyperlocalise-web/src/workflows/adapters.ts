@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { start } from "workflow/api";
 
 import { createLogger } from "@/lib/log";
@@ -8,17 +20,16 @@ import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
-import { providerSyncWorkflow } from "./provider-sync";
 import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
-  ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   SourceFileIngestQueue,
+  TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
@@ -112,20 +123,21 @@ export function createWorkspaceAutomationExecutionQueue(): WorkspaceAutomationEx
   };
 }
 
-export function createProviderSyncQueue(): ProviderSyncQueue {
-  return {
-    async enqueue(event) {
-      const run = await start(providerSyncWorkflow, [event]);
-      return { ids: [run.runId] };
-    },
-  };
-}
-
 export function createSourceFileIngestQueue(): SourceFileIngestQueue {
   return {
     async enqueue(event) {
       const { sourceFileIngestWorkflow } = await import("@/workflows/source-file-ingest");
       const run = await start(sourceFileIngestWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createTranslationFileImportQueue(): TranslationFileImportQueue {
+  return {
+    async enqueue(event) {
+      const { translationFileImportWorkflow } = await import("@/workflows/translation-file-import");
+      const run = await start(translationFileImportWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

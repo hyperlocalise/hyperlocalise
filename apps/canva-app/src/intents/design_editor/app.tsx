@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   Alert,
   Badge,
@@ -19,7 +31,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
-import { HyperlocaliseClientError, pollLocalizeDesign, startLocalizeDesign } from "./hyperlocalise-client";
+import {
+  HyperlocaliseClientError,
+  pollLocalizeDesign,
+  startLocalizeDesign,
+} from "./hyperlocalise-client";
 import {
   loadSettings,
   parseSelectedPageValues,

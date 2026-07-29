@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -7,7 +19,6 @@ import {
 } from "@/lib/projects/identity/project-id";
 import { createConversationRequestSchema } from "@/api/routes/conversation/conversation.schema";
 import { createContentfulConnectionBodySchema } from "@/api/routes/contentful-connection/contentful-connection.schema";
-import { providerSyncObservabilityQuerySchema } from "@/api/routes/external-tms-provider-credential/external-tms-provider-credential.schema";
 import { upsertGithubRepositoryAutomationSettingsBodySchema } from "@/api/routes/github-installation/github-installation.schema";
 import {
   attachGlossaryProjectBodySchema,
@@ -78,9 +89,6 @@ describe("project id schemas", () => {
         accessToken: "token",
       }).displayName,
     ).toBe("Contentful");
-    expect(providerSyncObservabilityQuerySchema.parse({ projectId: encoded }).projectId).toBe(
-      decoded,
-    );
     expect(
       projectAutomationParamsSchema.parse({
         projectId: encoded,

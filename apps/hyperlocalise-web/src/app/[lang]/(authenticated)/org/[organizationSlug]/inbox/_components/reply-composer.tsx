@@ -1,18 +1,23 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { FileUIPart } from "ai";
 import { memo, useEffect, useState } from "react";
-import {
-  Add01Icon,
-  AiImageIcon,
-  AiWebBrowsingIcon,
-  ArrowDown01Icon,
-  FileAttachmentIcon,
-  FolderLibraryIcon,
-  SentIcon,
-} from "@hugeicons/core-free-icons";
+import { FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import {
   PromptInput,
@@ -24,6 +29,7 @@ import {
   PromptInputTextarea,
   PromptInputTools,
   usePromptInputAttachments,
+  usePromptInputController,
 } from "@/components/ai-elements/prompt-input";
 import {
   Attachment,
@@ -32,20 +38,11 @@ import {
   AttachmentRemove,
   Attachments,
 } from "@/components/ai-elements/attachments";
-import {
-  ComingSoonBadge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type InboxApi, type InboxProjectSummary } from "./inbox-api";
+import { RepositorySelector } from "../../_components/repository-selector";
+import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
+import { replyComposerMessages } from "./reply-composer.messages";
 
 const inboxApi = createInboxApi(apiClient);
 
@@ -64,50 +61,64 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
   return new File([u8arr], filename, { type: mime });
 }
 
-const attachOptions = [
-  {
-    icon: FileAttachmentIcon,
-    label: "Add photos & files",
-  },
-  {
-    icon: AiImageIcon,
-    label: "Create Image",
-  },
-  {
-    icon: AiWebBrowsingIcon,
-    label: "Research",
-  },
-] as const;
-
 type ReplyComposerViewProps = {
-  conversationProjectId: string | null;
   disabled: boolean;
+  draft?: string;
   isStreaming: boolean;
-  onSend: (text: string, files: File[], projectId?: string) => void | Promise<void>;
-  projects: InboxProjectSummary[];
-  projectsIsError: boolean;
-  projectsIsLoading: boolean;
+  onDraftChange?: (draft: string) => void;
+  onSend: (
+    text: string,
+    files: File[],
+    options?: { projectId?: string; repositoryFullName?: string },
+  ) => void | Promise<void>;
+  placeholder?: string;
+  repositories: InboxGithubRepository[];
+  repositoriesIsError: boolean;
+  repositoriesIsLoading: boolean;
+  variant?: "default" | "compact";
 };
 
 export function ReplyComposerView({
-  conversationProjectId,
   disabled,
+  draft = "",
   isStreaming,
+  onDraftChange,
   onSend,
-  projects,
-  projectsIsError,
-  projectsIsLoading,
+  placeholder,
+  repositories,
+  repositoriesIsError,
+  repositoriesIsLoading,
+  variant = "default",
 }: ReplyComposerViewProps) {
-  const [replyText, setReplyText] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState(conversationProjectId ?? "");
+  const intl = useIntl();
+  const [replyText, setReplyText] = useState(draft);
+  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
+  const promptInputController = usePromptInputController();
+  // Stable across keystrokes; the controller object itself is recreated whenever
+  // textInput changes, so it must not be an effect dependency.
+  const setInput = promptInputController.textInput.setInput;
+  const addAttachmentsLabel = intl.formatMessage(replyComposerMessages.addAttachments);
+  const sendReplyLabel = intl.formatMessage(replyComposerMessages.sendReply);
+
+  // Sync only when the external draft prop changes (e.g. suggestion chips).
+  // Depending on the controller identity or local replyText re-ran this on every
+  // keystroke and reset the textarea when draft lagged one render behind.
+  useEffect(() => {
+    setReplyText(draft);
+    setInput(draft);
+  }, [draft, setInput]);
 
   useEffect(() => {
-    setSelectedProjectId(conversationProjectId ?? "");
-  }, [conversationProjectId]);
+    if (
+      selectedRepositoryFullName &&
+      !repositories.some((repository) => repository.fullName === selectedRepositoryFullName)
+    ) {
+      setSelectedRepositoryFullName("");
+    }
+  }, [repositories, selectedRepositoryFullName]);
 
-  const selectedProject =
-    projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
-  const projectTriggerLabel = selectedProject?.name ?? "Project";
+  const resolvedRepositoryFullName =
+    selectedRepositoryFullName || (repositories.length === 1 ? repositories[0]?.fullName : "");
 
   const attachments = usePromptInputAttachments();
 
@@ -116,24 +127,37 @@ export function ReplyComposerView({
     if ((!trimmedText && files.length === 0) || disabled) return;
 
     const fileObjects = files.map((file) =>
-      dataUrlToFile(file.url, file.filename || "untitled", file.mediaType),
+      dataUrlToFile(
+        file.url,
+        file.filename || intl.formatMessage(replyComposerMessages.untitledFile),
+        file.mediaType,
+      ),
     );
 
-    const projectIdForSend =
-      selectedProjectId && selectedProjectId !== conversationProjectId
-        ? selectedProjectId
-        : undefined;
-    await onSend(trimmedText, fileObjects, projectIdForSend);
+    await onSend(trimmedText, fileObjects, {
+      repositoryFullName: resolvedRepositoryFullName || undefined,
+    });
     setReplyText("");
+    onDraftChange?.("");
     attachments.clear();
   };
 
   return (
-    <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+    <section
+      className={
+        variant === "compact"
+          ? "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3"
+          : "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+      }
+    >
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
-          className="overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+          className={
+            variant === "compact"
+              ? "overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+              : "overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+          }
         >
           <PromptInputBody>
             {attachments.files.length > 0 && (
@@ -155,135 +179,64 @@ export function ReplyComposerView({
             )}
             <PromptInputTextarea
               disabled={disabled}
-              onChange={(event) => setReplyText(event.currentTarget.value)}
-              className="min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
+              onChange={(event) => {
+                const next = event.currentTarget.value;
+                setReplyText(next);
+                onDraftChange?.(next);
+              }}
+              className={
+                variant === "compact"
+                  ? "min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
+                  : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
+              }
               placeholder={
                 isStreaming
-                  ? "Agent is responding..."
-                  : "Paste text or describe what to translate..."
+                  ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
+                  : (placeholder ?? intl.formatMessage(replyComposerMessages.defaultPlaceholder))
               }
               rows={1}
             />
           </PromptInputBody>
-          <PromptInputFooter className="flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
+          <PromptInputFooter
+            className={
+              variant === "compact"
+                ? "min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap"
+                : "flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5"
+            }
+          >
             <PromptInputTools className="flex-wrap gap-2 text-sm text-muted-foreground">
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <PromptInputButton
-                      className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
-                      size="icon-sm"
-                      aria-label="Add translation context"
-                      tooltip="Add translation context"
-                    >
-                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                    </PromptInputButton>
-                  }
-                />
-                <DropdownMenuContent className="min-w-52" align="start">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => attachments.openFileDialog()}>
-                      <HugeiconsIcon
-                        icon={attachOptions[0].icon}
-                        strokeWidth={1.8}
-                        className="size-4"
-                      />
-                      {attachOptions[0].label}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    {attachOptions.slice(1).map((option) => (
-                      <DropdownMenuItem key={option.label} disabled>
-                        <HugeiconsIcon icon={option.icon} strokeWidth={1.8} className="size-4" />
-                        <span className="min-w-0 flex-1">{option.label}</span>
-                        <ComingSoonBadge />
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <PromptInputButton
+                className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
+                size="icon-sm"
+                aria-label={addAttachmentsLabel}
+                tooltip={addAttachmentsLabel}
+                onClick={() => attachments.openFileDialog()}
+              >
+                <HugeiconsIcon icon={FileAttachmentIcon} strokeWidth={1.8} className="size-4" />
+              </PromptInputButton>
             </PromptInputTools>
 
             <PromptInputTools className="flex-wrap justify-end gap-2 text-sm text-muted-foreground">
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <PromptInputButton
-                      className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
-                      size="sm"
-                    >
-                      <HugeiconsIcon
-                        icon={FolderLibraryIcon}
-                        strokeWidth={1.8}
-                        className="size-4"
-                      />
-                      {projectsIsLoading ? (
-                        <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
-                      ) : (
-                        projectTriggerLabel
-                      )}
-                      <HugeiconsIcon
-                        icon={ArrowDown01Icon}
-                        strokeWidth={1.8}
-                        className="size-3.5"
-                      />
-                    </PromptInputButton>
-                  }
-                />
-                <DropdownMenuContent className="min-w-56" align="end">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Projects</DropdownMenuLabel>
-                    {projectsIsLoading ? (
-                      <>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-28 rounded-full bg-muted-foreground/20" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
-                          <Skeleton className="h-3.5 w-32 rounded-full bg-muted-foreground/20" />
-                        </DropdownMenuItem>
-                      </>
-                    ) : null}
-                    {projectsIsError ? (
-                      <DropdownMenuItem disabled>Unable to load projects</DropdownMenuItem>
-                    ) : null}
-                    {!projectsIsLoading && !projectsIsError && projects.length === 0 ? (
-                      <DropdownMenuItem disabled>No projects found</DropdownMenuItem>
-                    ) : null}
-                    {projects.map((project) => (
-                      <DropdownMenuItem
-                        key={project.id}
-                        onClick={() => setSelectedProjectId(project.id)}
-                      >
-                        <HugeiconsIcon
-                          icon={FolderLibraryIcon}
-                          strokeWidth={1.8}
-                          className="size-4"
-                        />
-                        {project.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <RepositorySelector
+                repositories={repositories}
+                repositoriesIsError={repositoriesIsError}
+                repositoriesIsLoading={repositoriesIsLoading}
+                selectedRepositoryFullName={resolvedRepositoryFullName}
+                onSelectRepository={setSelectedRepositoryFullName}
+                triggerStyle="prompt-input"
+              />
               <PromptInputSubmit
                 size="sm"
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                aria-label="Send reply"
+                aria-label={sendReplyLabel}
                 tooltip={{
-                  content: "Send reply",
+                  content: sendReplyLabel,
                   shortcut: "Enter",
                 }}
               >
                 <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
-                Send
+                <FormattedMessage {...replyComposerMessages.send} />
               </PromptInputSubmit>
             </PromptInputTools>
           </PromptInputFooter>
@@ -295,7 +248,7 @@ export function ReplyComposerView({
 
 type ReplyComposerProps = Omit<
   ReplyComposerViewProps,
-  "projects" | "projectsIsError" | "projectsIsLoading"
+  "repositories" | "repositoriesIsError" | "repositoriesIsLoading"
 > & {
   organizationSlug: string;
   inboxApi?: InboxApi;
@@ -304,20 +257,22 @@ type ReplyComposerProps = Omit<
 export const ReplyComposer = memo(function ReplyComposer({
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
+  draft,
   ...viewProps
 }: ReplyComposerProps) {
-  const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
-    queryFn: () => injectedInboxApi.listProjects(organizationSlug),
+  const repositoriesQuery = useQuery({
+    queryKey: ["github-repositories", organizationSlug],
+    queryFn: () => injectedInboxApi.listGithubRepositories(organizationSlug),
   });
 
   return (
-    <PromptInputProvider>
+    <PromptInputProvider initialInput={draft ?? ""}>
       <ReplyComposerView
         {...viewProps}
-        projects={projectsQuery.data ?? []}
-        projectsIsError={projectsQuery.isError}
-        projectsIsLoading={projectsQuery.isLoading}
+        draft={draft}
+        repositories={repositoriesQuery.data ?? []}
+        repositoriesIsError={repositoriesQuery.isError}
+        repositoriesIsLoading={repositoriesQuery.isLoading}
       />
     </PromptInputProvider>
   );

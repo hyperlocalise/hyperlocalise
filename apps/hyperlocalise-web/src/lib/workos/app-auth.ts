@@ -1,5 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { redirect } from "next/navigation";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@/lib/workos/server-auth";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
@@ -13,15 +25,26 @@ import {
   getStoredActiveOrganizationSlug,
   setStoredActiveOrganizationSlug,
 } from "@/lib/workos/active-organization";
+import { redirectForMissingOrganizationAccess } from "@/lib/workos/missing-organization-access";
 
 export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
 };
 
-export async function requireAppAuthContext(
-  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
-) {
+type RequireAppAuthContextOptions = {
+  organizationSlug?: string;
+  ignoreStoredActiveOrganization?: boolean;
+  staleOrganizationRedirectSearch?: string;
+};
+
+export async function requireAppAuthContext(options: RequireAppAuthContextOptions = {}) {
   const session = await withAuth({ ensureSignedIn: true });
+
+  if (!session.user) {
+    redirect("/auth/sign-in");
+  }
+
+  const sessionUser = session.user;
 
   let auth: ApiAuthContext | null;
   try {
@@ -38,7 +61,9 @@ export async function requireAppAuthContext(
   } catch (error) {
     if (error instanceof StaleOrganizationSlugError) {
       await setStoredActiveOrganizationSlug(error.currentSlug);
-      redirect(`/org/${error.currentSlug}/dashboard`);
+      redirect(
+        `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,
+      );
     }
 
     if (error instanceof OrganizationSlugUnresolvableError) {
@@ -50,7 +75,10 @@ export async function requireAppAuthContext(
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
-      redirect("/auth/onboarding");
+      return redirectForMissingOrganizationAccess({
+        email: sessionUser.email,
+        workosUserId: sessionUser.id,
+      });
     }
 
     if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
@@ -61,18 +89,21 @@ export async function requireAppAuthContext(
   }
 
   if (!auth) {
-    redirect("/auth/onboarding");
+    return redirectForMissingOrganizationAccess({
+      email: sessionUser.email,
+      workosUserId: sessionUser.id,
+    });
   }
 
   return {
     ...auth,
-    sessionUser: session.user,
+    sessionUser,
   } satisfies AppAuthContext;
 }
 
 export async function requireAppCapability(
   capability: OrganizationCapability,
-  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
+  options: RequireAppAuthContextOptions = {},
 ) {
   const auth = await requireAppAuthContext(options);
 
@@ -83,8 +114,10 @@ export async function requireAppCapability(
   return auth;
 }
 
-export async function getDefaultOrganizationDashboardPath() {
-  const auth = await requireAppAuthContext();
+export async function getDefaultOrganizationDashboardPath(
+  options: RequireAppAuthContextOptions = {},
+) {
+  const auth = await requireAppAuthContext(options);
   const organizationSlug = auth.activeOrganization.slug;
 
   if (!organizationSlug) {

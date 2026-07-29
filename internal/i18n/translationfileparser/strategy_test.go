@@ -291,6 +291,40 @@ func TestStrategyParsesXCStrings(t *testing.T) {
 	}
 }
 
+func TestStrategyParseWithLocaleReadsXCStringsTargetLocale(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour"
+          }
+        }
+      }
+    }
+  }
+}`)
+
+	got, err := s.ParseWithLocale("Localizable.xcstrings", content, "fr")
+	if err != nil {
+		t.Fatalf("parse with locale: %v", err)
+	}
+	if got["hello"] != "Bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
 func TestStrategyParsesCSV(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -431,6 +465,40 @@ func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
 	}
 	if contextByKey["home.title"] != "Main heading in app shell." {
 		t.Fatalf("unexpected home.title context: %q", contextByKey["home.title"])
+	}
+}
+
+func TestStrategyParsesMarkdownExtensions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	extensions := []string{".md", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd"}
+	for _, ext := range extensions {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("file"+ext, []byte("# Hello"))
+			if err != nil {
+				t.Fatalf("parse %s: %v", ext, err)
+			}
+			if len(got) == 0 {
+				t.Fatalf("expected extracted entries for %s", ext)
+			}
+		})
+	}
+}
+
+func TestStrategyParsesHTMLExtensions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	extensions := []string{".html", ".htm"}
+	for _, ext := range extensions {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("file"+ext, []byte("<p>Hello</p>"))
+			if err != nil {
+				t.Fatalf("parse %s: %v", ext, err)
+			}
+			if len(got) == 0 {
+				t.Fatalf("expected extracted entries for %s", ext)
+			}
+		})
 	}
 }
 

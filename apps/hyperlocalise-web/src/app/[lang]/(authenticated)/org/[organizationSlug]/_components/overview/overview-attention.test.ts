@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -53,19 +65,14 @@ describe("overview-attention", () => {
     expect(fileNeedsAttention(createFile({ fr: "stale" }))).toBe(true);
   });
 
-  it("counts pending actions from jobs, sync errors, and files", () => {
+  it("counts pending actions from jobs and files", () => {
     const files = [
       createFile({ fr: "missing" }, "a.json"),
       createFile({ fr: "changed" }, "b.json"),
       createFile({ fr: "ready" }, "c.json"),
     ];
 
-    expect(
-      computeProjectPendingActionCount(
-        { openJobCount: 2, lastSyncErrorAt: "2026-01-01T00:00:00.000Z" },
-        files,
-      ),
-    ).toBe(5);
+    expect(computeProjectPendingActionCount({ openJobCount: 2 }, files)).toBe(4);
   });
 
   it("formats large pending counts", () => {

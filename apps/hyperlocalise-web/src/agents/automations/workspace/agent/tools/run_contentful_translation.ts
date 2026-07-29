@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
@@ -7,6 +19,11 @@ import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
+import {
+  loadCompletedContentfulTranslationRunSummary,
+  resolveExistingContentfulTranslationRunId,
+} from "./resolve-existing-contentful-translation-run";
 
 export function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
   const snapshot = session.run.inputSnapshot;
@@ -68,10 +85,50 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
       }
 
       const snapshot = session.run.inputSnapshot;
-      const existingRunId =
-        typeof session.run.outputSummary.contentfulTranslationRunId === "string"
-          ? session.run.outputSummary.contentfulTranslationRunId
-          : null;
+      const existingRunId = await resolveExistingContentfulTranslationRunId(session);
+
+      if (existingRunId) {
+        const completedSummary = await loadCompletedContentfulTranslationRunSummary(
+          existingRunId,
+          session.organizationId,
+        );
+        if (completedSummary) {
+          const noWriteback = hasContentfulNoWriteback({
+            writeDrafts: contentful.writeDrafts ?? true,
+            fieldsDetected: completedSummary.fieldsDetected,
+            localeValuesWritten: completedSummary.localeValuesWritten,
+          });
+          if (noWriteback) {
+            const message = "contentful_no_draft_writebacks";
+            session.terminalStatus = "failed";
+            session.terminalError = message;
+            await updateWorkspaceAutomationRun({
+              runId: session.run.id,
+              organizationId: session.organizationId,
+              status: "failed",
+              error: { message },
+              completedAt: new Date(),
+            });
+
+            const failure = {
+              contentfulTranslationRunId: existingRunId,
+              status: "failed" as const,
+              message,
+              fieldsDetected: completedSummary.fieldsDetected,
+              localeValuesWritten: completedSummary.localeValuesWritten,
+            };
+            session.stepResults.run_contentful_translation = failure;
+            return failure;
+          }
+
+          mergeToolOutputSummaryIntoSessionRun(session, {
+            contentfulTranslationRunId: existingRunId,
+          });
+          session.terminalStatus = "succeeded";
+          session.stepResults.run_contentful_translation = completedSummary;
+          return completedSummary;
+        }
+      }
 
       const translationRun =
         existingRunId != null
@@ -103,6 +160,9 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
             ...session.run.outputSummary,
             contentfulTranslationRunId: translationRun.id,
           },
+        });
+        mergeToolOutputSummaryIntoSessionRun(session, {
+          contentfulTranslationRunId: translationRun.id,
         });
       }
 

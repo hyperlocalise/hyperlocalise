@@ -1,6 +1,17 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { createResendAdapter } from "./adapter";
 
 const mocks = vi.hoisted(() => ({
@@ -8,10 +19,6 @@ const mocks = vi.hoisted(() => ({
   getReceivedEmail: vi.fn(),
   getReceivingAttachment: vi.fn(),
   listReceivingAttachments: vi.fn(),
-}));
-
-vi.mock("@/lib/providers/provider-safe-fetch", () => ({
-  providerSafeFetch: vi.fn(),
 }));
 
 vi.mock("resend", () => ({
@@ -32,6 +39,17 @@ vi.mock("resend", () => ({
 }));
 
 describe("createResendAdapter", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
   it("sets Reply-To from inbound thread metadata when posting a reply", async () => {
     const adapter = createResendAdapter({
       apiKey: "test-key",
@@ -343,7 +361,7 @@ describe("createResendAdapter", () => {
       error: null,
     });
     const fetchMock = vi
-      .mocked(providerSafeFetch)
+      .mocked(globalThis.fetch)
       .mockResolvedValueOnce(new Response("image-bytes"));
     const processMessage = vi.fn();
     const adapter = createResendAdapter({
@@ -386,7 +404,7 @@ describe("createResendAdapter", () => {
       id: "raw_db_attachment_id",
     });
     expect(mocks.listReceivingAttachments).toHaveBeenCalledWith({ emailId: "email_123" });
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png");
+    expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png", { redirect: "error" });
   });
 
   it("isolates thread metadata by org inbound address for the same sender and subject", async () => {

@@ -1,6 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -15,6 +31,8 @@ import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
 import { buildWorkspaceOrchestratorPlan } from "./plan";
+import { resolveWorkspaceAutomationKnowledgeContext } from "./resolve-workspace-automation-knowledge";
+import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
 const logger = createLogger("workspace-orchestrator");
 
@@ -142,11 +160,17 @@ export async function runWorkspaceOrchestrator(input: {
 
   const templateSkillId = resolveTemplateSkillId(run.inputSnapshot);
   const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
+  const knowledgeMemory = await resolveWorkspaceAutomationKnowledgeContext({
+    organizationId: input.organizationId,
+    automation,
+  });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
     userOverride: automation.instructions,
     triggerMode: automation.triggerConfig.mode,
     plan,
+    knowledgeEnabled: Boolean(automation.toolConfig.knowledge?.enabled),
+    knowledgeMemory,
   });
 
   let repository: {
@@ -218,27 +242,41 @@ export async function runWorkspaceOrchestrator(input: {
 
   try {
     const agent = createWorkspaceOrchestratorAgent(session);
-    await agent.generate({
-      messages: [
-        {
-          role: "user",
-          content: buildWorkspaceOrchestratorUserMessage({
-            automationName: automation.name,
-            triggerSource: run.triggerSource,
-            inputSnapshot: run.inputSnapshot,
-          }),
-        },
-      ],
+    await withAgentRuntimeUsageMetering({
+      organizationId: input.organizationId,
+      operationKey: `workspace-automation:${run.id}:agent_runs`,
+      source: "workspace_orchestrator",
+      dimensions: {
+        surface: "automation",
+        agent_surface: "workspace_orchestrator",
+        automation_id: automation.id,
+      },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: () =>
+        agent.generate({
+          messages: [
+            {
+              role: "user",
+              content: buildWorkspaceOrchestratorUserMessage({
+                automationName: automation.name,
+                triggerSource: run.triggerSource,
+                inputSnapshot: run.inputSnapshot,
+              }),
+            },
+          ],
+        }),
     });
 
     const terminalStatus = deriveTerminalStatus(session);
     const notificationWarnings = collectNotificationWarnings(session);
 
-    const outputSummary = {
-      ...run.outputSummary,
-      orchestratorStepResults: session.stepResults,
-      ...(notificationWarnings.length > 0 ? { notificationWarnings } : {}),
-    };
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      session.run.outputSummary,
+      session.stepResults,
+      {
+        notificationWarnings,
+      },
+    );
 
     await updateWorkspaceAutomationRun({
       runId: run.id,
@@ -274,10 +312,10 @@ export async function runWorkspaceOrchestrator(input: {
       organizationId: input.organizationId,
       status: "failed",
       error: { message },
-      outputSummary: {
-        ...run.outputSummary,
-        orchestratorStepResults: session.stepResults,
-      },
+      outputSummary: buildWorkspaceOrchestratorOutputSummary(
+        session.run.outputSummary,
+        session.stepResults,
+      ),
       completedAt: new Date(),
     });
 

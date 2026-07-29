@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import * as React from "react";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
@@ -23,6 +35,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Kbd } from "@/components/ui/kbd";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { SidebarLeftIcon } from "@hugeicons/core-free-icons";
+import { FormattedMessage, useIntl } from "react-intl";
+import { sidebarMessages } from "@/components/ui/sidebar.messages";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -192,8 +206,12 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>
+              <FormattedMessage {...sidebarMessages.mobileTitle} />
+            </SheetTitle>
+            <SheetDescription>
+              <FormattedMessage {...sidebarMessages.mobileDescription} />
+            </SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -250,8 +268,12 @@ function Sidebar({
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { state, toggleSidebar } = useSidebar();
   const isMac = useIsMac();
+  const intl = useIntl();
 
-  const label = state === "expanded" ? "Collapse Sidebar" : "Expand Sidebar";
+  const label = intl.formatMessage(
+    state === "expanded" ? sidebarMessages.collapse : sidebarMessages.expand,
+  );
+  const shortcutLabel = isMac ? "⌘B" : "Ctrl+B";
 
   return (
     <Tooltip>
@@ -276,7 +298,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       />
       <TooltipContent side="bottom" align="start">
         {label}
-        <Kbd className="ms-2">{isMac ? "⌘B" : "Ctrl+B"}</Kbd>
+        <Kbd className="ms-2">{shortcutLabel}</Kbd>
       </TooltipContent>
     </Tooltip>
   );
@@ -284,8 +306,11 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
 
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   const { state, toggleSidebar } = useSidebar();
+  const intl = useIntl();
 
-  const label = state === "expanded" ? "Collapse Sidebar" : "Expand Sidebar";
+  const label = intl.formatMessage(
+    state === "expanded" ? sidebarMessages.collapse : sidebarMessages.expand,
+  );
 
   return (
     <button
@@ -584,7 +609,7 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) 
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
+        "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
         className,
       )}
       {...props}

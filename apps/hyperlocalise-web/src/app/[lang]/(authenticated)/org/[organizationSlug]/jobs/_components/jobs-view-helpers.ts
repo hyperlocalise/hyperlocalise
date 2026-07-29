@@ -1,4 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
+import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type JobsViewMode = "row" | "kanban";
 
@@ -23,7 +36,7 @@ export { buildJobCatHref, canOpenJobCat, type JobCatTarget };
 
 export function readJobsViewMode(): JobsViewMode {
   if (typeof window === "undefined") {
-    return "row";
+    return "kanban";
   }
 
   try {
@@ -32,10 +45,10 @@ export function readJobsViewMode(): JobsViewMode {
       return stored;
     }
   } catch {
-    return "row";
+    return "kanban";
   }
 
-  return "row";
+  return "kanban";
 }
 
 export function writeJobsViewMode(mode: JobsViewMode) {
@@ -55,9 +68,10 @@ export function buildJobDetailHref(
   projectId: string | null | undefined,
   jobId: string,
 ) {
-  if (!projectId) {
+  const resolvedProjectId = resolveJobProjectId(projectId, jobId);
+  if (!resolvedProjectId) {
     return null;
   }
 
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(jobId)}`;
 }

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   ConsoleLogger,
   Message,
@@ -18,7 +30,6 @@ import {
 import { createHash } from "node:crypto";
 import { Resend } from "resend";
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 
 export type ResendThreadId = {
@@ -204,8 +215,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
           if (!downloadUrl) {
             throw new Error(`Failed to fetch attachment: ${result.error?.message ?? "unknown"}`);
           }
-          // Use providerSafeFetch to prevent SSRF when downloading attachments from external URLs
-          const response = await providerSafeFetch(downloadUrl);
+          const response = await fetch(downloadUrl, { redirect: "error" });
           if (!response.ok) {
             throw new Error(`Failed to download attachment: ${response.status}`);
           }

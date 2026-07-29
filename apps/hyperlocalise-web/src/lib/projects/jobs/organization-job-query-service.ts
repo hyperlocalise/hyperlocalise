@@ -1,11 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
-import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
-import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
+import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
+import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 const jobWithProjectSelect = {
@@ -52,7 +64,7 @@ const jobWithProjectSelect = {
 };
 
 type JobListQuery = {
-  kind?: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind?: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   open?: boolean;

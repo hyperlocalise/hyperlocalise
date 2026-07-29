@@ -1,10 +1,23 @@
 "use client";
 
-import { type ReactNode } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useState, type ReactNode } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyH4 } from "@/components/ui/typography";
-import type { TmsProviderLiveJobComment } from "@/lib/providers/tms-provider-live";
 
 import {
   defaultRenderBackLink,
@@ -12,12 +25,14 @@ import {
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
 } from "./job-detail-shared";
-import { buildJobsListHref, formatJobDetailDate } from "./job-detail-types";
+import { jobDetailTaskViewMessages as messages } from "./job-detail-task-view.messages";
+import { buildJobsListHref } from "./job-detail-types";
 import {
   JobDetailView,
   type JobDetailViewMetric,
   type JobDetailViewProperty,
 } from "./job-detail-view";
+import { TmsLiveJobCommentsSection } from "./tms/tms-live-job-comments-section";
 
 export type JobDetailTaskDescriptionRenderer = (props: {
   description: string;
@@ -30,83 +45,16 @@ export type JobDetailTaskFilesRenderer = (props: {
   projectId: string;
 }) => ReactNode;
 
-function formatTimeSpent(seconds: number | null) {
-  if (!seconds || seconds <= 0) {
-    return null;
-  }
+export type JobDetailTaskCommentsRenderer = (props: {
+  jobId: string;
+  organizationSlug: string;
+}) => ReactNode;
 
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
-}
-
-function TaskCommentsSection({
-  comments,
-  isError,
-  isLoading,
-}: {
-  comments: TmsProviderLiveJobComment[];
-  isError: boolean;
-  isLoading: boolean;
-}) {
-  return (
-    <section>
-      <TypographyH4>Comments</TypographyH4>
-
-      {isLoading ? (
-        <div className="mt-4 space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </div>
-      ) : null}
-
-      {isError ? (
-        <p className="mt-4 text-sm text-flame-100">Unable to load task comments.</p>
-      ) : null}
-
-      {!isLoading && !isError && comments.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">No comments yet.</p>
-      ) : null}
-
-      {!isLoading && !isError && comments.length > 0 ? (
-        <ul className="mt-4 divide-y divide-border rounded-md border border-border bg-card">
-          {comments.map((comment) => {
-            const timeSpent = formatTimeSpent(comment.timeSpentSeconds);
-
-            return (
-              <li key={comment.id} className="px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">User {comment.userId}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatJobDetailDate(comment.createdAt)}
-                  </span>
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
-                  {comment.text}
-                </p>
-                {timeSpent ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Time spent: {timeSpent}</p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </section>
-  );
-}
+type JobDetailTaskTab = "overview" | "files" | "comments";
 
 export function JobDetailTaskView({
   buildJobsListHref: buildJobsListHrefProp = buildJobsListHref,
   canEditDescription = false,
-  comments = [],
-  commentsError,
-  commentsLoading = false,
   description = "",
   error,
   headerActions,
@@ -121,15 +69,13 @@ export function JobDetailTaskView({
   renderError = defaultRenderError,
   renderExtraMain,
   renderFilesSection,
+  renderCommentsSection,
   secondaryProperties = [],
   showComments = false,
   title,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
   canEditDescription?: boolean;
-  comments?: TmsProviderLiveJobComment[];
-  commentsError?: unknown;
-  commentsLoading?: boolean;
   description?: string;
   error?: unknown;
   headerActions?: ReactNode;
@@ -144,12 +90,98 @@ export function JobDetailTaskView({
   renderError?: JobDetailErrorRenderer;
   renderExtraMain?: () => ReactNode;
   renderFilesSection?: JobDetailTaskFilesRenderer;
+  renderCommentsSection?: JobDetailTaskCommentsRenderer;
   secondaryProperties?: JobDetailViewProperty[];
   showComments?: boolean;
   title?: string;
 }) {
+  const [activeTab, setActiveTab] = useState<JobDetailTaskTab>("overview");
+
   const showDescriptionSection =
     description.trim().length > 0 || (canEditDescription && renderDescriptionField);
+  const hasFilesTab = Boolean(renderFilesSection);
+  const hasCommentsTab = showComments;
+  const useTabs = hasFilesTab || hasCommentsTab;
+
+  const descriptionSection =
+    showDescriptionSection && renderDescriptionField ? (
+      <section>
+        <TypographyH4>
+          <FormattedMessage {...messages.descriptionHeading} />
+        </TypographyH4>
+        <div className="mt-4">
+          {renderDescriptionField({
+            description,
+            editable: canEditDescription,
+          })}
+        </div>
+      </section>
+    ) : null;
+
+  const filesSection =
+    hasFilesTab && activeTab === "files" && !isLoading
+      ? renderFilesSection?.({ jobId, organizationSlug, projectId })
+      : null;
+
+  const commentsSection =
+    hasCommentsTab && activeTab === "comments"
+      ? (renderCommentsSection?.({ jobId, organizationSlug }) ?? (
+          <TmsLiveJobCommentsSection organizationSlug={organizationSlug} encodedJobId={jobId} />
+        ))
+      : null;
+
+  const mainContent = useTabs ? (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as JobDetailTaskTab)}
+      className="gap-4"
+    >
+      <TabsList variant="line" className="w-full justify-start">
+        <TabsTrigger value="overview">
+          <FormattedMessage {...messages.overviewTab} />
+        </TabsTrigger>
+        {hasFilesTab ? (
+          <TabsTrigger value="files">
+            <FormattedMessage {...messages.filesTab} />
+          </TabsTrigger>
+        ) : null}
+        {hasCommentsTab ? (
+          <TabsTrigger value="comments">
+            <FormattedMessage {...messages.commentsTab} />
+          </TabsTrigger>
+        ) : null}
+      </TabsList>
+
+      <TabsContent value="overview" className="space-y-8">
+        {descriptionSection}
+        {renderExtraMain?.()}
+      </TabsContent>
+
+      {hasFilesTab ? (
+        <TabsContent value="files" className="space-y-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            filesSection
+          )}
+        </TabsContent>
+      ) : null}
+
+      {hasCommentsTab ? (
+        <TabsContent value="comments" className="space-y-4">
+          {commentsSection}
+        </TabsContent>
+      ) : null}
+    </Tabs>
+  ) : (
+    <>
+      {descriptionSection}
+      {renderExtraMain?.()}
+    </>
+  );
 
   return (
     <JobDetailView
@@ -166,33 +198,7 @@ export function JobDetailTaskView({
       error={error}
       renderBackLink={renderBackLink}
       renderError={renderError}
-      renderMain={() => (
-        <>
-          {showDescriptionSection && renderDescriptionField ? (
-            <section>
-              <TypographyH4>Description</TypographyH4>
-              <div className="mt-4">
-                {renderDescriptionField({
-                  description,
-                  editable: canEditDescription,
-                })}
-              </div>
-            </section>
-          ) : null}
-
-          {renderFilesSection ? renderFilesSection({ jobId, organizationSlug, projectId }) : null}
-
-          {renderExtraMain?.()}
-
-          {showComments ? (
-            <TaskCommentsSection
-              comments={comments}
-              isError={Boolean(commentsError)}
-              isLoading={commentsLoading}
-            />
-          ) : null}
-        </>
-      )}
+      renderMain={() => mainContent}
     />
   );
 }

@@ -1,13 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, isNotNull, ne } from "drizzle-orm";
 import type { OrganizationMembership } from "@workos-inc/node";
 
 import {
+  promoteInvitedPlaceholderUser,
   revokeOrganizationMembershipAccess,
   syncWorkosIdentity,
   syncWorkosOrganization,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import type { DatabaseClient } from "@/lib/database";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import * as schema from "@/lib/database/schema";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
@@ -57,12 +71,7 @@ type ReconcileWorkosMembershipsInput = {
 };
 
 function isWorkosMembershipApiEnabled() {
-  if (
-    !isLiveWorkosApiKey({
-      workosEnabled: env.WORKOS_ENABLED,
-      apiKey: env.WORKOS_API_KEY,
-    })
-  ) {
+  if (!isLiveWorkosApiKey(env.WORKOS_API_KEY)) {
     return false;
   }
 
@@ -114,6 +123,79 @@ async function listActiveWorkosMembershipsForUser(input: {
   return page.autoPagination();
 }
 
+async function findLocalOrganizationMembership(input: {
+  database: DatabaseClient;
+  workosUserId: string;
+  email: string;
+  workosOrganizationId: string;
+}) {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const membershipSelection = {
+    workosMembershipId: schema.organizationMemberships.workosMembershipId,
+    role: schema.organizationMemberships.role,
+  };
+
+  const [byWorkosUserId] = await input.database
+    .select(membershipSelection)
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+    )
+    .where(
+      and(
+        eq(schema.users.workosUserId, input.workosUserId),
+        eq(schema.organizations.workosOrganizationId, input.workosOrganizationId),
+      ),
+    )
+    .limit(1);
+
+  if (byWorkosUserId) {
+    return byWorkosUserId;
+  }
+
+  const [byEmail] = await input.database
+    .select(membershipSelection)
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+    )
+    .where(
+      and(
+        eq(schema.users.email, normalizedEmail),
+        eq(schema.organizations.workosOrganizationId, input.workosOrganizationId),
+      ),
+    )
+    .limit(1);
+
+  return byEmail ?? null;
+}
+
+/**
+ * WorkOS active membership is authoritative. Only mapped WorkOS role slugs may be
+ * synced locally; unknown slugs leave the membership unsynced.
+ */
+export async function resolveWorkosMembershipRoleForSync(
+  _database: DatabaseClient,
+  input: {
+    workosUserId: string;
+    email: string;
+    workosOrganizationId: string;
+    remoteRoleField: unknown;
+  },
+): Promise<OrganizationMembershipRole> {
+  const fromWorkos = membershipRoleFromUnknownRoleField(input.remoteRoleField);
+  if (fromWorkos) {
+    return fromWorkos;
+  }
+
+  throw new Error("workos_membership_unknown_role_slug");
+}
+
 async function ensureLocalOrganizationForWorkosMembership(
   database: DatabaseClient,
   membership: OrganizationMembership,
@@ -150,10 +232,18 @@ export async function reconcileWorkosMembershipsForUser(
   input: ReconcileWorkosMembershipsInput,
 ): Promise<ReconcileWorkosMembershipsResult> {
   if (isInvitedPlaceholderWorkosUserId(input.workosUserId)) {
+    logger.warn("workos_membership_reconcile_skipped", {
+      workosUserId: input.workosUserId,
+      reason: "invited_placeholder_session_user",
+    });
     return { status: "skipped" };
   }
 
   if (!isWorkosMembershipApiEnabled()) {
+    logger.warn("workos_membership_reconcile_skipped", {
+      workosUserId: input.workosUserId,
+      reason: "workos_api_unavailable",
+    });
     return { status: "skipped" };
   }
 
@@ -186,6 +276,13 @@ export async function reconcileWorkosMembershipsForUser(
     };
   }
 
+  if (input.email) {
+    await promoteInvitedPlaceholderUser(database, {
+      email: input.email,
+      workosUserId: input.workosUserId,
+    });
+  }
+
   await syncWorkosUser(database, {
     workosUserId: input.workosUserId,
     email: input.email,
@@ -203,14 +300,25 @@ export async function reconcileWorkosMembershipsForUser(
       continue;
     }
 
-    const role = membershipRoleFromUnknownRoleField(remoteMembership.role);
-    if (!role) {
-      logger.warn("workos_membership_unknown_role_slug", {
+    let role: OrganizationMembershipRole;
+    try {
+      role = await resolveWorkosMembershipRoleForSync(database, {
         workosUserId: input.workosUserId,
-        workosMembershipId: remoteMembership.id,
+        email: input.email,
         workosOrganizationId: remoteMembership.organizationId,
+        remoteRoleField: remoteMembership.role,
       });
-      continue;
+    } catch (error) {
+      if (error instanceof Error && error.message === "workos_membership_unknown_role_slug") {
+        logger.warn("workos_membership_unknown_role_slug", {
+          workosUserId: input.workosUserId,
+          workosMembershipId: remoteMembership.id,
+          workosOrganizationId: remoteMembership.organizationId,
+        });
+        continue;
+      }
+
+      throw error;
     }
 
     authoritativeMembershipIds.add(remoteMembership.id);
@@ -223,24 +331,12 @@ export async function reconcileWorkosMembershipsForUser(
       continue;
     }
 
-    const [existingMembership] = await database
-      .select({
-        workosMembershipId: schema.organizationMemberships.workosMembershipId,
-        role: schema.organizationMemberships.role,
-      })
-      .from(schema.organizationMemberships)
-      .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
-      .innerJoin(
-        schema.organizations,
-        eq(schema.organizationMemberships.organizationId, schema.organizations.id),
-      )
-      .where(
-        and(
-          eq(schema.users.workosUserId, input.workosUserId),
-          eq(schema.organizations.workosOrganizationId, remoteMembership.organizationId),
-        ),
-      )
-      .limit(1);
+    const existingMembership = await findLocalOrganizationMembership({
+      database,
+      workosUserId: input.workosUserId,
+      email: input.email,
+      workosOrganizationId: remoteMembership.organizationId,
+    });
 
     await syncWorkosIdentity(database, {
       user: {

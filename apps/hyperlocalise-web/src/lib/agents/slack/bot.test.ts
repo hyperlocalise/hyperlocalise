@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { emoji } from "chat";
 import type { Message, Thread } from "chat";
@@ -17,7 +29,6 @@ function createMockClassification(
   overrides: Partial<ConversationClassification> = {},
 ): ConversationClassification {
   return {
-    intents: ["general"],
     needsRepositoryTools: false,
     requiresPullRequest: false,
     shouldAskForRepositoryClarification: false,
@@ -33,6 +44,7 @@ const {
   classifyConversationMock,
   createConversationToolLoopAgentMock,
   loadMessagesMock,
+  resolveOrganizationHasTmsIntegrationMock,
   resolveSlackRepositoryGitHubContextMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
@@ -41,6 +53,7 @@ const {
     generate: agentGenerateMock,
   })),
   loadMessagesMock: vi.fn(async () => []),
+  resolveOrganizationHasTmsIntegrationMock: vi.fn(async () => false),
   resolveSlackRepositoryGitHubContextMock: vi.fn(),
 }));
 
@@ -100,11 +113,17 @@ vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
     }));
 });
 
+vi.mock("@/lib/agent-runtime/skills/conversation-tms-integration", () => ({
+  resolveOrganizationHasTmsIntegration: resolveOrganizationHasTmsIntegrationMock,
+}));
+
 vi.mock("@/lib/agents/repository-context", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/repository-context")>();
   return {
     ...original,
+    resolveConversationRepositoryGitHubContext: resolveSlackRepositoryGitHubContextMock,
     resolveSlackRepositoryGitHubContext: resolveSlackRepositoryGitHubContextMock,
+    getOrganizationRepositoryConnectorConfig: vi.fn(async () => null),
   };
 });
 
@@ -118,12 +137,14 @@ vi.mock("ai", async () => {
   return {
     ...actual,
     generateText: vi.fn(),
-    stepCountIs: vi.fn((n: number) => n),
+    isStepCount: vi.fn((n: number) => n),
   };
 });
 
 vi.mock("@/lib/agent-runtime/tools/registry", () => ({
   buildTools: vi.fn(() => ({})),
+  buildWorkspaceTools: vi.fn(() => ({})),
+  createTranslationJobTool: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/agents/image-generation", () => ({
@@ -300,6 +321,25 @@ function createThread(initialState?: Record<string, unknown>) {
     removedReactions,
     getSubscribed: () => subscribed,
     getState: () => state,
+  };
+}
+
+function createSuccessfulCaptureScreenshotToolResult(input: { fileId: string; filename?: string }) {
+  return {
+    toolName: "captureScreenshot",
+    output: {
+      success: true,
+      fileId: input.fileId,
+      url: `https://app.example/files/${input.fileId}`,
+      filename: input.filename ?? `${input.fileId}.png`,
+      contentType: "image/png",
+      byteSize: 12,
+      workspacePath: "/tmp",
+      screenshotPath: `/tmp/${input.fileId}.png`,
+      target: { type: "storybook", storyId: "button--primary" },
+      viewport: { width: 1280, height: 720 },
+      storybookUrl: "http://localhost:6006",
+    },
   };
 }
 
@@ -514,6 +554,190 @@ describe("handleNewConversation", () => {
     );
   });
 
+  it("attaches all successful captureScreenshot artifacts to the Slack reply", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the button story" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
+    vi.mocked(createInteraction).mockResolvedValue({
+      id: "interaction-123",
+      title: "Show the button story",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent)
+      .mockResolvedValueOnce({
+        file: { id: "file_shot_a" },
+        content: Buffer.from("shot-a"),
+      } as never)
+      .mockResolvedValueOnce({
+        file: { id: "file_shot_b" },
+        content: Buffer.from("shot-b"),
+      } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "Here are the screenshots.",
+      steps: [
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_a",
+                url: "https://app.example/files/file_shot_a",
+                filename: "button-primary.png",
+                contentType: "image/png",
+                byteSize: 6,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/a.png",
+                target: { type: "storybook", storyId: "button--primary" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: false,
+                errorCode: "story_not_found",
+                error: "missing",
+              },
+            },
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_b",
+                url: "https://app.example/files/file_shot_b",
+                filename: "button-secondary.png",
+                contentType: "image/png",
+                byteSize: 6,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/b.png",
+                target: { type: "storybook", storyId: "button--secondary" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_shot_a",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_shot_b",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        markdown: "Here are the screenshots.",
+        files: [
+          {
+            data: Buffer.from("shot-a"),
+            filename: "button-primary.png",
+            mimeType: "image/png",
+          },
+          {
+            data: Buffer.from("shot-b"),
+            filename: "button-secondary.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("posts screenshot files when the agent reply text is empty", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Screenshot the story" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
+    vi.mocked(createInteraction).mockResolvedValue({
+      id: "interaction-123",
+      title: "Screenshot the story",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: { id: "file_shot_only" },
+      content: Buffer.from("shot-only"),
+    } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "   ",
+      steps: [
+        {
+          toolResults: [
+            {
+              toolName: "captureScreenshot",
+              output: {
+                success: true,
+                fileId: "file_shot_only",
+                url: "https://app.example/files/file_shot_only",
+                filename: "story.png",
+                contentType: "image/png",
+                byteSize: 9,
+                workspacePath: "/tmp",
+                screenshotPath: "/tmp/story.png",
+                target: { type: "storybook", storyId: "story--default" },
+                viewport: { width: 1280, height: 720 },
+                storybookUrl: "http://localhost:6006",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        markdown: "",
+        files: [
+          {
+            data: Buffer.from("shot-only"),
+            filename: "story.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("skips GitHub context discovery for ordinary chat without attachments", async () => {
     const { thread } = createThread();
     const message = createMessage({ text: "Translate this to French" });
@@ -549,7 +773,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -648,7 +871,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         continuesRepositoryThread: true,
         confidence: 0.95,
@@ -679,11 +901,10 @@ describe("handleNewConversation", () => {
 
     expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
     const reuseLog = loggerChildMock.info.mock.calls.find(
-      ([, message]) => message === "reusing stored slack thread repository context",
+      ([, message]) => message === "reusing stored repository sandbox for conversation agent",
     );
     expect(reuseLog?.[0]).toEqual({
-      installationId: 12345,
-      hasPullRequestNumber: false,
+      sandboxId: "sbx_existing",
     });
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -726,7 +947,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         currentMessageSpecifiesRepository: true,
         confidence: 0.95,
@@ -777,6 +997,136 @@ describe("handleNewConversation", () => {
     });
   });
 
+  it("stops a newly created sandbox when slack thread state persistence fails", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "do you know the context of Knowledge?",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        needsRepositoryTools: true,
+        confidence: 0.95,
+      }),
+    );
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_pr_url",
+      context: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+      },
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    Object.assign(thread, {
+      setState: vi.fn(async (newState: Record<string, unknown>) => {
+        if ("repositorySandboxSession" in newState) {
+          throw new Error("state write failed");
+        }
+      }),
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(createRepositorySandbox).toHaveBeenCalled();
+    expect(stopRepositorySandbox).toHaveBeenCalledWith("sbx_test");
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(posts.at(-1)).toEqual({
+      markdown:
+        "I'm having trouble processing that right now. Attach a supported file or image with a target language and I can help translate it.",
+    });
+  });
+
+  it("keeps the stored repository sandbox when slack thread state persistence fails after a context switch", async () => {
+    const oldContext = {
+      resolved: true as const,
+      installationId: 12345,
+      repositoryFullName: "org/old-repo",
+    };
+    const newContext = {
+      resolved: true as const,
+      installationId: 67890,
+      repositoryFullName: "org/new-repo",
+      branch: "main",
+    };
+    const { thread } = createThread({
+      repositoryGitHubContext: oldContext,
+      repositorySandboxSession: {
+        sandboxId: "sbx_old",
+        repositoryContextKey: getSlackRepositoryContextKey(oldContext),
+        createdAt: "2026-06-01T00:00:00.000Z",
+        lastUsedAt: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    const message = createMessage({
+      text: "Find 'Email agent' in org/new-repo",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        needsRepositoryTools: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_repo_reference",
+      context: newContext,
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    Object.assign(thread, {
+      setState: vi.fn(async (newState: Record<string, unknown>) => {
+        const sandboxSession = newState.repositorySandboxSession as
+          | { sandboxId?: string }
+          | undefined;
+        if (sandboxSession?.sandboxId === "sbx_test") {
+          throw new Error("state write failed");
+        }
+      }),
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(createRepositorySandbox).toHaveBeenCalledWith(newContext);
+    expect(stopRepositorySandbox).toHaveBeenCalledWith("sbx_test");
+    expect(stopRepositorySandbox).not.toHaveBeenCalledWith("sbx_old");
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+  });
+
   it("resolves GitHub context using recent conversation text", async () => {
     const { thread } = createThread();
     const message = createMessage({
@@ -790,7 +1140,6 @@ describe("handleNewConversation", () => {
     ] as never);
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         currentMessageSpecifiesRepository: true,
         confidence: 0.95,
@@ -836,6 +1185,14 @@ describe("handleNewConversation", () => {
       messages: expect.arrayContaining([
         expect.objectContaining({
           role: "user",
+          content: expect.stringContaining("org/new-repo"),
+        }),
+      ]),
+    });
+    expect(agentGenerateMock).toHaveBeenCalledWith({
+      messages: expect.not.arrayContaining([
+        expect.objectContaining({
+          role: "user",
           content: expect.stringContaining("org/old-repo"),
         }),
       ]),
@@ -851,7 +1208,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         requiresPullRequest: true,
         currentMessageSpecifiesRepository: true,
@@ -897,7 +1253,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -942,7 +1297,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -1174,6 +1528,145 @@ describe("handleSubscribedMessage", () => {
     });
   });
 
+  it("attaches successful captureScreenshot artifacts on subscribed message replies", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the updated mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockResolvedValueOnce({
+      file: { id: "file_subscribed_shot" },
+      content: Buffer.from("subscribed-shot"),
+    } as never);
+
+    agentGenerateMock.mockResolvedValue({
+      text: "Here is the updated mock.",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_subscribed_shot",
+              filename: "updated-mock.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "file_subscribed_shot",
+      organizationId: "org-123",
+      projectId: "project-123",
+    });
+    expect(posts).toEqual([
+      {
+        markdown: "Here is the updated mock.",
+        files: [
+          {
+            data: Buffer.from("subscribed-shot"),
+            filename: "updated-mock.png",
+            mimeType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("falls back to a text-only Slack reply when screenshot uploads fail", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockRejectedValueOnce(new Error("missing screenshot"));
+
+    agentGenerateMock.mockResolvedValue({
+      text: "I captured the mock, but could not attach the image.",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_missing_shot",
+              filename: "missing-mock.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([{ markdown: "I captured the mock, but could not attach the image." }]);
+  });
+
+  it("does not send an empty final Slack reply when text and screenshot uploads are both absent", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Show the mock" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(getStoredFileContent).mockRejectedValueOnce(new Error("missing screenshot"));
+
+    agentGenerateMock.mockResolvedValue({
+      text: "   ",
+      steps: [
+        {
+          toolResults: [
+            createSuccessfulCaptureScreenshotToolResult({
+              fileId: "file_missing_empty",
+              filename: "missing-empty.png",
+            }),
+          ],
+        },
+      ],
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([]);
+  });
+
   it("treats prior thread file uploads as attachments on follow-up messages", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({ text: "Translate to French" });
@@ -1189,7 +1682,6 @@ describe("handleSubscribedMessage", () => {
     ] as never);
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["translation"],
         confidence: 0.95,
       }),
     );
@@ -1400,6 +1892,10 @@ describe("handleSubscribedMessage", () => {
       imageData,
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(agentGenerateMock).toHaveBeenCalledWith({
       messages: [
@@ -1606,11 +2102,19 @@ describe("handleSubscribedMessage", () => {
       imageData,
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
       imageData,
       "image/png",
       expect.stringContaining("User instructions: Use refined campaign copy."),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(posts).toEqual([
       SLACK_PROCESSING_ACK_POST,
@@ -1752,6 +2256,10 @@ describe("handleSubscribedMessage", () => {
       Buffer.from("source-image"),
       "image/png",
       expect.stringContaining("Target locale: fr"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(createStoredFile).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1846,6 +2354,10 @@ describe("handleSubscribedMessage", () => {
       Buffer.from("source-image"),
       "image/png",
       expect.stringContaining("Target locale: ja"),
+      expect.objectContaining({
+        organizationId: "org-123",
+        source: "slack_image_localization",
+      }),
     );
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([

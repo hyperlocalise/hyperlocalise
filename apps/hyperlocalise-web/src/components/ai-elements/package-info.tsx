@@ -1,16 +1,36 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
 
 import { packageInfoMessages } from "./package-info.messages";
 
 type ChangeType = "major" | "minor" | "patch" | "added" | "removed";
+
+const changeTypeMessageKeys = {
+  added: "changeTypeAdded",
+  major: "changeTypeMajor",
+  minor: "changeTypeMinor",
+  patch: "changeTypePatch",
+  removed: "changeTypeRemoved",
+} as const satisfies Record<ChangeType, keyof typeof packageInfoMessages>;
 
 interface PackageInfoContextType {
   name: string;
@@ -67,6 +87,7 @@ export const PackageInfoChangeType = ({
   children,
   ...props
 }: PackageInfoChangeTypeProps) => {
+  const intl = useIntl();
   const { changeType } = useContext(PackageInfoContext);
 
   if (!changeType) {
@@ -75,12 +96,12 @@ export const PackageInfoChangeType = ({
 
   return (
     <Badge
-      className={cn("gap-1 text-xs capitalize", changeTypeStyles[changeType], className)}
+      className={cn("gap-1 text-xs", changeTypeStyles[changeType], className)}
       variant="secondary"
       {...props}
     >
       {changeTypeIcons[changeType]}
-      {children ?? changeType}
+      {children ?? intl.formatMessage(packageInfoMessages[changeTypeMessageKeys[changeType]])}
     </Badge>
   );
 };

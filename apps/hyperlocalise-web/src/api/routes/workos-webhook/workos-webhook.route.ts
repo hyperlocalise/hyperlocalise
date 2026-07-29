@@ -1,9 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { resolveWorkosMembershipRoleForSync } from "@/api/auth/workos-membership-reconcile";
 import {
   promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
@@ -15,7 +29,6 @@ import {
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
-import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
 
@@ -242,14 +255,32 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
-    const role = membershipRoleFromUnknownRoleField(data["role"]);
-    if (!role) {
-      logger.warn("workos_webhook_unknown_role_slug", {
+    let role: OrganizationMembershipRole;
+    try {
+      role = await resolveWorkosMembershipRoleForSync(db, {
         workosUserId,
-        workosMembershipId,
+        email: existingUser.email,
         workosOrganizationId,
+        remoteRoleField: data["role"],
       });
-      return;
+    } catch (error) {
+      if (error instanceof Error && error.message === "workos_membership_unknown_role_slug") {
+        logger.warn("workos_membership_unknown_role_slug", {
+          workosUserId,
+          workosMembershipId,
+          workosOrganizationId,
+        });
+        await db.transaction((tx) =>
+          revokeOrganizationMembershipAccess(tx, {
+            workosMembershipId,
+            workosOrganizationId,
+            workosUserId,
+          }),
+        );
+        return;
+      }
+
+      throw error;
     }
 
     await syncWorkosIdentity(db, {

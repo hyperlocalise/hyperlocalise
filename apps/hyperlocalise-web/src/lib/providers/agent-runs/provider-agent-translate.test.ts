@@ -1,10 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import * as agentRuns from "../agent-runs/agent-runs";
@@ -22,8 +34,8 @@ const loadOrganizationTranslationGeneratorMock = vi.fn();
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
-    providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind,
-  ) => import("@/lib/providers/tms-provider-types").ExternalTmsContentPuller | null;
+    providerKind: import("@/lib/providers/credentials/organization-external-tms-provider-credentials").ExternalTmsProviderKind,
+  ) => import("@/lib/providers/jobs/tms-provider-types").ExternalTmsContentPuller | null;
 
   const state: { actual: GetProviderContentPuller } = {
     actual: () => null,
@@ -35,9 +47,9 @@ const providerContentPullerMocks = vi.hoisted(() => {
   return { state, getProviderContentPullerMock };
 });
 
-vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-registry")>();
   providerContentPullerMocks.state.actual = actual.getProviderContentPuller;
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     actual.getProviderContentPuller,
@@ -49,15 +61,16 @@ vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importO
   };
 });
 
-vi.mock("@/lib/providers/tms-provider-content", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-content")>();
+vi.mock("@/lib/providers/shared/tms-provider-content", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/shared/tms-provider-content")>();
   return {
     ...actual,
     pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),
   };
 });
 
-vi.mock("@/lib/translation/load-organization-translation-generator", () => ({
+vi.mock("@/lib/translation/generation", () => ({
   loadOrganizationTranslationGenerator: (...args: unknown[]) =>
     loadOrganizationTranslationGeneratorMock(...args),
 }));
@@ -66,7 +79,15 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+  );
+});
+
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
   loadOrganizationTranslationGeneratorMock.mockReset();

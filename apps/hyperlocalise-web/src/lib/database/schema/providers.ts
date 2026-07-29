@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -85,12 +97,17 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
     displayName: text("display_name").notNull(),
     /**
-     * @deprecated For Crowdin, `api_token` is legacy personal-token auth. Use
-     * `oauth` plus a row in `crowdin_user_connections` for the active user.
+     * Crowdin supports `oauth` or `pat` (per-user tokens via `crowdin_user_connections`).
+     * Legacy `api_token` rows must be re-saved as PAT mode in Integrations.
      */
     authMode: text("auth_mode").notNull().default("api_token"),
     region: text("region"),
     baseUrl: text("base_url"),
+    /**
+     * Provider-side organization id when known (e.g. Crowdin JWT `organization_id`).
+     * Used to map Crowdin App iframe sessions to a Hyperlocalise workspace.
+     */
+    externalOrganizationId: text("external_organization_id"),
     oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
     validationStatus: text("validation_status").notNull().default("unvalidated"),
     validationMessage: text("validation_message"),
@@ -113,6 +130,9 @@ export const organizationExternalTmsProviderCredentials = pgTable(
       table.providerKind,
     ),
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
+    uniqueIndex("organization_external_tms_provider_credentials_provider_ext_org_key")
+      .on(table.providerKind, table.externalOrganizationId)
+      .where(sql`${table.externalOrganizationId} IS NOT NULL`),
   ],
 );
 
@@ -214,6 +234,8 @@ export const crowdinUserConnections = pgTable(
     username: text("username").notNull(),
     email: text("email"),
     fullName: text("full_name"),
+    /** Whether ciphertext stores an OAuth token bundle or a personal access token. */
+    authMode: text("auth_mode").notNull().default("oauth"),
     oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
     encryptionAlgorithm: text("encryption_algorithm").notNull(),
     ciphertext: text("ciphertext").notNull(),

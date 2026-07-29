@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { searchLokaliseGlossaryMatches } from "./lokalise-glossary-matcher";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("searchLokaliseGlossaryMatches", () => {
+describe("lokaliseTmsProvider.searchGlossaryMatches", () => {
   it("returns normalized matches only for synced glossaries", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.includes("/glossary-terms")) {
@@ -36,10 +48,9 @@ describe("searchLokaliseGlossaryMatches", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchLokaliseGlossaryMatches({
+    const matches = await lokaliseTmsProvider.searchGlossaryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -59,7 +70,7 @@ describe("searchLokaliseGlossaryMatches", () => {
       targetLocale: "fr",
       sourceText: "Checkout",
       limit: 5,
-    });
+    } as never);
 
     vi.unstubAllGlobals();
 
@@ -68,7 +79,6 @@ describe("searchLokaliseGlossaryMatches", () => {
       glossaryId: "glossary_local_1",
       sourceTerm: "Checkout",
       targetTerm: "Paiement",
-      providerKind: "lokalise",
       matchSource: "live_provider",
       externalResourceId: "proj.123:glossary",
       externalTermId: "10",
@@ -77,10 +87,9 @@ describe("searchLokaliseGlossaryMatches", () => {
 
   it("skips matches when the glossary resource is not attached locally", async () => {
     const fetchMock = vi.fn();
-    const matches = await searchLokaliseGlossaryMatches({
+    const matches = await lokaliseTmsProvider.searchGlossaryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -100,7 +109,7 @@ describe("searchLokaliseGlossaryMatches", () => {
       targetLocale: "fr",
       sourceText: "Checkout",
       limit: 5,
-    });
+    } as never);
 
     expect(matches).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -139,10 +148,9 @@ describe("searchLokaliseGlossaryMatches", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchLokaliseGlossaryMatches({
+    const matches = await lokaliseTmsProvider.searchGlossaryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -169,7 +177,7 @@ describe("searchLokaliseGlossaryMatches", () => {
       targetLocale: "fr",
       sourceText: "Checkout",
       limit: 5,
-    });
+    } as never);
 
     vi.unstubAllGlobals();
 

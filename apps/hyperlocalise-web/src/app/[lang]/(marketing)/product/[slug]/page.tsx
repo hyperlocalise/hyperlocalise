@@ -1,9 +1,26 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ProductPage, productPagesBySlug, productSlugs } from "@/components/marketing/product";
 import { getIntlShape } from "@/lib/app-i18n/intl";
-import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  SUPPORTED_APP_LOCALES,
+} from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 import { getProductRouteMetadata } from "./product-route-metadata";
 
@@ -28,7 +45,8 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     return {};
   }
 
-  const intl = getIntlShape(lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
   const metadata = getProductRouteMetadata(slug, intl);
 
   if (!metadata) {
@@ -41,6 +59,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     title,
     description,
     keywords: content.metadata.keywords,
+    alternates: getLocalizedAlternates({ locale, path: `/product/${slug}` }),
     openGraph: {
       title,
       description,

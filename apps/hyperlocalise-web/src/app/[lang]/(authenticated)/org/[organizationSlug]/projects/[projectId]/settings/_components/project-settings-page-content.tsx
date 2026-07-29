@@ -1,9 +1,22 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { type FormEvent, useEffect, useState } from "react";
 import { Settings01Icon } from "@hugeicons/core-free-icons";
 import { SaveIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+import { useAppShellHeaderAction } from "@/components/app-shell/store/use-app-shell-header-action";
 
 import {
   createProjectFormFromRow,
@@ -37,6 +51,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
+import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
   crowdin: "Crowdin",
@@ -69,12 +84,16 @@ async function readProjectError(response: Response, fallback: string) {
 }
 
 function DetailRow({ label, value }: { label: string; value: string | null }) {
+  const intl = useIntl();
+
   return (
     <div className="min-w-0">
-      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+      <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
         {label}
       </TypographyP>
-      <TypographyP className="mt-1 truncate text-sm text-foreground/72">{value ?? "—"}</TypographyP>
+      <TypographyP className="mt-1 truncate text-sm text-subtle-foreground">
+        {value ?? intl.formatMessage(projectSettingsPageContentMessages.emptyValue)}
+      </TypographyP>
     </div>
   );
 }
@@ -87,12 +106,14 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
   const providerUrl = sanitizeExternalUrl(project.externalProjectUrl);
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+    <section className="rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <ProjectSectionTitle>Source connection</ProjectSectionTitle>
-          <TypographyP className="mt-1 text-sm text-foreground/52">
-            External TMS projects inherit source data and locales from the connected provider.
+          <ProjectSectionTitle>
+            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />
+          </ProjectSectionTitle>
+          <TypographyP className="mt-1 text-sm text-muted-foreground">
+            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
           </TypographyP>
         </div>
         {project.externalProviderKind ? (
@@ -112,7 +133,7 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
           nativeButton={false}
           render={<a href={providerUrl} target="_blank" rel="noopener noreferrer" />}
         >
-          Open in provider
+          <FormattedMessage {...projectSettingsPageContentMessages.openInProvider} />
         </Button>
       ) : null}
     </section>
@@ -173,6 +194,23 @@ export function ProjectSettingsPageContent({
     },
   });
 
+  const isSaving = updateProject.isPending;
+  const settingsEditable = project?.source === "native";
+  useAppShellHeaderAction({
+    id: "project-settings-save",
+    visible: Boolean(settingsEditable),
+    render: () => (
+      <Button type="submit" form="project-settings-form" disabled={isSaving}>
+        {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
+        {isSaving ? (
+          <FormattedMessage {...projectSettingsPageContentMessages.saving} />
+        ) : (
+          <FormattedMessage {...projectSettingsPageContentMessages.saveSettings} />
+        )}
+      </Button>
+    ),
+  });
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!values || !project) return;
@@ -192,8 +230,8 @@ export function ProjectSettingsPageContent({
   if (projectQuery.isLoading || !values) {
     return (
       <ProjectPageShell>
-        <TypographyP className="text-sm text-foreground/52">
-          Loading project settings...
+        <TypographyP className="text-sm text-muted-foreground">
+          <FormattedMessage {...projectSettingsPageContentMessages.loading} />
         </TypographyP>
       </ProjectPageShell>
     );
@@ -203,15 +241,13 @@ export function ProjectSettingsPageContent({
     return (
       <ProjectPageShell>
         <TypographyP className="text-sm text-flame-100">
-          Failed to load project settings.
+          <FormattedMessage {...projectSettingsPageContentMessages.loadError} />
         </TypographyP>
       </ProjectPageShell>
     );
   }
 
-  const isSaving = updateProject.isPending;
   const localesEditable = project.source === "native";
-  const settingsEditable = project.source === "native";
 
   return (
     <ProjectPageShell>
@@ -223,29 +259,29 @@ export function ProjectSettingsPageContent({
             ? "Edit project metadata, translation guidance, locales, and source connection details."
             : "View provider-managed project metadata, locales, and source connection details."
         }
-        actions={
-          settingsEditable ? (
-            <Button type="submit" form="project-settings-form" disabled={isSaving}>
-              {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
-              {isSaving ? "Saving..." : "Save settings"}
-            </Button>
-          ) : null
-        }
       />
 
       <form id="project-settings-form" onSubmit={handleSubmit} className="grid gap-5">
-        <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+        <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <ProjectSectionTitle>General</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
-                Name the project and capture operational notes for the team.
+              <ProjectSectionTitle>
+                <FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />
+              </ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
+                <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
               </TypographyP>
             </div>
-            {!settingsEditable ? <Badge variant="outline">Read-only</Badge> : null}
+            {!settingsEditable ? (
+              <Badge variant="outline">
+                <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+              </Badge>
+            ) : null}
           </div>
           <Field className="gap-1.5">
-            <FieldLabel htmlFor="project-name">Name</FieldLabel>
+            <FieldLabel htmlFor="project-name">
+              <FormattedMessage {...projectSettingsPageContentMessages.nameLabel} />
+            </FieldLabel>
             <Input
               id="project-name"
               value={values.name}
@@ -260,7 +296,9 @@ export function ProjectSettingsPageContent({
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
           </Field>
           <Field className="gap-1.5">
-            <FieldLabel htmlFor="project-description">Description</FieldLabel>
+            <FieldLabel htmlFor="project-description">
+              <FormattedMessage {...projectSettingsPageContentMessages.descriptionLabel} />
+            </FieldLabel>
             <Textarea
               id="project-description"
               value={values.description}
@@ -274,7 +312,7 @@ export function ProjectSettingsPageContent({
               className="min-h-24"
             />
             <FieldDescription>
-              Use this for project scope, release, and ownership notes.
+              <FormattedMessage {...projectSettingsPageContentMessages.descriptionHelp} />
             </FieldDescription>
             <FieldError
               errors={errors.description ? [{ message: errors.description }] : undefined}
@@ -283,15 +321,23 @@ export function ProjectSettingsPageContent({
         </section>
 
         {settingsEditable ? (
-          <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+          <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
             <div>
-              <ProjectSectionTitle>Translation guidance</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
-                Shared instructions for tone, terminology, formatting, and product context.
+              <ProjectSectionTitle>
+                <FormattedMessage
+                  {...projectSettingsPageContentMessages.translationGuidanceTitle}
+                />
+              </ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
+                <FormattedMessage
+                  {...projectSettingsPageContentMessages.translationGuidanceDescription}
+                />
               </TypographyP>
             </div>
             <Field className="gap-1.5">
-              <FieldLabel htmlFor="translation-context">Guidance</FieldLabel>
+              <FieldLabel htmlFor="translation-context">
+                <FormattedMessage {...projectSettingsPageContentMessages.guidanceLabel} />
+              </FieldLabel>
               <Textarea
                 id="translation-context"
                 value={values.translationContext}
@@ -314,17 +360,29 @@ export function ProjectSettingsPageContent({
           </section>
         ) : null}
 
-        <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+        <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <ProjectSectionTitle>Locales</ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-foreground/52">
-                {localesEditable
-                  ? "Edit the source locale and target locales for this native project."
-                  : "Locales are managed by the connected TMS provider."}
+              <ProjectSectionTitle>
+                <FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />
+              </ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
+                {localesEditable ? (
+                  <FormattedMessage
+                    {...projectSettingsPageContentMessages.localesEditableDescription}
+                  />
+                ) : (
+                  <FormattedMessage
+                    {...projectSettingsPageContentMessages.localesReadOnlyDescription}
+                  />
+                )}
               </TypographyP>
             </div>
-            {!localesEditable ? <Badge variant="outline">Read-only</Badge> : null}
+            {!localesEditable ? (
+              <Badge variant="outline">
+                <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+              </Badge>
+            ) : null}
           </div>
           {localesEditable ? (
             <>

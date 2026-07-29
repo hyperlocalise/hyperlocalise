@@ -1,19 +1,26 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import {
-  encryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -62,89 +69,6 @@ afterEach(async () => {
 });
 
 describe("team-scoped project access", () => {
-  it("queues a provider job sync for an external TMS project", async () => {
-    const admin = createWorkosIdentityWithRole("admin");
-    const headers = await authHeadersFor(admin);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const userId = globalThis.__testApiAuthContext!.user.localUserId;
-    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-secret"));
-    const projectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId: "902807",
-    });
-
-    const [credential] = await db
-      .insert(schema.organizationExternalTmsProviderCredentials)
-      .values({
-        organizationId,
-        createdByUserId: userId,
-        updatedByUserId: userId,
-        providerKind: "crowdin",
-        displayName: "Crowdin",
-        authMode: "api_token",
-        maskedSecretSuffix: "••••-cret",
-        encryptionAlgorithm: encrypted.algorithm,
-        ciphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        authTag: encrypted.authTag,
-        keyVersion: encrypted.keyVersion,
-      })
-      .returning();
-
-    await db.insert(schema.projects).values({
-      id: projectId,
-      organizationId,
-      teamId: null,
-      createdByUserId: userId,
-      updatedByUserId: userId,
-      name: "Crowdin project",
-      description: "",
-      translationContext: "",
-      source: "external_tms",
-      externalProviderKind: "crowdin",
-      externalProviderCredentialId: credential.id,
-      externalProjectId: "902807",
-      sourceLocale: "en",
-      targetLocales: ["fr"],
-      isActive: true,
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].jobs.sync.$post(
-      {
-        param: {
-          organizationSlug: admin.organization.slug ?? "missing-slug",
-          projectId,
-        },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toMatchObject({
-      providerJobSync: {
-        created: true,
-        workflowRunIds: ["wrun_provider_sync_test"],
-      },
-    });
-
-    const [intent] = await db
-      .select()
-      .from(schema.providerSyncIntents)
-      .where(eq(schema.providerSyncIntents.organizationId, organizationId))
-      .limit(1);
-
-    expect(intent).toMatchObject({
-      providerCredentialId: credential.id,
-      providerKind: "crowdin",
-      projectId,
-      syncKind: "job_task_scan",
-      cause: "manual",
-      status: "pending",
-    });
-  });
-
   it("denies cross-team project access for non-admin members", async () => {
     const admin = createWorkosIdentityWithRole("admin");
     const member = createWorkosIdentityForOrganization(admin.organization, "member");
@@ -401,5 +325,59 @@ describe("team-scoped project access", () => {
     const listBody = (await listResponse.json()) as ProjectsResponse;
     const legacyProject = listBody.projects.find((project) => project.id === legacyProjectId);
     expect(legacyProject?.teamId).toBe(defaultTeam.id);
+  });
+
+  it("lets developers list projects they create without a prior team membership", async () => {
+    const admin = createWorkosIdentityWithRole("admin");
+    const developer = createWorkosIdentityForOrganization(admin.organization, "developer");
+
+    await authHeadersFor(admin);
+    await authHeadersFor(developer);
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Developer Created Project",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: await authHeadersFor(developer) },
+    );
+
+    expect(createResponse.status).toBe(201);
+    const createBody = (await createResponse.json()) as ProjectResponse;
+
+    const listResponse = await client.api.orgs[":organizationSlug"].projects.$get(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+      },
+      { headers: await authHeadersFor(developer) },
+    );
+
+    expect(listResponse.status).toBe(200);
+    const listBody = (await listResponse.json()) as ProjectsResponse;
+    expect(listBody.projects.map((project) => project.id)).toContain(createBody.project.id);
+
+    const developerUserId = await projectFixture.getLocalUserId(developer.user.workosUserId);
+    const [membership] = await db
+      .select({
+        teamId: schema.teamMemberships.teamId,
+        role: schema.teamMemberships.role,
+      })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.userId, developerUserId),
+          eq(schema.teamMemberships.teamId, createBody.project.teamId!),
+        ),
+      )
+      .limit(1);
+
+    expect(membership).toEqual({
+      teamId: createBody.project.teamId,
+      role: "member",
+    });
   });
 });

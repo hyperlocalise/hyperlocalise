@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".liquid", ".php", ".xml", ".resx", ".properties":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".properties":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -31,11 +31,24 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	}
 }
 
+func isMarkdownFileExt(ext string) bool {
+	switch ext {
+	case ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHTMLFileExt(ext string) bool {
+	return ext == ".html" || ext == ".htm"
+}
+
 func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
-	if ext == ".md" || ext == ".mdx" {
+	if isMarkdownFileExt(ext) {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".html" {
+	if isHTMLFileExt(ext) {
 		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
 	}
 	if ext == ".liquid" {

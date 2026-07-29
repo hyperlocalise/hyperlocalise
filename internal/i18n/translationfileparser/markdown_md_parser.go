@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"crypto/sha256"
-	"encoding/hex"
 	"slices"
 	"strconv"
 	"strings"
@@ -384,6 +383,14 @@ func protectStandardMarkdownInlineSyntax(segment string) (string, map[string]str
 		}
 
 		switch {
+		case segment[idx] == '!' && idx+1 < len(segment) && startsMarkdownLinkLabel(segment, idx+1):
+			// The image marker and opening bracket form one structural opener.
+			appendPlaceholder(segment[idx : idx+2])
+			idx += 2
+		case segment[idx] == '[' && startsMarkdownLinkLabel(segment, idx):
+			// Link delimiters are structural syntax, not translatable content.
+			appendPlaceholder(segment[idx : idx+1])
+			idx++
 		case segment[idx] == '`':
 			run := 0
 			for idx+run < len(segment) && segment[idx+run] == '`' {
@@ -485,10 +492,29 @@ func isHTMLTagNameChar(ch byte) bool {
 }
 
 func markdownPlaceholderToken(idx int, literal string) string {
-	return "\x1eHLMDPH_" + strings.ToUpper(markdownPlaceholderHash(idx, literal)) + "_" + strconv.Itoa(idx) + "\x1f" // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
+	// and manual hex encoding to avoid hex.EncodeToString and strings.ToUpper.
+	sum := markdownPlaceholderHash(idx, literal)
+
+	var sb strings.Builder
+	sb.Grow(32)
+	sb.WriteString("\x1eHLMDPH_")
+	for i := 0; i < 6; i++ {
+		b := sum[i]
+		sb.WriteByte(hexDigits[b>>4])
+		sb.WriteByte(hexDigits[b&0x0f])
+	}
+	sb.WriteByte('_')
+	sb.WriteString(strconv.Itoa(idx))
+	sb.WriteByte('\x1f')
+	return sb.String()
 }
 
-func markdownPlaceholderHash(idx int, literal string) string {
-	sum := sha256.Sum256([]byte(strconv.Itoa(idx) + ":" + literal)) // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
-	return hex.EncodeToString(sum[:])[:12]
+func markdownPlaceholderHash(idx int, literal string) [32]byte {
+	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing.
+	var buf [128]byte
+	hInput := strconv.AppendInt(buf[:0], int64(idx), 10)
+	hInput = append(hInput, ':')
+	hInput = append(hInput, literal...)
+	return sha256.Sum256(hInput)
 }

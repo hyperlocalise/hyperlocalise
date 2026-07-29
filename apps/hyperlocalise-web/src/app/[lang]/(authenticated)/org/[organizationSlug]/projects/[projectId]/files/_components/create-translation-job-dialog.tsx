@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -17,7 +30,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+
+import { createTranslationJobDialogMessages as messages } from "./create-translation-job-dialog.messages";
 
 type CreateTranslationJobDialogProps = {
   open: boolean;
@@ -40,22 +55,29 @@ export function CreateTranslationJobDialog({
   targetLocales,
   onCreated,
 }: CreateTranslationJobDialogProps) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [selectedLocales, setSelectedLocales] = useState<string[]>(targetLocales);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedLocales(targetLocales);
+    }
+  }, [open, targetLocales]);
 
   const createJob = useMutation({
     mutationFn: async () => {
       if (!file?.storedFileId) {
-        throw new Error("Upload a source file before creating a translation job.");
+        throw new Error(intl.formatMessage(messages.uploadSourceRequired));
       }
 
-      const fileFormat = inferSupportedFileTranslationFileFormat(file.sourcePath);
+      const fileFormat = inferSupportedTranslationFileFormat(file.sourcePath);
       if (!fileFormat) {
-        throw new Error("This file format is not supported for translation jobs.");
+        throw new Error(intl.formatMessage(messages.unsupportedFormat));
       }
 
       if (selectedLocales.length === 0) {
-        throw new Error("Select at least one target locale.");
+        throw new Error(intl.formatMessage(messages.localesRequired));
       }
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -74,7 +96,7 @@ export function CreateTranslationJobDialog({
       });
 
       if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to create translation job");
+        throw await readApiResponseError(response, intl.formatMessage(messages.createFailed));
       }
 
       const body = (await response.json()) as { job: { id: string } };
@@ -88,12 +110,14 @@ export function CreateTranslationJobDialog({
         }),
         queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
       ]);
-      toast.success("Translation job created");
+      toast.success(intl.formatMessage(messages.createSuccess));
       onCreated?.(jobId);
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create translation job");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.createFailed),
+      );
     },
   });
 
@@ -105,25 +129,38 @@ export function CreateTranslationJobDialog({
     );
   }
 
+  const pathLabel = file?.sourcePath ?? intl.formatMessage(messages.thisFile);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create translation job</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage {...messages.title} />
+          </DialogTitle>
           <DialogDescription>
-            Queue AI translation for{" "}
-            <span className="font-mono text-foreground">{file?.sourcePath ?? "this file"}</span>.
+            <FormattedMessage
+              {...messages.description}
+              values={{
+                path: <span className="font-mono text-foreground">{pathLabel}</span>,
+              }}
+            />
           </DialogDescription>
         </DialogHeader>
 
         {targetLocales.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Add target locales in project settings before creating translation jobs.
+            <FormattedMessage {...messages.noTargetLocales} />
           </p>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Source locale: <span className="font-medium text-foreground">{sourceLocale}</span>
+              <FormattedMessage
+                {...messages.sourceLocale}
+                values={{
+                  locale: <span className="font-medium text-foreground">{sourceLocale}</span>,
+                }}
+              />
             </p>
             <div className="space-y-2">
               {targetLocales.map((locale) => (
@@ -146,15 +183,20 @@ export function CreateTranslationJobDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            <FormattedMessage {...messages.cancel} />
           </Button>
           <Button
             type="button"
-            disabled={createJob.isPending || targetLocales.length === 0 || !file?.storedFileId}
+            disabled={
+              createJob.isPending ||
+              targetLocales.length === 0 ||
+              selectedLocales.length === 0 ||
+              !file?.storedFileId
+            }
             onClick={() => createJob.mutate()}
           >
             {createJob.isPending ? <Spinner className="size-4" /> : null}
-            Translate
+            <FormattedMessage {...messages.submit} />
           </Button>
         </DialogFooter>
       </DialogContent>

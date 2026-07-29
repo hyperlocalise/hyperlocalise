@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   completeAgentRun,
   failAgentRun,
@@ -5,19 +17,19 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import { pullExternalTmsTaskContent } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
-} from "@/lib/providers/tms-provider-types";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
-import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
-import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
-import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
+} from "@/lib/providers/capabilities/match-resolution";
+import { collectGlossaryUsageForUnits } from "@/lib/translation/concordance";
+import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/concordance";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {
   buildProviderJobQaReport,
@@ -34,8 +46,8 @@ import {
 } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import { providerReviewReportSchema } from "@/api/routes/project/job-qa.schema";
-import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
-import { pullProviderReviewForJob } from "@/lib/providers/provider-review-for-job";
+import { readInputSnapshotAction } from "@/lib/providers/jobs/read-input-snapshot-action";
+import { pullProviderReviewForJob } from "@/lib/providers/jobs/provider-review-for-job";
 
 export type ProviderAgentQaResult =
   | {
@@ -232,6 +244,11 @@ export async function prepareProviderAgentQaRun(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     const storedReport = readStoredReport(outputSummary);
     return {

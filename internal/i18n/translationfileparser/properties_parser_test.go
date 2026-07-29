@@ -143,3 +143,40 @@ func assertPropertyValue(t *testing.T, got map[string]string, key, want string) 
 		t.Fatalf("properties key %q = %q, want %q", key, got[key], want)
 	}
 }
+
+func TestJavaPropertiesParserPreservesCommentStructure(t *testing.T) {
+	content := []byte(`# First paragraph.
+#
+#   Indented line.
+# Last paragraph.
+key = value
+`)
+
+	_, contextByKey, err := (JavaPropertiesParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse properties: %v", err)
+	}
+
+	want := "First paragraph.\n\n  Indented line.\nLast paragraph."
+	got := contextByKey["key"]
+	if got != want {
+		t.Fatalf("unexpected context for key:\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestJavaPropertiesParserLineNumbersWithCarriageReturn(t *testing.T) {
+	// \r is a valid line terminator in Java properties.
+	content := []byte("key1=val1\rkey1=val2")
+
+	_, err := (JavaPropertiesParser{}).Parse(content)
+	if err == nil {
+		t.Fatal("expected duplicate key error")
+	}
+
+	// If \r is not counted as a newline, both keys will be thought to be on line 1.
+	// But they are on line 1 and line 2.
+	const want = "line 2: duplicate properties key \"key1\" first defined on line 1"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("unexpected error message: %v\nwant: %s", err, want)
+	}
+}

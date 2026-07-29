@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -7,6 +19,8 @@ const {
   withAuthMock,
   resolveApiAuthContextFromSessionMock,
   getStoredActiveOrganizationSlugMock,
+  setStoredActiveOrganizationSlugMock,
+  redirectForMissingOrganizationAccessMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -14,6 +28,10 @@ const {
   withAuthMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
   getStoredActiveOrganizationSlugMock: vi.fn(),
+  setStoredActiveOrganizationSlugMock: vi.fn(),
+  redirectForMissingOrganizationAccessMock: vi.fn(async () => {
+    throw new Error("redirect:/auth/onboarding");
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +52,11 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: getStoredActiveOrganizationSlugMock,
+  setStoredActiveOrganizationSlug: setStoredActiveOrganizationSlugMock,
+}));
+
+vi.mock("@/lib/workos/missing-organization-access", () => ({
+  redirectForMissingOrganizationAccess: redirectForMissingOrganizationAccessMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -62,7 +85,7 @@ describe("requireAppAuthContext", () => {
     expect(redirectMock).toHaveBeenCalledWith("/auth/select-organization");
   });
 
-  it("redirects to onboarding when org access is denied", async () => {
+  it("routes missing organization access through the shared redirect helper", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -76,10 +99,13 @@ describe("requireAppAuthContext", () => {
     await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
       "redirect:/auth/onboarding",
     );
-    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+    });
   });
 
-  it("redirects to onboarding when the signed-in user has no memberships yet", async () => {
+  it("routes users without memberships through the shared redirect helper", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -91,7 +117,10 @@ describe("requireAppAuthContext", () => {
     const { requireAppAuthContext } = await import("./app-auth");
 
     await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
-    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+    });
   });
 
   it("can ignore the stored active organization when resolving memberships", async () => {
@@ -117,5 +146,29 @@ describe("requireAppAuthContext", () => {
       organizationSlug: undefined,
       session,
     });
+  });
+
+  it("preserves dashboard query params when redirecting a stale organization slug", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue("old-slug");
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("old-slug", "new-slug"),
+    );
+
+    const { getDefaultOrganizationDashboardPath } = await import("./app-auth");
+
+    await expect(
+      getDefaultOrganizationDashboardPath({
+        staleOrganizationRedirectSearch: "?error=oauth_callback",
+      }),
+    ).rejects.toThrow("redirect:/org/new-slug/dashboard?error=oauth_callback");
+    expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith("new-slug");
+    expect(redirectMock).toHaveBeenCalledWith("/org/new-slug/dashboard?error=oauth_callback");
   });
 });

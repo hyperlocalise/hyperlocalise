@@ -487,11 +487,395 @@ export const message = defineMessage({
 	}
 }
 
+func TestExtractCommandExtractsFormatMessageInsideTemplateLiterals(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "Greeting.tsx"), `
+import { defineMessage, defineMessages, FormattedMessage, useIntl } from "react-intl";
+
+export function Greeting(name: string) {
+  const intl = useIntl();
+  const outside = intl.formatMessage({
+    id: "greeting.outside",
+    defaultMessage: "Outside template",
+  });
+
+  const nested = defineMessages({
+    title: {
+      id: "greeting.nested-define",
+      defaultMessage: "Nested defineMessages",
+    },
+  });
+
+  return [
+    `+"`"+`Hello ${intl.formatMessage({
+      id: "greeting.hello",
+      defaultMessage: "World",
+      description: "Greeting inside template literal",
+    })}`+"`"+`,
+    `+"`"+`Status: ${formatMessage({
+      id: "greeting.status",
+      defaultMessage: "Active",
+    })} and ${intl.formatMessage({
+      id: "greeting.again",
+      defaultMessage: "Again",
+    })}`+"`"+`,
+    `+"`"+`Escaped \${intl.formatMessage({
+      id: "greeting.escaped",
+      defaultMessage: "Should not extract",
+    })}`+"`"+`,
+    `+"`"+`Plain formatMessage text without a call`+"`"+`,
+    `+"`"+`Outer ${`+"`"+`Inner ${intl.formatMessage({
+      id: "greeting.nested-template",
+      defaultMessage: "Nested template call",
+    })}`+"`"+`}`+"`"+`,
+    `+"`"+`Define ${defineMessage({
+      id: "greeting.define-in-template",
+      defaultMessage: "Defined in template",
+    })}`+"`"+`,
+    `+"`"+`JSX ${(<FormattedMessage id="greeting.jsx-in-template" defaultMessage="JSX in template" />)}`+"`"+`,
+    `+"`"+`Typed ${intl.formatMessage<{ name: string }>({
+      id: "greeting.typed",
+      defaultMessage: "Typed call",
+    })}`+"`"+`,
+    outside,
+    nested.title,
+  ];
+}
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	got := decodeExtractTestCatalog(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"greeting.outside": {
+			DefaultMessage: "Outside template",
+		},
+		"greeting.nested-define": {
+			DefaultMessage: "Nested defineMessages",
+		},
+		"greeting.hello": {
+			DefaultMessage: "World",
+			Description:    "Greeting inside template literal",
+		},
+		"greeting.status": {
+			DefaultMessage: "Active",
+		},
+		"greeting.again": {
+			DefaultMessage: "Again",
+		},
+		"greeting.nested-template": {
+			DefaultMessage: "Nested template call",
+		},
+		"greeting.define-in-template": {
+			DefaultMessage: "Defined in template",
+		},
+		"greeting.jsx-in-template": {
+			DefaultMessage: "JSX in template",
+		},
+		"greeting.typed": {
+			DefaultMessage: "Typed call",
+		},
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("message count = %d, want %d; output=%s", len(got), len(want), out.String())
+	}
+	for id, wantMessage := range want {
+		gotMessage, ok := got[id]
+		if !ok {
+			t.Fatalf("missing message %q in output=%s", id, out.String())
+		}
+		if gotMessage.DefaultMessage != wantMessage.DefaultMessage ||
+			gotMessage.Description != wantMessage.Description {
+			t.Fatalf("message %q = %#v, want %#v", id, gotMessage, wantMessage)
+		}
+	}
+	if _, ok := got["greeting.escaped"]; ok {
+		t.Fatalf("escaped template interpolation should not extract: %s", out.String())
+	}
+}
+
+func TestExtractCommandExtractsFormatMessageInsideNestedTemplateExpressions(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "Nested.tsx"), `
+import { useIntl } from "react-intl";
+
+export function Nested(count: number) {
+  const intl = useIntl();
+  return `+"`"+`Items: ${count > 0 ? `+"`"+`${intl.formatMessage({
+    id: "nested.positive",
+    defaultMessage: "Has items",
+  })}`+"`"+` : intl.formatMessage({
+    id: "nested.empty",
+    defaultMessage: "No items",
+    description: "Empty state inside ternary in template",
+  })}`+"`"+`;
+}
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	got := decodeExtractTestCatalog(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"nested.positive": {
+			DefaultMessage: "Has items",
+		},
+		"nested.empty": {
+			DefaultMessage: "No items",
+			Description:    "Empty state inside ternary in template",
+		},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("message count = %d, want %d; output=%s", len(got), len(want), out.String())
+	}
+	for id, wantMessage := range want {
+		gotMessage, ok := got[id]
+		if !ok {
+			t.Fatalf("missing message %q in output=%s", id, out.String())
+		}
+		if gotMessage != wantMessage {
+			t.Fatalf("message %q = %#v, want %#v", id, gotMessage, wantMessage)
+		}
+	}
+}
+
+func TestExtractCommandExtractsFormatMessageWithGeneratedIDInsideTemplateLiteral(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "Generated.tsx"), `
+import { useIntl } from "react-intl";
+
+export function Generated() {
+  const intl = useIntl();
+  return `+"`"+`Label: ${intl.formatMessage({
+    defaultMessage: "Generated inside template",
+    description: "Template literal generated id",
+  })}`+"`"+`;
+}
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	id := generatedFormatJSMessageID("Generated inside template", "Template literal generated id")
+	got, ok := catalog[id]
+	if !ok {
+		t.Fatalf("missing generated id %q in output=%s", id, out.String())
+	}
+	if got.DefaultMessage != "Generated inside template" {
+		t.Fatalf("defaultMessage = %q", got.DefaultMessage)
+	}
+	if got.Description != "Template literal generated id" {
+		t.Fatalf("description = %q", got.Description)
+	}
+}
+
+func TestScanTemplateLiteralFindsInterpolationRangesAndNestedTemplates(t *testing.T) {
+	src := "`a ${one} b ${`inner ${two}`} c`"
+	end, expressions, ok := scanTemplateLiteral(src, 0)
+	if !ok {
+		t.Fatalf("expected template literal to scan successfully")
+	}
+	if end != len(src) {
+		t.Fatalf("end = %d, want %d", end, len(src))
+	}
+	if got, want := len(expressions), 2; got != want {
+		t.Fatalf("expression count = %d, want %d", got, want)
+	}
+	if got, want := src[expressions[0].start:expressions[0].end], "one"; got != want {
+		t.Fatalf("first expression = %q, want %q", got, want)
+	}
+	if got, want := src[expressions[1].start:expressions[1].end], "`inner ${two}`"; got != want {
+		t.Fatalf("second expression = %q, want %q", got, want)
+	}
+
+	nestedEnd, nestedExpressions, ok := scanTemplateLiteral(src, expressions[1].start)
+	if !ok {
+		t.Fatalf("expected nested template literal to scan successfully")
+	}
+	if nestedEnd != expressions[1].end {
+		t.Fatalf("nested end = %d, want %d", nestedEnd, expressions[1].end)
+	}
+	if got, want := len(nestedExpressions), 1; got != want {
+		t.Fatalf("nested expression count = %d, want %d", got, want)
+	}
+	if got, want := src[nestedExpressions[0].start:nestedExpressions[0].end], "two"; got != want {
+		t.Fatalf("nested expression = %q, want %q", got, want)
+	}
+}
+
+func TestScanTemplateLiteralIgnoresEscapedInterpolations(t *testing.T) {
+	src := "`literal \\${not.an.interpolation} and ${real}`" // one backslash before ${
+	end, expressions, ok := scanTemplateLiteral(src, 0)
+	if !ok {
+		t.Fatalf("expected template literal to scan successfully")
+	}
+	if end != len(src) {
+		t.Fatalf("end = %d, want %d", end, len(src))
+	}
+	if got, want := len(expressions), 1; got != want {
+		t.Fatalf("expression count = %d, want %d; exprs=%v", got, want, expressions)
+	}
+	if got, want := src[expressions[0].start:expressions[0].end], "real"; got != want {
+		t.Fatalf("expression = %q, want %q", got, want)
+	}
+}
+
+func TestScanTemplateLiteralHandlesRegexWithQuotesInInterpolation(t *testing.T) {
+	// Mirrors escapeCsv-style helpers: a template literal whose interpolation
+	// contains a regex with a quote, plus a string with doubled quotes.
+	src := "`\"${str.replace(/\"/g, '\"\"')}\"`"
+	end, expressions, ok := scanTemplateLiteral(src, 0)
+	if !ok {
+		t.Fatalf("expected template literal with regex interpolation to scan successfully")
+	}
+	if end != len(src) {
+		t.Fatalf("end = %d, want %d", end, len(src))
+	}
+	if got, want := len(expressions), 1; got != want {
+		t.Fatalf("expression count = %d, want %d", got, want)
+	}
+	if got, want := src[expressions[0].start:expressions[0].end], "str.replace(/\"/g, '\"\"')"; got != want {
+		t.Fatalf("expression = %q, want %q", got, want)
+	}
+}
+
+func TestExtractMessagesFromSourceWithRegexInsideTemplateLiteral(t *testing.T) {
+	src := "\n" +
+		"function escapeCsv(field: string | number): string {\n" +
+		"  const str = String(field);\n" +
+		"  if (str.includes(\",\") || str.includes('\"') || str.includes(\"\\n\")) {\n" +
+		"    return `\"${str.replace(/\"/g, '\"\"')}\"`;\n" +
+		"  }\n" +
+		"  return str;\n" +
+		"}\n" +
+		"\n" +
+		"formatMessage({\n" +
+		"  id: \"csv.header\",\n" +
+		"  defaultMessage: \"Export\",\n" +
+		"  description: \"CSV header\",\n" +
+		"});\n"
+	messages, err := extractMessagesFromReactIntlSource(src, "escape-csv.ts")
+	if err != nil {
+		t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+	}
+	if got, want := len(messages), 1; got != want {
+		t.Fatalf("message count = %d, want %d", got, want)
+	}
+	if messages[0].ID != "csv.header" {
+		t.Fatalf("id = %q, want csv.header", messages[0].ID)
+	}
+}
+
+func TestSkipRegexLiteralDistinguishesDivision(t *testing.T) {
+	regexSrc := `replace(/"/g, '""')`
+	end, ok := skipRegexLiteral(regexSrc, strings.IndexByte(regexSrc, '/'))
+	if !ok {
+		t.Fatalf("expected regex literal to be skipped")
+	}
+	if got, want := regexSrc[:end], `replace(/"/g`; got != want {
+		t.Fatalf("skipped prefix = %q, want %q", got, want)
+	}
+
+	divisionSrc := "value / 2"
+	if _, ok := skipRegexLiteral(divisionSrc, strings.IndexByte(divisionSrc, '/')); ok {
+		t.Fatalf("expected division operator not to be treated as regex")
+	}
+}
+
+func TestSkipStringLiteralHandlesNestedTemplateLiterals(t *testing.T) {
+	src := "`outer ${`inner`} tail` ;"
+	got := skipStringLiteral(src, 0)
+	if got != len("`outer ${`inner`} tail`") {
+		t.Fatalf("skipStringLiteral end = %d, want %d (src=%q)", got, len("`outer ${`inner`} tail`"), src[:got])
+	}
+}
+
 func TestUnescapeJavaScriptStringSupportsHighByteHexEscapes(t *testing.T) {
 	got := []byte(unescapeJavaScriptString(`\x7F\x80\xA0\xFF`))
 	want := []byte{0x7f, 0x80, 0xa0, 0xff}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("unescaped bytes = %v, want %v", got, want)
+	}
+}
+
+func TestExtractCommandSkipsFilesWithExtractionErrors(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "good.ts"), `
+formatMessage({
+  id: "good.message",
+  defaultMessage: "Hello",
+  description: "Greeting",
+});
+`)
+	writeExtractTestFile(
+		t, filepath.Join(dir, "bad.ts"),
+		"const broken = `unterminated template;\n"+
+			"formatMessage({\n"+
+			"  id: \"bad.message\",\n"+
+			"  defaultMessage: \"Should be skipped\",\n"+
+			"});\n",
+	)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"."})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	errorOutput := errOut.String()
+	if !strings.Contains(errorOutput, `error: extract "`) || !strings.Contains(errorOutput, "bad.ts") {
+		t.Fatalf("expected extraction error for bad.ts on stderr, got %q", errorOutput)
+	}
+	if !strings.Contains(errorOutput, "unterminated template literal") {
+		t.Fatalf("expected unterminated template literal detail, got %q", errorOutput)
+	}
+	if strings.Contains(errorOutput, "good.ts") {
+		t.Fatalf("did not expect error for good.ts, got %q", errorOutput)
+	}
+	if strings.Contains(out.String(), "error:") {
+		t.Fatalf("stdout JSON must not include error lines, got %q", out.String())
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if _, ok := catalog["good.message"]; !ok {
+		t.Fatalf("missing good.message in catalog=%s", out.String())
+	}
+	if _, ok := catalog["bad.message"]; ok {
+		t.Fatalf("bad.message should be skipped, catalog=%s", out.String())
 	}
 }
 

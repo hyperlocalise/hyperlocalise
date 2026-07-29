@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { getLocaleLabel } from "@/lib/i18n/locales";
 
 export function getProviderPayloadString(payload: Record<string, unknown> | null, key: string) {
@@ -113,6 +125,60 @@ export function getCrowdinLocaleReadiness(payload: Record<string, unknown> | nul
   const readiness = payload?.localeReadiness;
   if (!readiness || typeof readiness !== "object" || Array.isArray(readiness)) return null;
   return readiness as Record<string, unknown>;
+}
+
+export function getCrowdinTaskLanguageId(payload: Record<string, unknown> | null) {
+  return (
+    getProviderPayloadString(payload, "languageId") ??
+    getProviderPayloadString(payload, "targetLanguageId") ??
+    getProviderPayloadStringArray(payload, "targetLanguageIds")[0] ??
+    null
+  );
+}
+
+function isLocaleReadinessEntry(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.translationProgress === "number" ||
+    typeof record.approvalProgress === "number" ||
+    (typeof record.words === "object" && record.words !== null && !Array.isArray(record.words))
+  );
+}
+
+export function extractCrowdinLocaleReadinessEntry(
+  localeReadiness: Record<string, unknown> | null | undefined,
+  languageId: string | null,
+): Record<string, unknown> | null {
+  if (!localeReadiness) {
+    return null;
+  }
+
+  if (isLocaleReadinessEntry(localeReadiness)) {
+    return localeReadiness;
+  }
+
+  if (languageId && isLocaleReadinessEntry(localeReadiness[languageId])) {
+    return localeReadiness[languageId] as Record<string, unknown>;
+  }
+
+  return null;
+}
+
+export function resolveCrowdinLocaleReadiness(
+  payload: Record<string, unknown> | null,
+  lazyReadinessByLanguage?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  const languageId = getCrowdinTaskLanguageId(payload);
+  const fromLazy = extractCrowdinLocaleReadinessEntry(lazyReadinessByLanguage ?? null, languageId);
+  if (fromLazy) {
+    return fromLazy;
+  }
+
+  return extractCrowdinLocaleReadinessEntry(getCrowdinLocaleReadiness(payload), languageId);
 }
 
 export function getReadinessNumber(readiness: Record<string, unknown> | null, key: string) {

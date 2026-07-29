@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ComponentProps, ReactNode } from "react";
 import { useActionState, useId, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -43,7 +55,7 @@ export function OnboardingWizard() {
 
   return (
     <main className="dark flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
-      <Card className="w-full max-w-sm border-border/80 bg-card">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardContent className="space-y-7 p-6 sm:p-8">
           <div className="space-y-4 text-center">
             <Image
@@ -91,7 +103,7 @@ export function OnboardingWizard() {
                     {...onboardingWizardMessages.workspaceUrlPreview}
                     values={{
                       slug: derivedSlug,
-                      label: (chunks) => <span className="text-foreground/70">{chunks}</span>,
+                      label: (chunks) => <span className="text-subtle-foreground">{chunks}</span>,
                       path: (chunks) => <span className="font-mono text-foreground">{chunks}</span>,
                     }}
                   />

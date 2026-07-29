@@ -1,11 +1,28 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
-import { AiMagicIcon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import Link from "next/link";
+import { expect, userEvent } from "storybook/test";
+import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
-import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { buildJobCatHref } from "@/lib/projects/job-cat-routing";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
 import {
@@ -39,6 +56,7 @@ type Story = StoryObj<typeof meta>;
 
 const organizationSlug = "acme";
 const projectId = "project_website";
+const storyIntl = getIntlShape("en") as IntlShape;
 
 const nativeJob = createNativeJobDetail();
 const failedJob = createNativeJobDetail({
@@ -48,9 +66,7 @@ const failedJob = createNativeJobDetail({
 const syncedJob = createProviderBackedJobDetail();
 const syncedJobFields = toProviderBackedJobFields(syncedJob);
 const liveJob = createLiveCrowdinJobDetail();
-const translateWithAgentAction = getJobProviderActionAvailability("crowdin").find(
-  (action) => action.id === "translate_with_agent",
-);
+const liveJobCatHref = buildJobCatHref(organizationSlug, projectId, liveJob);
 
 const liveSourceFiles: ProjectFileRecord[] = [
   {
@@ -108,7 +124,7 @@ function syncedProviderMain({
 }
 
 function taskViewArgsFromRecord(job: JobDetailRecord) {
-  const layout = jobDetailTaskLayoutFromRecord(job);
+  const layout = jobDetailTaskLayoutFromRecord(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,
@@ -122,7 +138,7 @@ function taskViewArgsFromRecord(job: JobDetailRecord) {
 }
 
 function taskViewArgsFromLiveJob(job: typeof liveJob) {
-  const layout = jobDetailTaskLayoutFromLiveJob(job);
+  const layout = jobDetailTaskLayoutFromLiveJob(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,
@@ -153,10 +169,10 @@ function liveCrowdinHeaderActions() {
         <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
         Refresh
       </Button>
-      {translateWithAgentAction?.visible ? (
-        <Button size="sm" disabled={!translateWithAgentAction.enabled}>
-          <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-          {translateWithAgentAction.label}
+      {liveJobCatHref ? (
+        <Button size="sm" render={<Link href={liveJobCatHref} />}>
+          <ListIcon />
+          View strings
         </Button>
       ) : null}
     </>
@@ -183,6 +199,22 @@ function liveFilesSection({
   );
 }
 
+function liveCommentsSection() {
+  const comments = createLiveCrowdinJobComments();
+
+  return (
+    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+      {comments.map((comment) => (
+        <li key={comment.id} className="px-3 py-3">
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+            {comment.text}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const RunningFileTranslation: Story = {
   args: {
     ...taskViewArgsFromRecord(nativeJob),
@@ -198,6 +230,7 @@ export const RunningFileTranslation: Story = {
     await expect(canvas.getByText("Properties")).toBeInTheDocument();
     await expect(canvas.getByText("Task type")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
   },
 };
@@ -297,14 +330,15 @@ export const LiveCrowdinTask: Story = {
     ),
     renderFilesSection: liveFilesSection,
     showComments: true,
-    comments: createLiveCrowdinJobComments(),
-    commentsLoading: false,
+    renderCommentsSection: liveCommentsSection,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
     await expect(canvas.getByText("68%")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
     await expect(canvas.getByText(/Preserve product name casing/)).toBeInTheDocument();
   },
 };
@@ -314,7 +348,11 @@ export const CommentsLoading: Story = {
     ...taskViewArgsFromLiveJob(liveJob),
     renderFilesSection: liveFilesSection,
     showComments: true,
-    commentsLoading: true,
+    renderCommentsSection: () => <p className="text-sm text-muted-foreground">Loading comments…</p>,
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
+    await expect(canvas.getByText("Loading comments…")).toBeInTheDocument();
   },
 };
 

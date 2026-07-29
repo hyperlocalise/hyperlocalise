@@ -1,11 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 import { MicIcon, SquareIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIntl } from "react-intl";
+
+import { speechInputMessages } from "./speech-input.messages";
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -94,8 +109,10 @@ export const SpeechInput = ({
   onTranscriptionChange,
   onAudioRecorded,
   lang = "en-US",
+  "aria-label": ariaLabelProp,
   ...props
 }: SpeechInputProps) => {
+  const intl = useIntl();
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode] = useState<SpeechInputMode>(detectSpeechInputMode);
@@ -335,6 +352,14 @@ export const SpeechInput = ({
     (mode === "media-recorder" && !onAudioRecorded) ||
     isProcessing;
 
+  const ariaLabel =
+    ariaLabelProp ??
+    (isProcessing
+      ? intl.formatMessage(speechInputMessages.processingAria)
+      : isListening
+        ? intl.formatMessage(speechInputMessages.stopListeningAria)
+        : intl.formatMessage(speechInputMessages.startListeningAria));
+
   return (
     <div className="relative inline-flex items-center justify-center">
       {/* Animated pulse rings */}
@@ -355,13 +380,14 @@ export const SpeechInput = ({
         className={cn(
           "relative z-10 rounded-full transition-all duration-300",
           isListening
-            ? "bg-destructive text-background hover:bg-destructive/80 hover:text-background"
+            ? "bg-destructive-solid text-destructive-foreground hover:bg-destructive-solid/90"
             : "bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground",
           className,
         )}
         disabled={isDisabled}
         onClick={toggleListening}
         {...props}
+        aria-label={ariaLabel}
       >
         {isProcessing && <Spinner />}
         {!isProcessing && isListening && <SquareIcon className="size-4" />}

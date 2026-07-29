@@ -33,15 +33,33 @@ func TestDistributionAddRequestValidate(t *testing.T) {
 			err: "bundleIds is required for bundle export mode",
 		},
 		{
-			name: "empty fileIds",
+			name: "empty content in default mode",
 			req: &DistributionAddRequest{
 				Name:       "Export Bundle",
 				ExportMode: ExportModeDefault,
 			},
-			err: "fileIds is required for default export mode",
+			err: "one of fileIds, branchIds or directoryIds is required for default export mode",
 		},
 		{
-			name: "valid request",
+			name: "valid request in default mode with branchIds",
+			req: &DistributionAddRequest{
+				Name:       "Export Bundle",
+				ExportMode: ExportModeDefault,
+				BranchIDs:  []int{1, 2},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request in default mode with directoryIds",
+			req: &DistributionAddRequest{
+				Name:         "Export Bundle",
+				ExportMode:   ExportModeDefault,
+				DirectoryIDs: []int{3, 4},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request in bundle mode",
 			req: &DistributionAddRequest{
 				Name:       "Export Bundle",
 				ExportMode: ExportModeBundle,

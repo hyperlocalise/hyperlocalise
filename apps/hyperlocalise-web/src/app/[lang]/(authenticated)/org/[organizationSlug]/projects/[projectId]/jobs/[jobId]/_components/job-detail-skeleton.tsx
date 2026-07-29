@@ -1,4 +1,22 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useIntl } from "react-intl";
+
 import { Skeleton } from "@/components/ui/skeleton";
+
+import { jobDetailSkeletonMessages as messages } from "./job-detail-skeleton.messages";
 
 function PropertyRowSkeleton() {
   return (
@@ -10,11 +28,13 @@ function PropertyRowSkeleton() {
 }
 
 export function JobDetailSkeleton() {
+  const intl = useIntl();
+
   return (
     <main
       className="mx-auto flex w-full max-w-7xl flex-col gap-5"
       aria-busy="true"
-      aria-label="Loading job"
+      aria-label={intl.formatMessage(messages.loadingJobAriaLabel)}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-4">

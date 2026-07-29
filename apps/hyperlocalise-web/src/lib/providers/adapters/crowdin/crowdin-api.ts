@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Crowdin API v2 client for project discovery and metadata extraction.
  *
@@ -6,11 +18,137 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import { createLogger } from "@/lib/log";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
+  normalizeProviderBaseUrl,
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
-} from "@/lib/providers/provider-url-safety";
+} from "@/lib/providers/shared/provider-url-safety";
+
+const logger = createLogger("crowdin-api");
+
+export const CROWDIN_DEFAULT_API_BASE_URL = "https://api.crowdin.com/api/v2";
+
+export function resolveCrowdinApiBaseUrl(baseUrl?: string | null): string {
+  return requireProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL, "Crowdin");
+}
+
+export function normalizeCrowdinApiBaseUrl(baseUrl?: string | null): string | null {
+  return normalizeProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL);
+}
+
+export function crowdinAuthenticatedUserUrl(baseUrl?: string | null): string | null {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return null;
+  }
+
+  return `${normalized}/user`;
+}
+
+export function isCrowdinEnterpriseApiBaseUrl(baseUrl?: string | null): boolean {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return false;
+  }
+
+  return new URL(normalized).hostname !== "api.crowdin.com";
+}
+
+export function escapeCrowdinCroqlString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * Soft cap for an encoded Crowdin `croql` query param.
+ * Proxies and gateways often reject URLs near 8KB; keep headroom for path + other params.
+ */
+export const CROWDIN_CROQL_MAX_ENCODED_LENGTH = 4000;
+
+export function getCrowdinCroqlEncodedLength(croql: string): number {
+  return encodeURIComponent(croql).length;
+}
+
+export function isCrowdinCroqlWithinLimit(croql: string): boolean {
+  return getCrowdinCroqlEncodedLength(croql) <= CROWDIN_CROQL_MAX_ENCODED_LENGTH;
+}
+
+export function buildCrowdinFileQueueCroql(input: {
+  fileId?: number;
+  fileIds?: readonly number[];
+  targetLocale: string;
+  queueFilter?: ProjectFileCatQueueFilter;
+  search?: string;
+}) {
+  const parts: string[] = [];
+
+  const fileIds =
+    input.fileIds && input.fileIds.length > 0
+      ? input.fileIds
+      : input.fileId !== undefined
+        ? [input.fileId]
+        : [];
+
+  if (fileIds.length === 1) {
+    parts.push(`id of file = ${fileIds[0]}`);
+  } else if (fileIds.length > 1) {
+    parts.push(`(${fileIds.map((fileId) => `id of file = ${fileId}`).join(" or ")})`);
+  }
+
+  if (input.search?.trim()) {
+    const escaped = escapeCrowdinCroqlString(input.search.trim());
+    parts.push(`(identifier contains "${escaped}" or text contains "${escaped}")`);
+  }
+
+  const locale = escapeCrowdinCroqlString(input.targetLocale);
+  const languageSummary = `language = @language:"${locale}"`;
+
+  switch (input.queueFilter) {
+    case "untranslated":
+      parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+      break;
+    case "needs_review":
+      parts.push(
+        `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
+      );
+      parts.push("count of comments where (has unresolved issue) = 0");
+      break;
+    case "reviewed":
+      parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
+      break;
+    case "has_issues":
+      parts.push("count of comments where (has unresolved issue) > 0");
+      break;
+    case "all":
+    default:
+      break;
+  }
+
+  return parts.length > 0 ? parts.join(" and ") : undefined;
+}
+
+export function buildCrowdinFileSearchCroql(fileId: number, search: string) {
+  const escaped = escapeCrowdinCroqlString(search.trim());
+  return `id of file = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
+}
+
+export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
+export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
+export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
+export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
+
+export type ListCrowdinTasksOptions = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  fetchAll?: boolean;
+};
+
+function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return globalThis.fetch(input, init);
+}
 
 export interface CrowdinApiClientOptions {
   token: string;
@@ -22,10 +160,13 @@ export interface CrowdinProject {
   id: number;
   name: string;
   identifier: string;
+  description?: string;
   sourceLanguageId: string;
   targetLanguageIds: string[];
   webUrl: string;
   isSuspended: boolean;
+  logo?: string;
+  lastActivity?: string;
 }
 
 export interface CrowdinBranch {
@@ -58,6 +199,11 @@ export interface CrowdinFile {
   path: string;
   status: string;
   revisionId: number;
+}
+
+export interface CrowdinSourceFileUploadResult {
+  file: CrowdinFile;
+  storageId: number;
 }
 
 export interface CrowdinFileRevision {
@@ -150,6 +296,42 @@ export interface CrowdinLanguageProgress {
 
 export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
+}
+
+export interface CrowdinCreateTaskAssignee {
+  id: number;
+  wordsCount?: number;
+}
+
+export interface CrowdinCreateTaskRequest {
+  title: string;
+  languageId: string;
+  type: 0 | 1;
+  fileIds?: number[];
+  stringIds?: number[];
+  branchIds?: number[];
+  labelIds?: number[];
+  excludeLabelIds?: number[];
+  status?: "todo" | "in_progress";
+  description?: string;
+  splitContent?: boolean;
+  skipAssignedStrings?: boolean;
+  includePreTranslatedStringsOnly?: boolean;
+  assignees?: CrowdinCreateTaskAssignee[];
+  deadline?: string;
+  startedAt?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CrowdinProjectMember {
+  id: number;
+  username: string;
+  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
+  role?: string | null;
 }
 
 export interface CrowdinLanguageTranslation {
@@ -434,12 +616,8 @@ export class CrowdinApiClient {
 
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
-    this.baseUrl = requireProviderBaseUrl(
-      options.baseUrl,
-      "https://api.crowdin.com/api/v2",
-      "Crowdin",
-    );
-    this.fetchFn = options.fetchFn ?? providerSafeFetch;
+    this.baseUrl = resolveCrowdinApiBaseUrl(options.baseUrl);
+    this.fetchFn = options.fetchFn ?? defaultCrowdinFetch;
   }
 
   /**
@@ -457,10 +635,11 @@ export class CrowdinApiClient {
     const projects: CrowdinProject[] = [];
     let offset = 0;
     const limit = 500;
+    const orderBy = encodeURIComponent(CROWDIN_PROJECT_LIST_ORDER_BY);
 
     while (true) {
       const response = await this.get<CrowdinListResponse<CrowdinProject>>(
-        `/projects?limit=${limit}&offset=${offset}`,
+        `/projects?limit=${limit}&offset=${offset}&orderBy=${orderBy}`,
       );
 
       const page = response.data.map((item) => item.data);
@@ -568,6 +747,61 @@ export class CrowdinApiClient {
     }
 
     return files;
+  }
+
+  async addDirectory(
+    projectId: number,
+    input: { name: string; branchId?: number | null; directoryId?: number | null },
+  ): Promise<CrowdinDirectory> {
+    const response = await this.post<CrowdinGetResponse<CrowdinDirectory>>(
+      `/projects/${projectId}/directories`,
+      {
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
+
+    return response.data;
+  }
+
+  async addSourceFile(
+    projectId: number,
+    input: {
+      storageId: number;
+      name: string;
+      branchId?: number | null;
+      directoryId?: number | null;
+    },
+  ): Promise<CrowdinFile> {
+    const response = await this.post<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
+
+    return response.data;
+  }
+
+  async updateSourceFile(
+    projectId: number,
+    fileId: number,
+    input: { storageId: number; name: string },
+  ): Promise<CrowdinFile> {
+    const response = await this.put<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files/${fileId}`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        updateOption: "keep_translations_and_approvals",
+      },
+    );
+
+    return response.data;
   }
 
   /**
@@ -698,6 +932,41 @@ export class CrowdinApiClient {
     return strings;
   }
 
+  /**
+   * Fetch a single source string by Crowdin numeric ID.
+   *
+   * Crowdin CROQL cannot filter by string id — use this instead of `croql: "id = …"`.
+   */
+  async getSourceString(projectId: number, stringId: number): Promise<CrowdinSourceString | null> {
+    try {
+      const response = await this.get<CrowdinGetResponse<CrowdinSourceString>>(
+        `/projects/${projectId}/strings/${stringId}`,
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getSourceStringsByIds(
+    projectId: number,
+    stringIds: number[],
+  ): Promise<CrowdinSourceString[]> {
+    const uniqueIds = [...new Set(stringIds)];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const results = await mapWithConcurrency(uniqueIds, 10, async (stringId) =>
+      this.getSourceString(projectId, stringId),
+    );
+
+    return results.filter((string): string is CrowdinSourceString => string !== null);
+  }
+
   async listSourceStringsPage(
     projectId: number,
     options: {
@@ -755,6 +1024,7 @@ export class CrowdinApiClient {
     filter: {
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
+      targetLanguageId?: string;
     },
   ): Promise<CrowdinStringComment[]> {
     const comments: CrowdinStringComment[] = [];
@@ -767,6 +1037,7 @@ export class CrowdinApiClient {
             stringId,
             type: filter.type,
             issueStatus: filter.issueStatus,
+            targetLanguageId: filter.targetLanguageId,
           }),
         ),
       );
@@ -781,20 +1052,59 @@ export class CrowdinApiClient {
 
   /**
    * List tasks for a given project.
+   *
+   * Live list views request a single page of the newest tasks. Sync passes
+   * `fetchAll: true` to paginate through the full task history.
    */
-  async listTasks(projectId: number): Promise<CrowdinTask[]> {
+  async listTasks(projectId: number, options?: ListCrowdinTasksOptions): Promise<CrowdinTask[]> {
+    const fetchAll = options?.fetchAll ?? false;
+    const limit =
+      options?.limit ?? (fetchAll ? CROWDIN_SYNC_TASK_PAGE_LIMIT : CROWDIN_LIVE_TASK_LIST_LIMIT);
+    const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
     const tasks: CrowdinTask[] = [];
-    let offset = 0;
-    const limit = 500;
+    let offset = options?.offset ?? 0;
 
     while (true) {
+      const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
       const response = await this.get<CrowdinListResponse<CrowdinTask>>(
-        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}`,
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}`,
       );
       const page = response.data.map((item) => item.data);
       tasks.push(...page);
 
-      if (page.length < limit) {
+      if (!fetchAll || page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return tasks;
+  }
+
+  /**
+   * List tasks assigned to the authenticated user, optionally scoped to a project.
+   */
+  async listUserTasks(
+    options?: { projectId?: number } & ListCrowdinTasksOptions,
+  ): Promise<CrowdinTask[]> {
+    const fetchAll = options?.fetchAll ?? false;
+    const limit =
+      options?.limit ?? (fetchAll ? CROWDIN_SYNC_TASK_PAGE_LIMIT : CROWDIN_LIVE_TASK_LIST_LIMIT);
+    const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
+    const tasks: CrowdinTask[] = [];
+    let offset = options?.offset ?? 0;
+    const projectParam = options?.projectId !== undefined ? `&projectId=${options.projectId}` : "";
+
+    while (true) {
+      const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
+      const response = await this.get<CrowdinListResponse<CrowdinTask>>(
+        `/user/tasks?limit=${limit}&offset=${offset}${projectParam}${orderParam}`,
+      );
+      const page = response.data.map((item) => item.data);
+      tasks.push(...page);
+
+      if (!fetchAll || page.length < limit) {
         break;
       }
 
@@ -812,6 +1122,22 @@ export class CrowdinApiClient {
       `/projects/${projectId}/tasks/${taskId}`,
     );
     return response.data;
+  }
+
+  async addTask(projectId: number, request: CrowdinCreateTaskRequest): Promise<CrowdinTaskDetails> {
+    const response = await this.post<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks`,
+      request,
+    );
+    return response.data;
+  }
+
+  async deleteTask(projectId: number, taskId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/tasks/${taskId}`);
+  }
+
+  async listProjectMembers(projectId: number): Promise<CrowdinProjectMember[]> {
+    return this.listPaginated<CrowdinProjectMember>(`/projects/${projectId}/members`);
   }
 
   async editTaskDescription(
@@ -838,6 +1164,7 @@ export class CrowdinApiClient {
       stringId?: number;
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
+      targetLanguageId?: string;
     },
   ): Promise<CrowdinStringComment[]> {
     const params = new URLSearchParams();
@@ -849,6 +1176,9 @@ export class CrowdinApiClient {
     }
     if (options?.issueStatus) {
       params.set("issueStatus", options.issueStatus);
+    }
+    if (options?.targetLanguageId) {
+      params.set("targetLanguageId", options.targetLanguageId);
     }
 
     const query = params.toString();
@@ -872,6 +1202,18 @@ export class CrowdinApiClient {
     const response = await this.post<CrowdinGetResponse<CrowdinStringComment>>(
       `/projects/${projectId}/comments`,
       request,
+    );
+    return response.data;
+  }
+
+  async editStringComment(
+    projectId: number,
+    commentId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinStringComment> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinStringComment>>(
+      `/projects/${projectId}/comments/${commentId}`,
+      operations,
     );
     return response.data;
   }
@@ -1156,6 +1498,7 @@ export class CrowdinApiClient {
    */
   async addStorage(input: { fileName: string; content: Uint8Array; contentType?: string }) {
     const url = `${this.baseUrl}/storages`;
+    this.logRequest("POST", url);
     const response = await this.fetchFn(url, {
       method: "POST",
       redirect: "error",
@@ -1265,18 +1608,17 @@ export class CrowdinApiClient {
    * Export strings for a task and return a download link when available.
    */
   async exportTaskStrings(projectId: number, taskId: number): Promise<CrowdinDownloadLink | null> {
-    const response = await this.fetchFn(
-      `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`,
-      {
-        method: "POST",
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-        },
-        body: "",
+    const url = `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`;
+    this.logRequest("POST", url);
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: "",
+    });
 
     if (response.status === 204) {
       return null;
@@ -1310,6 +1652,7 @@ export class CrowdinApiClient {
       throw new CrowdinApiError("Crowdin download URL is invalid or unsafe", 400, null);
     }
 
+    this.logRequest("GET", safeUrl);
     const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
     if (!response.ok) {
       throw new CrowdinApiError(
@@ -1359,14 +1702,70 @@ export class CrowdinApiClient {
   /**
    * Get translation progress for each target language in a project.
    */
-  async listProjectLanguageProgress(projectId: number): Promise<CrowdinLanguageProgress[]> {
+  async listProjectLanguageProgress(
+    projectId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(`/projects/${projectId}/languages/progress`, options);
+  }
+
+  /**
+   * Get translation progress for each target language in a file.
+   */
+  async listFileLanguageProgress(
+    projectId: number,
+    fileId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/files/${fileId}/languages/progress`,
+      options,
+    );
+  }
+
+  /**
+   * Get translation progress for each target language in a branch.
+   */
+  async listBranchLanguageProgress(
+    projectId: number,
+    branchId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/branches/${branchId}/languages/progress`,
+      options,
+    );
+  }
+
+  /**
+   * Get translation progress for each target language in a directory.
+   */
+  async listDirectoryLanguageProgress(
+    projectId: number,
+    directoryId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/directories/${directoryId}/languages/progress`,
+      options,
+    );
+  }
+
+  private async listTranslationProgress(
+    path: string,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
     const progress: CrowdinLanguageProgress[] = [];
     let offset = 0;
     const limit = 500;
+    const languageFilter =
+      options?.languageIds?.length && options.languageIds.length > 0
+        ? `&languageIds=${options.languageIds.join(",")}`
+        : "";
 
     while (true) {
       const response = await this.get<CrowdinListResponse<CrowdinLanguageProgress>>(
-        `/projects/${projectId}/languages/progress?limit=${limit}&offset=${offset}`,
+        `${path}?limit=${limit}&offset=${offset}${languageFilter}`,
       );
       const page = response.data.map((item) => item.data);
       progress.push(...page);
@@ -1486,6 +1885,14 @@ export class CrowdinApiClient {
     });
   }
 
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PUT",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
   private async delete(path: string): Promise<void> {
     await this.request<void>(path, {
       method: "DELETE",
@@ -1493,8 +1900,13 @@ export class CrowdinApiClient {
     });
   }
 
+  private logRequest(method: string, endpoint: string): void {
+    logger.info({ method, endpoint }, "Crowdin API request");
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    this.logRequest(String(init.method ?? "GET"), url);
     const response = await this.fetchFn(url, { ...init, redirect: "error" });
 
     if (!response.ok) {

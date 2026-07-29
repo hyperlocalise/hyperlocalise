@@ -1,10 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ReactNode } from "react";
 import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
+import { FormattedMessage } from "react-intl";
+
+import { integrationRowMessages } from "./integration-row.messages";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
@@ -19,6 +35,7 @@ type IntegrationRowProps = {
   onExpandedChange?: (expanded: boolean) => void;
   onConnect?: () => void;
   isConnecting?: boolean;
+  isLoading?: boolean;
   isLast?: boolean;
   children?: ReactNode;
 };
@@ -65,6 +82,7 @@ export function IntegrationRow({
   onExpandedChange,
   onConnect,
   isConnecting = false,
+  isLoading = false,
   isLast = false,
   children,
 }: IntegrationRowProps) {
@@ -102,12 +120,16 @@ export function IntegrationRow({
         </div>
 
         <div className="shrink-0">
-          {action === "coming-soon" ? (
+          {isLoading && (action === "connect" || action === "manage") ? (
+            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+          ) : action === "coming-soon" ? (
             <Button type="button" variant="outline" size="sm" disabled>
-              Coming soon
+              <FormattedMessage {...integrationRowMessages.comingSoon} />
             </Button>
           ) : action === "view-only" ? (
-            <span className="text-sm text-muted-foreground">Admins can connect</span>
+            <span className="text-sm text-muted-foreground">
+              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+            </span>
           ) : action === "connect" ? (
             <Button
               type="button"
@@ -117,14 +139,18 @@ export function IntegrationRow({
               disabled={isConnecting}
               className={activeStyle.button}
             >
-              {isConnecting ? "Connecting..." : "Connect"}
+              {isConnecting ? (
+                <FormattedMessage {...integrationRowMessages.connecting} />
+              ) : (
+                <FormattedMessage {...integrationRowMessages.connect} />
+              )}
               <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
             </Button>
           ) : showPanel ? (
             <CollapsibleTrigger
               render={
                 <Button type="button" variant="outline" size="sm">
-                  Manage
+                  <FormattedMessage {...integrationRowMessages.manage} />
                   <ChevronDownIcon
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}

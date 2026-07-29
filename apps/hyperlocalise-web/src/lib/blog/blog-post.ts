@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import fs from "node:fs";
 import { join } from "node:path";
 
 import matter from "gray-matter";
 
-import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { DEFAULT_APP_LOCALE, normalizeAppContentLocale } from "@/lib/app-i18n/locales";
 import { isValidBlogPostSlug, normalizeBlogPostSlug } from "@/lib/blog/blog-post-path";
 
 export interface Post {
@@ -17,6 +29,8 @@ export interface Post {
   preview?: boolean;
   tags?: string[];
 }
+
+export type PostSummary = Omit<Post, "content">;
 
 const DEFAULT_CATEGORY = "Blog";
 
@@ -41,7 +55,8 @@ function frontmatterDate(value: unknown, fallback = ""): string {
 }
 
 function postsDirectory(locale: string) {
-  const safeLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  // Resolve against content locales (not only SUPPORTED) so posts are ready before a locale is enabled.
+  const safeLocale = normalizeAppContentLocale(locale) ?? DEFAULT_APP_LOCALE;
   return join(process.cwd(), "_posts", safeLocale);
 }
 

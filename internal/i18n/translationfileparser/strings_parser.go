@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -60,7 +61,7 @@ func (d stringsDocument) render(values map[string]string) ([]byte, error) {
 	// Entries are naturally collected in document order during parsing.
 	entries := d.entries
 
-	var b strings.Builder
+	var b bytes.Buffer
 	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
@@ -72,61 +73,68 @@ func (d stringsDocument) render(values map[string]string) ([]byte, error) {
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
-			b.WriteString(encodeAppleStringsQuoted(translated))
+			// BOLT OPTIMIZATION: Write quoted strings directly to the buffer to avoid
+			// intermediate string allocations and concatenations.
+			b.WriteByte('"')
+			_, _ = appleStringsEscaper.WriteString(&b, translated)
+			b.WriteByte('"')
 		} else {
 			b.WriteString(entry.valueLiteral)
 		}
 		cursor = entry.valueEnd
 	}
 	b.WriteString(d.template[cursor:])
-	return []byte(b.String()), nil
+	return b.Bytes(), nil
 }
 
 func parseStringsDocument(content []byte) (stringsDocument, error) {
 	text := string(content)
-	doc := stringsDocument{template: text, entries: []stringsEntry{}}
+	// BOLT OPTIMIZATION: Hint entries capacity based on content size.
+	// Typically an Apple strings entry is at least 40 bytes.
+	doc := stringsDocument{template: text, entries: make([]stringsEntry, 0, len(content)/40)}
 
 	currentLine := 1
 	i := 0
 	for i < len(text) {
-		next, err := skipStringsTrivia(text, i)
+		var lines int
+		next, lines, err := skipStringsTrivia(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
-		currentLine += strings.Count(text[i:next], "\n")
+		currentLine += lines
 		i = next
 		if i >= len(text) {
 			break
 		}
 
-		keyToken, next, err := parseStringsQuotedToken(text, i)
+		keyToken, next, lines, err := parseStringsQuotedToken(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
-		currentLine += strings.Count(text[i:next], "\n")
+		currentLine += lines
 		i = next
 
-		wsNext := skipStringsWhitespace(text, i)
-		currentLine += strings.Count(text[i:wsNext], "\n")
+		wsNext, wsLines := skipStringsWhitespace(text, i)
+		currentLine += wsLines
 		i = wsNext
 
 		if i >= len(text) || text[i] != '=' {
 			return stringsDocument{}, fmt.Errorf("line %d: expected '=' after key", currentLine)
 		}
 		i++
-		wsNext = skipStringsWhitespace(text, i)
-		currentLine += strings.Count(text[i:wsNext], "\n")
+		wsNext, wsLines = skipStringsWhitespace(text, i)
+		currentLine += wsLines
 		i = wsNext
 
-		valueToken, next, err := parseStringsQuotedToken(text, i)
+		valueToken, next, lines, err := parseStringsQuotedToken(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
-		currentLine += strings.Count(text[i:next], "\n")
+		currentLine += lines
 		i = next
 
-		wsNext = skipStringsWhitespace(text, i)
-		currentLine += strings.Count(text[i:wsNext], "\n")
+		wsNext, wsLines = skipStringsWhitespace(text, i)
+		currentLine += wsLines
 		i = wsNext
 
 		if i >= len(text) || text[i] != ';' {
@@ -153,14 +161,21 @@ type stringsQuotedToken struct {
 	end     int
 }
 
-func parseStringsQuotedToken(text string, start int) (stringsQuotedToken, int, error) {
+func parseStringsQuotedToken(text string, start int) (stringsQuotedToken, int, int, error) {
 	if start >= len(text) || text[start] != '"' {
-		return stringsQuotedToken{}, start, fmt.Errorf("line %d: expected quoted string", lineNumberAt(text, start))
+		return stringsQuotedToken{}, start, 0, fmt.Errorf("line %d: expected quoted string", lineNumberAt(text, start))
 	}
 
+	lines := 0
 	i := start + 1
 	for i < len(text) {
+		if text[i] == '\n' {
+			lines++
+		}
 		if text[i] == '\\' {
+			if i+1 < len(text) && text[i+1] == '\n' {
+				lines++
+			}
 			i += 2
 			continue
 		}
@@ -168,14 +183,14 @@ func parseStringsQuotedToken(text string, start int) (stringsQuotedToken, int, e
 			raw := text[start : i+1]
 			decoded, err := decodeAppleStringsQuoted(raw)
 			if err != nil {
-				return stringsQuotedToken{}, start, fmt.Errorf("line %d: %w", lineNumberAt(text, start), err)
+				return stringsQuotedToken{}, start, lines, fmt.Errorf("line %d: %w", lineNumberAt(text, start), err)
 			}
-			return stringsQuotedToken{decoded: decoded, raw: raw, start: start, end: i + 1}, i + 1, nil
+			return stringsQuotedToken{decoded: decoded, raw: raw, start: start, end: i + 1}, i + 1, lines, nil
 		}
 		i++
 	}
 
-	return stringsQuotedToken{}, start, fmt.Errorf("line %d: unterminated quoted string", lineNumberAt(text, start))
+	return stringsQuotedToken{}, start, lines, fmt.Errorf("line %d: unterminated quoted string", lineNumberAt(text, start))
 }
 
 func decodeAppleStringsQuoted(raw string) (string, error) {
@@ -254,47 +269,52 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 	return b.String(), nil
 }
 
-func encodeAppleStringsQuoted(s string) string {
-	// BOLT OPTIMIZATION: Use a package-level replacer to avoid rebuilding the trie on every call.
-	return "\"" + appleStringsEscaper.Replace(s) + "\""
-}
-
-func skipStringsTrivia(text string, start int) (int, error) {
-	i := skipStringsWhitespace(text, start)
+func skipStringsTrivia(text string, start int) (int, int, error) {
+	lines := 0
+	i, l := skipStringsWhitespace(text, start)
+	lines += l
 	for i < len(text) {
 		if i+1 < len(text) && text[i] == '/' && text[i+1] == '/' {
 			i += 2
 			for i < len(text) && text[i] != '\n' {
 				i++
 			}
-			i = skipStringsWhitespace(text, i)
+			i, l = skipStringsWhitespace(text, i)
+			lines += l
 			continue
 		}
 		if i+1 < len(text) && text[i] == '/' && text[i+1] == '*' {
 			end := strings.Index(text[i+2:], "*/")
 			if end < 0 {
-				return start, fmt.Errorf("line %d: unterminated block comment", lineNumberAt(text, i))
+				return start, lines, fmt.Errorf("line %d: unterminated block comment", lineNumberAt(text, i))
 			}
+			comment := text[i : i+2+end+2]
+			lines += strings.Count(comment, "\n")
 			i = i + 2 + end + 2
-			i = skipStringsWhitespace(text, i)
+			i, l = skipStringsWhitespace(text, i)
+			lines += l
 			continue
 		}
 		break
 	}
-	return i, nil
+	return i, lines, nil
 }
 
-func skipStringsWhitespace(text string, start int) int {
+func skipStringsWhitespace(text string, start int) (int, int) {
+	lines := 0
 	i := start
 	for i < len(text) {
 		switch text[i] {
-		case ' ', '\n', '\r', '\t':
+		case '\n':
+			lines++
+			i++
+		case ' ', '\r', '\t':
 			i++
 		default:
-			return i
+			return i, lines
 		}
 	}
-	return i
+	return i, lines
 }
 
 func lineNumberAt(text string, idx int) int {

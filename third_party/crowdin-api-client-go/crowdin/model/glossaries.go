@@ -122,6 +122,7 @@ type Glossary struct {
 	GroupID           int      `json:"groupId"`
 	UserID            int      `json:"userId"`
 	Terms             int      `json:"terms"`
+	Concepts          int      `json:"concepts"`
 	LanguageID        string   `json:"languageId"`
 	LanguageIDs       []string `json:"languageIds"`
 	DefaultProjectIDs []int    `json:"defaultProjectIds"`

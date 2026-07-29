@@ -14,17 +14,32 @@ import (
 // Webhooks can be configured for the following events:
 //   - Project file is fully translated
 //   - Project file is fully reviewed
+//   - Project file is added
+//   - Project file is updated
+//   - Project file is reverted
+//   - Project file is deleted
+//   - Project branch is fully translated
+//   - Project branch is fully reviewed
 //   - All strings in project are translated
 //   - All strings in project are reviewed
+//   - Project is successfully built
 //   - Final translation of string is updated (using Replace in suggestions feature)
 //   - Source string is added
 //   - Source string is updated
 //   - Source string is deleted
-//   - Source string is translated
+//   - String comment/issue is created
+//   - String comment/issue is updated
+//   - String comment/issue is deleted
+//   - String comment/issue is restored
+//   - One of source strings is translated
 //   - Translation for source string is updated (using Replace in suggestions feature)
 //   - One of translations is deleted
 //   - Translation for string is approved
 //   - Approval for previously added translation is removed
+//   - Task is added
+//   - Task status is changed
+//   - Task is updated
+//   - Task is deleted
 //
 // Use API to create, modify, and delete specific webhooks.
 //

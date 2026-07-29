@@ -74,9 +74,13 @@ trap cleanup EXIT
 ARCHIVE=""
 BASE_URL=""
 
+tag_candidates="$(make_tag_candidates "${VERSION}")"
 while IFS= read -r tag_candidate; do
+  [ -n "${tag_candidate}" ] || continue
   candidate_base_url="https://github.com/${REPO}/releases/download/${tag_candidate}"
+  asset_version_candidates="$(make_asset_version_candidates "${VERSION}")"
   while IFS= read -r asset_version_candidate; do
+    [ -n "${asset_version_candidate}" ] || continue
     candidate_archive="${BINARY_NAME}_${asset_version_candidate}_${OS}_${ARCH}.tar.gz"
     echo "Trying release asset: ${candidate_archive} (tag: ${tag_candidate})"
     if curl -fsSL "${candidate_base_url}/${candidate_archive}" -o "${TMP_DIR}/${candidate_archive}"; then
@@ -85,8 +89,8 @@ while IFS= read -r tag_candidate; do
       echo "Downloaded release archive: ${ARCHIVE}"
       break 2
     fi
-  done < <(make_asset_version_candidates "${VERSION}")
-done < <(make_tag_candidates "${VERSION}")
+  done <<< "${asset_version_candidates}"
+done <<< "${tag_candidates}"
 
 if [ -z "${ARCHIVE}" ]; then
   echo "Failed to download release archive for ${BINARY_NAME} (${OS}/${ARCH})." >&2

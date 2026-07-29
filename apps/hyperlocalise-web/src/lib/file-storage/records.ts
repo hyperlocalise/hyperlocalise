@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -50,6 +62,7 @@ type RepositorySourceFileVersionInput = {
 type DbInsertClient = Pick<typeof db, "insert">;
 type DbSelectClient = Pick<typeof db, "select">;
 type DbReadWriteClient = DbInsertClient & DbSelectClient;
+type DbDeleteClient = Pick<typeof db, "delete" | "select">;
 
 export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
@@ -227,6 +240,38 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
     .limit(1);
 
   return file ?? null;
+}
+
+/** Best-effort delete of a stored file row and its object storage blob. */
+export async function deleteStoredFile(input: {
+  organizationId: string;
+  projectId?: string | null;
+  fileId: string;
+  adapter?: FileStorageAdapter;
+  db?: DbDeleteClient;
+}) {
+  const file = await getStoredFileForJobScope({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    fileId: input.fileId,
+    db: input.db,
+  });
+  if (!file) {
+    return;
+  }
+
+  const adapter = input.adapter ?? getFileStorageAdapter();
+  await adapter.delete({ keyOrUrl: file.storageKey }).catch(() => undefined);
+
+  const dbClient = input.db ?? db;
+  await dbClient
+    .delete(schema.storedFiles)
+    .where(
+      and(
+        eq(schema.storedFiles.id, file.id),
+        eq(schema.storedFiles.organizationId, input.organizationId),
+      ),
+    );
 }
 
 function stringMetadata(metadata: Record<string, unknown>, key: string) {

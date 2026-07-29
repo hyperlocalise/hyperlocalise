@@ -1,48 +1,112 @@
 import type { Preview } from "@storybook/nextjs-vite";
-import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
+import { Domine, Geist_Mono, Inter, Noto_Serif, Noto_Serif_SC } from "next/font/google";
 import { initialize, mswLoader } from "msw-storybook-addon";
+import "@pierre/trees/web-components";
 
 import "../src/app/globals.css";
-import { I18nProvider } from "../src/components/i18n/i18n-provider";
 import { QueryProvider } from "../src/components/query-provider";
 import { ThemeProvider } from "../src/components/theme-provider";
 import { Toaster } from "../src/components/ui/sonner";
 import { TooltipProvider } from "../src/components/ui/tooltip";
+import { SUPPORTED_APP_LOCALES } from "../src/lib/app-i18n/locales";
 import { cn } from "../src/lib/primitives/cn";
 import { mswHandlers } from "./msw-handlers";
+import { StorybookDecorator, type StorybookTheme } from "./storybook-decorator";
 
 initialize({ onUnhandledRequest: "bypass" });
 
-const opensans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-sans",
+});
 
-const domine = Domine({ subsets: ["latin"], variable: "--font-heading" });
+const domine = Domine({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-heading",
+});
+
+const notoSerif = Noto_Serif({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-heading",
+});
+
+const notoSerifSc = Noto_Serif_SC({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  preload: false,
+  variable: "--font-heading",
+});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
+function headingFontVariable(locale: string | undefined) {
+  if (locale === "vi-VN") {
+    return notoSerif.variable;
+  }
+  if (locale === "zh-CN") {
+    return notoSerifSc.variable;
+  }
+  return domine.variable;
+}
+
 const preview: Preview = {
+  globalTypes: {
+    locale: {
+      description: "App locale for translated stories",
+      toolbar: {
+        title: "Locale",
+        icon: "globe",
+        items: SUPPORTED_APP_LOCALES.map((locale) => ({
+          value: locale,
+          title: locale.toUpperCase(),
+        })),
+        dynamicTitle: true,
+      },
+    },
+    theme: {
+      description: "Color theme for components",
+      toolbar: {
+        title: "Theme",
+        icon: "circlehollow",
+        items: [
+          { value: "light", icon: "sun", title: "Light" },
+          { value: "dark", icon: "moon", title: "Dark" },
+          { value: "system", icon: "browser", title: "System" },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: {
+    locale: "en",
+    theme: "dark",
+  },
   decorators: [
-    (Story) => (
+    (Story, { globals }) => (
       <QueryProvider>
-        <I18nProvider locale="en">
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <StorybookDecorator
+            locale={globals.locale ?? "en"}
+            theme={(globals.theme as StorybookTheme | undefined) ?? "dark"}
+          >
             <TooltipProvider>
               <div
                 className={cn(
                   "font-sans antialiased",
                   geistMono.variable,
-                  domine.variable,
-                  opensans.variable,
+                  inter.variable,
+                  headingFontVariable(globals.locale),
                 )}
               >
                 <Story />
               </div>
               <Toaster richColors closeButton />
             </TooltipProvider>
-          </ThemeProvider>
-        </I18nProvider>
+          </StorybookDecorator>
+        </ThemeProvider>
       </QueryProvider>
     ),
   ],
@@ -58,15 +122,14 @@ const preview: Preview = {
       handlers: mswHandlers,
     },
   },
-  async beforeEach() {
+  async beforeEach({ globals }) {
     document.documentElement.classList.add(
       "font-sans",
       "antialiased",
       geistMono.variable,
-      domine.variable,
-      opensans.variable,
+      inter.variable,
+      headingFontVariable(globals.locale),
     );
-    localStorage.setItem("theme", "dark");
   },
 };
 

@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { type LokaliseApiClient } from "./lokalise-api";
-import { loadLokaliseCatVisualContext } from "./lokalise-cat-visual-context";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("loadLokaliseCatVisualContext", () => {
+describe("lokaliseTmsProvider.loadCatVisualContext", () => {
   it("fetches screenshot details when the list response omits key coordinates", async () => {
     const getScreenshot = vi.fn(async () => ({
       screenshotId: 123,
@@ -39,7 +51,7 @@ describe("loadLokaliseCatVisualContext", () => {
       getScreenshot,
     } as unknown as LokaliseApiClient;
 
-    const visualContext = await loadLokaliseCatVisualContext({
+    const visualContext = await lokaliseTmsProvider.loadCatVisualContext({
       client,
       externalProjectId: "proj.123",
       externalStringId: "4242",

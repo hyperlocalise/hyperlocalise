@@ -1,10 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   ProjectFileCatQuery,
   ProjectFileCatQueueFilter,
 } from "@/api/routes/project/project.schema";
 import {
   defaultProjectFileCatPageLimit,
-  legacyNativeCatSegmentLimit,
   legacyProviderCatSegmentLimit,
   maxProjectFileCatPageLimit,
 } from "@/api/routes/project/project.schema";
@@ -15,6 +26,8 @@ export type ProjectFileCatPaginationInput = {
   search?: string;
   queueFilter?: ProjectFileCatQueueFilter;
   paginated: boolean;
+  phraseScanPage?: number;
+  phraseScanSkip?: number;
 };
 
 function normalizeQueueFilter(
@@ -24,7 +37,10 @@ function normalizeQueueFilter(
 }
 
 export function resolveProjectFileCatPagination(
-  query: Pick<ProjectFileCatQuery, "search" | "offset" | "limit" | "queueFilter">,
+  query: Pick<
+    ProjectFileCatQuery,
+    "search" | "offset" | "limit" | "queueFilter" | "phraseScanPage" | "phraseScanSkip"
+  >,
 ): ProjectFileCatPaginationInput {
   const queueFilter = normalizeQueueFilter(query.queueFilter);
   const hasPaginationParams =
@@ -36,10 +52,10 @@ export function resolveProjectFileCatPagination(
   if (!hasPaginationParams) {
     return {
       offset: 0,
-      limit: legacyNativeCatSegmentLimit,
+      limit: defaultProjectFileCatPageLimit,
       search: undefined,
       queueFilter: "all",
-      paginated: false,
+      paginated: true,
     };
   }
 
@@ -49,6 +65,8 @@ export function resolveProjectFileCatPagination(
     search: query.search?.trim() || undefined,
     queueFilter,
     paginated: true,
+    phraseScanPage: query.phraseScanPage,
+    phraseScanSkip: query.phraseScanSkip,
   };
 }
 
@@ -62,6 +80,8 @@ export function buildCatFilePagination(input: {
   returnedCount: number;
   totalCount: number;
   hasMore?: boolean;
+  nextPhraseScanPage?: number;
+  nextPhraseScanSkip?: number;
 }) {
   const hasMore = input.hasMore ?? input.offset + input.returnedCount < input.totalCount;
 
@@ -71,5 +91,7 @@ export function buildCatFilePagination(input: {
     returnedCount: input.returnedCount,
     totalCount: input.totalCount,
     hasMore,
+    ...(input.nextPhraseScanPage != null ? { nextPhraseScanPage: input.nextPhraseScanPage } : {}),
+    ...(input.nextPhraseScanSkip != null ? { nextPhraseScanSkip: input.nextPhraseScanSkip } : {}),
   };
 }

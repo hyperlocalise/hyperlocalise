@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { pgEnum } from "drizzle-orm/pg-core";
 
 /**
@@ -7,6 +19,7 @@ export const jobKindEnum = pgEnum("job_kind", [
   "translation",
   "research",
   "review",
+  "proofread",
   "sync",
   "asset_management",
 ]);
@@ -302,6 +315,13 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
   "translation_job",
   "import",
   "agent",
+]);
+/**
+ * Distinguishes regular CAT comments from review issues on native project strings.
+ */
+export const projectTranslationCommentTypeEnum = pgEnum("project_translation_comment_type", [
+  "comment",
+  "issue",
 ]);
 /**
  * Tracks source file key extraction lifecycle for repository source file versions.

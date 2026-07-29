@@ -138,11 +138,121 @@ func TestNormalizeCheckSourceEntriesRejectsPrefixIDCollisions(t *testing.T) {
 		"src.foo.app-header.button.label": "Save settings",
 		"src.bar.app-header.button.label": "Start trial",
 	}
-	_, _, err := normalizeCheckSourceEntries(entries, packPrefixIndex{})
+	_, _, err := normalizeCheckSourceEntries(entries, packPrefixIndex{}, false)
 	if err == nil {
 		t.Fatalf("expected prefix-id collision error")
 	}
 	assertPackPrefixIDCollisionError(t, err, "src.bar.app-header.button.label", "src.foo.app-header.button.label", "button.label")
+}
+
+func TestNormalizeCheckSourceEntriesIgnoresPrefixIDCollisions(t *testing.T) {
+	entries := map[string]string{
+		"src.foo.app-header.button.label": "Save settings",
+		"src.bar.app-header.button.label": "Start trial",
+	}
+	got, packedToSource, err := normalizeCheckSourceEntries(entries, packPrefixIndex{}, true)
+	if err != nil {
+		t.Fatalf("normalizeCheckSourceEntries: %v", err)
+	}
+	want := map[string]string{
+		"button.label": "Start trial",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("normalized entries = %#v, want %#v", got, want)
+	}
+	if packedToSource["button.label"] != "src.bar.app-header.button.label" {
+		t.Fatalf("packedToSource = %#v, want first sorted source id kept", packedToSource)
+	}
+}
+
+func TestNormalizeCheckChangedKeysIgnoresPrefixIDCollisions(t *testing.T) {
+	changed := map[string]struct{}{
+		"src.foo.app-header.button.label": {},
+		"src.bar.app-header.button.label": {},
+	}
+	got, err := normalizeCheckChangedKeys(changed, packPrefixIndex{}, true)
+	if err != nil {
+		t.Fatalf("normalizeCheckChangedKeys: %v", err)
+	}
+	want := map[string]struct{}{
+		"button.label": {},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("normalized changed keys = %#v, want %#v", got, want)
+	}
+}
+
+func TestCheckCommandPrefixIDRejectsCollisions(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"label":"Enregistrer"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--prefix-id"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected prefix-id collision error")
+	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.button.label", "src.foo.button.label", "label")
+}
+
+func TestCheckCommandPrefixIDIgnoresDuplicateID(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"label":"Enregistrer"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--prefix-id", "--ignore-duplicate-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command with --ignore-duplicate-id: %v", err)
+	}
+	if !strings.Contains(out.String(), "No problems.") {
+		t.Fatalf("expected no-findings stylish output, got %q", out.String())
+	}
 }
 
 func TestStripCheckPrefixIDMatchesPackFallback(t *testing.T) {
@@ -164,7 +274,7 @@ func TestNormalizeCheckChangedKeysRejectsPrefixIDCollisions(t *testing.T) {
 		"src.foo.app-header.button.label": {},
 		"src.bar.app-header.button.label": {},
 	}
-	_, err := normalizeCheckChangedKeys(changed, packPrefixIndex{})
+	_, err := normalizeCheckChangedKeys(changed, packPrefixIndex{}, false)
 	if err == nil {
 		t.Fatalf("expected prefix-id collision error")
 	}

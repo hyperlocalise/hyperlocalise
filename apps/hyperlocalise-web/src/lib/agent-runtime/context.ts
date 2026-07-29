@@ -1,23 +1,28 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { HyperlocaliseAgentSurface } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import type {
-  HyperlocaliseConversationIntent,
-  HyperlocaliseConversationMode,
-} from "@/lib/agent-runtime/loops/conversation-mode";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 /**
- * Request-scoped runtime state shared by the orchestrator and task tool.
- * Passed through ToolLoopAgent `experimental_context` when using prepareCall.
+ * Request-scoped runtime state for the conversational skill agent.
  */
 export type HyperlocaliseAgentRuntimeContext = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
-  /** Active intents for this turn (translation and repository may both apply). */
-  suggestedIntents: HyperlocaliseConversationIntent[];
-  /** Primary orchestrator hint derived from suggestedIntents. */
-  suggestedMode: HyperlocaliseConversationMode;
   hasFileAttachments: boolean;
+  hasTmsIntegration: boolean;
+  hasVisualMockSkill?: boolean;
   additionalInstructions?: string;
 };
 
@@ -44,22 +49,16 @@ export function resolveAgentRuntimeContext(
   }
 
   const context = experimentalContext as Partial<HyperlocaliseAgentRuntimeContext>;
-  if (
-    !context.toolContext ||
-    !context.surface ||
-    !context.suggestedMode ||
-    !context.suggestedIntents ||
-    context.suggestedIntents.length === 0
-  ) {
+  if (!context.toolContext || !context.surface) {
     return err({ code: "runtime_context_incomplete" });
   }
 
   return ok({
     surface: context.surface,
     toolContext: context.toolContext,
-    suggestedIntents: context.suggestedIntents,
-    suggestedMode: context.suggestedMode,
     hasFileAttachments: context.hasFileAttachments ?? false,
+    hasTmsIntegration: context.hasTmsIntegration ?? false,
+    hasVisualMockSkill: context.hasVisualMockSkill ?? false,
     additionalInstructions: context.additionalInstructions,
   });
 }

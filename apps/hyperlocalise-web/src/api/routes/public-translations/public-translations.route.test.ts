@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { desc, eq } from "drizzle-orm";
@@ -78,7 +90,7 @@ describe("publicTranslationRoutes", () => {
     expect(JSON.parse(content)).toEqual({ greeting: "Bonjour" });
   });
 
-  it("rejects downloads when the source file exceeds the key limit", async () => {
+  it("downloads large source files across paginated key fetches", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db
       .update(schema.organizationApiKeys)
@@ -112,10 +124,12 @@ describe("publicTranslationRoutes", () => {
       { headers: { "x-api-key": apiKey } },
     );
 
-    expect(response.status).toBe(422);
-    const body = (await response.json()) as { error: string; message?: string };
-    expect(body.error).toBe("source_file_too_large");
-    expect(body.message).toContain("5000");
+    expect(response.status).toBe(200);
+    const content = await response.text();
+    const parsed = JSON.parse(content) as Record<string, string>;
+    expect(Object.keys(parsed)).toHaveLength(5_001);
+    expect(parsed.entry_0).toBe("Hello 0");
+    expect(parsed.entry_5000).toBe("Hello 5000");
   });
 
   it("returns 404 when the source path is not registered in the project", async () => {
@@ -138,7 +152,7 @@ describe("publicTranslationRoutes", () => {
     expect(body.error).toBe("source_file_not_found");
   });
 
-  it("returns 404 when source keys exist but no translations are ready", async () => {
+  it("downloads source fallbacks when source keys exist but no translations are ready", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db
       .update(schema.organizationApiKeys)
@@ -166,9 +180,9 @@ describe("publicTranslationRoutes", () => {
       { headers: { "x-api-key": apiKey } },
     );
 
-    expect(response.status).toBe(404);
-    const body = (await response.json()) as { error: string };
-    expect(body.error).toBe("translations_not_found");
+    expect(response.status).toBe(200);
+    const content = await response.text();
+    expect(JSON.parse(content)).toEqual({ greeting: "Hello" });
   });
 
   it("exports every source key while preserving translated values", async () => {

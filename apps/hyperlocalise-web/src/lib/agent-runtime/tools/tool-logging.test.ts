@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { tool, type ToolSet } from "ai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { z } from "zod";
@@ -87,7 +99,7 @@ describe("wrapToolSetWithLogging", () => {
         path: "src/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components",
         regex: false,
       },
-      { toolCallId: "call_123", messages: [] },
+      { toolCallId: "call_123", messages: [], context: {} },
     );
 
     const loggedEvents = getLoggedEvents();
@@ -130,7 +142,7 @@ describe("wrapToolSetWithLogging", () => {
     const wrappedTools = wrapToolSetWithLogging({ bash: bashTool } as ToolSet, createToolContext());
     const wrappedBash = wrappedTools.bash as typeof bashTool;
 
-    await wrappedBash.execute!({ command }, { toolCallId: "call_bash", messages: [] });
+    await wrappedBash.execute!({ command }, { toolCallId: "call_bash", messages: [], context: {} });
 
     const loggedEvents = getLoggedEvents();
     expect(consoleLogCalls[0]?.[0]).toBe("agent tool call started");
@@ -170,7 +182,7 @@ describe("wrapToolSetWithLogging", () => {
     await expect(
       wrappedFuzzySearch.execute!(
         { query: "Reviewed strings" },
-        { toolCallId: "call_failure", messages: [] },
+        { toolCallId: "call_failure", messages: [], context: {} },
       ),
     ).rejects.toThrow("sandbox unavailable");
 

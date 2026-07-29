@@ -83,16 +83,26 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
 	}
-	executable, reusedByPrefill, prefillErr := applyPrefilledEntries(executable, checkpointStaged, in.PrefilledEntries, in.PrefilledTargetPath)
+	executable, reusedByPrefill, prefillWarnings, prefillErr := applyPrefilledEntries(executable, checkpointStaged, in.PrefilledEntries, in.PrefilledByLocale, in.PrefilledTargetPath)
 	if prefillErr != nil {
 		endRunSpan(lockSpan, prefillErr, "apply_prefilled_entries")
 		return Report{}, prefillErr
 	}
+	report.Warnings = append(report.Warnings, prefillWarnings...)
 	if reusedByPrefill > 0 {
 		report.SkippedByLock += reusedByPrefill
 		report.ExecutableTotal = len(executable)
-		report.Warnings = append(report.Warnings, fmt.Sprintf("prefilled_entries_reused target=%s count=%d", in.PrefilledTargetPath, reusedByPrefill))
 	}
+
+	if in.MaxTranslations < 0 {
+		err := fmt.Errorf("invalid max translations %d: must be >= 0", in.MaxTranslations)
+		endRunSpan(lockSpan, err, "max_translations")
+		return Report{}, err
+	}
+	executable, deferredByLimit := applyMaxTranslationsLimit(executable, in.MaxTranslations)
+	report.DeferredByLimit = deferredByLimit
+	report.ExecutableTotal = len(executable)
+	report.Executable = append([]Task(nil), executable...)
 
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
@@ -102,11 +112,18 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		report.ContextMemoryEnabled = true
 		report.ContextMemoryScope = in.ContextMemoryScope
 	}
-	emitter.emit(Event{Kind: EventPlanned, PlannedTotal: report.PlannedTotal, SkippedByLock: report.SkippedByLock, ExecutableTotal: report.ExecutableTotal})
+	emitter.emit(Event{
+		Kind:            EventPlanned,
+		PlannedTotal:    report.PlannedTotal,
+		SkippedByLock:   report.SkippedByLock,
+		ExecutableTotal: report.ExecutableTotal,
+		DeferredByLimit: report.DeferredByLimit,
+	})
 	lockSpan.SetAttributes(
 		attribute.Int("run.planned_total", report.PlannedTotal),
 		attribute.Int("run.skipped_by_lock", report.SkippedByLock),
 		attribute.Int("run.executable_total", report.ExecutableTotal),
+		attribute.Int("run.deferred_by_limit", report.DeferredByLimit),
 	)
 	endRunSpan(lockSpan, nil, "")
 
@@ -196,10 +213,42 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	return report, nil
 }
 
-func applyPrefilledEntries(tasks []Task, staged map[string]stagedOutput, entries map[string]string, targetPath string) (filtered []Task, reused int, err error) {
-	if len(entries) == 0 || strings.TrimSpace(targetPath) == "" {
-		return tasks, 0, nil
+func applyPrefilledEntries(
+	tasks []Task,
+	staged map[string]stagedOutput,
+	flatEntries map[string]string,
+	byLocale map[string]map[string]string,
+	targetPath string,
+) (filtered []Task, reused int, warnings []string, err error) {
+	hasFlat := len(flatEntries) > 0
+	hasByLocale := len(byLocale) > 0
+	if hasFlat && hasByLocale {
+		return nil, 0, nil, fmt.Errorf("prefilled entries: flat and locale-keyed maps are mutually exclusive")
 	}
+	if !hasFlat && !hasByLocale {
+		return tasks, 0, nil, nil
+	}
+	if hasFlat {
+		trimmedTargetPath := strings.TrimSpace(targetPath)
+		if trimmedTargetPath == "" {
+			return nil, 0, nil, fmt.Errorf("prefilled entries: --prefilled-target-path is required for flat entry maps")
+		}
+		filtered, reused, err = applyFlatPrefilledEntries(tasks, staged, flatEntries, trimmedTargetPath)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		if reused > 0 {
+			warnings = append(warnings, fmt.Sprintf("prefilled_entries_reused target=%s count=%d", trimmedTargetPath, reused))
+		}
+		return filtered, reused, warnings, nil
+	}
+	if strings.TrimSpace(targetPath) != "" {
+		return nil, 0, nil, fmt.Errorf("prefilled entries: --prefilled-target-path must not be set for locale-keyed entry maps")
+	}
+	return applyLocaleKeyedPrefilledEntries(tasks, staged, byLocale)
+}
+
+func applyFlatPrefilledEntries(tasks []Task, staged map[string]stagedOutput, entries map[string]string, targetPath string) (filtered []Task, reused int, err error) {
 	trimmedTargetPath := filepath.Clean(strings.TrimSpace(targetPath))
 	filtered = make([]Task, 0, len(tasks))
 	for _, task := range tasks {
@@ -218,6 +267,48 @@ func applyPrefilledEntries(tasks []Task, staged map[string]stagedOutput, entries
 		reused++
 	}
 	return filtered, reused, nil
+}
+
+func applyLocaleKeyedPrefilledEntries(tasks []Task, staged map[string]stagedOutput, byLocale map[string]map[string]string) (filtered []Task, reused int, warnings []string, err error) {
+	localeKeys := make([]string, 0, len(byLocale))
+	for locale := range byLocale {
+		localeKeys = append(localeKeys, locale)
+	}
+	sort.Strings(localeKeys)
+
+	matchedLocales := map[string]struct{}{}
+	filtered = make([]Task, 0, len(tasks))
+	for _, task := range tasks {
+		entries, ok := byLocale[task.TargetLocale]
+		if !ok || isImageTask(task) {
+			filtered = append(filtered, task)
+			continue
+		}
+		matchedLocales[task.TargetLocale] = struct{}{}
+		value, hasValue := entries[task.EntryKey]
+		if !hasValue || strings.TrimSpace(value) == "" {
+			filtered = append(filtered, task)
+			continue
+		}
+		if err := stageTaskOutput(staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, value, nil); err != nil {
+			return nil, 0, nil, fmt.Errorf("stage prefilled output for %s: %w", taskIdentity(task.TargetPath, task.EntryKey), err)
+		}
+		reused++
+	}
+
+	for _, locale := range localeKeys {
+		if _, ok := matchedLocales[locale]; ok {
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf("prefilled_entries_unknown_locale locale=%s", locale))
+	}
+	if len(matchedLocales) == 0 && len(byLocale) > 0 {
+		return nil, 0, warnings, fmt.Errorf("prefilled entries: locale-keyed map matched no planned locales")
+	}
+	if reused > 0 {
+		warnings = append(warnings, fmt.Sprintf("prefilled_entries_reused_by_locale count=%d locales=%d", reused, len(matchedLocales)))
+	}
+	return filtered, reused, warnings, nil
 }
 
 func warningsForLegacyPrompts(tasks []Task) []string {
@@ -446,6 +537,15 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 	return remaining, remainingMetadata
 }
 
+// applyMaxTranslationsLimit keeps the first max tasks in plan order and reports
+// how many executable tasks were deferred for a later session. max <= 0 means unlimited.
+func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, deferred int) {
+	if max <= 0 || len(executable) <= max {
+		return executable, 0
+	}
+	return executable[:max], len(executable) - max
+}
+
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
 	return eventWithTokenUsage(Event{
@@ -453,6 +553,7 @@ func completedEvent(report Report) Event {
 		PlannedTotal:    report.PlannedTotal,
 		SkippedByLock:   report.SkippedByLock,
 		ExecutableTotal: report.ExecutableTotal,
+		DeferredByLimit: report.DeferredByLimit,
 		Succeeded:       report.Succeeded,
 		Failed:          report.Failed,
 		PersistedToLock: report.PersistedToLock,

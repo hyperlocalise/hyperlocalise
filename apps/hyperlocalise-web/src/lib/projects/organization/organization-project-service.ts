@@ -1,22 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import {
-  enqueueProviderCatalogSyncIntent,
-  enqueueProviderProjectMaterializationSyncIntents,
-} from "@/lib/providers/provider-sync-intent";
-import {
-  getTmsProviderLiveProject,
-  getTmsProviderConnection,
-} from "@/lib/providers/tms-provider-live";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
   encodeProviderProjectId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { ExternalTmsSyncService } from "@/lib/projects/external-tms/external-tms-sync-service";
@@ -195,22 +200,6 @@ export class OrganizationProjectService extends ProjectServiceBase {
       "organization project materialized from external TMS provider",
     );
 
-    void enqueueProviderProjectMaterializationSyncIntents({
-      organizationId: input.organizationId,
-      providerCredentialId: credential.id,
-      providerKind: encodedProject.providerKind,
-      projectId: canonicalProjectId,
-    }).catch((error) => {
-      this.log.warn(
-        {
-          organizationId: input.organizationId,
-          projectId: canonicalProjectId,
-          error: error instanceof Error ? error.message : "unknown_error",
-        },
-        "failed to enqueue provider materialization sync intents",
-      );
-    });
-
     return ok(canonicalProjectId);
   }
 
@@ -238,12 +227,7 @@ export class OrganizationProjectService extends ProjectServiceBase {
     return result.value;
   }
 
-  /**
-   * Returns paginate-friendly project rows from the local database only.
-   * Native and materialized external TMS projects coexist here; background
-   * catalog sync keeps external projects up to date without mixing live API rows
-   * into list responses.
-   */
+  /** Returns native workspace projects from the local database only. */
   async list(auth: ApiAuthContext): Promise<OrganizationProjectListItem[]> {
     const organizationId = auth.organization.localOrganizationId;
     const databaseProjects = await this.database
@@ -252,29 +236,13 @@ export class OrganizationProjectService extends ProjectServiceBase {
       .where(
         and(
           await buildAccessibleProjectsWhere(auth),
+          eq(schema.projects.source, "native"),
           or(isNull(schema.projects.isActive), eq(schema.projects.isActive, true)),
         ),
       )
       .orderBy(desc(schema.projects.updatedAt));
 
     const projects = await this.attachOpenJobCounts(organizationId, databaseProjects);
-
-    const connection = await getTmsProviderConnection(organizationId);
-    if (!connection) {
-      return projects;
-    }
-
-    const providerCredentialId = await this.externalTmsSync.getOrganizationCredentialId(
-      organizationId,
-      connection.providerKind,
-    );
-    if (providerCredentialId) {
-      this.maybeEnqueueCatalogSync({
-        organizationId,
-        providerKind: connection.providerKind,
-        providerCredentialId,
-      });
-    }
 
     this.log.debug(
       { organizationId, projectCount: projects.length },
@@ -314,28 +282,6 @@ export class OrganizationProjectService extends ProjectServiceBase {
       ...project,
       openJobCount: openJobCountByProjectId.get(project.id) ?? 0,
     }));
-  }
-
-  private maybeEnqueueCatalogSync(input: {
-    organizationId: string;
-    providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
-    providerCredentialId: string;
-  }) {
-    void enqueueProviderCatalogSyncIntent({
-      organizationId: input.organizationId,
-      providerCredentialId: input.providerCredentialId,
-      providerKind: input.providerKind,
-      cause: "manual",
-    }).catch((error) => {
-      this.log.warn(
-        {
-          organizationId: input.organizationId,
-          providerKind: input.providerKind,
-          error: error instanceof Error ? error.message : "unknown_error",
-        },
-        "failed to enqueue TMS catalog sync intent",
-      );
-    });
   }
 }
 

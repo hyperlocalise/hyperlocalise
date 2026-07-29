@@ -230,7 +230,20 @@ func mdxParseContainerLiteral(literal string) (mdxContainer, bool, bool, bool) {
 
 	name := trimmed[start:end]
 	selfClosing := !closing && strings.HasSuffix(strings.TrimSpace(strings.TrimSuffix(trimmed, ">")), "/")
-	signature := name + "[" + markdownPlaceholderHash(0, trimmed) + "]"
+
+	sum := markdownPlaceholderHash(0, trimmed)
+	var sb strings.Builder
+	sb.Grow(len(name) + 2 + 12)
+	sb.WriteString(name)
+	sb.WriteByte('[')
+	for i := 0; i < 6; i++ {
+		b := sum[i]
+		sb.WriteByte(hexDigitsLower[b>>4])
+		sb.WriteByte(hexDigitsLower[b&0x0f])
+	}
+	sb.WriteByte(']')
+
+	signature := sb.String()
 	return mdxContainer{name: name, signature: signature}, closing, selfClosing, true
 }
 

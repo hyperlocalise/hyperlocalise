@@ -1,9 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import path from "node:path";
 
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 
 export type HlCheckKeyManifestEntry = {
   externalStringId: string;
@@ -85,7 +98,7 @@ function buildCheckConfigContent(
   "locales": {"source":${JSON.stringify(sourceLocale)},"targets":[${quotedLocales.join(",")}]},
   "buckets": {"provider":{"files":[{"from":${JSON.stringify(sourcePath)},"to":${JSON.stringify(targetPathTemplate)}}]}},
   "groups": {"default":{"targets":[${quotedLocales.join(",")}],"buckets":["provider"]}},
-  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-5.4-mini","prompt":"Translate {{input}}"}}}
+  "llm": {"profiles":{"default":{"provider":"openai","model":${JSON.stringify(hyperlocaliseAgentModelId)},"prompt":"Translate {{input}}"}}}
 }`;
 }
 

@@ -1,4 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { randomUUID } from "node:crypto";
+
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { isFixtureAuthEnabled } from "@/lib/e2e/config";
 import { createLogger } from "@/lib/log";
 import {
   membershipRoleFromUnknownRoleField,
@@ -48,6 +63,17 @@ export async function deleteProvisionedWorkosOrganization(workosOrganizationId: 
 export async function provisionWorkspaceInWorkos(
   input: ProvisionWorkspaceInWorkosInput,
 ): Promise<ProvisionWorkspaceInWorkosResult> {
+  if (isFixtureAuthEnabled()) {
+    return {
+      workosOrganizationId: `org_fixture_${input.localWorkspaceId}`,
+      members: input.members.map((member) => ({
+        workosUserId: member.workosUserId,
+        workosMembershipId: `om_fixture_${randomUUID()}`,
+        role: member.role,
+      })),
+    };
+  }
+
   const workos = getWorkosServerClient();
 
   if (!workos) {

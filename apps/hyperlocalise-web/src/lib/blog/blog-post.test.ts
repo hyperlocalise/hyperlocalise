@@ -1,3 +1,16 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import fs from "node:fs";
 import { basename } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -137,6 +150,36 @@ describe("getAllPosts", () => {
     const result = blogPost.getAllPosts(DEFAULT_LOCALE);
 
     expect(result.map((post) => post.slug)).toEqual(["published"]);
+  });
+});
+
+describe("postsDirectory locale resolution", () => {
+  beforeEach(() => {
+    directoryEntries.length = 0;
+    for (const key of Object.keys(fileContents)) {
+      delete fileContents[key];
+    }
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves posts for supported content locales", () => {
+    directoryEntries.push("translated-post.md");
+    fileContents["translated-post"] = serializePost({
+      slug: "translated-post",
+      title: "Translated",
+      excerpt: "Excerpt",
+      date: "2024-06-01T00:00:00.000Z",
+      category: "Blog",
+      content: "Body",
+    });
+
+    const post = blogPost.getPostBySlug("translated-post", "zh-CN");
+
+    expect(post?.title).toBe("Translated");
+    expect(vi.mocked(fs.readFileSync).mock.calls[0]?.[0]).toContain("_posts/zh-CN/");
   });
 });
 

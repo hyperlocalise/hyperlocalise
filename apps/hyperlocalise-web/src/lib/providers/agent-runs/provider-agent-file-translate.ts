@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   detectAgentRunProposalWarnings,
   deriveChangedFields,
@@ -8,21 +20,21 @@ import {
 import {
   loadProviderCrowdinDownloadContext,
   resolveProviderSourceFileDownload,
-} from "@/lib/providers/download-provider-source-file";
+} from "@/lib/providers/jobs/download-provider-source-file";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
+} from "@/lib/providers/jobs/tms-provider-types";
 import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
-import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
-import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
+import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
-import { loadTranslationContextProject } from "@/lib/translation/assemble-translation-context";
+import { loadTranslationContextProject } from "@/lib/translation/context";
 
 const logger = createLogger("provider-agent-file-translate");
 
@@ -172,14 +184,14 @@ async function runFileTranslationInSandbox(input: {
     getSandboxTranslationEnv,
     readTranslatedFile,
     runSandboxCommand,
+    sandboxI18nConfigPath,
     writeFileToSandbox,
     writeTempConfig,
-  } = await import("@/lib/translation/sandbox-translation");
+  } = await import("@/lib/translation/sandbox");
 
   const inputFilename = sanitizeSandboxFilename(input.sourceFilename);
   const outputFilename = getSandboxOutputFilename(input.sourceFilename, input.targetLocale);
 
-  const configPath = "/tmp/hyperlocalise-file.yml";
   const config = buildTempConfig(
     inputFilename,
     outputFilename,
@@ -188,9 +200,9 @@ async function runFileTranslationInSandbox(input: {
     null,
     input.context,
   );
-  await writeTempConfig(input.sandboxId, config, configPath);
+  await writeTempConfig(input.sandboxId, config, sandboxI18nConfigPath);
 
-  const prefilledPath = `/tmp/hyperlocalise-prefilled-${input.targetLocale}.json`;
+  const prefilledPath = `/tmp/prefilled-${input.targetLocale}.json`;
   let prefilledFlags = "";
   if (Object.keys(input.prefilledEntries).length > 0) {
     await writeFileToSandbox(
@@ -206,7 +218,7 @@ async function runFileTranslationInSandbox(input: {
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
+      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     { env: getSandboxTranslationEnv() },
   );
@@ -217,13 +229,15 @@ async function runFileTranslationInSandbox(input: {
 
   const translatedContent = await readTranslatedFile(input.sandboxId, outputFilename);
   const translatedEntries = await extractSandboxEntries(input.sandboxId, outputFilename);
-  if (!translatedEntries) {
-    throw new Error(`failed to extract translated entries: ${outputFilename}`);
+  if (!translatedEntries.ok) {
+    throw new Error(
+      `failed to extract translated entries: ${outputFilename}: exitCode=${translatedEntries.exitCode}`,
+    );
   }
 
   return {
     translatedText: translatedContent.toString("utf8"),
-    translatedEntries,
+    translatedEntries: translatedEntries.entries,
   };
 }
 
@@ -417,7 +431,7 @@ export async function translateProviderJobFiles(input: {
       prepareSandbox,
       readTranslatedFile,
       stopTranslationSandbox,
-    } = await import("@/lib/translation/sandbox-translation");
+    } = await import("@/lib/translation/sandbox");
     const { sandboxId } = await createTranslationSandbox();
 
     let sourceText = "";
@@ -458,7 +472,14 @@ export async function translateProviderJobFiles(input: {
       );
 
       try {
-        sourceEntries = await extractSandboxEntries(sandboxId, inputFilename);
+        const extracted = await extractSandboxEntries(sandboxId, inputFilename);
+        if (extracted.ok) {
+          sourceEntries = extracted.entries;
+        } else {
+          warnings.push(
+            `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: exitCode=${extracted.exitCode}`,
+          );
+        }
       } catch (error) {
         warnings.push(
           `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: ${
@@ -525,7 +546,8 @@ export async function translateProviderJobFiles(input: {
             mergeApproved: true,
           });
           if (downloadResult.ok) {
-            crowdinPrefilled = (await extractSandboxEntries(sandboxId, outputFilename)) ?? {};
+            const crowdinEntries = await extractSandboxEntries(sandboxId, outputFilename);
+            crowdinPrefilled = crowdinEntries.ok ? crowdinEntries.entries : {};
           }
         }
 

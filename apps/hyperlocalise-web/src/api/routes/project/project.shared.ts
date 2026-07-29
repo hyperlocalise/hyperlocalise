@@ -1,5 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   buildAccessibleProjectsWhere,
+  canAccessProject,
   getVisibleTeamIds,
   hasOrganizationWideProjectAccess,
   ownedProjectWhere as teamOwnedProjectWhere,
@@ -15,12 +28,12 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
-import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
-import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
+import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
 import {
   parseProviderProjectId,
   type EncodedProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 const logger = createLogger("project-routes");
 const externalTmsProviderKinds = new Set<string>(schema.externalTmsProviderKindEnum.enumValues);
@@ -58,11 +71,11 @@ export function unsupportedProjectFileResponse(c: { json: JsonContext["json"] },
   });
 }
 
-export function forbiddenResponse(c: { json: JsonContext["json"] }) {
+export function projectForbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-type ProjectResourceTarget =
+export type ProjectResourceTarget =
   | { kind: "native"; projectId: string }
   | ({ kind: "provider" } & EncodedProviderProjectId)
   | {
@@ -70,6 +83,11 @@ type ProjectResourceTarget =
       error: "no_active_tms_provider" | "provider_project_not_available";
       message: string;
     };
+
+/** Provider kind for the All Files release flag — matches the API CAT queue gate. */
+export function catAllFilesProviderKindFromTarget(target: ProjectResourceTarget) {
+  return target.kind === "provider" ? target.providerKind : null;
+}
 
 export async function resolveProjectResourceTarget(
   auth: ApiAuthContext,
@@ -222,21 +240,27 @@ export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string)
 }
 
 export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
-  const [project] = await db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(await ownedProjectWhere(auth, projectId))
-    .limit(1);
-
-  return project ?? null;
+  return canAccessProject(auth, projectId);
 }
 
 export async function getOwnedProjectRecord(auth: ApiAuthContext, projectId: string) {
-  const [project] = await db
+  const accessibleProject = await canAccessProject(auth, projectId);
+  if (!accessibleProject) {
+    return null;
+  }
+
+  // Access was already authorized (team scope for native, live TMS for
+  // provider ids). Load the org-scoped row without re-applying team filters.
+  const [organizationProject] = await db
     .select()
     .from(schema.projects)
-    .where(await ownedProjectWhere(auth, projectId))
+    .where(
+      and(
+        eq(schema.projects.organizationId, auth.organization.localOrganizationId),
+        eq(schema.projects.id, accessibleProject.id),
+      ),
+    )
     .limit(1);
 
-  return project ?? null;
+  return organizationProject ?? null;
 }

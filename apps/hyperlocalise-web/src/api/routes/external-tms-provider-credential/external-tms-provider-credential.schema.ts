@@ -1,6 +1,16 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { z } from "zod";
-
-import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const externalTmsProviderKindSchema = z.enum(["crowdin", "smartling", "phrase", "lokalise"]);
 
@@ -12,11 +22,34 @@ export const upsertExternalTmsProviderCredentialBodySchema = z.object({
   baseUrl: z.string().trim().url().max(2048).optional(),
 });
 
-export const crowdinOAuthStartBodySchema = z.object({
+const oauthAppSettingsBodySchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(256),
+    oauthClientId: z.string().trim().min(1).max(512).optional(),
+    oauthClientSecret: z.string().trim().min(1).max(4096).optional(),
+    baseUrl: z.string().trim().url().max(2048).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasClientId = Boolean(value.oauthClientId);
+    const hasClientSecret = Boolean(value.oauthClientSecret);
+    if (hasClientId !== hasClientSecret) {
+      ctx.addIssue({
+        code: "custom",
+        message: "oauth_client_credentials_incomplete",
+        path: hasClientId ? ["oauthClientSecret"] : ["oauthClientId"],
+      });
+    }
+  });
+
+export const crowdinOAuthStartBodySchema = oauthAppSettingsBodySchema;
+
+export const crowdinPatSetupBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256),
-  oauthClientId: z.string().trim().min(1).max(512),
-  oauthClientSecret: z.string().trim().min(1).max(4096),
   baseUrl: z.string().trim().url().max(2048).optional(),
+});
+
+export const crowdinUserPatBodySchema = z.object({
+  personalAccessToken: z.string().trim().min(1).max(4096),
 });
 
 export const phraseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
@@ -32,10 +65,6 @@ export const lokaliseUserOAuthStartBodySchema = crowdinUserOAuthStartBodySchema;
 export const revealExternalTmsProviderCredentialBodySchema = z.object({
   providerKind: externalTmsProviderKindSchema,
   confirmed: z.literal(true),
-});
-
-export const providerSyncObservabilityQuerySchema = z.object({
-  projectId: optionalProjectIdSchema,
 });
 
 export const externalTmsProviderHealthResponseSchema = z.object({

@@ -1,6 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { PhraseTmsApiClient, phraseTmsAuthorizationHeader } from "./phrase-tms-api";
+import {
+  PHRASE_TMS_DEFAULT_BASE_URL,
+  PhraseTmsApiClient,
+  phraseTmsAuthorizationHeader,
+  resolvePhraseTmsBaseUrl,
+} from "./phrase-tms-api";
 
 describe("PhraseTmsApiClient", () => {
   let originalFetch: typeof fetch;
@@ -159,5 +176,22 @@ describe("PhraseTmsApiClient", () => {
 
     expect(translationMemories).toEqual([{ uid: "tm-1", name: "Marketing TM", id: "42" }]);
     expect(termBases).toEqual([{ uid: "tb-1", name: "Brand glossary", id: "7" }]);
+  });
+});
+describe("resolvePhraseTmsBaseUrl", () => {
+  it("defaults to the Phrase TMS host", () => {
+    expect(resolvePhraseTmsBaseUrl({})).toBe(PHRASE_TMS_DEFAULT_BASE_URL);
+  });
+
+  it("uses explicit memsource base URLs", () => {
+    expect(resolvePhraseTmsBaseUrl({ baseUrl: "https://cloud.memsource.com/web/" })).toBe(
+      "https://cloud.memsource.com/web",
+    );
+  });
+
+  it("falls back when a Strings API base URL is configured", () => {
+    expect(resolvePhraseTmsBaseUrl({ baseUrl: "https://api.phrase.com/v2" })).toBe(
+      PHRASE_TMS_DEFAULT_BASE_URL,
+    );
   });
 });

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { and, eq, sql } from "drizzle-orm";
@@ -5,6 +17,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-reconcile";
 import {
   clearPendingMembershipReplacingInvitation,
@@ -25,6 +38,7 @@ import {
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -102,6 +116,26 @@ async function reconcileMemberMembershipFromWorkos(input: {
   });
 }
 
+async function ensureDefaultTeamAccessForInvitedMember(input: {
+  organizationId: string;
+  userId: string;
+  role: OrganizationMembershipRole;
+  database: DatabaseClient;
+}) {
+  // Operators already see every project via teams:write. Non-operators need an
+  // explicit default-team membership or projects they create stay invisible.
+  if (hasCapability(input.role, "teams:write")) {
+    return;
+  }
+
+  await ensureDefaultWorkspaceTeamMembership({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    role: "member",
+    database: input.database,
+  });
+}
+
 async function inviteOrganizationMember(input: {
   organizationId: string;
   email: string;
@@ -152,6 +186,13 @@ async function inviteOrganizationMember(input: {
         .where(eq(schema.organizationMemberships.id, existingMembership.membershipId));
     }
 
+    await ensureDefaultTeamAccessForInvitedMember({
+      organizationId: input.organizationId,
+      userId: existingMembership.localUserId,
+      role: input.role,
+      database,
+    });
+
     return {
       resend: true as const,
       roleChanged,
@@ -161,6 +202,7 @@ async function inviteOrganizationMember(input: {
       isNewUser: false,
       member: toMemberSummary(
         {
+          userId: existingMembership.localUserId,
           workosUserId: existingMembership.workosUserId,
           email: existingMembership.email,
           firstName: existingMembership.firstName,
@@ -220,12 +262,20 @@ async function inviteOrganizationMember(input: {
       createdAt: schema.organizationMemberships.createdAt,
     });
 
+  await ensureDefaultTeamAccessForInvitedMember({
+    organizationId: input.organizationId,
+    userId: user.id,
+    role: input.role,
+    database,
+  });
+
   return {
     membershipId: membership.id,
     localUserId: user.id,
     isNewUser,
     member: toMemberSummary(
       {
+        userId: user.id,
         workosUserId: user.workosUserId,
         email: user.email,
         firstName: user.firstName,
@@ -402,6 +452,7 @@ export function createMemberRoutes() {
 
       const rows = await db
         .select({
+          userId: schema.users.id,
           workosUserId: schema.users.workosUserId,
           email: schema.users.email,
           firstName: schema.users.firstName,
@@ -748,6 +799,7 @@ export function createMemberRoutes() {
         {
           member: toMemberSummary(
             {
+              userId: member.localUserId,
               workosUserId: member.workosUserId,
               email: member.email,
               firstName: member.firstName,

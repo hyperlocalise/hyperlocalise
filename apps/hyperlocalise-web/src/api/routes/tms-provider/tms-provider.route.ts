@@ -1,10 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
-import { isJobProviderActionAllowed } from "@/api/auth/capability-guards";
+import {
+  isJobCreateAllowed,
+  isJobMutationAllowed,
+  isJobProviderActionAllowed,
+} from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
-import { ownedProjectWhere } from "@/api/auth/team-access";
+import { canAccessProject } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
@@ -17,29 +34,30 @@ import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-r
 import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
-import type { ProviderAgentTranslationQueue, ProviderSyncQueue } from "@/lib/workflow/types";
-import { createProviderSyncQueue } from "@/workflows/adapters";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
+  createTmsProviderLiveJobs,
+  deleteTmsProviderLiveJob,
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
   listTmsProviderLiveJobComments,
   listTmsProviderLiveJobFiles,
   getTmsProviderLiveJobDetail,
+  getTmsProviderLiveProjectLocaleReadiness,
   updateTmsProviderLiveJobDescription,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
   listTmsProviderLiveJobs,
   listTmsProviderLiveJobsForProject,
+  listTmsProviderLiveProjectMembers,
   listTmsProviderLiveProjects,
   listTmsProviderLiveTranslationMemories,
-} from "@/lib/providers/tms-provider-live";
-import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
-import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
+} from "@/lib/providers/jobs/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
+import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 const mineQuerySchema = z.object({
@@ -57,6 +75,10 @@ const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
 });
 
+const localeReadinessQuerySchema = z.object({
+  languageId: z.string().min(1).optional(),
+});
+
 const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
@@ -64,6 +86,15 @@ const updateJobDescriptionBodySchema = z.object({
 const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
   action: z.literal("translate_with_agent"),
+});
+
+const createTmsProviderJobsBodySchema = z.object({
+  title: z.string().trim().min(1).max(256),
+  targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(20),
+  fileIds: z.array(z.string().trim().min(1).max(128)).min(1).max(100),
+  assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  kind: z.enum(["translation", "proofread", "review"]).optional().default("translation"),
+  description: z.string().trim().max(2_048).optional(),
 });
 
 function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect) {
@@ -107,6 +138,15 @@ const validateProjectFilesQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateLocaleReadinessQuery = validator("query", (value, c) => {
+  const parsed = localeReadinessQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_query" }, 400);
+  }
+
+  return parsed.data;
+});
+
 const validateJobFileDetailQuery = validator("query", (value, c) => {
   const parsed = jobFileDetailQuerySchema.safeParse(value);
   if (!parsed.success) {
@@ -134,6 +174,15 @@ const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) =>
   return parsed.data;
 });
 
+const validateCreateTmsProviderJobsBody = validator("json", (value, c) => {
+  const parsed = createTmsProviderJobsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_request_body", "Invalid create job payload");
+  }
+
+  return parsed.data;
+});
+
 function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
   const role = auth.membership.role;
   return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
@@ -141,12 +190,9 @@ function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
 
 type CreateTmsProviderRoutesOptions = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
-  providerSyncQueue?: ProviderSyncQueue;
 };
 
 export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions = {}) {
-  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
-
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/connection", async (c) => {
@@ -181,56 +227,6 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
-    })
-    .post("/projects/sync", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const credential =
-        await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-      if (!credential) {
-        return c.json(
-          {
-            error: "no_active_tms_provider",
-            message: "Connect a TMS provider before syncing projects.",
-          },
-          404,
-        );
-      }
-
-      const result = await enqueueProviderCatalogSyncIntent({
-        organizationId,
-        providerCredentialId: credential.id,
-        providerKind: credential.providerKind,
-        cause: "manual",
-      });
-
-      let workflowRun: { ids: string[] };
-      try {
-        workflowRun = await providerSyncQueue.enqueue({
-          providerSyncIntentId: result.intentId,
-          organizationId,
-        });
-      } catch {
-        return serviceUnavailableResponse(
-          c,
-          "provider_sync_queue_unavailable",
-          "Provider sync workflow could not be started.",
-        );
-      }
-
-      return c.json(
-        {
-          providerProjectSync: {
-            intentId: result.intentId,
-            created: result.created,
-            workflowRunIds: workflowRun.ids,
-          },
-        },
-        202,
-      );
     })
     .get("/projects/:externalProjectId", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
@@ -277,6 +273,48 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .post("/projects/:externalProjectId/jobs", validateCreateTmsProviderJobsBody, async (c) => {
+      if (!isJobCreateAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const payload = c.req.valid("json");
+
+      try {
+        const jobs = await createTmsProviderLiveJobs(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          {
+            title: payload.title,
+            targetLocales: payload.targetLocales,
+            fileIds: payload.fileIds,
+            assigneeExternalUserIds: payload.assigneeExternalUserIds,
+            kind: payload.kind,
+            description: payload.description,
+            actorUserId: c.var.auth.user.localUserId,
+          },
+        );
+        return c.json({ jobs }, 201);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get("/projects/:externalProjectId/members", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const members = await listTmsProviderLiveProjectMembers(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ members }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get("/projects/:externalProjectId/files", validateProjectFilesQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
         return c.json({ error: "forbidden" }, 403);
@@ -295,6 +333,31 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .get(
+      "/projects/:externalProjectId/locale-readiness",
+      validateLocaleReadinessQuery,
+      async (c) => {
+        if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+
+        const query = c.req.valid("query");
+
+        try {
+          const localeReadiness = await getTmsProviderLiveProjectLocaleReadiness(
+            c.var.auth.organization.localOrganizationId,
+            c.req.param("externalProjectId"),
+            {
+              languageId: query.languageId,
+              actorUserId: c.var.auth.user.localUserId,
+            },
+          );
+          return c.json({ localeReadiness }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
     .get("/jobs", validateMineQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
         return c.json({ error: "forbidden" }, 403);
@@ -399,6 +462,26 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .delete("/jobs/:encodedJobId", async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const deleted = await deleteTmsProviderLiveJob(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          c.var.auth.user.localUserId,
+        );
+        if (!deleted) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.body(null, 204);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
       if (!canEditTmsProviderJobDescription(c.var.auth)) {
         return c.json({ error: "forbidden" }, 403);
@@ -436,6 +519,11 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
       }
 
+      const accessibleProject = await canAccessProject(c.var.auth, payload.projectId);
+      if (!accessibleProject) {
+        return notFoundResponse(c, "project_not_found", "Project not found");
+      }
+
       const [project] = await db
         .select({
           id: schema.projects.id,
@@ -443,7 +531,12 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           externalProviderKind: schema.projects.externalProviderKind,
         })
         .from(schema.projects)
-        .where(await ownedProjectWhere(c.var.auth, payload.projectId))
+        .where(
+          and(
+            eq(schema.projects.organizationId, organizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
         .limit(1);
 
       if (!project) {

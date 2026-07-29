@@ -125,6 +125,8 @@
 **Action:** Implemented `cloneXMLToken` for safe buffering and used a conditional normalization helper in `XLIFFParser.Parse` to balance speed and correctness.
 
 ## 2026-06-01 - Optimizing ARB parsing via single-pass and map hinting
+**Learning:** For sequential JSON-based formats like ARB, the standard `json.Unmarshal` for metadata extraction can be slow due to multiple passes and redundant string operations. A single-pass scan of the object fields allows for simultaneous message key collection and metadata indexing. Replacing `strings.HasPrefix`/`TrimPrefix` with direct indexing and slicing further reduces allocations.
+**Action:** Optimized `arbMessageMetadataFields` and `MarshalARB` in `internal/i18n/translationfileparser/arb_parser.go` by implementing single-pass field scanning and direct string indexing.
 
 ## 2026-09-01 - Optimizing GenericXMLParser via single-pass and allocation avoidance
 **Learning:** XML parsing hot paths, especially `xml.CharData` and attribute scanning, can be significant allocation bottlenecks. Converting `[]byte` tokens to `string` just for whitespace checks or multiple passes over attributes for key discovery adds avoidable overhead. Custom byte-level checks (`isAllXMLWhitespace`) and single-pass priority-based scans are much more efficient.
@@ -201,3 +203,95 @@
 ## 2026-10-20 - Optimizing JSONC comment parsing via manual byte scanning
 **Learning:** Replacing line-by-line regular expression matching with a manual `[]byte` scanner and avoiding per-line `string` conversions significantly reduces allocation overhead and CPU time in translation file parsers. Regex overhead, especially for simple key/value patterns, is often a hidden bottleneck compared to optimized byte scanning.
 **Action:** Optimized `parseJSONCKeyComments` and its helper functions in `internal/i18n/translationfileparser/jsonc_parser.go` to operate entirely on `[]byte`, resulting in a ~30% speedup and ~17% fewer allocations.
+
+## 2026-10-25 - Optimizing XCStrings parser and marshaler via sort elimination and string building
+**Learning:** For structured catalog formats like Apple's XCStrings (JSON-based), intermediate O(N log N) sorting of map keys during traversal is often redundant and adds significant CPU/allocation overhead for large files. Direct map iteration is sufficient when the final output is either a map or passed to `json.MarshalIndent` (which sorts keys internally). Additionally, using `strings.Builder` with heuristic `Grow` hints for compound key and multiline context generation further reduces allocation pressure.
+**Action:** Removed redundant sorting and refactored string/slice manipulation in `internal/i18n/translationfileparser/xcstrings_parser.go`.
+
+## 2027-01-15 - Low-copy literal tracking and inlining in ICU parser
+**Learning:** In ICU message parsing, literal text dominates many inputs. Implementing a "low-copy" tracking approach using `lastPos` allows literal segments to be sliced directly from the source string, bypassing `strings.Builder` and avoiding redundant string copies for segments that don't require unescaping. Additionally, inlining hot-path helper functions and providing heuristic slice capacity hints (e.g., cap 4 for elements) reduces function call overhead and GC pressure.
+**Action:** Refactored `internal/i18n/icuparser/parse.go` to use `lastPos` tracking and inlined internal helpers, resulting in ~25-40% faster parsing and ~30-50% fewer allocations.
+
+## 2026-06-26 - Optimizing CSV parser and marshaler via capacity hints
+**Learning:** For sequential parsers and marshalers like CSV, the output size (map entries or buffer bytes) is often proportional to the input size. Providing heuristic capacity hints to maps and buffers significantly reduces re-allocations and GC pressure during processing of large files.
+**Action:** Implemented map capacity hints in `Parse` and buffer growth hints in `MarshalCSV` in `internal/i18n/translationfileparser/csv_parser.go`, resulting in ~12-16% speedups.
+
+## 2027-02-10 - Optimizing Java Properties comment formatting and extraction
+**Learning:** Using `strings.Join` and `strings.TrimSpace` on a per-entry basis during translation extraction creates significant allocation overhead. A custom helper using `strings.Builder` with capacity hints, combined with pre-allocating the results map, measurably improves performance. Additionally, slice reuse for pending comments must be handled with care to avoid data corruption across entries.
+**Action:** Implemented `formatPropertiesComments` and map pre-allocation in `internal/i18n/translationfileparser/properties_parser.go`, resulting in ~15% faster extraction and ~9% fewer bytes allocated.
+
+## 2027-02-15 - Optimizing locale list normalization via capacity hinting and allocation avoidance
+**Learning:** For functions that perform string splitting and deduplication (like `NormalizeList`), pre-calculating the total expected elements (e.g., by counting delimiters) to provide accurate map and slice capacity hints significantly reduces re-allocation overhead. Additionally, manual checks for common string states (like `isAlreadyLower` for ASCII) can bypass expensive standard library calls that might otherwise perform redundant allocations.
+**Action:** Implement capacity hints based on delimiter counts and use fast-path checks for common string properties to avoid unnecessary heap allocations in hot-path utility functions.
+
+## 2027-02-20 - Optimizing HTML tag parity checks via fast-paths and allocation reduction
+**Learning:** HTML tag parity checks are frequently performed during translation validation. Repeated use of `strings.TrimSpace`, `strings.TrimPrefix`, `strings.TrimSuffix`, and `strings.Fields` in a loop creates significant garbage collection pressure due to many intermediate string allocations. A manual scanning approach that extracts tag names in a single pass is much more efficient. Additionally, a simple fast-path for identical strings avoids expensive parsing entirely for the most common case.
+**Action:** Implement fast-paths for identical inputs and replace chained string manipulation functions with manual index-based scanning in hot paths like tag discovery and normalization.
+
+## 2027-02-25 - Optimizing segment profile validation via caching and allocation avoidance
+**Learning:** In segment validation, `normalizeProfileText` repeatedly constructs `strings.NewReplacer`, which is expensive due to internal trie building. Additionally, `profileEdgeWhitespace` uses `[]rune(value)` for scanning, which creates $O(N)$ heap allocations.
+**Action:** Move `strings.NewReplacer` to a package-level variable with a `strings.Contains` fast-path in `normalizeProfileText`. Refactor `profileEdgeWhitespace` to use manual `utf8.DecodeRuneInString` and `utf8.DecodeLastRuneInString` loops, resulting in ~1.6x faster overall segment validation and zero allocations for whitespace edge discovery.
+
+## 2027-02-28 - Optimizing JS/TS locale module parsing and encoding via fast-paths and capacity hints
+**Learning:** For language-specific module parsers (like JS/TS) that perform heavy string manipulation: 1) simple quoted strings without escapes are extremely common and can be sliced directly from the source using `strings.IndexAny` to avoid `strings.Builder` allocations; 2) encoding simple ASCII strings can bypass expensive UTF-8 decoding and builder overhead via a pre-scan; 3) heuristic capacity hints for slices (entries, properties, array items) based on input size significantly reduce GC pressure during large file processing.
+**Action:** Implemented fast-paths for string literal parsing/encoding and added capacity hints in `internal/i18n/translationfileparser/js_ts_locale_parser.go`, resulting in ~14.5% faster marshaling and ~17-34% fewer allocations.
+
+## 2026-07-10 - Optimizing PHP array parser and marshaler via buffer reuse and direct scanning
+**Learning:** For sequential marshalers that replace multiple placeholders in a template, switching from `strings.Builder` to `bytes.Buffer` and using `strings.Replacer.WriteString` directly into the buffer eliminates O(N) intermediate string allocations and the final `[]byte(b.String())` copy. Additionally, replacing `strings.HasPrefix` with direct byte comparisons in hot scanning loops for trivia and comments measurably reduces function call overhead. Tuning capacity hints for parsers based on format density (e.g., /32 for PHP arrays) further minimizes heap re-allocations.
+**Action:** Refactored `render`, `writePHPStringLiteral`, and `skipPHPTrivia` in `internal/i18n/translationfileparser/php_array_parser.go`, resulting in ~10-15% faster performance and near-zero per-entry allocations during marshaling.
+
+## 2026-07-11 - Optimizing ARB marshaling and learning about JSON decoding overhead
+**Learning:** For schema-heavy JSON formats like ARB (where message keys are paired with metadata objects), implementing a custom token-based decoder using `json.RawMessage` can surprisingly be significantly slower (~85%) and more allocation-heavy (3x) than a single `json.Unmarshal` into `map[string]any`. This is likely due to the overhead of multiple unmarshal calls and map insertions for individual fields compared to the optimized internal implementation of `json.Unmarshal`. However, for marshaling, replacing intermediate `[]byte` allocations for keys and values with direct writing to a `bytes.Buffer` using a custom `writeJSONString` helper provides a measurable speedup.
+**Action:** Optimized `MarshalARB` and `marshalJSONString` in `internal/i18n/translationfileparser/arb_parser.go` to use direct buffer writing, resulting in a ~33% improvement in marshaling speed for large files.
+
+## 2026-07-12 - Optimizing YAML parser and marshaler map allocations
+**Learning:** For recursive structure flattening into maps (like YAML or JSON), Go maps start small and grow dynamically, causing expensive re-allocations and re-hashing. Heuristic capacity hints based on input size or AST node content size significantly reduce this overhead.
+**Action:** Use `make(map[string]string, len(content)/64)` for raw byte inputs and `make(map[string]string, len(node.Content)/2)` for AST-based mapping nodes in translation parsers.
+
+## 2026-07-13 - Optimizing Apple .strings parser and renderer via fused scanning and buffer writing
+**Learning:** For sequential parsers that track line numbers, calling `strings.Count` on each segment after scanning is redundant. Fusing newline counting into the primary byte-scanning loops (whitespace, trivia, and tokens) makes line tracking essentially "free" and avoids multiple (N)$ passes over the input string. For renderers producing `[]byte`, using `bytes.Buffer` and returning `b.Bytes()` directly avoids a redundant string allocation and copy. Furthermore, using `Replacer.WriteString` directly into the buffer eliminates intermediate allocations for escaped strings.
+**Action:** Refactored `parseStringsDocument`, `render`, and scanning helpers in `internal/i18n/translationfileparser/strings_parser.go`, resulting in ~9% faster parsing and ~15% faster marshaling with reduced allocations.
+
+## 2026-07-14 - Optimizing extra placeholder extraction
+**Learning:** Combining multiple independent regex patterns into a single alternation regex () significantly reduces the number of scanning passes over the input string (from N passes to 1). Furthermore, simple `strings.ContainsAny` checks for signal characters (like '%' or '$') serve as highly effective fast-paths to avoid regex execution overhead entirely for non-placeholder text.
+**Action:** Use combined regexes and `ContainsAny` fast-paths in high-frequency validation or parsing logic.
+
+## 2025-05-15 - Optimizing extra placeholder extraction
+**Learning:** Combining multiple independent regex patterns into a single alternation regex (`a|b|c`) significantly reduces the number of scanning passes over the input string (from N passes to 1). Furthermore, simple `strings.ContainsAny` checks for signal characters (like '%' or '$') serve as highly effective fast-paths to avoid regex execution overhead entirely for non-placeholder text.
+**Action:** Use combined regexes and `ContainsAny` fast-paths in high-frequency validation or parsing logic.
+
+## 2026-07-15 - Fast-path for special char extraction and ASCII hex check
+**Learning:** In segment profile validation, `extractSpecialCharLiterals` was allocating a map and scanning every character even for simple strings without escape sequences. A `strings.Contains(value, "\\")` fast-path avoids this. Additionally, `isHexDigits` was using expensive UTF-8 rune decoding for ASCII-only hex characters.
+**Action:** Implemented backslash fast-path and byte-loop hex check, resulting in ~6.6x and ~3x speedups respectively for those functions.
+
+## 2027-03-01 - Optimizing Java Properties key/value encoding and avoiding memory-pinning hazards
+**Learning:** Adding needs-escaping fast-paths to key and value encoding functions is incredibly effective, avoiding any `strings.Builder` and runtime string allocations for safe, plain-text strings. However, attempting to remove `strings.Clone(raw)` during parsing to save allocations introduces memory-pinning risks, where keeping sub-sliced keys/values in memory prevents the garbage collection of the entire raw file buffer.
+**Action:** Implemented needs-escaping fast-paths in `encodeJavaPropertiesKey` and `encodeJavaPropertiesValue` to reduce allocations by ~58.7% and speed up marshaling by ~21.0%, while preserving the safe `strings.Clone` behavior in the parser to protect against long-term memory footprint bloat.
+
+## 2027-03-05 - Multi-string fast-paths in translation validator with parity safeguards
+**Learning:** In translation segment validation, plain text strings (which represent 60-90% of translation segments) don't have ICU or HTML formatting. Bypassing AST parsing using `strings.ContainsAny(source, "{<")` is extremely fast. However, doing so for only the `source` text is a critical functional regression because the translator could introduce extra or malformed ICU braces/HTML tags in the translation. The fast-path bypass is only safe and correct when both the source and target contain no structural delimiters.
+**Action:** Implemented a dual-string fast-path check `if !strings.ContainsAny(source, "{<") && !strings.ContainsAny(translated, "{<")` in `validateICUInvariant` to ensure complete safety while preserving the 2x speedup and 75% memory reduction.
+
+## 2027-03-08 - Optimizing segment edge whitespace scanning and whitespace signal checking
+**Learning:** For segment edge whitespace profiling, we can completely bypass expensive rune-by-rune scanning and decoding (`utf8.DecodeRuneInString` / `utf8.DecodeLastRuneInString`) if the first and last bytes are ASCII non-whitespace, since UTF-8 guarantees any byte `< 0x80` is a single-byte ASCII codepoint. Additionally, `strings.Contains` is significantly faster than `countNBSP > 0` for checking presence of non-breaking spaces because it returns early on the first match.
+**Action:** Implemented ASCII byte-level fast-path check in `profileEdgeWhitespace` and replaced `countNBSP` with `strings.Contains` in `hasProfileWhitespaceSignals`, reducing PlainASCII edge scanning to ~5.8 ns/op and 0 allocations.
+
+## 2027-03-12 - Optimizing HTML tag parity checks via fast-paths and allocation reduction
+**Learning:** HTML tag parity checks are frequently performed during translation validation. Repeated use of `strings.TrimSpace`, `strings.TrimPrefix`, `strings.TrimSuffix`, and `strings.Fields` in a loop creates significant garbage collection pressure due to many intermediate string allocations. A manual scanning approach that extracts tag names in a single pass is much more efficient. Additionally, a simple fast-path for identical strings avoids expensive parsing entirely for the most common case.
+**Action:** Implement fast-paths for identical inputs and replace chained string manipulation functions with manual index-based scanning in hot paths like tag discovery and normalization.
+
+## 2027-03-15 - Optimizing HTML tag parity checks via fused single-pass scanning and lookup caching
+**Learning:** HTML tag sequence parity validation is a hot path during segment checking. 1) Using regular expression-based or multi-pass tag extraction (`findAllTags`) creates high memory allocation pressure due to intermediate slices and strings; fusing tag discovery, name extraction, and filtering into a single pass completely avoids allocating these intermediate buffers. 2) Bypassing `strings.ToLower` for tag names that are already lowercase ASCII (via `isAllLowerASCII`) prevents unnecessary heap allocations on standard inputs. 3) Converting a string to `[]byte` for `atom.Lookup` is expensive; a static package-level map of known HTML/SVG atoms (`htmlAtoms`) serves as a perfect fast-path that entirely eliminates these allocations.
+**Action:** Fused tag parsing in `collectMarkupTags`, bypassed lowercase conversions for lowercase ASCII strings, and implemented `htmlAtoms` precomputed lookup map to reduce heap allocations in HTML/XML hot-paths.
+
+## 2027-03-20 - Optimizing CLI scoring via map capacity hinting and loop Sprintf elimination
+**Learning:** In Go CLI evaluations and text analysis, reflection-based formatting like `fmt.Sprintf` inside hot loops for token generation introduces substantial CPU and allocation overhead. Direct string concatenation combined with `strconv.Itoa` is a highly efficient, allocation-free alternative. Furthermore, pre-allocating map capacities when lower bounds (e.g., ICU placeholders/blocks counts) are known avoids multiple resizing and rehashing operations.
+**Action:** Refactored `placeholderTokenCounts` in `apps/cli/internal/i18n/evalsvc/scoring/evaluator.go` to use capacity hinting and direct concatenation, yielding ~12% faster execution and ~18% fewer allocations.
+
+## 2027-03-25 - Eliminating redundant parsing and scanning in segment validation
+**Learning:** In CAT tool segment validation flows, performing multiple sequential/independent validation passes and then subsequently scanning/parsing the source strings all over again to determine token presence introduces substantial duplicate CPU and heap allocation overhead. Designing validations to extract and return formatting/token presence flags directly during the primary validation pass completely avoids these secondary rescans, reducing hot-path execution time by ~25-30% and allocations by ~30-35%.
+**Action:** Implemented `WithTokens` suffix counterparts for core validation functions (`validateICUInvariant`, `validateProfileParity`, `validateExtraPlaceholderParity`, `validateWhitespaceProfile`, `validateSpecialCharParity`) to return a boolean flag indicating formatting/profile token presence. Captured these flags in `ValidateSegment` directly during the validation phase to eliminate redundant/duplicate parsing without breaking original function signatures or unit test expectations.
+
+## 2027-03-28 - Optimizing scoring evaluation text normalization and token counting
+**Learning:** In text scoring evaluators, high-volume string normalization and token counting often suffer from redundant allocation overhead (like chaining `strings.ToLower` and `strings.TrimSpace` on large volumes of segments) and regular expression parsing on strings without any placeholders/markup. Re-implementing normalization as a single-pass character loop, and shielding regular expressions behind simple signal-character checks (`Contains` and `ContainsAny`), yields massive performance boosts while preserving 100% functional equivalence.
+**Action:** Always combine normalization steps (lowercase, trim, punctuation removal) into single-pass loops with pre-allocated builders, and guard regular expressions behind cheap signal character checks in high-frequency evaluation contexts.

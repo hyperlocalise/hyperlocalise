@@ -1,5 +1,15 @@
 # Canva App Agent Instructions
 
+## License
+
+Licensed under the Business Source License 1.1. See [`LICENSE`](./LICENSE).
+New Hyperlocalise-owned source files must include the BSL header. Preserve
+separate notices on third-party or generated files:
+
+```bash
+node scripts/add-bsl-headers.mjs apps/canva-app
+```
+
 ## Tooling
 
 This app uses [Vite+](https://vite.plus) (`vp`) for formatting (oxfmt), linting (oxlint), type checks, and tests (Vitest).

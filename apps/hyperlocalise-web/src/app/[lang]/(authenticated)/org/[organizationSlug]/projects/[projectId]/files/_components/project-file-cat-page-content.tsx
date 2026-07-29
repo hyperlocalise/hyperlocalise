@@ -1,0 +1,637 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeftIcon } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
+
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { TypographyP } from "@/components/ui/typography";
+import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
+import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
+import { apiClient } from "@/lib/api-client-instance";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
+import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
+import {
+  buildProjectFileCatAllFilesHref,
+  buildProjectFileCatHref,
+  canOpenProjectFileCat,
+  hasProjectFileCatIdentityFromUrl,
+  resolveProjectCatTargetLocale,
+  resolveProjectFileCatTargetLocaleResolution,
+  resolveProjectFileCatTargetLocales,
+} from "@/lib/projects/project-file-cat-routing";
+
+import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
+import {
+  catFileRepositoryPreferenceKey,
+  readCatFileRepositoryPreference,
+  writeCatFileRepositoryPreference,
+} from "../../jobs/[jobId]/strings/_components/job-cat-repository-preference";
+import {
+  canLookupFreshCatRepositoryContext,
+  selectJobCatRepository,
+} from "../../jobs/[jobId]/strings/_components/select-job-cat-repository";
+import {
+  fetchProjectFiles,
+  findCachedProjectFiles,
+  PROJECT_FILES_MAX_LIMIT,
+  projectFilesQueryKey,
+  sortFilesByPath,
+} from "./project-files-tree-panel";
+import { projectFileCatPageContentMessages as messages } from "./project-file-cat-page-content.messages";
+import {
+  CatFileTreePicker,
+  CatLocaleSelect,
+  CatRepositorySelect,
+} from "../../_components/cat-header-pickers";
+
+type ProjectFileCatGithubRepository = {
+  fullName: string;
+  enabled: boolean;
+  archived: boolean;
+};
+
+function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
+  return ["github-installation-repositories", organizationSlug] as const;
+}
+
+export function ProjectFileCatPageContent({
+  organizationSlug,
+  projectId,
+  sourcePath,
+  allFiles = false,
+  catAllFilesEnabled = false,
+  highlightLocale,
+  initialSegmentKey = null,
+  externalResourceId = null,
+  resourceType = null,
+  branch = null,
+  sourcePaths = null,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string | null;
+  allFiles?: boolean;
+  catAllFilesEnabled?: boolean;
+  highlightLocale: string | null;
+  initialSegmentKey?: string | null;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key" | null;
+  branch?: string | null;
+  sourcePaths?: string | null;
+}) {
+  const intl = useIntl();
+  const router = useRouter();
+  const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
+  const queryClient = useQueryClient();
+  const hasFileReference = Boolean(sourcePath) || allFiles;
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: hasFileReference,
+  });
+  const filesHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (sourcePath) {
+      params.set("sourcePath", sourcePath);
+    }
+    if (highlightLocale) {
+      params.set("locale", highlightLocale);
+    }
+    if (branch) {
+      params.set("branch", branch);
+    }
+    const query = params.toString();
+    return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files${
+      query ? `?${query}` : ""
+    }`;
+  }, [branch, highlightLocale, organizationSlug, projectId, sourcePath]);
+  const canOpenFromUrlIdentity = hasProjectFileCatIdentityFromUrl({
+    sourcePath,
+    externalResourceId,
+    highlightLocale,
+  });
+
+  const filesQuery = useQuery({
+    queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+    queryFn: () =>
+      fetchProjectFiles(
+        organizationSlug,
+        projectId,
+        PROJECT_FILES_MAX_LIMIT,
+        branch,
+        intl.formatMessage(messages.unableToLoad),
+      ),
+    enabled: hasFileReference,
+    placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+  });
+
+  const repositoriesQuery = useQuery({
+    queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
+    enabled: hasFileReference,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
+        "repositories"
+      ].$get({
+        param: { organizationSlug },
+        query: {},
+      });
+
+      if (!response.ok) {
+        throw new Error(intl.formatMessage(messages.loadRepositoriesFailed));
+      }
+
+      const body = (await response.json()) as { repositories: ProjectFileCatGithubRepository[] };
+      return body.repositories;
+    },
+  });
+
+  const catFiles = useMemo(
+    () => sortFilesByPath(filesQuery.data ?? []).filter((entry) => canOpenProjectFileCat(entry)),
+    [filesQuery.data],
+  );
+
+  const canUseAllFiles = catAllFilesEnabled;
+
+  useEffect(() => {
+    if (!allFiles || canUseAllFiles || !projectQuery.data) {
+      return;
+    }
+
+    const fallbackFile = catFiles[0];
+    if (!fallbackFile) {
+      router.replace(filesHref);
+      return;
+    }
+
+    const href = buildProjectFileCatHref(
+      organizationSlug,
+      projectId,
+      fallbackFile,
+      highlightLocale,
+      branch,
+      projectQuery.data.targetLocales,
+    );
+    if (href) {
+      router.replace(href);
+    }
+  }, [
+    allFiles,
+    branch,
+    canUseAllFiles,
+    catFiles,
+    filesHref,
+    highlightLocale,
+    organizationSlug,
+    projectId,
+    projectQuery.data,
+    router,
+  ]);
+
+  const enabledRepositoryFullNames = useMemo(
+    () =>
+      (repositoriesQuery.data ?? [])
+        .filter((repository) => repository.enabled && !repository.archived)
+        .map((repository) => repository.fullName),
+    [repositoriesQuery.data],
+  );
+
+  const repositoryPreferencePath = allFiles ? CAT_ALL_FILES_SOURCE_PATH : sourcePath;
+  const repositoryPreferenceKey = repositoryPreferencePath
+    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, repositoryPreferencePath)
+    : null;
+
+  const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRepositoryOverride(null);
+  }, [repositoryPreferenceKey]);
+
+  const autoSelectedRepositoryFullName = useMemo(() => {
+    if (!repositoryPreferenceKey) {
+      return null;
+    }
+
+    return selectJobCatRepository({
+      enabledRepositoryFullNames,
+      savedRepositoryFullName: readCatFileRepositoryPreference(repositoryPreferenceKey),
+    });
+  }, [enabledRepositoryFullNames, repositoryPreferenceKey]);
+
+  const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
+  useAppShellSidebar({
+    forceCollapsed: hasFileReference,
+    preferredOpen: hasFileReference ? false : null,
+  });
+
+  useEffect(() => {
+    if (!allFiles || highlightLocale || !projectQuery.data) {
+      return;
+    }
+
+    const resolved = resolveProjectCatTargetLocale(projectQuery.data.targetLocales, null);
+    if (!resolved) {
+      return;
+    }
+
+    router.replace(
+      buildProjectFileCatAllFilesHref(organizationSlug, projectId, resolved, {
+        branch,
+        sourcePaths: sourcePaths ? sourcePaths.split(",") : null,
+        basePath: "strings",
+      }),
+    );
+  }, [
+    allFiles,
+    branch,
+    highlightLocale,
+    organizationSlug,
+    projectId,
+    projectQuery.data,
+    router,
+    sourcePaths,
+  ]);
+
+  if (!sourcePath && !allFiles) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.chooseSourceFile} />
+          </TypographyP>
+          <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
+            <ArrowLeftIcon />
+            <FormattedMessage {...messages.files} />
+          </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.loadingFile} />
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (projectQuery.isError || (!canOpenFromUrlIdentity && filesQuery.isError)) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            {projectQuery.error instanceof Error
+              ? projectQuery.error.message
+              : filesQuery.error instanceof Error
+                ? filesQuery.error.message
+                : intl.formatMessage(messages.unableToLoad)}
+          </TypographyP>
+          <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
+            <ArrowLeftIcon />
+            <FormattedMessage {...messages.files} />
+          </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  const file =
+    filesQuery.data?.find((entry) => entry.sourcePath === sourcePath) ??
+    (canOpenFromUrlIdentity && externalResourceId
+      ? (filesQuery.data?.find(
+          (entry) => entry.provider?.externalResourceId === externalResourceId,
+        ) ?? null)
+      : null);
+
+  const resolvedExternalResourceId =
+    externalResourceId ?? file?.provider?.externalResourceId ?? null;
+  const resolvedResourceType = resourceType ?? file?.provider?.resourceType;
+
+  if (!allFiles && !canOpenFromUrlIdentity && !file) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
+          <TypographyP className="mt-2 text-sm text-muted-foreground">
+            <FormattedMessage {...messages.sourceFileMissing} />
+          </TypographyP>
+          <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
+            <ArrowLeftIcon />
+            <FormattedMessage {...messages.files} />
+          </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!allFiles && file?.provider && !supportsProviderCatFile(file)) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.providerTypeUnsupported} />
+          </TypographyP>
+          <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
+            <ArrowLeftIcon />
+            <FormattedMessage {...messages.files} />
+          </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  const projectTargetLocales = projectQuery.data?.targetLocales;
+  const workspaceTargetLocales = allFiles
+    ? [...(projectTargetLocales ?? [])]
+    : file
+      ? resolveProjectFileCatTargetLocales(file, projectTargetLocales)
+      : [];
+  const targetLocaleResolution = allFiles
+    ? {
+        requestedLocale: highlightLocale,
+        status: (highlightLocale && workspaceTargetLocales.includes(highlightLocale)
+          ? "exact"
+          : workspaceTargetLocales[0]
+            ? "fallback"
+            : "none") as "exact" | "fallback" | "none",
+        targetLocale: resolveProjectCatTargetLocale(projectTargetLocales, highlightLocale),
+        targetLocales: workspaceTargetLocales,
+      }
+    : file
+      ? resolveProjectFileCatTargetLocaleResolution(file, highlightLocale, projectTargetLocales)
+      : {
+          requestedLocale: highlightLocale,
+          status: highlightLocale ? ("exact" as const) : ("none" as const),
+          targetLocale: highlightLocale,
+          targetLocales: [],
+        };
+  const targetLocale = targetLocaleResolution.targetLocale;
+  const localeFallbackMessage =
+    targetLocaleResolution.status === "fallback" &&
+    targetLocaleResolution.requestedLocale &&
+    targetLocaleResolution.requestedLocale !== targetLocale
+      ? intl.formatMessage(messages.localeFallback, {
+          requestedLocale: targetLocaleResolution.requestedLocale,
+          targetLocale,
+        })
+      : null;
+
+  if (!targetLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.chooseTargetLocale} />
+          </TypographyP>
+          <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
+            <ArrowLeftIcon />
+            <FormattedMessage {...messages.files} />
+          </Button>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  const sourceLocale = projectQuery.data?.sourceLocale;
+  if (projectQuery.isSuccess && !sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            <FormattedMessage {...messages.missingSourceLocale} />
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.loadingFile} />
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  const handleFileChange = (nextSourcePath: string | null) => {
+    if (!nextSourcePath) {
+      return;
+    }
+
+    const nextFile = catFiles.find((entry) => entry.sourcePath === nextSourcePath);
+    if (!nextFile) {
+      return;
+    }
+
+    const href = buildProjectFileCatHref(
+      organizationSlug,
+      projectId,
+      nextFile,
+      targetLocale ?? highlightLocale,
+      branch,
+      projectTargetLocales,
+    );
+    if (href) {
+      router.push(href);
+    }
+  };
+
+  const handleSelectAllFiles = () => {
+    const href = buildProjectFileCatAllFilesHref(
+      organizationSlug,
+      projectId,
+      targetLocale ?? highlightLocale,
+      { branch, basePath: "strings" },
+    );
+    router.push(href);
+  };
+
+  const handleRepositoryChange = (nextRepositoryFullName: string) => {
+    if (!repositoryPreferenceKey) {
+      return;
+    }
+
+    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
+  };
+
+  const handleLocaleChange = (nextLocale: string) => {
+    if (nextLocale === targetLocale) {
+      return;
+    }
+
+    const navigate = () => {
+      if (allFiles) {
+        router.push(
+          buildProjectFileCatAllFilesHref(organizationSlug, projectId, nextLocale, {
+            branch,
+            sourcePaths: sourcePaths ? sourcePaths.split(",") : null,
+            basePath: "strings",
+          }),
+        );
+        return;
+      }
+
+      if (!sourcePath) {
+        return;
+      }
+
+      const params = new URLSearchParams({
+        sourcePath,
+        locale: nextLocale,
+      });
+
+      if (resolvedExternalResourceId) {
+        params.set("externalResourceId", resolvedExternalResourceId);
+      }
+
+      if (resolvedResourceType && resolvedResourceType !== "file") {
+        params.set("resourceType", resolvedResourceType);
+      }
+
+      if (branch) {
+        params.set("branch", branch);
+      }
+
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
+      );
+    };
+
+    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
+  };
+
+  return (
+    <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="size-8 shrink-0"
+          render={<Link href={filesHref} />}
+        >
+          <ArrowLeftIcon className="size-4" />
+        </Button>
+
+        {catFiles.length > 0 || allFiles ? (
+          <CatFileTreePicker
+            files={catFiles}
+            selectedSourcePath={sourcePath ?? ""}
+            onSelectFile={handleFileChange}
+            allFilesSelected={allFiles}
+            onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
+          />
+        ) : (
+          <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+            {sourcePath}
+          </TypographyP>
+        )}
+
+        {enabledRepositoryFullNames.length > 0 ? (
+          <CatRepositorySelect
+            repositoryFullNames={enabledRepositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
+        ) : null}
+
+        {workspaceTargetLocales.length > 0 ? (
+          <CatLocaleSelect
+            targetLocales={workspaceTargetLocales}
+            selectedTargetLocale={targetLocale}
+            onTargetLocaleChange={handleLocaleChange}
+          />
+        ) : null}
+
+        {file?.provider ? (
+          <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
+            <FormattedMessage
+              {...messages.providerKindAndFormat}
+              values={{
+                kind: file.provider.kind,
+                format: file.provider.format ?? intl.formatMessage(messages.providerFormatFallback),
+              }}
+            />
+          </TypographyP>
+        ) : null}
+      </div>
+
+      {(repositoriesQuery.isError ||
+        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          {repositoriesQuery.isError ? (
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.repositoriesLoadFailed} />
+            </TypographyP>
+          ) : (
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.selectRepositoryForContext} />
+            </TypographyP>
+          )}
+        </div>
+      )}
+
+      {localeFallbackMessage ? (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          <TypographyP className="text-xs text-muted-foreground">
+            {localeFallbackMessage}
+          </TypographyP>
+        </div>
+      ) : null}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+        <ProjectFileCatWorkspace
+          key={`${allFiles ? CAT_ALL_FILES_SOURCE_PATH : sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          sourcePath={allFiles ? CAT_ALL_FILES_SOURCE_PATH : (sourcePath as string)}
+          externalResourceId={allFiles ? null : resolvedExternalResourceId}
+          resourceType={allFiles ? undefined : resolvedResourceType}
+          targetLocale={targetLocale}
+          targetLocales={workspaceTargetLocales}
+          highlightLocale={highlightLocale}
+          repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
+          initialSegmentKey={initialSegmentKey}
+          sourcePathsFilter={sourcePaths}
+          layout="fullscreen"
+          className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
+        />
+      </div>
+    </main>
+  );
+}

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
@@ -15,7 +27,10 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "use_github_repository",
   "run_github_workflows",
   "run_contentful_translation",
-  "create_translation_jobs",
+  "create_native_tms_job",
+  "assign_translate_with_agent",
+  "use_semrush",
+  "use_ahrefs",
   "notify_slack",
   "notify_email",
 ] as const;
@@ -34,7 +49,10 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "use_github_repository",
   "run_github_workflows",
   "run_contentful_translation",
-  "create_translation_jobs",
+  "create_native_tms_job",
+  "assign_translate_with_agent",
+  "use_semrush",
+  "use_ahrefs",
 ];
 
 const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
@@ -50,8 +68,13 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationGithubWorkflow(toolConfig);
     case "run_contentful_translation":
       return hasWorkspaceAutomationContentfulWorkflow(toolConfig);
-    case "create_translation_jobs":
+    case "create_native_tms_job":
+    case "assign_translate_with_agent":
       return hasWorkspaceAutomationTranslationWorkflow(toolConfig);
+    case "use_semrush":
+      return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+    case "use_ahrefs":
+      return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
     default:
       return false;
   }
@@ -93,6 +116,10 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "run_contentful_translation"),
       ...enabled.filter((tool) => tool === "run_github_workflows"),
       ...enabled.filter((tool) => tool === "use_github_repository"),
+      ...enabled.filter((tool) => tool === "create_native_tms_job"),
+      ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+      ...enabled.filter((tool) => tool === "use_semrush"),
+      ...enabled.filter((tool) => tool === "use_ahrefs"),
     ];
   }
 
@@ -100,6 +127,10 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "use_github_repository"),
     ...enabled.filter((tool) => tool === "run_github_workflows"),
     ...enabled.filter((tool) => tool === "run_contentful_translation"),
+    ...enabled.filter((tool) => tool === "create_native_tms_job"),
+    ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+    ...enabled.filter((tool) => tool === "use_semrush"),
+    ...enabled.filter((tool) => tool === "use_ahrefs"),
   ];
 }
 

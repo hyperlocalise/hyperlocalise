@@ -4,14 +4,16 @@ import "errors"
 
 // Distribution represents a distribution in the project.
 type Distribution struct {
-	Hash        string `json:"hash"`
-	Name        string `json:"name"`
-	BundleIDs   []int  `json:"bundleIds"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
-	ExportMode  string `json:"exportMode"`
-	FileIDs     []int  `json:"fileIds"`
-	ManifestURL string `json:"manifestUrl"`
+	Hash         string     `json:"hash"`
+	Name         string     `json:"name"`
+	BundleIDs    []int      `json:"bundleIds"`
+	BranchIDs    []int      `json:"branchIds"`
+	DirectoryIDs []int      `json:"directoryIds"`
+	FileIDs      []int      `json:"fileIds"`
+	CreatedAt    string     `json:"createdAt"`
+	UpdatedAt    string     `json:"updatedAt"`
+	ExportMode   ExportMode `json:"exportMode"`
+	ManifestURL  string     `json:"manifestUrl"`
 }
 
 // DistributionResponse defines the structure of the response when
@@ -48,6 +50,10 @@ type DistributionAddRequest struct {
 	FileIDs []int `json:"fileIds,omitempty"`
 	// Bundles ids. Required for `bundle` export mode.
 	BundleIDs []int `json:"bundleIds,omitempty"`
+	// Branch ids.
+	BranchIDs []int `json:"branchIds,omitempty"`
+	// Directory ids.
+	DirectoryIDs []int `json:"directoryIds,omitempty"`
 }
 
 // Validate checks if the request is valid.
@@ -62,8 +68,9 @@ func (r *DistributionAddRequest) Validate() error {
 	if r.ExportMode == ExportModeBundle && len(r.BundleIDs) == 0 {
 		return errors.New("bundleIds is required for bundle export mode")
 	}
-	if r.ExportMode == ExportModeDefault && len(r.FileIDs) == 0 {
-		return errors.New("fileIds is required for default export mode")
+	if (r.ExportMode == "" || r.ExportMode == ExportModeDefault) &&
+		len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of fileIds, branchIds or directoryIds is required for default export mode")
 	}
 
 	return nil

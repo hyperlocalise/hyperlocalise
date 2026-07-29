@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
@@ -14,9 +26,8 @@ function createRuntime(
 ): HyperlocaliseAgentRuntimeContext {
   return {
     surface: "slack",
-    suggestedIntents: ["general"],
-    suggestedMode: "general",
     hasFileAttachments: false,
+    hasTmsIntegration: false,
     toolContext: {
       conversationId: "conv_1",
       organizationId: "org_1",
@@ -33,8 +44,6 @@ describe("subagent registry", () => {
   it("lists translation when files are attached", () => {
     const runtime = createRuntime({
       hasFileAttachments: true,
-      suggestedIntents: ["translation"],
-      suggestedMode: "translation",
     });
     expect(listAvailableSubagentTypes(runtime)).toContain("translation");
     expect(SUBAGENT_REGISTRY.translation.isAvailable(runtime)).toBe(true);
@@ -42,8 +51,6 @@ describe("subagent registry", () => {
 
   it("lists repository when a sandbox is available", () => {
     const runtime = createRuntime({
-      suggestedIntents: ["repository"],
-      suggestedMode: "repository",
       toolContext: {
         ...createRuntime().toolContext,
         sandboxId: "sbx_1",
@@ -53,7 +60,7 @@ describe("subagent registry", () => {
     expect(resolveSubagentTypeForMode(runtime)).toBe("repository");
   });
 
-  it("returns no preferred subagents for general intent even when agents are available", () => {
+  it("orders repository before translation when both are available", () => {
     const runtime = createRuntime({
       hasFileAttachments: true,
       toolContext: {
@@ -62,20 +69,6 @@ describe("subagent registry", () => {
       },
     });
     expect(listAvailableSubagentTypes(runtime)).toEqual(["translation", "repository"]);
-    expect(resolvePreferredSubagentOrder(runtime)).toEqual([]);
-    expect(resolveSubagentTypeForMode(runtime)).toBeNull();
-  });
-
-  it("orders repository before translation when both intents are active", () => {
-    const runtime = createRuntime({
-      suggestedIntents: ["translation", "repository"],
-      suggestedMode: "general",
-      hasFileAttachments: true,
-      toolContext: {
-        ...createRuntime().toolContext,
-        sandboxId: "sbx_1",
-      },
-    });
     expect(resolvePreferredSubagentOrder(runtime)).toEqual(["repository", "translation"]);
     expect(resolveSubagentTypeForMode(runtime)).toBe("repository");
   });

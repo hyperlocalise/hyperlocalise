@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
-const hexDigits = "0123456789ABCDEF"
+const (
+	hexDigits      = "0123456789ABCDEF"
+	hexDigitsLower = "0123456789abcdef"
+)
 
 // Parser parses translation file content into key/value pairs.
 type Parser interface {
@@ -30,33 +33,44 @@ type Strategy struct {
 
 // NewDefaultStrategy returns a strategy preconfigured for supported locale file formats.
 func NewDefaultStrategy() *Strategy {
-	s := &Strategy{parsersByExt: map[string]Parser{}}
-	s.Register(".json", JSONParser{})
-	s.Register(".jsonc", JSONCParser{})
+	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
+	// during initialization. We use assignments for static extensions and
+	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
+	parsers := make(map[string]Parser, 28+len(JSTSLocaleModuleExts))
+	parsers[".json"] = JSONParser{}
+	parsers[".jsonc"] = JSONCParser{}
+	parsers[".yaml"] = YAMLParser{}
+	parsers[".yml"] = YAMLParser{}
+	parsers[".arb"] = ARBParser{}
+	parsers[".xlf"] = XLIFFParser{}
+	parsers[".xlif"] = XLIFFParser{}
+	parsers[".xliff"] = XLIFFParser{}
+	parsers[".po"] = POFileParser{}
+	parsers[".html"] = HTMLParser{}
+	parsers[".htm"] = HTMLParser{}
+	parsers[".liquid"] = LiquidParser{}
+	parsers[".md"] = MarkdownParser{MDX: false}
+	parsers[".mdx"] = MarkdownParser{MDX: true}
+	parsers[".markdown"] = MarkdownParser{MDX: false}
+	parsers[".mdown"] = MarkdownParser{MDX: false}
+	parsers[".mkdn"] = MarkdownParser{MDX: false}
+	parsers[".mdwn"] = MarkdownParser{MDX: false}
+	parsers[".mkd"] = MarkdownParser{MDX: false}
+	parsers[".strings"] = AppleStringsParser{}
+	parsers[".stringsdict"] = AppleStringsdictParser{}
+	parsers[".xcstrings"] = XCStringsParser{}
+	parsers[".csv"] = CSVParser{}
+	parsers[".php"] = PHPArrayParser{}
+	parsers[".ftl"] = FluentParser{}
+	parsers[".xml"] = XMLParser{}
+	parsers[".resx"] = GenericXMLParser{}
+	parsers[".properties"] = JavaPropertiesParser{}
+
 	for _, ext := range JSTSLocaleModuleExts {
-		s.Register(ext, JSTSLocaleModuleParser{})
+		parsers[ext] = JSTSLocaleModuleParser{}
 	}
-	s.Register(".yaml", YAMLParser{})
-	s.Register(".yml", YAMLParser{})
-	s.Register(".arb", ARBParser{})
-	s.Register(".xlf", XLIFFParser{})
-	s.Register(".xlif", XLIFFParser{})
-	s.Register(".xliff", XLIFFParser{})
-	s.Register(".po", POFileParser{})
-	s.Register(".html", HTMLParser{})
-	s.Register(".liquid", LiquidParser{})
-	s.Register(".md", MarkdownParser{MDX: false})
-	s.Register(".mdx", MarkdownParser{MDX: true})
-	s.Register(".strings", AppleStringsParser{})
-	s.Register(".stringsdict", AppleStringsdictParser{})
-	s.Register(".xcstrings", XCStringsParser{})
-	s.Register(".csv", CSVParser{})
-	s.Register(".php", PHPArrayParser{})
-	s.Register(".ftl", FluentParser{})
-	s.Register(".xml", XMLParser{})
-	s.Register(".resx", GenericXMLParser{})
-	s.Register(".properties", JavaPropertiesParser{})
-	return s
+
+	return &Strategy{parsersByExt: parsers}
 }
 
 // XMLParser routes Android string resource XML files to the Android-specific
@@ -100,6 +114,33 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 	}
 
 	return values, nil
+}
+
+// ParseWithLocale parses content for a specific target locale when the format
+// stores multiple locales in one file (for example Apple .xcstrings catalogs or
+// multi-column CSV files). For other formats, locale is ignored and Parse is used.
+func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (map[string]string, error) {
+	locale = strings.TrimSpace(locale)
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
+	if locale == "" {
+		return s.Parse(path, content)
+	}
+	if ext == ".xcstrings" {
+		values, err := ParseXCStringsLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+	if ext == ".csv" {
+		values, err := ParseCSVLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+
+	return s.Parse(path, content)
 }
 
 // ParseWithContext resolves a parser from the file path extension and parses content.

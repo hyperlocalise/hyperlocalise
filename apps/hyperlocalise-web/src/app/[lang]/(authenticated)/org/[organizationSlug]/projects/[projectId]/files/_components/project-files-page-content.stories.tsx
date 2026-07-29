@@ -1,18 +1,90 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { useState } from "react";
+import { expect, waitFor } from "storybook/test";
 
-import { ProjectFileDetailPanelView } from "./project-file-detail-panel";
+import { TypographyP } from "@/components/ui/typography";
+
+import { ProjectSectionTitle } from "../../_components/project-page-shell";
+import { ProjectFilesBranchFilterView } from "./project-files-branch-filter-view";
 import { ProjectFilesPageContentView } from "./project-files-page-content";
+import { ProjectFilesTree } from "./project-files-tree";
 import {
-  createProjectFileDetail,
   createProjectFileRecord,
   projectFilesFixture,
+  providerProjectBranchesFixture,
   providerProjectFilesFixture,
   selectedUploadFiles,
 } from "./project-files.fixture";
 
+const providerProjectId = "ext:crowdin:project_website";
 const selectedFile = projectFilesFixture[0] ?? createProjectFileRecord();
-const selectedDetail = createProjectFileDetail(selectedFile);
+const selectedProviderFile = providerProjectFilesFixture[0] ?? createProjectFileRecord();
+
+function storyFilesTree({
+  files,
+  selectedSourcePath,
+  onSelectSourcePath,
+  showBranchFilter = false,
+  selectedBranch = null,
+  onSelectBranch,
+  fileActions,
+}: {
+  files: typeof projectFilesFixture;
+  selectedSourcePath: string | null;
+  onSelectSourcePath: (sourcePath: string | null) => void;
+  organizationSlug: string;
+  projectId: string;
+  highlightLocale: string | null;
+  projectTargetLocales?: readonly string[] | null;
+  nativeSourcePaths?: readonly string[] | null;
+  showBranchFilter?: boolean;
+  selectedBranch?: string | null;
+  onSelectBranch?: (branch: string | null) => void;
+  fileActions?: Parameters<typeof ProjectFilesTree>[0]["fileActions"];
+}) {
+  return () => (
+    <>
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="min-w-0">
+          <ProjectSectionTitle>Project files</ProjectSectionTitle>
+          <TypographyP className="mt-0.5 text-sm text-muted-foreground">
+            {files.length} file{files.length === 1 ? "" : "s"}
+          </TypographyP>
+        </div>
+        {showBranchFilter ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <ProjectFilesBranchFilterView
+              branches={providerProjectBranchesFixture}
+              selectedBranch={selectedBranch}
+              onSelectedBranchChange={onSelectBranch ?? (() => undefined)}
+            />
+          </div>
+        ) : null}
+      </header>
+
+      <div className="min-h-0 flex-1 p-2">
+        <ProjectFilesTree
+          files={files}
+          selectedSourcePath={selectedSourcePath}
+          onSelectFile={(sourcePath) => onSelectSourcePath(sourcePath)}
+          fileActions={fileActions}
+        />
+      </div>
+    </>
+  );
+}
 
 const meta = {
   title: "App/Project/Files/Page",
@@ -24,6 +96,7 @@ const meta = {
     organizationSlug: "acme",
     projectId: "project_website",
     files: projectFilesFixture,
+    resolvedFiles: projectFilesFixture,
     isFilesLoading: false,
     isFilesFetching: false,
     selectedSourcePath: selectedFile.sourcePath,
@@ -34,14 +107,15 @@ const meta = {
     onAddSelectedFiles: () => undefined,
     onRemoveSelectedFile: () => undefined,
     onUploadSelectedFiles: () => undefined,
-    renderDetailPanel: (props) => (
-      <ProjectFileDetailPanelView
-        {...props}
-        isLoading={false}
-        detail={props.file?.sourcePath === selectedDetail.sourcePath ? selectedDetail : undefined}
-        targetLocales={["fr-FR", "de-DE"]}
-      />
-    ),
+    filesTree: storyFilesTree({
+      files: projectFilesFixture,
+      selectedSourcePath: selectedFile.sourcePath,
+      onSelectSourcePath: () => undefined,
+      organizationSlug: "acme",
+      projectId: "project_website",
+      highlightLocale: "fr-FR",
+      projectTargetLocales: ["fr-FR", "de-DE"],
+    }),
   },
 } satisfies Meta<typeof ProjectFilesPageContentView>;
 
@@ -49,10 +123,18 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RepositoryFiles: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Files" })).toBeInTheDocument();
-    await expect(canvas.getByText("Project files")).toBeInTheDocument();
-    await expect(canvas.getByText("marketing/home.json")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Project files" })).toBeInTheDocument();
+    await expect(canvas.getByText("3 files")).toBeInTheDocument();
+    await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
+    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Translate with agent" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Import translations" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Download" })).toBeNull();
+    await waitFor(() => {
+      void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+    });
   },
 };
 
@@ -75,17 +157,72 @@ export const Uploading: Story = {
 
 export const ProviderFiles: Story = {
   args: {
-    projectId: "crowdin:project_website",
+    projectId: providerProjectId,
+    isProviderProject: true,
     files: providerProjectFilesFixture,
-    selectedSourcePath: providerProjectFilesFixture[0]?.sourcePath ?? null,
+    resolvedFiles: providerProjectFilesFixture,
+    selectedSourcePath: selectedProviderFile.sourcePath,
     selectedFiles: [],
-    renderDetailPanel: (props) => (
-      <ProjectFileDetailPanelView
-        {...props}
-        isLoading={false}
-        detail={props.file ? createProjectFileDetail(props.file) : undefined}
+    filesTree: storyFilesTree({
+      files: providerProjectFilesFixture,
+      selectedSourcePath: selectedProviderFile.sourcePath,
+      onSelectSourcePath: () => undefined,
+      organizationSlug: "acme",
+      projectId: providerProjectId,
+      highlightLocale: "fr-FR",
+      showBranchFilter: true,
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+  },
+};
+
+export const ProviderFilesBranchSelected: Story = {
+  render: (args) => {
+    const [selectedBranch, setSelectedBranch] = useState<string | null>("main");
+
+    return (
+      <ProjectFilesPageContentView
+        {...args}
+        selectedBranch={selectedBranch}
+        filesTree={storyFilesTree({
+          files: providerProjectFilesFixture,
+          selectedSourcePath: selectedProviderFile.sourcePath,
+          onSelectSourcePath: () => undefined,
+          organizationSlug: "acme",
+          projectId: providerProjectId,
+          highlightLocale: "fr-FR",
+          showBranchFilter: true,
+          selectedBranch,
+          onSelectBranch: setSelectedBranch,
+        })}
       />
-    ),
+    );
+  },
+  args: {
+    organizationSlug: "acme",
+    projectId: providerProjectId,
+    isProviderProject: true,
+    files: providerProjectFilesFixture,
+    resolvedFiles: providerProjectFilesFixture,
+    selectedSourcePath: selectedProviderFile.sourcePath,
+    highlightLocale: "fr-FR",
+    selectedBranch: "main",
+    selectedFiles: [],
+    isUploading: false,
+    isFilesLoading: false,
+    isFilesFetching: false,
+    onSelectSourcePath: () => undefined,
+    onAddSelectedFiles: () => undefined,
+    onRemoveSelectedFile: () => undefined,
+    onUploadSelectedFiles: () => undefined,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toHaveTextContent("Main (main)");
   },
 };
 
@@ -94,9 +231,7 @@ export const LoadingFiles: Story = {
     files: [],
     isFilesLoading: true,
     selectedSourcePath: null,
-    renderDetailPanel: (props) => (
-      <ProjectFileDetailPanelView {...props} isLoading={false} detail={undefined} />
-    ),
+    filesTree: undefined,
   },
 };
 
@@ -104,9 +239,14 @@ export const EmptyRepository: Story = {
   args: {
     files: [],
     selectedSourcePath: null,
-    renderDetailPanel: (props) => (
-      <ProjectFileDetailPanelView {...props} isLoading={false} detail={undefined} />
-    ),
+    filesTree: storyFilesTree({
+      files: [],
+      selectedSourcePath: null,
+      onSelectSourcePath: () => undefined,
+      organizationSlug: "acme",
+      projectId: "project_website",
+      highlightLocale: null,
+    }),
   },
 };
 
@@ -115,8 +255,6 @@ export const LoadError: Story = {
     files: [],
     filesError: new Error("The files API returned a 500."),
     selectedSourcePath: null,
-    renderDetailPanel: (props) => (
-      <ProjectFileDetailPanelView {...props} isLoading={false} detail={undefined} />
-    ),
+    filesTree: undefined,
   },
 };

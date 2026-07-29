@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { openaiMock, stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
+const { openaiMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
   openaiMock: vi.fn(() => "mock-model"),
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -17,7 +29,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
@@ -40,10 +52,10 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/agent-runtime/loops/orchestrator", () => ({
-  createConversationOrchestratorAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
+vi.mock("@/lib/agent-runtime/loops/conversation-skill-agent", () => ({
+  createConversationSkillAgent: vi.fn((runtime: unknown, onEnd: unknown) => ({
     runtime,
-    onFinish,
+    onEnd,
   })),
 }));
 
@@ -53,10 +65,11 @@ import {
   createHyperlocaliseAgent,
   hyperlocaliseAgentModelId,
   hyperlocaliseAgentStepLimit,
+  prepareConversationSkillStep,
   replaceLastUserMessage,
   toModelMessages,
 } from "./hyperlocalise-agent";
-import { createConversationOrchestratorAgent } from "./orchestrator";
+import { createConversationSkillAgent } from "./conversation-skill-agent";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 
 describe("hyperlocalise agent core", () => {
@@ -113,7 +126,7 @@ describe("hyperlocalise agent core", () => {
     });
 
     expect(openaiMock).toHaveBeenCalledWith(hyperlocaliseAgentModelId);
-    expect(stepCountIsMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
+    expect(isStepCountMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
@@ -125,50 +138,37 @@ describe("hyperlocalise agent core", () => {
     );
   });
 
-  it("creates an orchestrator runtime for translation mode", () => {
+  it("forces a text-only reply on the final conversation skill step", () => {
+    expect(prepareConversationSkillStep({ stepNumber: 0 })).toBeUndefined();
+    expect(
+      prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 2 }),
+    ).toBeUndefined();
+    expect(prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
+      toolChoice: "none",
+    });
+  });
+
+  it("creates a skill-based conversation agent from runtime context", () => {
     createConversationToolLoopAgent({
       surface: "web",
-      suggestedIntents: ["translation"],
+      hasTmsIntegration: false,
       toolContext: {
         conversationId: "conv_123",
         organizationId: "org_123",
         localUserId: "user_123",
         membershipRole: "admin",
-        projectId: null,
+        projectId: "proj_123",
         db: {} as never,
       },
       hasFileAttachments: true,
     });
 
-    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
+    expect(createConversationSkillAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         surface: "web",
-        suggestedMode: "translation",
         hasFileAttachments: true,
-      }),
-      undefined,
-    );
-  });
-
-  it("creates an orchestrator runtime for repository mode", () => {
-    createConversationToolLoopAgent({
-      surface: "slack",
-      suggestedIntents: ["repository"],
-      toolContext: {
-        conversationId: "conv_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "admin",
-        projectId: null,
-        db: {} as never,
-        sandboxId: "sbx_123",
-      },
-    });
-
-    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        suggestedMode: "repository",
-        toolContext: expect.objectContaining({ sandboxId: "sbx_123" }),
+        hasTmsIntegration: false,
+        toolContext: expect.objectContaining({ projectId: "proj_123" }),
       }),
       undefined,
     );

@@ -1,0 +1,199 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+// @vitest-environment happy-dom
+
+import { useRef, type ReactNode } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { IntlProvider } from "react-intl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import {
+  getInternalNavigationHrefFromClick,
+  IssueDetailNavigationGuard,
+  useIssueDetailGuardedNavigate,
+} from "./issue-detail-navigation-guard";
+import type { IssueDetailPanelHandle } from "./issue-detail-panel";
+
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
+function createDirtyPanel(): IssueDetailPanelHandle {
+  return {
+    isDirty: () => true,
+    savePending: vi.fn(async () => {}),
+    beginCloseConfirm: vi.fn(),
+    endCloseConfirm: vi.fn(),
+    discardPending: vi.fn(),
+  };
+}
+
+describe("getInternalNavigationHrefFromClick", () => {
+  const current = "https://app.example.com/org/acme/projects/p1/issue-sheet/i1";
+
+  it("returns null for non-link targets", () => {
+    expect(getInternalNavigationHrefFromClick(document.createElement("div"), current)).toBeNull();
+  });
+
+  it("returns null for same-page href", () => {
+    const anchor = document.createElement("a");
+    anchor.href = "/org/acme/projects/p1/issue-sheet/i1";
+    document.body.appendChild(anchor);
+
+    expect(getInternalNavigationHrefFromClick(anchor, current)).toBeNull();
+
+    anchor.remove();
+  });
+
+  it("returns internal path for in-app navigation", () => {
+    const anchor = document.createElement("a");
+    anchor.href = "/org/acme/issues";
+    document.body.appendChild(anchor);
+
+    expect(getInternalNavigationHrefFromClick(anchor, current)).toBe("/org/acme/issues");
+
+    anchor.remove();
+  });
+
+  it("returns null for external origins", () => {
+    const anchor = document.createElement("a");
+    anchor.href = "https://other.example.com/page";
+    document.body.appendChild(anchor);
+
+    expect(getInternalNavigationHrefFromClick(anchor, current)).toBeNull();
+
+    anchor.remove();
+  });
+});
+
+function GuardHarness({ isDirty, children }: { isDirty: boolean; children?: ReactNode }) {
+  const panelRef = useRef<IssueDetailPanelHandle | null>(null);
+  if (panelRef.current === null) {
+    panelRef.current = createDirtyPanel();
+  }
+  return (
+    <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDirty}>
+      {children}
+    </IssueDetailNavigationGuard>
+  );
+}
+
+describe("IssueDetailNavigationGuard", () => {
+  let pushStateSpy: ReturnType<typeof vi.spyOn>;
+  let backSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    pushStateSpy = vi.spyOn(window.history, "pushState");
+    backSpy = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    window.history.replaceState(null, "", "/org/acme/issue");
+  });
+
+  afterEach(() => {
+    pushStateSpy.mockRestore();
+    backSpy.mockRestore();
+  });
+
+  function renderGuard() {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <GuardHarness isDirty />
+      </IntlProvider>,
+    );
+  }
+
+  it("does not push another history entry on popstate while dirty", async () => {
+    renderGuard();
+
+    expect(pushStateSpy).toHaveBeenCalledTimes(1);
+    pushStateSpy.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(pushStateSpy).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    });
+  });
+
+  it("continues back navigation once when leaving after popstate", async () => {
+    renderGuard();
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Discard" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(backSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("reinstalls history guard when keeping editing after popstate", async () => {
+    renderGuard();
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Keep editing" })).toBeTruthy();
+    });
+    pushStateSpy.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    expect(pushStateSpy).toHaveBeenCalledTimes(1);
+    expect(pushStateSpy).toHaveBeenCalledWith(
+      { issueDetailDraftGuard: true },
+      "",
+      expect.stringContaining("/org/acme/issue"),
+    );
+  });
+
+  it("routes programmatic navigation through the dirty-state guard", async () => {
+    pushMock.mockClear();
+
+    function NavigateButton() {
+      const navigateGuarded = useIssueDetailGuardedNavigate();
+      return (
+        <button type="button" onClick={() => navigateGuarded("/org/acme/members")}>
+          Go members
+        </button>
+      );
+    }
+
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <GuardHarness isDirty>
+          <NavigateButton />
+        </GuardHarness>
+      </IntlProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Go members" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/org/acme/members");
+  });
+});

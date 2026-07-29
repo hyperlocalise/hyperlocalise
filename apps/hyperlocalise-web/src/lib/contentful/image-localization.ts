@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { localizedImageOutputFilename } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -25,6 +37,8 @@ export async function localizeContentfulAssetForLocale(input: {
   sourceLocale: string;
   targetLocale: string;
   fieldName: string;
+  organizationId?: string;
+  runId?: string;
 }): Promise<
   Result<
     {
@@ -61,11 +75,27 @@ export async function localizeContentfulAssetForLocale(input: {
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
   });
-  const localized = await regenerateImageFromAttachment(
-    downloadedResult.value.buffer,
-    downloadedResult.value.contentType,
-    prompt,
-  );
+  const localized = input.organizationId
+    ? await regenerateImageFromAttachment(
+        downloadedResult.value.buffer,
+        downloadedResult.value.contentType,
+        prompt,
+        {
+          organizationId: input.organizationId,
+          operationKey: `image-localization:contentful:${input.runId ?? input.assetId}:${input.targetLocale}`,
+          source: "contentful_image_localization",
+          dimensions: {
+            channel: "contentful",
+            asset_id: input.assetId,
+            target_locale: input.targetLocale,
+          },
+        },
+      )
+    : await regenerateImageFromAttachment(
+        downloadedResult.value.buffer,
+        downloadedResult.value.contentType,
+        prompt,
+      );
   const localizedFileName = localizedImageOutputFilename(
     downloadedResult.value.fileName,
     input.targetLocale,

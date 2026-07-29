@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { testClient } from "hono/testing";
@@ -5,7 +17,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
-import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -55,7 +67,6 @@ describe("tmsDashboardSummaryRoutes", () => {
     if ("error" in body) throw new Error(String(body.error));
     expect(body.tmsDashboardSummary.counts.connectedProviders).toBe(0);
     expect(body.tmsDashboardSummary.providers).toEqual([]);
-    expect(body.tmsDashboardSummary.localeReadiness).toEqual([]);
   });
 
   it("returns provider details when credentials exist", async () => {

@@ -40,7 +40,7 @@
 **Learning:** ICU elements for `number`, `date`, and `time` were previously excluded from `ICUBlocks` metadata, which is used for structural parity checks. While their arguments were extracted as placeholders, their specific types were missing from the structural signature. This could allow a translation to change the type (e.g., from `date` to `number`) without triggering a structural mismatch.
 **Action:** Ensure all "typed" ICU elements (`NumberElement`, `DateElement`, `TimeElement`) are appended to `ICUBlocks` during invariant collection to protect the structural integrity of complex messages.
 
-## 2025-06-12 - [PO msgid Significance of Whitespace]
+## 2026-06-12 - [PO msgid Significance of Whitespace]
 **Learning:** In gettext/PO files, `msgid` keys are the source of truth for translation lookups, and leading/trailing whitespace is significant. Over-eagerly trimming spaces from these keys during parsing causes lookup failures in downstream systems.
 **Action:** Always preserve the exact literal string for `msgid` keys, except for the header entry (`msgid ""`) which is standardly skipped in message maps.
 
@@ -99,3 +99,83 @@
 ## 2026-06-23 - [Translator Request Validation Safety]
 **Learning:** Shared request types in the translator package (Request, ImageEditRequest) lack explicit validation tests, despite being critical internal APIs. Adding dedicated tests for their validation logic ensures that contract requirements (like mandatory fields or supported image formats) are consistently enforced across all provider implementations.
 **Action:** Always include comprehensive success and failure test cases for validation helpers when introducing or modifying shared data structures to prevent regressions in API contract enforcement.
+
+## 2026-06-24 - [CSV Injection: Escaping Line Feeds]
+**Learning:** Security best practices (OWASP) for CSV injection/Formula injection require escaping not just '=', '+', '-', and '@', but also whitespace characters like Tab (0x09), Carriage Return (0x0D), and Line Feed (0x0A). If these characters appear at the start of a cell, some spreadsheet software may interpret the following content as a formula.
+**Action:** Always include '\n' (Line Feed) in the set of characters that trigger formula escaping (prepending a single quote) in CSV cell values.
+
+## 2026-06-26 - [ICU Pound Summation in Sibling Blocks]
+**Learning:** In ICU message invariant analysis, pound signs (#) within sibling conditional blocks (like multiple 'select' blocks inside a single 'plural' branch) must be summed to correctly identify the maximum possible pound usage. While 'select' branches are mutually exclusive within a single block, sibling blocks are independent and both will contribute their respective 'active' branch content to the final message.
+**Action:** When calculating pound invariants for a plural block, ensure that sibling elements correctly accumulate their counts, while only mutually exclusive branches (like those within a single 'select' or 'plural') take the maximum.
+
+## 2025-07-25 - [Strict ICU Identifier Dot Validation]
+**Learning:** ICU placeholder names that support property paths (dots) must not allow leading, trailing, or consecutive dots (e.g., `.name`, `name.`, `name..last`). Additionally, dots should not immediately precede an array index bracket (e.g., `items.[0]`). Failing to enforce these constraints can lead to malformed identifiers being collected during invariant analysis.
+**Action:** When validating identifiers with dots, ensure each dot is followed by a valid subsequent character that is not another dot or an opening bracket.
+
+## 2025-08-01 - [Preserving Path Relativity with Empty Tokens]
+**Learning:** Path resolution patterns starting with tokens (e.g., `{{localeDir}}/index.mdx`) can become absolute (e.g., `/index.mdx`) if the token resolves to an empty string. This causes "path escapes root" errors in security-sensitive CLI operations that expect relative paths.
+**Action:** When resolving paths, only trim leading slashes if the original pattern was relative. Use `strings.TrimPrefix(path, "/")` conditionally based on the original pattern's prefix to preserve both absolute paths and intended relativity.
+
+## 2025-08-05 - [ICU Invariant Styles]
+**Learning:** ICU invariant analysis must capture styles for typed elements (number, date, time) in the BlockSignature Options field. This ensures that changes to the formatting style are detected as invariant mismatches, which is critical for maintaining consistency between source and translations.
+**Action:** Always include the Style field from NumberElement, DateElement, and TimeElement in the ICUBlocks signature when collecting message invariants.
+
+## 2026-08-12 - [Newline Parity and CRLF Literal Width]
+**Learning:** Localization validation must protect leading/trailing newlines (`\n`, `\r`) as they often affect UI layout. Naive whitespace definitions that only include space and tab skip these critical characters. Additionally, escaped special character scanners must correctly track the width of multibackslash sequences (e.g., `\r\n` is 4 bytes: `\`, `r`, `\`, `n`) to avoid index misalignment during extraction.
+**Action:** Include `\r` and `\n` in edge whitespace parity checks. Ensure special character literal width matches the source representation (e.g., `width: 4` for `\r\n`) to maintain scanner integrity.
+
+## 2025-08-15 - [PHP Hex Escape Robustness]
+**Learning:** PHP's string parser is lenient with invalid hex escape sequences (e.g., `\x` followed by a non-hex character), treating them as literal text rather than fatal errors. Mirroring this behavior in translation parsers prevents unnecessary extraction failures on valid PHP files that happen to contain these sequences.
+**Action:** When parsing escaped sequences in format-specific parsers, prefer falling back to literal text for malformed or incomplete escapes if that matches the source language's runtime behavior.
+
+## 2025-05-23 - [PO Parser Comment State Reset]
+**Learning:** Comments in PO files must reset the `activeField` state, just like ignored fields. If a comment is followed by a continuation line (a quoted string), the continuation would otherwise be incorrectly appended to the last active field (e.g. `msgid` or `msgstr`), leading to data corruption.
+**Action:** Ensure comment line handlers explicitly reset `activeField` to prevent trailing continuations from leaking into preceding entries.
+
+## 2026-07-10 - [Go Regex Word Boundaries with Non-word Characters]
+**Learning:** In Go's `regexp` engine (RE2), the word boundary anchor `\b` matches the boundary between a word character (`[a-zA-Z0-9_]`) and a non-word character (or vice versa). If a placeholder ends with a non-word character like `@` (as in Objective-C's `%@`), a trailing `\b` will only match if the *following* character is a word character. It will fail if followed by space, punctuation, or end-of-string.
+**Action:** When matching placeholders that end with symbols, avoid naive `\b` anchors. Instead, match the specific symbol literally or use negative lookaheads (if available/needed) to ensure correct detection across all contexts.
+
+## 2025-07-15 - [Broadening Format Detection]
+**Learning:** `KindForSourcePath` determines which validation rules (Markdown, HTML, ICU) apply to a segment. Previously, it only recognized a narrow set of extensions (e.g., `.md`, `.html`), causing common variations like `.markdown` or `.htm` to default to generic ICU validation, potentially missing format-specific structural checks.
+**Action:** Ensure `KindForSourcePath` includes all common format variations (e.g., `.mdown`, `.mdwn`, `.htm`) in its extension-to-kind mapping to guarantee consistent validation across projects with different naming conventions.
+
+## 2025-07-20 - [QA Mode and Profile Parity Interaction]
+**Learning:** In `ValidateSegment`, QA checks (like `whitespace_only`) are executed after core format and profile parity checks. If a target string contains only whitespace while the source contains text, `validateWhitespaceProfile` will trigger a `format-whitespace-profile` failure (StatusFail) before the `qa-whitespace-only` warning (StatusWarn) is even evaluated.
+**Action:** When testing QA modes via the top-level `ValidateSegment` entry point, ensure the source and target strings are chosen to either specifically trigger or specifically avoid overlapping profile parity violations to maintain test determinism.
+
+## 2025-07-20 - [Comprehensive Printf Placeholder Detection]
+**Learning:** Naive printf placeholder detection (e.g., matching only %s, %d) misses common specifiers like %i, %x, %u and modifiers like width (%02d), precision (%.2f), or length (%ld). This allows critical placeholders to be omitted from translations without triggering validation failures.
+**Action:** Use a comprehensive regex that supports the full range of standard printf specifiers, flags, width, precision, and length modifiers to ensure structural parity is strictly enforced for all placeholder types.
+
+## 2026-07-18 - [HTML Tag Name Extraction and Space Leniency]
+**Learning:** The HTML tag name extraction helper (`extractTagName`) does not skip whitespace following a closing slash (e.g., `</ strong >` or `< / div>`). Instead, the scanning loop terminates at the space and returns `/`. Since `isLikelyMarkupTag` ignores `/`, such spaced structures are not recognized as markup.
+**Action:** When unit testing tag parsing helper functions, match the precise behavior of the underlying parsing state-machine regarding spaces around structural markers like slashes.
+
+## 2026-08-25 - [Testing Uncleaned and Relative Paths for Containment]
+**Learning:** Testing path containment/directory traversal logic with pre-cleaned paths (e.g., using `filepath.Join` inside the test assertions) can mask issues. To properly verify containment defenses, test inputs must include raw uncleaned relative traversal strings (such as `path/../outside`) and relative paths (like `.` or `../`) to ensure the system handles dynamic resolving and absolute normalization correctly.
+**Action:** When testing path guards or canonicalization logic, avoid pre-cleaning test candidates, and explicitly test both absolute and relative inputs across existence and non-existence boundaries.
+
+## 2026-08-30 - [Strategy Parser Extension Resolution]
+**Learning:** `Strategy.Parse` relies on Go's `filepath.Ext` to resolve custom registered extensions. Therefore, dynamically registered parser test cases must pass input filenames containing a dot (e.g. `file.custom` or `file.CUSTOM`) to ensure extension detection succeeds, rather than naked extensions like `custom`.
+**Action:** Always construct realistic, dot-prefixed filenames (e.g. `"file." + strings.TrimPrefix(ext, ".")`) when verifying registered parser resolution in strategy-level unit tests.
+
+## 2026-09-05 - [Apple Strings Parser Error Robustness]
+**Learning:** Testing syntax parser error cases (such as missing '=' or ';', and unterminated strings/comments) directly on AppleStringsParser ensures high-value, deterministic error-handling coverage without relying on complex mocks or environment-dependent artifacts.
+**Action:** Always include boundary syntax failure cases when writing or extending parsing behavior tests to guarantee robust input validation and user-friendly error messages.
+
+## 2026-09-10 - [CSV Formula Injection Escaping Boundaries]
+**Learning:** Formula injection defense in CSV exports must be selective. While cells starting with '=', '+', '-', or '@' are escaped to prevent arbitrary code execution, characters in the middle of a string (e.g. "1+1", "user@domain.com") or preceded by leading spaces (e.g. " =1+1") must NOT be escaped, as spreadsheet software does not interpret them as formula syntax and escaping them would corrupt legitimate translation values. Additionally, leading whitespace control characters like '\t', '\r', and '\n' must be escaped.
+**Action:** Always include comprehensive edge-case tests verifying both injection character positioning and row boundary conditions (like nil or empty row slices) to protect CSV data-mapping/security filters.
+
+## 2026-09-12 - [Go XML Syntax Error Precedence in Custom Parser Testing]
+**Learning:** In custom token-based XML parsers utilizing Go's standard `xml.Decoder`, syntax errors (such as mismatched tags or unclosed structures) are returned immediately by `decoder.Token()`. This prevents the parser from executing subsequent custom EOF check logic. When testing validation and syntax errors, expect standard "XML syntax error" results for structurally malformed inputs, and save custom EOF/unterminated error assertions for cases where XML is syntactically valid but structurally incomplete according to the custom parser's rules.
+**Action:** Ensure parser tests for malformed markup check for the underlying XML parser's syntax error rather than the custom parser's late-stage EOF checks if the tag structure violates the XML spec.
+
+## 2026-10-15 - [I18N Config Locale Validation Edge Cases]
+**Learning:** Testing config validation rules (like locales, targets, and fallbacks) with malformed JSON structure, empty values, spaces, and invalid regex characters (e.g. `?`) ensures that user configuration errors are caught immediately during validation rather than manifesting as silent errors during file lookup.
+**Action:** Always include comprehensive, table-driven validation tests for core configuration files when adding or modifying validation rules.
+
+## 2026-10-16 - [Japanese Script Validity Verification]
+**Learning:** The localization evaluator's script validation helper (`localeValidityScore`) maps the Jpan script (e.g. for `ja-JP`) strictly to `unicode.Han` (Kanji). This means translations composed entirely of Hiragana (e.g., `"こんにちは"`) or Katakana (e.g., `"テレビ"`) will fail the script-compatibility check despite being valid Japanese, because they do not contain Han characters.
+**Action:** When testing the `Jpan` script or `ja-JP` locales in evaluator unit tests, ensure the translation text includes at least one Kanji (Han) character (such as `"今日"`) to satisfy the validator's character-set requirements.

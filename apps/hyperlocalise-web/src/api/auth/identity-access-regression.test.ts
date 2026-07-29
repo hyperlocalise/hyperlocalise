@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
@@ -34,10 +46,6 @@ vi.mock("@/lib/env", async (importOriginal) => {
       get(target, property, receiver) {
         if (property === "WORKOS_API_KEY") {
           return "sk_test_identity_regression";
-        }
-
-        if (property === "WORKOS_ENABLED") {
-          return true;
         }
 
         return Reflect.get(target, property, receiver);
@@ -200,6 +208,121 @@ describe("enterprise identity access regression", () => {
           organizationSlug: ownerIdentity.organization.slug,
         }),
       ).resolves.toBeNull();
+    });
+
+    it("grants access when an existing user accepted a pending invite even if reconcile TTL would skip", async () => {
+      const ownerIdentity = createWorkosIdentity();
+      const existingUserIdentity = createWorkosIdentity();
+      const ownerSynced = await syncWorkosIdentity(db, ownerIdentity);
+      const existingSynced = await syncWorkosIdentity(db, existingUserIdentity);
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      await db.insert(schema.organizationMemberships).values({
+        organizationId: ownerSynced.organization.id,
+        userId: existingSynced.user.id,
+        role: "member",
+        workosMembershipId: null,
+      });
+
+      await db
+        .update(schema.users)
+        .set({ workosMembershipsReconciledAt: new Date() })
+        .where(eq(schema.users.workosUserId, existingUserIdentity.user.workosUserId));
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: ownerIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: ownerIdentity.organization.workosOrganizationId,
+        name: ownerIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: existingUserIdentity.user.workosUserId,
+          email: existingUserIdentity.user.email,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: null,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: ownerIdentity.organization.slug,
+      });
+
+      expect(listMembershipsMock).toHaveBeenCalled();
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        ownerIdentity.organization.workosOrganizationId,
+      );
+    });
+
+    it("links pending invites when the WorkOS session organization pointer targets another workspace", async () => {
+      const invitedOrgIdentity = createWorkosIdentity();
+      const otherOrgIdentity = createWorkosIdentity();
+      const invitedOrgSynced = await syncWorkosIdentity(db, invitedOrgIdentity);
+      const existingUserSynced = await syncWorkosIdentity(db, otherOrgIdentity);
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      await db.insert(schema.organizationMemberships).values({
+        organizationId: invitedOrgSynced.organization.id,
+        userId: existingUserSynced.user.id,
+        role: "member",
+        workosMembershipId: null,
+      });
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: invitedOrgIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: invitedOrgIdentity.organization.workosOrganizationId,
+        name: invitedOrgIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: otherOrgIdentity.user.workosUserId,
+          email: otherOrgIdentity.user.email,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: otherOrgIdentity.organization.workosOrganizationId,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: invitedOrgIdentity.organization.slug,
+      });
+
+      expect(listMembershipsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: otherOrgIdentity.user.workosUserId,
+          statuses: ["active"],
+        }),
+      );
+      expect(listMembershipsMock.mock.calls.at(-1)?.[0]?.organizationId).toBeUndefined();
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        invitedOrgIdentity.organization.workosOrganizationId,
+      );
     });
 
     it("denies access while invite replacement sentinel is set", async () => {
@@ -371,6 +494,72 @@ describe("enterprise identity access regression", () => {
 
       expect(promoted).toBe(true);
       trackWorkosUserId(realWorkosUserId);
+
+      const [user] = await db
+        .select({ workosUserId: schema.users.workosUserId })
+        .from(schema.users)
+        .where(eq(schema.users.email, pendingEmail))
+        .limit(1);
+
+      expect(user?.workosUserId).toBe(realWorkosUserId);
+    });
+
+    it("promotes invited placeholders during session bootstrap and reconciles accepted membership", async () => {
+      const ownerIdentity = createWorkosIdentity();
+      await syncWorkosIdentity(db, ownerIdentity);
+
+      const pendingEmail = `session-promote-${randomUUID()}@example.com`;
+      const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+      const realWorkosUserId = `user_${randomUUID()}`;
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      trackWorkosUserId(placeholderUserId);
+      trackWorkosUserId(realWorkosUserId);
+
+      await syncWorkosIdentity(db, {
+        user: {
+          workosUserId: placeholderUserId,
+          email: pendingEmail,
+        },
+        organization: ownerIdentity.organization,
+        membership: {
+          role: "member",
+        },
+      });
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: ownerIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: ownerIdentity.organization.workosOrganizationId,
+        name: ownerIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: realWorkosUserId,
+          email: pendingEmail,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: ownerIdentity.organization.workosOrganizationId,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession();
+
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        ownerIdentity.organization.workosOrganizationId,
+      );
 
       const [user] = await db
         .select({ workosUserId: schema.users.workosUserId })

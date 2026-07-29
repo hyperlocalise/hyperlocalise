@@ -1,0 +1,54 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useEffect } from "react";
+
+import type { BreadcrumbAppend, BreadcrumbOverride } from "./breadcrumb-store";
+import { useAppShellStore } from "./app-shell-store-context";
+
+type BreadcrumbOverrideConfig = Omit<BreadcrumbOverride, "id"> & { id: string };
+type BreadcrumbAppendConfig = Omit<BreadcrumbAppend, "id" | "label"> & {
+  id: string;
+  label?: string;
+};
+
+export function useAppShellBreadcrumbOverride(config: BreadcrumbOverrideConfig) {
+  const store = useAppShellStore();
+  const { id, index, matchSegment, label, href } = config;
+
+  useEffect(() => {
+    store.breadcrumb.registerOverride({ id, index, matchSegment, label, href });
+
+    return () => {
+      store.breadcrumb.unregisterOverride(id);
+    };
+  }, [store, id, index, matchSegment, label, href]);
+}
+
+export function useAppShellBreadcrumbAppend(config: BreadcrumbAppendConfig) {
+  const store = useAppShellStore();
+  const { id, label, href, title } = config;
+
+  useEffect(() => {
+    if (label === undefined) {
+      return;
+    }
+
+    store.breadcrumb.registerAppend({ id, label, href, title });
+
+    return () => {
+      store.breadcrumb.unregisterAppend(id);
+    };
+  }, [store, id, label, href, title]);
+}

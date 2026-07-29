@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
@@ -115,9 +127,7 @@ export const EmailConversation: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
-    await expect(
-      canvas.queryByPlaceholderText("Paste text or describe what to translate..."),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByPlaceholderText("Ask Hyperlocalise…")).not.toBeInTheDocument();
   },
 };
 

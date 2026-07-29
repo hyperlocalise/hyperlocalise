@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 
 import {
@@ -20,26 +32,22 @@ export function listAvailableSubagentTypes(
   return SUBAGENT_TYPES.filter((type) => SUBAGENT_REGISTRY[type].isAvailable(runtime));
 }
 
-/** Preferred delegation order when multiple intents are active (repository context before translation). */
+/** Preferred delegation order when multiple subagents are available (repository context before translation). */
 export function resolvePreferredSubagentOrder(
   runtime: HyperlocaliseAgentRuntimeContext,
 ): HyperlocaliseSubagentType[] {
   const available = new Set(listAvailableSubagentTypes(runtime));
   const order: HyperlocaliseSubagentType[] = [];
 
-  if (runtime.suggestedIntents.includes("repository") && available.has("repository")) {
+  if (available.has("repository")) {
     order.push("repository");
   }
 
-  if (runtime.suggestedIntents.includes("translation") && available.has("translation")) {
+  if (available.has("translation")) {
     order.push("translation");
   }
 
-  if (order.length > 0) {
-    return order;
-  }
-
-  return [];
+  return order;
 }
 
 export function resolveSubagentTypeForMode(

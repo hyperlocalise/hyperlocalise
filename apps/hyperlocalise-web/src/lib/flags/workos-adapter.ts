@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { getFeatureFlagsRuntimeClient } from "@workos-inc/authkit-nextjs";
 import type { Adapter } from "flags";
 
@@ -48,10 +60,12 @@ export function createWorkosAdapter() {
         try {
           const client = getFeatureFlagsRuntimeClient();
           await waitForFeatureFlagsReady(client);
-          return (await client.isEnabled(key, {
-            organizationId: context?.organization?.id,
-            userId: context?.user?.id,
-          })) as ValueType;
+          return (await Promise.resolve(
+            client.isEnabled(key, {
+              organizationId: context?.organization?.id,
+              userId: context?.user?.id,
+            }),
+          )) as ValueType;
         } catch {
           return false as ValueType;
         }

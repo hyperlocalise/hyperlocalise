@@ -379,6 +379,118 @@
       "when": 1782265082491,
       "tag": "0053_lean_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1782707952287,
+      "tag": "0054_mean_speed",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1782892403774,
+      "tag": "0055_serious_enchantress",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1782916834094,
+      "tag": "0056_sleepy_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1783304301941,
+      "tag": "0057_perfect_green_goblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1783397031129,
+      "tag": "0058_purple_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1783420300870,
+      "tag": "0059_smiling_kree",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1783691059347,
+      "tag": "0060_hesitant_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1783694296893,
+      "tag": "0061_unknown_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1783721872247,
+      "tag": "0062_faulty_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1783732861665,
+      "tag": "0063_useful_ulik",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1784193044099,
+      "tag": "0064_soft_excalibur",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1784333872876,
+      "tag": "0065_curved_zarek",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1784701974838,
+      "tag": "0066_funny_the_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1784792830446,
+      "tag": "0067_ambiguous_shen",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1784860379091,
+      "tag": "0068_dark_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1785243943237,
+      "tag": "0069_moaning_magneto",
+      "breakpoints": true
     }
   ]
 }

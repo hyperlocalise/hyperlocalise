@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Autumn product and feature identifiers configured in the Autumn dashboard.
  * Plan IDs can change pricing in Autumn without local schema migrations.
@@ -39,6 +51,7 @@ export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatu
 export const usageFeatureIds = {
   translationJobs: autumnFeatureIds.translationJobs,
   agentRuns: autumnFeatureIds.agentRuns,
+  aiTokens: autumnFeatureIds.aiTokens,
 } as const;
 
 export type UsageFeatureId = (typeof usageFeatureIds)[keyof typeof usageFeatureIds];

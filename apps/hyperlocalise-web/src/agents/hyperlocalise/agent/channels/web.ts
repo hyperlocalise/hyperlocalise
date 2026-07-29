@@ -1,74 +1,312 @@
-import type { Thread } from "chat";
-
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { randomUUID } from "node:crypto";
 import {
-  buildTranslationAttachmentRequiredMessage,
-  classifyConversation,
-  createConversationToolLoopAgent,
-  getRecentUserConversationText,
-  loadInteractionModelMessages,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateId,
+  type InferUIMessageChunk,
+  type UIMessage,
+} from "ai";
+
+import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import type { HyperlocaliseConversationIntent } from "@/lib/agent-runtime/loops/conversation-mode";
+import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
+import {
+  acquireWebRepositorySandboxLease,
+  getWebConversationRepositorySession,
+  setWebConversationRepositorySession,
+} from "@/lib/agent-runtime/loops/conversation-repository-session";
+import {
+  prepareConversationAgentTurn,
+  type PrepareConversationAgentTurnInput,
+  type PrepareConversationAgentTurnResult,
+} from "@/lib/agent-runtime/loops/conversation-turn";
 
-export async function postStreamingAgentReply(
-  thread: Thread<Record<string, unknown>>,
-  stream: AsyncIterable<string>,
-) {
-  let text = "";
-
-  async function* captureTextStream() {
-    for await (const chunk of stream) {
-      text += chunk;
-      yield chunk;
-    }
-  }
-
-  await thread.post(captureTextStream());
-
-  return text;
+function textFromParts(parts: UIMessage["parts"]) {
+  return parts
+    .filter(
+      (part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text",
+    )
+    .map((part) => part.text)
+    .join("");
 }
 
+function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
+  return parts.filter((part) => !part.type.startsWith("data-"));
+}
+
+async function writeAssistantText(
+  writer: { write: (chunk: InferUIMessageChunk<InboxChatUIMessage>) => void },
+  text: string,
+) {
+  const messageId = generateId();
+  const id = generateId();
+  writer.write({ type: "start", messageId });
+  writer.write({ type: "text-start", id });
+  writer.write({ type: "text-delta", id, delta: text });
+  writer.write({ type: "text-end", id });
+  writer.write({ type: "finish" });
+}
+
+async function prepareAndCommitWebConversationTurn(
+  conversationId: string,
+  prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
+): Promise<PrepareConversationAgentTurnResult> {
+  let repositorySessionState = getWebConversationRepositorySession(conversationId);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const prepared = await prepareConversationAgentTurn({
+      ...prepareInput,
+      repositorySession: repositorySessionState?.session ?? null,
+    });
+
+    if (!prepared.updatedRepositorySession) {
+      return prepared;
+    }
+
+    const committed = setWebConversationRepositorySession(conversationId, {
+      baseVersion: repositorySessionState?.version ?? null,
+      session: prepared.updatedRepositorySession,
+    });
+
+    if (committed) {
+      return prepared;
+    }
+
+    repositorySessionState = getWebConversationRepositorySession(conversationId);
+  }
+
+  return prepareConversationAgentTurn({
+    ...prepareInput,
+    repositorySession: getWebConversationRepositorySession(conversationId)?.session ?? null,
+    reuseCommittedRepositorySandboxOnly: true,
+  });
+}
+
+export function createWebChatAgentUIStreamResponse(input: {
+  conversationId: string;
+  messageText: string;
+  toolContext: ToolContext;
+  hasTranslationAttachments: boolean;
+  usageOperationKey?: string;
+  abortSignal?: AbortSignal;
+}) {
+  let persistedDuringExecute = false;
+  let releaseSandboxLease: (() => void) | null = null;
+  const usageOperationKey =
+    input.usageOperationKey ?? `chat-agent-turn:${input.conversationId}:${randomUUID()}`;
+  let usageDimensions: Record<string, string | number | boolean | null> = {
+    surface: "web",
+    agent_surface: "chat",
+    repository_tools: false,
+  };
+  let shouldTrackUsage = false;
+
+  const stream = createUIMessageStream<InboxChatUIMessage>({
+    execute: async ({ writer }) => {
+      writer.write({
+        type: "data-status",
+        id: "prep",
+        data: { message: "Preparing…" },
+      });
+
+      const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
+        surface: "web",
+        conversationId: input.conversationId,
+        organizationId: input.toolContext.organizationId,
+        localUserId: input.toolContext.localUserId,
+        membershipRole: input.toolContext.membershipRole,
+        projectId: input.toolContext.projectId,
+        messageText: input.messageText,
+        hasTranslationAttachments: input.hasTranslationAttachments,
+        knowledgeMemoryEnabled: input.toolContext.knowledgeMemoryEnabled === true,
+        repositorySource: "chat_ui",
+        db: input.toolContext.db,
+        reportToolProgress: ({ toolCallId, message }) => {
+          writer.write({
+            type: "data-toolProgress",
+            id: toolCallId,
+            data: { toolCallId, message },
+          });
+        },
+      });
+
+      if (prepared.clarificationFollowUp) {
+        await writeAssistantText(writer, prepared.clarificationFollowUp);
+        await addInteractionMessage({
+          interactionId: input.conversationId,
+          senderType: "agent",
+          text: prepared.clarificationFollowUp,
+          parts: [{ type: "text", text: prepared.clarificationFollowUp }],
+        });
+        persistedDuringExecute = true;
+        return;
+      }
+
+      releaseSandboxLease = prepared.repositorySandboxId
+        ? acquireWebRepositorySandboxLease(prepared.repositorySandboxId)
+        : null;
+      usageDimensions = {
+        surface: "web",
+        agent_surface: "chat",
+        repository_tools: Boolean(prepared.repositorySandboxId),
+      };
+
+      await reserveAgentRuntimeUsage({
+        organizationId: input.toolContext.organizationId,
+        operationKey: usageOperationKey,
+        source: "chat_agent_turn",
+        interactionId: input.conversationId,
+        dimensions: usageDimensions,
+      });
+      shouldTrackUsage = true;
+
+      writer.write({
+        type: "data-status",
+        id: "prep",
+        data: { message: "Thinking…" },
+      });
+
+      try {
+        const result = await prepared.agent.stream({
+          messages: prepared.chatMessages,
+          abortSignal: input.abortSignal,
+        });
+
+        writer.merge(
+          result.toUIMessageStream({
+            sendReasoning: true,
+            sendStart: true,
+          }),
+        );
+      } catch (error) {
+        releaseSandboxLease?.();
+        releaseSandboxLease = null;
+        throw error;
+      }
+    },
+    onEnd: async ({ responseMessage, isAborted }) => {
+      try {
+        if (!isAborted && !persistedDuringExecute) {
+          const parts = persistableParts(responseMessage.parts);
+          const text = textFromParts(parts).trim();
+          if (text || parts.length > 0) {
+            await addInteractionMessage({
+              interactionId: input.conversationId,
+              senderType: "agent",
+              text: text || "(no response)",
+              parts: parts.length > 0 ? parts : [{ type: "text", text: text || "(no response)" }],
+            });
+          }
+        }
+
+        if (shouldTrackUsage && !isAborted) {
+          await trackSucceededAgentRuntimeUsage({
+            organizationId: input.toolContext.organizationId,
+            operationKey: usageOperationKey,
+            dimensions: usageDimensions,
+          });
+        }
+      } finally {
+        releaseSandboxLease?.();
+        releaseSandboxLease = null;
+      }
+    },
+    onError: () => "Sorry, I encountered an error while generating a response.",
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
+
+/** @internal Exported for unit tests covering repository session commit retries. */
 export async function runWebChatAgentTurn(input: {
   conversationId: string;
   messageText: string;
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
-  hasStoredRepositoryContext?: boolean;
+  usageOperationKey?: string;
 }) {
-  const chatMessages = await loadInteractionModelMessages(input.conversationId);
-  const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
-  const classification = await classifyConversation({
-    currentMessage: input.messageText,
-    conversationText,
-    hasFileAttachments: input.hasTranslationAttachments,
-    hasStoredRepositoryContext: input.hasStoredRepositoryContext ?? false,
+  const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
     surface: "web",
+    conversationId: input.conversationId,
+    organizationId: input.toolContext.organizationId,
+    localUserId: input.toolContext.localUserId,
+    membershipRole: input.toolContext.membershipRole,
+    projectId: input.toolContext.projectId,
+    messageText: input.messageText,
+    hasTranslationAttachments: input.hasTranslationAttachments,
+    knowledgeMemoryEnabled: input.toolContext.knowledgeMemoryEnabled === true,
+    repositorySource: "chat_ui",
+    db: input.toolContext.db,
   });
 
-  const agent = createConversationToolLoopAgent({
-    surface: "web",
-    suggestedIntents: classification.intents as HyperlocaliseConversationIntent[],
-    toolContext: input.toolContext,
-    hasFileAttachments: input.hasTranslationAttachments,
-  });
+  if (prepared.clarificationFollowUp) {
+    return {
+      classification: prepared.classification,
+      clarificationFollowUp: prepared.clarificationFollowUp,
+      textStream: null as AsyncIterable<string> | null,
+    };
+  }
 
-  const result = await agent.stream({ messages: chatMessages });
-  return {
-    classification,
-    textStream: result.textStream,
+  const releaseLease = prepared.repositorySandboxId
+    ? acquireWebRepositorySandboxLease(prepared.repositorySandboxId)
+    : null;
+  const operationKey =
+    input.usageOperationKey ?? `chat-agent-turn:${input.conversationId}:${randomUUID()}`;
+  const dimensions = {
+    surface: "web",
+    agent_surface: "chat",
+    repository_tools: Boolean(prepared.repositorySandboxId),
   };
-}
 
-export async function postWebAttachmentRequiredReply(
-  thread: Thread<Record<string, unknown>>,
-  conversationId: string,
-) {
-  const text = buildTranslationAttachmentRequiredMessage("web");
-  await thread.post(text);
-  await addInteractionMessage({
-    interactionId: conversationId,
-    senderType: "agent",
-    text,
-  });
+  try {
+    await reserveAgentRuntimeUsage({
+      organizationId: input.toolContext.organizationId,
+      operationKey,
+      source: "chat_agent_turn",
+      interactionId: input.conversationId,
+      dimensions,
+    });
+
+    const result = await prepared.agent.stream({ messages: prepared.chatMessages });
+
+    async function* trackedTextStream() {
+      try {
+        for await (const chunk of result.textStream) {
+          yield chunk;
+        }
+        await trackSucceededAgentRuntimeUsage({
+          organizationId: input.toolContext.organizationId,
+          operationKey,
+          dimensions,
+        });
+      } finally {
+        releaseLease?.();
+      }
+    }
+
+    return {
+      classification: prepared.classification,
+      clarificationFollowUp: null as string | null,
+      textStream: trackedTextStream(),
+    };
+  } catch (error) {
+    releaseLease?.();
+    throw error;
+  }
 }

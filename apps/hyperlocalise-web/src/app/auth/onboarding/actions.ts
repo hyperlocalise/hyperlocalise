@@ -1,18 +1,33 @@
 "use server";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { updateProviderCredentialBodySchema } from "@/api/routes/provider-credential/provider-credential.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { isFixtureAuthEnabled } from "@/lib/e2e/config";
+import { attachOrganizationToFixtureSession } from "@/lib/e2e/fixture-auth";
 import { createWorkspaceForSessionUser } from "@/lib/onboarding/workspace";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import {
   assertProviderCredentialAdmin,
   getOrganizationProviderCredentialSummary,
   upsertOrganizationProviderCredential,
-} from "@/lib/providers/organization-provider-credentials";
+} from "@/lib/providers/credentials/organization-provider-credentials";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import {
   clearStoredOnboardingState,
@@ -88,12 +103,16 @@ export async function createWorkspaceAction(
   }
 
   let organization;
+  let user;
+  let workosMembershipId: string;
+  let workosOrganizationId: string;
 
   try {
-    ({ organization } = await createWorkspaceForSessionUser({
-      sessionUser: session.user,
-      organizationName: parsed.data.organizationName,
-    }));
+    ({ organization, user, workosMembershipId, workosOrganizationId } =
+      await createWorkspaceForSessionUser({
+        sessionUser: session.user,
+        organizationName: parsed.data.organizationName,
+      }));
   } catch (error) {
     if (error instanceof Error && error.message === "workspace_slug_conflict") {
       return {
@@ -127,6 +146,27 @@ export async function createWorkspaceAction(
         description: "Error when workspace was created without a usable slug",
       }),
     };
+  }
+
+  if (isFixtureAuthEnabled()) {
+    const sessionToken = (await cookies()).get("wos-session")?.value;
+    if (sessionToken) {
+      await attachOrganizationToFixtureSession({
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          workosOrganizationId,
+        },
+        sessionToken,
+        user: {
+          email: user.email,
+          id: user.id,
+          workosUserId: user.workosUserId,
+        },
+        workosMembershipId,
+      });
+    }
   }
 
   await setStoredActiveOrganizationSlug(organization.slug);

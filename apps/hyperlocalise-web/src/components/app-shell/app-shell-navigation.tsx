@@ -1,10 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -19,6 +33,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
+import { appShellNavigationMessages } from "./app-shell-navigation.messages";
+import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+
 import {
   buildOrganizationPath,
   buildProjectNavigationItems,
@@ -27,15 +44,42 @@ import {
   type NavigationGroup,
   type NavigationItem,
 } from "./navigation-config";
+import { useAppShellStore } from "./store/app-shell-store-context";
 
 type AppShellNavigationProps = {
   organizationSlug: string;
-  groups: readonly NavigationGroup[];
 };
 
-export function AppShellNavigation({ organizationSlug, groups }: AppShellNavigationProps) {
+export const AppShellNavigation = observer(function AppShellNavigation({
+  organizationSlug,
+}: AppShellNavigationProps) {
+  const store = useAppShellStore();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
+
+  if (store.navigation.mode === "custom" && store.navigation.customState) {
+    const customState = store.navigation.customState;
+
+    if (customState.projectContext) {
+      return (
+        <ProjectNavigation
+          organizationSlug={customState.projectContext.organizationSlug}
+          projectId={customState.projectContext.projectId}
+          pathname={pathname}
+          projectName={customState.projectContext.projectName}
+          items={customState.groups.flatMap((group) => group.items)}
+        />
+      );
+    }
+
+    return (
+      <GlobalNavigation
+        organizationSlug={organizationSlug}
+        groups={customState.groups}
+        pathname={pathname}
+      />
+    );
+  }
 
   if (projectRoute?.organizationSlug === organizationSlug) {
     return (
@@ -48,9 +92,13 @@ export function AppShellNavigation({ organizationSlug, groups }: AppShellNavigat
   }
 
   return (
-    <GlobalNavigation organizationSlug={organizationSlug} groups={groups} pathname={pathname} />
+    <GlobalNavigation
+      organizationSlug={organizationSlug}
+      groups={store.navigation.defaultNavigationGroups}
+      pathname={pathname}
+    />
   );
-}
+});
 
 function GlobalNavigation({
   organizationSlug,
@@ -104,13 +152,19 @@ function ProjectNavigation({
   organizationSlug,
   projectId,
   pathname,
+  projectName,
+  items,
 }: {
   organizationSlug: string;
   projectId: string;
   pathname: string;
+  projectName?: string;
+  items?: readonly NavigationItem[];
 }) {
+  const intl = useIntl();
   const projectQuery = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
+    enabled: !projectName && !items,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
@@ -123,8 +177,17 @@ function ProjectNavigation({
     },
   });
 
-  const items = buildProjectNavigationItems(organizationSlug, projectId);
+  const store = useAppShellStore();
+  const resolvedItems = filterNavigationItemsByWorkspaceFlags(
+    items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
+    store.workspaceFeatureFlags,
+  );
+  const resolvedProjectName =
+    projectName ??
+    projectQuery.data?.name ??
+    intl.formatMessage(appShellNavigationMessages.projectFallbackName);
   const projectsHref = buildOrganizationPath(organizationSlug, "projects");
+  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
 
   return (
     <div className="flex flex-col gap-3">
@@ -134,11 +197,13 @@ function ProjectNavigation({
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={projectsHref} />}
-                tooltip="All projects"
+                tooltip={allProjectsLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
-                <span>All projects</span>
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -147,19 +212,19 @@ function ProjectNavigation({
 
       <SidebarGroup className="gap-1 p-0">
         <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
-          Project
+          <FormattedMessage {...appShellNavigationMessages.projectSection} />
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
-          {projectQuery.isLoading ? (
+          {!projectName && projectQuery.isLoading ? (
             <Skeleton className="h-5 w-4/5" />
           ) : (
             <p className="truncate text-sm font-medium text-sidebar-foreground">
-              {projectQuery.data?.name ?? "Project"}
+              {resolvedProjectName}
             </p>
           )}
         </div>
         <NavigationGroupItems
-          group={{ items }}
+          group={{ items: resolvedItems }}
           pathname={pathname}
           organizationSlug={organizationSlug}
           projectId={projectId}
@@ -180,22 +245,35 @@ function NavigationGroupItems({
   organizationSlug: string;
   projectId?: string;
 }) {
+  const intl = useIntl();
+  const { chatDock } = useAppShellStore();
+
   return (
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
         {group.items.map((item) => {
-          const isActive = isNavigationItemActive(pathname, item.href, {
-            projectId,
-            organizationSlug,
-          });
+          const isActionItem = item.action === "open-chat-dock";
+          const isActive = isActionItem
+            ? false
+            : isNavigationItemActive(pathname, item.href, {
+                projectId,
+                organizationSlug,
+              });
+          const tooltip = item.badge
+            ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
+                label: item.label,
+                badge: item.badge,
+              })
+            : item.label;
 
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<Link href={item.href} />}
+                render={isActionItem ? undefined : <Link href={item.href} />}
                 isActive={isActive}
-                tooltip={item.badge ? `${item.label} · ${item.badge}` : item.label}
+                tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
+                onClick={isActionItem ? () => chatDock.openNewTab() : undefined}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

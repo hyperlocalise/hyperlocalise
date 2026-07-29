@@ -1,9 +1,22 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,15 +29,21 @@ import {
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
   organizationSlug,
   initialForm = createDefaultWorkspaceAutomationFormState(),
+  knowledgeAvailable = false,
+  canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
   initialForm?: WorkspaceAutomationFormState;
+  knowledgeAvailable?: boolean;
+  canUpdateKnowledgeMemory?: boolean;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -51,20 +70,22 @@ export function AutomationsNewPageContent({
         if (body?.error) {
           setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
         }
-        throw new Error(body?.message ?? "Failed to create automation");
+        throw new Error(
+          body?.message ?? intl.formatMessage(automationsNewPageContentMessages.createFailed),
+        );
       }
 
       return response.json();
     },
     onSuccess: (body) => {
-      toast.success("Automation created");
+      toast.success(intl.formatMessage(automationsNewPageContentMessages.createSuccess));
       router.push(`/org/${organizationSlug}/automations/${body.automation.id}`);
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
         return;
       }
-      toast.error("Unable to create automation right now");
+      toast.error(intl.formatMessage(automationsNewPageContentMessages.createError));
     },
   });
 
@@ -75,6 +96,8 @@ export function AutomationsNewPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
+        knowledgeAvailable={knowledgeAvailable}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         actions={
           <>
@@ -83,10 +106,14 @@ export function AutomationsNewPageContent({
               nativeButton={false}
               render={<Link href={`/org/${organizationSlug}/automations`} />}
             >
-              Cancel
+              <FormattedMessage {...automationsNewPageContentMessages.cancel} />
             </Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create automation"}
+              {createMutation.isPending ? (
+                <FormattedMessage {...automationsNewPageContentMessages.creating} />
+              ) : (
+                <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
+              )}
             </Button>
           </>
         }

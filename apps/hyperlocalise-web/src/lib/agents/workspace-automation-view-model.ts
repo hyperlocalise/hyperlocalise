@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   WorkspaceAutomationGithubToolMode,
   WorkspaceAutomationRecord,
@@ -54,6 +66,13 @@ export type WorkspaceAutomationFormState = {
   translationProjectId: string;
   translationUseProjectTargetLocales: boolean;
   translationTargetLocales: string[];
+  knowledgeEnabled: boolean;
+  mcpEnabled: boolean;
+  mcpConnectionId: string;
+  semrushEnabled: boolean;
+  semrushConnectionId: string;
+  ahrefsEnabled: boolean;
+  ahrefsConnectionId: string;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -72,6 +91,9 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "contentfulEntryId"
     | "translationProjectId"
     | "translationTargetLocales"
+    | "mcpConnectionId"
+    | "semrushConnectionId"
+    | "ahrefsConnectionId"
     | "form",
     string
   >
@@ -97,6 +119,18 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   translation_project_required: "Choose a Hyperlocalise project for translation jobs.",
   translation_target_locales_required: "Add at least one target locale for translation jobs.",
   source_upload_workflow_required: "Source upload triggers require translation jobs to be enabled.",
+  mcp_connection_required: "Choose an MCP server connection.",
+  mcp_connection_not_found:
+    "The selected MCP server connection was not found. Choose another connection.",
+  mcp_not_connected: "Enable the selected MCP server connection in Integrations before using it.",
+  semrush_connection_required: "Choose a Semrush connection.",
+  semrush_connection_not_found:
+    "The selected Semrush connection was not found. Choose another connection.",
+  semrush_not_connected: "Enable the selected Semrush connection in Integrations before using it.",
+  ahrefs_connection_required: "Choose an Ahrefs connection.",
+  ahrefs_connection_not_found:
+    "The selected Ahrefs connection was not found. Choose another connection.",
+  ahrefs_not_connected: "Enable the selected Ahrefs connection in Integrations before using it.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -140,6 +174,13 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     translationProjectId: "",
     translationUseProjectTargetLocales: true,
     translationTargetLocales: [],
+    knowledgeEnabled: false,
+    mcpEnabled: false,
+    mcpConnectionId: "",
+    semrushEnabled: false,
+    semrushConnectionId: "",
+    ahrefsEnabled: false,
+    ahrefsConnectionId: "",
   };
 }
 
@@ -151,6 +192,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
   const translation = automation.toolConfig.translation;
+  const knowledge = automation.toolConfig.knowledge;
+  const mcp = automation.toolConfig.mcp;
+  const semrush = automation.toolConfig.semrush;
+  const ahrefs = automation.toolConfig.ahrefs;
 
   return {
     name: automation.name,
@@ -205,6 +250,13 @@ export function createWorkspaceAutomationFormStateFromRecord(
     translationProjectId: translation?.projectId ?? "",
     translationUseProjectTargetLocales: translation?.useProjectTargetLocales ?? true,
     translationTargetLocales: translation?.targetLocales ? [...translation.targetLocales] : [],
+    knowledgeEnabled: Boolean(knowledge?.enabled),
+    mcpEnabled: Boolean(mcp?.enabled),
+    mcpConnectionId: mcp?.connectionId ?? "",
+    semrushEnabled: Boolean(semrush?.enabled),
+    semrushConnectionId: semrush?.connectionId ?? "",
+    ahrefsEnabled: Boolean(ahrefs?.enabled),
+    ahrefsConnectionId: ahrefs?.connectionId ?? "",
   };
 }
 
@@ -338,6 +390,37 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.knowledgeEnabled
+      ? {
+          knowledge: {
+            enabled: true,
+          },
+        }
+      : {}),
+    ...(form.mcpEnabled
+      ? {
+          mcp: {
+            enabled: true,
+            connectionId: form.mcpConnectionId || undefined,
+          },
+        }
+      : {}),
+    ...(form.semrushEnabled
+      ? {
+          semrush: {
+            enabled: true,
+            connectionId: form.semrushConnectionId || undefined,
+          },
+        }
+      : {}),
+    ...(form.ahrefsEnabled
+      ? {
+          ahrefs: {
+            enabled: true,
+            connectionId: form.ahrefsConnectionId || undefined,
+          },
+        }
+      : {}),
   };
 
   return {
@@ -423,6 +506,18 @@ export function validateWorkspaceAutomationFormState(
     errors.trigger = "Source upload triggers require translation jobs to be enabled.";
   }
 
+  if (form.mcpEnabled && !form.mcpConnectionId) {
+    errors.mcpConnectionId = "Choose an MCP server connection.";
+  }
+
+  if (form.semrushEnabled && !form.semrushConnectionId) {
+    errors.semrushConnectionId = "Choose a Semrush connection.";
+  }
+
+  if (form.ahrefsEnabled && !form.ahrefsConnectionId) {
+    errors.ahrefsConnectionId = "Choose an Ahrefs connection.";
+  }
+
   return errors;
 }
 
@@ -467,6 +562,18 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { translationProjectId: message };
     case "translation_target_locales_required":
       return { translationTargetLocales: message };
+    case "mcp_connection_required":
+    case "mcp_connection_not_found":
+    case "mcp_not_connected":
+      return { mcpConnectionId: message };
+    case "semrush_connection_required":
+    case "semrush_connection_not_found":
+    case "semrush_not_connected":
+      return { semrushConnectionId: message };
+    case "ahrefs_connection_required":
+    case "ahrefs_connection_not_found":
+    case "ahrefs_not_connected":
+      return { ahrefsConnectionId: message };
     default:
       return { form: message };
   }
@@ -478,6 +585,9 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.slackEnabled ||
     form.emailEnabled ||
     form.contentfulEnabled ||
-    form.translationEnabled
+    form.translationEnabled ||
+    form.mcpEnabled ||
+    form.semrushEnabled ||
+    form.ahrefsEnabled
   );
 }

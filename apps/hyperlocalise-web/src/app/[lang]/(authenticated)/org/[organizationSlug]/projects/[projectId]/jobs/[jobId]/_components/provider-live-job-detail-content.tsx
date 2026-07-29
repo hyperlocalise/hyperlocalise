@@ -1,31 +1,45 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
-import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
-import type {
-  TmsProviderLiveJobComment,
-  TmsProviderLiveJobDetail,
-} from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
+import { useProviderJobLocaleReadiness } from "../../../../../_hooks/use-provider-job-locale-readiness";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
+import { providerLiveJobDetailContentMessages as messages } from "./provider-live-job-detail-content.messages";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
-
-async function parseActionError(response: Response, fallback: string) {
-  let error: string | undefined;
-
-  try {
-    const body = (await response.json()) as { error?: string; message?: string };
-    error = body.message ?? body.error;
-  } catch {
-    error = undefined;
-  }
-
-  return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
-}
+import { buildJobsListHref } from "./job-detail-types";
 
 export function ProviderLiveJobDetailContent({
   jobId,
@@ -38,9 +52,16 @@ export function ProviderLiveJobDetailContent({
   projectId: string;
   canEditProviderJobDescription: boolean;
 }) {
+  const router = useRouter();
+  const intl = useIntl();
   const queryClient = useQueryClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
-  const commentsQueryKey = ["tms-provider-job-comments", organizationSlug, jobId] as const;
+  const parsedJobId = parseProviderJobId(jobId);
+  const showComments =
+    parsedJobId?.providerKind === "crowdin" || parsedJobId?.providerKind === "lokalise";
+  const canDeleteJob = parsedJobId?.providerKind === "crowdin";
+
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
@@ -51,110 +72,139 @@ export function ProviderLiveJobDetailContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load provider job (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToLoadProviderJob, { status: response.status }),
+        );
       }
 
       const body = (await response.json()) as { job: TmsProviderLiveJobDetail };
       return body.job;
     },
   });
-  const commentsQuery = useQuery({
-    queryKey: commentsQueryKey,
-    enabled: jobQuery.data?.externalProviderKind === "crowdin",
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ].comments.$get({
-        param: { organizationSlug, encodedJobId: jobId },
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to load task comments (${response.status})`);
-      }
-
-      const body = (await response.json()) as { comments: TmsProviderLiveJobComment[] };
-      return body.comments;
-    },
-  });
-
-  const translateWithAgent = useMutation({
+  const deleteJob = useMutation({
     mutationFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
         ":encodedJobId"
-      ]["agent-runs"].$post({
+      ].$delete({
         param: { organizationSlug, encodedJobId: jobId },
-        json: {
-          projectId,
-          action: "translate_with_agent",
-        },
       });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent translation"));
+      if (response.status !== 204 && !response.ok) {
+        throw new Error(
+          intl.formatMessage(messages.failedToDeleteJob, { status: response.status }),
+        );
       }
-
-      await response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      toast.success("Translation agent is running");
+      setDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      toast.success(intl.formatMessage(messages.crowdinTaskDeleted));
+      router.push(buildJobsListHref(organizationSlug, projectId));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent translation");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(messages.failedToDeleteJobFallback),
+      );
     },
   });
 
-  const translateAction = jobQuery.data?.externalProviderKind
-    ? getJobProviderActionAvailability(jobQuery.data.externalProviderKind).find(
-        (action) => action.id === "translate_with_agent",
-      )
-    : null;
+  const localeReadinessQuery = useProviderJobLocaleReadiness({
+    organizationSlug,
+    externalProjectId: parsedJobId?.externalProjectId,
+    providerKind: jobQuery.data?.externalProviderKind,
+    providerPayload: jobQuery.data?.externalProviderPayload,
+    enabled: Boolean(jobQuery.data),
+  });
+  useAppShellBreadcrumbAppend({
+    id: "job-detail",
+    label: jobQuery.data?.externalTitle,
+  });
 
   return (
-    <ProviderLiveJobDetailView
-      jobId={jobId}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      canEditProviderJobDescription={canEditProviderJobDescription}
-      job={jobQuery.data}
-      isLoading={jobQuery.isLoading}
-      error={jobQuery.isError ? jobQuery.error : undefined}
-      isRefreshing={jobQuery.isFetching}
-      isTranslateWithAgentPending={translateWithAgent.isPending}
-      translateWithAgentAction={translateAction}
-      onTranslateWithAgent={() => translateWithAgent.mutate()}
-      onRefresh={() => {
-        void queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      }}
-      comments={commentsQuery.data ?? []}
-      commentsLoading={commentsQuery.isLoading}
-      commentsError={commentsQuery.isError ? commentsQuery.error : undefined}
-      renderDescriptionField={({ description, editable }) => (
-        <ProviderJobDescriptionField
-          organizationSlug={organizationSlug}
-          encodedJobId={jobId}
-          description={description}
-          editable={editable}
-          queryKey={jobQueryKey}
-        />
-      )}
-      renderFilesSection={({
-        job,
-        jobId: encodedJobId,
-        organizationSlug: orgSlug,
-        projectId: projId,
-      }) => (
-        <TmsLiveJobFilesSection
-          organizationSlug={orgSlug}
-          projectId={projId}
-          encodedJobId={encodedJobId}
-          highlightLocale={
-            typeof job.externalProviderPayload.languageId === "string"
-              ? job.externalProviderPayload.languageId
-              : (job.externalTargetLocales?.[0] ?? null)
+    <>
+      <ProviderLiveJobDetailView
+        jobId={jobId}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canEditProviderJobDescription={canEditProviderJobDescription}
+        job={jobQuery.data}
+        isLoading={jobQuery.isLoading}
+        error={jobQuery.isError ? jobQuery.error : undefined}
+        localeReadinessLoading={localeReadinessQuery.isLoading}
+        localeReadinessOverride={localeReadinessQuery.data ?? null}
+        isRefreshing={jobQuery.isFetching}
+        onRefresh={() => {
+          void queryClient.invalidateQueries({ queryKey: jobQueryKey });
+        }}
+        onDelete={canDeleteJob ? () => setDeleteDialogOpen(true) : undefined}
+        isDeleting={deleteJob.isPending}
+        showComments={showComments}
+        renderDescriptionField={({ description, editable }) => (
+          <ProviderJobDescriptionField
+            organizationSlug={organizationSlug}
+            encodedJobId={jobId}
+            description={description}
+            editable={editable}
+            queryKey={jobQueryKey}
+          />
+        )}
+        renderFilesSection={({
+          job,
+          jobId: encodedJobId,
+          organizationSlug: orgSlug,
+          projectId: projId,
+        }) => (
+          <TmsLiveJobFilesSection
+            organizationSlug={orgSlug}
+            projectId={projId}
+            encodedJobId={encodedJobId}
+            highlightLocale={
+              typeof job.externalProviderPayload.languageId === "string"
+                ? job.externalProviderPayload.languageId
+                : (job.externalTargetLocales?.[0] ?? null)
+            }
+            queueFilter={resolveDefaultJobCatQueueFilter(job)}
+          />
+        )}
+      />
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!deleteJob.isPending) {
+            setDeleteDialogOpen(open);
           }
-        />
-      )}
-    />
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.deleteCrowdinTaskTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...messages.deleteCrowdinTaskDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteJob.isPending}>
+              <FormattedMessage {...messages.keepTask} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteJob.isPending}
+              onClick={() => deleteJob.mutate()}
+            >
+              {deleteJob.isPending ? (
+                <FormattedMessage {...messages.deleting} />
+              ) : (
+                <FormattedMessage {...messages.deleteTask} />
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

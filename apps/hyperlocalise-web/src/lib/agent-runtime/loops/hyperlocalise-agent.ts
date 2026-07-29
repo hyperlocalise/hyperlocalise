@@ -1,6 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { eq } from "drizzle-orm";
 import {
-  stepCountIs,
+  isStepCount,
   ToolLoopAgent,
   type LanguageModel,
   type ModelMessage,
@@ -15,35 +27,29 @@ import { getHyperlocaliseAgentModel } from "./model";
 export { getHyperlocaliseAgentModel, hyperlocaliseAgentModelId } from "./model";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-import type { HyperlocaliseConversationIntent } from "./conversation-mode";
-import { getPrimarySuggestedMode, normalizeConversationIntents } from "./conversation-classifier";
-import {
-  createConversationOrchestratorAgent,
-  type ConversationOrchestratorOnFinish,
-} from "./orchestrator";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   buildHyperlocaliseBaseInstructions,
+  hyperlocaliseAgentMaxOutputTokens,
+  hyperlocaliseAgentStepLimit,
   type HyperlocaliseAgentSurface,
 } from "@/agents/hyperlocalise/agent/agent";
+import {
+  createConversationSkillAgent,
+  type ConversationSkillAgentOnFinish,
+} from "./conversation-skill-agent";
+
 export type { HyperlocaliseAgentSurface };
+export { hyperlocaliseAgentMaxOutputTokens, hyperlocaliseAgentStepLimit };
 
-export type { HyperlocaliseConversationMode } from "./conversation-mode";
-export { buildConversationModeInstructions } from "./conversation-mode";
-export {
-  classifyConversation,
-  createConversationClassifier,
-  getPrimarySuggestedMode,
-  getRecentUserConversationText,
-  normalizeConversationIntents,
-  shouldAttemptRepositoryContextResolution,
-  shouldRequireRepositoryContextClarification,
-  type ConversationClassification,
-} from "./conversation-classifier";
-export type { HyperlocaliseConversationIntent } from "./conversation-mode";
+/** Force a text-only final step so tool failures are explained to the user. */
+export function prepareConversationSkillStep({ stepNumber }: { stepNumber: number }) {
+  if (stepNumber >= hyperlocaliseAgentStepLimit - 1) {
+    return { toolChoice: "none" as const };
+  }
 
-export const hyperlocaliseAgentStepLimit = 10;
-export const hyperlocaliseAgentMaxOutputTokens = 4_000;
+  return undefined;
+}
 
 type InteractionHistoryRow = {
   senderType: "user" | "agent";
@@ -59,15 +65,14 @@ type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
   activeTools?: ToolLoopAgentSettings<never, TOOLS>["activeTools"];
   prepareStep?: ToolLoopAgentSettings<never, TOOLS>["prepareStep"];
   toolChoice?: ToolLoopAgentSettings<never, TOOLS>["toolChoice"];
-  onFinish?: ToolLoopAgentSettings<never, TOOLS>["onFinish"];
+  onEnd?: ToolLoopAgentSettings<never, TOOLS>["onEnd"];
 };
 
 type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
-  suggestedIntents: HyperlocaliseConversationIntent[];
   additionalInstructions?: string;
-  onFinish?: ConversationOrchestratorOnFinish;
+  onEnd?: ConversationSkillAgentOnFinish;
 };
 
 export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
@@ -134,8 +139,11 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
   activeTools,
   prepareStep,
   toolChoice,
-  onFinish,
+  onEnd,
 }: CreateHyperlocaliseAgentInput<TOOLS>) {
+  // AI SDK 7 ToolsContextParameter cannot resolve for generic TOOLS even when no
+  // tool declares contextSchema. Narrow suppression keeps the settings object typed.
+  // @ts-expect-error ToolLoopAgent settings: ToolsContextParameter unresolved for generic TOOLS
   return new ToolLoopAgent({
     model: model ?? getHyperlocaliseAgentModel(),
     instructions: buildHyperlocaliseAgentInstructions({
@@ -147,32 +155,43 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     activeTools,
     prepareStep,
     toolChoice,
-    onFinish,
+    onEnd,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,
-    stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+    stopWhen: isStepCount(hyperlocaliseAgentStepLimit),
   });
 }
+
+export {
+  classifyConversation,
+  createConversationClassifier,
+  getRecentUserConversationText,
+  shouldAttemptRepositoryContextResolution,
+  shouldRequireRepositoryContextClarification,
+  type ConversationClassification,
+} from "./conversation-classifier";
 
 export function createConversationToolLoopAgent({
   surface,
   toolContext,
-  suggestedIntents,
   additionalInstructions,
-  onFinish,
+  onEnd,
   hasFileAttachments = false,
+  hasTmsIntegration = false,
+  hasVisualMockSkill = false,
 }: CreateConversationAgentInput & {
   hasFileAttachments?: boolean;
+  hasTmsIntegration?: boolean;
+  hasVisualMockSkill?: boolean;
 }) {
-  const normalizedIntents = normalizeConversationIntents(suggestedIntents);
   const runtime: HyperlocaliseAgentRuntimeContext = {
     surface,
     toolContext,
-    suggestedIntents: normalizedIntents,
-    suggestedMode: getPrimarySuggestedMode(normalizedIntents),
     hasFileAttachments,
+    hasTmsIntegration,
+    hasVisualMockSkill,
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };
 
-  return createConversationOrchestratorAgent(runtime, onFinish);
+  return createConversationSkillAgent(runtime, onEnd);
 }

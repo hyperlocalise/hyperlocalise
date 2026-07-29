@@ -237,55 +237,81 @@ func TestWorkflowsService_GetStep(t *testing.T) {
 }
 
 func TestWorkflowsService_ListSteps(t *testing.T) {
-	client, mux, teardown := setupClient()
-	defer teardown()
-
-	const path = "/api/v2/projects/1/workflow-steps"
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodGet)
-		testURL(t, r, path)
-
-		fmt.Fprint(w, `{
-			"data": [
-				{
-					"data": {
-						"id": 311,
-						"title": "Translate",
-						"type": "Translate",
-						"languages": ["de","it"],
-						"config": {
-							"minRelevant": "perfect",
-							"autoSubstitution": 2
-						}
-					}
-				}
-			],
-			"pagination": {
-				"offset": 10,
-				"limit": 25
-			}
-		}`)
-	})
-
-	steps, resp, err := client.Workflows.ListSteps(context.Background(), "1")
-	require.NoError(t, err)
-
-	expected := []*model.WorkflowStep{
+	tests := []struct {
+		name          string
+		opts          *model.WorkflowStepsListOptions
+		expectedQuery string
+	}{
 		{
-			ID:        311,
-			Title:     "Translate",
-			Type:      "Translate",
-			Languages: []string{"de", "it"},
-			Config: map[string]any{
-				"minRelevant":      "perfect",
-				"autoSubstitution": float64(2),
+			name: "nil options",
+			opts: nil,
+		},
+		{
+			name: "empty options",
+			opts: &model.WorkflowStepsListOptions{},
+		},
+		{
+			name: "all options",
+			opts: &model.WorkflowStepsListOptions{
+				ListOptions: model.ListOptions{Offset: 10, Limit: 25},
 			},
+			expectedQuery: "?limit=25&offset=10",
 		},
 	}
-	assert.Equal(t, expected, steps)
 
-	assert.Equal(t, 10, resp.Pagination.Offset)
-	assert.Equal(t, 25, resp.Pagination.Limit)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, mux, teardown := setupClient()
+			defer teardown()
+
+			const path = "/api/v2/projects/1/workflow-steps"
+			mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+				testMethod(t, r, http.MethodGet)
+				testURL(t, r, path+tt.expectedQuery)
+
+				fmt.Fprint(w, `{
+					"data": [
+						{
+							"data": {
+								"id": 311,
+								"title": "Translate",
+								"type": "Translate",
+								"languages": ["de","it"],
+								"config": {
+									"minRelevant": "perfect",
+									"autoSubstitution": 2
+								}
+							}
+						}
+					],
+					"pagination": {
+						"offset": 10,
+						"limit": 25
+					}
+				}`)
+			})
+
+			steps, resp, err := client.Workflows.ListSteps(context.Background(), 1, tt.opts)
+			require.NoError(t, err)
+
+			expected := []*model.WorkflowStep{
+				{
+					ID:        311,
+					Title:     "Translate",
+					Type:      "Translate",
+					Languages: []string{"de", "it"},
+					Config: map[string]any{
+						"minRelevant":      "perfect",
+						"autoSubstitution": float64(2),
+					},
+				},
+			}
+			assert.Equal(t, expected, steps)
+
+			assert.Equal(t, 10, resp.Pagination.Offset)
+			assert.Equal(t, 25, resp.Pagination.Limit)
+		})
+	}
 }
 
 func TestWorkflowsService_ListSteps_invalidJSON(t *testing.T) {
@@ -296,7 +322,7 @@ func TestWorkflowsService_ListSteps_invalidJSON(t *testing.T) {
 		fmt.Fprint(w, `invalid json`)
 	})
 
-	steps, _, err := client.Workflows.ListSteps(context.Background(), "1")
+	steps, _, err := client.Workflows.ListSteps(context.Background(), 1, nil)
 	require.Error(t, err)
 	assert.Nil(t, steps)
 }

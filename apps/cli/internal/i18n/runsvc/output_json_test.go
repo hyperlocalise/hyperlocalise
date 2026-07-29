@@ -40,6 +40,31 @@ func TestMarshalJSONTargetFormatJSPruneAndUpdate(t *testing.T) {
 	}
 }
 
+func TestMarshalJSONTargetPreservesHTMLSensitiveCharacters(t *testing.T) {
+	template := []byte(`{
+  "rich.example": {
+    "defaultMessage": "Use <tag>main</tag> or Review & approval"
+  }
+}`)
+	content, err := marshalJSONTarget("/tmp/messages.json", template, map[string]string{
+		"rich.example": "Use <tag>main</tag> or Review & approval",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal json formatjs: %v", err)
+	}
+
+	text := string(content)
+	if strings.Contains(text, `\u003`) || strings.Contains(text, `\u0026`) {
+		t.Fatalf("expected literal <, >, and &, got escaped output:\n%s", text)
+	}
+	if !strings.Contains(text, "<tag>main</tag>") {
+		t.Fatalf("expected rich text tags in output:\n%s", text)
+	}
+	if !strings.Contains(text, "Review & approval") {
+		t.Fatalf("expected ampersand in output:\n%s", text)
+	}
+}
+
 func TestMarshalJSONTargetNestedPruneAndUpdate(t *testing.T) {
 	template := []byte(`{"home":{"title":"Old","body":"Body"},"meta":1}`)
 	values := map[string]string{"home.title": "New", "home.subtitle": "Sub"}

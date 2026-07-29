@@ -1,6 +1,19 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
+import { FormattedMessage } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +22,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { toneClass, type Tone } from "../workspace-resource-shared";
+import { overviewActionCardMessages } from "./overview-action-card.messages";
 
 export function OverviewActionCard({
   category,
@@ -28,7 +42,7 @@ export function OverviewActionCard({
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0",
+        "rounded-2xl border border-border bg-muted py-0 text-foreground ring-0",
         className,
       )}
     >
@@ -36,7 +50,7 @@ export function OverviewActionCard({
         <div className="flex flex-1 flex-col gap-3">
           <Badge
             variant="outline"
-            className="w-fit rounded-full border-foreground/12 bg-foreground/4 text-foreground/72"
+            className="w-fit rounded-full border-border bg-muted text-subtle-foreground"
           >
             {category}
           </Badge>
@@ -58,7 +72,7 @@ export function OverviewActionCard({
           size="sm"
           className="w-fit rounded-full"
         >
-          View
+          <FormattedMessage {...overviewActionCardMessages.view} />
         </Button>
       </CardContent>
     </Card>

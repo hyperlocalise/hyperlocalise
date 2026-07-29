@@ -1,48 +1,119 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 
 import type {
-  ProjectFileCatResponse,
+  ProjectFileCatComment,
+  ProjectFileCatQueueFile,
+  ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import { NativeCatCommentService } from "@/lib/projects/cat/native-cat-comment-service";
+import {
+  CAT_ALL_FILES_FILENAME,
+  CAT_ALL_FILES_SOURCE_PATH,
+  isCatAllFilesSourcePath,
+} from "@/lib/projects/cat-all-files";
 import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
-import { countNativeFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
+import { getImageVariant, projectImageAssetPath } from "@/lib/projects/files/image-variant-service";
+import {
+  IMAGE_URL_CONTENT_KIND,
+  isImageUrlContentKind,
+} from "@/lib/projects/files/image-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
-import { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
+import {
+  inferSupportedImageTranslationFileFormat,
+  looksLikeImageUrl,
+} from "@/lib/translation/file-formats";
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
+}
+
+function imageFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return sourceFileId || `image:${sourcePath}`;
 }
 
 function toCatTranslation(row: {
   id: string;
   text: string;
   status: "draft" | "needs_review" | "approved" | "rejected";
+  contentKind?: ProjectFileCatTranslation["contentKind"];
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
 }): ProjectFileCatTranslation {
   return {
     text: row.text,
     externalTranslationId: row.id,
     isApproved: row.status === "approved",
+    ...(row.contentKind ? { contentKind: row.contentKind } : {}),
+    ...(row.targetAssetUrl !== undefined ? { targetAssetUrl: row.targetAssetUrl } : {}),
+    ...(row.imageVariantId !== undefined ? { imageVariantId: row.imageVariantId } : {}),
+    status: row.status,
+  };
+}
+
+function mapTextSegment(
+  key: {
+    id: string;
+    key: string;
+    sourceText: string;
+    context: string | null;
+    type: string | null;
+    maxLength: number | null;
+    metadata: Record<string, unknown> | null;
+    sourcePath?: string;
+  },
+  options?: { includeSourcePath?: boolean },
+): ProjectFileCatSegment {
+  const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
+  const looksLikeUrl = looksLikeImageUrl(key.sourceText);
+
+  return {
+    externalStringId: key.id,
+    key: key.key,
+    sourceText: key.sourceText,
+    context: key.context,
+    type: key.type,
+    ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
+    ...(contentKind ? { contentKind } : {}),
+    ...(contentKind === IMAGE_URL_CONTENT_KIND ? { sourceAssetUrl: key.sourceText } : {}),
+    ...(looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND
+      ? { looksLikeImageUrl: looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND }
+      : {}),
+    ...(options?.includeSourcePath && key.sourcePath ? { sourcePath: key.sourcePath } : {}),
   };
 }
 
 export class NativeCatService extends ProjectServiceBase {
   private readonly translations: ProjectTranslationService;
-  private readonly stringContext: ProjectStringContextService;
+  private readonly comments: NativeCatCommentService;
 
   constructor(
     database: typeof db = db,
     translations: ProjectTranslationService = new ProjectTranslationService(database),
-    stringContext: ProjectStringContextService = new ProjectStringContextService(database),
+    comments?: NativeCatCommentService,
   ) {
     super(database, "projects.cat");
     this.translations = translations;
-    this.stringContext = stringContext;
+    this.comments = comments ?? new NativeCatCommentService(database, translations);
   }
 
   async getCatFile(input: {
@@ -51,8 +122,14 @@ export class NativeCatService extends ProjectServiceBase {
     sourcePath: string;
     targetLocale: string;
     canEditTranslations: boolean;
+    organizationSlug: string;
     pagination?: ProjectFileCatPaginationInput;
-  }): Promise<ProjectFileCatResponse["catFile"] | null> {
+    sourcePaths?: readonly string[] | null;
+  }): Promise<ProjectFileCatQueueFile | null> {
+    if (isCatAllFilesSourcePath(input.sourcePath)) {
+      return this.getAllFilesCatQueue(input);
+    }
+
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -61,6 +138,13 @@ export class NativeCatService extends ProjectServiceBase {
 
     if (!sourceFile) {
       return null;
+    }
+
+    if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
+      return this.buildImageCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
     }
 
     const paginationInput = input.pagination ?? {
@@ -81,23 +165,16 @@ export class NativeCatService extends ProjectServiceBase {
 
       const truncated = keys.length > legacyNativeCatSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeCatSegmentLimit) : keys;
-      const queueSummary = await countNativeFileQueueSummary(this.translations, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        repositorySourceFileId: sourceFile.id,
-        targetLocale: input.targetLocale,
-      });
 
       return this.buildCatFileResponse({
         input,
         visibleKeys,
         truncated,
         pagination: undefined,
-        queueSummary,
       });
     }
 
-    const [totalCount, keys, queueSummary] = await Promise.all([
+    const [totalCount, keys] = await Promise.all([
       this.translations.countKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -116,12 +193,6 @@ export class NativeCatService extends ProjectServiceBase {
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
       }),
-      countNativeFileQueueSummary(this.translations, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        repositorySourceFileId: sourceFile.id,
-        targetLocale: input.targetLocale,
-      }),
     ]);
 
     const pagination = buildCatFilePagination({
@@ -136,8 +207,144 @@ export class NativeCatService extends ProjectServiceBase {
       visibleKeys: keys,
       truncated: pagination.hasMore,
       pagination,
-      queueSummary,
     });
+  }
+
+  private async buildImageCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileCatQueueFile> {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getImageVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
+    return {
+      sourcePath: input.input.sourcePath,
+      filename: filenameFromSourcePath(input.input.sourcePath),
+      provider: null,
+      targetLocale: input.input.targetLocale,
+      canEditTranslations: input.input.canEditTranslations,
+      truncated: false,
+      segments: [
+        {
+          externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+          key: input.input.sourcePath,
+          sourceText: input.input.sourcePath,
+          context: null,
+          type: null,
+          contentKind: "image_file",
+          sourceAssetUrl,
+          targetAssetUrl,
+          imageVariantId: variant?.id ?? null,
+        },
+      ],
+    };
+  }
+
+  private async getAllFilesCatQueue(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale: string;
+    canEditTranslations: boolean;
+    pagination?: ProjectFileCatPaginationInput;
+    sourcePaths?: readonly string[] | null;
+  }): Promise<ProjectFileCatQueueFile> {
+    const paginationInput = input.pagination ?? {
+      offset: 0,
+      limit: legacyNativeCatSegmentLimit,
+      search: undefined,
+      queueFilter: "all",
+      paginated: true,
+    };
+
+    const limit = paginationInput.paginated
+      ? paginationInput.limit
+      : legacyNativeCatSegmentLimit + 1;
+    const offset = paginationInput.paginated ? paginationInput.offset : 0;
+
+    const [totalCount, keys] = await Promise.all([
+      this.translations.countKeysForProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        targetLocale: input.targetLocale,
+        search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
+        sourcePaths: input.sourcePaths,
+      }),
+      this.translations.listKeysForProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        targetLocale: input.targetLocale,
+        limit,
+        offset,
+        search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
+        sourcePaths: input.sourcePaths,
+      }),
+    ]);
+
+    const visibleKeys = paginationInput.paginated
+      ? keys
+      : keys.slice(0, legacyNativeCatSegmentLimit);
+    const truncated = paginationInput.paginated
+      ? offset + visibleKeys.length < totalCount
+      : keys.length > legacyNativeCatSegmentLimit;
+
+    const pagination = paginationInput.paginated
+      ? buildCatFilePagination({
+          offset,
+          limit: paginationInput.limit,
+          returnedCount: visibleKeys.length,
+          totalCount,
+        })
+      : undefined;
+
+    return {
+      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      filename: CAT_ALL_FILES_FILENAME,
+      provider: null,
+      targetLocale: input.targetLocale,
+      canEditTranslations: input.canEditTranslations,
+      truncated,
+      pagination,
+      segments: visibleKeys.map((key) => mapTextSegment(key, { includeSourcePath: true })),
+    };
   }
 
   private async buildCatFileResponse(input: {
@@ -151,18 +358,7 @@ export class NativeCatService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
-    queueSummary: Awaited<ReturnType<typeof countNativeFileQueueSummary>>;
-  }): Promise<ProjectFileCatResponse["catFile"]> {
-    const translations = await this.translations.getTranslationsByKeyIds({
-      organizationId: input.input.organizationId,
-      projectId: input.input.projectId,
-      translationKeyIds: input.visibleKeys.map((key) => key.id),
-      targetLocale: input.input.targetLocale,
-    });
-    const translationByKeyId = new Map(
-      translations.map((translation) => [translation.translationKeyId, translation]),
-    );
-
+  }): Promise<ProjectFileCatQueueFile> {
     return {
       sourcePath: input.input.sourcePath,
       filename: filenameFromSourcePath(input.input.sourcePath),
@@ -171,20 +367,16 @@ export class NativeCatService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
-      queueSummary: input.queueSummary,
-      segments: input.visibleKeys.map((key) => {
-        const translation = translationByKeyId.get(key.id);
-        return {
-          externalStringId: key.id,
-          key: key.key,
-          sourceText: key.sourceText,
-          context: key.context,
-          type: key.type,
-          target: translation ? toCatTranslation(translation) : null,
-          comments: [],
-        };
-      }),
+      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
     };
+  }
+
+  async saveComment(input: Parameters<NativeCatCommentService["save"]>[0]) {
+    return this.comments.save(input);
+  }
+
+  async resolveComment(input: Parameters<NativeCatCommentService["resolve"]>[0]) {
+    return this.comments.resolve(input);
   }
 
   async saveTranslation(input: {
@@ -333,69 +525,204 @@ export class NativeCatService extends ProjectServiceBase {
     return updated ? toCatTranslation(updated) : null;
   }
 
-  async attachAgentContexts(input: {
+  private async findTranslationKeyForSegment(input: {
     organizationId: string;
     projectId: string;
-    catFile: ProjectFileCatResponse["catFile"];
-    preferredRepositoryFullName?: string | null;
-  }): Promise<ProjectFileCatResponse["catFile"]> {
-    const log = this.log.child({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      segmentCount: input.catFile.segments.length,
-    });
+    sourcePath: string;
+    externalStringId: string;
+  }): Promise<{
+    id: string;
+    metadata: Record<string, unknown> | null;
+  } | null> {
+    // All-files CAT uses the sentinel sourcePath `*`. Keys are scoped to the
+    // project only — callers may also send the real per-segment path.
+    if (isCatAllFilesSourcePath(input.sourcePath)) {
+      const [key] = await this.database
+        .select({
+          id: schema.projectTranslationKeys.id,
+          metadata: schema.projectTranslationKeys.metadata,
+        })
+        .from(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.id, input.externalStringId),
+            eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+          ),
+        )
+        .limit(1);
 
-    if (input.catFile.segments.length === 0) {
-      log.debug("skipping CAT context hydration for empty segment list");
-      return input.catFile;
+      return key ?? null;
     }
 
-    log.debug("hydrating CAT file with cached repository context");
-
-    const sourceTextByKey = new Map(
-      input.catFile.segments.map((segment) => [segment.key, segment.sourceText] as const),
-    );
-    const cachedSummaries = await this.stringContext.listCached({
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      sourcePath: input.catFile.sourcePath,
-      stringKeys: input.catFile.segments.map((segment) => segment.key),
-      preferredRepositoryFullName: input.preferredRepositoryFullName,
-      sourceTextByKey,
+      sourcePath: input.sourcePath,
     });
 
-    if (cachedSummaries.size === 0) {
-      log.debug("no cached repository context matched CAT segments");
-      return input.catFile;
+    if (!sourceFile) {
+      return null;
     }
 
-    const hydratedSegments = input.catFile.segments.map((segment) => {
-      const repositoryContext = cachedSummaries.get(segment.key);
-      if (!repositoryContext) {
-        return segment;
+    const [key] = await this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        metadata: schema.projectTranslationKeys.metadata,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.id, input.externalStringId),
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+        ),
+      )
+      .limit(1);
+
+    return key ?? null;
+  }
+
+  async getSegmentTarget(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    externalStringId: string;
+    organizationSlug: string;
+  }): Promise<ProjectFileCatTranslation | null | "not_found"> {
+    if (
+      !isCatAllFilesSourcePath(input.sourcePath) &&
+      inferSupportedImageTranslationFileFormat(input.sourcePath)
+    ) {
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+
+      if (!sourceFile) {
+        return "not_found";
       }
 
-      return {
-        ...segment,
-        repositoryContext,
-      };
+      const expectedId = imageFileExternalStringId(sourceFile.id, input.sourcePath);
+      if (
+        input.externalStringId !== expectedId &&
+        input.externalStringId !== sourceFile.id &&
+        input.externalStringId !== `image:${input.sourcePath}`
+      ) {
+        return "not_found";
+      }
+
+      const variant = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        db: this.database,
+      });
+
+      const targetAssetUrl = variant?.storedFileId
+        ? projectImageAssetPath({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            fileId: variant.storedFileId,
+          })
+        : null;
+
+      if (!variant) {
+        return {
+          text: "",
+          externalTranslationId: null,
+          isApproved: false,
+          contentKind: "image_file",
+          targetAssetUrl: null,
+          imageVariantId: null,
+          status: "draft",
+        };
+      }
+
+      return toCatTranslation({
+        id: variant.id,
+        text: targetAssetUrl ?? "",
+        status: variant.status,
+        contentKind: "image_file",
+        targetAssetUrl,
+        imageVariantId: variant.id,
+      });
+    }
+
+    const key = await this.findTranslationKeyForSegment({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      externalStringId: input.externalStringId,
     });
-    const hydratedSegmentCount = hydratedSegments.filter((segment) =>
-      Boolean(segment.repositoryContext?.trim()),
-    ).length;
 
-    log.debug(
-      {
-        cachedKeyCount: cachedSummaries.size,
-        hydratedSegmentCount,
-      },
-      "hydrated CAT file with cached repository context",
-    );
+    if (!key) {
+      return "not_found";
+    }
 
-    return {
-      ...input.catFile,
-      segments: hydratedSegments,
-    };
+    const translation = (
+      await this.translations.getTranslationsByKeyIds({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyIds: [key.id],
+        targetLocale: input.targetLocale,
+      })
+    )[0];
+
+    if (!translation) {
+      return null;
+    }
+
+    const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
+
+    return toCatTranslation({
+      ...translation,
+      ...(contentKind
+        ? {
+            contentKind,
+            targetAssetUrl: translation.text,
+          }
+        : {}),
+    });
+  }
+
+  async getSegmentComments(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    externalStringId: string;
+  }): Promise<ProjectFileCatComment[]> {
+    if (
+      !isCatAllFilesSourcePath(input.sourcePath) &&
+      inferSupportedImageTranslationFileFormat(input.sourcePath)
+    ) {
+      return [];
+    }
+
+    const key = await this.findTranslationKeyForSegment({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      externalStringId: input.externalStringId,
+    });
+
+    if (!key) {
+      return [];
+    }
+
+    const commentsByKeyId = await this.comments.listByKeyIds({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: [key.id],
+      targetLocale: input.targetLocale,
+    });
+
+    return commentsByKeyId.get(key.id) ?? [];
   }
 }
 
@@ -404,14 +731,26 @@ export const nativeCatService = new NativeCatService();
 export const getNativeProjectCatFile = (input: Parameters<NativeCatService["getCatFile"]>[0]) =>
   nativeCatService.getCatFile(input);
 
+export const getNativeProjectCatSegmentTarget = (
+  input: Parameters<NativeCatService["getSegmentTarget"]>[0],
+) => nativeCatService.getSegmentTarget(input);
+
+export const getNativeProjectCatSegmentComments = (
+  input: Parameters<NativeCatService["getSegmentComments"]>[0],
+) => nativeCatService.getSegmentComments(input);
+
 export const saveNativeProjectCatTranslation = (
   input: Parameters<NativeCatService["saveTranslation"]>[0],
 ) => nativeCatService.saveTranslation(input);
 
+export const saveNativeProjectCatComment = (
+  input: Parameters<NativeCatService["saveComment"]>[0],
+) => nativeCatService.saveComment(input);
+
+export const resolveNativeProjectCatComment = (
+  input: Parameters<NativeCatService["resolveComment"]>[0],
+) => nativeCatService.resolveComment(input);
+
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],
 ) => nativeCatService.updateTranslationStatus(input);
-
-export const attachProjectFileCatAgentContexts = (
-  input: Parameters<NativeCatService["attachAgentContexts"]>[0],
-) => nativeCatService.attachAgentContexts(input);

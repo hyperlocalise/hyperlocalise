@@ -1,4 +1,16 @@
-import { stepCountIs, ToolLoopAgent } from "ai";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { isStepCount, ToolLoopAgent } from "ai";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import {
@@ -20,10 +32,10 @@ export function createWorkspaceOrchestratorAgent(session: WorkspaceOrchestratorS
     instructions: session.composedInstructions,
     tools,
     activeTools: session.plan.tools,
-    experimental_context: session,
+    runtimeContext: session,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: WORKSPACE_ORCHESTRATOR_TIMEOUT,
-    stopWhen: stepCountIs(stepLimit),
+    stopWhen: isStepCount(stepLimit),
     prepareStep: ({ stepNumber }) => {
       const toolName = session.plan.tools[stepNumber];
       if (toolName) {

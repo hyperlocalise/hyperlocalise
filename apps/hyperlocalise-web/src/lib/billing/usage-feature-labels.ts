@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { billingBalanceFeatureIds, type AutumnFeatureId } from "@/lib/billing/autumn-ids";
 
 /** Display labels for Autumn feature balances shown on billing settings. */
 export const usageFeatureLabels: Partial<Record<AutumnFeatureId, string>> = {
-  ai_tokens: "Words",
+  ai_tokens: "AI Credit",
   translation_jobs: "Translation jobs",
   agent_runs: "Agent runs",
   seats: "Seats",

@@ -1,6 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
+import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 
 import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
@@ -14,9 +26,20 @@ import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
+import {
+  getRepositoryContextKey,
+  getWebConversationRepositorySession,
+  setWebConversationRepositorySession,
+} from "@/lib/agent-runtime/loops/conversation-repository-session";
+import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
+import {
+  sanitizeInteractionMessagesForRole,
+  sanitizeLastMessagePreviewForRole,
+} from "./conversation-message-parts";
 import {
   conversationIdParamsSchema,
   createConversationRequestSchema,
@@ -25,6 +48,61 @@ import {
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
+
+const messageUploadBodyLimit = createMiddleware(async (c, next) => {
+  const rawRequest = c.req.raw;
+  if (!rawRequest.body) {
+    return next();
+  }
+
+  const hasTransferEncoding = rawRequest.headers.has("transfer-encoding");
+  const contentLength = rawRequest.headers.get("content-length");
+  if (contentLength && !hasTransferEncoding) {
+    const parsedLength = Number.parseInt(contentLength, 10);
+    if (!Number.isNaN(parsedLength)) {
+      return parsedLength > maxMessageUploadBytes
+        ? c.json({ error: "upload_too_large" }, 413)
+        : next();
+    }
+  }
+
+  let size = 0;
+  const chunks: Uint8Array[] = [];
+  const reader = rawRequest.body.getReader();
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    size += value.byteLength;
+    if (size > maxMessageUploadBytes) {
+      await reader.cancel().catch(() => undefined);
+      reader.releaseLock();
+      return c.json({ error: "upload_too_large" }, 413);
+    }
+    chunks.push(value);
+  }
+
+  const replayRequestInit: RequestInit & { duplex: "half" } = {
+    method: rawRequest.method,
+    headers: rawRequest.headers,
+    body: new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    }),
+    signal: rawRequest.signal,
+    duplex: "half",
+  };
+  c.req.raw = new Request(rawRequest.url, replayRequestInit);
+
+  return next();
+});
 
 function notFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
   return c.json({ error: "not_found" }, 404);
@@ -63,6 +141,61 @@ function tooManyFilesResponse(c: {
 
 function buildOrganizationFileUrl(organizationSlug: string, fileId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/files/${fileId}`;
+}
+
+function normalizeRepositoryFullName(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().slice(0, 255);
+  return normalized || undefined;
+}
+
+function seedConversationRepositorySession(
+  conversationId: string,
+  repositoryGitHubContext: RepositoryAgentGitHubContext,
+) {
+  const repositoryContextKey = getRepositoryContextKey(repositoryGitHubContext);
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = getWebConversationRepositorySession(conversationId);
+    const repositorySandboxSession =
+      current?.session.repositorySandboxSession?.repositoryContextKey === repositoryContextKey
+        ? current.session.repositorySandboxSession
+        : undefined;
+
+    const committed = setWebConversationRepositorySession(conversationId, {
+      baseVersion: current?.version ?? null,
+      session: {
+        ...current?.session,
+        repositoryGitHubContext,
+        ...(repositorySandboxSession ? { repositorySandboxSession } : {}),
+      },
+    });
+
+    if (committed) {
+      return;
+    }
+  }
+
+  throw new Error("failed to seed repository context");
+}
+
+async function resolveSelectedRepositoryGitHubContext(input: {
+  organizationId: string;
+  repositoryFullName?: string;
+}) {
+  if (!input.repositoryFullName) {
+    return null;
+  }
+
+  const resolution = await resolveWebProjectRepositoryGitHubContext({
+    organizationId: input.organizationId,
+    repositoryFullName: input.repositoryFullName,
+  });
+
+  return resolution.status === "resolved" ? resolution.context : null;
 }
 
 const validateConversationParams = validator("param", (value, c) => {
@@ -104,6 +237,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       if (query.status) {
         conditions.push(eq(schema.inboxItems.status, query.status));
       }
+      const projectId = query.projectId ? normalizeProjectId(query.projectId) : undefined;
+      if (projectId) {
+        conditions.push(eq(schema.interactions.projectId, projectId));
+      }
+      const embedSession = c.var.crowdinEmbedSession;
+      if (embedSession) {
+        conditions.push(eq(schema.interactions.projectId, embedSession.hlProjectId));
+      }
       if (query.cursor) {
         const cursorDate = new Date(query.cursor);
         if (!Number.isNaN(cursorDate.getTime())) {
@@ -135,6 +276,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               .selectDistinctOn([schema.interactionMessages.interactionId], {
                 interactionId: schema.interactionMessages.interactionId,
                 text: schema.interactionMessages.text,
+                parts: schema.interactionMessages.parts,
                 senderType: schema.interactionMessages.senderType,
                 createdAt: schema.interactionMessages.createdAt,
               })
@@ -148,12 +290,13 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
       const lastMessageMap = new Map<
         string,
-        { text: string; senderType: "user" | "agent"; createdAt: Date }
+        { text: string; senderType: "user" | "agent"; createdAt: Date; parts: unknown }
       >();
       for (const msg of lastMessages) {
         if (!lastMessageMap.has(msg.interactionId)) {
           lastMessageMap.set(msg.interactionId, {
             text: msg.text,
+            parts: msg.parts,
             senderType: msg.senderType,
             createdAt: msg.createdAt,
           });
@@ -190,152 +333,173 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           conversations: conversations.map((conv) => ({
             ...conv,
             participantEmail: participantEmailMap.get(conv.id) ?? null,
-            lastMessage: lastMessageMap.get(conv.id) ?? null,
+            lastMessage: sanitizeLastMessagePreviewForRole(
+              lastMessageMap.get(conv.id),
+              c.var.auth.membership.role,
+            ),
           })),
         },
         200,
       );
     })
-    .post(
-      "/",
-      bodyLimit({
-        maxSize: maxMessageUploadBytes,
-        onError: (c) => c.json({ error: "upload_too_large" }, 413),
-      }),
-      async (c) => {
-        const body = await c.req.parseBody({ all: true });
-        const parsed = createConversationRequestSchema.safeParse({
-          text: asString(body.text),
-          projectId: asString(body.projectId),
-        });
+    .post("/", messageUploadBodyLimit, async (c) => {
+      const body = await c.req.parseBody({ all: true });
+      const parsed = createConversationRequestSchema.safeParse({
+        text: asString(body.text),
+        projectId: asString(body.projectId),
+        repositoryFullName: asString(body.repositoryFullName),
+      });
 
-        if (!parsed.success) {
-          return badRequestResponse(c, "invalid_conversation_payload");
+      if (!parsed.success) {
+        return badRequestResponse(c, "invalid_conversation_payload");
+      }
+
+      const files = asFiles(body.files);
+      if (!parsed.data.text && files.length === 0) {
+        return badRequestResponse(c, "invalid_conversation_payload");
+      }
+      const messageText = parsed.data.text || "Please translate the attached source file.";
+
+      if (files.length > maxMessageUploadFiles) {
+        return tooManyFilesResponse(c);
+      }
+
+      for (const file of files) {
+        if (!inferSupportedSourceUploadFormat(file.name)) {
+          return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
+            filename: file.name,
+          });
         }
+      }
 
-        const files = asFiles(body.files);
-        if (!parsed.data.text && files.length === 0) {
-          return badRequestResponse(c, "invalid_conversation_payload");
+      const embedSession = c.var.crowdinEmbedSession;
+      const requestedProjectId = parsed.data.projectId
+        ? normalizeProjectId(parsed.data.projectId)
+        : undefined;
+      const projectId = embedSession?.hlProjectId ?? requestedProjectId;
+
+      if (embedSession && requestedProjectId && requestedProjectId !== embedSession.hlProjectId) {
+        return badRequestResponse(c, "project_scope_mismatch");
+      }
+
+      if (projectId) {
+        const project = await getOwnedProject(c.var.auth, projectId);
+        if (!project) {
+          return c.json({ error: "project_not_found" }, 400);
         }
-        const messageText = parsed.data.text || "Please translate the attached source file.";
+      }
 
-        if (files.length > maxMessageUploadFiles) {
-          return tooManyFilesResponse(c);
-        }
+      if (embedSession && !projectId) {
+        return badRequestResponse(c, "project_required");
+      }
 
-        for (const file of files) {
-          if (!inferSupportedFileTranslationFileFormat(file.name)) {
-            return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
-              filename: file.name,
-            });
-          }
-        }
-
-        const projectId = parsed.data.projectId
-          ? normalizeProjectId(parsed.data.projectId)
-          : undefined;
-
-        if (projectId) {
-          const project = await getOwnedProject(c.var.auth, projectId);
-          if (!project) {
-            return c.json({ error: "project_not_found" }, 400);
-          }
-        }
-
-        const orgId = c.var.auth.activeOrganization.localOrganizationId;
-        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
-        const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
-
-        const uploadResults = await Promise.allSettled(
-          files.map(async (file) =>
-            createStoredFile({
-              organizationId: orgId,
-              projectId,
-              createdByUserId: c.var.auth.user.localUserId,
-              role: "source",
-              sourceKind: "chat_upload",
-              filename: file.name,
-              contentType: file.type || "application/octet-stream",
-              content: await file.arrayBuffer(),
-              metadata: {
-                uploadSurface: "chat",
-                translationSource: true,
-              },
-              adapter,
-            }),
-          ),
+      const orgId = c.var.auth.activeOrganization.localOrganizationId;
+      const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+        organizationId: orgId,
+        repositoryFullName: parsed.data.repositoryFullName,
+      });
+      if (parsed.data.repositoryFullName && !repositoryGitHubContext) {
+        return badRequestResponse(
+          c,
+          "github_repository_not_available",
+          "Selected GitHub repository is not enabled for this workspace.",
         );
-        const storedFiles = uploadResults
-          .filter((result) => result.status === "fulfilled")
-          .map((result) => result.value);
-        const failedUpload = uploadResults.find((result) => result.status === "rejected");
+      }
 
-        if (failedUpload) {
-          await cleanupStoredFiles(storedFiles, adapter);
-          throw failedUpload.reason instanceof Error
-            ? failedUpload.reason
-            : new Error("failed to store uploaded file");
-        }
+      const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+      const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
-        let conversation: Awaited<ReturnType<typeof createInteraction>> | undefined;
-        let responseFiles = storedFiles;
-        let message;
-        try {
-          const createdConversation = await createInteraction({
+      const uploadResults = await Promise.allSettled(
+        files.map(async (file) =>
+          createStoredFile({
             organizationId: orgId,
-            source: "chat_ui",
-            title: messageText.slice(0, 120),
             projectId,
-          });
-          conversation = createdConversation;
+            createdByUserId: c.var.auth.user.localUserId,
+            role: "source",
+            sourceKind: "chat_upload",
+            filename: file.name,
+            contentType: file.type || "application/octet-stream",
+            content: await file.arrayBuffer(),
+            metadata: {
+              uploadSurface: "chat",
+              translationSource: true,
+            },
+            adapter,
+          }),
+        ),
+      );
+      const storedFiles = uploadResults
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failedUpload = uploadResults.find((result) => result.status === "rejected");
 
-          if (storedFiles.length > 0) {
-            await db
-              .update(schema.storedFiles)
-              .set({ sourceInteractionId: createdConversation.id })
-              .where(
-                inArray(
-                  schema.storedFiles.id,
-                  storedFiles.map((file) => file.id),
-                ),
-              );
-            responseFiles = storedFiles.map((file) => ({
-              ...file,
-              sourceInteractionId: createdConversation.id,
-            }));
-          }
+      if (failedUpload) {
+        await cleanupStoredFiles(storedFiles, adapter);
+        throw failedUpload.reason instanceof Error
+          ? failedUpload.reason
+          : new Error("failed to store uploaded file");
+      }
 
-          message = await addInteractionMessage({
-            interactionId: createdConversation.id,
-            senderType: "user",
-            senderEmail: c.var.auth.user.email,
-            text: messageText,
-            attachments: storedFiles.map((file) => ({
-              id: file.id,
-              filename: file.filename,
-              contentType: file.contentType,
-              url: organizationSlug
-                ? buildOrganizationFileUrl(organizationSlug, file.id)
-                : (file.downloadUrl ?? file.storageUrl),
-            })),
-          });
-        } catch (error) {
-          try {
-            await cleanupStoredFiles(storedFiles, adapter);
-            if (conversation) {
-              await db
-                .delete(schema.interactions)
-                .where(eq(schema.interactions.id, conversation.id));
-            }
-          } catch {
-            // Best-effort cleanup; do not mask the original error.
-          }
-          throw error;
+      let conversation: Awaited<ReturnType<typeof createInteraction>> | undefined;
+      let responseFiles = storedFiles;
+      let message;
+      try {
+        const createdConversation = await createInteraction({
+          organizationId: orgId,
+          source: "chat_ui",
+          title: messageText.slice(0, 120),
+          projectId,
+        });
+        conversation = createdConversation;
+
+        if (repositoryGitHubContext) {
+          seedConversationRepositorySession(createdConversation.id, repositoryGitHubContext);
         }
 
-        return c.json({ conversation, message, files: responseFiles }, 201);
-      },
-    )
+        if (storedFiles.length > 0) {
+          await db
+            .update(schema.storedFiles)
+            .set({ sourceInteractionId: createdConversation.id })
+            .where(
+              inArray(
+                schema.storedFiles.id,
+                storedFiles.map((file) => file.id),
+              ),
+            );
+          responseFiles = storedFiles.map((file) => ({
+            ...file,
+            sourceInteractionId: createdConversation.id,
+          }));
+        }
+
+        message = await addInteractionMessage({
+          interactionId: createdConversation.id,
+          senderType: "user",
+          senderEmail: c.var.auth.user.email,
+          text: messageText,
+          attachments: storedFiles.map((file) => ({
+            id: file.id,
+            filename: file.filename,
+            contentType: file.contentType,
+            url: organizationSlug
+              ? buildOrganizationFileUrl(organizationSlug, file.id)
+              : (file.downloadUrl ?? file.storageUrl),
+          })),
+        });
+      } catch (error) {
+        try {
+          await cleanupStoredFiles(storedFiles, adapter);
+          if (conversation) {
+            await db.delete(schema.interactions).where(eq(schema.interactions.id, conversation.id));
+          }
+        } catch {
+          // Best-effort cleanup; do not mask the original error.
+        }
+        throw error;
+      }
+
+      return c.json({ conversation, message, files: responseFiles }, 201);
+    })
     .get("/:conversationId", validateConversationParams, async (c) => {
       const { conversationId } = c.req.valid("param");
 
@@ -344,11 +508,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(schema.interactionMessages.createdAt);
+      const messages = sanitizeInteractionMessagesForRole(
+        await db
+          .select()
+          .from(schema.interactionMessages)
+          .where(eq(schema.interactionMessages.interactionId, conversationId))
+          .orderBy(schema.interactionMessages.createdAt),
+        c.var.auth.membership.role,
+      );
 
       return c.json({ conversation, messages }, 200);
     })
@@ -360,22 +527,24 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return notFoundResponse(c);
       }
 
-      const messages = await db
-        .select()
-        .from(schema.interactionMessages)
-        .where(eq(schema.interactionMessages.interactionId, conversationId))
-        .orderBy(desc(schema.interactionMessages.createdAt))
-        .limit(50);
+      const messages = sanitizeInteractionMessagesForRole(
+        (
+          await db
+            .select()
+            .from(schema.interactionMessages)
+            .where(eq(schema.interactionMessages.interactionId, conversationId))
+            .orderBy(desc(schema.interactionMessages.createdAt))
+            .limit(50)
+        ).reverse(),
+        c.var.auth.membership.role,
+      );
 
-      return c.json({ messages: messages.reverse() }, 200);
+      return c.json({ messages }, 200);
     })
     .post(
       "/:conversationId/messages",
       validateConversationParams,
-      bodyLimit({
-        maxSize: maxMessageUploadBytes,
-        onError: (c) => c.json({ error: "upload_too_large" }, 413),
-      }),
+      messageUploadBodyLimit,
       async (c) => {
         const { conversationId } = c.req.valid("param");
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
@@ -391,6 +560,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const normalizedProjectId = normalizeProjectId(asString(body.projectId));
         const requestedProjectId =
           typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
+        const repositoryFullName = normalizeRepositoryFullName(asString(body.repositoryFullName));
 
         if (!text.trim() && files.length === 0) {
           return invalidMessagePayloadResponse(c);
@@ -402,6 +572,18 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
         if (conversation.source !== "chat_ui") {
           return c.json({ error: "conversation_not_replyable" }, 400);
+        }
+
+        const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+          organizationId: orgId,
+          repositoryFullName,
+        });
+        if (repositoryFullName && !repositoryGitHubContext) {
+          return badRequestResponse(
+            c,
+            "github_repository_not_available",
+            "Selected GitHub repository is not enabled for this workspace.",
+          );
         }
 
         if (requestedProjectId && requestedProjectId !== conversation.projectId) {
@@ -458,6 +640,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           throw failedUpload.reason instanceof Error
             ? failedUpload.reason
             : new Error("failed to store uploaded file");
+        }
+
+        if (repositoryGitHubContext) {
+          seedConversationRepositorySession(conversationId, repositoryGitHubContext);
         }
 
         let message;

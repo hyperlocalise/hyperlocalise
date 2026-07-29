@@ -17,6 +17,7 @@ type Invariant struct {
 type BlockSignature struct {
 	Arg     string
 	Type    string
+	Offset  int
 	Options []string
 	Pounds  []int
 }
@@ -43,6 +44,9 @@ func ParseInvariant(s string) (Invariant, error) {
 		if c := cmp.Compare(a.Type, b.Type); c != 0 {
 			return c
 		}
+		if c := cmp.Compare(a.Offset, b.Offset); c != 0 {
+			return c
+		}
 		if c := slices.Compare(a.Options, b.Options); c != 0 {
 			return c
 		}
@@ -60,7 +64,7 @@ func SameICUBlocks(a, b []BlockSignature) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slicesEqual(a[i].Options, b[i].Options) {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset || !slicesEqual(a[i].Options, b[i].Options) {
 			return false
 		}
 	}
@@ -89,6 +93,12 @@ func FormatICUBlocks(blocks []BlockSignature) string {
 			b.WriteString(", ")
 		}
 		b.WriteString(block.Arg)
+		if block.Offset != 0 {
+			b.WriteByte('(')
+			b.WriteString("offset:")
+			b.WriteString(strconv.Itoa(block.Offset))
+			b.WriteByte(')')
+		}
 		b.WriteByte(':')
 		b.WriteString(block.Type)
 		b.WriteByte('[')
@@ -181,23 +191,11 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 	case ArgumentElement:
 		appendPlaceholder(inv, v.Value)
 	case NumberElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "number",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "number", v.Style)
 	case DateElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "date",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "date", v.Style)
 	case TimeElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "time",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "time", v.Style)
 	case SelectElement:
 		appendSelectBlockInvariant(inv, v, pluralArg)
 	case PluralElement:
@@ -223,6 +221,18 @@ func appendPlaceholder(inv *Invariant, value string) {
 	}
 }
 
+func appendTypedBlockInvariant(inv *Invariant, arg, kind, style string) {
+	appendPlaceholder(inv, arg)
+	sig := BlockSignature{
+		Arg:  arg,
+		Type: kind,
+	}
+	if style != "" {
+		sig.Options = []string{style}
+	}
+	inv.ICUBlocks = append(inv.ICUBlocks, sig)
+}
+
 func appendSelectBlockInvariant(inv *Invariant, v SelectElement, pluralArg string) {
 	appendPlaceholder(inv, v.Value)
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
@@ -246,6 +256,7 @@ func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
 		Arg:     v.Value,
 		Type:    blockType,
+		Offset:  v.Offset,
 		Options: sortedOptions,
 		Pounds:  poundCounts,
 	})
@@ -379,6 +390,11 @@ func isPlaceholderName(s string) bool {
 
 			if !isASCIIPlaceholderSubsequent(ch) {
 				return false
+			}
+			if ch == '.' {
+				if i+1 >= len(s) || s[i+1] == '.' || s[i+1] == '[' {
+					return false
+				}
 			}
 			i++
 			continue

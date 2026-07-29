@@ -1,19 +1,27 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AiMagicIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
-  StopCircleIcon,
-} from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, RefreshIcon, StopCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 
@@ -38,10 +46,11 @@ import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
+import { nativeJobDetailContentMessages as messages } from "./native-job-detail-content.messages";
 import {
+  canCancelJob,
   canMarkJobFailed,
   canRetryJob,
-  canRunAgentOnNativeFileJob,
   isProviderBackedJob,
 } from "./job-detail-types";
 
@@ -58,10 +67,6 @@ async function parseActionError(response: Response, fallback: string) {
   return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
 }
 
-function providerTranslateAction(job: JobDetailRecord) {
-  return (job.providerActions ?? []).find((action) => action.id === "translate_with_agent") ?? null;
-}
-
 export function NativeJobDetailContent({
   jobId,
   organizationSlug,
@@ -72,6 +77,8 @@ export function NativeJobDetailContent({
   projectId: string;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
@@ -83,38 +90,14 @@ export function NativeJobDetailContent({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load job (${response.status})`);
+        throw new Error(intl.formatMessage(messages.failedToLoadJob, { status: response.status }));
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
       if (body.job.projectId !== projectId) {
-        throw new Error("Job does not belong to this project");
+        throw new Error(intl.formatMessage(messages.jobWrongProject));
       }
       return body.job;
-    },
-  });
-
-  const runAgentJob = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-        "run-agent"
-      ].$post({
-        param: { organizationSlug, jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent on job"));
-      }
-
-      await response.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Translation agent is running");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent on job");
     },
   });
 
@@ -125,7 +108,9 @@ export function NativeJobDetailContent({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to retry job"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToRetryJob)),
+        );
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
@@ -134,10 +119,12 @@ export function NativeJobDetailContent({
     onSuccess: async (updatedJob) => {
       queryClient.setQueryData(jobQueryKey, updatedJob);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Job queued for retry");
+      toast.success(intl.formatMessage(messages.jobQueuedForRetry));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to retry job");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToRetryJob),
+      );
     },
   });
 
@@ -150,7 +137,9 @@ export function NativeJobDetailContent({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to mark job as failed"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToMarkJobFailed)),
+        );
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
@@ -160,22 +149,55 @@ export function NativeJobDetailContent({
       queryClient.setQueryData(jobQueryKey, updatedJob);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
       setMarkFailedDialogOpen(false);
-      toast.success("Job marked as failed");
+      toast.success(intl.formatMessage(messages.jobMarkedAsFailed));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark job as failed");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToMarkJobFailed),
+      );
+    },
+  });
+
+  const cancelJob = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].cancel.$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToCancelJob)),
+        );
+      }
+
+      const body = (await response.json()) as { job: JobDetailRecord };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      setCancelDialogOpen(false);
+      toast.success(intl.formatMessage(messages.jobCancelled));
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToCancelJob),
+      );
     },
   });
 
   const job = jobQuery.data;
-  const layout = job ? jobDetailTaskLayoutFromRecord(job) : null;
+  const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
   const showCatAction = job ? canOpenJobCat(job) : false;
   const providerDescription =
     job && isProviderBackedJob(job)
       ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
       : "";
-  const translateAction = job && isProviderBackedJob(job) ? providerTranslateAction(job) : null;
+  useAppShellBreadcrumbAppend({
+    id: "job-detail",
+    label: layout?.title,
+  });
 
   const headerActions = job ? (
     <>
@@ -185,72 +207,56 @@ export function NativeJobDetailContent({
           render={
             <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
               <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
-              Open in {job.externalProviderKind}
+              <FormattedMessage
+                {...messages.openInProvider}
+                values={{ providerKind: job.externalProviderKind }}
+              />
             </a>
           }
           size="sm"
           variant="outline"
         />
       ) : null}
-      {showCatAction && catHref ? (
-        <Button size="sm" variant="outline" render={<Link href={catHref} />}>
-          <ListIcon />
-          View strings
-        </Button>
-      ) : null}
-      {translateAction?.visible ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                disabled={
-                  !translateAction.enabled ||
-                  runAgentJob.isPending ||
-                  retryJob.isPending ||
-                  markJobFailed.isPending
-                }
-                onClick={() => runAgentJob.mutate()}
-              >
-                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-                {runAgentJob.isPending ? "Starting agent..." : translateAction.label}
-              </Button>
-            }
-          />
-          {translateAction.disabledReason ? (
-            <TooltipContent>{translateAction.disabledReason}</TooltipContent>
-          ) : null}
-        </Tooltip>
-      ) : canRunAgentOnNativeFileJob(job) ? (
-        <Button
-          size="sm"
-          disabled={runAgentJob.isPending || retryJob.isPending || markJobFailed.isPending}
-          onClick={() => runAgentJob.mutate()}
-        >
-          <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-          {runAgentJob.isPending ? "Starting agent..." : "Translate with agent"}
-        </Button>
-      ) : null}
       {canRetryJob(job) ? (
         <Button
           size="sm"
           variant="outline"
-          disabled={retryJob.isPending || markJobFailed.isPending}
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => retryJob.mutate()}
         >
           <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
-          {retryJob.isPending ? "Retrying..." : "Retry job"}
+          {retryJob.isPending ? (
+            <FormattedMessage {...messages.retrying} />
+          ) : (
+            <FormattedMessage {...messages.retryJob} />
+          )}
+        </Button>
+      ) : null}
+      {canCancelJob(job) ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
+          onClick={() => setCancelDialogOpen(true)}
+        >
+          <FormattedMessage {...messages.cancelJob} />
         </Button>
       ) : null}
       {canMarkJobFailed(job) ? (
         <Button
           size="sm"
           variant="destructive"
-          disabled={retryJob.isPending || markJobFailed.isPending}
+          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => setMarkFailedDialogOpen(true)}
         >
           <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
-          Mark as failed
+          <FormattedMessage {...messages.markAsFailed} />
+        </Button>
+      ) : null}
+      {showCatAction && catHref ? (
+        <Button size="sm" render={<Link href={catHref} />}>
+          <ListIcon />
+          <FormattedMessage {...messages.viewStrings} />
         </Button>
       ) : null}
     </>
@@ -273,7 +279,7 @@ export function NativeJobDetailContent({
         renderDescriptionField={
           providerDescription.trim().length > 0
             ? ({ description }) => (
-                <MarkdownDescriptionPreview value={description} className="border-border bg-card" />
+                <MarkdownPreview value={description} className="border-border bg-card" />
               )
             : undefined
         }
@@ -314,21 +320,64 @@ export function NativeJobDetailContent({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark job as failed?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.markFailedTitle} />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will stop the job from appearing queued or running and prevent the current
-              workflow run from updating it later.
+              <FormattedMessage {...messages.markFailedDescription} />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={markJobFailed.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={markJobFailed.isPending}>
+              <FormattedMessage {...messages.cancel} />
+            </AlertDialogCancel>
             <Button
               variant="destructive"
               disabled={markJobFailed.isPending}
               onClick={() => markJobFailed.mutate()}
             >
               <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
-              {markJobFailed.isPending ? "Marking..." : "Mark failed"}
+              {markJobFailed.isPending ? (
+                <FormattedMessage {...messages.marking} />
+              ) : (
+                <FormattedMessage {...messages.markFailedConfirm} />
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!cancelJob.isPending) {
+            setCancelDialogOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.cancelJobTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...messages.cancelJobDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelJob.isPending}>
+              <FormattedMessage {...messages.keepJob} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={cancelJob.isPending}
+              onClick={() => cancelJob.mutate()}
+            >
+              {cancelJob.isPending ? (
+                <FormattedMessage {...messages.cancelling} />
+              ) : (
+                <FormattedMessage {...messages.cancelJob} />
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

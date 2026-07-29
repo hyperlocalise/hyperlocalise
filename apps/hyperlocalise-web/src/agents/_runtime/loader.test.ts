@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { composeInstructions } from "./compose-instructions";
@@ -16,7 +28,7 @@ describe("agent loader", () => {
     clearAgentManifestCache();
     const manifest = getAgentManifest({ agentId: "hyperlocalise" });
     expect(manifest.instructions).toContain("Hyperlocalise");
-    expect(manifest.skills.orchestration?.body).toContain("Orchestration");
+    expect(manifest.skills.conversation?.body).toContain("Conversation");
   });
 
   it("parses skill frontmatter", () => {
@@ -33,11 +45,11 @@ Body content`);
     clearAgentManifestCache();
     const text = composeInstructions({
       agentId: "hyperlocalise",
-      skills: ["orchestration"],
+      skills: ["conversation"],
       userOverride: "Always greet the user.",
     });
     expect(text).toContain("Hyperlocalise");
-    expect(text).toContain("Orchestration");
+    expect(text).toContain("Conversation");
     expect(text).toContain("Customer instructions");
     expect(text).toContain("Always greet the user.");
   });

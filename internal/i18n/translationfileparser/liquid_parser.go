@@ -263,16 +263,14 @@ func liquidPlaceholderToken(index int, literal string) string {
 	res.WriteString("\x1eHLLQPH_")
 	for i := 0; i < 6; i++ {
 		b := sum[i]
-		res.WriteByte(upperHexTable[b>>4])
-		res.WriteByte(upperHexTable[b&0x0f])
+		res.WriteByte(hexDigits[b>>4])
+		res.WriteByte(hexDigits[b&0x0f])
 	}
 	res.WriteByte('_')
 	res.WriteString(strconv.Itoa(index))
 	res.WriteByte('\x1f')
 	return res.String()
 }
-
-const upperHexTable = "0123456789ABCDEF"
 
 func updateLiquidHTMLTagState(input []byte, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
 	if !*inHTMLTag {

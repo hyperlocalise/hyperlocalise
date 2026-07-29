@@ -12,26 +12,35 @@ allowBuilds:
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vite-plus: latest
-  vitest: npm:@voidzero-dev/vite-plus-test@^0.1.15
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+minimumReleaseAgeExclude:
+  - '@ai-sdk/anthropic@4.0.19'
+  - '@ai-sdk/gateway@4.0.28'
+  - '@ai-sdk/openai@4.0.20'
+  - '@ai-sdk/react@4.0.40'
+  - ai@7.0.37
 overrides:
-  vite: "8.0.16"
-  vitest: "catalog:"
+  vite: "8.1.5"
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.27.0"
-  "undici@^7.0.0": "7.28.0"
-  "undici@^8.0.0": "8.5.0"
-  devalue: "5.8.1"
-  qs: "6.15.2"
-  "@anthropic-ai/sdk": "0.104.1"
-  postcss: "8.5.15"
+  "undici@^6.0.0": "6.28.0"
+  "undici@^7.0.0": "7.29.0"
+  "undici@^8.0.0": "8.9.0"
+  devalue: "5.8.2"
+  qs: "6.15.3"
+  "@anthropic-ai/sdk": "0.115.0"
+  postcss: "8.5.23"
   esbuild: "0.28.1"
   "ip-address": "10.2.0"
-  hono: "4.12.25"
+  hono: "4.12.32"
   form-data: "4.0.6"
-  dompurify: "3.4.11"
+  dompurify: "3.4.12"
+  "js-yaml@^3.0.0": "3.15.0"
+  "js-yaml@^4.0.0": "4.3.0"
+  # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
+  # still resolve 1.25.8; dual copies break editor Fragment identity.
+  prosemirror-model: "1.25.11"
 peerDependencyRules:
   allowAny:
     - vite

@@ -1,17 +1,65 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import { projectFileCatQueueFilterSchema } from "@/api/routes/project/project.schema";
 import {
   canOpenNativeJobCat,
   canOpenProviderJobCat,
 } from "@/lib/projects/workspace-resource-capabilities";
+import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+
+export const jobCatQueueFilterParam = "queueFilter";
 
 export type JobCatTarget = {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
+  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   externalProviderKind: string | null;
   externalTargetLocales: string[] | null;
   reviewTargetLocale: string | null;
   inputPayload: unknown;
 };
+
+export type JobCatQueueFilterContext = {
+  kind?: JobCatTarget["kind"];
+  status?: JobCatTarget["status"];
+};
+
+export function resolveDefaultJobCatQueueFilter(
+  job: JobCatQueueFilterContext,
+): ProjectFileCatQueueFilter {
+  if (job.kind === "review" || job.kind === "proofread" || job.status === "waiting_for_review") {
+    return "needs_review";
+  }
+
+  if (job.kind === "translation" || job.kind === undefined) {
+    return "untranslated";
+  }
+
+  return "all";
+}
+
+export function parseJobCatQueueFilterParam(
+  value: string | undefined,
+): ProjectFileCatQueueFilter | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const result = projectFileCatQueueFilterSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
 
 function getInputPayloadString(job: JobCatTarget, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -44,7 +92,8 @@ export function buildJobCatHref(
   projectId: string | null | undefined,
   job: JobCatTarget,
 ) {
-  if (!projectId || !canOpenJobCat(job)) {
+  const resolvedProjectId = resolveJobProjectId(projectId, job.id);
+  if (!resolvedProjectId || !canOpenJobCat(job)) {
     return null;
   }
 
@@ -73,7 +122,12 @@ export function buildJobCatHref(
     }
   }
 
-  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
+  const queueFilter = resolveDefaultJobCatQueueFilter(job);
+  if (queueFilter !== "all") {
+    params.set(jobCatQueueFilterParam, queueFilter);
+  }
+
+  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

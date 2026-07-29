@@ -28,16 +28,20 @@ const (
 )
 
 type Input struct {
-	ConfigPath                string
-	Bucket                    string
-	Group                     string
-	TargetLocales             []string
-	SourcePaths               []string
-	DryRun                    bool
-	Force                     bool
-	Prune                     bool
-	PruneLimit                int
-	PruneForce                bool
+	ConfigPath    string
+	Bucket        string
+	Group         string
+	TargetLocales []string
+	SourcePaths   []string
+	DryRun        bool
+	Force         bool
+	Prune         bool
+	PruneLimit    int
+	PruneForce    bool
+	// MaxTranslations caps how many executable tasks run in this session after lock
+	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
+	// later run without --force can continue.
+	MaxTranslations           int
 	LockPath                  string
 	Workers                   int
 	ExperimentalContextMemory bool
@@ -49,8 +53,12 @@ type Input struct {
 	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
 	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
 	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
-	ReportJSONDetail    string
-	PrefilledEntries    map[string]string
+	ReportJSONDetail string
+	// PrefilledEntries is the legacy flat map keyed by entry id. Requires PrefilledTargetPath.
+	PrefilledEntries map[string]string
+	// PrefilledByLocale is locale -> entry id -> value. Mutually exclusive with PrefilledEntries.
+	// Target paths are resolved from planned tasks; PrefilledTargetPath must be empty.
+	PrefilledByLocale   map[string]map[string]string
 	PrefilledTargetPath string
 }
 
@@ -126,6 +134,7 @@ type Event struct {
 	PlannedTotal             int       `json:"plannedTotal,omitempty"`
 	SkippedByLock            int       `json:"skippedByLock,omitempty"`
 	ExecutableTotal          int       `json:"executableTotal,omitempty"`
+	DeferredByLimit          int       `json:"deferredByLimit,omitempty"`
 	Succeeded                int       `json:"succeeded,omitempty"`
 	Failed                   int       `json:"failed,omitempty"`
 	PersistedToLock          int       `json:"persistedToLock,omitempty"`
@@ -265,9 +274,12 @@ type Report struct {
 	PlannedTotal    int       `json:"plannedTotal"`
 	SkippedByLock   int       `json:"skippedByLock"`
 	ExecutableTotal int       `json:"executableTotal"`
-	Succeeded       int       `json:"succeeded"`
-	Failed          int       `json:"failed"`
-	PersistedToLock int       `json:"persistedToLock"`
+	// DeferredByLimit is the number of executable tasks left for a later session
+	// because MaxTranslations capped this run.
+	DeferredByLimit int `json:"deferredByLimit"`
+	Succeeded       int `json:"succeeded"`
+	Failed          int `json:"failed"`
+	PersistedToLock int `json:"persistedToLock"`
 	TokenUsage
 	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
 	Batches                     []BatchUsage          `json:"batches,omitempty"`

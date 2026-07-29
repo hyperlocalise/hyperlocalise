@@ -1,13 +1,27 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
+import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { sheetMessages } from "@/components/ui/sheet.messages";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -70,14 +84,16 @@ function SheetContent({
                   render={
                     <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
                       <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                      <span className="sr-only">Close</span>
+                      <span className="sr-only">
+                        <FormattedMessage {...sheetMessages.close} />
+                      </span>
                     </Button>
                   }
                 />
               }
             />
             <TooltipContent side="bottom" align="end">
-              Close
+              <FormattedMessage {...sheetMessages.close} />
             </TooltipContent>
           </Tooltip>
         )}

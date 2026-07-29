@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
@@ -103,7 +115,7 @@ export function createEmailRequestInterpreter({ model }: CreateEmailRequestInter
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),
-      system:
+      instructions:
         "You are a precise email intake parser for a localization agent. Return only structured data.",
       prompt: buildIntentPrompt(input),
       temperature: 0,
@@ -136,7 +148,7 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),
-      system:
+      instructions:
         "You are a precise email intake parser for a localization agent. This is a clarification reply. Return only structured data.",
       prompt: buildClarificationPrompt(input),
       temperature: 0,

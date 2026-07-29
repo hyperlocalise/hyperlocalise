@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createHash, randomUUID } from "node:crypto";
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -8,11 +20,16 @@ import {
 } from "@/lib/agents/repository-context";
 import { runSubagent } from "@/lib/agent-runtime/subagents/run-subagent";
 import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
+import {
   createRepositorySandbox,
   stopRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
+import { buildFindContextSkillInstructions } from "@/lib/agent-runtime/skills/find-context-instructions";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { serializeErrorForLog } from "@/lib/log";
@@ -386,6 +403,22 @@ export class ProjectStringContextService extends ProjectServiceBase {
     }
 
     const conversationId = `project-file-context:${randomUUID()}`;
+    const sourceTextHash = this.hashSourceText(input.text);
+    const usageOperationKey = `project-file-string-context:${this.hashSourceText(
+      [
+        input.organizationId,
+        input.projectId,
+        repositoryFullName,
+        input.sourcePath,
+        input.key,
+        sourceTextHash,
+      ].join("\0"),
+    )}:agent_runs`;
+    const usageDimensions = {
+      surface: "web",
+      agent_surface: "project_file_string_context",
+      subagent_type: "repository",
+    };
     const toolContext: ToolContext = {
       conversationId,
       agentSession: { todos: [] },
@@ -415,16 +448,22 @@ export class ProjectStringContextService extends ProjectServiceBase {
 
     const instructions = [
       buildRepositoryGitHubContextInstructions(githubContext),
-      `Source file path in the TMS project: ${input.sourcePath}`,
-      `String key: ${input.key}`,
-      `Source text: ${input.text}`,
-      input.context ? `Crowdin/context note: ${input.context}` : null,
-      "Find where this string appears in the connected repository and explain localization-relevant context for translators.",
-    ]
-      .filter((line): line is string => line !== null)
-      .join("\n\n");
+      buildFindContextSkillInstructions({
+        sourcePath: input.sourcePath,
+        stringKey: input.key,
+        sourceText: input.text,
+        contextNote: input.context,
+      }),
+    ].join("\n\n");
 
     try {
+      await reserveAgentRuntimeUsage({
+        organizationId: input.organizationId,
+        operationKey: usageOperationKey,
+        source: "project_file_string_context_lookup",
+        dimensions: usageDimensions,
+      });
+
       const result = await runSubagent("repository", {
         toolContext,
         task: `Find repository context for localization key "${input.key}".`,
@@ -433,6 +472,12 @@ export class ProjectStringContextService extends ProjectServiceBase {
 
       const summary = result.text.trim();
       if (!summary) {
+        await trackSucceededAgentRuntimeUsage({
+          organizationId: input.organizationId,
+          operationKey: usageOperationKey,
+          dimensions: usageDimensions,
+        });
+
         log.warn(
           { code: "agent_failed" },
           "project file string context agent returned empty summary",
@@ -454,6 +499,12 @@ export class ProjectStringContextService extends ProjectServiceBase {
         createdByUserId: input.localUserId,
       });
 
+      await trackSucceededAgentRuntimeUsage({
+        organizationId: input.organizationId,
+        operationKey: usageOperationKey,
+        dimensions: usageDimensions,
+      });
+
       log.info(
         { cached: false, summaryLength: summary.length },
         "project file string context lookup completed",
@@ -473,6 +524,43 @@ export class ProjectStringContextService extends ProjectServiceBase {
         await stopRepositorySandbox(sandboxId).catch(() => undefined);
       }
     }
+  }
+
+  async lookupCached(input: {
+    organizationId: string;
+    projectId: string;
+    repositoryFullName: string | null;
+    sourcePath: string;
+    key: string;
+    text: string;
+  }): Promise<Result<{ summary: string | null; cached: true }, ProjectFileStringContextError>> {
+    const log = this.log.child({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      stringKey: input.key,
+    });
+    log.debug("project file string cached context lookup started");
+
+    const summaries = await this.listCached({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      stringKeys: [input.key],
+      preferredRepositoryFullName: input.repositoryFullName,
+      sourceTextByKey: new Map([[input.key, input.text]]),
+    });
+
+    const summary = summaries.get(input.key) ?? null;
+
+    log.debug(
+      {
+        cached: summary !== null,
+        summaryLength: summary?.length ?? 0,
+      },
+      "project file string cached context lookup completed",
+    );
+
+    return ok({ summary, cached: true });
   }
 }
 
@@ -500,3 +588,7 @@ export const resolveProjectFileStringRepositoryFullName = (
 export const lookupProjectFileStringRepositoryContext = (
   input: Parameters<ProjectStringContextService["lookup"]>[0],
 ) => projectStringContextService.lookup(input);
+
+export const lookupCachedProjectFileStringRepositoryContext = (
+  input: Parameters<ProjectStringContextService["lookupCached"]>[0],
+) => projectStringContextService.lookupCached(input);

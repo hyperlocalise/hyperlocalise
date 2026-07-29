@@ -1,7 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-const { stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+const { isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -12,7 +24,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
@@ -92,7 +104,7 @@ describe("workspace orchestrator agent", () => {
 
     createWorkspaceOrchestratorAgent(session);
 
-    expect(stepCountIsMock).toHaveBeenCalledWith(3);
+    expect(isStepCountMock).toHaveBeenCalledWith(3);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeTools: ["run_github_workflows", "notify_slack"],

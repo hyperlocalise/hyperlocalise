@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 
 import {
@@ -7,12 +19,16 @@ import {
   buildProjectLinkedMemoryWhere,
   canAccessGlossary,
   canAccessMemory,
+  canAccessProject,
   canAccessStoredFile,
-  ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import {
+  isLiveProviderGlossaryId,
+  isLiveProviderMemoryId,
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 function organizationRecord(ctx: ToolContext) {
@@ -65,13 +81,7 @@ export function toolProjectLinkedMemoryWhere(ctx: ToolContext) {
 }
 
 export async function toolCanAccessProject(ctx: ToolContext, projectId: string) {
-  const [project] = await ctx.db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(await ownedProjectWhere(apiAuthContextFromToolContext(ctx), projectId))
-    .limit(1);
-
-  return project ?? null;
+  return canAccessProject(apiAuthContextFromToolContext(ctx), projectId);
 }
 
 export function toolCanAccessGlossary(ctx: ToolContext, glossaryId: string) {
@@ -84,6 +94,10 @@ export function toolCanAccessMemory(ctx: ToolContext, memoryId: string) {
 
 /** Single-query glossary fetch with team scoping (replaces check + select). */
 export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: string) {
+  if (isLiveProviderGlossaryId(glossaryId)) {
+    return null;
+  }
+
   const [glossary] = await ctx.db
     .select()
     .from(schema.glossaries)
@@ -95,6 +109,10 @@ export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: st
 
 /** Single-query memory fetch with team scoping (replaces check + select). */
 export async function toolGetAccessibleMemory(ctx: ToolContext, memoryId: string) {
+  if (isLiveProviderMemoryId(memoryId)) {
+    return null;
+  }
+
   const [memory] = await ctx.db
     .select()
     .from(schema.memories)

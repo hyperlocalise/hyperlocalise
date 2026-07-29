@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -13,8 +25,9 @@ import { executeProviderAgentWriteback } from "./provider-agent-writeback";
 
 const pushExternalTmsTranslationsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../tms-provider-content", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../tms-provider-content")>();
+vi.mock("@/lib/providers/shared/tms-provider-content", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/shared/tms-provider-content")>();
   return {
     ...actual,
     pushExternalTmsTranslations: (...args: unknown[]) => pushExternalTmsTranslationsMock(...args),
@@ -38,7 +51,15 @@ async function createTestJob(input: { organizationId: string; projectId: string 
 }
 
 describe("provider-agent-writeback", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+    );
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     pushExternalTmsTranslationsMock.mockReset();
   });
 

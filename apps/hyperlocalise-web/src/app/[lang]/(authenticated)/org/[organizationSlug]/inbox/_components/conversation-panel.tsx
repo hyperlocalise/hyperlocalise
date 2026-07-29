@@ -1,16 +1,31 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { BubbleChatNotificationIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 
-import { ConversationDetails } from "./conversation-details";
 import { ConversationMessageList } from "./conversation-message-list";
+import { conversationPanelMessages } from "./conversation-panel.messages";
+import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import {
   formatRelativeTime,
-  sourceLabel,
+  getSourceLabel,
+  getStatusLabel,
   statusStyles,
   type Conversation,
   type ConversationMessage,
@@ -41,15 +56,21 @@ export function ConversationPanel({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
-  onSendMessage: (text: string, files: File[], projectId?: string) => void | Promise<void>;
+  onSendMessage: (
+    text: string,
+    files: File[],
+    options?: { projectId?: string; repositoryFullName?: string },
+  ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
   if (!conversation) {
     return (
-      <section className="flex min-h-[50vh] flex-col bg-background lg:min-h-0">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
-          <TypographyMuted>Select a conversation to view details</TypographyMuted>
+          <TypographyMuted>
+            <FormattedMessage {...conversationPanelMessages.selectConversation} />
+          </TypographyMuted>
         </div>
       </section>
     );
@@ -59,18 +80,15 @@ export function ConversationPanel({
   const composerDisabled = isSending || isStreaming;
 
   return (
-    <section className="flex min-h-[50vh] min-w-0 flex-1 flex-col bg-background lg:min-h-0">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
-      <div className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100svh-7.5rem)]">
-        <ConversationDetails
-          conversation={conversation}
-          jobs={jobs}
-          jobsIsLoading={jobsIsLoading}
-          organizationSlug={organizationSlug}
-        />
-
-        <div className="flex min-h-0 flex-1 flex-col xl:pr-80">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <InboxPanelErrorBoundary
+          scope="messages"
+          className="min-h-0 flex-1"
+          resetKeys={[conversation.id, messages, streamedAssistant?.message]}
+        >
           <ConversationMessageList
             conversationId={conversation.id}
             currentUser={currentUser}
@@ -79,17 +97,18 @@ export function ConversationPanel({
             messages={messages}
             streamedAssistant={streamedAssistant}
           />
+        </InboxPanelErrorBoundary>
 
-          {isChatUi ? (
+        {isChatUi ? (
+          <InboxPanelErrorBoundary scope="composer" resetKeys={[conversation.id, composerDisabled]}>
             <ReplyComposer
-              conversationProjectId={conversation.projectId}
               disabled={composerDisabled}
               isStreaming={isStreaming}
               onSend={onSendMessage}
               organizationSlug={organizationSlug}
             />
-          ) : null}
-        </div>
+          </InboxPanelErrorBoundary>
+        ) : null}
       </div>
     </section>
   );
@@ -104,6 +123,8 @@ function ConversationHeader({
   jobs: LinkedJob[];
   jobsIsLoading: boolean;
 }) {
+  const intl = useIntl();
+
   return (
     <header className="flex min-h-16 items-center border-b border-border px-4 py-3 sm:px-6">
       <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -116,15 +137,29 @@ function ConversationHeader({
           <TypographyH4 className="truncate text-base">{conversation.title}</TypographyH4>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="border-border bg-muted text-foreground">
-              {sourceLabel[conversation.source]}
+              {getSourceLabel(conversation.source, intl)}
             </Badge>
             <Badge variant="outline" className={statusStyles[conversation.status]}>
-              {conversation.status}
+              {getStatusLabel(conversation.status, intl)}
             </Badge>
-            <span>Created {formatRelativeTime(conversation.createdAt)}</span>
-            {jobsIsLoading ? <span>Checking linked jobs</span> : null}
+            <span>
+              <FormattedMessage
+                {...conversationPanelMessages.createdAt}
+                values={{ relativeTime: formatRelativeTime(conversation.createdAt, intl) }}
+              />
+            </span>
+            {jobsIsLoading ? (
+              <span>
+                <FormattedMessage {...conversationPanelMessages.checkingLinkedJobs} />
+              </span>
+            ) : null}
             {!jobsIsLoading && jobs.length > 0 ? (
-              <span>{jobs.length === 1 ? "1 linked job" : `${jobs.length} linked jobs`}</span>
+              <span>
+                <FormattedMessage
+                  {...conversationPanelMessages.linkedJobsCount}
+                  values={{ count: jobs.length }}
+                />
+              </span>
             ) : null}
           </div>
         </div>

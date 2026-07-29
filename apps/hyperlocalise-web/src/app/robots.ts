@@ -1,8 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { MetadataRoute } from "next";
 
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
-
-const BASE_URL = "https://www.hyperlocalise.com";
+import { SITE_URL } from "@/lib/seo/site-url";
 
 export default function robots(): MetadataRoute.Robots {
   const protectedLocalizedDisallows = SUPPORTED_APP_LOCALES.flatMap((locale) => [
@@ -16,6 +27,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/auth/", "/api/", "/mcp", ...protectedLocalizedDisallows],
     },
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

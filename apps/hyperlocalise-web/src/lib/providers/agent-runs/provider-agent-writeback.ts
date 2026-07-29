@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   collectAcceptedAgentRunProposalsForJob,
   isPushApprovedWritebackAgentRun,
@@ -10,13 +22,13 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import { pushExternalTmsTranslations } from "../tms-provider-content";
+import { pushExternalTmsTranslations } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsApprovedTranslationUpload,
   ExternalTmsContentSyncFailure,
-} from "../tms-provider-types";
-import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
-import { getProviderTranslationPusher } from "../adapters/tms-provider-adapter-registry";
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ProviderTranslationWritebackChangedItem } from "@/lib/providers/shared/provider-feedback-types";
+import { getProviderTranslationPusher } from "@/lib/providers/adapters/tms-provider-registry";
 
 export type ProviderAgentWritebackResult =
   | {
@@ -249,6 +261,11 @@ export async function executeProviderAgentWriteback(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,

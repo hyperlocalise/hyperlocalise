@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -309,35 +321,38 @@ describe("workspace automations", () => {
         timezone: "UTC",
       },
     };
+    const now = new Date("2099-06-15T12:00:00.000Z");
 
-    await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      name: "Due GitHub automation",
-      instructions: "Run GitHub automation first.",
-      repositoryTarget: {
-        kind: "github",
-        githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
-      },
-      triggerConfig,
-      toolConfig: {
-        github: {
-          enabled: true,
-          mode: "sync",
-          projectId: scope.projectId,
-          pushSource: true,
-          pullTranslations: false,
-          validation: false,
-        },
-      },
-      nextRunAt: new Date("2026-06-01T08:00:00.000Z"),
-    });
-    const contentfulAutomation = expectOk(
+    expectOk(
       await createWorkspaceAutomation({
         organizationId: scope.organizationId,
         authorUserId: scope.userId,
-        name: "Due Contentful automation",
-        instructions: "Run Contentful automation second.",
+        name: "Due GitHub automation",
+        instructions: "Run GitHub automation first.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        triggerConfig,
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            projectId: scope.projectId,
+            pushSource: true,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+        nextRunAt: new Date("2099-06-15T08:00:00.000Z"),
+      }),
+    );
+    const earlierContentfulAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Earlier due Contentful automation",
+        instructions: "Run Contentful automation first.",
         triggerConfig,
         toolConfig: {
           contentful: {
@@ -354,16 +369,54 @@ describe("workspace automations", () => {
             writeDrafts: true,
           },
         },
-        nextRunAt: new Date("2026-06-01T09:00:00.000Z"),
+        nextRunAt: new Date("2099-06-15T09:00:00.000Z"),
+      }),
+    );
+    const laterContentfulAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Later due Contentful automation",
+        instructions: "Run Contentful automation second.",
+        triggerConfig,
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: crypto.randomUUID(),
+            projectId: scope.projectId,
+            sourceLocale: "en",
+            entryId: "entry-scheduled-2",
+            targetLocales: ["fr"],
+            contentTypeIds: [],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+          },
+        },
+        nextRunAt: new Date("2099-06-15T10:00:00.000Z"),
       }),
     );
 
     const dueAutomations = await listDueContentfulWorkspaceAutomations({
-      now: new Date("2026-06-01T10:00:00.000Z"),
+      now,
       limit: 1,
+      organizationId: scope.organizationId,
     });
 
-    expect(dueAutomations.map((automation) => automation.id)).toEqual([contentfulAutomation.id]);
+    expect(dueAutomations).toHaveLength(1);
+    expect(dueAutomations[0]?.id).toBe(earlierContentfulAutomation.id);
+
+    const bothDueAutomations = await listDueContentfulWorkspaceAutomations({
+      now,
+      limit: 2,
+      organizationId: scope.organizationId,
+    });
+
+    expect(bothDueAutomations.map((automation) => automation.id)).toEqual([
+      earlierContentfulAutomation.id,
+      laterContentfulAutomation.id,
+    ]);
   });
 
   it("only versions config-changing automation updates", async () => {

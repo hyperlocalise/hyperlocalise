@@ -32,6 +32,18 @@ func TestSameICUBlocks(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "plural vs selectordinal mismatch",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "selectordinal", Options: []string{"one"}}},
+			want: false,
+		},
+		{
+			name: "number vs date mismatch",
+			a:    []BlockSignature{{Arg: "n", Type: "number"}},
+			b:    []BlockSignature{{Arg: "n", Type: "date"}},
+			want: false,
+		},
+		{
 			name: "type mismatch",
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
 			b:    []BlockSignature{{Arg: "n", Type: "select", Options: []string{"one"}}},
@@ -50,6 +62,12 @@ func TestSameICUBlocks(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "options mismatch in typed formatter",
+			a:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"currency"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"percent"}}},
+			want: false,
+		},
+		{
 			name: "length mismatch",
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
 			b:    []BlockSignature{},
@@ -61,6 +79,43 @@ func TestSameICUBlocks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := SameICUBlocks(tt.a, tt.b); got != tt.want {
 				t.Errorf("SameICUBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPlaceholderNameEdgeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		val  string
+		want bool
+	}{
+		{"valid simple", "name", true},
+		{"valid path", "a.b.c", true},
+		{"trailing dot", "a.b.", false},
+		{"multiple dots", "a..b", false},
+		{"leading dot", ".a", false},
+		{"valid dash", "my-arg", true},
+		{"trailing dash", "my-arg-", true},
+		{"valid underscore", "my_arg", true},
+		{"valid dollar", "$amount", true},
+		{"valid array index", "items[0]", true},
+		{"valid nested array", "a.b[0].c", true},
+		{"multi-dimensional array index", "matrix[0][1]", true},
+		{"mixed path and array", "items[0].field", true},
+		{"starts with digit", "0.name", true},
+		{"malformed array", "items[0]suffix", false},
+		{"dot before bracket", "items.[0]", false},
+		{"empty", "", false},
+		{"unicode", "π", true},
+		{"unicode path", "π.val", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPlaceholderName(tt.val)
+			if got != tt.want {
+				t.Errorf("isPlaceholderName(%q) = %v, want %v", tt.val, got, tt.want)
 			}
 		})
 	}
@@ -83,6 +138,13 @@ func TestFormatICUBlocks(t *testing.T) {
 				{Arg: "n", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 0}},
 			},
 			want: "[n:plural[one other]#[1 0]]",
+		},
+		{
+			name: "plural with offset and pounds",
+			blocks: []BlockSignature{
+				{Arg: "n", Type: "plural", Offset: 1, Options: []string{"one", "other"}, Pounds: []int{1, 0}},
+			},
+			want: "[n(offset:1):plural[one other]#[1 0]]",
 		},
 		{
 			name: "select without pounds",
@@ -209,6 +271,73 @@ func TestParseInvariantSorting(t *testing.T) {
 		if inv.ICUBlocks[i].Arg != exp.arg || inv.ICUBlocks[i].Type != exp.kind {
 			t.Errorf("block %d: expected %s:%s, got %s:%s", i, exp.arg, exp.kind, inv.ICUBlocks[i].Arg, inv.ICUBlocks[i].Type)
 		}
+	}
+}
+
+func TestSameICUBlocksOffsetParity(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		tgt  string
+		want bool
+	}{
+		{
+			name: "different offsets",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, offset:2 one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "offset vs no offset",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "same offset",
+			src:  "{n, plural, offset:5 one {item} other {items}}",
+			tgt:  "{n, plural, offset:5 one {item} other {items}}",
+			want: true,
+		},
+		{
+			name: "selectordinal different offsets",
+			src:  "{n, selectordinal, offset:1 one {#st} other {#th}}",
+			tgt:  "{n, selectordinal, offset:0 one {#st} other {#th}}",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srcInv, err := ParseInvariant(tt.src)
+			if err != nil {
+				t.Fatalf("failed to parse src: %v", err)
+			}
+			tgtInv, err := ParseInvariant(tt.tgt)
+			if err != nil {
+				t.Fatalf("failed to parse tgt: %v", err)
+			}
+
+			if got := SameICUBlocks(srcInv.ICUBlocks, tgtInv.ICUBlocks); got != tt.want {
+				t.Errorf("SameICUBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseInvariantSortingWithOffset(t *testing.T) {
+	msg := "{n, plural, offset:2 other {#}} {n, plural, offset:1 other {#}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	if len(inv.ICUBlocks) != 2 {
+		t.Fatalf("expected 2 ICU blocks, got %d", len(inv.ICUBlocks))
+	}
+
+	if inv.ICUBlocks[0].Offset != 1 || inv.ICUBlocks[1].Offset != 2 {
+		t.Errorf("blocks not sorted by offset: %s", FormatICUBlocks(inv.ICUBlocks))
 	}
 }
 
@@ -379,6 +508,8 @@ func TestHasDuplicatePounds(t *testing.T) {
 		{"select block", "{gender, select, male {he} female {she} other {they}}", false},
 		{"selectordinal duplicate", "{n, selectordinal, one {##st} other {#th}}", true},
 		{"mustache placeholder", "Hello {{name}}", false},
+		{"sibling selects with duplicates", "{n, plural, other {{g1, select, male {#} other {#}} {g2, select, male {#} other {#}}}}", true},
+		{"nested select with duplicate", "{n, plural, other {{g, select, other {{s, select, other {##}}}}}}", true},
 	}
 
 	for _, tt := range tests {
@@ -578,6 +709,15 @@ func TestCountPoundsComplexNesting(t *testing.T) {
 			msg:  "{n, plural, other {<a href=\"#foo\">#</a>}}",
 			want: []BlockSignature{
 				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{1}},
+			},
+		},
+		{
+			name: "sibling selects sum pounds",
+			msg:  "{n, plural, other {{g1, select, male {#} other {##}} {g2, select, other {###}}}}",
+			want: []BlockSignature{
+				{Arg: "g1", Type: "select", Options: []string{"male", "other"}},
+				{Arg: "g2", Type: "select", Options: []string{"other"}},
+				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{5}},
 			},
 		},
 	}

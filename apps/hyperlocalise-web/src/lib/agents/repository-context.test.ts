@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { GitHubRawMessage } from "@chat-adapter/github";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -10,10 +22,12 @@ vi.mock("./github/app", () => ({
 }));
 
 import {
+  buildMultipleRepositorySelectionFollowUp,
   buildRepositoryGitHubContextInstructions,
   defaultRepositoryGitHubContextDependencies,
   extractGitHubPullRequestReferences,
   extractGitHubRepositoryFullNameReferences,
+  formatEnabledRepositoryList,
   resolveGitHubRepositoryGitHubContext,
   resolveSlackRepositoryGitHubContext,
   type RepositoryGitHubContextDependencies,
@@ -236,9 +250,70 @@ describe("resolveSlackRepositoryGitHubContext", () => {
       status: "unresolved",
       context: {
         resolved: false,
-        reason: "The Slack request matched multiple installed GitHub repositories.",
+        reason: "The request matched multiple installed GitHub repositories.",
       },
-      followUp: expect.stringContaining("owner/repository"),
+      followUp: expect.stringContaining("acme/web"),
+    });
+    expect(resolution).toMatchObject({
+      followUp: expect.stringContaining("other/web"),
+    });
+  });
+
+  it("resolves Slack context from a unique owner name in the message", async () => {
+    const resolution = await resolveSlackRepositoryGitHubContext({
+      organizationId: "org_123",
+      text: "Find context for 'Email agent' in acme",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "acme/web",
+            defaultBranch: "main",
+          },
+          {
+            installationId: 67890,
+            repositoryFullName: "other/api",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "resolved",
+      source: "slack_repo_reference",
+      context: {
+        resolved: true,
+        repositoryFullName: "acme/web",
+      },
+    });
+  });
+
+  it("does not match owner names without repository context in the message", async () => {
+    const resolution = await resolveSlackRepositoryGitHubContext({
+      organizationId: "org_123",
+      text: "check the new copy for the login page",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "new/web",
+            defaultBranch: "main",
+          },
+          {
+            installationId: 67890,
+            repositoryFullName: "other/api",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "unresolved",
+      followUp: expect.stringContaining("Which repository should I use"),
     });
   });
 
@@ -345,16 +420,24 @@ describe("resolveSlackRepositoryGitHubContext", () => {
       organizationId: "org_123",
       text: "Run the repo checks",
       requirePullRequest: true,
-      dependencies: createDependencies(),
+      dependencies: createDependencies({
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "acme/web",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
     });
 
     expect(resolution).toMatchObject({
       status: "unresolved",
-      followUp: expect.stringContaining("Please send a GitHub pull request URL"),
+      followUp: expect.stringContaining("pull request number"),
     });
   });
 
-  it("asks for repo context when a Slack repo intent has no repository fallback", async () => {
+  it("asks to enable a repository when none are enabled", async () => {
     const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the repo checks",
@@ -364,7 +447,7 @@ describe("resolveSlackRepositoryGitHubContext", () => {
 
     expect(resolution).toMatchObject({
       status: "unresolved",
-      followUp: expect.stringContaining("include the repository name"),
+      followUp: expect.stringContaining("No GitHub repositories are enabled"),
     });
   });
 
@@ -391,8 +474,50 @@ describe("resolveSlackRepositoryGitHubContext", () => {
 
     expect(resolution).toMatchObject({
       status: "unresolved",
-      followUp: expect.stringContaining("include the repository name"),
+      followUp: expect.stringContaining("acme/web"),
     });
+    expect(resolution).toMatchObject({
+      followUp: expect.stringContaining("acme/api"),
+    });
+    expect(resolution).toMatchObject({
+      followUp: expect.stringContaining("Which repository should I use"),
+    });
+  });
+});
+
+describe("repository selection follow-up helpers", () => {
+  it("formats enabled repositories for confirmation prompts", () => {
+    expect(
+      formatEnabledRepositoryList([
+        {
+          installationId: 1,
+          repositoryFullName: "acme/web",
+          defaultBranch: "main",
+        },
+        {
+          installationId: 2,
+          repositoryFullName: "acme/api",
+          defaultBranch: "main",
+        },
+      ]),
+    ).toBe("`acme/web`, `acme/api`");
+  });
+
+  it("builds a multi-repository selection follow-up", () => {
+    expect(
+      buildMultipleRepositorySelectionFollowUp([
+        {
+          installationId: 1,
+          repositoryFullName: "acme/web",
+          defaultBranch: "main",
+        },
+        {
+          installationId: 2,
+          repositoryFullName: "acme/api",
+          defaultBranch: "main",
+        },
+      ]),
+    ).toContain("Which repository should I use?");
   });
 });
 

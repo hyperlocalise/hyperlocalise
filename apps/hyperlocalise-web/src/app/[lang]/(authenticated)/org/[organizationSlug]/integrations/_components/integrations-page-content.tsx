@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Alert02Icon, Delete02Icon, Key01Icon, SaveIcon } from "@hugeicons/core-free-icons";
@@ -9,19 +21,24 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siAnthropic, siContentful, siCrowdin, siGooglegemini } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
 import { hasCapability } from "@/api/auth/policy";
-import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
+import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/shared/catalog";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
 import type {
   ExternalTmsProviderCredentialListItem,
   ExternalTmsProviderCredentialSummary,
-  ExternalTmsProviderKind,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import {
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -66,10 +83,16 @@ import {
   useContentfulConnections,
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
+import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
+import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
+import { SemrushConnectionPanel } from "./semrush-connection-panel";
+import { integrationRowMessages } from "./integration-row.messages";
+import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
 import { ModelProviderCard, type ModelProviderCardConfig } from "./model-provider-card";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
+import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();
@@ -81,84 +104,12 @@ type IntegrationsPageContentProps = {
   errorCode?: string | null;
 };
 
-type IntegrationErrorCopy = {
-  title: string;
-  description: string;
-};
-
-const integrationErrorCopyByCode = {
-  crowdin_user_oauth_exchange_failed: {
-    title: "Crowdin account link failed",
-    description:
-      "Crowdin did not return an access token. Check that the OAuth app callback URL, client ID, client secret, and app type match the Crowdin OAuth App configuration.",
-  },
-  crowdin_user_oauth_invalid: {
-    title: "Crowdin account link failed",
-    description:
-      "Crowdin rejected the access token returned during authorization. Try connecting again, then verify the OAuth app credentials if it repeats.",
-  },
-  crowdin_user_lookup_failed: {
-    title: "Crowdin account link failed",
-    description:
-      "Hyperlocalise received a token but could not load the authorized Crowdin user. For Crowdin Enterprise, verify the API base URL uses your organization domain.",
-  },
-  crowdin_integration_not_connected: {
-    title: "Crowdin integration is not connected",
-    description: "Save the Crowdin OAuth app credentials before linking a user account.",
-  },
-  crowdin_user_already_linked: {
-    title: "Crowdin account already linked",
-    description:
-      "That Crowdin user is already linked to another Hyperlocalise user in this workspace.",
-  },
-  missing_crowdin_user_oauth_code: {
-    title: "Crowdin account link was cancelled",
-    description: "Crowdin did not return an authorization code. Start the connection again.",
-  },
-  phrase_user_oauth_exchange_failed: {
-    title: "Phrase account link failed",
-    description:
-      "Phrase did not return an access token. Check that the OAuth app callback URL, client ID, and client secret match the Phrase OAuth App configuration.",
-  },
-  phrase_user_oauth_invalid: {
-    title: "Phrase account link failed",
-    description:
-      "Phrase rejected the access token returned during authorization. Try connecting again.",
-  },
-  phrase_user_lookup_failed: {
-    title: "Phrase account link failed",
-    description: "Hyperlocalise received a token but could not load the authorized Phrase user.",
-  },
-  phrase_integration_not_connected: {
-    title: "Phrase integration is not connected",
-    description: "Save the Phrase OAuth app credentials before linking a user account.",
-  },
-  phrase_user_already_linked: {
-    title: "Phrase account already linked",
-    description:
-      "That Phrase user is already linked to another Hyperlocalise user in this workspace.",
-  },
-  missing_phrase_user_oauth_code: {
-    title: "Phrase account link was cancelled",
-    description: "Phrase did not return an authorization code. Start the connection again.",
-  },
-  invalid_phrase_oauth_state: {
-    title: "Phrase account link expired",
-    description: "This Phrase connection link expired. Start Connect Phrase again.",
-  },
-} satisfies Record<string, IntegrationErrorCopy>;
-
 function canManageIntegrations(role: OrganizationMembershipRole) {
   return hasCapability(role, "integrations:write");
 }
 
 function canManageAgents(role: OrganizationMembershipRole) {
   return hasCapability(role, "provider_credentials:write");
-}
-
-function getIntegrationErrorCopy(error: string | null) {
-  if (!error) return null;
-  return integrationErrorCopyByCode[error as keyof typeof integrationErrorCopyByCode] ?? null;
 }
 
 type ProviderCredentialSummary = {
@@ -171,46 +122,28 @@ type ProviderCredentialSummary = {
 type ManagedProviderId = "hyperlocalise-go";
 type ProviderOptionId = LlmProvider | ManagedProviderId;
 
-const hyperlocaliseGoProvider = {
-  id: "hyperlocalise-go",
-  label: "Hyperlocalise GO",
-  description: "Managed by Hyperlocalise",
-  logo: "/images/logo.png",
-} as const;
+const hyperlocaliseGoProviderId = "hyperlocalise-go" as const satisfies ManagedProviderId;
 
-const byokProviders = [
+const byokProviderMeta = [
   {
     id: "openai",
-    label: "Open AI",
-    description: "Connect your OpenAI account",
     logo: "/images/openai-old-logo.webp",
   },
   {
     id: "anthropic",
-    label: "Anthropic",
-    description: "Connect your Anthropic account",
     logo: "/images/claude.png",
     icon: siAnthropic,
   },
   {
     id: "gemini",
-    label: "Google Gemini",
-    description: "Connect your Gemini account",
     logo: "/images/gemini.webp",
     icon: siGooglegemini,
   },
 ] as const satisfies readonly {
   id: LlmProvider;
-  label: string;
-  description: string;
   logo: string;
   icon?: SimpleIcon;
 }[];
-
-const modelProviderCards: readonly ModelProviderCardConfig[] = [
-  hyperlocaliseGoProvider,
-  ...byokProviders,
-];
 
 type TmsIntegrationConfig =
   | {
@@ -229,49 +162,33 @@ type TmsIntegrationConfig =
       comingSoon?: boolean;
     };
 
-const tmsIntegrations: readonly TmsIntegrationConfig[] = [
+const tmsIntegrationMeta = [
   {
-    name: "Hyperlocalise Native",
-    providerKind: "native",
+    providerKind: "native" as const,
     logo: "/images/logo.png",
-    included: true,
-    detail:
-      "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
+    included: true as const,
   },
   {
-    name: "Crowdin",
-    providerKind: "crowdin",
+    providerKind: "crowdin" as const,
     logo: "/images/tms/crowdin.png",
     icon: siCrowdin,
-    detail:
-      "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Lists read from your local workspace copy while background sync keeps data current.",
   },
   {
-    name: "Lokalise",
     providerKind: "lokalise" as const,
     logo: "/images/tms/lokalise.webp",
-    detail:
-      "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
   },
   {
-    name: "Phrase",
     providerKind: "phrase" as const,
     logo: "/images/tms/phrase.png",
-    detail: "Connect to browse Phrase projects and jobs with user OAuth.",
   },
   {
-    name: "Smartling",
     providerKind: "smartling" as const,
     logo: "/images/tms/smartling.png",
-    detail: "Connect enterprise localization programs.",
-    comingSoon: true,
   },
 ] as const;
 
-const contentfulIntegration = {
-  name: "Contentful",
+const contentfulIntegrationMeta = {
   icon: siContentful,
-  detail: "CMS connector for agentic article translation and draft writeback.",
 } as const;
 
 function useProviderCredential(organizationSlug: string) {
@@ -291,7 +208,7 @@ function useProviderCredential(organizationSlug: string) {
   });
 }
 
-function useSaveProviderCredential(organizationSlug: string) {
+function useSaveProviderCredential(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -318,7 +235,11 @@ function useSaveProviderCredential(organizationSlug: string) {
     },
     onSuccess: async (_, payload) => {
       await queryClient.invalidateQueries({ queryKey: ["provider-credential", organizationSlug] });
-      toast.success(`${llmProviderCatalog[payload.provider].label} provider saved`);
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.providerSavedToast, {
+          providerLabel: llmProviderCatalog[payload.provider].label,
+        }),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -326,7 +247,7 @@ function useSaveProviderCredential(organizationSlug: string) {
   });
 }
 
-function useDeleteProviderCredential(organizationSlug: string) {
+function useDeleteProviderCredential(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -341,7 +262,9 @@ function useDeleteProviderCredential(organizationSlug: string) {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["provider-credential", organizationSlug] });
-      toast.success("LLM provider disconnected");
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.llmProviderDisconnectedToast),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -371,7 +294,7 @@ function useExternalTmsCredentials(organizationSlug: string) {
   });
 }
 
-function useSaveExternalTmsCredential(organizationSlug: string) {
+function useSaveExternalTmsCredential(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -409,7 +332,11 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
           queryKey: ["tms-provider-connection", organizationSlug],
         }),
       ]);
-      toast.success(`${payload.displayName} connected`);
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.externalTmsConnectedToast, {
+          displayName: payload.displayName,
+        }),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -417,14 +344,101 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
   });
 }
 
-function useSaveCrowdinOAuthApp(organizationSlug: string) {
+function buildTmsOAuthAppPayload(input: {
+  displayName: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  baseUrl: string;
+}) {
+  const payload: {
+    displayName: string;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
+    baseUrl?: string;
+  } = {
+    displayName: input.displayName.trim(),
+  };
+
+  const oauthClientId = input.oauthClientId.trim();
+  const oauthClientSecret = input.oauthClientSecret.trim();
+  if (oauthClientId && oauthClientSecret) {
+    payload.oauthClientId = oauthClientId;
+    payload.oauthClientSecret = oauthClientSecret;
+  }
+
+  const baseUrl = input.baseUrl.trim();
+  if (baseUrl) {
+    payload.baseUrl = baseUrl;
+  }
+
+  return payload;
+}
+
+function useSaveCrowdinPatSetup(organizationSlug: string, intl: IntlShape) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { displayName: string; baseUrl?: string }) => {
+      const res = await api.api.orgs[":organizationSlug"][
+        "external-tms-provider-credential"
+      ].crowdin["pat-setup"].$post({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "crowdin_pat_setup_failed" }));
+        throw new Error(
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to save Crowdin personal access token settings",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async (result, payload) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["crowdin-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
+        }),
+      ]);
+      if (result.shouldConnectCrowdinUser) {
+        toast.success(
+          intl.formatMessage(integrationsPageContentMessages.crowdinPatSavedConnectTokenToast, {
+            displayName: payload.displayName,
+          }),
+        );
+        return;
+      }
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.settingsSavedToast, {
+          displayName: payload.displayName,
+        }),
+      );
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+function useSaveCrowdinOAuthApp(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -444,7 +458,7 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -459,7 +473,19 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Crowdin account to continue.`);
+      if (result.shouldConnectCrowdinUser) {
+        toast.success(
+          intl.formatMessage(integrationsPageContentMessages.crowdinOAuthSavedConnectAccountToast, {
+            displayName: payload.displayName,
+          }),
+        );
+        return;
+      }
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.settingsSavedToast, {
+          displayName: payload.displayName,
+        }),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -467,14 +493,14 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
   });
 }
 
-function useSavePhraseOAuthApp(organizationSlug: string) {
+function useSavePhraseOAuthApp(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -494,7 +520,7 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -509,7 +535,19 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+      if (result.shouldConnectPhraseUser) {
+        toast.success(
+          intl.formatMessage(integrationsPageContentMessages.phraseOAuthSavedConnectAccountToast, {
+            displayName: payload.displayName,
+          }),
+        );
+        return;
+      }
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.settingsSavedToast, {
+          displayName: payload.displayName,
+        }),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -517,14 +555,14 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
   });
 }
 
-function useSaveLokaliseOAuthApp(organizationSlug: string) {
+function useSaveLokaliseOAuthApp(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -544,7 +582,7 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -559,7 +597,22 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Lokalise account to continue.`);
+      if (result.shouldConnectLokaliseUser) {
+        toast.success(
+          intl.formatMessage(
+            integrationsPageContentMessages.lokaliseOAuthSavedConnectAccountToast,
+            {
+              displayName: payload.displayName,
+            },
+          ),
+        );
+        return;
+      }
+      toast.success(
+        intl.formatMessage(integrationsPageContentMessages.settingsSavedToast, {
+          displayName: payload.displayName,
+        }),
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -588,6 +641,7 @@ function TmsIntegrationRow({
   isLast: boolean;
   children?: ReactNode;
 }) {
+  const intl = useIntl();
   const isIncluded = integration.providerKind === "native";
   const isConnected = isIncluded || !!credential;
   const isComingSoon = !isIncluded && Boolean(integration.comingSoon);
@@ -655,22 +709,24 @@ function TmsIntegrationRow({
               nativeButton={false}
               render={<Link href={`/org/${organizationSlug}/projects`} />}
             >
-              View projects
+              {intl.formatMessage(integrationsPageContentMessages.viewProjects)}
             </Button>
           ) : isComingSoon ? (
             <Button type="button" variant="outline" size="sm" disabled>
-              Coming soon
+              <FormattedMessage {...integrationRowMessages.comingSoon} />
             </Button>
           ) : isBlockedByActiveProvider ? (
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button type="button" variant="outline" size="sm" disabled>
-                    Connect
+                    <FormattedMessage {...integrationRowMessages.connect} />
                   </Button>
                 }
               />
-              <TooltipContent>Disconnect the current TMS to switch providers.</TooltipContent>
+              <TooltipContent>
+                {intl.formatMessage(integrationsPageContentMessages.disconnectTmsTooltip)}
+              </TooltipContent>
             </Tooltip>
           ) : userIsAdmin && showPanel ? (
             <CollapsibleTrigger
@@ -681,7 +737,11 @@ function TmsIntegrationRow({
                   size="sm"
                   className={isConnected ? undefined : integrationConnectButtonClassName}
                 >
-                  {isConnected ? "Manage" : "Connect"}
+                  {isConnected ? (
+                    <FormattedMessage {...integrationRowMessages.manage} />
+                  ) : (
+                    <FormattedMessage {...integrationRowMessages.connect} />
+                  )}
                   <ChevronDownIcon
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}
@@ -690,9 +750,13 @@ function TmsIntegrationRow({
               }
             />
           ) : isConnected ? (
-            <Badge variant="outline">View only</Badge>
+            <Badge variant="outline">
+              <FormattedMessage {...integrationRowMessages.viewOnly} />
+            </Badge>
           ) : (
-            <span className="text-sm text-muted-foreground">Admins can connect</span>
+            <span className="text-sm text-muted-foreground">
+              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+            </span>
           )}
         </div>
       </div>
@@ -707,12 +771,14 @@ function TmsIntegrationRow({
 }
 
 function CmsIntegrationRow({
+  integration,
   connection,
   userIsAdmin,
   expanded,
   onExpandedChange,
   children,
 }: {
+  integration: { name: string; detail: string; icon: SimpleIcon };
   connection?: ContentfulConnectionSummary;
   userIsAdmin: boolean;
   expanded: boolean;
@@ -742,16 +808,14 @@ function CmsIntegrationRow({
               : "border-border bg-muted/50 text-muted-foreground",
           )}
         >
-          <SimpleBrandIcon icon={contentfulIntegration.icon} colored={isConnected} />
+          <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-medium text-foreground">{contentfulIntegration.name}</p>
+            <p className="text-base font-medium text-foreground">{integration.name}</p>
           </div>
-          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
-            {contentfulIntegration.detail}
-          </p>
+          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
         </div>
 
         <div className="shrink-0">
@@ -764,7 +828,11 @@ function CmsIntegrationRow({
                   size="sm"
                   className={isConnected ? undefined : integrationConnectButtonClassName}
                 >
-                  {isConnected ? "Manage" : "Connect"}
+                  {isConnected ? (
+                    <FormattedMessage {...integrationRowMessages.manage} />
+                  ) : (
+                    <FormattedMessage {...integrationRowMessages.connect} />
+                  )}
                   <ChevronDownIcon
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}
@@ -773,9 +841,13 @@ function CmsIntegrationRow({
               }
             />
           ) : isConnected ? (
-            <Badge variant="outline">View only</Badge>
+            <Badge variant="outline">
+              <FormattedMessage {...integrationRowMessages.viewOnly} />
+            </Badge>
           ) : (
-            <span className="text-sm text-muted-foreground">Admins can connect</span>
+            <span className="text-sm text-muted-foreground">
+              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+            </span>
           )}
         </div>
       </div>
@@ -789,7 +861,7 @@ function CmsIntegrationRow({
   );
 }
 
-function useDeleteExternalTmsCredential(organizationSlug: string) {
+function useDeleteExternalTmsCredential(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -813,7 +885,7 @@ function useDeleteExternalTmsCredential(organizationSlug: string) {
           queryKey: ["tms-provider-connection", organizationSlug],
         }),
       ]);
-      toast.success("Provider disconnected");
+      toast.success(intl.formatMessage(integrationsPageContentMessages.providerDisconnectedToast));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -827,10 +899,11 @@ export function IntegrationsPageContent({
   canManageProviderIntegrations,
   errorCode,
 }: IntegrationsPageContentProps) {
-  const integrationError = getIntegrationErrorCopy(errorCode ?? null);
+  const intl = useIntl();
+  const integrationError = getTmsUserOAuthErrorCopy(errorCode ?? null);
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
-  const saveCredential = useSaveProviderCredential(organizationSlug);
-  const deleteCredential = useDeleteProviderCredential(organizationSlug);
+  const saveCredential = useSaveProviderCredential(organizationSlug, intl);
+  const deleteCredential = useDeleteProviderCredential(organizationSlug, intl);
   const [selectedProvider, setSelectedProvider] = useState<ProviderOptionId | null>(null);
   const [selectedModel, setSelectedModel] = useState(defaultModelByProvider.openai);
   const [apiKey, setApiKey] = useState("");
@@ -847,12 +920,13 @@ export function IntegrationsPageContent({
   const activeExternalTmsProviderCredential = externalTmsCredentialState?.activeCredential ?? null;
   const { data: contentfulConnections, isLoading: isLoadingContentful } =
     useContentfulConnections(organizationSlug);
-  const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
-  const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
-  const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
-  const saveLokaliseOAuthApp = useSaveLokaliseOAuthApp(organizationSlug);
+  const saveExternalTms = useSaveExternalTmsCredential(organizationSlug, intl);
+  const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug, intl);
+  const saveCrowdinPatSetup = useSaveCrowdinPatSetup(organizationSlug, intl);
+  const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug, intl);
+  const saveLokaliseOAuthApp = useSaveLokaliseOAuthApp(organizationSlug, intl);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
-  const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
+  const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug, intl);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
     null,
   );
@@ -861,11 +935,16 @@ export function IntegrationsPageContent({
   const [tmsOauthClientId, setTmsOauthClientId] = useState("");
   const [tmsOauthClientSecret, setTmsOauthClientSecret] = useState("");
   const [tmsBaseUrl, setTmsBaseUrl] = useState("");
+  const [tmsCrowdinAuthMode, setTmsCrowdinAuthMode] = useState<
+    typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE
+  >(OAUTH_AUTH_MODE);
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
     useState<ExternalTmsProviderKind | null>(null);
   const [contentfulForm, setContentfulForm] = useState<ContentfulConnectionForm>({
-    displayName: "Contentful Help Center",
+    displayName: intl.formatMessage(
+      integrationsPageContentMessages.contentfulHelpCenterDefaultName,
+    ),
     spaceId: "",
     environmentId: "master",
     contentTypeIds: [],
@@ -879,8 +958,111 @@ export function IntegrationsPageContent({
   const tmsOauthClientSecretFieldId = useId();
   const tmsOauthRedirectUriFieldId = useId();
   const tmsBaseUrlFieldId = useId();
+  const tmsCrowdinAuthModeFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
   const userCanManageAgents = canManageAgents(membershipRole);
+
+  const hyperlocaliseGoProvider = useMemo(
+    () => ({
+      id: hyperlocaliseGoProviderId,
+      label: intl.formatMessage(integrationsPageContentMessages.hyperlocaliseGoLabel),
+      description: intl.formatMessage(integrationsPageContentMessages.hyperlocaliseGoDescription),
+      logo: "/images/logo.png",
+    }),
+    [intl],
+  );
+
+  const byokProviders = useMemo(
+    () =>
+      byokProviderMeta.map((provider) => {
+        const copyById = {
+          openai: {
+            label: integrationsPageContentMessages.openAiLabel,
+            description: integrationsPageContentMessages.openAiDescription,
+          },
+          anthropic: {
+            label: integrationsPageContentMessages.anthropicLabel,
+            description: integrationsPageContentMessages.anthropicDescription,
+          },
+          gemini: {
+            label: integrationsPageContentMessages.geminiLabel,
+            description: integrationsPageContentMessages.geminiDescription,
+          },
+        } as const;
+
+        const copy = copyById[provider.id];
+
+        return {
+          ...provider,
+          label: intl.formatMessage(copy.label),
+          description: intl.formatMessage(copy.description),
+        };
+      }),
+    [intl],
+  );
+
+  const modelProviderCards = useMemo<readonly ModelProviderCardConfig[]>(
+    () => [hyperlocaliseGoProvider, ...byokProviders],
+    [byokProviders, hyperlocaliseGoProvider],
+  );
+
+  const tmsIntegrations = useMemo<readonly TmsIntegrationConfig[]>(
+    () =>
+      tmsIntegrationMeta.map((integration) => {
+        const copyByKind = {
+          native: {
+            name: integrationsPageContentMessages.tmsNativeName,
+            detail: integrationsPageContentMessages.tmsNativeDetail,
+          },
+          crowdin: {
+            name: integrationsPageContentMessages.tmsCrowdinName,
+            detail: integrationsPageContentMessages.tmsCrowdinDetail,
+          },
+          lokalise: {
+            name: integrationsPageContentMessages.tmsLokaliseName,
+            detail: integrationsPageContentMessages.tmsLokaliseDetail,
+          },
+          phrase: {
+            name: integrationsPageContentMessages.tmsPhraseName,
+            detail: integrationsPageContentMessages.tmsPhraseDetail,
+          },
+          smartling: {
+            name: integrationsPageContentMessages.tmsSmartlingName,
+            detail: integrationsPageContentMessages.tmsSmartlingDetail,
+          },
+        } as const;
+
+        const copy = copyByKind[integration.providerKind];
+
+        if (integration.providerKind === "native") {
+          return {
+            ...integration,
+            name: intl.formatMessage(copy.name),
+            detail: intl.formatMessage(copy.detail),
+          };
+        }
+
+        return {
+          ...integration,
+          name: intl.formatMessage(copy.name),
+          detail: intl.formatMessage(copy.detail),
+        };
+      }),
+    [intl],
+  );
+
+  const contentfulIntegration = useMemo(
+    () => ({
+      ...contentfulIntegrationMeta,
+      name: intl.formatMessage(integrationsPageContentMessages.contentfulName),
+      detail: intl.formatMessage(integrationsPageContentMessages.contentfulDetail),
+    }),
+    [intl],
+  );
+
+  const contentfulHelpCenterDefaultName = intl.formatMessage(
+    integrationsPageContentMessages.contentfulHelpCenterDefaultName,
+  );
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {
@@ -891,7 +1073,7 @@ export function IntegrationsPageContent({
   }, [credential, selectedProvider]);
 
   useEffect(() => {
-    if (!selectedProvider || selectedProvider === hyperlocaliseGoProvider.id) {
+    if (!selectedProvider || selectedProvider === hyperlocaliseGoProviderId) {
       return;
     }
 
@@ -903,7 +1085,7 @@ export function IntegrationsPageContent({
   }, [selectedModel, selectedProvider]);
 
   const selectedByokProvider =
-    selectedProvider && selectedProvider !== hyperlocaliseGoProvider.id ? selectedProvider : null;
+    selectedProvider && selectedProvider !== hyperlocaliseGoProviderId ? selectedProvider : null;
   const selectedProviderConfig = selectedByokProvider
     ? llmProviderCatalog[selectedByokProvider]
     : null;
@@ -923,12 +1105,19 @@ export function IntegrationsPageContent({
     setTmsOauthClientId("");
     setTmsOauthClientSecret("");
     setTmsBaseUrl(existingCredential?.baseUrl ?? "");
+    setTmsCrowdinAuthMode(
+      existingCredential?.providerKind === "crowdin" &&
+        (existingCredential.authMode === PAT_AUTH_MODE ||
+          existingCredential.authMode === "api_token")
+        ? PAT_AUTH_MODE
+        : OAUTH_AUTH_MODE,
+    );
     setShowTmsSecret(false);
   }
 
   function loadContentfulForm(existingConnection?: ContentfulConnectionSummary) {
     setContentfulForm({
-      displayName: existingConnection?.displayName ?? "Contentful Help Center",
+      displayName: existingConnection?.displayName ?? contentfulHelpCenterDefaultName,
       spaceId: existingConnection?.spaceId ?? "",
       environmentId: existingConnection?.environmentId ?? "master",
       contentTypeIds: existingConnection?.contentTypeIds ?? [],
@@ -965,10 +1154,10 @@ export function IntegrationsPageContent({
     <main className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-          Integrations
+          <FormattedMessage {...integrationsPageContentMessages.pageTitle} />
         </TypographyH1>
         <Badge variant="outline" className="rounded-full lg:self-start">
-          Workspace level
+          <FormattedMessage {...integrationsPageContentMessages.workspaceLevelBadge} />
         </Badge>
       </div>
 
@@ -993,7 +1182,9 @@ export function IntegrationsPageContent({
       {canManageProviderIntegrations ? (
         <>
           <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>Translation Management System</IntegrationCategoryLabel>
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.tmsCategory} />
+            </IntegrationCategoryLabel>
 
             {isLoadingExternalTms ? (
               <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
@@ -1049,6 +1240,8 @@ export function IntegrationsPageContent({
                           onDisplayNameChange={setTmsDisplayName}
                           secret={tmsSecret}
                           onSecretChange={setTmsSecret}
+                          crowdinAuthMode={tmsCrowdinAuthMode}
+                          onCrowdinAuthModeChange={setTmsCrowdinAuthMode}
                           oauthClientId={tmsOauthClientId}
                           onOauthClientIdChange={setTmsOauthClientId}
                           oauthClientSecret={tmsOauthClientSecret}
@@ -1059,30 +1252,55 @@ export function IntegrationsPageContent({
                           onToggleShowSecret={() => setShowTmsSecret((current) => !current)}
                           onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
                           onSave={() => {
+                            const oauthPayload = buildTmsOAuthAppPayload({
+                              displayName: tmsDisplayName,
+                              oauthClientId: tmsOauthClientId,
+                              oauthClientSecret: tmsOauthClientSecret,
+                              baseUrl: tmsBaseUrl,
+                            });
+
                             if (integration.providerKind === "crowdin") {
-                              saveCrowdinOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              if (tmsCrowdinAuthMode === PAT_AUTH_MODE) {
+                                saveCrowdinPatSetup.mutate(
+                                  {
+                                    displayName: tmsDisplayName.trim(),
+                                    ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                                  },
+                                  {
+                                    onSuccess: () => {
+                                      setShowTmsSecret(false);
+                                    },
+                                  },
+                                );
+                                return;
+                              }
+
+                              saveCrowdinOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }
                             if (integration.providerKind === "phrase") {
-                              savePhraseOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              savePhraseOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }
                             if (integration.providerKind === "lokalise") {
-                              saveLokaliseOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              saveLokaliseOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }
@@ -1105,6 +1323,7 @@ export function IntegrationsPageContent({
                           isSaving={
                             saveExternalTms.isPending ||
                             saveCrowdinOAuthApp.isPending ||
+                            saveCrowdinPatSetup.isPending ||
                             savePhraseOAuthApp.isPending ||
                             saveLokaliseOAuthApp.isPending
                           }
@@ -1115,6 +1334,7 @@ export function IntegrationsPageContent({
                           oauthClientSecretFieldId={tmsOauthClientSecretFieldId}
                           redirectUriFieldId={tmsOauthRedirectUriFieldId}
                           baseUrlFieldId={tmsBaseUrlFieldId}
+                          crowdinAuthModeFieldId={tmsCrowdinAuthModeFieldId}
                         />
                       ) : null}
                     </TmsIntegrationRow>
@@ -1125,7 +1345,9 @@ export function IntegrationsPageContent({
           </section>
 
           <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.cmsCategory} />
+            </IntegrationCategoryLabel>
             {isLoadingContentful ? (
               <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
                 <div className="px-5 py-4">
@@ -1135,6 +1357,7 @@ export function IntegrationsPageContent({
             ) : (
               <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
                 <CmsIntegrationRow
+                  integration={contentfulIntegration}
                   connection={contentfulConnections?.[0]}
                   userIsAdmin={userIsAdmin}
                   expanded={expandedContentful}
@@ -1180,6 +1403,33 @@ export function IntegrationsPageContent({
               </div>
             )}
           </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.seoToolsCategory} />
+            </IntegrationCategoryLabel>
+            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+              <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <div className="border-t border-border">
+                <AhrefsConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.mcpServersCategory} />
+            </IntegrationCategoryLabel>
+            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+              <McpServerConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+              />
+            </div>
+          </section>
         </>
       ) : null}
 
@@ -1191,7 +1441,9 @@ export function IntegrationsPageContent({
       {canManageProviderIntegrations ? (
         <>
           <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...integrationsPageContentMessages.modelProviderCategory} />
+            </IntegrationCategoryLabel>
 
             {isLoading ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1202,7 +1454,7 @@ export function IntegrationsPageContent({
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {modelProviderCards.map((provider) => {
-                  const isManaged = provider.id === hyperlocaliseGoProvider.id;
+                  const isManaged = provider.id === hyperlocaliseGoProviderId;
                   const isByok = !isManaged;
                   const isConfigured = isByok && credential?.provider === provider.id;
                   const isActive = isManaged ? !credential : isConfigured;
@@ -1214,7 +1466,13 @@ export function IntegrationsPageContent({
                       isActive={isActive}
                       isManaged={isManaged}
                       footerLabel={
-                        isManaged ? (isActive ? undefined : "Switch to managed") : "Configure"
+                        isManaged
+                          ? isActive
+                            ? undefined
+                            : intl.formatMessage(
+                                integrationsPageContentMessages.switchToManagedFooter,
+                              )
+                          : intl.formatMessage(integrationsPageContentMessages.configureFooter)
                       }
                       disabled={
                         isManaged && isActive ? true : isManaged && deleteCredential.isPending
@@ -1248,10 +1506,13 @@ export function IntegrationsPageContent({
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
+                <DialogTitle>
+                  {intl.formatMessage(integrationsPageContentMessages.configureDialogTitle, {
+                    providerLabel: selectedProviderLabel ?? "",
+                  })}
+                </DialogTitle>
                 <DialogDescription>
-                  Save one shared provider key for this workspace. Saving validates the key,
-                  encrypts it at rest, and replaces the current provider.
+                  {intl.formatMessage(integrationsPageContentMessages.configureDialogDescription)}
                 </DialogDescription>
               </DialogHeader>
 
@@ -1277,7 +1538,9 @@ export function IntegrationsPageContent({
                   }}
                 >
                   <Field className="gap-2">
-                    <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
+                    <FieldLabel htmlFor={modelFieldId}>
+                      {intl.formatMessage(integrationsPageContentMessages.defaultModelLabel)}
+                    </FieldLabel>
                     <Select
                       value={selectedModel}
                       onValueChange={(value) => setSelectedModel(value ?? "")}
@@ -1296,7 +1559,9 @@ export function IntegrationsPageContent({
                   </Field>
 
                   <Field className="gap-2">
-                    <FieldLabel htmlFor={apiKeyFieldId}>API key</FieldLabel>
+                    <FieldLabel htmlFor={apiKeyFieldId}>
+                      {intl.formatMessage(integrationsPageContentMessages.apiKeyLabel)}
+                    </FieldLabel>
                     <div className="relative">
                       <HugeiconsIcon
                         icon={Key01Icon}
@@ -1309,14 +1574,21 @@ export function IntegrationsPageContent({
                         autoComplete="off"
                         value={apiKey}
                         onChange={(event) => setApiKey(event.target.value)}
-                        placeholder={`Enter ${selectedProviderLabel} API key`}
+                        placeholder={intl.formatMessage(
+                          integrationsPageContentMessages.apiKeyPlaceholder,
+                          { providerLabel: selectedProviderLabel ?? "" },
+                        )}
                         className="ps-9 pe-9"
                       />
                       <button
                         type="button"
                         onClick={() => setShowApiKey(!showApiKey)}
                         className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                        aria-label={intl.formatMessage(
+                          showApiKey
+                            ? integrationsPageContentMessages.hideApiKeyAriaLabel
+                            : integrationsPageContentMessages.showApiKeyAriaLabel,
+                        )}
                       >
                         {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                       </button>
@@ -1331,11 +1603,15 @@ export function IntegrationsPageContent({
                       disabled={!credential || deleteCredential.isPending}
                     >
                       <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                      {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
+                      {deleteCredential.isPending
+                        ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
+                        : intl.formatMessage(integrationsPageContentMessages.disconnect)}
                     </Button>
                     <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
                       <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                      {saveCredential.isPending ? "Validating..." : "Save provider"}
+                      {saveCredential.isPending
+                        ? intl.formatMessage(integrationsPageContentMessages.validating)
+                        : intl.formatMessage(integrationsPageContentMessages.saveProvider)}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -1354,15 +1630,24 @@ export function IntegrationsPageContent({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
+                  {intl.formatMessage(integrationsPageContentMessages.disconnectTmsDialogTitle, {
+                    providerName:
+                      disconnectingTmsProviderName ??
+                      intl.formatMessage(
+                        integrationsPageContentMessages.disconnectTmsDialogTitleFallback,
+                      ),
+                  })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This removes the saved encrypted provider credentials. Reconnecting this provider
-                  will require entering the secret again.
+                  {intl.formatMessage(
+                    integrationsPageContentMessages.disconnectTmsDialogDescription,
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteExternalTms.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={deleteExternalTms.isPending}>
+                  {intl.formatMessage(integrationsPageContentMessages.cancel)}
+                </AlertDialogCancel>
                 <Button
                   type="button"
                   variant="destructive"
@@ -1379,13 +1664,16 @@ export function IntegrationsPageContent({
                         setTmsDisplayName("");
                         setTmsSecret("");
                         setTmsBaseUrl("");
+                        setTmsCrowdinAuthMode(OAUTH_AUTH_MODE);
                         setShowTmsSecret(false);
                       },
                     });
                   }}
                 >
                   <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                  {deleteExternalTms.isPending ? "Disconnecting..." : "Disconnect"}
+                  {deleteExternalTms.isPending
+                    ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
+                    : intl.formatMessage(integrationsPageContentMessages.disconnect)}
                 </Button>
               </AlertDialogFooter>
             </AlertDialogContent>

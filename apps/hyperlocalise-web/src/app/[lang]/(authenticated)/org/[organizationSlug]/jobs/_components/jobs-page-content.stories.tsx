@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
@@ -44,7 +56,7 @@ function createJob(overrides: Partial<JobRow>): JobRow {
   };
 }
 
-const jobs: JobRow[] = [
+const tmsJobs: JobRow[] = [
   createJob({ id: "job_translate_homepage", status: "running" }),
   createJob({
     id: "job_review_checkout",
@@ -58,6 +70,9 @@ const jobs: JobRow[] = [
     externalDueDate: iso(172_800_000),
     updatedAt: iso(-1_800_000),
   }),
+];
+
+const nativeJobs: JobRow[] = [
   createJob({
     id: "job_sync_mobile",
     kind: "sync",
@@ -90,8 +105,11 @@ type Story = StoryObj<typeof meta>;
 export const WorkspaceJobs: Story = {
   args: {
     organizationSlug: "acme",
-    jobs,
-    isLoading: false,
+    nativeJobs,
+    tmsJobs,
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
     now: fixedNow,
   },
   play: async ({ canvas }) => {
@@ -106,8 +124,8 @@ export const MyJobs: Story = {
   args: {
     organizationSlug: "acme",
     scope: "personal",
-    assignedJobs: jobs.slice(0, 2),
-    createdJobs: [
+    assignedNativeJobs: [],
+    createdNativeJobs: [
       createJob({
         id: "job_created_mobile",
         status: "queued",
@@ -121,8 +139,11 @@ export const MyJobs: Story = {
         updatedAt: iso(-900_000),
       }),
     ],
-    jobs: [],
-    isLoading: false,
+    nativeJobs: [],
+    tmsJobs: tmsJobs.slice(0, 2),
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
     now: fixedNow,
   },
 };
@@ -131,8 +152,11 @@ export const ProjectJobs: Story = {
   args: {
     organizationSlug: "acme",
     projectId: "project_website",
-    jobs: jobs.slice(0, 2),
-    isLoading: false,
+    nativeJobs: [],
+    tmsJobs: tmsJobs.slice(0, 2),
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
     now: fixedNow,
   },
   play: async ({ canvas }) => {
@@ -147,8 +171,11 @@ export const ProjectJobsKanban: Story = {
   args: {
     organizationSlug: "acme",
     projectId: "project_website",
-    jobs,
-    isLoading: false,
+    nativeJobs: [],
+    tmsJobs,
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
     now: fixedNow,
   },
   play: async ({ canvas, userEvent }) => {
@@ -162,8 +189,11 @@ export const ProjectJobsKanban: Story = {
 export const Loading: Story = {
   args: {
     organizationSlug: "acme",
-    jobs: [],
-    isLoading: true,
+    nativeJobs: [],
+    tmsJobs: [],
+    hasActiveTmsConnection: true,
+    isNativeLoading: true,
+    isTmsLoading: true,
     now: fixedNow,
   },
 };
@@ -171,8 +201,11 @@ export const Loading: Story = {
 export const Empty: Story = {
   args: {
     organizationSlug: "acme",
-    jobs: [],
-    isLoading: false,
+    nativeJobs: [],
+    tmsJobs: [],
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
     now: fixedNow,
   },
 };
@@ -180,9 +213,12 @@ export const Empty: Story = {
 export const GeneralError: Story = {
   args: {
     organizationSlug: "acme",
-    jobs,
-    isLoading: false,
-    error: new Error("The jobs API returned a 500."),
+    nativeJobs,
+    tmsJobs,
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
+    nativeError: new Error("The jobs API returned a 500."),
     now: fixedNow,
   },
 };
@@ -190,14 +226,17 @@ export const GeneralError: Story = {
 export const TmsConnectionRequired: Story = {
   args: {
     organizationSlug: "acme",
-    jobs: [],
-    isLoading: false,
-    error: new Error("Crowdin needs a user connection."),
+    nativeJobs: [],
+    tmsJobs: [],
+    hasActiveTmsConnection: true,
+    isNativeLoading: false,
+    isTmsLoading: false,
+    tmsError: new Error("Crowdin needs a user connection."),
     renderError: ({ error }) => (
       <div>
         <p className="text-sm font-medium text-flame-100">Connect Crowdin to view provider jobs.</p>
         {error instanceof Error ? (
-          <p className="mt-1 text-xs text-foreground/42">{error.message}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{error.message}</p>
         ) : null}
       </div>
     ),

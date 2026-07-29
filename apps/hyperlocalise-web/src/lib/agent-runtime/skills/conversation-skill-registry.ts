@@ -1,0 +1,313 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { Bash } from "just-bash";
+import type { ToolSet } from "ai";
+
+import { hasCapability } from "@/api/auth/policy";
+import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
+import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
+import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/translate_string";
+import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
+import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
+import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
+import { buildWorkspaceTools, createTranslationJobTool } from "@/lib/agent-runtime/tools/registry";
+import {
+  createFetchTool,
+  createTodoWriteTool,
+  workspaceSessionToolNames,
+} from "@/lib/agent-runtime/tools/workspace";
+import {
+  createGetKnowledgeMemoryTool,
+  createUpdateKnowledgeMemoryTool,
+} from "@/lib/agent-runtime/tools/knowledge-memory-tools";
+import {
+  createGetProjectContextTool,
+  createListProjectsTool,
+  createUpdateInteractionProjectTool,
+} from "@/lib/tools/project-tools";
+
+const CONVERSATION_AGENT_ID = "hyperlocalise";
+
+/** Session tools live on the agent session, not the sandbox workspace. */
+const SESSION_TOOL_NAMES = new Set<string>(workspaceSessionToolNames);
+const REPO_TOOL_NAMES = new Set<string>(
+  [...repositoryWorkspaceToolNames, "captureScreenshot"].filter(
+    (toolName) => !SESSION_TOOL_NAMES.has(toolName),
+  ),
+);
+const WEB_TOOL_NAMES = new Set(["fetch"]);
+const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
+const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
+
+export type ConversationSkillMetadata = {
+  id: string;
+  always: boolean;
+  requiresSandbox: boolean;
+  requiresProjectId: boolean;
+  requiresTmsIntegration: boolean;
+  requiresFileAttachments?: boolean;
+  requiresProjectOrAttachments: boolean;
+  requiresVisualMockSkill: boolean;
+  requiresKnowledgeMemory: boolean;
+  tools: string[];
+  sharedSkills: string[];
+};
+
+export type ConversationSkillPlan = {
+  instructionSkillIds: string[];
+  sharedSkillIds: string[];
+  toolNames: string[];
+};
+
+export type ConversationSkillActivationContext = {
+  hasFileAttachments: boolean;
+  hasProjectId: boolean;
+  hasSandbox: boolean;
+  hasTmsIntegration: boolean;
+  hasVisualMockSkill: boolean;
+  knowledgeMemoryEnabled: boolean;
+};
+
+type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
+
+const conversationSkillToolFactories: Record<string, ConversationSkillToolFactory> = {
+  list_projects: (toolContext) => createListProjectsTool(toolContext),
+  get_project_context: (toolContext) => createGetProjectContextTool(toolContext),
+  update_interaction_project: (toolContext) => createUpdateInteractionProjectTool(toolContext),
+  check_crowdin_progress: (toolContext) => createCheckCrowdinProgressTool(toolContext),
+  get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
+  update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
+};
+
+function parseCommaSeparated(value: string | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function parseBooleanFlag(value: string | undefined): boolean | undefined {
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
+}
+
+export function parseConversationSkillMetadata(
+  skill: AgentSkillDocument,
+): ConversationSkillMetadata {
+  const { frontmatter } = skill;
+
+  return {
+    id: skill.id,
+    always: frontmatter.always === "true",
+    requiresSandbox: frontmatter.requiresSandbox === "true",
+    requiresProjectId: frontmatter.requiresProjectId === "true",
+    requiresTmsIntegration: frontmatter.requiresTmsIntegration === "true",
+    requiresFileAttachments: parseBooleanFlag(frontmatter.requiresFileAttachments),
+    requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
+    requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
+    requiresKnowledgeMemory: frontmatter.requiresKnowledgeMemory === "true",
+    tools: parseCommaSeparated(frontmatter.tools),
+    sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
+  };
+}
+
+export function listConversationSkills(): ConversationSkillMetadata[] {
+  const manifest = getAgentManifest({ agentId: CONVERSATION_AGENT_ID });
+  return Object.values(manifest.skills).map(parseConversationSkillMetadata);
+}
+
+export function toConversationSkillActivationContext(
+  runtime: Pick<
+    HyperlocaliseAgentRuntimeContext,
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
+  >,
+): ConversationSkillActivationContext {
+  return {
+    hasFileAttachments: runtime.hasFileAttachments,
+    hasProjectId: Boolean(runtime.toolContext.projectId),
+    hasSandbox: Boolean(runtime.toolContext.sandboxId),
+    hasTmsIntegration: runtime.hasTmsIntegration,
+    hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
+    knowledgeMemoryEnabled: runtime.toolContext.knowledgeMemoryEnabled === true,
+  };
+}
+
+export function isConversationSkillActivated(
+  skill: ConversationSkillMetadata,
+  context: ConversationSkillActivationContext,
+): boolean {
+  if (skill.always) {
+    return true;
+  }
+
+  if (skill.requiresSandbox && !context.hasSandbox) {
+    return false;
+  }
+
+  if (skill.requiresTmsIntegration && !context.hasTmsIntegration) {
+    return false;
+  }
+
+  if (skill.requiresProjectId && !context.hasProjectId) {
+    return false;
+  }
+
+  if (skill.requiresFileAttachments === true && !context.hasFileAttachments) {
+    return false;
+  }
+
+  if (skill.requiresFileAttachments === false && context.hasFileAttachments) {
+    return false;
+  }
+
+  if (skill.requiresProjectOrAttachments && !context.hasProjectId && !context.hasFileAttachments) {
+    return false;
+  }
+
+  if (skill.requiresVisualMockSkill && !context.hasVisualMockSkill) {
+    return false;
+  }
+
+  if (skill.requiresKnowledgeMemory && !context.knowledgeMemoryEnabled) {
+    return false;
+  }
+
+  const hasActivationRule =
+    skill.requiresSandbox ||
+    skill.requiresTmsIntegration ||
+    skill.requiresProjectId ||
+    skill.requiresFileAttachments !== undefined ||
+    skill.requiresProjectOrAttachments ||
+    skill.requiresVisualMockSkill ||
+    skill.requiresKnowledgeMemory;
+
+  return hasActivationRule;
+}
+
+export function buildConversationSkillPlan(
+  runtime: Pick<
+    HyperlocaliseAgentRuntimeContext,
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
+  >,
+): ConversationSkillPlan {
+  const context = toConversationSkillActivationContext(runtime);
+  const activeSkills = listConversationSkills().filter((skill) =>
+    isConversationSkillActivated(skill, context),
+  );
+
+  return {
+    instructionSkillIds: activeSkills.map((skill) => skill.id),
+    sharedSkillIds: [...new Set(activeSkills.flatMap((skill) => skill.sharedSkills))],
+    toolNames: [...new Set(activeSkills.flatMap((skill) => skill.tools))],
+  };
+}
+
+export function filterAvailableConversationToolNames(
+  toolNames: readonly string[],
+  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
+): string[] {
+  return toolNames.filter((toolName) => {
+    if (REPO_WRITE_TOOL_NAMES.has(toolName)) {
+      const gate = assertRepositoryWriteAllowed(runtime.toolContext, "apply_fixes");
+      if (!gate.allowed) {
+        return false;
+      }
+    }
+
+    if (
+      toolName === "update_knowledge_memory" &&
+      !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
+    ) {
+      return false;
+    }
+
+    if (
+      FILE_JOB_GATED_TOOL_NAMES.has(toolName) &&
+      !runtime.toolContext.projectId &&
+      !runtime.hasFileAttachments
+    ) {
+      return false;
+    }
+
+    if (REPO_TOOL_NAMES.has(toolName) && !runtime.toolContext.sandboxId) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export function buildConversationSkillTools(
+  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
+  toolNames: readonly string[],
+): ToolSet {
+  const ctx = runtime.toolContext;
+  const availableToolNames = filterAvailableConversationToolNames(toolNames, runtime);
+  const tools: ToolSet = {};
+
+  const needsRepoTools = availableToolNames.some((toolName) => REPO_TOOL_NAMES.has(toolName));
+  const repoTools =
+    needsRepoTools && ctx.sandboxId
+      ? buildWorkspaceTools(ctx, { bash: createSandboxRepoBash(ctx.sandboxId) as Bash })
+      : null;
+
+  for (const toolName of availableToolNames) {
+    if (toolName === "todoWrite") {
+      tools[toolName] = createTodoWriteTool(() => ctx);
+      continue;
+    }
+
+    if (REPO_TOOL_NAMES.has(toolName)) {
+      const repoTool = repoTools?.[toolName];
+      if (repoTool) {
+        tools[toolName] = repoTool;
+      }
+      continue;
+    }
+
+    if (toolName === "createTranslationJob") {
+      tools[toolName] = createTranslationJobTool(ctx);
+      continue;
+    }
+
+    if (WEB_TOOL_NAMES.has(toolName)) {
+      tools[toolName] = createFetchTool();
+      continue;
+    }
+
+    if (toolName === "translate_string") {
+      tools[toolName] = createTranslateStringTool(ctx);
+      continue;
+    }
+
+    const factory = conversationSkillToolFactories[toolName];
+    if (factory) {
+      tools[toolName] = factory(ctx);
+    }
+  }
+
+  return tools;
+}

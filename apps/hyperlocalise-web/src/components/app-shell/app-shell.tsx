@@ -1,18 +1,34 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
-import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
-import {
-  evaluateWorkspaceFeatureFlags,
-  filterNavigationByWorkspaceFlags,
-} from "@/lib/flags/workspace-flags";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
+import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
   getTmsUserConnectCtaState,
   type TmsUserConnectCta,
-} from "@/lib/providers/tms-user-connection";
+} from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import type { IntlShape } from "react-intl";
+
+import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
+import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 
 export type AppShellProps = {
   autumnConfigured?: boolean;
@@ -27,13 +43,14 @@ export async function AppShell({
 }: AppShellProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
+  const intl = getIntlShape(await getAppLocale()) as IntlShape;
 
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
   const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
   const navigationGroups = filterNavigationByWorkspaceFlags(
-    buildGlobalNavigationGroups(activeOrganizationSlug),
+    buildGlobalNavigationGroups(activeOrganizationSlug, intl),
     workspaceFeatureFlags,
   );
   const tmsUserConnectCta: TmsUserConnectCta = hasCapability(auth.membership.role, "jobs:read")
@@ -42,6 +59,19 @@ export async function AppShell({
         userId: auth.user.localUserId,
       })
     : { showConnectCta: false };
+  let initialTmsProviderConnection: ActiveTmsProviderConnection | null = null;
+  if (hasCapability(auth.membership.role, "provider_credentials:read")) {
+    try {
+      initialTmsProviderConnection = await getTmsProviderConnection(
+        auth.activeOrganization.localOrganizationId,
+      );
+    } catch (error) {
+      console.error("[app-shell] Failed to prefetch TMS provider connection", {
+        organizationId: auth.activeOrganization.localOrganizationId,
+        error,
+      });
+    }
+  }
 
   return (
     <AppShellClient
@@ -54,13 +84,18 @@ export async function AppShell({
       showMembersLink={hasCapability(auth.membership.role, "workspace:read")}
       user={{
         name: displayName,
+        email: auth.sessionUser.email,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigation={
-        <AppShellNavigation organizationSlug={activeOrganizationSlug} groups={navigationGroups} />
-      }
+      navigationGroups={navigationGroups}
+      workspaceFeatureFlags={workspaceFeatureFlags}
     >
-      {children}
+      <OrgTmsQueryProvider
+        organizationSlug={activeOrganizationSlug}
+        initialTmsProviderConnection={initialTmsProviderConnection}
+      >
+        {children}
+      </OrgTmsQueryProvider>
     </AppShellClient>
   );
 }

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -156,6 +168,7 @@ export async function getOrganizationMember(organizationId: string, workosUserId
 
 export function toMemberSummary(
   row: {
+    userId: string;
     workosUserId: string;
     email: string;
     firstName: string | null;
@@ -168,6 +181,7 @@ export function toMemberSummary(
   currentWorkosUserId: string,
   actorRole?: OrganizationMembershipRole,
 ): {
+  userId: string;
   workosUserId: string;
   email: string;
   firstName: string | null;
@@ -192,6 +206,7 @@ export function toMemberSummary(
         });
 
   return {
+    userId: row.userId,
     workosUserId: row.workosUserId,
     email: row.email,
     firstName: row.firstName,

@@ -1,16 +1,31 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { memo } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
+import { stripMarkdown } from "@/lib/markdown/strip-markdown";
 import { cn } from "@/lib/primitives/cn";
 
+import { inboxListMessages } from "./inbox-list.messages";
 import {
   formatRelativeTime,
   getConversationParticipantAvatar,
-  sourceLabel,
+  getSourceLabel,
   type Conversation,
   type InboxCurrentUser,
 } from "./inbox-types";
@@ -32,14 +47,18 @@ export const InboxList = memo(function InboxList({
   selectedConversationId: string;
 }) {
   return (
-    <section className="flex max-h-[40vh] shrink-0 flex-col overflow-hidden border-border lg:max-h-none lg:min-h-0 lg:h-full lg:shrink lg:border-r">
+    <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {isLoading ? (
           <ConversationListSkeleton />
         ) : isError ? (
-          <TypographyMuted className="px-3 py-4">Unable to load conversations.</TypographyMuted>
+          <TypographyMuted className="px-3 py-4">
+            <FormattedMessage {...inboxListMessages.loadError} />
+          </TypographyMuted>
         ) : conversations.length === 0 ? (
-          <TypographyMuted className="px-3 py-4">No conversations yet.</TypographyMuted>
+          <TypographyMuted className="px-3 py-4">
+            <FormattedMessage {...inboxListMessages.empty} />
+          </TypographyMuted>
         ) : (
           <div className="flex flex-col gap-1">
             {conversations.map((conversation) => (
@@ -86,10 +105,15 @@ const ConversationListItem = memo(function ConversationListItem({
   isSelected: boolean;
   onSelect: (conversationId: string) => void;
 }) {
+  const intl = useIntl();
   const participantAvatar = getConversationParticipantAvatar(
     conversation.participantEmail,
     currentUser,
+    intl,
   );
+  const preview = conversation.lastMessage
+    ? stripMarkdown(conversation.lastMessage.text) || conversation.lastMessage.text
+    : intl.formatMessage(inboxListMessages.noMessagesYet);
 
   return (
     <button
@@ -116,15 +140,11 @@ const ConversationListItem = memo(function ConversationListItem({
         <div className="flex min-w-0 items-center gap-2">
           <TypographySmall className="truncate">{conversation.title}</TypographySmall>
         </div>
-        <TypographyMuted className="mt-1 truncate">
-          {conversation.lastMessage?.text ?? "No messages yet"}
-        </TypographyMuted>
+        <TypographyMuted className="mt-1 truncate">{preview}</TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">
-            {sourceLabel[conversation.source] ?? conversation.source}
-          </span>
-          <span className="size-1 rounded-full bg-muted-foreground/20" />
-          <span>{formatRelativeTime(conversation.lastMessageAt)}</span>
+          <span className="truncate">{getSourceLabel(conversation.source, intl)}</span>
+          <span className="size-1 rounded-full bg-muted" />
+          <span>{formatRelativeTime(conversation.lastMessageAt, intl)}</span>
         </div>
       </div>
     </button>

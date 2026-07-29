@@ -2,6 +2,7 @@ name: Web CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
@@ -19,9 +20,54 @@ concurrency:
   group: web-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: "true"
+  NODE_OPTIONS: --max-old-space-size=8192
+
 jobs:
-  hyperlocalise-web-build:
-    name: Hyperlocalise Web Build
+  web-check:
+    name: Hyperlocalise Web Check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # drizzle-kit generate reads DATABASE_URL from config; no live DB needed.
+    env:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          cache: true
+
+      - name: Install hyperlocalise-web dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Check for Drizzle migration collisions
+        run: vp run db:check-migrations
+
+      - name: Check for Drizzle migration drift
+        run: |
+          set -euo pipefail
+          vp run db:generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::Drizzle schema and migrations are out of sync."
+            echo "Run 'vp run db:generate' locally and commit the generated files."
+            git status --porcelain drizzle
+            git --no-pager diff -- drizzle
+            exit 1
+          fi
+
+      - name: Check hyperlocalise-web
+        run: vp check
+
+  web-test-build:
+    name: Hyperlocalise Web Test/Build
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:
@@ -38,8 +84,6 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
-      CI: "true"
-      NODE_OPTIONS: --max-old-space-size=8192
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
       OPENAI_API_KEY: test-openai-api-key
       NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
@@ -62,54 +106,29 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@2dec1e33f4ab2c6d5bce1b0c4607961bb1a3f7a1 # v1
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
           cache: true
 
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
-      - name: Check for Drizzle migration collisions
-        run: |
-          set -euo pipefail
-          duplicate_idx=$(grep -oE '"idx":[[:space:]]*[0-9]+' drizzle/meta/_journal.json | sort | uniq -d || true)
-          if [ -n "${duplicate_idx}" ]; then
-            echo "::error::Duplicate idx in drizzle/meta/_journal.json (likely a merge from parallel branches that each generated the same migration number):"
-            echo "${duplicate_idx}"
-            echo "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'."
-            exit 1
-          fi
-          duplicate_prefix=$(ls drizzle/*.sql 2>/dev/null | xargs -n1 basename | cut -c1-5 | sort | uniq -d || true)
-          if [ -n "${duplicate_prefix}" ]; then
-            echo "::error::Duplicate migration index prefix in drizzle/ (likely a merge from parallel branches):"
-            echo "${duplicate_prefix}"
-            echo "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'."
-            exit 1
-          fi
-
-      - name: Check for Drizzle migration drift
-        run: |
-          set -euo pipefail
-          vp run db:generate
-          if [ -n "$(git status --porcelain drizzle)" ]; then
-            echo "::error::Drizzle schema and migrations are out of sync."
-            echo "Run 'vp run db:generate' locally and commit the generated files."
-            git status --porcelain drizzle
-            git --no-pager diff -- drizzle
-            exit 1
-          fi
-
       - name: Migrate hyperlocalise-web database
         run: vp run db:migrate
 
-      - name: Check hyperlocalise-web
-        run: vp check
-
       - name: Test hyperlocalise-web
         run: vp test
+
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: apps/hyperlocalise-web/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-${{ hashFiles('apps/hyperlocalise-web/src/**/*.ts', 'apps/hyperlocalise-web/src/**/*.tsx', 'apps/hyperlocalise-web/src/**/*.js', 'apps/hyperlocalise-web/src/**/*.jsx', 'apps/hyperlocalise-web/next.config.*', 'apps/hyperlocalise-web/postcss.config.*') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-
 
       - name: Build hyperlocalise-web
         run: vp run build

@@ -1,30 +1,44 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   Clock01Icon,
   File01Icon,
   LanguageSquareIcon,
   Task01Icon,
 } from "@hugeicons/core-free-icons";
+import type { IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
-import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
-import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 
-import { formatJobStatusLabel } from "../../../../../jobs/_components/jobs-page-view";
+import { getJobStatusMessage } from "../../../../../jobs/_components/jobs-page-view.messages";
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
 import {
   formatLocaleList,
   formatReadinessProgress,
   formatWordsToDo,
-  getCrowdinLanguageLabel,
-  getCrowdinLocaleReadiness,
-  getCrowdinTargetLocales,
-  getCrowdinTaskTypeLabel,
   getReadinessNumber,
-} from "../../../../../jobs/_components/provider-crowdin-job-display";
+  resolveProviderLocaleReadiness,
+  resolveProviderTargetLocales,
+  resolveProviderTaskLanguageLabel,
+  resolveProviderTaskTypeLabel,
+} from "../../../../../jobs/_components/provider-tms-job-display";
 
+import { jobDetailLayoutHelpersMessages as messages } from "./job-detail-layout-helpers.messages";
 import { formatJobDetailDate, isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import type { JobDetailViewMetric, JobDetailViewProperty } from "./job-detail-view";
 
@@ -39,13 +53,14 @@ export type JobDetailTaskLayoutInput = {
   externalTaskId: string | null;
   id: string;
   kind: string;
+  localeReadinessLoading?: boolean;
+  localeReadinessOverride?: Record<string, unknown> | null;
   projectId: string | null;
   projectName: string | null;
   sourceFilesMetric?: string | null;
   status: JobDetailRecord["status"];
   title: string | null;
   updatedAt: string;
-  updatedMetricLabel?: "Last synced" | "Updated";
 };
 
 function statusTone(status: JobDetailRecord["status"]) {
@@ -70,8 +85,15 @@ function formatProviderKind(kind: string | null | undefined) {
   return getTmsProviderBranding(kind).name;
 }
 
-function getProgressValue(payload: Record<string, unknown> | null) {
-  const readiness = getCrowdinLocaleReadiness(payload);
+function resolveTaskLocaleReadiness(input: JobDetailTaskLayoutInput) {
+  if (input.localeReadinessOverride) {
+    return input.localeReadinessOverride;
+  }
+
+  return resolveProviderLocaleReadiness(input.externalProviderKind, input.externalProviderPayload);
+}
+
+function getProgressValue(readiness: Record<string, unknown> | null) {
   const translationProgress = getReadinessNumber(readiness, "translationProgress");
   const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
   return Math.max(0, Math.min(100, Math.round(translationProgress ?? approvalProgress ?? 0)));
@@ -90,12 +112,21 @@ export function jobDetailTaskTitle(input: JobDetailTaskLayoutInput) {
   return input.title ?? input.id;
 }
 
-export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetailViewMetric[] {
+export function jobDetailTaskMetrics(
+  input: JobDetailTaskLayoutInput,
+  intl: IntlShape,
+): JobDetailViewMetric[] {
   const providerKind = input.externalProviderKind;
   const payload = input.externalProviderPayload;
+  const readiness = resolveTaskLocaleReadiness(input);
+  const wordsToDo = formatWordsToDo(readiness);
   const taskLabel = providerKind
-    ? `${formatProviderKind(providerKind)} task`
-    : `${formatJobKind(input.kind)} task`;
+    ? intl.formatMessage(messages.providerTaskMetric, {
+        providerName: formatProviderKind(providerKind),
+      })
+    : intl.formatMessage(messages.nativeTaskMetric, {
+        kind: formatJobKind(input.kind),
+      });
 
   return [
     {
@@ -105,95 +136,128 @@ export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetail
     {
       icon: LanguageSquareIcon,
       label:
-        getCrowdinLanguageLabel(payload) ??
-        formatLocaleList(getCrowdinTargetLocales(payload, input.externalTargetLocales ?? [])) ??
-        "—",
+        resolveProviderTaskLanguageLabel(providerKind, payload) ??
+        formatLocaleList(
+          resolveProviderTargetLocales(providerKind, payload, input.externalTargetLocales ?? []),
+        ) ??
+        intl.formatMessage(messages.emptyValue),
     },
     {
       icon: File01Icon,
       label:
-        formatWordsToDo(getCrowdinLocaleReadiness(payload)) ??
+        (input.localeReadinessLoading ? intl.formatMessage(messages.loadingProgress) : wordsToDo) ??
         input.sourceFilesMetric ??
-        "Source files linked",
+        intl.formatMessage(messages.sourceFilesLinked),
     },
     {
       icon: Clock01Icon,
-      label: `${input.updatedMetricLabel ?? "Last synced"} ${formatJobDetailDate(input.updatedAt)}`,
+      label: intl.formatMessage(messages.updatedAt, {
+        date: formatJobDetailDate(input.updatedAt),
+      }),
     },
   ];
 }
 
-export function jobDetailTaskProperties(input: JobDetailTaskLayoutInput): {
+export function jobDetailTaskProperties(
+  input: JobDetailTaskLayoutInput,
+  intl: IntlShape,
+): {
   properties: JobDetailViewProperty[];
   secondaryProperties: JobDetailViewProperty[];
 } {
   const payload = input.externalProviderPayload;
-  const readiness = getCrowdinLocaleReadiness(payload);
+  const readiness = resolveTaskLocaleReadiness(input);
   const hasReadiness = readiness !== null;
-  const progress = hasReadiness ? getProgressValue(payload) : null;
-  const progressLabel =
-    hasReadiness && progress !== null
-      ? (formatReadinessProgress(readiness) ?? `${progress}% translated`)
+  const progress = hasReadiness ? getProgressValue(readiness) : null;
+  const progressLabel = input.localeReadinessLoading
+    ? intl.formatMessage(messages.loadingProgress)
+    : hasReadiness && progress !== null
+      ? (formatReadinessProgress(readiness) ??
+        intl.formatMessage(messages.percentTranslated, { progress }))
       : null;
   const providerName = formatProviderKind(input.externalProviderKind);
   const targetLocales = formatLocaleList(
-    getCrowdinTargetLocales(payload, input.externalTargetLocales ?? []),
+    resolveProviderTargetLocales(
+      input.externalProviderKind,
+      payload,
+      input.externalTargetLocales ?? [],
+    ),
   );
-  const taskType = getCrowdinTaskTypeLabel(payload) ?? formatJobKind(input.kind);
+  const taskType =
+    resolveProviderTaskTypeLabel(input.externalProviderKind, payload, formatJobKind(input.kind)) ??
+    formatJobKind(input.kind);
   const wordsToDo = formatWordsToDo(readiness);
+  const emptyValue = intl.formatMessage(messages.emptyValue);
 
   const properties: JobDetailViewProperty[] = [
     {
-      label: "Status",
+      label: intl.formatMessage(messages.labelStatus),
       value: (
         <Badge
           variant="outline"
           className={cn("rounded-full", toneClass(statusTone(input.status)))}
         >
-          {formatJobStatusLabel(input.status)}
+          {intl.formatMessage(getJobStatusMessage(input.status))}
         </Badge>
       ),
     },
     {
-      label: "Progress",
+      label: intl.formatMessage(messages.labelProgress),
       value:
         progressLabel ??
         (input.externalStatus
-          ? `Provider status: ${input.externalStatus}`
-          : formatJobStatusLabel(input.status)),
+          ? intl.formatMessage(messages.providerStatus, { status: input.externalStatus })
+          : intl.formatMessage(getJobStatusMessage(input.status))),
     },
-    { label: "Provider", value: providerName },
-    { label: "Task type", value: taskType },
-    { label: "Target locales", value: targetLocales },
+    { label: intl.formatMessage(messages.labelProvider), value: providerName },
+    { label: intl.formatMessage(messages.labelTaskType), value: taskType },
+    { label: intl.formatMessage(messages.labelTargetLocales), value: targetLocales },
     {
-      label: "Assignees",
+      label: intl.formatMessage(messages.labelAssignees),
       value:
         input.externalAssignedUsers && input.externalAssignedUsers.length > 0
           ? input.externalAssignedUsers.join(", ")
           : null,
     },
-    { label: "Due date", value: formatJobDetailDate(input.externalDueDate) },
+    {
+      label: intl.formatMessage(messages.labelDueDate),
+      value: formatJobDetailDate(input.externalDueDate),
+    },
   ];
 
   if (wordsToDo) {
-    properties.push({ label: "Words to do", value: wordsToDo });
+    properties.push({
+      label: intl.formatMessage(messages.labelWordsToDo),
+      value: wordsToDo,
+    });
   }
 
   const secondaryProperties: JobDetailViewProperty[] = [
-    { label: "Project", value: input.projectName ?? input.projectId ?? "—" },
     {
-      label: "Language",
-      value: getCrowdinLanguageLabel(payload) ?? "—",
+      label: intl.formatMessage(messages.labelProject),
+      value: input.projectName ?? input.projectId ?? emptyValue,
     },
-    { label: "Last sync", value: formatJobDetailDate(input.updatedAt) },
-    { label: "External job ID", value: input.externalJobId },
-    { label: "External task ID", value: input.externalTaskId },
+    {
+      label: intl.formatMessage(messages.labelLanguage),
+      value: resolveProviderTaskLanguageLabel(input.externalProviderKind, payload) ?? emptyValue,
+    },
+    {
+      label: intl.formatMessage(messages.labelExternalJobId),
+      value: input.externalJobId,
+    },
+    {
+      label: intl.formatMessage(messages.labelExternalTaskId),
+      value: input.externalTaskId,
+    },
   ];
 
   return { properties, secondaryProperties };
 }
 
-export function jobDetailTaskLayoutFromRecord(job: JobDetailRecord): {
+export function jobDetailTaskLayoutFromRecord(
+  job: JobDetailRecord,
+  intl: IntlShape,
+): {
   input: JobDetailTaskLayoutInput;
   metrics: JobDetailViewMetric[];
   properties: JobDetailViewProperty[];
@@ -217,22 +281,30 @@ export function jobDetailTaskLayoutFromRecord(job: JobDetailRecord): {
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
-    sourceFilesMetric: sourcePath ?? (isProviderBackedJob(job) ? null : "Source files linked"),
-    updatedMetricLabel: isProviderBackedJob(job) ? "Last synced" : "Updated",
+    sourceFilesMetric:
+      sourcePath ??
+      (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked)),
   };
 
-  const { properties, secondaryProperties } = jobDetailTaskProperties(input);
+  const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);
 
   return {
     input,
     title: jobDetailTaskTitle(input),
-    metrics: jobDetailTaskMetrics(input),
+    metrics: jobDetailTaskMetrics(input, intl),
     properties,
     secondaryProperties,
   };
 }
 
-export function jobDetailTaskLayoutFromLiveJob(job: TmsProviderLiveJobDetail): {
+export function jobDetailTaskLayoutFromLiveJob(
+  job: TmsProviderLiveJobDetail,
+  intl: IntlShape,
+  options?: {
+    localeReadinessLoading?: boolean;
+    localeReadinessOverride?: Record<string, unknown> | null;
+  },
+): {
   input: JobDetailTaskLayoutInput;
   metrics: JobDetailViewMetric[];
   properties: JobDetailViewProperty[];
@@ -255,15 +327,16 @@ export function jobDetailTaskLayoutFromLiveJob(job: TmsProviderLiveJobDetail): {
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
-    updatedMetricLabel: "Last synced",
+    localeReadinessLoading: options?.localeReadinessLoading,
+    localeReadinessOverride: options?.localeReadinessOverride,
   };
 
-  const { properties, secondaryProperties } = jobDetailTaskProperties(input);
+  const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);
 
   return {
     input,
     title: jobDetailTaskTitle(input),
-    metrics: jobDetailTaskMetrics(input),
+    metrics: jobDetailTaskMetrics(input, intl),
     properties,
     secondaryProperties,
   };

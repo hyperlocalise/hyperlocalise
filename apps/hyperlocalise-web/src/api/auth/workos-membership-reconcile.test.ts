@@ -1,5 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -20,10 +33,6 @@ vi.mock("@/lib/env", async (importOriginal) => {
       get(target, property, receiver) {
         if (property === "WORKOS_API_KEY") {
           return "sk_test_reconcile";
-        }
-
-        if (property === "WORKOS_ENABLED") {
-          return true;
         }
 
         return Reflect.get(target, property, receiver);
@@ -267,6 +276,110 @@ describe("reconcileWorkosMembershipsForUser", () => {
     });
 
     expect(result.status).toBe("lookup_failed");
+  });
+
+  it("skips memberships when WorkOS returns an unknown role slug", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `pending-role-${randomUUID()}@example.com`;
+    const realWorkosUserId = `user_${randomUUID()}`;
+    const workosMembershipId = `om_${randomUUID()}`;
+
+    await syncWorkosIdentity(db, {
+      user: {
+        workosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+        email: pendingEmail,
+      },
+      organization: ownerIdentity.organization,
+      membership: {
+        role: "admin",
+      },
+    });
+
+    listMembershipsMock.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: workosMembershipId,
+          organizationId: ownerIdentity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "unsupported-workos-role" },
+        },
+      ],
+    });
+    getOrganizationMock.mockResolvedValue({
+      id: ownerIdentity.organization.workosOrganizationId,
+      name: ownerIdentity.organization.name,
+    });
+
+    const { reconcileWorkosMembershipsForUser } = await import("./workos-membership-reconcile");
+    const result = await reconcileWorkosMembershipsForUser(db, {
+      workosUserId: realWorkosUserId,
+      email: pendingEmail,
+      force: true,
+    });
+
+    expect(result).toMatchObject({ status: "reconciled", added: 0, updated: 0 });
+
+    const [membership] = await db
+      .select({
+        workosMembershipId: schema.organizationMemberships.workosMembershipId,
+        role: schema.organizationMemberships.role,
+        workosUserId: schema.users.workosUserId,
+      })
+      .from(schema.organizationMemberships)
+      .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+      .innerJoin(
+        schema.organizations,
+        eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+      )
+      .where(eq(schema.users.email, pendingEmail))
+      .limit(1);
+
+    expect(membership?.workosUserId).toBe(realWorkosUserId);
+    expect(membership?.workosMembershipId).toBeNull();
+    expect(membership?.role).toBe("admin");
+  });
+
+  it("does not create memberships when WorkOS returns an unknown role slug and no local invite exists", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const workosUserId = `user_${randomUUID()}`;
+    const workosMembershipId = `om_${randomUUID()}`;
+    const email = `workos-only-${randomUUID()}@example.com`;
+
+    listMembershipsMock.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: workosMembershipId,
+          organizationId: ownerIdentity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "unsupported-workos-role" },
+        },
+      ],
+    });
+    getOrganizationMock.mockResolvedValue({
+      id: ownerIdentity.organization.workosOrganizationId,
+      name: ownerIdentity.organization.name,
+    });
+
+    const { reconcileWorkosMembershipsForUser } = await import("./workos-membership-reconcile");
+    const result = await reconcileWorkosMembershipsForUser(db, {
+      workosUserId,
+      email,
+      force: true,
+    });
+
+    expect(result).toMatchObject({ status: "reconciled", added: 0 });
+
+    const memberships = await db
+      .select({ workosMembershipId: schema.organizationMemberships.workosMembershipId })
+      .from(schema.organizationMemberships)
+      .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+      .where(eq(schema.users.workosUserId, workosUserId));
+
+    expect(memberships).toHaveLength(0);
   });
 });
 

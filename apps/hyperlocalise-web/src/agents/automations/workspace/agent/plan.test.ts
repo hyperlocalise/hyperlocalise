@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
@@ -79,5 +91,55 @@ describe("buildWorkspaceOrchestratorPlan", () => {
   it("returns no tools when nothing is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(automation());
     expect(plan.tools).toEqual([]);
+  });
+
+  it("plans native TMS create then assign when translation workflow is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        triggerConfig: { mode: "source_upload" },
+        toolConfig: {
+          translation: {
+            enabled: true,
+            projectId: "project-1",
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["create_native_tms_job", "assign_translate_with_agent"]);
+  });
+
+  it("includes use_semrush when a Semrush connection is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          semrush: {
+            enabled: true,
+            connectionId: "11111111-1111-4111-8111-111111111111",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_semrush", "notify_slack"]);
+  });
+
+  it("includes use_ahrefs when an Ahrefs connection is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          ahrefs: {
+            enabled: true,
+            connectionId: "22222222-2222-4222-8222-222222222222",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_ahrefs", "notify_slack"]);
   });
 });

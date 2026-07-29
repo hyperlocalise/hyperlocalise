@@ -1,12 +1,28 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
+import type { TeamMembershipRole } from "@/lib/database/types";
 
 export const DEFAULT_WORKSPACE_TEAM_SLUG = "default";
 export const DEFAULT_WORKSPACE_TEAM_NAME = "Default team";
 
-export async function ensureDefaultWorkspaceTeam(organizationId: string) {
-  const [existingTeam] = await db
+export async function ensureDefaultWorkspaceTeam(
+  organizationId: string,
+  database: DatabaseClient = db,
+) {
+  const [existingTeam] = await database
     .select()
     .from(schema.teams)
     .where(
@@ -21,7 +37,7 @@ export async function ensureDefaultWorkspaceTeam(organizationId: string) {
     return existingTeam;
   }
 
-  const [createdTeam] = await db
+  const [createdTeam] = await database
     .insert(schema.teams)
     .values({
       organizationId,
@@ -37,7 +53,7 @@ export async function ensureDefaultWorkspaceTeam(organizationId: string) {
     return createdTeam;
   }
 
-  const [racedTeam] = await db
+  const [racedTeam] = await database
     .select()
     .from(schema.teams)
     .where(
@@ -53,6 +69,49 @@ export async function ensureDefaultWorkspaceTeam(organizationId: string) {
   }
 
   return racedTeam;
+}
+
+/**
+ * Ensures a team membership exists. Existing roles are left unchanged so
+ * managers are not demoted when a later path only needs member visibility.
+ */
+export async function ensureTeamMembership(input: {
+  teamId: string;
+  userId: string;
+  role?: TeamMembershipRole;
+  database?: DatabaseClient;
+}) {
+  const database = input.database ?? db;
+
+  await database
+    .insert(schema.teamMemberships)
+    .values({
+      teamId: input.teamId,
+      userId: input.userId,
+      role: input.role ?? "member",
+    })
+    .onConflictDoNothing({
+      target: [schema.teamMemberships.teamId, schema.teamMemberships.userId],
+    });
+}
+
+export async function ensureDefaultWorkspaceTeamMembership(input: {
+  organizationId: string;
+  userId: string;
+  role?: TeamMembershipRole;
+  database?: DatabaseClient;
+}) {
+  const database = input.database ?? db;
+  const team = await ensureDefaultWorkspaceTeam(input.organizationId, database);
+
+  await ensureTeamMembership({
+    teamId: team.id,
+    userId: input.userId,
+    role: input.role,
+    database,
+  });
+
+  return team;
 }
 
 export async function backfillOrganizationProjectTeams(organizationId: string) {

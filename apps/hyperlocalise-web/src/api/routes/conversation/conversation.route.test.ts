@@ -1,4 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
+
+import { randomInt } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
@@ -7,6 +21,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
+import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 
@@ -44,6 +59,41 @@ const client = testClient(app);
 const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
   createProjectTestFixture(client);
 
+async function createGithubRepositoryFixture(input: {
+  organizationId: string;
+  enabled?: boolean;
+  fullName?: string;
+}) {
+  const suffix = randomInt(100_000, 999_999);
+  const githubInstallationId = `98${suffix}`;
+  const githubRepositoryId = `10${suffix}`;
+  const fullName = input.fullName ?? "hyperlocalise/hyperlocalise-web";
+  const [owner, name] = fullName.split("/");
+
+  await db.insert(schema.githubInstallations).values({
+    organizationId: input.organizationId,
+    githubInstallationId,
+    githubAppId: "123",
+    accountLogin: owner ?? "hyperlocalise",
+    accountType: "Organization",
+  });
+
+  await db.insert(schema.githubInstallationRepositories).values({
+    organizationId: input.organizationId,
+    githubInstallationId,
+    githubRepositoryId,
+    owner: owner ?? "hyperlocalise",
+    name: name ?? "hyperlocalise-web",
+    fullName,
+    private: true,
+    archived: false,
+    defaultBranch: "main",
+    enabled: input.enabled ?? true,
+  });
+
+  return { githubInstallationId, githubRepositoryId, fullName };
+}
+
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
@@ -54,6 +104,37 @@ afterEach(async () => {
 });
 
 describe("conversation creation", () => {
+  it("accepts a proxied multipart request without content length", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+    const request = new Request(
+      `http://localhost/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+    const proxiedRequest = new Proxy(request, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const response = await app.fetch(proxiedRequest);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      message: {
+        text: "Translate this to fr-FR",
+        senderType: "user",
+      },
+    });
+  });
+
   it("creates a chat UI conversation with the initial user message", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -133,6 +214,65 @@ describe("conversation creation", () => {
     ]);
   });
 
+  it("seeds selected GitHub repository context when creating a chat UI conversation", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId;
+    if (!organizationId) {
+      throw new Error("Expected test auth context to include an active organization");
+    }
+    const repository = await createGithubRepositoryFixture({ organizationId });
+    const formData = new FormData();
+    formData.set("text", "Review the repository localization setup");
+    formData.set("repositoryFullName", repository.fullName);
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      conversation: { id: string };
+    };
+    const session = getWebConversationRepositorySession(body.conversation.id);
+    expect(session?.session.repositoryGitHubContext).toMatchObject({
+      resolved: true,
+      installationId: Number(repository.githubInstallationId),
+      repositoryFullName: repository.fullName,
+      branch: "main",
+    });
+  });
+
+  it("rejects a selected GitHub repository that is not enabled", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId;
+    if (!organizationId) {
+      throw new Error("Expected test auth context to include an active organization");
+    }
+    const repository = await createGithubRepositoryFixture({
+      organizationId,
+      enabled: false,
+      fullName: "hyperlocalise/disabled-repo",
+    });
+    const formData = new FormData();
+    formData.set("text", "Review the repository localization setup");
+    formData.set("repositoryFullName", repository.fullName);
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "github_repository_not_available",
+    });
+  });
+
   it("stores reply attachment URLs with an encoded organization slug", async () => {
     const identity = createWorkosIdentity();
     identity.organization.slug = "example org+東京";
@@ -180,6 +320,51 @@ describe("conversation creation", () => {
         url: `/api/orgs/${encodedOrganizationSlug}/files/${replyBody.message.attachments[0]!.id}`,
       }),
     ]);
+  });
+
+  it("seeds selected GitHub repository context when replying to a chat UI conversation", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId;
+    if (!organizationId) {
+      throw new Error("Expected test auth context to include an active organization");
+    }
+    const repository = await createGithubRepositoryFixture({ organizationId });
+    const conversationFormData = new FormData();
+    conversationFormData.set("text", "Start a repository task");
+    const conversationResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: conversationFormData,
+      },
+    );
+    expect(conversationResponse.status).toBe(201);
+    const conversationBody = (await conversationResponse.json()) as {
+      conversation: { id: string };
+    };
+    const replyFormData = new FormData();
+    replyFormData.set("text", "Use the selected repository for this task");
+    replyFormData.set("repositoryFullName", repository.fullName);
+
+    const replyResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations/${conversationBody.conversation.id}/messages`,
+      {
+        method: "POST",
+        headers,
+        body: replyFormData,
+      },
+    );
+
+    expect(replyResponse.status).toBe(201);
+    const session = getWebConversationRepositorySession(conversationBody.conversation.id);
+    expect(session?.session.repositoryGitHubContext).toMatchObject({
+      resolved: true,
+      installationId: Number(repository.githubInstallationId),
+      repositoryFullName: repository.fullName,
+      branch: "main",
+    });
   });
 
   it("does not leave an inbox conversation when initial file upload fails", async () => {

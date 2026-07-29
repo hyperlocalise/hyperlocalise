@@ -1,8 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { sql } from "drizzle-orm";
 import { check, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
-import { projects } from "./projects";
 
 /**
  * Caches repository-agent context lookups for CAT segments so translators do not rerun expensive investigations.
@@ -14,9 +25,7 @@ export const projectFileStringRepositoryContexts = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+    projectId: text("project_id").notNull(),
     sourcePath: text("source_path").notNull(),
     stringKey: text("string_key").notNull(),
     repositoryFullName: text("repository_full_name").notNull(),

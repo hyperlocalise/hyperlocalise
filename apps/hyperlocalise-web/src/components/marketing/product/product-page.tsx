@@ -1,14 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { ArrowRightIcon, CheckCircle2Icon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
-import { HeroFrame } from "@/components/marketing/hero-frame";
+import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { env } from "@/lib/env";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
@@ -42,7 +54,11 @@ function ProductHero({ content }: ProductPageProps) {
         </p>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button size="lg" nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        >
           <ProductMessage messageKey="ctaJoinWaitlist" />
           <ArrowRightIcon data-icon="inline-end" className="size-4" />
         </Button>
@@ -69,8 +85,8 @@ function AutomationPrimaryVisual() {
   ];
 
   return (
-    <div className="relative h-full overflow-hidden rounded-lg border border-border/70 bg-card p-4 shadow-2xl shadow-foreground/5">
-      <div className="mb-4 flex items-center justify-between border-b border-border/70 pb-3">
+    <div className="relative h-full overflow-hidden rounded-lg border border-border bg-card p-4 shadow-2xl shadow-gray-alpha-100">
+      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <div>
           <div className="text-sm font-semibold">
             <ProductMessage messageKey="visualAutomationLaunchRequest" />
@@ -86,7 +102,7 @@ function AutomationPrimaryVisual() {
       <div className="grid h-[calc(100%-4.5rem)] min-h-[24rem] gap-3 md:grid-cols-[0.8fr_1.15fr_0.8fr]">
         <div className="flex flex-col gap-2">
           {sources.map((sourceKey) => (
-            <div key={sourceKey} className="rounded-md border border-border/70 bg-background p-3">
+            <div key={sourceKey} className="rounded-md border border-border bg-background p-3">
               <div className="text-xs text-muted-foreground">
                 <ProductMessage messageKey="visualAutomationSignalLabel" />
               </div>
@@ -122,10 +138,7 @@ function AutomationPrimaryVisual() {
         </div>
         <div className="flex flex-col gap-2">
           {destinations.map((destinationKey) => (
-            <div
-              key={destinationKey}
-              className="rounded-md border border-border/70 bg-background p-3"
-            >
+            <div key={destinationKey} className="rounded-md border border-border bg-background p-3">
               <div className="text-xs text-muted-foreground">
                 <ProductMessage messageKey="visualAutomationRouteLabel" />
               </div>
@@ -151,8 +164,8 @@ function KnowledgePrimaryVisual() {
   ];
 
   return (
-    <div className="h-full rounded-lg border border-border/70 bg-card p-5 shadow-2xl shadow-foreground/5">
-      <div className="mb-6 flex items-center justify-between border-b border-border/70 pb-4">
+    <div className="h-full rounded-lg border border-border bg-card p-5 shadow-2xl shadow-gray-alpha-100">
+      <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
         <div>
           <div className="text-sm font-semibold">
             <ProductMessage messageKey="visualKnowledgeMemoryLayerTitle" />
@@ -171,7 +184,7 @@ function KnowledgePrimaryVisual() {
             key={nodeKey}
             className={cn(
               "rounded-lg border p-4",
-              index === 2 ? "border-primary/35 bg-primary/10" : "border-border/70 bg-background",
+              index === 2 ? "border-primary/35 bg-primary/10" : "border-border bg-background",
             )}
           >
             <div className="mb-8 size-2 rounded-full bg-primary" />
@@ -188,7 +201,7 @@ function KnowledgePrimaryVisual() {
           </div>
         ))}
       </div>
-      <div className="mt-4 rounded-lg border border-border/70 bg-muted/25 p-4">
+      <div className="mt-4 rounded-lg border border-border bg-muted/25 p-4">
         <div className="text-xs font-semibold text-muted-foreground uppercase">
           <ProductMessage messageKey="visualKnowledgeLatestDecision" />
         </div>
@@ -210,11 +223,7 @@ function ProductVisual({ kind }: { kind: ProductVisualKind }) {
 
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <HeroFrame />
-      </div>
-    );
+    return <HeroFrameMeshStage priority />;
   }
 
   return (
@@ -224,7 +233,7 @@ function ProductShowcase({ content }: ProductPageProps) {
           aria-hidden
           className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
         />
-        <div className="relative grid min-h-[32rem] overflow-hidden rounded-lg border border-border/70 bg-background p-2 shadow-2xl shadow-foreground/5 sm:min-h-[38rem] sm:p-3 lg:min-h-[42rem]">
+        <div className="relative grid min-h-[32rem] overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:min-h-[38rem] sm:p-3 lg:min-h-[42rem]">
           <ProductVisual kind={content.visualKind} />
         </div>
       </div>
@@ -245,7 +254,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
         </p>
       </div>
 
-      <div className="divide-y divide-border/70 border-y border-border/70">
+      <div className="divide-y divide-border/70 border-y border-border">
         {content.proofPoints.map((point) => (
           <div key={point.titleKey} className="grid gap-3 py-8 sm:grid-cols-[12rem_minmax(0,1fr)]">
             <div className="text-base font-semibold leading-7">
@@ -296,9 +305,7 @@ function ProductCta({ content }: ProductPageProps) {
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <ProductMessage messageKey="ctaJoinEarlyAccess" />
         </Button>
@@ -319,15 +326,15 @@ export function ProductPage({ content }: ProductPageProps) {
           <ProductShowcase content={content} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductDetailsSection content={content} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductCta content={content} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 pt-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

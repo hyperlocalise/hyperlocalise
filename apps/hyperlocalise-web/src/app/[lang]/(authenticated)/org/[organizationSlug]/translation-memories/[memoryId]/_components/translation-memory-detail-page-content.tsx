@@ -1,10 +1,23 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type {
@@ -27,6 +40,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
 
 type EntryForm = {
   sourceLocale: string;
@@ -51,6 +66,7 @@ export function TranslationMemoryDetailPageContent({
   memoryId: string;
   canManageMemories: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -62,7 +78,10 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].$get({ param: { organizationSlug, memoryId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load memory"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadMemoryFailed)),
+        );
       const body = await response.json();
       return body.memory as MemoryRecord;
     },
@@ -77,7 +96,10 @@ export function TranslationMemoryDetailPageContent({
         param: { organizationSlug, memoryId },
         query: { limit: "50", offset: "0" },
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load entries"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadEntriesFailed)),
+        );
       const body = await response.json();
       return body.memoryEntries as MemoryEntryRecord[];
     },
@@ -89,7 +111,10 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].projects.$get({ param: { organizationSlug, memoryId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load projects"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
+        );
       const body = await response.json();
       return body.projects as MemoryProjectRecord[];
     },
@@ -102,7 +127,9 @@ export function TranslationMemoryDetailPageContent({
         param: { organizationSlug },
       });
       if (response.status !== 200)
-        throw new Error(await readApiError(response, "Unable to load projects"));
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
+        );
       const body = await response.json();
       return body.projects;
     },
@@ -139,14 +166,15 @@ export function TranslationMemoryDetailPageContent({
             param: { organizationSlug, memoryId },
             json: payload,
           });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to save entry"));
-      return response.json();
+      if (!response.ok)
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveEntryFailed)));
+      return { body: await response.json(), wasEditing: Boolean(editingEntryId) };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ wasEditing }) => {
       await invalidateEntries();
       setEntryForm(emptyEntryForm);
       setEditingEntryId(null);
-      toast.success(editingEntryId ? "Entry updated" : "Entry added");
+      toast.success(intl.formatMessage(wasEditing ? messages.entryUpdated : messages.entryAdded));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -156,11 +184,14 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].entries[":entryId"].$delete({ param: { organizationSlug, memoryId, entryId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to delete entry"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.deleteEntryFailed)),
+        );
     },
     onSuccess: async () => {
       await invalidateEntries();
-      toast.success("Entry deleted");
+      toast.success(intl.formatMessage(messages.entryDeleted));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -175,12 +206,15 @@ export function TranslationMemoryDetailPageContent({
         param: { organizationSlug, memoryId },
         json: { format, content },
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to import entries"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.importEntriesFailed)),
+        );
       return response.json();
     },
     onSuccess: async (body) => {
       await invalidateEntries();
-      toast.success(`Imported ${body.imported ?? 0} entries`);
+      toast.success(intl.formatMessage(messages.entriesImported, { count: body.imported ?? 0 }));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -190,13 +224,16 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].projects.$post({ param: { organizationSlug, memoryId }, json: { projectId, priority: 0 } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to assign project"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.assignProjectFailed)),
+        );
       return response.json();
     },
     onSuccess: async () => {
       await invalidateProjects();
       setSelectedProjectId("");
-      toast.success("Project assigned");
+      toast.success(intl.formatMessage(messages.projectAssigned));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -206,11 +243,14 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].projects[":projectId"].$delete({ param: { organizationSlug, memoryId, projectId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to remove project"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.removeProjectFailed)),
+        );
     },
     onSuccess: async () => {
       await invalidateProjects();
-      toast.success("Project removed");
+      toast.success(intl.formatMessage(messages.projectRemoved));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -227,12 +267,16 @@ export function TranslationMemoryDetailPageContent({
   );
 
   if (memoryQuery.isLoading) {
-    return <TypographyP className="py-8 text-sm text-foreground/52">Loading memory...</TypographyP>;
+    return (
+      <TypographyP className="py-8 text-sm text-muted-foreground">
+        <FormattedMessage {...messages.loading} />
+      </TypographyP>
+    );
   }
   if (!memory) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">
-        Translation memory not found.
+      <TypographyP className="py-8 text-sm text-muted-foreground">
+        <FormattedMessage {...messages.notFound} />
       </TypographyP>
     );
   }
@@ -241,33 +285,41 @@ export function TranslationMemoryDetailPageContent({
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <Link
         href={`/org/${organizationSlug}/translation-memories`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/58 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        Translation memories
+        <FormattedMessage {...messages.backToList} />
       </Link>
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
             icon={DatabaseSyncIcon}
-            className="size-5 text-foreground/48"
+            className="size-5 text-muted-foreground"
             strokeWidth={1.8}
           />
-          <Badge variant="outline">{memory.source === "native" ? "Workspace" : "Provider"}</Badge>
+          <Badge variant="outline">
+            {memory.source === "native" ? (
+              <FormattedMessage {...messages.sourceWorkspace} />
+            ) : (
+              <FormattedMessage {...messages.sourceProvider} />
+            )}
+          </Badge>
         </div>
         <TypographyH1 className="font-sans text-2xl font-medium">{memory.name}</TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-foreground/58">
-          {memory.description || "Manage translation examples and assign this memory to projects."}
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          {memory.description || intl.formatMessage(messages.descriptionFallback)}
         </TypographyP>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">Entries</TypographyP>
-            <TypographyP className="text-xs text-foreground/52">
-              Add aligned source and target examples manually or import CSV/TMX files.
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.entriesTitle} />
+            </TypographyP>
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.entriesDescription} />
             </TypographyP>
           </div>
           {canEdit ? (
@@ -287,7 +339,9 @@ export function TranslationMemoryDetailPageContent({
         {canEdit ? (
           <div className="grid gap-3 md:grid-cols-2">
             <Field className="gap-1.5">
-              <FieldLabel>Source locale</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.sourceLocaleLabel} />
+              </FieldLabel>
               <Input
                 value={entryForm.sourceLocale}
                 onChange={(event) =>
@@ -296,7 +350,9 @@ export function TranslationMemoryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Target locale</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.targetLocaleLabel} />
+              </FieldLabel>
               <Input
                 value={entryForm.targetLocale}
                 onChange={(event) =>
@@ -305,7 +361,9 @@ export function TranslationMemoryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Source text</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.sourceTextLabel} />
+              </FieldLabel>
               <Textarea
                 value={entryForm.sourceText}
                 onChange={(event) =>
@@ -314,7 +372,9 @@ export function TranslationMemoryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Target text</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.targetTextLabel} />
+              </FieldLabel>
               <Textarea
                 value={entryForm.targetText}
                 onChange={(event) =>
@@ -334,7 +394,11 @@ export function TranslationMemoryDetailPageContent({
                 }
                 onClick={() => saveEntry.mutate(entryForm)}
               >
-                {editingEntryId ? "Update entry" : "Add entry"}
+                {editingEntryId ? (
+                  <FormattedMessage {...messages.updateEntry} />
+                ) : (
+                  <FormattedMessage {...messages.addEntry} />
+                )}
               </Button>
               {editingEntryId ? (
                 <Button
@@ -345,26 +409,34 @@ export function TranslationMemoryDetailPageContent({
                     setEntryForm(emptyEntryForm);
                   }}
                 >
-                  Cancel edit
+                  <FormattedMessage {...messages.cancelEdit} />
                 </Button>
               ) : null}
             </div>
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {(entriesQuery.data ?? []).map((entry) => (
             <div
               key={entry.id}
-              className="grid gap-2 border-b border-foreground/8 px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
+              className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
             >
               <div>
                 <TypographyP className="text-sm font-medium">{entry.sourceText}</TypographyP>
-                <TypographyP className="text-xs text-foreground/48">
-                  {entry.sourceLocale} → {entry.targetLocale}
+                <TypographyP className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    {...messages.localePair}
+                    values={{
+                      sourceLocale: entry.sourceLocale,
+                      targetLocale: entry.targetLocale,
+                    }}
+                  />
                 </TypographyP>
               </div>
-              <TypographyP className="text-sm text-foreground/72">{entry.targetText}</TypographyP>
+              <TypographyP className="text-sm text-subtle-foreground">
+                {entry.targetText}
+              </TypographyP>
               {canEdit ? (
                 <div className="flex gap-2">
                   <Button
@@ -381,7 +453,7 @@ export function TranslationMemoryDetailPageContent({
                       });
                     }}
                   >
-                    Edit
+                    <FormattedMessage {...messages.editEntry} />
                   </Button>
                   <Button
                     type="button"
@@ -389,27 +461,27 @@ export function TranslationMemoryDetailPageContent({
                     variant="ghost"
                     onClick={() => deleteEntry.mutate(entry.id)}
                   >
-                    Delete
+                    <FormattedMessage {...messages.deleteEntry} />
                   </Button>
                 </div>
               ) : null}
             </div>
           ))}
           {entriesQuery.isSuccess && (entriesQuery.data ?? []).length === 0 ? (
-            <TypographyP className="px-4 py-6 text-sm text-foreground/52">
-              No entries yet.
+            <TypographyP className="px-4 py-6 text-sm text-muted-foreground">
+              <FormattedMessage {...messages.noEntries} />
             </TypographyP>
           ) : null}
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div>
           <TypographyP className="text-sm font-medium text-foreground">
-            Assigned projects
+            <FormattedMessage {...messages.assignedProjectsTitle} />
           </TypographyP>
-          <TypographyP className="text-xs text-foreground/52">
-            This memory is used only by the projects listed here.
+          <TypographyP className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.assignedProjectsDescription} />
           </TypographyP>
         </div>
         {canEdit ? (
@@ -419,7 +491,7 @@ export function TranslationMemoryDetailPageContent({
               onValueChange={(value) => setSelectedProjectId(value ?? "")}
             >
               <SelectTrigger className="sm:max-w-sm">
-                <SelectValue placeholder="Select project" />
+                <SelectValue placeholder={intl.formatMessage(messages.selectProjectPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
                 {availableProjects.map((project) => (
@@ -434,7 +506,7 @@ export function TranslationMemoryDetailPageContent({
               disabled={!selectedProjectId || attachProject.isPending}
               onClick={() => attachProject.mutate(selectedProjectId)}
             >
-              Assign to project
+              <FormattedMessage {...messages.assignToProject} />
             </Button>
           </div>
         ) : null}
@@ -442,7 +514,7 @@ export function TranslationMemoryDetailPageContent({
           {(attachedProjectsQuery.data ?? []).map((project) => (
             <div
               key={project.projectId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-foreground/8 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
             >
               <Link
                 href={`/org/${organizationSlug}/projects/${project.projectId}`}
@@ -457,14 +529,14 @@ export function TranslationMemoryDetailPageContent({
                   variant="ghost"
                   onClick={() => detachProject.mutate(project.projectId)}
                 >
-                  Remove
+                  <FormattedMessage {...messages.removeProject} />
                 </Button>
               ) : null}
             </div>
           ))}
           {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="text-sm text-foreground/52">
-              No projects assigned yet.
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...messages.noProjectsAssigned} />
             </TypographyP>
           ) : null}
         </div>

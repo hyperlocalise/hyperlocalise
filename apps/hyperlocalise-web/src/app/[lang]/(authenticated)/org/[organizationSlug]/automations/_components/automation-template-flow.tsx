@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { SlackIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ClockIcon, MailIcon } from "lucide-react";
@@ -86,7 +98,7 @@ export function AutomationTemplateFlow({
       <FlowIcon bucket={triggerBucket} />
       {toolBuckets.length > 0 ? (
         <>
-          <span className="h-px w-3 shrink-0 bg-foreground/25" aria-hidden />
+          <span className="h-px w-3 shrink-0 bg-muted5" aria-hidden />
           {toolBuckets.map((bucket) => (
             <FlowIcon key={bucket} bucket={bucket} />
           ))}

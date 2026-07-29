@@ -1,0 +1,258 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useMemo } from "react";
+import { useIntl } from "react-intl";
+
+import { useIsMac } from "@/hooks/use-is-mac";
+
+import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
+
+import { CatEditorActions } from "./cat-editor-actions";
+import { CatEditorAiRecommendation } from "./cat-editor-ai-recommendation";
+import { CatEditorCommentsSection } from "./cat-editor-comments-section";
+import { CatEditorFormatChecksSection } from "./cat-editor-format-checks-section";
+import { CatEditorHeader } from "./cat-editor-header";
+import { useCatEditorHotkeys } from "./cat-editor-hotkeys";
+import {
+  CatEditorImageSourceSection,
+  CatEditorImageTargetSection,
+} from "./cat-editor-image-sections";
+import type { CatEditorPanelProps } from "./cat-editor-panel.types";
+import { CatEditorSourceSection } from "./cat-editor-source-section";
+import { CatEditorTargetSection } from "./cat-editor-target-section";
+
+function isImageEditorSegment(segment: CatEditorPanelProps["segment"]) {
+  return segment.contentKind === "image_file" || segment.contentKind === "image_url";
+}
+
+export function CatEditorPanel({
+  segment,
+  segmentPosition,
+  totalSegments,
+  formatChecks,
+  intelligence,
+  isEditorBusy = false,
+  isApproving = false,
+  isSavingDraft = false,
+  isLookingUpContext = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
+  isCommentsLoading = false,
+  isSegmentTargetLoading = false,
+  isImageBusy = false,
+  canApprove = true,
+  canAddComment = false,
+  canEditTranslations = true,
+  canLookupContext = false,
+  canUseAiRecommendation = false,
+  isTargetDirty = false,
+  isPostingComment = false,
+  isResolvingComment = false,
+  resolvingCommentId = null,
+  commentPostError,
+  providerKind = null,
+  onTargetChange,
+  onCopySource,
+  onClearTarget,
+  onUseAiSuggestion,
+  onApprove,
+  onSaveDraft,
+  onAddComment,
+  onAddToIssueSheet,
+  onResolveComment,
+  primaryActionLabel,
+  onAskQuestion,
+  onGenerateAiRecommendation,
+  aiRecommendationError,
+  onPrevious,
+  onNext,
+  hasPreviousSegment,
+  hasNextSegment,
+  segmentShareUrl = null,
+  onTreatAsImage,
+  onRegenerateImage,
+  onUploadImage,
+}: CatEditorPanelProps) {
+  const intl = useIntl();
+  const isMac = useIsMac();
+  const resolvedPrimaryActionLabel =
+    primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
+  const supportsIssueComments =
+    (providerKind === "crowdin" || providerKind === null) && canAddComment;
+
+  const actionState = useMemo(() => {
+    const isActionBlocked =
+      isApproving ||
+      isSavingDraft ||
+      isPostingComment ||
+      isLookingUpContext ||
+      isAiSuggestionLoading ||
+      isFormatChecksLoading ||
+      isSegmentTargetLoading ||
+      isImageBusy;
+    const hasTargetText = isImageEditorSegment(segment)
+      ? Boolean(segment.targetAssetUrl || segment.targetText.trim())
+      : segment.targetText.trim().length > 0;
+
+    return {
+      canTriggerApprove: canApprove && hasTargetText && !isActionBlocked,
+      canTriggerFindContext:
+        canLookupContext &&
+        !isApproving &&
+        !isSavingDraft &&
+        !isLookingUpContext &&
+        !isAiSuggestionLoading &&
+        !isFormatChecksLoading &&
+        !isImageBusy,
+      canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy,
+    };
+  }, [
+    canApprove,
+    canEditTranslations,
+    canLookupContext,
+    isAiSuggestionLoading,
+    isApproving,
+    isEditorBusy,
+    isFormatChecksLoading,
+    isImageBusy,
+    isLookingUpContext,
+    isPostingComment,
+    isSavingDraft,
+    isSegmentTargetLoading,
+    segment,
+  ]);
+
+  useCatEditorHotkeys({
+    hasPreviousSegment,
+    hasNextSegment,
+    canTriggerApprove: actionState.canTriggerApprove,
+    canTriggerFindContext: actionState.canTriggerFindContext,
+    onPrevious,
+    onNext,
+    onApprove,
+    onAskQuestion,
+  });
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <CatEditorHeader
+        segment={segment}
+        segmentPosition={segmentPosition}
+        totalSegments={totalSegments}
+        isTargetDirty={isTargetDirty}
+        segmentShareUrl={segmentShareUrl}
+        hasPreviousSegment={hasPreviousSegment}
+        hasNextSegment={hasNextSegment}
+        isMac={isMac}
+        onPrevious={onPrevious}
+        onNext={onNext}
+      />
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
+          {isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
+            <CatEditorImageSourceSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsImage={
+                onTreatAsImage ? (treatAsImage) => onTreatAsImage(treatAsImage) : undefined
+              }
+              onRegenerate={onRegenerateImage}
+            />
+          ) : (
+            <CatEditorSourceSection
+              sourceText={segment.sourceText}
+              sourceLocale={segment.sourceLocale}
+              segmentKey={segment.key}
+              sourcePath={segment.sourcePath}
+            />
+          )}
+
+          {isImageEditorSegment(segment) ? (
+            <CatEditorImageTargetSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              isLoading={isSegmentTargetLoading}
+              onUpload={onUploadImage}
+              onRegenerate={onRegenerateImage}
+            />
+          ) : (
+            <CatEditorTargetSection
+              segment={segment}
+              canEditTarget={actionState.canEditTarget}
+              isLoading={isSegmentTargetLoading}
+              onTargetChange={onTargetChange}
+              onCopySource={onCopySource}
+              onClearTarget={onClearTarget}
+            />
+          )}
+
+          <CatEditorActions
+            primaryActionLabel={resolvedPrimaryActionLabel}
+            isMac={isMac}
+            canTriggerApprove={actionState.canTriggerApprove}
+            canTriggerFindContext={actionState.canTriggerFindContext}
+            canLookupContext={canLookupContext}
+            isApproving={isApproving}
+            isSavingDraft={isSavingDraft}
+            isLookingUpContext={isLookingUpContext}
+            hasPreviousSegment={hasPreviousSegment}
+            hasNextSegment={hasNextSegment}
+            onApprove={onApprove}
+            onSaveDraft={isImageEditorSegment(segment) ? undefined : onSaveDraft}
+            onAddToIssueSheet={onAddToIssueSheet}
+            onAskQuestion={onAskQuestion}
+            onPrevious={onPrevious}
+            onNext={onNext}
+          />
+
+          {canUseAiRecommendation && !isImageEditorSegment(segment) ? (
+            <CatEditorAiRecommendation
+              intelligence={intelligence}
+              isLoading={isAiSuggestionLoading}
+              error={aiRecommendationError}
+              onUseAiSuggestion={onUseAiSuggestion}
+              onGenerateAiRecommendation={onGenerateAiRecommendation}
+            />
+          ) : null}
+
+          {!isImageEditorSegment(segment) ? (
+            <CatEditorFormatChecksSection
+              formatChecks={formatChecks}
+              isLoading={isFormatChecksLoading}
+            />
+          ) : null}
+
+          <CatEditorCommentsSection
+            segment={segment}
+            isLoading={isCommentsLoading}
+            canAddComment={canAddComment}
+            supportsIssueComments={supportsIssueComments}
+            isPostingComment={isPostingComment}
+            isResolvingComment={isResolvingComment}
+            resolvingCommentId={resolvingCommentId}
+            commentPostError={commentPostError}
+            onAddComment={onAddComment}
+            onResolveComment={onResolveComment}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export type { CatEditorPanelProps } from "./cat-editor-panel.types";

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -9,6 +21,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import type { UIMessage } from "ai";
 
 import {
   agentRunKindEnum,
@@ -23,7 +37,6 @@ import {
 } from "./enums";
 import { githubInstallationRepositories, githubRepositoryAutomationJobs } from "./github";
 import { organizations, users } from "./organizations";
-import { projects } from "./projects";
 import { jobs } from "./jobs";
 
 /**
@@ -194,7 +207,7 @@ export const interactions = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    projectId: text("project_id"),
     source: interactionSourceEnum("source").notNull(),
     title: text("title").notNull(),
     sourceThreadId: text("source_thread_id"),
@@ -226,7 +239,7 @@ export const inboxItems = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    projectId: text("project_id"),
     status: inboxStatusEnum("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -253,6 +266,7 @@ export const interactionMessages = pgTable(
     senderType: messageSenderTypeEnum("sender_type").notNull(),
     senderEmail: text("sender_email"),
     text: text("text").notNull(),
+    parts: jsonb("parts").$type<UIMessage["parts"]>(),
     attachments:
       jsonb("attachments").$type<
         Array<{ id: string; filename: string; contentType: string; url: string }>

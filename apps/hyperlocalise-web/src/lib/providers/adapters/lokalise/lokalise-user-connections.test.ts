@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -11,12 +23,8 @@ import {
   decryptLokaliseOAuthTokenBundle,
   upsertLokaliseOAuthProviderCredential,
   type LokaliseOAuthTokenBundle,
-} from "../../organization-external-tms-provider-credentials";
-import {
-  getLokaliseUserConnection,
-  resolveLokaliseUserConnectionSecretMaterial,
-  upsertLokaliseUserConnection,
-} from "./lokalise-user-connections";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { lokaliseAuth } from "./lokalise-auth";
 
 const fixture = createAuthTestFixture();
 
@@ -67,7 +75,7 @@ describe("lokalise user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createLokaliseOAuthCredential();
 
-    const result = await upsertLokaliseUserConnection({
+    const result = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -92,7 +100,7 @@ describe("lokalise user connections", () => {
       oauthExpiresAt: "2026-01-01T01:00:00.000Z",
     });
 
-    const connection = await getLokaliseUserConnection({
+    const connection = await lokaliseAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -108,7 +116,7 @@ describe("lokalise user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential, identity } = await createLokaliseOAuthCredential();
 
-    const firstResult = await upsertLokaliseUserConnection({
+    const firstResult = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -126,7 +134,7 @@ describe("lokalise user connections", () => {
     );
     await fixture.authHeadersFor(secondIdentity);
     const secondAuthContext = globalThis.__testApiAuthContext!;
-    const duplicateResult = await upsertLokaliseUserConnection({
+    const duplicateResult = await lokaliseAuth.upsertUserConnection({
       organizationId: secondAuthContext.organization.localOrganizationId,
       userId: secondAuthContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -149,7 +157,7 @@ describe("lokalise user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential, identity } = await createLokaliseOAuthCredential();
 
-    const firstResult = await upsertLokaliseUserConnection({
+    const firstResult = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -178,7 +186,7 @@ describe("lokalise user connections", () => {
     });
 
     try {
-      const duplicateResult = await upsertLokaliseUserConnection({
+      const duplicateResult = await lokaliseAuth.upsertUserConnection({
         organizationId: secondAuthContext.organization.localOrganizationId,
         userId: secondAuthContext.user.localUserId,
         providerCredentialId: credential.id,
@@ -205,7 +213,7 @@ describe("lokalise user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const nearExpiry = new Date(Date.now() + LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS + 30_000);
     const { authContext, credential } = await createLokaliseOAuthCredential();
-    const upsertResult = await upsertLokaliseUserConnection({
+    const upsertResult = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -219,14 +227,14 @@ describe("lokalise user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getLokaliseUserConnection({
+    const connection = await lokaliseAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
     expect(connection).not.toBeNull();
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
 
-    const accessToken = await resolveLokaliseUserConnectionSecretMaterial({
+    const accessToken = await lokaliseAuth.resolveUserConnectionSecretMaterial({
       connection: connection!,
       fetchFn: fetchMock,
     });
@@ -239,7 +247,7 @@ describe("lokalise user connections", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createLokaliseOAuthCredential();
-    const upsertResult = await upsertLokaliseUserConnection({
+    const upsertResult = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -254,7 +262,7 @@ describe("lokalise user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getLokaliseUserConnection({
+    const connection = await lokaliseAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -273,7 +281,7 @@ describe("lokalise user connections", () => {
       );
     });
 
-    const accessToken = await resolveLokaliseUserConnectionSecretMaterial({
+    const accessToken = await lokaliseAuth.resolveUserConnectionSecretMaterial({
       connection: connection!,
       fetchFn: fetchMock,
     });
@@ -313,7 +321,7 @@ describe("lokalise user connections", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createLokaliseOAuthCredential();
-    const upsertResult = await upsertLokaliseUserConnection({
+    const upsertResult = await lokaliseAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -327,7 +335,7 @@ describe("lokalise user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getLokaliseUserConnection({
+    const connection = await lokaliseAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -337,7 +345,7 @@ describe("lokalise user connections", () => {
     });
 
     await expect(
-      resolveLokaliseUserConnectionSecretMaterial({
+      lokaliseAuth.resolveUserConnectionSecretMaterial({
         connection: connection!,
         fetchFn: fetchMock,
       }),

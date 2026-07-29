@@ -1,16 +1,27 @@
 "use client";
 
-import type { ReactNode } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
+import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
-  ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,29 +29,22 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { parseSourceStringsFromFileContent } from "@/lib/projects/files/project-file-content";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
+import { projectFileDetailPanelMessages as messages } from "./project-file-detail-panel.messages";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
-import { ProjectFileSourceStringsPreview } from "./project-file-source-strings-preview";
+import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
-  countReadyLocales,
   resolveFileLocaleReadiness,
   summarizeNativeLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
 
 type ProjectFileDetail = ProjectFileDetailResponse["file"];
 
-export type ProjectFileSourceStringsPreviewRenderer = (props: {
-  sourceStrings: ProjectSourceStringsPreview;
-}) => ReactNode;
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-const MAX_PREVIEW_CHARS = 100_000;
 
 function projectFileDetailQueryKey(
   organizationSlug: string,
@@ -72,35 +76,17 @@ function fileMetadataLine(
   byteSize: number | null,
   revision: string | null | undefined,
   uploadedAt: string,
+  intl: IntlShape,
 ) {
   return [
-    formatBytes(byteSize),
-    revision ? `revision ${revision}` : null,
-    `Updated ${DATE_FORMATTER.format(new Date(uploadedAt))}`,
+    formatBytes(byteSize, intl),
+    revision ? intl.formatMessage(messages.revision, { revision }) : null,
+    intl.formatMessage(messages.updatedAt, {
+      date: DATE_FORMATTER.format(new Date(uploadedAt)),
+    }),
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function truncatePreview(text: string) {
-  if (text.length <= MAX_PREVIEW_CHARS) {
-    return { text, truncated: false };
-  }
-
-  return {
-    text: `${text.slice(0, MAX_PREVIEW_CHARS)}\n\n…`,
-    truncated: true,
-  };
-}
-
-function defaultRenderSourceStringsPreview({
-  sourceStrings,
-}: Parameters<ProjectFileSourceStringsPreviewRenderer>[0]) {
-  if (!sourceStrings) {
-    return null;
-  }
-
-  return <ProjectFileSourceStringsPreview sourceStrings={sourceStrings} />;
 }
 
 export function ProjectFileDetailPanel({
@@ -118,7 +104,11 @@ export function ProjectFileDetailPanel({
   highlightLocale: string | null;
   encodedJobId?: string | null;
 }) {
+  const intl = useIntl();
   const sourcePath = file?.sourcePath ?? null;
+  const externalResourceId = file?.provider?.externalResourceId ?? null;
+  const loadDetailsFailed = intl.formatMessage(messages.loadDetailsFailedShort);
+  const loadProjectFailed = intl.formatMessage(messages.loadProjectFailed);
 
   const detailQuery = useQuery({
     queryKey: projectFileDetailQueryKey(
@@ -138,7 +128,7 @@ export function ProjectFileDetailPanel({
         });
 
         if (!response.ok) {
-          throw new Error(await readApiError(response, "Failed to load file details"));
+          throw new Error(await readApiError(response, loadDetailsFailed));
         }
 
         const body = (await response.json()) as ProjectFileDetailResponse;
@@ -149,11 +139,14 @@ export function ProjectFileDetailPanel({
         ":projectId"
       ].files.detail.$get({
         param: { organizationSlug, projectId },
-        query: { sourcePath: sourcePath as string },
+        query: {
+          sourcePath: sourcePath as string,
+          ...(externalResourceId ? { externalResourceId } : {}),
+        },
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to load file details"));
+        throw new Error(await readApiError(response, loadDetailsFailed));
       }
 
       const body = (await response.json()) as ProjectFileDetailResponse;
@@ -170,7 +163,7 @@ export function ProjectFileDetailPanel({
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to load project"));
+        throw new Error(await readApiError(response, loadProjectFailed));
       }
 
       const body = (await response.json()) as {
@@ -209,7 +202,6 @@ export function ProjectFileDetailPanelView({
   isLoading,
   error,
   detail,
-  renderSourceStringsPreview = defaultRenderSourceStringsPreview,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -221,22 +213,24 @@ export function ProjectFileDetailPanelView({
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
-  renderSourceStringsPreview?: ProjectFileSourceStringsPreviewRenderer;
 }) {
+  const intl = useIntl();
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const sourcePath = file?.sourcePath ?? null;
 
   if (!file || !sourcePath) {
     if (requestedSourcePath) {
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-          <TypographyP className="text-sm font-medium text-foreground">File not found</TypographyP>
+          <TypographyP className="text-sm font-medium text-foreground">
+            <FormattedMessage {...messages.fileNotFound} />
+          </TypographyP>
           <TypographyP className="max-w-sm font-mono text-sm text-muted-foreground">
             {requestedSourcePath}
           </TypographyP>
           <TypographyP className="max-w-sm text-sm text-muted-foreground">
-            This path is not in the project file list. It may have been removed or the link is
-            outdated.
+            <FormattedMessage {...messages.fileNotFoundDescription} />
           </TypographyP>
         </div>
       );
@@ -244,9 +238,11 @@ export function ProjectFileDetailPanelView({
 
     return (
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-        <TypographyP className="text-sm font-medium text-foreground">Select a file</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          <FormattedMessage {...messages.selectFile} />
+        </TypographyP>
         <TypographyP className="max-w-sm text-sm text-muted-foreground">
-          Choose a file from the list to preview its source content and related jobs.
+          <FormattedMessage {...messages.selectFileDescription} />
         </TypographyP>
       </div>
     );
@@ -256,7 +252,9 @@ export function ProjectFileDetailPanelView({
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 px-6 py-10">
         <Spinner />
-        <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
+        <TypographyP className="text-sm text-muted-foreground">
+          <FormattedMessage {...messages.loadingFile} />
+        </TypographyP>
       </div>
     );
   }
@@ -265,17 +263,13 @@ export function ProjectFileDetailPanelView({
     return (
       <div className="flex h-full min-h-48 flex-col justify-center gap-2 px-6 py-10">
         <TypographyP className="text-sm text-flame-100">
-          {error instanceof Error ? error.message : "Failed to load file details."}
+          {error instanceof Error ? error.message : intl.formatMessage(messages.loadDetailsFailed)}
         </TypographyP>
       </div>
     );
   }
 
   const latestVersion = detail?.versions[0];
-  const latestContent = latestVersion?.content ?? null;
-  const sourceStringsPreview = parseSourceStringsFromFileContent(latestContent);
-  const textPreview =
-    latestContent?.text && !sourceStringsPreview ? truncatePreview(latestContent.text) : null;
   const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
   const provider = file.provider;
 
@@ -288,10 +282,7 @@ export function ProjectFileDetailPanelView({
     : jobsByLocale;
   const localeReadiness = resolveFileLocaleReadiness(file);
   const readinessSummary = summarizeNativeLocaleReadiness(localeReadiness, targetLocales.length);
-  const readyLocaleCount = countReadyLocales(localeReadiness);
-  const downloadableLocales = targetLocales.filter(
-    (locale) => localeReadiness[locale] === "ready" || localeReadiness[locale] === "complete",
-  );
+  const downloadableLocales = targetLocales;
 
   function downloadTranslation(locale: string) {
     if (!sourcePath) return;
@@ -311,6 +302,16 @@ export function ProjectFileDetailPanelView({
         sourceLocale={sourceLocale}
         targetLocales={targetLocales}
       />
+      {!provider ? (
+        <ImportTranslationsDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourcePath={sourcePath}
+          targetLocales={targetLocales}
+        />
+      ) : null}
       <header className="space-y-2 border-b border-border pb-4">
         <TypographyP className="font-mono text-sm font-medium text-foreground">
           {sourcePath}
@@ -322,37 +323,46 @@ export function ProjectFileDetailPanelView({
             </Badge>
           ) : file.latestJob ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              Latest job · {file.latestJob.status}
+              <FormattedMessage
+                {...messages.latestJob}
+                values={{ status: file.latestJob.status }}
+              />
             </Badge>
           ) : (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              Uploaded
+              <FormattedMessage {...messages.uploaded} />
             </Badge>
           )}
           <TypographyP className="text-xs text-muted-foreground">
-            {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt)}
+            {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt, intl)}
           </TypographyP>
         </div>
         {latestVersion?.sourceHash ? (
           <TypographyP className="font-mono text-xs text-muted-foreground">
-            Hash {latestVersion.sourceHash}
+            <FormattedMessage {...messages.hash} values={{ hash: latestVersion.sourceHash }} />
           </TypographyP>
         ) : null}
         {provider ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
             {provider.format ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Format {provider.format}
+                <FormattedMessage {...messages.format} values={{ format: provider.format }} />
               </TypographyP>
             ) : null}
             {provider.sourceLocale ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Source {provider.sourceLocale}
+                <FormattedMessage
+                  {...messages.sourceLocale}
+                  values={{ locale: provider.sourceLocale }}
+                />
               </TypographyP>
             ) : null}
             {provider.targetLocales.length > 0 ? (
               <TypographyP className="text-xs text-muted-foreground">
-                Targets {provider.targetLocales.join(", ")}
+                <FormattedMessage
+                  {...messages.targets}
+                  values={{ locales: provider.targetLocales.join(", ") }}
+                />
               </TypographyP>
             ) : null}
           </div>
@@ -364,61 +374,39 @@ export function ProjectFileDetailPanelView({
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-              Translate
+              <FormattedMessage {...messages.translateWithAgent} />
             </Button>
-            {downloadableLocales.length > 0 ? (
-              downloadableLocales.map((locale) => (
-                <Button
-                  key={locale}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadTranslation(locale)}
-                >
-                  <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
-                  Download {locale}
-                </Button>
-              ))
-            ) : readyLocaleCount === 0 && targetLocales.length > 0 ? (
-              <TypographyP className="self-center text-xs text-muted-foreground">
-                Translations will be downloadable after jobs complete.
-              </TypographyP>
-            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.importTranslations} />
+            </Button>
+            {downloadableLocales.length > 0
+              ? downloadableLocales.map((locale) => (
+                  <Button
+                    key={locale}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadTranslation(locale)}
+                  >
+                    <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                    <FormattedMessage {...messages.downloadLocale} values={{ locale }} />
+                  </Button>
+                ))
+              : null}
           </div>
         ) : null}
       </header>
 
-      <section className="space-y-2">
-        <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Source preview
-        </TypographyP>
-        {sourceStringsPreview ? (
-          renderSourceStringsPreview({
-            sourceStrings: sourceStringsPreview,
-          })
-        ) : textPreview ? (
-          <div className="overflow-hidden rounded-md border border-border bg-background">
-            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap wrap-break-word text-foreground">
-              {textPreview.text}
-            </pre>
-            {textPreview.truncated ? (
-              <TypographyP className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
-                Preview truncated. Download the full file from a completed job output when
-                available.
-              </TypographyP>
-            ) : null}
-          </div>
-        ) : (
-          <TypographyP className="text-sm text-muted-foreground">
-            No text preview is available for this file yet.
-          </TypographyP>
-        )}
-      </section>
-
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
           <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Jobs by locale
+            <FormattedMessage {...messages.jobsByLocale} />
           </TypographyP>
           <div className="flex flex-col gap-3">
             {orderedJobsByLocale.map((group) => (

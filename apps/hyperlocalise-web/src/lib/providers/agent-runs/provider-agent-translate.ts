@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -12,16 +24,16 @@ import {
   getAgentRun,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import { pullExternalTmsTaskContent } from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/tms-provider-types";
-import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
+} from "@/lib/providers/jobs/tms-provider-types";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import {
   resolveProviderAgentRunSourceFiles,
   readProviderAgentRunSourceFilesFromSnapshot,
-} from "@/lib/providers/job-provider-source-files";
+} from "@/lib/providers/jobs/job-provider-source-files";
 import {
   shouldUseProviderFileTranslation,
   summarizeProviderUnitFileIds,
@@ -30,16 +42,16 @@ import {
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
-} from "@/lib/translation/assemble-translation-context";
+} from "@/lib/translation/context";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
-} from "@/lib/providers/match-resolution";
+} from "@/lib/providers/capabilities/match-resolution";
 import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
 
@@ -166,6 +178,11 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
+  let tokenUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+  };
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -177,6 +194,7 @@ async function translateProviderUnits(input: {
       skippedExistingLocales: 0,
       translationMemoryUsageByUnit: [],
       glossaryUsageByUnit: [],
+      tokenUsage: null,
     };
   }
 
@@ -270,6 +288,14 @@ async function translateProviderUnits(input: {
         contextSnapshot: contextSnapshot.snapshot,
       });
 
+      if (result.tokenUsage) {
+        tokenUsage = {
+          inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
+          outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
+          totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
+        };
+      }
+
       for (const translation of result.translations) {
         const existing = existingTranslationForLocale(unit, translation.locale);
         const from = existing?.text ?? "";
@@ -361,6 +387,7 @@ async function translateProviderUnits(input: {
     skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
+    tokenUsage: tokenUsage.totalTokens > 0 ? tokenUsage : null,
   };
 }
 
@@ -393,6 +420,11 @@ export async function executeProviderAgentTranslation(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,
@@ -774,6 +806,7 @@ export async function executeProviderAgentTranslation(input: {
       sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
       glossaryUsage: translationResult.glossaryUsageByUnit,
+      ...(translationResult.tokenUsage ? { tokenUsage: translationResult.tokenUsage } : {}),
       ...pullDiagnosticsSummary,
     },
     changedItems: translationResult.changedItems,

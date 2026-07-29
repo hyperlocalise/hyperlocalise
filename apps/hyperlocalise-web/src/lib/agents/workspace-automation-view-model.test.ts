@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
@@ -85,6 +97,22 @@ describe("workspace automation view model", () => {
     expect(payload.toolConfig.email).toEqual({
       enabled: true,
       recipients: ["ops@example.com"],
+    });
+  });
+
+  it("maps knowledge memories tool into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Knowledge-aware sync",
+      instructions: "Follow brand guidance.",
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      knowledgeEnabled: true,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
+      enabled: true,
     });
   });
 

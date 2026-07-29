@@ -1,11 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/primitives/cn";
 import { ChevronDownIcon, PaperclipIcon } from "lucide-react";
 import type { ComponentProps } from "react";
+import { useIntl } from "react-intl";
+
+import { queueMessages } from "./queue.messages";
 
 export interface QueueMessagePart {
   type: string;
@@ -51,9 +66,7 @@ export const QueueItemIndicator = ({
   <span
     className={cn(
       "mt-0.5 inline-block size-2.5 rounded-full border",
-      completed
-        ? "border-muted-foreground/20 bg-muted-foreground/10"
-        : "border-muted-foreground/50",
+      completed ? "border-border bg-accent" : "border-border",
       className,
     )}
     {...props}
@@ -72,7 +85,7 @@ export const QueueItemContent = ({
   <span
     className={cn(
       "line-clamp-1 grow break-words",
-      completed ? "text-muted-foreground/50 line-through" : "text-muted-foreground",
+      completed ? "text-muted-foreground line-through" : "text-muted-foreground",
       className,
     )}
     {...props}
@@ -91,7 +104,7 @@ export const QueueItemDescription = ({
   <div
     className={cn(
       "ms-6 text-xs",
-      completed ? "text-muted-foreground/40 line-through" : "text-muted-foreground",
+      completed ? "text-muted-foreground line-through" : "text-muted-foreground",
       className,
     )}
     {...props}
@@ -109,7 +122,7 @@ export type QueueItemActionProps = Omit<ComponentProps<typeof Button>, "variant"
 export const QueueItemAction = ({ className, ...props }: QueueItemActionProps) => (
   <Button
     className={cn(
-      "size-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/10 hover:text-foreground group-hover:opacity-100",
+      "size-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100",
       className,
     )}
     size="icon"
@@ -203,15 +216,21 @@ export const QueueSectionLabel = ({
   icon,
   className,
   ...props
-}: QueueSectionLabelProps) => (
-  <span className={cn("flex items-center gap-2", className)} {...props}>
-    <ChevronDownIcon className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
-    {icon}
-    <span>
-      {count} {label}
+}: QueueSectionLabelProps) => {
+  const intl = useIntl();
+
+  return (
+    <span className={cn("flex items-center gap-2", className)} {...props}>
+      <ChevronDownIcon className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
+      {icon}
+      <span>
+        {count === undefined
+          ? label
+          : intl.formatMessage(queueMessages.sectionLabel, { count, label })}
+      </span>
     </span>
-  </span>
-);
+  );
+};
 
 // QueueSectionContent - collapsible content area
 export type QueueSectionContentProps = ComponentProps<typeof CollapsibleContent>;

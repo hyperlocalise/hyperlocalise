@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useEffect, useMemo, useState } from "react";
 import {
   Cancel01Icon,
@@ -9,6 +21,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -43,13 +56,14 @@ import {
   collectProposalLocales,
   filterProposalItems,
   listReviewableAgentRuns,
+  getWarningLabel,
   paginateProposalItems,
   parseProposalItemsForRun,
   proposalReviewPageSize,
   summarizeProposalReview,
-  warningLabels,
   type ProposalReviewFilter,
 } from "./job-agent-run-diff-review-model";
+import { jobAgentRunDiffReviewSectionMessages as messages } from "./job-agent-run-diff-review-section.messages";
 
 function reviewStateTone(state: AgentRunProposalReviewState): Tone {
   switch (state) {
@@ -71,6 +85,7 @@ function parseActionError(response: Response, fallback: string) {
 }
 
 function WarningBadges({ item }: { item: AgentRunProposalItem }) {
+  const intl = useIntl();
   const kinds = activeWarningKinds(item);
   if (kinds.length === 0) {
     return null;
@@ -80,7 +95,7 @@ function WarningBadges({ item }: { item: AgentRunProposalItem }) {
     <div className="flex flex-wrap gap-1.5">
       {kinds.map((kind) => (
         <Badge key={kind} variant="outline" className={cn("rounded-full", toneClass("watch"))}>
-          {warningLabels[kind]}
+          {getWarningLabel(kind, intl)}
         </Badge>
       ))}
     </div>
@@ -102,13 +117,15 @@ function ProposalDiffRow({
   onReject: (itemId: string) => void;
   disabled: boolean;
 }) {
+  const intl = useIntl();
+
   return (
-    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+    <li className="rounded-md border border-border bg-muted.5 px-3 py-3">
       <div className="flex flex-wrap items-start gap-3">
         <label className="mt-0.5 flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground"
+            className="size-4 rounded border-input accent-foreground"
             checked={selected}
             disabled={disabled}
             onChange={(event) => onToggle(item.itemId, event.currentTarget.checked)}
@@ -116,7 +133,7 @@ function ProposalDiffRow({
         </label>
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-mono text-sm font-medium text-foreground/86">{item.key}</p>
+            <p className="font-mono text-sm font-medium text-foreground">{item.key}</p>
             <Badge variant="outline" className="rounded-full uppercase">
               {item.locale}
             </Badge>
@@ -131,7 +148,10 @@ function ProposalDiffRow({
             </Badge>
             {item.changedFields.length > 0 ? (
               <Badge variant="outline" className="rounded-full">
-                Changed: {item.changedFields.join(", ")}
+                <FormattedMessage
+                  {...messages.changedFields}
+                  values={{ fields: item.changedFields.join(", ") }}
+                />
               </Badge>
             ) : null}
           </div>
@@ -139,23 +159,27 @@ function ProposalDiffRow({
           <GlossaryMatchBadges matches={item.glossaryMatchesUsed ?? []} />
           <TranslationMemoryMatchBadges matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="grid gap-3 lg:grid-cols-3">
-            <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
-                Source
+            <div className="space-y-1 rounded-md border border-border bg-muted p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <FormattedMessage {...messages.source} />
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/78">{item.sourceText}</p>
+              <p className="text-sm whitespace-pre-wrap text-subtle-foreground">
+                {item.sourceText}
+              </p>
             </div>
-            <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
-                Current provider target
+            <div className="space-y-1 rounded-md border border-border bg-muted p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <FormattedMessage {...messages.currentProviderTarget} />
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/78">{item.from || "—"}</p>
+              <p className="text-sm whitespace-pre-wrap text-subtle-foreground">
+                {item.from || intl.formatMessage(messages.emptyValue)}
+              </p>
             </div>
             <div className="space-y-1 rounded-md border border-flame-100/20 bg-flame-100/5 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
-                Agent proposal
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <FormattedMessage {...messages.agentProposal} />
               </p>
-              <p className="text-sm whitespace-pre-wrap text-foreground/86">{item.to}</p>
+              <p className="text-sm whitespace-pre-wrap text-foreground">{item.to}</p>
             </div>
           </div>
           <GlossaryMatchesDetail matches={item.glossaryMatchesUsed ?? []} />
@@ -168,7 +192,7 @@ function ProposalDiffRow({
               onClick={() => onAccept(item.itemId)}
             >
               <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} />
-              Accept
+              <FormattedMessage {...messages.accept} />
             </Button>
             <Button
               size="sm"
@@ -177,7 +201,7 @@ function ProposalDiffRow({
               onClick={() => onReject(item.itemId)}
             >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={1.8} />
-              Reject
+              <FormattedMessage {...messages.reject} />
             </Button>
           </div>
         </div>
@@ -197,6 +221,7 @@ export function JobAgentRunDiffReviewSection({
   agentRuns: AgentRunRecord[] | undefined;
   agentRunsLoading: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const agentRunsQueryKey = ["job-agent-runs", organizationSlug, jobId] as const;
 
@@ -254,7 +279,7 @@ export function JobAgentRunDiffReviewSection({
       };
     }) => {
       if (!selectedRun) {
-        throw new Error("No agent run selected");
+        throw new Error(intl.formatMessage(messages.noAgentRunSelected));
       }
 
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"][
@@ -269,7 +294,12 @@ export function JobAgentRunDiffReviewSection({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to update proposal review"));
+        throw new Error(
+          await parseActionError(
+            response,
+            intl.formatMessage(messages.failedToUpdateProposalReview),
+          ),
+        );
       }
 
       return (await response.json()) as { agentRun: AgentRunRecord };
@@ -277,10 +307,14 @@ export function JobAgentRunDiffReviewSection({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: agentRunsQueryKey });
       setSelectedItemIds(new Set());
-      toast.success("Proposal review saved");
+      toast.success(intl.formatMessage(messages.proposalReviewSaved));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update proposal review");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(messages.failedToUpdateProposalReview),
+      );
     },
   });
 
@@ -341,38 +375,50 @@ export function JobAgentRunDiffReviewSection({
   }
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+    <section className="rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-          Agent Proposal Review
+          <FormattedMessage {...messages.agentProposalReviewHeading} />
         </TypographyH2>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className={cn("rounded-full", toneClass("watch"))}>
-            Pending: {reviewSummary.pending}
+            <FormattedMessage
+              {...messages.pendingCount}
+              values={{ count: reviewSummary.pending }}
+            />
           </Badge>
           <Badge variant="outline" className={cn("rounded-full", toneClass("safe"))}>
-            Accepted: {reviewSummary.accepted}
+            <FormattedMessage
+              {...messages.acceptedCount}
+              values={{ count: reviewSummary.accepted }}
+            />
           </Badge>
           <Badge variant="outline" className={cn("rounded-full", toneClass("risk"))}>
-            Rejected: {reviewSummary.rejected}
+            <FormattedMessage
+              {...messages.rejectedCount}
+              values={{ count: reviewSummary.rejected }}
+            />
           </Badge>
         </div>
       </div>
 
-      <p className="mt-2 text-sm text-foreground/52">
-        Inspect agent-proposed translations before pushing approved changes back to the provider.
+      <p className="mt-2 text-sm text-muted-foreground">
+        <FormattedMessage {...messages.sectionDescription} />
       </p>
 
       {reviewableRuns.length > 1 ? (
         <div className="mt-4 max-w-sm">
           <Select value={selectedRun?.id ?? ""} onValueChange={(value) => setSelectedRunId(value)}>
             <SelectTrigger>
-              <SelectValue placeholder="Select agent run" />
+              <SelectValue placeholder={intl.formatMessage(messages.selectAgentRunPlaceholder)} />
             </SelectTrigger>
             <SelectContent>
               {reviewableRuns.map((run) => (
                 <SelectItem key={run.id} value={run.id}>
-                  {run.kind.replaceAll("_", " ")} · {new Date(run.createdAt).toLocaleString()}
+                  {intl.formatMessage(messages.agentRunOption, {
+                    kind: run.kind.replaceAll("_", " "),
+                    createdAt: new Date(run.createdAt).toLocaleString(),
+                  })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -385,21 +431,23 @@ export function JobAgentRunDiffReviewSection({
           <HugeiconsIcon
             icon={Search01Icon}
             strokeWidth={1.8}
-            className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-foreground/42"
+            className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground"
           />
           <Input
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
-            placeholder="Search key, locale, or text"
+            placeholder={intl.formatMessage(messages.searchPlaceholder)}
             className="pl-9"
           />
         </div>
         <Select value={localeFilter} onValueChange={(value) => setLocaleFilter(value ?? "all")}>
           <SelectTrigger className="w-[8rem]">
-            <SelectValue placeholder="Locale" />
+            <SelectValue placeholder={intl.formatMessage(messages.localePlaceholder)} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All locales</SelectItem>
+            <SelectItem value="all">
+              <FormattedMessage {...messages.allLocales} />
+            </SelectItem>
             {locales.map((locale) => (
               <SelectItem key={locale} value={locale}>
                 {locale}
@@ -412,14 +460,24 @@ export function JobAgentRunDiffReviewSection({
           onValueChange={(value) => value && setReviewFilter(value as ProposalReviewFilter)}
         >
           <SelectTrigger className="w-[10rem]">
-            <SelectValue placeholder="Review state" />
+            <SelectValue placeholder={intl.formatMessage(messages.reviewStatePlaceholder)} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All states</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="accepted">Accepted</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="has_warnings">Has warnings</SelectItem>
+            <SelectItem value="all">
+              <FormattedMessage {...messages.allStates} />
+            </SelectItem>
+            <SelectItem value="pending">
+              <FormattedMessage {...messages.pending} />
+            </SelectItem>
+            <SelectItem value="accepted">
+              <FormattedMessage {...messages.accepted} />
+            </SelectItem>
+            <SelectItem value="rejected">
+              <FormattedMessage {...messages.rejected} />
+            </SelectItem>
+            <SelectItem value="has_warnings">
+              <FormattedMessage {...messages.hasWarnings} />
+            </SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -429,14 +487,24 @@ export function JobAgentRunDiffReviewSection({
           }
         >
           <SelectTrigger className="w-[11rem]">
-            <SelectValue placeholder="Warning type" />
+            <SelectValue placeholder={intl.formatMessage(messages.warningTypePlaceholder)} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All warnings</SelectItem>
-            <SelectItem value="glossary">Glossary</SelectItem>
-            <SelectItem value="placeholder">Placeholder</SelectItem>
-            <SelectItem value="format">Format</SelectItem>
-            <SelectItem value="confidence">Confidence</SelectItem>
+            <SelectItem value="all">
+              <FormattedMessage {...messages.allWarnings} />
+            </SelectItem>
+            <SelectItem value="glossary">
+              <FormattedMessage {...messages.warningGlossary} />
+            </SelectItem>
+            <SelectItem value="placeholder">
+              <FormattedMessage {...messages.warningPlaceholder} />
+            </SelectItem>
+            <SelectItem value="format">
+              <FormattedMessage {...messages.warningFormat} />
+            </SelectItem>
+            <SelectItem value="confidence">
+              <FormattedMessage {...messages.warningConfidence} />
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -448,7 +516,7 @@ export function JobAgentRunDiffReviewSection({
           onClick={() => applyBulk("accepted", "pending")}
         >
           <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
-          Accept all pending
+          <FormattedMessage {...messages.acceptAllPending} />
         </Button>
         <Button
           size="sm"
@@ -456,7 +524,7 @@ export function JobAgentRunDiffReviewSection({
           disabled={reviewMutation.isPending}
           onClick={() => applyBulk("rejected", "pending")}
         >
-          Reject all pending
+          <FormattedMessage {...messages.rejectAllPending} />
         </Button>
         <Button
           size="sm"
@@ -464,7 +532,7 @@ export function JobAgentRunDiffReviewSection({
           disabled={reviewMutation.isPending || selectedItemIds.size === 0}
           onClick={() => applyBulk("accepted", "filtered")}
         >
-          Accept selected
+          <FormattedMessage {...messages.acceptSelected} />
         </Button>
         <Button
           size="sm"
@@ -472,26 +540,32 @@ export function JobAgentRunDiffReviewSection({
           disabled={reviewMutation.isPending || selectedItemIds.size === 0}
           onClick={() => applyBulk("rejected", "filtered")}
         >
-          Reject selected
+          <FormattedMessage {...messages.rejectSelected} />
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-foreground/52">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground"
+            className="size-4 rounded border-input accent-foreground"
             checked={
               pagination.pageItems.length > 0 &&
               pagination.pageItems.every((item) => selectedItemIds.has(item.itemId))
             }
             onChange={(event) => togglePageSelection(event.currentTarget.checked)}
           />
-          Select page
+          <FormattedMessage {...messages.selectPage} />
         </label>
         <p>
-          Showing {pagination.pageItems.length} of {pagination.totalCount} filtered ·{" "}
-          {allItems.length} total
+          <FormattedMessage
+            {...messages.showingFiltered}
+            values={{
+              pageCount: pagination.pageItems.length,
+              filteredCount: pagination.totalCount,
+              totalCount: allItems.length,
+            }}
+          />
         </p>
       </div>
 
@@ -510,7 +584,9 @@ export function JobAgentRunDiffReviewSection({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-sm text-foreground/48">No proposals match the current filters.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          <FormattedMessage {...messages.noProposalsMatchFilters} />
+        </p>
       )}
 
       {pagination.totalPages > 1 ? (
@@ -521,10 +597,16 @@ export function JobAgentRunDiffReviewSection({
             disabled={pagination.currentPage <= 1}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
-            Previous
+            <FormattedMessage {...messages.previous} />
           </Button>
-          <p className="text-sm text-foreground/52">
-            Page {pagination.currentPage} of {pagination.totalPages}
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              {...messages.pageOf}
+              values={{
+                currentPage: pagination.currentPage,
+                totalPages: pagination.totalPages,
+              }}
+            />
           </p>
           <Button
             size="sm"
@@ -532,7 +614,7 @@ export function JobAgentRunDiffReviewSection({
             disabled={pagination.currentPage >= pagination.totalPages}
             onClick={() => setPage((current) => current + 1)}
           >
-            Next
+            <FormattedMessage {...messages.next} />
           </Button>
         </div>
       ) : null}

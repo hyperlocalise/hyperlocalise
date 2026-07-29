@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
@@ -40,12 +52,6 @@ export const env = createEnv({
     /** WorkOS API key for authentication and organization management. */
     WORKOS_API_KEY: z.string().min(1).optional(),
 
-    /** Enables live WorkOS API calls such as membership reconciliation. */
-    WORKOS_ENABLED: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((value) => value === "true"),
-
     /** WorkOS client ID for OAuth flows. */
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
 
@@ -54,6 +60,13 @@ export const env = createEnv({
 
     /** Password for encrypting WorkOS session cookies. Must be at least 32 characters. */
     WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
+
+    /**
+     * Comma-separated AuthKit redirect URIs allowed for native clients (Mac app).
+     * Always merged with the default `hyperlocalise://auth/callback` scheme.
+     * Example: `http://127.0.0.1:53682/callback`
+     */
+    WORKOS_NATIVE_REDIRECT_URIS: z.string().min(1).optional(),
 
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -133,47 +146,6 @@ export const env = createEnv({
      */
     CRON_SECRET: z.string().min(1).optional(),
 
-    /** Interval for lightweight file/job scans in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(15),
-
-    /** Interval for TM/glossary import scans in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(60),
-
-    /** Interval for full reconciliation in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(24 * 60),
-
-    /** Interval for provider health and webhook audits in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(24 * 60),
-
-    /** UTC hour for nightly full reconciliation. */
-    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(3),
-
-    /** UTC hour for daily provider health and webhook audits. */
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(4),
-
-    /** Maximum sync intents enqueued per cron tick. */
-    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(500),
-
     /** Maximum repositories processed per GitHub automation dispatch cron tick. */
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK: z.coerce
       .number()
@@ -181,14 +153,45 @@ export const env = createEnv({
       .positive()
       .default(100),
 
+    /** Maximum sandboxes deleted per sandbox cleanup cron tick. */
+    SANDBOX_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
+
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
 
     /** Comma-separated browser origins allowed to call the Canva integration API. */
     CANVA_CORS_ORIGINS: z.string().min(1).optional(),
 
-    /** Optional Canva app origin used for local development CORS. */
+    /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
+
+    /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
+    CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Crowdin App OAuth client secret used to verify Crowdin Apps JWTs. */
+    CROWDIN_APP_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Secret for signing Crowdin App embed sessions. Required when the Crowdin
+     * App iframe is enabled; do not reuse WorkOS or provider credential keys.
+     */
+    CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
+
+    /**
+     * Extra CSP frame-ancestors for `/crowdin-app/*`, merged with Crowdin SaaS
+     * defaults. Use for Crowdin Enterprise custom UI domains (CNAME), e.g.
+     * `https://translate.acme.com`. Applied by the Next proxy at runtime.
+     */
+    CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
+
+    /** Enables fixture auth routes and session bypass for browser e2e tests. */
+    E2E_AUTH_MODE: z.enum(["fixture", "workos"]).optional(),
+
+    /** Shared secret required to mint fixture auth sessions. Minimum 32 characters. */
+    E2E_AUTH_SECRET: z.string().min(32).optional(),
+
+    /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
+    E2E_BASE_URL: z.url().optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -199,6 +202,12 @@ export const env = createEnv({
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
+
+    /** Crowdin Apps iframe helper script CDN URL. */
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC: z.url().optional(),
+
+    /** Public Sentry DSN for client/server/edge error reporting. Optional in local development. */
+    NEXT_PUBLIC_SENTRY_DSN: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -220,13 +229,13 @@ export const env = createEnv({
       (isTestEnv ? "test-github-oauth-state-secret" : undefined),
     CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
-    WORKOS_ENABLED: isTestEnv ? "false" : (process.env.WORKOS_ENABLED ?? "false"),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),
     WORKOS_COOKIE_PASSWORD:
       process.env.WORKOS_COOKIE_PASSWORD ??
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
+    WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     FLAGS_SECRET:
@@ -266,25 +275,24 @@ export const env = createEnv({
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
       (isTestEnv ? "https://app.example.test" : undefined),
     CRON_SECRET: process.env.CRON_SECRET ?? (isTestEnv ? "test-cron-secret" : undefined),
-    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC:
-      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC,
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC:
-      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC,
-    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK:
-      process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    CROWDIN_APP_CLIENT_ID:
+      process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
+    CROWDIN_APP_CLIENT_SECRET:
+      process.env.CROWDIN_APP_CLIENT_SECRET ??
+      (isTestEnv ? "test-crowdin-app-client-secret" : undefined),
+    CROWDIN_APP_EMBED_SESSION_SECRET:
+      process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
+      (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
+    CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
+    E2E_AUTH_MODE: process.env.E2E_AUTH_MODE,
+    E2E_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
+    E2E_BASE_URL: process.env.E2E_BASE_URL,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
@@ -292,5 +300,9 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??
       (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC:
+      process.env.NEXT_PUBLIC_CROWDIN_IFRAME_SRC ??
+      (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
 });

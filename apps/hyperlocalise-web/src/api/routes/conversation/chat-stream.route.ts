@@ -1,28 +1,46 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Hono } from "hono";
-import { createWebAdapter } from "@chat-adapter/web";
-import { createMemoryState } from "@chat-adapter/state-memory";
-import { Chat } from "chat";
+import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
 
 import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
 import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
-import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
-import {
-  postStreamingAgentReply,
-  postWebAttachmentRequiredReply,
-  runWebChatAgentTurn,
-} from "@/agents/hyperlocalise/agent/channels/web";
-import { db } from "@/lib/database";
-import {
-  addInteractionMessage,
-  interactionHasTranslationAttachments,
-} from "@/lib/conversations/interactions";
+import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent/channels/web";
+import { db, schema } from "@/lib/database";
+import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
 
+import { resolveChatKnowledgeMemoryCapability } from "./chat-knowledge-memory-capability";
 import { conversationIdParamsSchema } from "./conversation.schema";
+import { extractLastUserMessage } from "./chat-stream-message";
 
-type WebInboxBotState = Record<string, unknown>;
+const chatRequestBodySchema = z.object({
+  id: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string(),
+        role: z.string(),
+        parts: z.array(z.unknown()).optional(),
+      }),
+    )
+    .optional(),
+  trigger: z.string().optional(),
+  messageId: z.string().optional(),
+});
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -49,73 +67,72 @@ export function createChatStreamRoutes() {
         return c.json({ error: "conversation_not_replyable" }, 400);
       }
 
-      const webAdapter = createWebAdapter({
-        userName: "hyperlocalise",
-        persistMessageHistory: false,
-        getUser: async (request) => {
-          const auth = await resolveApiAuthContextFromSession({
-            cookie: request.headers.get("cookie") ?? undefined,
-            organizationSlug: c.req.param("organizationSlug"),
-          });
+      const bodyResult = chatRequestBodySchema.safeParse(await c.req.json());
+      if (!bodyResult.success) {
+        return c.json({ error: "invalid_chat_payload" }, 400);
+      }
 
-          if (!auth) {
-            return null;
-          }
+      const requestUserMessage = extractLastUserMessage(bodyResult.data.messages);
+      if (!requestUserMessage?.id || !requestUserMessage.text.trim()) {
+        return c.json({ error: "invalid_chat_payload" }, 400);
+      }
 
-          return {
-            id: auth.user.localUserId,
-            name: auth.user.email,
-          };
-        },
-      });
+      const [[targetUserMessage], [latestUserMessage]] = await Promise.all([
+        db
+          .select({
+            id: schema.interactionMessages.id,
+            text: schema.interactionMessages.text,
+          })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.id, requestUserMessage.id),
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .limit(1),
+        db
+          .select({ id: schema.interactionMessages.id })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.interactionId, conversationId),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .orderBy(desc(schema.interactionMessages.createdAt))
+          .limit(1),
+      ]);
 
-      const bot = new Chat<{ web: typeof webAdapter }, WebInboxBotState>({
-        adapters: { web: webAdapter },
-        logger: "info",
-        state: createMemoryState(),
-        userName: "hyperlocalise",
-      });
+      if (!targetUserMessage) {
+        return c.json({ error: "user_message_not_found" }, 404);
+      }
 
-      bot.onDirectMessage(async (thread, message) => {
-        const threadData = webAdapter.decodeThreadId(thread.id);
-        if (threadData.conversationId !== conversationId) {
-          throw new Error("web_thread_conversation_mismatch");
-        }
+      if (!latestUserMessage || latestUserMessage.id !== targetUserMessage.id) {
+        return c.json({ error: "stale_user_message" }, 409);
+      }
 
-        const hasTranslationAttachments =
-          await interactionHasTranslationAttachments(conversationId);
-        if (!hasTranslationAttachments) {
-          await postWebAttachmentRequiredReply(thread, conversationId);
-          return;
-        }
+      const [hasTranslationAttachments, knowledgeMemoryEnabled] = await Promise.all([
+        interactionHasTranslationAttachments(conversationId),
+        resolveChatKnowledgeMemoryCapability(c.var.auth),
+      ]);
 
-        const { textStream } = await runWebChatAgentTurn({
+      return createWebChatAgentUIStreamResponse({
+        conversationId,
+        messageText: targetUserMessage.text,
+        toolContext: {
           conversationId,
-          messageText: message.text,
-          toolContext: {
-            conversationId,
-            organizationId: orgId,
-            localUserId: c.var.auth.user.localUserId,
-            membershipRole: c.var.auth.membership.role,
-            projectId: conversation.projectId ?? null,
-            db,
-          },
-          hasTranslationAttachments,
-        });
-
-        const text = await postStreamingAgentReply(thread, textStream);
-
-        try {
-          await addInteractionMessage({
-            interactionId: conversationId,
-            senderType: "agent",
-            text,
-          });
-        } catch (error) {
-          console.error("Failed to persist agent message:", error);
-        }
+          organizationId: orgId,
+          localUserId: c.var.auth.user.localUserId,
+          membershipRole: c.var.auth.membership.role,
+          projectId: conversation.projectId ?? null,
+          db,
+          knowledgeMemoryEnabled,
+        },
+        hasTranslationAttachments,
+        usageOperationKey: `chat-agent-turn:${targetUserMessage.id}:agent_runs`,
+        abortSignal: c.req.raw.signal,
       });
-
-      return bot.webhooks.web(c.req.raw);
     });
 }

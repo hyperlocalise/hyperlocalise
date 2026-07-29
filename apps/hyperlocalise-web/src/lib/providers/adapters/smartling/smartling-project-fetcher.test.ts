@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchSmartlingProjects } from "./smartling-project-fetcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("fetchSmartlingProjects", () => {
+describe("smartlingTmsProvider.fetchProjects", () => {
   const credential = {
     id: "cred-1",
     organizationId: "org-1",
@@ -10,6 +22,7 @@ describe("fetchSmartlingProjects", () => {
     displayName: "Smartling",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,
@@ -91,9 +104,8 @@ describe("fetchSmartlingProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchSmartlingProjects({
+    const projects = await smartlingTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "smartling",
       credential,
       secretMaterial: JSON.stringify({
         userIdentifier: "user-1",
@@ -187,9 +199,8 @@ describe("fetchSmartlingProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchSmartlingProjects({
+    const projects = await smartlingTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "smartling",
       credential,
       secretMaterial: JSON.stringify({
         userIdentifier: "user-1",
@@ -218,9 +229,8 @@ describe("fetchSmartlingProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchSmartlingProjects({
+      smartlingTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "smartling",
         credential,
         secretMaterial: "user-1:secret-1:acct-1",
       }),

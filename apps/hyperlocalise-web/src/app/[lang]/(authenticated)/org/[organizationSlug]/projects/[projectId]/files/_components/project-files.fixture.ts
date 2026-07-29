@@ -1,8 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
   ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
+
+import type { ProviderProjectBranchOption } from "./project-files-branch-filter-view";
 
 export const projectFilesStoryNow = Date.UTC(2026, 5, 6, 12, 0, 0);
 
@@ -134,6 +148,11 @@ export const providerProjectFilesFixture: ProjectFileRecord[] = [
       lastSyncedAt: iso(-600_000),
     },
   }),
+];
+
+export const providerProjectBranchesFixture: ProviderProjectBranchOption[] = [
+  { name: "main", title: "Main" },
+  { name: "feature-checkout", title: "Feature checkout" },
 ];
 
 export function createProjectFileDetail(

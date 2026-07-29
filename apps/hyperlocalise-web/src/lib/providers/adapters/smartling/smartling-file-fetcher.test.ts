@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchSmartlingFileKeys } from "./smartling-file-fetcher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("fetchSmartlingFileKeys", () => {
+describe("smartlingTmsProvider.fetchFileKeys", () => {
   let originalFetch: typeof fetch;
 
   const credential = {
@@ -12,6 +24,7 @@ describe("fetchSmartlingFileKeys", () => {
     displayName: "Smartling",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,
@@ -139,10 +152,9 @@ describe("fetchSmartlingFileKeys", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchSmartlingFileKeys({
+    const result = await smartlingTmsProvider.fetchFileKeys({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       credential,
       project: {} as never,
@@ -262,8 +274,8 @@ describe("fetchSmartlingFileKeys", () => {
       secretMaterial: "user:secret:acct-1",
     };
 
-    const first = await fetchSmartlingFileKeys(input);
-    const second = await fetchSmartlingFileKeys(input);
+    const first = await smartlingTmsProvider.fetchFileKeys(input);
+    const second = await smartlingTmsProvider.fetchFileKeys(input);
 
     expect(first[0]?.externalResourceId).toBe("app/messages.json");
     expect(second[0]?.externalResourceId).toBe("app/messages.json");
@@ -352,10 +364,9 @@ describe("fetchSmartlingFileKeys", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchSmartlingFileKeys({
+    const result = await smartlingTmsProvider.fetchFileKeys({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       credential,
       project: {} as never,
@@ -372,10 +383,9 @@ describe("fetchSmartlingFileKeys", () => {
 
   it("throws on invalid project id", async () => {
     await expect(
-      fetchSmartlingFileKeys({
+      smartlingTmsProvider.fetchFileKeys({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "smartling",
         externalProjectId: "  ",
         credential,
         project: {} as never,
@@ -409,10 +419,9 @@ describe("fetchSmartlingFileKeys", () => {
     globalThis.fetch = fetchMock;
 
     await expect(
-      fetchSmartlingFileKeys({
+      smartlingTmsProvider.fetchFileKeys({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "smartling",
         externalProjectId: "proj-1",
         credential,
         project: {} as never,

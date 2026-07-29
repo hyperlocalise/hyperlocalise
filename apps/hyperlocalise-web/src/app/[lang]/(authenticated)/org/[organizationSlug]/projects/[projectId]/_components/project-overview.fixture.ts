@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
@@ -20,6 +32,8 @@ export const projectOverviewFixture: ProjectListRow = {
   targetLocales: ["fr-FR", "de-DE", "es-ES"],
   externalProjectUrl: "https://crowdin.com/project/website",
   isActive: true,
+  logoUrl: null,
+  lastActivityAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   lastSyncErrorAt: null,
   lastSyncErrorMessage: null,
@@ -29,14 +43,6 @@ export const projectOverviewFixture: ProjectListRow = {
 export const projectOverviewCaughtUpFixture: ProjectListRow = {
   ...projectOverviewFixture,
   openJobCount: 0,
-  lastSyncErrorAt: null,
-  lastSyncErrorMessage: null,
-};
-
-export const projectOverviewSyncErrorFixture: ProjectListRow = {
-  ...projectOverviewFixture,
-  lastSyncErrorAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-  lastSyncErrorMessage: "Provider credentials expired during the last sync.",
 };
 
 export const projectOverviewJobsFixture: ApiJob[] = [

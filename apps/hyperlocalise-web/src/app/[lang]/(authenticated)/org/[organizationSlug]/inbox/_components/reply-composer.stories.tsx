@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 
-import { projectsFixture } from "./inbox.fixture";
+import { repositoriesFixture } from "./inbox.fixture";
 import { ReplyComposerView } from "./reply-composer";
 
 const meta = {
@@ -22,12 +34,11 @@ const meta = {
     ),
   ],
   args: {
-    conversationProjectId: "project_website",
     disabled: false,
     isStreaming: false,
-    projects: projectsFixture,
-    projectsIsLoading: false,
-    projectsIsError: false,
+    repositories: repositoriesFixture,
+    repositoriesIsLoading: false,
+    repositoriesIsError: false,
     onSend: fn(),
   },
 } satisfies Meta<typeof ReplyComposerView>;
@@ -37,11 +48,9 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByPlaceholderText("Paste text or describe what to translate..."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
-    await expect(canvas.getByText("Website")).toBeInTheDocument();
+    await expect(canvas.getByText("GitHub repo")).toBeInTheDocument();
   },
 };
 
@@ -51,7 +60,7 @@ export const Streaming: Story = {
     disabled: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByPlaceholderText("Agent is responding...")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Agent is responding…")).toBeInTheDocument();
   },
 };
 
@@ -61,23 +70,28 @@ export const Disabled: Story = {
   },
 };
 
-export const LoadingProjects: Story = {
+export const LoadingRepositories: Story = {
   args: {
-    projects: [],
-    projectsIsLoading: true,
+    repositories: [],
+    repositoriesIsLoading: true,
   },
 };
 
-export const ProjectsLoadError: Story = {
+export const RepositoriesLoadError: Story = {
   args: {
-    projects: [],
-    projectsIsError: true,
+    repositories: [],
+    repositoriesIsError: true,
   },
 };
 
-export const NoProjects: Story = {
+export const NoRepositories: Story = {
   args: {
-    projects: [],
-    conversationProjectId: null,
+    repositories: [],
+  },
+};
+
+export const SingleRepository: Story = {
+  args: {
+    repositories: repositoriesFixture.slice(0, 1),
   },
 };

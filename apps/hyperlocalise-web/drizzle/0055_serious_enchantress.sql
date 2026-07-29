@@ -1,0 +1,2 @@
+ALTER TABLE "crowdin_user_connections" ADD COLUMN "auth_mode" text DEFAULT 'oauth' NOT NULL;--> statement-breakpoint
+UPDATE "crowdin_user_connections" SET "auth_mode" = 'pat' WHERE "oauth_expires_at" IS NULL;

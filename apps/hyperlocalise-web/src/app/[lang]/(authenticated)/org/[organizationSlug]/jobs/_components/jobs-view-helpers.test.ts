@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ApiJob } from "./jobs-page-view";
@@ -50,6 +62,9 @@ describe("jobs-view-helpers", () => {
       "/org/acme/projects/project-1/jobs/job-1",
     );
     expect(buildJobDetailHref("acme", null, "job-1")).toBeNull();
+    expect(buildJobDetailHref("acme", null, "ext:crowdin:project-1:job-1")).toBe(
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1",
+    );
   });
 
   it("allows CAT for provider-backed translation and review jobs", () => {
@@ -76,10 +91,22 @@ describe("jobs-view-helpers", () => {
 
   it("builds provider CAT hrefs with locale and source path when available", () => {
     expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
-      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
+      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
     );
-    expect(buildJobCatHref("acme", null, createJob())).toBeNull();
+    expect(buildJobCatHref("acme", null, createJob())).toBe(
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
+    );
+    expect(buildJobCatHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
+  });
+
+  it("includes needs_review queue filter for review jobs", () => {
+    expect(buildJobCatHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
+      "queueFilter=needs_review",
+    );
+    expect(
+      buildJobCatHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
+    ).toContain("queueFilter=needs_review");
   });
 
   it("builds native CAT hrefs with stored file id and target locale", () => {
@@ -98,7 +125,7 @@ describe("jobs-view-helpers", () => {
         }),
       ),
     ).toBe(
-      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR",
+      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=untranslated",
     );
   });
 
@@ -124,9 +151,9 @@ describe("jobs-view-helpers", () => {
     });
 
     try {
-      expect(readJobsViewMode()).toBe("row");
-      writeJobsViewMode("kanban");
       expect(readJobsViewMode()).toBe("kanban");
+      writeJobsViewMode("row");
+      expect(readJobsViewMode()).toBe("row");
     } finally {
       Object.defineProperty(globalThis, "window", {
         configurable: true,

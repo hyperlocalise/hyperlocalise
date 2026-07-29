@@ -1,25 +1,52 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Metadata } from "next";
 import type { WithContext } from "schema-dts";
 import { WebApplication } from "schema-dts";
-import { MarketingFooter } from "@/components/marketing/marketing-footer";
-import { chapters, footerColumns } from "@/components/marketing/marketing-page-content";
-import { JsonLd } from "@/components/seo/json-ld";
 import {
-  ChapterSection,
-  ChangelogSection,
+  buildHomepageFaqJsonLd,
+  getHomepageFaqItems,
+} from "@/components/marketing/homepage-faq-content";
+import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { footerColumns } from "@/components/marketing/marketing-page-content";
+import { JsonLd } from "@/components/seo/json-ld";
+import { TourfinderTestimonialSection } from "@/components/marketing/tourfinder-testimonial-section";
+import {
+  FeatureMeshCardsSection,
   FinalCtaSection,
   HeroSection,
   PrinciplesSection,
+  RecentBlogPostsSection,
 } from "@/components/marketing";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { getAllPosts } from "@/lib/blog/blog-post";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 const metadataKeywords = [
+  "Hyperlocalise",
   "localisation",
+  "localization",
   "translation",
+  "translate",
+  "product",
+  "context",
+  "launch",
+  "review",
   "AI",
   "agentic",
   "TMS",
-  "localization",
   "GitHub",
 ] as const;
 
@@ -29,23 +56,23 @@ type HomePageProps = {
 
 export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
   const { lang } = await params;
-  const intl = getIntlShape(lang);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | Localisation Platform for the Agentic Era",
-    id: "RZBs1fe1V3",
+    defaultMessage: "Hyperlocalise | The Best Agentic Localisation Platform",
+    id: "9EV17CGa2+",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
-    id: "9/pQQpDU+H",
+      "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
+    id: "3K/+e2NRMM",
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({
-    defaultMessage:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
-    id: "D3VzMQGhqa",
+    defaultMessage: "The best agentic localisation platform to launch globally in days.",
+    id: "cdezPwXx10",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });
@@ -54,6 +81,7 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
     title,
     description,
     keywords: [...metadataKeywords],
+    alternates: getLocalizedAlternates({ locale, path: "/" }),
     openGraph: {
       title,
       description: openGraphDescription,
@@ -91,48 +119,56 @@ function buildJsonLd(locale: string): WithContext<WebApplication> & object {
 export default async function Home({ params }: HomePageProps) {
   const { lang } = await params;
   const jsonLd = buildJsonLd(lang);
+  const faqItems = getHomepageFaqItems(lang);
+  const faqJsonLd = buildHomepageFaqJsonLd(faqItems);
+  const recentPosts = getAllPosts(lang)
+    .slice(0, 4)
+    .map(({ content: _content, ...rest }) => rest);
 
   return (
     <>
       <JsonLd data={jsonLd} />
+      <JsonLd data={faqJsonLd} />
       <div className="min-h-screen bg-background text-foreground">
+        <HeroSection />
+
         <main className="mx-auto max-w-7xl">
-          <section className=" px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
-            <HeroSection />
-          </section>
-
-          <section className="px-5 py-16 sm:px-8 lg:px-10">
-            <PrinciplesSection />
-          </section>
-
-          <section id="workflow">
-            {chapters.map((chapter) => (
-              <section
-                key={chapter.id}
-                id={chapter.anchorId}
-                className="border-t border-border/70 scroll-mt-24"
-              >
-                <div className="px-5 py-20 sm:px-8 lg:px-10">
-                  <ChapterSection chapter={chapter} />
-                </div>
-              </section>
-            ))}
-          </section>
-
-          <section className="border-t border-border/70">
-            <div className="px-5 py-20 sm:px-8 lg:px-10">
-              <ChangelogSection />
+          <section className="border-t border-border">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <PrinciplesSection />
             </div>
           </section>
 
-          <section className="border-t border-border/70">
-            <div className="px-5 py-24 sm:px-8 lg:px-10">
+          <div className="border-t border-border">
+            <TourfinderTestimonialSection />
+          </div>
+
+          <section className="border-t border-border scroll-mt-24">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <FeatureMeshCardsSection />
+            </div>
+          </section>
+
+          <section className="border-t border-border scroll-mt-24">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <HomepageFaqSection items={faqItems} />
+            </div>
+          </section>
+
+          <section className="border-t border-border">
+            <div className="px-5 py-28 sm:px-8 sm:py-32 lg:px-10">
               <FinalCtaSection />
             </div>
           </section>
 
-          <section className="border-t border-border/70">
-            <div className="px-5 py-16 sm:px-8 lg:px-10">
+          <section className="border-t border-border">
+            <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
+              <RecentBlogPostsSection lang={lang} posts={recentPosts} />
+            </div>
+          </section>
+
+          <section className="border-t border-border">
+            <div className="px-5 pt-20 sm:px-8 sm:pt-24 lg:px-10">
               <MarketingFooter columns={footerColumns} />
             </div>
           </section>

@@ -86,14 +86,14 @@ const (
 
 // ReportArchive represents a report archive.
 type ReportArchive struct {
-	ID        int    `json:"id"`
-	ScopeType string `json:"scopeType"`
-	ScopeID   int    `json:"scopeId"`
-	UserID    int    `json:"userId"`
-	Name      string `json:"name"`
-	WebURL    string `json:"webUrl"`
-	Scheme    any    `json:"scheme"`
-	CreatedAt string `json:"createdAt"`
+	ID        int             `json:"id"`
+	ScopeType ReportScopeType `json:"scopeType"`
+	ScopeID   int             `json:"scopeId"`
+	UserID    int             `json:"userId"`
+	Name      string          `json:"name"`
+	WebURL    string          `json:"webUrl"`
+	Scheme    any             `json:"scheme"`
+	CreatedAt string          `json:"createdAt"`
 }
 
 // ReportArchiveResponse defines the structure of a response

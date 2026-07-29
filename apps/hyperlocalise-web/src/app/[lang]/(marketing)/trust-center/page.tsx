@@ -1,21 +1,46 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Metadata } from "next";
 import { ArrowRightIcon, CheckCircle2Icon, MailIcon } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
-export const metadata: Metadata = {
-  title: "Trust Center",
-  description:
-    "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
-  openGraph: {
-    title: "Hyperlocalise Trust Center",
-    description:
-      "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
-    type: "website",
-  },
+type TrustCenterPageProps = {
+  params: Promise<{ lang: string }>;
 };
+
+export async function generateMetadata({ params }: TrustCenterPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const description =
+    "Security, subprocessor, privacy, and certification status information for Hyperlocalise.";
+
+  return {
+    title: "Trust Center",
+    description,
+    alternates: getLocalizedAlternates({ locale, path: "/trust-center" }),
+    openGraph: {
+      title: "Hyperlocalise Trust Center",
+      description,
+      type: "website",
+    },
+  };
+}
 
 const securityPractices = [
   {
@@ -56,6 +81,8 @@ const certificationStatuses = [
     status: "Available on request",
   },
 ] as const;
+
+const contactEmail = "minh@hyperlocalise.com";
 
 const subprocessors = [
   {
@@ -118,32 +145,125 @@ function SectionHeader({
   );
 }
 
-export default function TrustCenterPage() {
+export default async function TrustCenterPage({ params }: TrustCenterPageProps) {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const intl = getIntlShape(locale);
+
+  const workInProgress = intl.formatMessage({
+    defaultMessage: "Work in progress",
+    id: "jUpgPN4uQt",
+    description: "Badge above the Trust Center page heading",
+  });
+  const pageTitle = intl.formatMessage({
+    defaultMessage: "Trust Center",
+    id: "Bu38XaIdLK",
+    description: "Trust Center page heading",
+  });
+  const pageLead = intl.formatMessage({
+    defaultMessage:
+      "A practical view of how Hyperlocalise handles security, subprocessors, and certification work while the formal trust program matures.",
+    id: "N8kCP/hYym",
+    description: "Lead paragraph under the Trust Center page heading",
+  });
+  const operatorLine = intl.formatMessage({
+    defaultMessage:
+      "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.",
+    id: "GwjIMiu8Y+",
+    description: "Legal operator line on the Trust Center page",
+  });
+  const contactUs = intl.formatMessage({
+    defaultMessage: "Contact us",
+    id: "ay4rw6IQUl",
+    description: "Contact button label on the Trust Center page",
+  });
+  const viewSubprocessors = intl.formatMessage({
+    defaultMessage: "View subprocessors",
+    id: "vny7NGboKv",
+    description: "Button that scrolls to the subprocessors section on the Trust Center page",
+  });
+  const currentPosture = intl.formatMessage({
+    defaultMessage: "Current posture",
+    id: "oX8prUs9FO",
+    description: "Aside heading for current certification posture on the Trust Center page",
+  });
+  const columnSubprocessor = intl.formatMessage({
+    defaultMessage: "Subprocessor",
+    id: "O5xNL1bDk3",
+    description: "Subprocessors table column header for vendor name",
+  });
+  const columnPurpose = intl.formatMessage({
+    defaultMessage: "Purpose",
+    id: "q4SZlpG/03",
+    description: "Subprocessors table column header for vendor purpose",
+  });
+  const columnDataProcessed = intl.formatMessage({
+    defaultMessage: "Data processed",
+    id: "qd3kyaecwA",
+    description: "Subprocessors table column header for data categories",
+  });
+  const columnLocation = intl.formatMessage({
+    defaultMessage: "Primary processing location",
+    id: "7VKhjntXa1",
+    description: "Subprocessors table column header for processing location",
+  });
+  const dataHandlingParagraph1 = intl.formatMessage({
+    defaultMessage:
+      "Source strings, translations, context, prompts, model outputs, and provider metadata may be processed when those workflows are enabled by the customer.",
+    id: "/z2t2MxSK2",
+    description: "First data-handling paragraph on the Trust Center page",
+  });
+  const dataHandlingParagraph2 = intl.formatMessage({
+    defaultMessage:
+      "AI providers, translation management systems, repositories, and chat platforms are not treated as default platform subprocessors here because customers choose whether to connect them and which accounts or projects are in scope.",
+    id: "g0n4i124EY",
+    description: "Second data-handling paragraph on the Trust Center page",
+  });
+  const dataHandlingContact = intl.formatMessage(
+    {
+      defaultMessage: "For data processing agreement requests, contact: {email}",
+      id: "fPUMESAd94",
+      description: "Contact line for data processing agreement requests on the Trust Center page",
+    },
+    {
+      email: contactEmail,
+    },
+  );
+  const ctaTitle = intl.formatMessage({
+    defaultMessage: "Need security details for a review?",
+    id: "jUEW9KB993",
+    description: "Call-to-action heading at the bottom of the Trust Center page",
+  });
+  const ctaDescription = intl.formatMessage({
+    defaultMessage:
+      "Contact us for current security information, vendor review questions, or certification roadmap details, including data processing agreement requests.",
+    id: "w+fJWojETe",
+    description: "Call-to-action description at the bottom of the Trust Center page",
+  });
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl">
         <section className="grid gap-10 px-5 pb-16 pt-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-10 lg:pb-20 lg:pt-16">
           <div className="max-w-4xl space-y-7">
             <div className="w-fit rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
-              Work in progress
+              {workInProgress}
             </div>
             <div className="space-y-5">
               <TypographyH1 className="max-w-3xl text-4xl leading-[1.02] sm:text-5xl md:text-6xl">
-                Trust Center
+                {pageTitle}
               </TypographyH1>
               <TypographyP className="max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
-                A practical view of how Hyperlocalise handles security, subprocessors, and
-                certification work while the formal trust program matures.
+                {pageLead}
+              </TypographyP>
+              <TypographyP className="max-w-2xl text-base leading-7 text-muted-foreground">
+                {operatorLine}
               </TypographyP>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                size="lg"
-                className="gap-2"
-                render={<a href="mailto:security@hyperlocalise.com" />}
-              >
+              <Button size="lg" className="gap-2" render={<a href={`mailto:${contactEmail}`} />}>
                 <MailIcon data-icon="inline-start" />
-                Contact us
+                {contactUs}
               </Button>
               <Button
                 variant="outline"
@@ -151,19 +271,19 @@ export default function TrustCenterPage() {
                 className="gap-2"
                 render={<a href="#subprocessors" />}
               >
-                View subprocessors
+                {viewSubprocessors}
                 <ArrowRightIcon data-icon="inline-end" />
               </Button>
             </div>
           </div>
 
           <aside className="h-fit rounded-lg border border-border bg-muted/25 p-5">
-            <div className="text-sm font-medium text-muted-foreground">Current posture</div>
+            <div className="text-sm font-medium text-muted-foreground">{currentPosture}</div>
             <dl className="mt-5 space-y-4">
               {certificationStatuses.map((item) => (
                 <div
                   key={item.name}
-                  className="flex items-start justify-between gap-4 border-t border-border/70 pt-4 first:border-t-0 first:pt-0"
+                  className="flex items-start justify-between gap-4 border-t border-border pt-4 first:border-t-0 first:pt-0"
                 >
                   <dt className="text-sm font-medium text-foreground">{item.name}</dt>
                   <dd className="max-w-40 text-right text-sm text-muted-foreground">
@@ -175,7 +295,7 @@ export default function TrustCenterPage() {
           </aside>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <SectionHeader
             eyebrow="Security"
             title="Built for controlled localization workflows"
@@ -205,7 +325,7 @@ export default function TrustCenterPage() {
 
         <section
           id="subprocessors"
-          className="border-t border-border/70 px-5 py-16 scroll-mt-24 sm:px-8 lg:px-10 lg:py-20"
+          className="border-t border-border px-5 py-16 scroll-mt-24 sm:px-8 lg:px-10 lg:py-20"
         >
           <SectionHeader
             eyebrow="Subprocessors"
@@ -217,10 +337,10 @@ export default function TrustCenterPage() {
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="bg-muted/50 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   <tr>
-                    <th className="px-4 py-3">Subprocessor</th>
-                    <th className="px-4 py-3">Purpose</th>
-                    <th className="px-4 py-3">Data processed</th>
-                    <th className="px-4 py-3">Primary processing location</th>
+                    <th className="px-4 py-3">{columnSubprocessor}</th>
+                    <th className="px-4 py-3">{columnPurpose}</th>
+                    <th className="px-4 py-3">{columnDataProcessed}</th>
+                    <th className="px-4 py-3">{columnLocation}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -246,7 +366,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
             <SectionHeader
               eyebrow="Certification"
@@ -267,7 +387,7 @@ export default function TrustCenterPage() {
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
             <SectionHeader
               eyebrow="Data handling"
@@ -275,43 +395,30 @@ export default function TrustCenterPage() {
               description="Hyperlocalise processes customer content to run localization workflows and connected automations."
             />
             <div className="space-y-5 text-base leading-7 text-muted-foreground">
-              <TypographyP>
-                Source strings, translations, context, prompts, model outputs, and provider metadata
-                may be processed when those workflows are enabled by the customer.
-              </TypographyP>
-              <TypographyP>
-                AI providers, translation management systems, repositories, and chat platforms are
-                not treated as default platform subprocessors here because customers choose whether
-                to connect them and which accounts or projects are in scope.
-              </TypographyP>
+              <TypographyP>{dataHandlingParagraph1}</TypographyP>
+              <TypographyP>{dataHandlingParagraph2}</TypographyP>
+              <TypographyP>{dataHandlingContact}</TypographyP>
             </div>
           </div>
         </section>
 
-        <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <div className="flex flex-col gap-5 rounded-lg border border-border bg-muted/25 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
               <TypographyH2 className="pb-0 text-2xl tracking-[-0.02em] md:text-3xl">
-                Need security details for a review?
+                {ctaTitle}
               </TypographyH2>
-              <TypographyP className="mt-2 text-muted-foreground">
-                Contact us for current security information, vendor review questions, or
-                certification roadmap details.
-              </TypographyP>
+              <TypographyP className="mt-2 text-muted-foreground">{ctaDescription}</TypographyP>
             </div>
-            <Button
-              size="lg"
-              className="gap-2"
-              render={<a href="mailto:security@hyperlocalise.com" />}
-            >
+            <Button size="lg" className="gap-2" render={<a href={`mailto:${contactEmail}`} />}>
               <MailIcon data-icon="inline-start" />
-              Contact us
+              {contactUs}
             </Button>
           </div>
         </section>
 
-        <section className="border-t border-border/70">
-          <div className="px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border">
+          <div className="px-5 pt-16 sm:px-8 lg:px-10">
             <MarketingFooter columns={footerColumns} />
           </div>
         </section>

@@ -80,13 +80,18 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	}
 	normalizedTargetLocale := strings.TrimSpace(targetLocale)
 
-	templateMessageKeys := make(map[string]struct{}, len(fields))
+	templateMessageKeys := make(map[string]struct{}, len(fields)/2+1)
 	hasLocaleField := false
-	for _, field := range fields {
+	metaIndices := make([]int, 0, len(fields)/2+1)
+
+	for i, field := range fields {
 		if field.Key == "@@locale" {
 			hasLocaleField = true
 		}
 		if isARBMetadataKey(field.Key) {
+			if len(field.Key) > 1 && field.Key[1] != '@' {
+				metaIndices = append(metaIndices, i)
+			}
 			continue
 		}
 		templateMessageKeys[field.Key] = struct{}{}
@@ -94,13 +99,15 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 
 	var sourceMessageMetadata map[string]json.RawMessage
 	if bytes.Equal(template, sourceTemplate) {
-		sourceMessageMetadata = make(map[string]json.RawMessage)
-		for _, field := range fields {
-			messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, templateMessageKeys)
-			if !isMessageMeta {
-				continue
+		// BOLT OPTIMIZATION: Resolve metadata in a single pass after collecting
+		// all message keys to avoid redundant passes over the fields slice.
+		sourceMessageMetadata = make(map[string]json.RawMessage, len(metaIndices))
+		for _, i := range metaIndices {
+			field := fields[i]
+			messageKey := field.Key[1:]
+			if _, ok := templateMessageKeys[messageKey]; ok {
+				sourceMessageMetadata[messageKey] = field.RawValue
 			}
-			sourceMessageMetadata[messageKey] = field.RawValue
 		}
 	} else {
 		var err error
@@ -117,23 +124,19 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	out.WriteString("{\n")
 
 	first := true
-	writeField := func(key string, value []byte) error {
+	writeFieldHeader := func(key string) error {
 		if !first {
 			out.WriteString(",\n")
 		}
 		first = false
 
 		out.WriteString("  ")
-		if isSimpleJSONString(key) {
-			out.WriteByte('"')
-			out.WriteString(key)
-			out.WriteByte('"')
-		} else {
-			encodedKey, err := json.Marshal(key)
-			if err != nil {
-				return err
-			}
-			out.Write(encodedKey)
+		return writeJSONString(&out, key)
+	}
+
+	writeRawField := func(key string, value []byte) error {
+		if err := writeFieldHeader(key); err != nil {
+			return err
 		}
 		out.WriteString(": ")
 
@@ -149,8 +152,21 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		return nil
 	}
 
+	writeStringField := func(key string, value string) error {
+		if err := writeFieldHeader(key); err != nil {
+			return err
+		}
+		out.WriteString(": ")
+		// Values that fail to marshal (unlikely for strings) fallback to empty string
+		// to maintain compatibility with previous behavior.
+		if err := writeJSONString(&out, value); err != nil {
+			out.WriteString(`""`)
+		}
+		return nil
+	}
+
 	if !hasLocaleField && normalizedTargetLocale != "" {
-		if err := writeField("@@locale", marshalJSONString(normalizedTargetLocale)); err != nil {
+		if err := writeStringField("@@locale", normalizedTargetLocale); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields["@@locale"] = struct{}{}
@@ -159,7 +175,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	for _, field := range fields {
 		if isARBMetadataKey(field.Key) {
 			if field.Key == "@@locale" && normalizedTargetLocale != "" {
-				if err := writeField(field.Key, marshalJSONString(normalizedTargetLocale)); err != nil {
+				if err := writeStringField(field.Key, normalizedTargetLocale); err != nil {
 					return nil, fmt.Errorf("arb encode: %w", err)
 				}
 				writtenFields[field.Key] = struct{}{}
@@ -170,7 +186,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 					continue
 				}
 			}
-			if err := writeField(field.Key, field.RawValue); err != nil {
+			if err := writeRawField(field.Key, field.RawValue); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
 			writtenFields[field.Key] = struct{}{}
@@ -181,7 +197,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if !ok {
 			continue
 		}
-		if err := writeField(field.Key, marshalJSONString(value)); err != nil {
+		if err := writeStringField(field.Key, value); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[field.Key] = struct{}{}
@@ -196,7 +212,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	slices.Sort(newKeys)
 
 	for _, key := range newKeys {
-		if err := writeField(key, marshalJSONString(values[key])); err != nil {
+		if err := writeStringField(key, values[key]); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[key] = struct{}{}
@@ -206,7 +222,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 			continue
 		}
 		if rawMeta, ok := sourceMessageMetadata[key]; ok {
-			if err := writeField(metaKey, rawMeta); err != nil {
+			if err := writeRawField(metaKey, rawMeta); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
 			writtenFields[metaKey] = struct{}{}
@@ -234,8 +250,8 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 		return nil, fmt.Errorf("expected object")
 	}
 
-	// Heuristic pre-allocation: approx 1 field per 100 bytes of content.
-	fields := make([]arbObjectField, 0, len(content)/100)
+	// Heuristic pre-allocation: approx 1 field per 64 bytes of content.
+	fields := make([]arbObjectField, 0, len(content)/64)
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -274,11 +290,15 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 }
 
 func arbMessageMetadataKey(metaKey string, templateMessageKeys map[string]struct{}) (string, bool) {
-	if !isARBMetadataKey(metaKey) || strings.HasPrefix(metaKey, "@@") {
+	// ARB metadata keys for messages start with a single '@'.
+	// Keys starting with '@@' are global ARB metadata (like @@locale).
+	if !isARBMetadataKey(metaKey) || (len(metaKey) > 1 && metaKey[1] == '@') {
 		return "", false
 	}
 
-	messageKey := strings.TrimPrefix(metaKey, "@")
+	// BOLT OPTIMIZATION: Use slicing instead of strings.TrimPrefix to avoid
+	// redundant string operations and potential allocations.
+	messageKey := metaKey[1:]
 	if _, ok := templateMessageKeys[messageKey]; ok {
 		return messageKey, true
 	}
@@ -291,21 +311,28 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 		return nil, err
 	}
 
-	messageKeys := make(map[string]struct{}, len(fields))
-	for _, field := range fields {
+	// BOLT OPTIMIZATION: Collect message keys and record metadata indices in a
+	// single pass to reduce iteration overhead.
+	messageKeys := make(map[string]struct{}, len(fields)/2+1)
+	metaIndices := make([]int, 0, len(fields)/2+1)
+
+	for i, field := range fields {
 		if isARBMetadataKey(field.Key) {
+			if len(field.Key) > 1 && field.Key[1] != '@' {
+				metaIndices = append(metaIndices, i)
+			}
 			continue
 		}
 		messageKeys[field.Key] = struct{}{}
 	}
 
-	metadataByKey := make(map[string]json.RawMessage)
-	for _, field := range fields {
-		messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, messageKeys)
-		if !isMessageMeta {
-			continue
+	metadataByKey := make(map[string]json.RawMessage, len(metaIndices))
+	for _, i := range metaIndices {
+		field := fields[i]
+		messageKey := field.Key[1:]
+		if _, ok := messageKeys[messageKey]; ok {
+			metadataByKey[messageKey] = field.RawValue
 		}
-		metadataByKey[messageKey] = field.RawValue
 	}
 	return metadataByKey, nil
 }
@@ -328,17 +355,16 @@ func isSimpleJSONString(s string) bool {
 	return true
 }
 
-func marshalJSONString(s string) []byte {
+func writeJSONString(w *bytes.Buffer, s string) error {
 	if isSimpleJSONString(s) {
-		b := make([]byte, 0, len(s)+2)
-		b = append(b, '"')
-		b = append(b, s...)
-		b = append(b, '"')
-		return b
+		_ = w.WriteByte('"')
+		_, _ = w.WriteString(s)
+		return w.WriteByte('"')
 	}
 	encoded, err := json.Marshal(s)
 	if err != nil {
-		return []byte(`""`)
+		return err
 	}
-	return encoded
+	_, err = w.Write(encoded)
+	return err
 }

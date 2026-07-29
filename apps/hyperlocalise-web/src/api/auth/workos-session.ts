@@ -1,5 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@/lib/workos/server-auth";
+import { resolveFixtureApiAuthContext } from "@/lib/e2e/fixture-auth";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
@@ -7,9 +20,11 @@ import {
   assertWorkosMembershipReconcileAllowsAccess,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
+import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { hasPendingOrganizationMembershipForWorkosUser } from "@/lib/workos/missing-organization-access";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 type ResolveApiAuthContextOptions = {
@@ -230,11 +245,31 @@ async function resolveActiveTeamMembership(
 export async function resolveApiAuthContextFromSession(
   options: ResolveApiAuthContextOptions = {},
 ): Promise<ApiAuthContext | null> {
+  const fixtureAuth = await resolveFixtureApiAuthContext({
+    cookie: options.cookie,
+    organizationSlug: options.organizationSlug,
+  });
+
+  if (fixtureAuth) {
+    return fixtureAuth;
+  }
+
   const session = options.session ?? (await withAuth());
 
   if (!session.user) {
     return null;
   }
+
+  const promotedPlaceholder = session.user.email
+    ? await promoteInvitedPlaceholderUser(db, {
+        email: session.user.email,
+        workosUserId: session.user.id,
+      })
+    : false;
+
+  const hasPendingLocalMembership = await hasPendingOrganizationMembershipForWorkosUser(
+    session.user.id,
+  );
 
   const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
     workosUserId: session.user.id,
@@ -242,6 +277,12 @@ export async function resolveApiAuthContextFromSession(
     firstName: session.user.firstName ?? undefined,
     lastName: session.user.lastName ?? undefined,
     avatarUrl: session.user.profilePictureUrl ?? undefined,
+    // Pending local invites may belong to a different org than the WorkOS session
+    // pointer. Always reconcile all active WorkOS memberships before denying access.
+    workosOrganizationId: hasPendingLocalMembership
+      ? undefined
+      : (session.organizationId ?? undefined),
+    force: promotedPlaceholder || Boolean(session.organizationId) || hasPendingLocalMembership,
   });
 
   await assertWorkosMembershipReconcileAllowsAccess(db, session.user.id, reconcileResult);

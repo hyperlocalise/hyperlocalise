@@ -1,8 +1,21 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { TeamRole } from "@/api/routes/team/team.schema";
 import { Button } from "@/components/ui/button";
@@ -24,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import { addTeamMemberDialogMessages } from "./add-team-member-dialog.messages";
 import type { OrganizationMemberDirectoryEntry } from "./teams-api";
 import { getTeamRoleDescription, getTeamRoleLabel } from "./teams-settings-view-model";
 
@@ -42,9 +56,13 @@ export function AddTeamMemberDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
 }) {
+  const intl = useIntl();
   const [workosUserId, setWorkosUserId] = useState("");
   const [role, setRole] = useState<TeamRole>("member");
   const memberId = useId();
+  const selectedMemberEmail = assignableMembers.find(
+    (member) => member.workosUserId === workosUserId,
+  )?.email;
 
   useEffect(() => {
     if (open) {
@@ -73,24 +91,27 @@ export function AddTeamMemberDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
+      <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
-            <DialogTitle>Add team member</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage {...addTeamMemberDialogMessages.title} />
+            </DialogTitle>
             <DialogDescription>
-              Assign an existing workspace member to this team. People must already belong to the
-              workspace before they can join a team.
+              <FormattedMessage {...addTeamMemberDialogMessages.description} />
             </DialogDescription>
           </DialogHeader>
 
           {assignableMembers.length === 0 ? (
-            <p className="text-sm text-foreground/52">
-              Everyone in this workspace is already on the team.
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage {...addTeamMemberDialogMessages.everyoneAlreadyOnTeam} />
             </p>
           ) : (
             <>
               <Field>
-                <FieldLabel htmlFor={memberId}>Member</FieldLabel>
+                <FieldLabel htmlFor={memberId}>
+                  <FormattedMessage {...addTeamMemberDialogMessages.memberLabel} />
+                </FieldLabel>
                 <Select
                   value={workosUserId}
                   onValueChange={(value) => {
@@ -100,8 +121,14 @@ export function AddTeamMemberDialog({
                   }}
                   disabled={isSaving}
                 >
-                  <SelectTrigger id={memberId} className="border-foreground/10 bg-foreground/4">
-                    <SelectValue placeholder="Select a member" />
+                  <SelectTrigger id={memberId} className="border-border bg-muted">
+                    <SelectValue
+                      placeholder={intl.formatMessage(
+                        addTeamMemberDialogMessages.selectMemberPlaceholder,
+                      )}
+                    >
+                      {selectedMemberEmail}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {assignableMembers.map((member) => (
@@ -114,24 +141,26 @@ export function AddTeamMemberDialog({
               </Field>
 
               <Field>
-                <FieldLabel>Role</FieldLabel>
+                <FieldLabel>
+                  <FormattedMessage {...addTeamMemberDialogMessages.roleLabel} />
+                </FieldLabel>
                 <Select
                   value={role}
                   onValueChange={(value) => setRole(value as TeamRole)}
                   disabled={isSaving}
                 >
-                  <SelectTrigger className="border-foreground/10 bg-foreground/4">
-                    <SelectValue>{getTeamRoleLabel(role)}</SelectValue>
+                  <SelectTrigger className="border-border bg-muted">
+                    <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {teamRoles.map((teamRole) => (
                       <SelectItem key={teamRole} value={teamRole}>
-                        {getTeamRoleLabel(teamRole)}
+                        {getTeamRoleLabel(teamRole, intl)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <FieldDescription>{getTeamRoleDescription(role)}</FieldDescription>
+                <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
               </Field>
             </>
           )}
@@ -143,11 +172,15 @@ export function AddTeamMemberDialog({
               disabled={isSaving}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              <FormattedMessage {...addTeamMemberDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving || assignableMembers.length === 0}>
               {isSaving ? <Spinner /> : <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />}
-              {isSaving ? "Adding..." : "Add member"}
+              {isSaving ? (
+                <FormattedMessage {...addTeamMemberDialogMessages.adding} />
+              ) : (
+                <FormattedMessage {...addTeamMemberDialogMessages.addMember} />
+              )}
             </Button>
           </DialogFooter>
         </form>

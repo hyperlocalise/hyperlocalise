@@ -1,15 +1,29 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { createInboxApi, type InboxApi } from "./inbox-api";
 import { InboxPageView } from "./inbox-page-view";
-import type { InboxCurrentUser } from "./inbox-types";
-import { useConversationStream } from "./use-conversation-stream";
+import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
 
 const inboxApi = createInboxApi(apiClient);
 
@@ -25,7 +39,7 @@ function jobsQueryKey(conversationId: string) {
   return ["conversation-jobs", conversationId] as const;
 }
 
-export function InboxPageContent({
+export const InboxPageContent = observer(function InboxPageContent({
   currentUser,
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
@@ -37,6 +51,8 @@ export function InboxPageContent({
   const router = useRouter();
   const params = useParams();
   const urlConversationId = params?.conversationId as string | undefined;
+  const { chatDock } = useAppShellStore();
+  const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
   const conversationsQuery = useQuery({
     queryKey: conversationsQueryKey(organizationSlug),
@@ -62,19 +78,29 @@ export function InboxPageContent({
     enabled: !!selectedConversationId,
   });
 
-  const refetchConversations = conversationsQuery.refetch;
-  const onStreamFinished = useCallback(() => {
-    void refetchConversations();
-  }, [refetchConversations]);
-
-  const { isStreaming, startStreaming, streamedAssistant } = useConversationStream({
-    organizationSlug,
-    onStreamFinished,
-  });
+  const streamSnapshot = selectedConversationId
+    ? streamManager.getSnapshot(selectedConversationId)
+    : null;
+  const isStreaming = Boolean(
+    selectedConversationId &&
+    (streamManager.isStreaming(selectedConversationId) || streamSnapshot?.status === "streaming"),
+  );
+  const streamedAssistant: StreamedAssistantMessage | null = streamSnapshot
+    ? {
+        conversationId: streamSnapshot.conversationId,
+        responseToMessageId: streamSnapshot.responseToMessageId,
+        message: streamSnapshot.message,
+        status: streamSnapshot.status,
+      }
+    : null;
 
   const sendMessageMutation = useMutation({
-    mutationFn: (input: { text: string; files: File[]; projectId?: string }) =>
-      injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
+    mutationFn: (input: {
+      text: string;
+      files: File[];
+      projectId?: string;
+      repositoryFullName?: string;
+    }) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
     onSuccess: () => {
       void messagesQuery.refetch();
       void conversationsQuery.refetch();
@@ -83,8 +109,12 @@ export function InboxPageContent({
 
   const mutateAsync = sendMessageMutation.mutateAsync;
   const onSendMessage = useCallback(
-    async (text: string, files: File[], projectId?: string) => {
-      await mutateAsync({ text, files, projectId });
+    async (
+      text: string,
+      files: File[],
+      options?: { projectId?: string; repositoryFullName?: string },
+    ) => {
+      await mutateAsync({ text, files, ...options });
     },
     [mutateAsync],
   );
@@ -101,30 +131,28 @@ export function InboxPageContent({
   const lastMessage = messages.at(-1);
   const isSparseInbox = !conversationsQuery.isLoading && conversations.length <= 1;
 
-  const autoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
     if (
-      selectedConversationId &&
-      messagesQuery.isSuccess &&
-      lastMessage?.senderType === "user" &&
-      !isStreaming &&
-      autoTriggeredRef.current !== lastMessage.id
+      !selectedConversationId ||
+      !messagesQuery.isSuccess ||
+      lastMessage?.senderType !== "user" ||
+      !streamManager.shouldAutoTriggerResponse(selectedConversationId, lastMessage.id)
     ) {
-      autoTriggeredRef.current = lastMessage.id;
-      void startStreaming({
-        conversationId: selectedConversationId,
-        responseToMessageId: lastMessage.id,
-        text: lastMessage.text,
-      });
+      return;
     }
+
+    void streamManager.start({
+      conversationId: selectedConversationId,
+      responseToMessageId: lastMessage.id,
+      text: lastMessage.text,
+    });
   }, [
-    isStreaming,
     lastMessage?.id,
     lastMessage?.senderType,
     lastMessage?.text,
     messagesQuery.isSuccess,
     selectedConversationId,
-    startStreaming,
+    streamManager,
   ]);
 
   return (
@@ -148,4 +176,4 @@ export function InboxPageContent({
       streamedAssistant={streamedAssistant}
     />
   );
-}
+});

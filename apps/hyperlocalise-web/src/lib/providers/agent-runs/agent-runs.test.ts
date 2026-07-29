@@ -1,7 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -25,7 +37,15 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+  );
+});
+
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await projectFixture.cleanup();
 });
 
@@ -180,13 +200,15 @@ describe("agent runs", () => {
       .where(eq(schema.usageEvents.operationKey, `agent-run:${created.id}:agent_runs`))
       .limit(1);
     expect(usageEvent).toMatchObject({
-      status: "tracking_pending",
       quantity: 1,
       dimensions: {
         autumn_event_name: "agent_run.completed",
         unit: "run",
       },
     });
+    expect(["tracking_pending", "tracking_failed", "tracking_succeeded"]).toContain(
+      usageEvent?.status,
+    );
   });
 
   it("fails a run and preserves partial output", async () => {

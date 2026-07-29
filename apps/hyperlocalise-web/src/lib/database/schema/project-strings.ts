@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -10,7 +22,11 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { projectTranslationProvenanceEnum, projectTranslationStatusEnum } from "./enums";
+import {
+  projectTranslationCommentTypeEnum,
+  projectTranslationProvenanceEnum,
+  projectTranslationStatusEnum,
+} from "./enums";
 import { repositorySourceFileVersions, repositorySourceFiles } from "./files";
 import { jobs } from "./jobs";
 import { organizations, users } from "./organizations";
@@ -103,5 +119,44 @@ export const projectTranslations = pgTable(
     uniqueIndex("project_translations_key_locale").on(table.translationKeyId, table.targetLocale),
     index("idx_project_translations_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translations_status").on(table.projectId, table.status),
+  ],
+);
+
+/**
+ * Stores CAT comments and review issues attached to native project translation keys.
+ */
+export const projectTranslationComments = pgTable(
+  "project_translation_comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    translationKeyId: uuid("translation_key_id")
+      .notNull()
+      .references(() => projectTranslationKeys.id, { onDelete: "cascade" }),
+    targetLocale: text("target_locale").notNull(),
+    type: projectTranslationCommentTypeEnum("type").notNull().default("comment"),
+    status: text("status"),
+    text: text("text").notNull(),
+    issueType: text("issue_type"),
+    authorUserId: uuid("author_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_project_translation_comments_org_project").on(table.organizationId, table.projectId),
+    index("idx_project_translation_comments_key_locale").on(
+      table.translationKeyId,
+      table.targetLocale,
+    ),
   ],
 );

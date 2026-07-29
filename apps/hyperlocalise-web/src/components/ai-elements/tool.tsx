@@ -1,30 +1,44 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { cn } from "@/lib/primitives/cn";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
-  CheckCircleIcon,
-  ChevronDownIcon,
+  CheckmarkCircle02Icon,
   CircleIcon,
-  ClockIcon,
-  WrenchIcon,
-  XCircleIcon,
-} from "lucide-react";
+  Clock01Icon,
+  MultiplicationSignCircleIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { CodeBlock } from "./code-block";
+import { AiElementErrorBoundary } from "./ai-element-error-boundary";
 import { toolMessages } from "./tool.messages";
-import { TypographyH4 } from "@/components/ui/typography";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
 
-export const Tool = ({ className, ...props }: ToolProps) => (
+export const Tool = ({ className, defaultOpen = false, ...props }: ToolProps) => (
   <Collapsible
-    className={cn("group not-prose mb-4 w-full rounded-md border", className)}
+    className={cn("group not-prose mb-1 w-full", className)}
+    defaultOpen={defaultOpen}
     {...props}
   />
 );
@@ -34,6 +48,9 @@ export type ToolPart = ToolUIPart | DynamicToolUIPart;
 export type ToolHeaderProps = {
   title?: string;
   className?: string;
+  /** Optional muted trailing detail. Overrides auto-derived input/status detail. */
+  detail?: string;
+  input?: ToolPart["input"];
 } & (
   | { type: ToolUIPart["type"]; state: ToolUIPart["state"]; toolName?: never }
   | {
@@ -54,14 +71,86 @@ const statusMessageKeys: Record<ToolPart["state"], keyof typeof toolMessages> = 
 };
 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
-  "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
-  "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
-  "input-available": <ClockIcon className="size-4 animate-pulse" />,
-  "input-streaming": <CircleIcon className="size-4" />,
-  "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
-  "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
-  "output-error": <XCircleIcon className="size-4 text-red-600" />,
+  "approval-requested": (
+    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 text-yellow-600" />
+  ),
+  "approval-responded": (
+    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-blue-600" />
+  ),
+  "input-available": (
+    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 animate-pulse" />
+  ),
+  "input-streaming": <HugeiconsIcon icon={CircleIcon} strokeWidth={2} className="size-4" />,
+  "output-available": (
+    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-green-600" />
+  ),
+  "output-denied": (
+    <HugeiconsIcon
+      icon={MultiplicationSignCircleIcon}
+      strokeWidth={2}
+      className="size-4 text-orange-600"
+    />
+  ),
+  "output-error": (
+    <HugeiconsIcon
+      icon={MultiplicationSignCircleIcon}
+      strokeWidth={2}
+      className="size-4 text-red-600"
+    />
+  ),
 };
+
+const INPUT_DETAIL_KEYS = [
+  "path",
+  "file",
+  "filename",
+  "filePath",
+  "command",
+  "query",
+  "url",
+  "name",
+  "title",
+  "pattern",
+  "target",
+] as const;
+
+/** Pull a short, human-readable detail from tool input for the collapsed summary line. */
+export function extractToolInputDetail(input: unknown): string | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+
+  const record = input as Record<string, unknown>;
+
+  for (const key of INPUT_DETAIL_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return truncateDetail(value.trim());
+    }
+    // Storybook screenshots pass `{ target: { type, storyId } }`.
+    if (key === "target" && value && typeof value === "object" && !Array.isArray(value)) {
+      const storyId = (value as Record<string, unknown>).storyId;
+      if (typeof storyId === "string" && storyId.trim()) {
+        return truncateDetail(storyId.trim());
+      }
+    }
+  }
+
+  for (const value of Object.values(record)) {
+    if (typeof value === "string" && value.trim() && value.length < 120) {
+      return truncateDetail(value.trim());
+    }
+  }
+
+  return null;
+}
+
+function truncateDetail(value: string, max = 64): string {
+  if (value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, max - 1)}…`;
+}
 
 export const ToolStatusBadge = ({ status }: { status: ToolPart["state"] }) => {
   const intl = useIntl();
@@ -83,21 +172,45 @@ export const ToolHeader = ({
   type,
   state,
   toolName,
+  detail,
+  input,
   ...props
 }: ToolHeaderProps) => {
-  const derivedName = type === "dynamic-tool" ? toolName : type.split("-").slice(1).join("-");
+  const intl = useIntl();
+  const derivedName =
+    type === "dynamic-tool"
+      ? toolName
+      : typeof type === "string"
+        ? type.split("-").slice(1).join("-")
+        : intl.formatMessage(toolMessages.fallbackName);
+
+  const name = title ?? derivedName;
+  const inputDetail = detail ?? extractToolInputDetail(input);
+  // Match the screenshot: primary = action/subject, muted = trailing metadata only.
+  // Prefer input detail as the muted trailer; fall back to status while in-flight/errored.
+  const muted =
+    inputDetail ??
+    (state === "output-available"
+      ? null
+      : intl.formatMessage(toolMessages[statusMessageKeys[state]]));
+  const isPending = state === "input-streaming" || state === "input-available";
 
   return (
     <CollapsibleTrigger
-      className={cn("flex w-full items-center justify-between gap-4 p-3", className)}
+      className={cn(
+        "flex w-full min-w-0 cursor-pointer items-baseline gap-1.5 py-0.5 text-start text-sm",
+        className,
+      )}
       {...props}
     >
-      <div className="flex items-center gap-2">
-        <WrenchIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{title ?? derivedName}</span>
-        <ToolStatusBadge status={state} />
-      </div>
-      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+      <span className="shrink-0 text-foreground">{name}</span>
+      {muted ? (
+        <span
+          className={cn("min-w-0 truncate text-muted-foreground", isPending && "animate-pulse")}
+        >
+          {muted}
+        </span>
+      ) : null}
     </CollapsibleTrigger>
   );
 };
@@ -107,7 +220,7 @@ export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 space-y-4 p-4 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 space-y-3 py-2 ps-0 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
       className,
     )}
     {...props}
@@ -116,55 +229,173 @@ export const ToolContent = ({ className, ...props }: ToolContentProps) => (
 
 export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolPart["input"];
+  /** When false, keep the JSON parameters collapsed (preferred for image tools). */
+  defaultOpen?: boolean;
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
-    <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      <FormattedMessage {...toolMessages.parameters} />
-    </TypographyH4>
-    <div className="rounded-md bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+/** `JSON.stringify(undefined)` returns `undefined`, which crashes CodeBlock's `.split`. */
+export function serializeToolJson(value: unknown): string {
+  if (value === undefined) {
+    return "{}";
+  }
+
+  try {
+    const serialized = JSON.stringify(value, null, 2);
+    return typeof serialized === "string" ? serialized : "{}";
+  } catch {
+    return "{}";
+  }
+}
+
+function ToolJsonSection({
+  label,
+  code,
+  defaultOpen = false,
+  className,
+}: {
+  label: ReactNode;
+  code: string;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className={cn("overflow-hidden", className)}>
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 py-0.5 text-start">
+        <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+        <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          {label}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-2">
+        <div className="rounded-md bg-muted/50">
+          <AiElementErrorBoundary scope="code-block" resetKeys={[code]}>
+            <CodeBlock code={code} language="json" />
+          </AiElementErrorBoundary>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export const ToolInput = ({ className, input, defaultOpen = true, ...props }: ToolInputProps) => {
+  const serializedInput = serializeToolJson(input);
+
+  return (
+    <div className={cn(className)} {...props}>
+      <ToolJsonSection
+        label={<FormattedMessage {...toolMessages.parameters} />}
+        code={serializedInput}
+        defaultOpen={defaultOpen}
+      />
     </div>
-  </div>
-);
+  );
+};
 
 export type ToolOutputProps = ComponentProps<"div"> & {
   output: ToolPart["output"];
   errorText: ToolPart["errorText"];
+  /** When false, keep the JSON result collapsed (preferred when an image is shown). */
+  defaultOpen?: boolean;
 };
 
-export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutputProps) => {
+type ImageToolOutput = {
+  url: string;
+  filename?: string;
+  contentType?: string;
+};
+
+export function getImageToolOutput(output: unknown): ImageToolOutput | null {
+  if (!output || typeof output !== "object" || isValidElement(output)) {
+    return null;
+  }
+
+  const record = output as Record<string, unknown>;
+  if (record.success !== true || typeof record.url !== "string" || !record.url) {
+    return null;
+  }
+
+  const contentType = typeof record.contentType === "string" ? record.contentType : "";
+  const filename = typeof record.filename === "string" ? record.filename : undefined;
+  const looksLikeImage =
+    contentType.toLowerCase().startsWith("image/") ||
+    Boolean(filename && /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(filename));
+
+  if (!looksLikeImage) {
+    return null;
+  }
+
+  return {
+    url: record.url,
+    filename,
+    contentType: contentType || undefined,
+  };
+}
+
+export const ToolOutput = ({
+  className,
+  output,
+  errorText,
+  defaultOpen,
+  ...props
+}: ToolOutputProps) => {
   if (!(output || errorText)) {
     return null;
   }
 
-  let Output = <div>{output as ReactNode}</div>;
+  const imageOutput = getImageToolOutput(output);
+  const jsonDefaultOpen = defaultOpen ?? !imageOutput;
+  let serializedOutput: string | null = null;
 
   if (typeof output === "object" && !isValidElement(output)) {
-    Output = <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />;
+    serializedOutput = serializeToolJson(output);
   } else if (typeof output === "string") {
-    Output = <CodeBlock code={output} language="json" />;
+    serializedOutput = output;
   }
 
   return (
-    <div className={cn("space-y-2", className)} {...props}>
-      <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-        {errorText ? (
-          <FormattedMessage {...toolMessages.error} />
-        ) : (
-          <FormattedMessage {...toolMessages.result} />
-        )}
-      </TypographyH4>
-      <div
-        className={cn(
-          "overflow-x-auto rounded-md text-xs [&_table]:w-full",
-          errorText ? "bg-destructive/10 text-destructive" : "bg-muted/50 text-foreground",
-        )}
-      >
-        {errorText && <div>{errorText}</div>}
-        {Output}
-      </div>
+    <div className={cn("space-y-3", className)} {...props}>
+      {imageOutput ? (
+        <ImageLightbox
+          alt={imageOutput.filename || "Tool result image"}
+          imageUrl={imageOutput.url}
+          title={imageOutput.filename}
+          trigger={
+            <div className="group overflow-hidden rounded-md border border-border bg-background">
+              {/* eslint-disable-next-line @next/next/no-img-element -- tool screenshot URLs are session-authenticated app proxy paths */}
+              <img
+                src={imageOutput.url}
+                alt={imageOutput.filename || "Tool result image"}
+                className="max-h-96 w-full object-contain transition-opacity group-hover:opacity-95"
+              />
+            </div>
+          }
+        />
+      ) : null}
+
+      {errorText ? (
+        <div className="space-y-2">
+          <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            <FormattedMessage {...toolMessages.error} />
+          </span>
+          <div className="overflow-x-auto rounded-md bg-destructive/10 p-3 text-destructive text-xs">
+            {errorText}
+          </div>
+        </div>
+      ) : null}
+
+      {serializedOutput ? (
+        <ToolJsonSection
+          label={<FormattedMessage {...toolMessages.result} />}
+          code={serializedOutput}
+          defaultOpen={jsonDefaultOpen}
+        />
+      ) : null}
+
+      {output && !serializedOutput && !imageOutput ? (
+        <div className="overflow-x-auto rounded-md bg-muted/50 text-foreground text-xs">
+          <div>{output as ReactNode}</div>
+        </div>
+      ) : null}
     </div>
   );
 };

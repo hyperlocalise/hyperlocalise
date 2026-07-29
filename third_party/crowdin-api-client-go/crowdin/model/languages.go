@@ -21,6 +21,7 @@ type Language struct {
 	PluralExamples      []string `json:"pluralExamples"`
 	TextDirection       string   `json:"textDirection"`
 	DialectOf           string   `json:"dialectOf"`
+	InternalCode        string   `json:"internalCode"`
 }
 
 // LanguagesListResponse defines the structure of a response

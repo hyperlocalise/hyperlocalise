@@ -22,7 +22,14 @@ func (p YAMLParser) Parse(content []byte) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
-	out := make(map[string]string)
+	// BOLT OPTIMIZATION: Hint capacity for the result map based on content size
+	// to reduce re-allocations during flattening of large YAML files.
+	capacity := len(content) / 64
+	if capacity < 4 {
+		capacity = 4
+	}
+	out := make(map[string]string, capacity)
+
 	if err := flattenYAMLNode(out, "", root); err != nil {
 		return nil, err
 	}

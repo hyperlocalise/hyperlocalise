@@ -1,10 +1,23 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type {
@@ -26,6 +39,8 @@ import {
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 type TermForm = {
   sourceTerm: string;
@@ -50,6 +65,7 @@ export function GlossaryDetailPageContent({
   glossaryId: string;
   canManageGlossaries: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [termForm, setTermForm] = useState<TermForm>(emptyTermForm);
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
@@ -63,7 +79,10 @@ export function GlossaryDetailPageContent({
           param: { organizationSlug, glossaryId },
         },
       );
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load glossary"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadGlossaryFailed)),
+        );
       const body = await response.json();
       return body.glossary as GlossaryRecord;
     },
@@ -75,7 +94,8 @@ export function GlossaryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].terms.$get({ param: { organizationSlug, glossaryId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load terms"));
+      if (!response.ok)
+        throw new Error(await readApiError(response, intl.formatMessage(messages.loadTermsFailed)));
       const body = await response.json();
       return body.glossaryTerms as GlossaryTermRecord[];
     },
@@ -87,7 +107,10 @@ export function GlossaryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].projects.$get({ param: { organizationSlug, glossaryId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load projects"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
+        );
       const body = await response.json();
       return body.projects as GlossaryProjectRecord[];
     },
@@ -100,7 +123,9 @@ export function GlossaryDetailPageContent({
         param: { organizationSlug },
       });
       if (response.status !== 200)
-        throw new Error(await readApiError(response, "Unable to load projects"));
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
+        );
       const body = await response.json();
       return body.projects;
     },
@@ -134,14 +159,15 @@ export function GlossaryDetailPageContent({
             param: { organizationSlug, glossaryId },
             json: payload,
           });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to save term"));
-      return response.json();
+      if (!response.ok)
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveTermFailed)));
+      return { body: await response.json(), wasEditing: Boolean(editingTermId) };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ wasEditing }) => {
       await invalidateTerms();
       setTermForm(emptyTermForm);
       setEditingTermId(null);
-      toast.success(editingTermId ? "Term updated" : "Term added");
+      toast.success(intl.formatMessage(wasEditing ? messages.termUpdated : messages.termAdded));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -151,11 +177,14 @@ export function GlossaryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].terms[":termId"].$delete({ param: { organizationSlug, glossaryId, termId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to delete term"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.deleteTermFailed)),
+        );
     },
     onSuccess: async () => {
       await invalidateTerms();
-      toast.success("Term deleted");
+      toast.success(intl.formatMessage(messages.termDeleted));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -170,12 +199,15 @@ export function GlossaryDetailPageContent({
         param: { organizationSlug, glossaryId },
         json: { format, content },
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to import terms"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.importTermsFailed)),
+        );
       return response.json();
     },
     onSuccess: async (body) => {
       await invalidateTerms();
-      toast.success(`Imported ${body.imported ?? 0} terms`);
+      toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -188,13 +220,16 @@ export function GlossaryDetailPageContent({
         param: { organizationSlug, glossaryId },
         json: { projectId, priority: 0 },
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to assign project"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.assignProjectFailed)),
+        );
       return response.json();
     },
     onSuccess: async () => {
       await invalidateProjects();
       setSelectedProjectId("");
-      toast.success("Project assigned");
+      toast.success(intl.formatMessage(messages.projectAssigned));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -204,11 +239,14 @@ export function GlossaryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].projects[":projectId"].$delete({ param: { organizationSlug, glossaryId, projectId } });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to remove project"));
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.removeProjectFailed)),
+        );
     },
     onSuccess: async () => {
       await invalidateProjects();
-      toast.success("Project removed");
+      toast.success(intl.formatMessage(messages.projectRemoved));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -226,12 +264,16 @@ export function GlossaryDetailPageContent({
 
   if (glossaryQuery.isLoading) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">Loading glossary...</TypographyP>
+      <TypographyP className="py-8 text-sm text-muted-foreground">
+        <FormattedMessage {...messages.loading} />
+      </TypographyP>
     );
   }
   if (!glossary) {
     return (
-      <TypographyP className="py-8 text-sm text-foreground/52">Glossary not found.</TypographyP>
+      <TypographyP className="py-8 text-sm text-muted-foreground">
+        <FormattedMessage {...messages.notFound} />
+      </TypographyP>
     );
   }
 
@@ -239,36 +281,50 @@ export function GlossaryDetailPageContent({
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <Link
         href={`/org/${organizationSlug}/glossaries`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-foreground/58 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        Glossaries
+        <FormattedMessage {...messages.backToList} />
       </Link>
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
             icon={BookOpenTextIcon}
-            className="size-5 text-foreground/48"
+            className="size-5 text-muted-foreground"
             strokeWidth={1.8}
           />
-          <Badge variant="outline">{glossary.source === "native" ? "Workspace" : "Provider"}</Badge>
           <Badge variant="outline">
-            {glossary.sourceLocale} → {glossary.targetLocale}
+            {glossary.source === "native" ? (
+              <FormattedMessage {...messages.sourceWorkspace} />
+            ) : (
+              <FormattedMessage {...messages.sourceProvider} />
+            )}
+          </Badge>
+          <Badge variant="outline">
+            <FormattedMessage
+              {...messages.localePair}
+              values={{
+                sourceLocale: glossary.sourceLocale,
+                targetLocale: glossary.targetLocale,
+              }}
+            />
           </Badge>
         </div>
         <TypographyH1 className="font-sans text-2xl font-medium">{glossary.name}</TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-foreground/58">
-          {glossary.description || "Manage terms and assign this glossary to projects."}
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          {glossary.description || intl.formatMessage(messages.descriptionFallback)}
         </TypographyP>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">Terms</TypographyP>
-            <TypographyP className="text-xs text-foreground/52">
-              Add terms manually or import CSV/TBX files.
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.termsTitle} />
+            </TypographyP>
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.termsDescription} />
             </TypographyP>
           </div>
           {canEdit ? (
@@ -288,7 +344,9 @@ export function GlossaryDetailPageContent({
         {canEdit ? (
           <div className="grid gap-3 md:grid-cols-2">
             <Field className="gap-1.5">
-              <FieldLabel>Source term</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.sourceTermLabel} />
+              </FieldLabel>
               <Input
                 value={termForm.sourceTerm}
                 onChange={(event) =>
@@ -297,7 +355,9 @@ export function GlossaryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Target term</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.targetTermLabel} />
+              </FieldLabel>
               <Input
                 value={termForm.targetTerm}
                 onChange={(event) =>
@@ -306,7 +366,9 @@ export function GlossaryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Part of speech</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.partOfSpeechLabel} />
+              </FieldLabel>
               <Input
                 value={termForm.partOfSpeech}
                 onChange={(event) =>
@@ -315,7 +377,9 @@ export function GlossaryDetailPageContent({
               />
             </Field>
             <Field className="gap-1.5">
-              <FieldLabel>Description</FieldLabel>
+              <FieldLabel>
+                <FormattedMessage {...messages.descriptionLabel} />
+              </FieldLabel>
               <Input
                 value={termForm.description}
                 onChange={(event) =>
@@ -331,7 +395,11 @@ export function GlossaryDetailPageContent({
                 }
                 onClick={() => saveTerm.mutate(termForm)}
               >
-                {editingTermId ? "Update term" : "Add term"}
+                {editingTermId ? (
+                  <FormattedMessage {...messages.updateTerm} />
+                ) : (
+                  <FormattedMessage {...messages.addTerm} />
+                )}
               </Button>
               {editingTermId ? (
                 <Button
@@ -342,26 +410,28 @@ export function GlossaryDetailPageContent({
                     setTermForm(emptyTermForm);
                   }}
                 >
-                  Cancel edit
+                  <FormattedMessage {...messages.cancelEdit} />
                 </Button>
               ) : null}
             </div>
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-foreground/8">
+        <div className="overflow-hidden rounded-lg border border-border">
           {(termsQuery.data ?? []).map((term) => (
             <div
               key={term.id}
-              className="grid gap-2 border-b border-foreground/8 px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
+              className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
             >
               <div>
                 <TypographyP className="text-sm font-medium">{term.sourceTerm}</TypographyP>
-                <TypographyP className="text-xs text-foreground/48">
+                <TypographyP className="text-xs text-muted-foreground">
                   {term.description || term.partOfSpeech}
                 </TypographyP>
               </div>
-              <TypographyP className="text-sm text-foreground/72">{term.targetTerm}</TypographyP>
+              <TypographyP className="text-sm text-subtle-foreground">
+                {term.targetTerm}
+              </TypographyP>
               {canEdit ? (
                 <div className="flex gap-2">
                   <Button
@@ -378,7 +448,7 @@ export function GlossaryDetailPageContent({
                       });
                     }}
                   >
-                    Edit
+                    <FormattedMessage {...messages.editTerm} />
                   </Button>
                   <Button
                     type="button"
@@ -386,27 +456,27 @@ export function GlossaryDetailPageContent({
                     variant="ghost"
                     onClick={() => deleteTerm.mutate(term.id)}
                   >
-                    Delete
+                    <FormattedMessage {...messages.deleteTerm} />
                   </Button>
                 </div>
               ) : null}
             </div>
           ))}
           {termsQuery.isSuccess && (termsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="px-4 py-6 text-sm text-foreground/52">
-              No terms yet.
+            <TypographyP className="px-4 py-6 text-sm text-muted-foreground">
+              <FormattedMessage {...messages.noTerms} />
             </TypographyP>
           ) : null}
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-foreground/8 p-4">
+      <section className="grid gap-4 rounded-lg border border-border p-4">
         <div>
           <TypographyP className="text-sm font-medium text-foreground">
-            Assigned projects
+            <FormattedMessage {...messages.assignedProjectsTitle} />
           </TypographyP>
-          <TypographyP className="text-xs text-foreground/52">
-            This glossary is used only by the projects listed here.
+          <TypographyP className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.assignedProjectsDescription} />
           </TypographyP>
         </div>
         {canEdit ? (
@@ -416,7 +486,7 @@ export function GlossaryDetailPageContent({
               onValueChange={(value) => setSelectedProjectId(value ?? "")}
             >
               <SelectTrigger className="sm:max-w-sm">
-                <SelectValue placeholder="Select project" />
+                <SelectValue placeholder={intl.formatMessage(messages.selectProjectPlaceholder)} />
               </SelectTrigger>
               <SelectContent>
                 {availableProjects.map((project) => (
@@ -431,7 +501,7 @@ export function GlossaryDetailPageContent({
               disabled={!selectedProjectId || attachProject.isPending}
               onClick={() => attachProject.mutate(selectedProjectId)}
             >
-              Assign to project
+              <FormattedMessage {...messages.assignToProject} />
             </Button>
           </div>
         ) : null}
@@ -439,7 +509,7 @@ export function GlossaryDetailPageContent({
           {(attachedProjectsQuery.data ?? []).map((project) => (
             <div
               key={project.projectId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-foreground/8 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
             >
               <Link
                 href={`/org/${organizationSlug}/projects/${project.projectId}`}
@@ -454,14 +524,14 @@ export function GlossaryDetailPageContent({
                   variant="ghost"
                   onClick={() => detachProject.mutate(project.projectId)}
                 >
-                  Remove
+                  <FormattedMessage {...messages.removeProject} />
                 </Button>
               ) : null}
             </div>
           ))}
           {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="text-sm text-foreground/52">
-              No projects assigned yet.
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...messages.noProjectsAssigned} />
             </TypographyP>
           ) : null}
         </div>
