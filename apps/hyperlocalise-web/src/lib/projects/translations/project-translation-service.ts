@@ -61,19 +61,46 @@ function translationKeysSourcePathFilter(sourcePaths: readonly string[] | null |
   return inArray(schema.repositorySourceFiles.sourcePath, [...sourcePaths]);
 }
 
-function translationKeysSearchCondition(search: string | undefined) {
-  const query = search?.trim();
+function escapeIlikePattern(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+function translationKeysSearchCondition(input: {
+  search?: string;
+  organizationId: string;
+  projectId: string;
+  targetLocale?: string;
+}) {
+  const query = input.search?.trim();
   if (!query) {
     return undefined;
   }
 
-  const pattern = `%${query}%`;
+  const pattern = `%${escapeIlikePattern(query)}%`;
 
-  return or(
+  const keySourceOrContext = or(
     ilike(schema.projectTranslationKeys.key, pattern),
     ilike(schema.projectTranslationKeys.sourceText, pattern),
     ilike(schema.projectTranslationKeys.context, pattern),
   );
+
+  if (!input.targetLocale) {
+    return keySourceOrContext;
+  }
+
+  // Also match target translation text for the active CAT locale so translators
+  // can find segments by the content they see in either column.
+  const targetTextMatch = sql`exists (
+    select 1
+    from ${schema.projectTranslations}
+    where ${schema.projectTranslations.translationKeyId} = ${schema.projectTranslationKeys.id}
+      and ${schema.projectTranslations.organizationId} = ${input.organizationId}
+      and ${schema.projectTranslations.projectId} = ${input.projectId}
+      and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
+      and ${schema.projectTranslations.text} ilike ${pattern}
+  )`;
+
+  return or(keySourceOrContext, targetTextMatch);
 }
 
 function translationKeysQueueFilterCondition(input: {
@@ -268,7 +295,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .where(
         and(
           translationKeysFileConditions(input),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
@@ -310,7 +337,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .where(
         and(
           translationKeysFileConditions(input),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
@@ -345,7 +372,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
@@ -393,7 +420,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
