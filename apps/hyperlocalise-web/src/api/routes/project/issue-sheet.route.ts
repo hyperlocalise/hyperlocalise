@@ -33,6 +33,7 @@ import {
   issueSheetParamsSchema,
   issueSheetQuerySchema,
   issueSheetActivitiesQuerySchema,
+  issueSheetFeedQuerySchema,
   issueSheetSetValueBodySchema,
   issueSheetUpdateIssueBodySchema,
 } from "./issue-sheet.schema";
@@ -93,6 +94,11 @@ const validateActivitiesQuery = createZodValidator(
   "query",
   issueSheetActivitiesQuerySchema,
   "invalid_issue_sheet_activities_query",
+);
+const validateFeedQuery = createZodValidator(
+  "query",
+  issueSheetFeedQuerySchema,
+  "invalid_issue_sheet_feed_query",
 );
 
 const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
@@ -256,6 +262,35 @@ export function createIssueSheetRoutes() {
         }
       },
     )
+    .get("/:issueId/feed", validateIssueSheetIssueParams, validateFeedQuery, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      try {
+        const query = c.req.valid("query");
+        const result = await service.listFeed({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          issueId: params.issueId,
+          actorUserId: c.var.auth.user.localUserId,
+          role: c.var.auth.membership.role,
+          limit: query.limit,
+          cursor: query.cursor,
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "issue_sheet_issue_not_found") {
+          return notFoundResponse(c, "issue_not_found", "Issue not found");
+        }
+        if (error instanceof Error && error.message === "invalid_issue_sheet_feed_cursor") {
+          return badRequestResponse(c, "invalid_issue_sheet_feed_cursor", "Invalid feed cursor");
+        }
+        throw error;
+      }
+    })
     .get("/:issueId", validateIssueSheetIssueParams, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);

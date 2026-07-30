@@ -139,7 +139,7 @@ type CommentRow = {
   authorAvatarUrl: string | null;
 };
 
-function toComment(
+export function mapIssueSheetCommentRow(
   row: CommentRow,
   actor: { userId: string; role: OrganizationMembershipRole },
 ): IssueSheetComment {
@@ -182,7 +182,7 @@ function toComment(
   };
 }
 
-const commentSelect = {
+export const issueSheetCommentSelect = {
   id: schema.issueSheetComments.id,
   organizationId: schema.issueSheetComments.organizationId,
   projectId: schema.issueSheetComments.projectId,
@@ -323,7 +323,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
 
     const [rows, totalRow] = await Promise.all([
       this.database
-        .select(commentSelect)
+        .select(issueSheetCommentSelect)
         .from(schema.issueSheetComments)
         .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
         .where(where)
@@ -348,7 +348,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     const hasMore = rows.length > input.query.limit;
     const pageRows = hasMore ? rows.slice(0, input.query.limit) : rows;
     const actor = { userId: input.actorUserId, role: input.role };
-    const issueComments = pageRows.map((row) => toComment(row, actor));
+    const issueComments = pageRows.map((row) => mapIssueSheetCommentRow(row, actor));
 
     let nextCursor: string | null = null;
     if (hasMore && pageRows.length > 0) {
@@ -456,7 +456,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         .where(eq(schema.issueSheetComments.id, inserted.id));
 
       const [row] = await tx
-        .select(commentSelect)
+        .select(issueSheetCommentSelect)
         .from(schema.issueSheetComments)
         .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
         .where(eq(schema.issueSheetComments.id, inserted.id))
@@ -482,7 +482,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
 
     return {
       ok: true,
-      value: toComment(comment, { userId: input.actorUserId, role: input.role }),
+      value: mapIssueSheetCommentRow(comment, { userId: input.actorUserId, role: input.role }),
     };
   }
 
@@ -550,7 +550,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .where(eq(schema.issueSheetComments.id, existing.id));
 
     const [row] = await this.database
-      .select(commentSelect)
+      .select(issueSheetCommentSelect)
       .from(schema.issueSheetComments)
       .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
       .where(eq(schema.issueSheetComments.id, existing.id))
@@ -562,7 +562,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
 
     return {
       ok: true,
-      value: toComment(row, { userId: input.actorUserId, role: input.role }),
+      value: mapIssueSheetCommentRow(row, { userId: input.actorUserId, role: input.role }),
     };
   }
 

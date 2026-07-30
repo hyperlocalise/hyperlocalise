@@ -144,6 +144,50 @@ export const issueSheetActivitiesQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+export const issueSheetFeedQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+    cursor: z.string().trim().min(1).max(512).optional(),
+  })
+  .superRefine((query, ctx) => {
+    if (!query.cursor) {
+      return;
+    }
+
+    const parts = query.cursor.split("|");
+    if (parts.length !== 3) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "feed cursor must be isoTimestamp|sortRank|uuid",
+      });
+      return;
+    }
+
+    const [createdAt, sortRank, id] = parts;
+    if (!createdAt || Number.isNaN(Date.parse(createdAt))) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "feed cursor timestamp is invalid",
+      });
+    }
+    if (sortRank !== "0" && sortRank !== "1") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "feed cursor sortRank must be 0 or 1",
+      });
+    }
+    if (!id || !z.uuid().safeParse(id).success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cursor"],
+        message: "feed cursor id is invalid",
+      });
+    }
+  });
+
 export const issueSheetAssignableMemberSchema = z.object({
   userId: z.string().uuid(),
   email: z.string(),
@@ -187,6 +231,7 @@ export const issueSheetActivitySchema = z.discriminatedUnion("type", [
 ]);
 
 export type IssueSheetActivitiesQuery = z.infer<typeof issueSheetActivitiesQuerySchema>;
+export type IssueSheetFeedQuery = z.infer<typeof issueSheetFeedQuerySchema>;
 
 export const issueSheetSystemFieldSchema = z.enum([
   "title",

@@ -803,4 +803,134 @@ Second import issue,Done,EXT-2,P2`;
     );
     expect(rejectRemoved.status).toBe(400);
   });
+
+  it("returns a unified feed of activities and comment threads ordered in SQL", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Feed interleave",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    const commentResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/comments`),
+      {
+        method: "POST",
+        headers,
+        body: { body: "Root comment" },
+      },
+    );
+    expect(commentResponse.status).toBe(201);
+    const commentBody = (await commentResponse.json()) as {
+      issueComment: { id: string; path: string };
+    };
+
+    const replyResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/comments`),
+      {
+        method: "POST",
+        headers,
+        body: { body: "Reply comment", parentId: commentBody.issueComment.id },
+      },
+    );
+    expect(replyResponse.status).toBe(201);
+
+    const statusChange = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { status: "in_progress" },
+      },
+    );
+    expect(statusChange.status).toBe(200);
+
+    const feedResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
+      { headers },
+    );
+    expect(feedResponse.status).toBe(200);
+    const feedBody = (await feedResponse.json()) as {
+      items: Array<
+        | { kind: "activity"; activity: { type: string } }
+        | {
+            kind: "comment_thread";
+            root: { id: string; body: string };
+            replies: Array<{ id: string; body: string; parentId: string | null }>;
+          }
+      >;
+      total: number;
+      nextCursor: string | null;
+    };
+
+    expect(feedBody.total).toBe(3);
+    expect(feedBody.nextCursor).toBeNull();
+    expect(feedBody.items.map((item) => item.kind)).toEqual([
+      "activity",
+      "comment_thread",
+      "activity",
+    ]);
+    expect(feedBody.items[0]).toMatchObject({
+      kind: "activity",
+      activity: { type: "issue_created" },
+    });
+    expect(feedBody.items[1]).toMatchObject({
+      kind: "comment_thread",
+      root: { id: commentBody.issueComment.id, body: "Root comment" },
+    });
+    const thread = feedBody.items[1];
+    if (thread?.kind !== "comment_thread") {
+      throw new Error("expected comment_thread");
+    }
+    expect(thread.replies).toHaveLength(1);
+    expect(thread.replies[0]).toMatchObject({
+      body: "Reply comment",
+      parentId: commentBody.issueComment.id,
+    });
+    expect(feedBody.items[2]).toMatchObject({
+      kind: "activity",
+      activity: { type: "status_changed" },
+    });
+
+    const pageOne = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
+      { headers, query: { limit: "2" } },
+    );
+    expect(pageOne.status).toBe(200);
+    const pageOneBody = (await pageOne.json()) as {
+      items: Array<{ kind: string }>;
+      nextCursor: string | null;
+      total: number;
+    };
+    expect(pageOneBody.total).toBe(3);
+    expect(pageOneBody.items).toHaveLength(2);
+    expect(pageOneBody.nextCursor).toBeTruthy();
+
+    const pageTwo = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
+      {
+        headers,
+        query: { limit: "2", cursor: pageOneBody.nextCursor! },
+      },
+    );
+    expect(pageTwo.status).toBe(200);
+    const pageTwoBody = (await pageTwo.json()) as {
+      items: Array<{ kind: string; activity?: { type: string } }>;
+      nextCursor: string | null;
+    };
+    expect(pageTwoBody.items).toHaveLength(1);
+    expect(pageTwoBody.items[0]).toMatchObject({
+      kind: "activity",
+      activity: { type: "status_changed" },
+    });
+    expect(pageTwoBody.nextCursor).toBeNull();
+  });
 });

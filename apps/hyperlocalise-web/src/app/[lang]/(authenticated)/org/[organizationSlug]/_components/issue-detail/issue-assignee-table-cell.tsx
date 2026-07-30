@@ -21,7 +21,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { IssueAssigneePicker } from "./issue-assignee-picker";
 import { issueDetailPanelMessages } from "./issue-detail-panel.messages";
 import { issueSheetApiPath } from "./issue-detail-utils";
-import { issueActivitiesQueryKey } from "./use-issue-activities";
+import { issueFeedQueryKey } from "./use-issue-feed";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 
 export function IssueAssigneeTableCell({
@@ -121,7 +121,7 @@ export function IssueAssigneeTableCell({
         queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] }),
         queryClient.invalidateQueries({ queryKey: ["organization-issues", organizationSlug] }),
         queryClient.invalidateQueries({
-          queryKey: issueActivitiesQueryKey(organizationSlug, projectId, issueId),
+          queryKey: issueFeedQueryKey(organizationSlug, projectId, issueId),
         }),
       ]);
     },

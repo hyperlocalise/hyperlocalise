@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
@@ -47,12 +47,9 @@ import { IssueCommentComposer } from "./issue-comment-composer";
 import { issueCommentMessages as messages } from "./issue-comment.messages";
 import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
 import { buildIssueDetailHref, issueStatusLabel } from "./issue-detail-utils";
-import {
-  useIssueCommentMutations,
-  useIssueCommentsQuery,
-  type IssueComment,
-} from "./use-issue-comments";
-import { useIssueActivitiesQuery, type IssueActivity } from "./use-issue-activities";
+import { useIssueCommentMutations, type IssueComment } from "./use-issue-comments";
+import { useIssueFeedQuery } from "./use-issue-feed";
+import type { IssueActivity } from "./use-issue-activities";
 
 function initials(name: string) {
   return name
@@ -61,29 +58,6 @@ function initials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-type FeedItem =
-  | {
-      kind: "comment_thread";
-      id: string;
-      createdAt: string;
-      root: IssueComment;
-      replies: IssueComment[];
-    }
-  | { kind: "activity"; id: string; createdAt: string; activity: IssueActivity };
-
-function groupCommentThreads(comments: IssueComment[]) {
-  const roots = comments
-    .filter((comment) => comment.depth === 0)
-    .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-
-  return roots.map((root) => ({
-    root,
-    replies: comments
-      .filter((comment) => comment.depth > 0 && comment.path.startsWith(`${root.path}.`))
-      .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)),
-  }));
 }
 
 function IssueCommentBody({
@@ -446,8 +420,7 @@ export function IssueCommentThread({
   issueId: string;
 }) {
   const intl = useIntl();
-  const commentsQuery = useIssueCommentsQuery({ organizationSlug, projectId, issueId });
-  const activitiesQuery = useIssueActivitiesQuery({ organizationSlug, projectId, issueId });
+  const feedQuery = useIssueFeedQuery({ organizationSlug, projectId, issueId });
   const { createComment } = useIssueCommentMutations({
     organizationSlug,
     projectId,
@@ -510,46 +483,10 @@ export function IssueCommentThread({
     },
   };
 
-  const comments = useMemo(
-    () => commentsQuery.data?.pages.flatMap((page) => page.issueComments) ?? [],
-    [commentsQuery.data?.pages],
-  );
-  const threads = useMemo(() => groupCommentThreads(comments), [comments]);
-  const activities = activitiesQuery.data?.activities ?? [];
-
-  const feedItems = useMemo(() => {
-    const items: FeedItem[] = [
-      ...threads.map(({ root, replies }) => ({
-        kind: "comment_thread" as const,
-        id: `comment:${root.id}`,
-        createdAt: root.createdAt,
-        root,
-        replies,
-      })),
-      ...activities.map((activity) => ({
-        kind: "activity" as const,
-        id: `activity:${activity.id}`,
-        createdAt: activity.createdAt,
-        activity,
-      })),
-    ];
-    return items.toSorted((a, b) => {
-      const byTime = a.createdAt.localeCompare(b.createdAt);
-      if (byTime !== 0) {
-        return byTime;
-      }
-      const aCreated = a.kind === "activity" && a.activity.type === "issue_created" ? 0 : 1;
-      const bCreated = b.kind === "activity" && b.activity.type === "issue_created" ? 0 : 1;
-      if (aCreated !== bCreated) {
-        return aCreated - bCreated;
-      }
-      return a.id.localeCompare(b.id);
-    });
-  }, [threads, activities]);
-
-  const hasMore = Boolean(commentsQuery.hasNextPage);
-  const isLoading = commentsQuery.isLoading || activitiesQuery.isLoading;
-  const isError = commentsQuery.isError || activitiesQuery.isError;
+  const feedItems = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const hasMore = Boolean(feedQuery.hasNextPage);
+  const isLoading = feedQuery.isLoading;
+  const isError = feedQuery.isError;
   const isEmpty = !isLoading && !isError && feedItems.length === 0;
 
   const handleCreate = async (input: {
@@ -594,7 +531,7 @@ export function IssueCommentThread({
               const connectAbove = feedItems[index - 1]?.kind === "activity";
               const connectBelow = feedItems[index + 1]?.kind === "activity";
               return (
-                <div key={item.id} className={cn(connectBelow && "-mb-2")}>
+                <div key={`activity:${item.activity.id}`} className={cn(connectBelow && "-mb-2")}>
                   <IssueActivityRow
                     activity={item.activity}
                     connectAbove={connectAbove}
@@ -606,7 +543,7 @@ export function IssueCommentThread({
 
             return (
               <IssueCommentThreadCard
-                key={item.id}
+                key={`comment:${item.root.id}`}
                 root={item.root}
                 replies={item.replies}
                 organizationSlug={organizationSlug}
@@ -626,12 +563,12 @@ export function IssueCommentThread({
             type="button"
             variant="outline"
             size="sm"
-            disabled={commentsQuery.isFetchingNextPage}
+            disabled={feedQuery.isFetchingNextPage}
             onClick={() => {
-              void commentsQuery.fetchNextPage();
+              void feedQuery.fetchNextPage();
             }}
           >
-            {commentsQuery.isFetchingNextPage ? (
+            {feedQuery.isFetchingNextPage ? (
               <FormattedMessage {...messages.loadingMore} />
             ) : (
               <FormattedMessage {...messages.loadMore} />

@@ -22,6 +22,7 @@ import {
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -30,6 +31,11 @@ import {
   listAssignableIssueMembers,
   type AssignableIssueMember,
 } from "./issue-sheet-assignee";
+import {
+  issueSheetCommentSelect,
+  mapIssueSheetCommentRow,
+  type IssueSheetComment,
+} from "./issue-sheet-comment-service";
 import {
   runIssueSheetCsvImport,
   type IssueSheetImportResult,
@@ -76,6 +82,77 @@ export type IssueSheetActivity =
       previousStatus: string;
       nextStatus: string;
     });
+
+export type IssueSheetFeedItem =
+  | { kind: "activity"; activity: IssueSheetActivity }
+  | {
+      kind: "comment_thread";
+      root: IssueSheetComment;
+      replies: IssueSheetComment[];
+    };
+
+export type IssueSheetFeedResult = {
+  items: IssueSheetFeedItem[];
+  total: number;
+  nextCursor: string | null;
+};
+
+const FEED_CURSOR_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseFeedCursor(
+  cursor: string,
+): { createdAt: string; sortRank: number; id: string } | null {
+  const parts = cursor.split("|");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [createdAt, sortRankRaw, id] = parts;
+  if (!createdAt || Number.isNaN(Date.parse(createdAt))) {
+    return null;
+  }
+  if (sortRankRaw !== "0" && sortRankRaw !== "1") {
+    return null;
+  }
+  if (!id || !FEED_CURSOR_UUID_PATTERN.test(id)) {
+    return null;
+  }
+  return { createdAt, sortRank: Number(sortRankRaw), id };
+}
+
+function encodeFeedCursor(input: { createdAt: string; sortRank: number; id: string }) {
+  return `${input.createdAt}|${input.sortRank}|${input.id}`;
+}
+
+type ActivityRow = {
+  id: string;
+  type: string;
+  payload: unknown;
+  createdAt: Date;
+  actorUserId: string | null;
+};
+
+type FeedPageRow = {
+  id: string;
+  kind: string;
+  created_at: Date | string;
+  created_at_cursor: string;
+  sort_rank: number | string;
+};
+
+function rowsFromExecute<T>(result: unknown): T[] {
+  if (Array.isArray(result)) {
+    return result as T[];
+  }
+  if (
+    result &&
+    typeof result === "object" &&
+    "rows" in result &&
+    Array.isArray((result as { rows: unknown }).rows)
+  ) {
+    return (result as { rows: T[] }).rows;
+  }
+  return [];
+}
 
 export type IssueSheetColumn = {
   id: string;
@@ -457,6 +534,217 @@ export class IssueSheetService {
       .limit(limit)
       .offset(offset);
 
+    const activities = await this.hydrateActivityRows(rows);
+    return { activities, total: totalRow?.total ?? 0 };
+  }
+
+  async listFeed(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    role: OrganizationMembershipRole;
+    limit?: number;
+    cursor?: string;
+  }): Promise<IssueSheetFeedResult> {
+    const [issue] = await this.database
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, input.organizationId),
+          eq(schema.issueSheetIssues.projectId, input.projectId),
+          eq(schema.issueSheetIssues.id, input.issueId),
+        ),
+      )
+      .limit(1);
+
+    if (!issue) {
+      throw new Error("issue_sheet_issue_not_found");
+    }
+
+    const limit = input.limit ?? 100;
+    const parsedCursor = input.cursor ? parseFeedCursor(input.cursor) : null;
+    if (input.cursor && !parsedCursor) {
+      throw new Error("invalid_issue_sheet_feed_cursor");
+    }
+
+    const cursorFilter = parsedCursor
+      ? sql`and (feed.created_at, feed.sort_rank, feed.id) > (${parsedCursor.createdAt}::timestamptz, ${parsedCursor.sortRank}, ${parsedCursor.id}::uuid)`
+      : sql``;
+
+    const [totalRow, feedResult] = await Promise.all([
+      this.database.execute(sql`
+        select (
+          (
+            select count(*)::int
+            from ${schema.issueSheetActivities}
+            where ${schema.issueSheetActivities.organizationId} = ${input.organizationId}
+              and ${schema.issueSheetActivities.projectId} = ${input.projectId}
+              and ${schema.issueSheetActivities.issueId} = ${input.issueId}
+          )
+          +
+          (
+            select count(*)::int
+            from ${schema.issueSheetComments}
+            where ${schema.issueSheetComments.organizationId} = ${input.organizationId}
+              and ${schema.issueSheetComments.projectId} = ${input.projectId}
+              and ${schema.issueSheetComments.issueId} = ${input.issueId}
+              and ${schema.issueSheetComments.depth} = 0
+          )
+        ) as total
+      `),
+      this.database.execute(sql`
+        select feed.id, feed.kind, feed.created_at, feed.created_at_cursor, feed.sort_rank
+        from (
+          select
+            ${schema.issueSheetActivities.id} as id,
+            'activity'::text as kind,
+            ${schema.issueSheetActivities.createdAt} as created_at,
+            ${schema.issueSheetActivities.createdAt}::text as created_at_cursor,
+            case
+              when ${schema.issueSheetActivities.type} = ${ISSUE_SHEET_ACTIVITY_ISSUE_CREATED}
+              then 0
+              else 1
+            end as sort_rank
+          from ${schema.issueSheetActivities}
+          where ${schema.issueSheetActivities.organizationId} = ${input.organizationId}
+            and ${schema.issueSheetActivities.projectId} = ${input.projectId}
+            and ${schema.issueSheetActivities.issueId} = ${input.issueId}
+          union all
+          select
+            ${schema.issueSheetComments.id} as id,
+            'comment_thread'::text as kind,
+            ${schema.issueSheetComments.createdAt} as created_at,
+            ${schema.issueSheetComments.createdAt}::text as created_at_cursor,
+            1 as sort_rank
+          from ${schema.issueSheetComments}
+          where ${schema.issueSheetComments.organizationId} = ${input.organizationId}
+            and ${schema.issueSheetComments.projectId} = ${input.projectId}
+            and ${schema.issueSheetComments.issueId} = ${input.issueId}
+            and ${schema.issueSheetComments.depth} = 0
+        ) as feed
+        where true
+        ${cursorFilter}
+        order by feed.created_at asc, feed.sort_rank asc, feed.id asc
+        limit ${limit + 1}
+      `),
+    ]);
+
+    const total = Number(rowsFromExecute<{ total?: number }>(totalRow)[0]?.total ?? 0);
+    const feedRows = rowsFromExecute<FeedPageRow>(feedResult);
+    const hasMore = feedRows.length > limit;
+    const pageRows = hasMore ? feedRows.slice(0, limit) : feedRows;
+
+    const activityIds = pageRows
+      .filter((row) => row.kind === "activity")
+      .map((row) => String(row.id));
+    const rootCommentIds = pageRows
+      .filter((row) => row.kind === "comment_thread")
+      .map((row) => String(row.id));
+
+    const activityRows =
+      activityIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              id: schema.issueSheetActivities.id,
+              type: schema.issueSheetActivities.type,
+              payload: schema.issueSheetActivities.payload,
+              createdAt: schema.issueSheetActivities.createdAt,
+              actorUserId: schema.issueSheetActivities.actorUserId,
+            })
+            .from(schema.issueSheetActivities)
+            .where(inArray(schema.issueSheetActivities.id, activityIds));
+
+    const activities = await this.hydrateActivityRows(activityRows);
+    const activitiesById = new Map(activities.map((activity) => [activity.id, activity] as const));
+
+    const actor = { userId: input.actorUserId, role: input.role };
+    const rootCommentRows =
+      rootCommentIds.length === 0
+        ? []
+        : await this.database
+            .select(issueSheetCommentSelect)
+            .from(schema.issueSheetComments)
+            .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
+            .where(inArray(schema.issueSheetComments.id, rootCommentIds));
+
+    const roots = rootCommentRows.map((row) => mapIssueSheetCommentRow(row, actor));
+    const rootsById = new Map(roots.map((root) => [root.id, root] as const));
+
+    const replyRows =
+      roots.length === 0
+        ? []
+        : await this.database
+            .select(issueSheetCommentSelect)
+            .from(schema.issueSheetComments)
+            .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
+            .where(
+              and(
+                eq(schema.issueSheetComments.organizationId, input.organizationId),
+                eq(schema.issueSheetComments.projectId, input.projectId),
+                eq(schema.issueSheetComments.issueId, input.issueId),
+                sql`${schema.issueSheetComments.depth} > 0`,
+                or(
+                  ...roots.map(
+                    (root) => sql`${schema.issueSheetComments.path} like ${`${root.path}.%`}`,
+                  ),
+                ),
+              ),
+            )
+            .orderBy(asc(schema.issueSheetComments.createdAt), asc(schema.issueSheetComments.id));
+
+    const repliesByRootId = new Map<string, IssueSheetComment[]>();
+    for (const row of replyRows) {
+      const reply = mapIssueSheetCommentRow(row, actor);
+      const root = roots.find((candidate) => reply.path.startsWith(`${candidate.path}.`));
+      if (!root) {
+        continue;
+      }
+      const existing = repliesByRootId.get(root.id);
+      if (existing) {
+        existing.push(reply);
+      } else {
+        repliesByRootId.set(root.id, [reply]);
+      }
+    }
+
+    const items: IssueSheetFeedItem[] = [];
+    for (const row of pageRows) {
+      const id = String(row.id);
+      if (row.kind === "activity") {
+        const activity = activitiesById.get(id);
+        if (activity) {
+          items.push({ kind: "activity", activity });
+        }
+        continue;
+      }
+
+      const root = rootsById.get(id);
+      if (root) {
+        items.push({
+          kind: "comment_thread",
+          root,
+          replies: repliesByRootId.get(root.id) ?? [],
+        });
+      }
+    }
+
+    let nextCursor: string | null = null;
+    if (hasMore && pageRows.length > 0) {
+      const last = pageRows[pageRows.length - 1]!;
+      nextCursor = encodeFeedCursor({
+        createdAt: String(last.created_at_cursor),
+        sortRank: Number(last.sort_rank),
+        id: String(last.id),
+      });
+    }
+
+    return { items, total, nextCursor };
+  }
+
+  private async hydrateActivityRows(rows: ActivityRow[]): Promise<IssueSheetActivity[]> {
     const userIds = new Set<string>();
     for (const row of rows) {
       if (row.actorUserId) {
@@ -464,13 +752,19 @@ export class IssueSheetService {
       }
       if (
         row.type === ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED &&
+        row.payload &&
+        typeof row.payload === "object" &&
         "previousAssigneeUserId" in row.payload
       ) {
-        if (typeof row.payload.previousAssigneeUserId === "string") {
-          userIds.add(row.payload.previousAssigneeUserId);
+        const payload = row.payload as {
+          previousAssigneeUserId?: unknown;
+          nextAssigneeUserId?: unknown;
+        };
+        if (typeof payload.previousAssigneeUserId === "string") {
+          userIds.add(payload.previousAssigneeUserId);
         }
-        if (typeof row.payload.nextAssigneeUserId === "string") {
-          userIds.add(row.payload.nextAssigneeUserId);
+        if (typeof payload.nextAssigneeUserId === "string") {
+          userIds.add(payload.nextAssigneeUserId);
         }
       }
     }
@@ -502,6 +796,10 @@ export class IssueSheetService {
         avatarUrl: actorRow?.avatarUrl ?? null,
       });
       const createdAt = row.createdAt.toISOString();
+      const payload =
+        row.payload && typeof row.payload === "object"
+          ? (row.payload as Record<string, unknown>)
+          : {};
 
       if (row.type === ISSUE_SHEET_ACTIVITY_ISSUE_CREATED) {
         activities.push({
@@ -515,12 +813,12 @@ export class IssueSheetService {
 
       if (row.type === ISSUE_SHEET_ACTIVITY_STATUS_CHANGED) {
         const previousStatus =
-          "previousStatus" in row.payload && typeof row.payload.previousStatus === "string"
-            ? row.payload.previousStatus
+          "previousStatus" in payload && typeof payload.previousStatus === "string"
+            ? payload.previousStatus
             : null;
         const nextStatus =
-          "nextStatus" in row.payload && typeof row.payload.nextStatus === "string"
-            ? row.payload.nextStatus
+          "nextStatus" in payload && typeof payload.nextStatus === "string"
+            ? payload.nextStatus
             : null;
         if (!previousStatus || !nextStatus) {
           continue;
@@ -541,13 +839,12 @@ export class IssueSheetService {
       }
 
       const previousId =
-        "previousAssigneeUserId" in row.payload &&
-        typeof row.payload.previousAssigneeUserId === "string"
-          ? row.payload.previousAssigneeUserId
+        "previousAssigneeUserId" in payload && typeof payload.previousAssigneeUserId === "string"
+          ? payload.previousAssigneeUserId
           : null;
       const nextId =
-        "nextAssigneeUserId" in row.payload && typeof row.payload.nextAssigneeUserId === "string"
-          ? row.payload.nextAssigneeUserId
+        "nextAssigneeUserId" in payload && typeof payload.nextAssigneeUserId === "string"
+          ? payload.nextAssigneeUserId
           : null;
       const previous = previousId ? usersById.get(previousId) : undefined;
       const next = nextId ? usersById.get(nextId) : undefined;
@@ -574,7 +871,7 @@ export class IssueSheetService {
       });
     }
 
-    return { activities, total: totalRow?.total ?? 0 };
+    return activities;
   }
 
   async createIssue(input: {

@@ -22,7 +22,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
-import { issueActivitiesQueryKey } from "./use-issue-activities";
+import { issueFeedQueryKey } from "./use-issue-feed";
 
 async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -97,7 +97,7 @@ export function useIssueDetailMutations({
     if (body && (Object.hasOwn(body, "assigneeUserId") || Object.hasOwn(body, "status"))) {
       tasks.push(
         queryClient.invalidateQueries({
-          queryKey: issueActivitiesQueryKey(organizationSlug, projectId, issueId),
+          queryKey: issueFeedQueryKey(organizationSlug, projectId, issueId),
         }),
       );
     }

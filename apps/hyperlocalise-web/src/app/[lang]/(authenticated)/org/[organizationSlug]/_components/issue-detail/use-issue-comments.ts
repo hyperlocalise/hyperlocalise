@@ -17,6 +17,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { readApiResponseError } from "@/lib/api-error";
 
 import { issueSheetApiPath } from "./issue-detail-utils";
+import { issueFeedQueryKey } from "./use-issue-feed";
 
 export type IssueCommentAuthor = {
   userId: string;
@@ -108,9 +109,14 @@ export function useIssueCommentMutations({
   issueId: string;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = issueCommentsQueryKey(organizationSlug, projectId, issueId);
+  const commentsQueryKey = issueCommentsQueryKey(organizationSlug, projectId, issueId);
+  const feedQueryKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: commentsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: feedQueryKey }),
+    ]);
 
   const createComment = useMutation({
     mutationFn: async (input: {
