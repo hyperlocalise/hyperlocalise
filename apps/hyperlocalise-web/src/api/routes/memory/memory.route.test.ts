@@ -57,7 +57,9 @@ describe("memoryRoutes", () => {
       const identity = fixture.createWorkosIdentityWithRole(role);
       const headers = await fixture.authHeadersFor(identity);
 
-      const createResponse = await client.api.orgs[":organizationSlug"]["translation-memories"].$post(
+      const createResponse = await client.api.orgs[":organizationSlug"][
+        "translation-memories"
+      ].$post(
         {
           param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
           json: {
@@ -74,9 +76,11 @@ describe("memoryRoutes", () => {
       });
     }
 
-    const { identity: adminIdentity, organization, memory } =
-      await fixture.createStoredMemoryFixture();
-    const member = fixture.createWorkosIdentityForOrganization(organization, "member");
+    const { identity: adminIdentity, memory } = await fixture.createStoredMemoryFixture();
+    const member = fixture.createWorkosIdentityForOrganization(
+      adminIdentity.organization,
+      "member",
+    );
     const memberHeaders = await fixture.authHeadersFor(member);
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
 
@@ -93,6 +97,7 @@ describe("memoryRoutes", () => {
           targetLocale: "es",
           sourceText: "Save",
           targetText: "Guardar",
+          matchScore: 100,
         },
       },
       { headers: memberHeaders },
