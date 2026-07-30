@@ -137,6 +137,11 @@ Second copy issue,Open,EXT-DUP`,
       "member",
     );
     const { user: assigneeUser } = await projectFixture.createLocalWorkosIdentity(assigneeIdentity);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: assigneeUser.id,
+      role: "member",
+    });
     const service = new IssueSheetService();
 
     const result = await runIssueSheetCsvImport(service, {
