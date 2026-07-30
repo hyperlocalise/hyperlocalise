@@ -20,7 +20,6 @@ import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet
 import {
   issueSheetCommentCreateBodySchema,
   issueSheetCommentIdParamsSchema,
-  issueSheetCommentListQuerySchema,
   issueSheetCommentParamsSchema,
   issueSheetCommentUpdateBodySchema,
 } from "./issue-sheet-comments.schema";
@@ -37,11 +36,6 @@ const validateCommentIdParams = createZodValidator(
   "param",
   issueSheetCommentIdParamsSchema,
   "invalid_issue_comment_params",
-);
-const validateListQuery = createZodValidator(
-  "query",
-  issueSheetCommentListQuerySchema,
-  "invalid_issue_comment_query",
 );
 const validateCreateBody = createZodValidator(
   "json",
@@ -90,26 +84,6 @@ function mapCommentError(
 
 export function createIssueSheetCommentRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
-    .get("/", validateCommentParams, validateListQuery, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const result = await service.list({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        issueId: params.issueId,
-        actorUserId: c.var.auth.user.localUserId,
-        role: c.var.auth.membership.role,
-        query: c.req.valid("query"),
-      });
-      if (!result.ok) {
-        return mapCommentError(c, result.error.code);
-      }
-      return c.json(result.value, 200);
-    })
     .post("/", validateCommentParams, validateCreateBody, async (c) => {
       const params = c.req.valid("param");
       const project = await getOwnedProject(c.var.auth, params.projectId);

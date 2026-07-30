@@ -32,7 +32,6 @@ import {
   issueSheetIssueParamsSchema,
   issueSheetParamsSchema,
   issueSheetQuerySchema,
-  issueSheetActivitiesQuerySchema,
   issueSheetFeedQuerySchema,
   issueSheetSetValueBodySchema,
   issueSheetUpdateIssueBodySchema,
@@ -89,11 +88,6 @@ const validateImportBody = createZodValidator(
   "json",
   issueSheetImportBodySchema,
   "invalid_issue_sheet_import_payload",
-);
-const validateActivitiesQuery = createZodValidator(
-  "query",
-  issueSheetActivitiesQuerySchema,
-  "invalid_issue_sheet_activities_query",
 );
 const validateFeedQuery = createZodValidator(
   "query",
@@ -233,35 +227,6 @@ export function createIssueSheetRoutes() {
         throw error;
       }
     })
-    .get(
-      "/:issueId/activities",
-      validateIssueSheetIssueParams,
-      validateActivitiesQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const project = await requireProject(c, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        try {
-          const query = c.req.valid("query");
-          const result = await service.listActivities({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: project.id,
-            issueId: params.issueId,
-            limit: query.limit,
-            offset: query.offset,
-          });
-          return c.json(result, 200);
-        } catch (error) {
-          if (error instanceof Error && error.message === "issue_sheet_issue_not_found") {
-            return notFoundResponse(c, "issue_not_found", "Issue not found");
-          }
-          throw error;
-        }
-      },
-    )
     .get("/:issueId/feed", validateIssueSheetIssueParams, validateFeedQuery, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);

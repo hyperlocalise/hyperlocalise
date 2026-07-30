@@ -139,11 +139,6 @@ export const issueSheetSetValueBodySchema = z.object({
   value: z.unknown(),
 });
 
-export const issueSheetActivitiesQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
 export const issueSheetFeedQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(100),
@@ -230,7 +225,6 @@ export const issueSheetActivitySchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export type IssueSheetActivitiesQuery = z.infer<typeof issueSheetActivitiesQuerySchema>;
 export type IssueSheetFeedQuery = z.infer<typeof issueSheetFeedQuerySchema>;
 
 export const issueSheetSystemFieldSchema = z.enum([

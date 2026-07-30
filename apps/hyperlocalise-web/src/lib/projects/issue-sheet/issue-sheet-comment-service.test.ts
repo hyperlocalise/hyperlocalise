@@ -15,6 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { eq } from "drizzle-orm";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
@@ -248,25 +249,6 @@ describe("IssueSheetCommentService", () => {
 
     expect(first.value.path < second.value.path).toBe(true);
     expect(earlyReply.value.path < lateReply.value.path).toBe(true);
-
-    const threadList = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: { limit: 50, offset: 0, sort: "thread" },
-    });
-    expect(threadList.ok).toBe(true);
-    if (!threadList.ok) {
-      return;
-    }
-    expect(threadList.value.issueComments.map((comment) => comment.body)).toEqual([
-      "First root",
-      "Early reply",
-      "Late reply",
-      "Second root",
-    ]);
   });
 
   it("rejects mentions of non-members and missing issues", async () => {
@@ -420,129 +402,6 @@ describe("IssueSheetCommentService", () => {
     expect(allowed.ok).toBe(true);
   });
 
-  it("lists in thread order and supports created_at cursor pagination", async () => {
-    const { identity, project, user } = await createProjectForIdentity();
-    await authFixture.authHeadersFor(identity);
-    const organizationId = actorAuth().organization.localOrganizationId;
-    const auth = actorAuth();
-
-    const issue = await issueSheetService.createIssue({
-      organizationId,
-      projectId: project.id,
-      actorUserId: user.id,
-      body: { title: "List issue", issueType: "general_question" },
-    });
-
-    const first = await commentService.create({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      auth,
-      body: { body: "A" },
-    });
-    const second = await commentService.create({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      auth,
-      body: { body: "B" },
-    });
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      return;
-    }
-
-    const reply = await commentService.create({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      auth,
-      body: { body: "A-reply", parentId: first.value.id },
-    });
-    expect(reply.ok).toBe(true);
-    if (!reply.ok) {
-      return;
-    }
-
-    const threadList = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: { limit: 50, offset: 0, sort: "thread" },
-    });
-    expect(threadList.ok).toBe(true);
-    if (!threadList.ok) {
-      return;
-    }
-    const threadBodies = threadList.value.issueComments.map((comment) => comment.body);
-    expect(threadBodies).toEqual(["A", "A-reply", "B"]);
-
-    const pageOne = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: { limit: 2, offset: 0, sort: "created_at" },
-    });
-    expect(pageOne.ok).toBe(true);
-    if (!pageOne.ok) {
-      return;
-    }
-    expect(pageOne.value.issueComments).toHaveLength(2);
-    expect(pageOne.value.nextCursor).toBeTruthy();
-
-    const firstThreadPage = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: { limit: 2, offset: 0, sort: "thread" },
-    });
-    expect(firstThreadPage.ok).toBe(true);
-    if (!firstThreadPage.ok) {
-      return;
-    }
-    expect(firstThreadPage.value.issueComments).toHaveLength(2);
-    expect(firstThreadPage.value.nextCursor).toBeTruthy();
-
-    const cursorPage = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: {
-        limit: 2,
-        offset: 0,
-        sort: "thread",
-        cursor: firstThreadPage.value.nextCursor!,
-      },
-    });
-    expect(cursorPage.ok).toBe(true);
-    if (!cursorPage.ok) {
-      return;
-    }
-    expect(cursorPage.value.issueComments).toHaveLength(1);
-    expect(cursorPage.value.nextCursor).toBeNull();
-    expect(
-      new Set(
-        [...firstThreadPage.value.issueComments, ...cursorPage.value.issueComments].map(
-          (comment) => comment.id,
-        ),
-      ).size,
-    ).toBe(3);
-  });
-
   it("cascades reply deletion when deleting a parent comment", async () => {
     const { identity, project, user } = await createProjectForIdentity();
     await authFixture.authHeadersFor(identity);
@@ -594,18 +453,10 @@ describe("IssueSheetCommentService", () => {
     });
     expect(deleted).toEqual({ ok: true });
 
-    const remaining = await commentService.list({
-      organizationId,
-      projectId: project.id,
-      issueId: issue.id,
-      actorUserId: user.id,
-      role: "admin",
-      query: { limit: 50, offset: 0, sort: "thread" },
-    });
-    expect(remaining.ok).toBe(true);
-    if (!remaining.ok) {
-      return;
-    }
-    expect(remaining.value.total).toBe(0);
+    const remaining = await db
+      .select({ id: schema.issueSheetComments.id })
+      .from(schema.issueSheetComments)
+      .where(eq(schema.issueSheetComments.issueId, issue.id));
+    expect(remaining).toHaveLength(0);
   });
 });

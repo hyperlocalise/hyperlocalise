@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { readApiResponseError } from "@/lib/api-error";
 
@@ -44,59 +44,8 @@ export type IssueComment = {
   canDelete: boolean;
 };
 
-export type IssueCommentsPage = {
-  issueComments: IssueComment[];
-  total: number;
-  nextCursor: string | null;
-};
-
-export const ISSUE_COMMENTS_PAGE_SIZE = 100;
-
-export function issueCommentsQueryKey(
-  organizationSlug: string,
-  projectId: string,
-  issueId: string,
-) {
-  return ["issue-comments", organizationSlug, projectId, issueId] as const;
-}
-
 function commentsApiPath(organizationSlug: string, projectId: string, issueId: string) {
   return `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}/comments`;
-}
-
-export function useIssueCommentsQuery({
-  organizationSlug,
-  projectId,
-  issueId,
-  enabled = true,
-}: {
-  organizationSlug: string;
-  projectId: string;
-  issueId: string;
-  enabled?: boolean;
-}) {
-  return useInfiniteQuery({
-    queryKey: issueCommentsQueryKey(organizationSlug, projectId, issueId),
-    enabled,
-    initialPageParam: null as string | null,
-    queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams({
-        sort: "thread",
-        limit: String(ISSUE_COMMENTS_PAGE_SIZE),
-      });
-      if (pageParam) {
-        params.set("cursor", pageParam);
-      }
-      const response = await fetch(
-        `${commentsApiPath(organizationSlug, projectId, issueId)}?${params.toString()}`,
-      );
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load comments");
-      }
-      return (await response.json()) as IssueCommentsPage;
-    },
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-  });
 }
 
 export function useIssueCommentMutations({
@@ -109,14 +58,9 @@ export function useIssueCommentMutations({
   issueId: string;
 }) {
   const queryClient = useQueryClient();
-  const commentsQueryKey = issueCommentsQueryKey(organizationSlug, projectId, issueId);
   const feedQueryKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
 
-  const invalidate = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: commentsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: feedQueryKey }),
-    ]);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: feedQueryKey });
 
   const createComment = useMutation({
     mutationFn: async (input: {

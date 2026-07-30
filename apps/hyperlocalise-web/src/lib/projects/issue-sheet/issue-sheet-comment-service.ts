@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { isOrganizationAdminRole } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -42,20 +42,6 @@ export type IssueSheetComment = {
   updatedAt: string;
   canEdit: boolean;
   canDelete: boolean;
-};
-
-export type IssueSheetCommentListQuery = {
-  limit: number;
-  offset: number;
-  cursor?: string;
-  sort: "thread" | "created_at";
-  parentId?: string;
-};
-
-export type IssueSheetCommentListResult = {
-  issueComments: IssueSheetComment[];
-  total: number;
-  nextCursor: string | null;
 };
 
 export type IssueSheetCommentCreateInput = {
@@ -94,22 +80,6 @@ function formatDisplayName(row: {
 }) {
   const name = [row.firstName, row.lastName].filter(Boolean).join(" ").trim();
   return name || row.email || "Unknown";
-}
-
-const CREATED_AT_CURSOR_UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function parseCreatedAtCursor(cursor: string): { createdAt: string; id: string } | null {
-  const separatorIndex = cursor.indexOf("|");
-  if (separatorIndex <= 0 || separatorIndex === cursor.length - 1) {
-    return null;
-  }
-  const createdAt = cursor.slice(0, separatorIndex);
-  const id = cursor.slice(separatorIndex + 1);
-  if (Number.isNaN(Date.parse(createdAt)) || !CREATED_AT_CURSOR_UUID_PATTERN.test(id)) {
-    return null;
-  }
-  return { createdAt, id };
 }
 
 function toStringArray(value: unknown): string[] {
@@ -268,103 +238,6 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     }
 
     return null;
-  }
-
-  async list(input: {
-    organizationId: string;
-    projectId: string;
-    issueId: string;
-    actorUserId: string;
-    role: OrganizationMembershipRole;
-    query: IssueSheetCommentListQuery;
-  }): Promise<
-    | { ok: true; value: IssueSheetCommentListResult }
-    | { ok: false; error: IssueSheetCommentServiceError }
-  > {
-    const issue = await this.findIssue(input);
-    if (!issue) {
-      return { ok: false, error: { code: "issue_not_found" } };
-    }
-
-    const conditions = [
-      eq(schema.issueSheetComments.organizationId, input.organizationId),
-      eq(schema.issueSheetComments.projectId, input.projectId),
-      eq(schema.issueSheetComments.issueId, input.issueId),
-    ];
-
-    if (input.query.parentId !== undefined) {
-      conditions.push(eq(schema.issueSheetComments.parentId, input.query.parentId));
-    }
-
-    if (input.query.cursor) {
-      if (input.query.sort === "thread") {
-        conditions.push(gt(schema.issueSheetComments.path, input.query.cursor));
-      } else {
-        // created_at cursors are validated as isoTimestamp|uuid by the list query schema.
-        const parsedCursor = parseCreatedAtCursor(input.query.cursor);
-        if (parsedCursor) {
-          conditions.push(
-            sql`(${schema.issueSheetComments.createdAt}, ${schema.issueSheetComments.id}) > (${parsedCursor.createdAt}::timestamptz, ${parsedCursor.id}::uuid)`,
-          );
-        }
-      }
-    }
-
-    const where = and(...conditions);
-    const orderBy =
-      input.query.sort === "thread"
-        ? [asc(schema.issueSheetComments.path)]
-        : [asc(schema.issueSheetComments.createdAt), asc(schema.issueSheetComments.id)];
-
-    // Always fetch one extra row so the first page (no cursor) can still
-    // produce a nextCursor when more comments remain.
-    const useCursor = Boolean(input.query.cursor);
-    const fetchLimit = input.query.limit + 1;
-
-    const [rows, totalRow] = await Promise.all([
-      this.database
-        .select(issueSheetCommentSelect)
-        .from(schema.issueSheetComments)
-        .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
-        .where(where)
-        .orderBy(...orderBy)
-        .limit(fetchLimit)
-        .offset(useCursor ? 0 : input.query.offset),
-      this.database
-        .select({ total: count() })
-        .from(schema.issueSheetComments)
-        .where(
-          and(
-            eq(schema.issueSheetComments.organizationId, input.organizationId),
-            eq(schema.issueSheetComments.projectId, input.projectId),
-            eq(schema.issueSheetComments.issueId, input.issueId),
-            input.query.parentId !== undefined
-              ? eq(schema.issueSheetComments.parentId, input.query.parentId)
-              : undefined,
-          ),
-        ),
-    ]);
-
-    const hasMore = rows.length > input.query.limit;
-    const pageRows = hasMore ? rows.slice(0, input.query.limit) : rows;
-    const actor = { userId: input.actorUserId, role: input.role };
-    const issueComments = pageRows.map((row) => mapIssueSheetCommentRow(row, actor));
-
-    let nextCursor: string | null = null;
-    if (hasMore && pageRows.length > 0) {
-      const last = pageRows[pageRows.length - 1]!;
-      nextCursor =
-        input.query.sort === "thread" ? last.path : `${last.createdAt.toISOString()}|${last.id}`;
-    }
-
-    return {
-      ok: true,
-      value: {
-        issueComments,
-        total: Number(totalRow[0]?.total ?? 0),
-        nextCursor,
-      },
-    };
   }
 
   async create(input: {

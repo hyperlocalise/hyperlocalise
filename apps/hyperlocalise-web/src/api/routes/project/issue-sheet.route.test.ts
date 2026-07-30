@@ -657,25 +657,41 @@ Second import issue,Done,EXT-2,P2`;
     expect(created.issue.assigneeUserId).toBe(teammateLocalId);
 
     const activitiesResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
       { headers },
     );
     expect(activitiesResponse.status).toBe(200);
     const activitiesBody = (await activitiesResponse.json()) as {
-      activities: Array<{
-        type: string;
-        nextAssignee: { userId: string } | null;
-        previousAssignee: { userId: string } | null;
-      }>;
+      items: Array<
+        | {
+            kind: "activity";
+            activity: {
+              type: string;
+              nextAssignee?: { userId: string } | null;
+              previousAssignee?: { userId: string } | null;
+            };
+          }
+        | { kind: "comment_thread" }
+      >;
       total: number;
     };
     expect(activitiesBody.total).toBe(2);
-    expect(activitiesBody.activities.map((activity) => activity.type)).toEqual([
-      "issue_created",
-      "assignee_changed",
-    ]);
-    expect(activitiesBody.activities[1]?.nextAssignee?.userId).toBe(teammateLocalId);
-    expect(activitiesBody.activities[1]?.previousAssignee).toBeNull();
+    expect(
+      activitiesBody.items
+        .filter((item) => item.kind === "activity")
+        .map((item) => item.activity.type),
+    ).toEqual(["issue_created", "assignee_changed"]);
+    const assigneeChanged = activitiesBody.items.find(
+      (item) => item.kind === "activity" && item.activity.type === "assignee_changed",
+    );
+    expect(assigneeChanged).toMatchObject({
+      kind: "activity",
+      activity: {
+        type: "assignee_changed",
+        nextAssignee: { userId: teammateLocalId },
+        previousAssignee: null,
+      },
+    });
 
     const assignableResponse = await requestJson(
       issueSheetUrl(organizationSlug, project.id, "/assignable-members"),
@@ -728,16 +744,25 @@ Second import issue,Done,EXT-2,P2`;
     expect(unassign.status).toBe(200);
 
     const activitiesAfter = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
       { headers },
     );
     const activitiesAfterBody = (await activitiesAfter.json()) as {
-      activities: Array<{ type: string; nextAssignee: { userId: string } | null }>;
+      items: Array<
+        | {
+            kind: "activity";
+            activity: { type: string; nextAssignee?: { userId: string } | null };
+          }
+        | { kind: "comment_thread" }
+      >;
       total: number;
     };
     expect(activitiesAfterBody.total).toBe(3);
-    expect(activitiesAfterBody.activities.at(-1)?.type).toBe("assignee_changed");
-    expect(activitiesAfterBody.activities.at(-1)?.nextAssignee).toBeNull();
+    const lastAfterUnassign = activitiesAfterBody.items.at(-1);
+    expect(lastAfterUnassign).toMatchObject({
+      kind: "activity",
+      activity: { type: "assignee_changed", nextAssignee: null },
+    });
 
     const statusChange = await requestJson(
       issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
@@ -750,22 +775,31 @@ Second import issue,Done,EXT-2,P2`;
     expect(statusChange.status).toBe(200);
 
     const activitiesAfterStatus = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
       { headers },
     );
     const activitiesAfterStatusBody = (await activitiesAfterStatus.json()) as {
-      activities: Array<{
-        type: string;
-        previousStatus?: string;
-        nextStatus?: string;
-      }>;
+      items: Array<
+        | {
+            kind: "activity";
+            activity: {
+              type: string;
+              previousStatus?: string;
+              nextStatus?: string;
+            };
+          }
+        | { kind: "comment_thread" }
+      >;
       total: number;
     };
     expect(activitiesAfterStatusBody.total).toBe(4);
-    expect(activitiesAfterStatusBody.activities.at(-1)).toMatchObject({
-      type: "status_changed",
-      previousStatus: "open",
-      nextStatus: "in_progress",
+    expect(activitiesAfterStatusBody.items.at(-1)).toMatchObject({
+      kind: "activity",
+      activity: {
+        type: "status_changed",
+        previousStatus: "open",
+        nextStatus: "in_progress",
+      },
     });
 
     const reassign = await requestJson(

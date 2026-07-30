@@ -59,12 +59,6 @@ type IssueComment = {
   author: { userId: string; displayName: string } | null;
 };
 
-type CommentListResponse = {
-  issueComments: IssueComment[];
-  total: number;
-  nextCursor: string | null;
-};
-
 type CommentResponse = {
   issueComment: IssueComment;
 };
@@ -133,7 +127,11 @@ describe("Issue sheet comment routes", () => {
 
     const response = await requestJson(
       commentsUrl(organizationSlug, project.id, "00000000-0000-4000-8000-000000000000"),
-      { headers },
+      {
+        method: "POST",
+        headers,
+        body: { body: "Blocked" },
+      },
     );
 
     expect(response.status).toBe(403);
@@ -142,7 +140,7 @@ describe("Issue sheet comment routes", () => {
     });
   });
 
-  it("creates, lists, updates, replies, and deletes comments", async () => {
+  it("creates, updates, replies, and deletes comments", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -182,17 +180,28 @@ describe("Issue sheet comment routes", () => {
     expect(reply.issueComment.path.startsWith(`${created.issueComment.path}.`)).toBe(true);
     expect(reply.issueComment.path.endsWith(`_${reply.issueComment.id}`)).toBe(true);
 
-    const listResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: { sort: "thread" },
+    const feedResponse = await requestJson(
+      `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(project.id)}/issue-sheet/${encodeURIComponent(issueId)}/feed`,
+      { headers },
+    );
+    expect(feedResponse.status).toBe(200);
+    const feedBody = (await feedResponse.json()) as {
+      items: Array<
+        | { kind: "activity" }
+        | {
+            kind: "comment_thread";
+            root: { id: string; body: string };
+            replies: Array<{ id: string; body: string }>;
+          }
+      >;
+      total: number;
+    };
+    const thread = feedBody.items.find((item) => item.kind === "comment_thread");
+    expect(thread).toMatchObject({
+      kind: "comment_thread",
+      root: { id: created.issueComment.id, body: "Root comment" },
+      replies: [{ id: reply.issueComment.id, body: "Reply comment" }],
     });
-    expect(listResponse.status).toBe(200);
-    const listBody = (await listResponse.json()) as CommentListResponse;
-    expect(listBody.total).toBe(2);
-    expect(listBody.issueComments.map((comment) => comment.body)).toEqual([
-      "Root comment",
-      "Reply comment",
-    ]);
 
     const patchResponse = await requestJson(
       commentsUrl(organizationSlug, project.id, issueId, `/${created.issueComment.id}`),
@@ -215,11 +224,14 @@ describe("Issue sheet comment routes", () => {
     );
     expect(deleteResponse.status).toBe(204);
 
-    const afterDelete = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-    });
-    const afterDeleteBody = (await afterDelete.json()) as CommentListResponse;
-    expect(afterDeleteBody.total).toBe(0);
+    const afterDelete = await requestJson(
+      `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(project.id)}/issue-sheet/${encodeURIComponent(issueId)}/feed`,
+      { headers },
+    );
+    const afterDeleteBody = (await afterDelete.json()) as {
+      items: Array<{ kind: string }>;
+    };
+    expect(afterDeleteBody.items.some((item) => item.kind === "comment_thread")).toBe(false);
   });
 
   it("forbids non-authors from editing or deleting comments", async () => {
@@ -311,85 +323,6 @@ describe("Issue sheet comment routes", () => {
       },
     );
     expect(deleteResponse.status).toBe(204);
-  });
-
-  it("paginates comments with offset and cursor", async () => {
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, headers);
-
-    for (const body of ["One", "Two", "Three"]) {
-      const response = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-        method: "POST",
-        headers,
-        body: { body },
-      });
-      expect(response.status).toBe(201);
-    }
-
-    const pageOne = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: { sort: "created_at", limit: "2", offset: "0" },
-    });
-    expect(pageOne.status).toBe(200);
-    const pageOneBody = (await pageOne.json()) as CommentListResponse;
-    expect(pageOneBody.issueComments).toHaveLength(2);
-    expect(pageOneBody.total).toBe(3);
-
-    const pageTwo = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: { sort: "created_at", limit: "2", offset: "2" },
-    });
-    const pageTwoBody = (await pageTwo.json()) as CommentListResponse;
-    expect(pageTwoBody.issueComments).toHaveLength(1);
-    expect(
-      new Set(
-        [...pageOneBody.issueComments, ...pageTwoBody.issueComments].map((comment) => comment.id),
-      ).size,
-    ).toBe(3);
-
-    const cursorPage = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: { sort: "thread", limit: "2" },
-    });
-    const cursorBody = (await cursorPage.json()) as CommentListResponse;
-    expect(cursorBody.issueComments).toHaveLength(2);
-    expect(cursorBody.nextCursor).toBeTruthy();
-
-    const cursorPageTwo = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: {
-        sort: "thread",
-        limit: "2",
-        cursor: cursorBody.nextCursor!,
-      },
-    });
-    const cursorPageTwoBody = (await cursorPageTwo.json()) as CommentListResponse;
-    expect(cursorPageTwoBody.issueComments).toHaveLength(1);
-    expect(
-      new Set(
-        [...cursorBody.issueComments, ...cursorPageTwoBody.issueComments].map(
-          (comment) => comment.id,
-        ),
-      ).size,
-    ).toBe(3);
-  });
-
-  it("rejects malformed created_at cursors", async () => {
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, headers);
-
-    const response = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
-      headers,
-      query: { sort: "created_at", cursor: "not-a-date|not-a-uuid" },
-    });
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "invalid_issue_comment_query",
-    });
   });
 
   it("removes comments when the parent issue is deleted", async () => {
