@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-21 - Fix GetManagers endpoint path and signature parity
+
+**Learning:** In Crowdin Enterprise API v2, retrieving a single manager requires specifying both the `groupId` and the `userId` in the path `/api/v2/groups/{groupId}/managers/{userId}`. The SDK previously only accepted `groupID` and requested the listing endpoint `/api/v2/groups/{groupId}/managers` while trying to unmarshal it as a single `ManagerGetResponse` struct. Under real workloads, this led to immediate JSON unmarshaling errors due to array-to-object type mismatch.
+
+**Action:** Updated the `GetManagers` signature to accept `userID` in addition to `groupID` in `crowdin/users.go`, and updated the HTTP request URL path to `/api/v2/groups/%d/managers/%d`. Updated `TestManagersService_Get` in `crowdin/users_test.go` to assert correct request path generation.
+
 ## 2026-07-29 - Validate derived exportWithMinApprovalsCount from exportApprovedOnly
 
 **Learning:** `ExportTranslationRequest.MarshalJSON` maps `exportApprovedOnly=true` to `exportWithMinApprovalsCount=1` when no explicit approval count is set. Validating only the explicit `ExportWithMinApprovalsCount` field let `exportApprovedOnly=true` + `exportStringsThatPassedWorkflow=true` pass client validation and still serialize into the incompatible API pair.
