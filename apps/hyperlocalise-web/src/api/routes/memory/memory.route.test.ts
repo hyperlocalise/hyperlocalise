@@ -50,6 +50,75 @@ afterEach(async () => {
 });
 
 describe("memoryRoutes", () => {
+  it("denies memory mutations for roles without memories:write", async () => {
+    const deniedRoles = ["member", "developer", "translator", "reviewer"] as const;
+
+    for (const role of deniedRoles) {
+      const identity = fixture.createWorkosIdentityWithRole(role);
+      const headers = await fixture.authHeadersFor(identity);
+
+      const createResponse = await client.api.orgs[":organizationSlug"]["translation-memories"].$post(
+        {
+          param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+          json: {
+            name: "Unauthorized TM",
+            description: "Should be forbidden",
+          },
+        },
+        { headers },
+      );
+
+      expect(createResponse.status).toBe(403);
+      await expect(createResponse.json()).resolves.toMatchObject({
+        error: "forbidden",
+      });
+    }
+
+    const { identity: adminIdentity, organization, memory } =
+      await fixture.createStoredMemoryFixture();
+    const member = fixture.createWorkosIdentityForOrganization(organization, "member");
+    const memberHeaders = await fixture.authHeadersFor(member);
+    const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
+
+    const entryResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param: {
+          organizationSlug,
+          memoryId: memory.id,
+        },
+        json: {
+          sourceLocale: "en",
+          targetLocale: "es",
+          sourceText: "Save",
+          targetText: "Guardar",
+        },
+      },
+      { headers: memberHeaders },
+    );
+    expect(entryResponse.status).toBe(403);
+    await expect(entryResponse.json()).resolves.toMatchObject({
+      error: "forbidden",
+    });
+
+    const deleteResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          memoryId: memory.id,
+        },
+      },
+      { headers: memberHeaders },
+    );
+    expect(deleteResponse.status).toBe(403);
+    await expect(deleteResponse.json()).resolves.toMatchObject({
+      error: "forbidden",
+    });
+  });
+
   it("imports CSV memory entries with quoted multiline cells and clamps match scores", async () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);
