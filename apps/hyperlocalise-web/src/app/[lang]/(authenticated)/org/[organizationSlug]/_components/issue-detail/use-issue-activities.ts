@@ -46,6 +46,8 @@ export type IssueActivity =
       nextStatus: string;
     });
 
+const ACTIVITIES_PAGE_SIZE = 100;
+
 export function issueActivitiesQueryKey(
   organizationSlug: string,
   projectId: string,
@@ -69,13 +71,32 @@ export function useIssueActivitiesQuery({
     queryKey: issueActivitiesQueryKey(organizationSlug, projectId, issueId),
     enabled: Boolean(organizationSlug && projectId && issueId && enabled),
     queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}/activities`,
-      );
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load issue activities");
+      const activities: IssueActivity[] = [];
+      let total = 0;
+      let offset = 0;
+
+      while (true) {
+        const params = new URLSearchParams({
+          limit: String(ACTIVITIES_PAGE_SIZE),
+          offset: String(offset),
+        });
+        const response = await fetch(
+          `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}/activities?${params}`,
+        );
+        if (!response.ok) {
+          throw await readApiResponseError(response, "Failed to load issue activities");
+        }
+        const page = (await response.json()) as { activities: IssueActivity[]; total: number };
+        total = page.total;
+        activities.push(...page.activities);
+
+        offset += page.activities.length;
+        if (page.activities.length === 0 || offset >= total) {
+          break;
+        }
       }
-      return (await response.json()) as { activities: IssueActivity[]; total: number };
+
+      return { activities, total };
     },
   });
 }

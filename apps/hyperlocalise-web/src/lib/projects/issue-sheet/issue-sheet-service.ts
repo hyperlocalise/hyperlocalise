@@ -707,41 +707,14 @@ export class IssueSheetService {
           ? null
           : undefined;
 
-    const [current] = await this.database
-      .select({
-        id: schema.issueSheetIssues.id,
-        status: schema.issueSheetIssues.status,
-        assigneeUserId: schema.issueSheetIssues.assigneeUserId,
-      })
-      .from(schema.issueSheetIssues)
-      .where(
-        and(
-          eq(schema.issueSheetIssues.organizationId, input.organizationId),
-          eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.id, input.issueId),
-        ),
-      )
-      .limit(1);
-
-    if (!current) {
-      return null;
-    }
-
     const assigneeChanging = Object.hasOwn(input.body, "assigneeUserId");
-    const nextAssigneeUserId = assigneeChanging
-      ? (input.body.assigneeUserId ?? null)
-      : current.assigneeUserId;
-    const statusChanging =
-      Object.hasOwn(input.body, "status") &&
-      input.body.status != null &&
-      input.body.status !== current.status;
-    const nextStatusValue = statusChanging ? input.body.status! : current.status;
+    const requestedAssigneeUserId = assigneeChanging ? (input.body.assigneeUserId ?? null) : null;
 
-    if (assigneeChanging && nextAssigneeUserId) {
+    if (assigneeChanging && requestedAssigneeUserId) {
       const assignable = await assertAssignableIssueAssignee({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        assigneeUserId: nextAssigneeUserId,
+        assigneeUserId: requestedAssigneeUserId,
         database: this.database,
       });
       if (isErr(assignable)) {
@@ -749,7 +722,37 @@ export class IssueSheetService {
       }
     }
 
-    await this.database.transaction(async (tx) => {
+    const found = await this.database.transaction(async (tx) => {
+      const [current] = await tx
+        .select({
+          id: schema.issueSheetIssues.id,
+          status: schema.issueSheetIssues.status,
+          assigneeUserId: schema.issueSheetIssues.assigneeUserId,
+        })
+        .from(schema.issueSheetIssues)
+        .where(
+          and(
+            eq(schema.issueSheetIssues.organizationId, input.organizationId),
+            eq(schema.issueSheetIssues.projectId, input.projectId),
+            eq(schema.issueSheetIssues.id, input.issueId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!current) {
+        return false;
+      }
+
+      const nextAssigneeUserId = assigneeChanging
+        ? requestedAssigneeUserId
+        : current.assigneeUserId;
+      const statusChanging =
+        Object.hasOwn(input.body, "status") &&
+        input.body.status != null &&
+        input.body.status !== current.status;
+      const nextStatusValue = statusChanging ? input.body.status! : current.status;
+
       await tx
         .update(schema.issueSheetIssues)
         .set({
@@ -797,7 +800,13 @@ export class IssueSheetService {
           nextAssigneeUserId,
         });
       }
+
+      return true;
     });
+
+    if (!found) {
+      return null;
+    }
 
     return this.getIssueById(input);
   }

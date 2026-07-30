@@ -157,7 +157,7 @@ export async function assertAssignableIssueAssignee(input: {
 export async function listAssignableIssueMembers(input: {
   organizationId: string;
   projectId: string;
-  actorUserId: string;
+  actorUserId?: string;
   database?: DatabaseClient;
 }): Promise<AssignableIssueMember[]> {
   const database = input.database ?? db;
@@ -232,7 +232,7 @@ export async function listAssignableIssueMembers(input: {
       lastName: row.lastName,
       displayName: formatMemberDisplayName(row),
       avatarUrl: row.avatarUrl,
-      isCurrentUser: row.userId === input.actorUserId,
+      isCurrentUser: input.actorUserId != null && row.userId === input.actorUserId,
     }))
     .toSorted(
       (a, b) => a.displayName.localeCompare(b.displayName) || a.email.localeCompare(b.email),
@@ -250,22 +250,14 @@ export async function filterAssignableAssigneeUserIds(input: {
     return new Set();
   }
 
-  const database = input.database ?? db;
-  const assignable = new Set<string>();
+  const requestedIds = new Set(uniqueIds);
+  const members = await listAssignableIssueMembers({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    database: input.database,
+  });
 
-  await Promise.all(
-    uniqueIds.map(async (userId) => {
-      const result = await assertAssignableIssueAssignee({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        assigneeUserId: userId,
-        database,
-      });
-      if (result.ok) {
-        assignable.add(userId);
-      }
-    }),
+  return new Set(
+    members.map((member) => member.userId).filter((userId) => requestedIds.has(userId)),
   );
-
-  return assignable;
 }

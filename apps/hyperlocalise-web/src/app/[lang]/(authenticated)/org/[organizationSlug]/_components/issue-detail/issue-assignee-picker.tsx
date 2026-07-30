@@ -258,24 +258,34 @@ export function IssueAssigneePicker({
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup heading={intl.formatMessage(messages.membersGroup)}>
-              {members.map((member) => (
-                <CommandItem
-                  key={member.userId}
-                  value={memberSearchValue(member)}
-                  data-checked={value === member.userId || undefined}
-                  onSelect={() => {
-                    onChange(member.userId);
-                    setOpen(false);
-                  }}
-                >
-                  <AssigneeAvatar
-                    label={memberPrimaryLabel(member)}
-                    avatarUrl={member.avatarUrl}
-                    seed={member.userId}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{memberPrimaryLabel(member)}</span>
-                </CommandItem>
-              ))}
+              {members.map((member) => {
+                const primaryLabel = memberPrimaryLabel(member);
+                return (
+                  <CommandItem
+                    key={member.userId}
+                    value={memberSearchValue(member)}
+                    data-checked={value === member.userId || undefined}
+                    onSelect={() => {
+                      onChange(member.userId);
+                      setOpen(false);
+                    }}
+                  >
+                    <AssigneeAvatar
+                      label={primaryLabel}
+                      avatarUrl={member.avatarUrl}
+                      seed={member.userId}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="block truncate">{primaryLabel}</span>
+                      {primaryLabel !== member.email ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {member.email}
+                        </span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

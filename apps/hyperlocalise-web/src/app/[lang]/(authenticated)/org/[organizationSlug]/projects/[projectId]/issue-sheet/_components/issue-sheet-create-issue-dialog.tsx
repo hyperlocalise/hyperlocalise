@@ -166,6 +166,11 @@ export function IssueSheetCreateIssueDialog({
   }, [open, projectId, projects]);
 
   const resolvedProjectId = projectId ?? selectedProjectId;
+
+  useEffect(() => {
+    setAssigneeUserId(null);
+  }, [resolvedProjectId]);
+
   const showProjectPicker = Boolean(projects && projects.length > 0 && !projectId);
   const assignableMembersQuery = useAssignableIssueMembersQuery({
     organizationSlug,
@@ -247,7 +252,10 @@ export function IssueSheetCreateIssueDialog({
                 <Select
                   value={selectedProjectId || undefined}
                   items={projectItems}
-                  onValueChange={(value) => setSelectedProjectId(value ?? "")}
+                  onValueChange={(value) => {
+                    setSelectedProjectId(value ?? "");
+                    setAssigneeUserId(null);
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={intl.formatMessage(messages.projectPlaceholder)} />
