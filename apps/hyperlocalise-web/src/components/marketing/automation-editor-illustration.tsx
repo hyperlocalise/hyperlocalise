@@ -147,9 +147,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
               }
             />
             <MockRow
-              icon={
-                <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />
-              }
+              icon={<HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />}
               title={<FormattedMessage {...automationEditorIllustrationMessages.toolValidation} />}
               description={
                 <FormattedMessage

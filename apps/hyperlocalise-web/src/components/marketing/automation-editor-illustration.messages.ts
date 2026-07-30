@@ -17,7 +17,7 @@ import { defineMessages } from "react-intl";
 export const automationEditorIllustrationMessages = defineMessages({
   automationName: {
     defaultMessage: "Medical device compliance check",
-    id: "H8bNcbLNen",
+    id: "3cyl65gUFm",
     description: "Automation name shown in the marketing automation editor mock",
   },
   settingsTab: {
@@ -32,17 +32,17 @@ export const automationEditorIllustrationMessages = defineMessages({
   },
   scheduledTrigger: {
     defaultMessage: "Scheduled",
-    id: "5YseOmwLin",
+    id: "GC8iH4BPwj",
     description: "Scheduled trigger title in the marketing automation editor mock",
   },
   scheduleCadence: {
     defaultMessage: "Daily",
-    id: "s/3fnj/Eu/",
+    id: "x3xLP2YerQ",
     description: "Schedule cadence pill in the marketing automation editor mock",
   },
   scheduleTime: {
     defaultMessage: "08:00 UTC",
-    id: "LLQAT26N2S",
+    id: "dStMwhojOw",
     description: "Schedule time pill in the marketing automation editor mock",
   },
   instructionsSection: {
@@ -53,7 +53,7 @@ export const automationEditorIllustrationMessages = defineMessages({
   instructionsBody: {
     defaultMessage:
       "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
-    id: "+MYLJhmlev",
+    id: "MCViSbp0Sq",
     description: "Sample agent instructions in the marketing automation editor mock",
   },
   toolsSection: {
@@ -68,17 +68,17 @@ export const automationEditorIllustrationMessages = defineMessages({
   },
   toolKnowledgeDescription: {
     defaultMessage: "Use approved medical terminology and regulatory glossary as guidance.",
-    id: "6/+JsEuq89",
+    id: "BQ2Um1RaCK",
     description: "Knowledge memories tool description in the marketing automation editor mock",
   },
   toolValidation: {
     defaultMessage: "Validation",
-    id: "zIGAcrN6+O",
+    id: "1xBioz9EDW",
     description: "Validation tool title in the marketing automation editor mock",
   },
   toolValidationDescription: {
     defaultMessage: "Check locale coverage, terminology, and compliance gates.",
-    id: "hr7MzZuStw",
+    id: "jQ5TgyeZII",
     description: "Validation tool description in the marketing automation editor mock",
   },
   toolSlack: {
@@ -88,7 +88,7 @@ export const automationEditorIllustrationMessages = defineMessages({
   },
   toolSlackDescription: {
     defaultMessage: "Notify #compliance when findings need review.",
-    id: "ZAAVT7ICJL",
+    id: "X6g1omP0I1",
     description: "Slack tool description in the marketing automation editor mock",
   },
   addTool: {

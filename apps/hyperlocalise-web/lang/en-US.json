@@ -111,10 +111,6 @@
     "defaultMessage": "—",
     "description": "Placeholder when a provider detail value is empty"
   },
-  "+MYLJhmlev": {
-    "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
-    "description": "Sample agent instructions in the marketing automation editor mock"
-  },
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush",
     "description": "Menu item and tool title for Semrush SEO data"
@@ -955,6 +951,10 @@
     "defaultMessage": "AI tokens / month",
     "description": "Pricing matrix row label for AI tokens"
   },
+  "1xBioz9EDW": {
+    "defaultMessage": "Validation",
+    "description": "Validation tool title in the marketing automation editor mock"
+  },
   "1xnSvhvUmv": {
     "defaultMessage": "Generate locale drafts with your LLM",
     "description": "Workflow step 3 description for the help-center-localisation use case"
@@ -1374,6 +1374,10 @@
   "3cr478PtNy": {
     "defaultMessage": "Remove {label}",
     "description": "Accessible label for removing an active issue filter chip"
+  },
+  "3cyl65gUFm": {
+    "defaultMessage": "Medical device compliance check",
+    "description": "Automation name shown in the marketing automation editor mock"
   },
   "3dfZO0kB4v": {
     "defaultMessage": "Seats",
@@ -1827,10 +1831,6 @@
     "defaultMessage": "Unknown repository",
     "description": "Label when a selected repository id is not in the loaded list"
   },
-  "5YseOmwLin": {
-    "defaultMessage": "Scheduled",
-    "description": "Scheduled trigger title in the marketing automation editor mock"
-  },
   "5YusqFJjvU": {
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error guidance when loading members fails"
@@ -1910,10 +1910,6 @@
   "5yXqdk0MWc": {
     "defaultMessage": "From new article to monitored locale coverage",
     "description": "Workflow section title for the help-center-localisation use case"
-  },
-  "6/+JsEuq89": {
-    "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
-    "description": "Knowledge memories tool description in the marketing automation editor mock"
   },
   "6/4F992ZiW": {
     "defaultMessage": "Unable to remove project",
@@ -3255,6 +3251,10 @@
     "defaultMessage": "{sourceLocale} → {targetLocale}",
     "description": "Locale pair badge on the glossary detail page"
   },
+  "BQ2Um1RaCK": {
+    "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
+    "description": "Knowledge memories tool description in the marketing automation editor mock"
+  },
   "BUP/2Zum32": {
     "defaultMessage": "Human-in-the-loop escalation",
     "description": "Differentiator point 3 for the localisation-quality-monitoring use case"
@@ -4399,6 +4399,10 @@
     "defaultMessage": "Upload a source file before creating a translation job.",
     "description": "Validation error when creating a job without a stored source file"
   },
+  "GC8iH4BPwj": {
+    "defaultMessage": "Scheduled",
+    "description": "Scheduled trigger title in the marketing automation editor mock"
+  },
   "GDx1gijvA4": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the help-center-localisation use case"
@@ -4622,10 +4626,6 @@
   "H7MZFgXFSw": {
     "defaultMessage": "Copied!",
     "description": "Aria label after copying the inbound email address"
-  },
-  "H8bNcbLNen": {
-    "defaultMessage": "Medical device compliance check",
-    "description": "Automation name shown in the marketing automation editor mock"
   },
   "HA9fSDFTe4": {
     "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly.",
@@ -5495,10 +5495,6 @@
     "defaultMessage": "Inbox",
     "description": "Eyebrow label above the marketing chat dock mock section"
   },
-  "LLQAT26N2S": {
-    "defaultMessage": "08:00 UTC",
-    "description": "Schedule time pill in the marketing automation editor mock"
-  },
   "LMGo1sN8VQ": {
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
@@ -5662,6 +5658,10 @@
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
     "description": "Live character count for the CAT target translation against a max length limit"
+  },
+  "MCViSbp0Sq": {
+    "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
+    "description": "Sample agent instructions in the marketing automation editor mock"
   },
   "MDFHda6r2V": {
     "defaultMessage": "Description saved",
@@ -8159,6 +8159,10 @@
     "defaultMessage": "No issues found",
     "description": "Empty state title when QA completed with zero findings"
   },
+  "X6g1omP0I1": {
+    "defaultMessage": "Notify #compliance when findings need review.",
+    "description": "Slack tool description in the marketing automation editor mock"
+  },
   "X7qkN/IoEW": {
     "defaultMessage": "How can I help you today?",
     "description": "Empty-state heading inside the marketing chat dock mock"
@@ -8666,10 +8670,6 @@
   "Z9kckxHp8S": {
     "defaultMessage": "Unavailable",
     "description": "Shown in project snapshot when open job count fails to load"
-  },
-  "ZAAVT7ICJL": {
-    "defaultMessage": "Notify #compliance when findings need review.",
-    "description": "Slack tool description in the marketing automation editor mock"
   },
   "ZAEjcUnwS/": {
     "defaultMessage": "{count} total",
@@ -9562,6 +9562,10 @@
   "dRBR6Rd4hs": {
     "defaultMessage": "Built for engineering and localisation operations",
     "description": "Differentiator point 5 for the github-release-localisation use case"
+  },
+  "dStMwhojOw": {
+    "defaultMessage": "08:00 UTC",
+    "description": "Schedule time pill in the marketing automation editor mock"
   },
   "dTKdfkqH71": {
     "defaultMessage": "Create job",
@@ -10731,10 +10735,6 @@
     "defaultMessage": "Clear filters",
     "description": "Button to reset glossary list filters"
   },
-  "hr7MzZuStw": {
-    "defaultMessage": "Check locale coverage, terminology, and compliance gates.",
-    "description": "Validation tool description in the marketing automation editor mock"
-  },
   "hsNMISsI79": {
     "defaultMessage": "80% off Growth to launch globally in days.",
     "description": "Offer line under the startups page headline"
@@ -11138,6 +11138,10 @@
   "jPddLz1mvi": {
     "defaultMessage": "No source files linked to this job.",
     "description": "Empty state when a synced provider job has no source files"
+  },
+  "jQ5TgyeZII": {
+    "defaultMessage": "Check locale coverage, terminology, and compliance gates.",
+    "description": "Validation tool description in the marketing automation editor mock"
   },
   "jRn12WvzpR": {
     "defaultMessage": "Format",
@@ -13103,10 +13107,6 @@
     "defaultMessage": "Locales",
     "description": "App shell breadcrumb title for the locales page"
   },
-  "s/3fnj/Eu/": {
-    "defaultMessage": "Daily",
-    "description": "Schedule cadence pill in the marketing automation editor mock"
-  },
   "s0zzQZDyx9": {
     "defaultMessage": "Source connection",
     "description": "Heading for the external TMS source connection section"
@@ -14351,6 +14351,10 @@
     "defaultMessage": "Already in TMS",
     "description": "Write-back status when a finding already had a provider comment"
   },
+  "x3xLP2YerQ": {
+    "defaultMessage": "Daily",
+    "description": "Schedule cadence pill in the marketing automation editor mock"
+  },
   "x6H592pqcv": {
     "defaultMessage": "Select connection",
     "description": "Placeholder when no Contentful connection is selected"
@@ -14894,10 +14898,6 @@
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",
     "description": "Translation memories page heading"
-  },
-  "zIGAcrN6+O": {
-    "defaultMessage": "Validation",
-    "description": "Validation tool title in the marketing automation editor mock"
   },
   "zIinCypcXs": {
     "defaultMessage": "View settings",
