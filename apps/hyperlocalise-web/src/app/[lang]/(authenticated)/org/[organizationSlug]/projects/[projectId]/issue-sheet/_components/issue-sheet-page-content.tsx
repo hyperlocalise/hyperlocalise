@@ -41,11 +41,12 @@ import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueAssigneeTableCell } from "../../../../_components/issue-detail/issue-assignee-table-cell";
+import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
+import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
 import {
   buildIssueDetailHref,
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
-  issueStatusVariant,
 } from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
@@ -308,7 +309,19 @@ export function IssueSheetPageContent({
 
   const data = issueSheetQuery.data;
   const editableColumns = useMemo(
-    () => (data?.columns ?? []).filter((column) => column.layer !== "system"),
+    () =>
+      (data?.columns ?? []).filter(
+        (column) =>
+          column.layer !== "system" &&
+          column.key !== "owner_note" &&
+          column.key !== "context" &&
+          column.key !== "priority",
+      ),
+    [data?.columns],
+  );
+
+  const priorityColumn = useMemo(
+    () => (data?.columns ?? []).find((column) => column.key === "priority") ?? null,
     [data?.columns],
   );
 
@@ -389,7 +402,7 @@ export function IssueSheetPageContent({
           <table className="min-w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
-                <th className="w-56 px-4 py-3 font-medium">
+                <th className="w-[28rem] px-4 py-3 font-medium">
                   <FormattedMessage {...messages.columnIssue} />
                 </th>
                 <th className="px-4 py-3 font-medium">
@@ -438,33 +451,43 @@ export function IssueSheetPageContent({
                   <tr
                     key={issue.id}
                     tabIndex={0}
-                    className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="align-middle cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => openIssueRow(issue.id)}
                     onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
                   >
-                    <td className="max-w-80 px-4 py-3">
-                      <Link
-                        href={buildIssueDetailHref({
-                          organizationSlug,
-                          projectId,
-                          issueId: issue.id,
-                        })}
-                        className="font-medium text-foreground hover:underline"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {issue.title}
-                      </Link>
-                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {issue.description ||
-                          issue.sourceText ||
-                          issue.sourcePath ||
-                          intl.formatMessage(messages.noDetailsYet)}
+                    <td className="max-w-[40rem] px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {priorityColumn ? (
+                          <div
+                            className="shrink-0"
+                            onClick={stopRowActivation}
+                            onKeyDown={stopRowActivation}
+                          >
+                            <PriorityPrefix
+                              column={priorityColumn}
+                              value={issue.values.priority}
+                              onChange={(value) =>
+                                setValue.mutate({
+                                  issueId: issue.id,
+                                  columnKey: "priority",
+                                  value,
+                                })
+                              }
+                            />
+                          </div>
+                        ) : null}
+                        <Link
+                          href={buildIssueDetailHref({
+                            organizationSlug,
+                            projectId,
+                            issueId: issue.id,
+                          })}
+                          className="min-w-0 flex-1 line-clamp-1 font-medium text-foreground hover:underline"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {issue.title}
+                        </Link>
                       </div>
-                      {issue.key ? (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          <FormattedMessage {...messages.issueKey} values={{ key: issue.key }} />
-                        </div>
-                      ) : null}
                     </td>
                     <td
                       className="px-4 py-3"
@@ -481,21 +504,25 @@ export function IssueSheetPageContent({
                           })
                         }
                       >
-                        <SelectTrigger className="w-36">
-                          <Badge variant={issueStatusVariant(issue.status)}>
-                            {statusLabel(intl, issue.status)}
-                          </Badge>
+                        <SelectTrigger
+                          size="sm"
+                          aria-label={statusLabel(intl, issue.status)}
+                          className="size-7 justify-center rounded-md border-0 bg-transparent p-0 shadow-none hover:bg-muted aria-expanded:bg-muted dark:hover:bg-muted [&>*:last-child]:hidden"
+                        >
+                          <IssueStatusIcon status={issue.status} />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="min-w-44 p-1.5">
                           {statusItems.map((status) => (
                             <SelectItem
                               key={status.value}
                               value={status.value}
                               label={status.label}
+                              className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
                             >
-                              <Badge variant={issueStatusVariant(status.value)}>
+                              <span className="flex items-center gap-2">
+                                <IssueStatusIcon status={status.value} />
                                 {status.label}
-                              </Badge>
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -516,8 +543,14 @@ export function IssueSheetPageContent({
                           })
                         }
                       >
-                        <SelectTrigger className="w-44">
-                          <SelectValue />
+                        <SelectTrigger
+                          size="sm"
+                          aria-label={issueTypeLabel(intl, issue.issueType)}
+                          className="h-8 w-fit max-w-56 border-0 bg-transparent px-2 shadow-none hover:bg-muted/50 dark:hover:bg-muted/50"
+                        >
+                          <Badge variant="outline" className="rounded-full">
+                            {issueTypeLabel(intl, issue.issueType)}
+                          </Badge>
                         </SelectTrigger>
                         <SelectContent>
                           {issueTypeItems.map((type) => (
@@ -659,6 +692,52 @@ function IssueLink({
   );
 }
 
+function PriorityPrefix({
+  column,
+  value,
+  onChange,
+}: {
+  column: IssueSheetColumn;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const current = cellString(value);
+  const options = column.config.options ?? [];
+  const selectItems = options.map((option) => ({
+    value: option.id,
+    label: option.label,
+  }));
+
+  return (
+    <Select
+      value={current || undefined}
+      items={selectItems}
+      onValueChange={(next) => {
+        onChange(next ?? "");
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label={current ? `Priority: ${current}` : "Priority: unset"}
+        title={current || "Unset"}
+        className="h-8 w-8 justify-center border-0 bg-transparent p-0 shadow-none hover:bg-muted/50 dark:hover:bg-muted/50 [&>*:last-child]:hidden"
+      >
+        <IssuePriorityIcon priority={current || null} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.id} value={option.id} label={option.label}>
+            <span className="flex items-center gap-2">
+              <IssuePriorityIcon priority={option.id} />
+              <span>{option.label}</span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function CustomCell({
   column,
   value,
@@ -684,9 +763,9 @@ function CustomCell({
         value={draft || undefined}
         items={selectItems}
         onValueChange={(next) => {
-          const value = next ?? "";
-          setDraft(value);
-          onChange(value);
+          const nextValue = next ?? "";
+          setDraft(nextValue);
+          onChange(nextValue);
         }}
       >
         <SelectTrigger className="w-32">

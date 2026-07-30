@@ -142,7 +142,6 @@ export function IssueAssigneeTableCell({
       isLoading={membersQuery.isLoading}
       disabled={updateAssignee.isPending}
       size="sm"
-      triggerClassName="w-44 max-w-full"
       onChange={(next) => {
         updateAssignee.mutate(next);
       }}

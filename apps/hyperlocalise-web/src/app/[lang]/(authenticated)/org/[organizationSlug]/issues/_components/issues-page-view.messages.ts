@@ -85,11 +85,6 @@ export const issuesPageViewMessages = defineMessages({
     id: "rWc6Iosb8n",
     description: "Empty state when the filtered workspace issues list has no rows",
   },
-  noDetailsYet: {
-    defaultMessage: "No details yet",
-    id: "m/76XCOVDx",
-    description: "Fallback detail line when an issue has no description or source path",
-  },
   emptyValue: {
     defaultMessage: "—",
     id: "pwC137Rvv4",

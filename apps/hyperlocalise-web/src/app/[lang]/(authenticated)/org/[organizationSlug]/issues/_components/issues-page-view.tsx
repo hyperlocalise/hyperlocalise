@@ -23,9 +23,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   buildIssueDetailHref,
-  issueStatusVariant,
+  issueStatusLabel,
 } from "../../_components/issue-detail/issue-detail-utils";
 import { IssueAssigneeTableCell } from "../../_components/issue-detail/issue-assignee-table-cell";
+import { IssueStatusIcon } from "../../_components/issue-detail/issue-status-icon";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { issuesPageViewMessages } from "./issues-page-view.messages";
@@ -64,10 +65,9 @@ function IssueRowSkeleton() {
     <tr>
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-48" />
-        <Skeleton className="mt-2 h-3 w-full max-w-xs" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="h-6 w-28 rounded-full" />
+        <Skeleton className="size-4 rounded-full" />
       </td>
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-24" />
@@ -79,7 +79,7 @@ function IssueRowSkeleton() {
         <Skeleton className="h-4 w-32" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="h-4 w-28" />
+        <Skeleton className="size-5 rounded-full" />
       </td>
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-20" />
@@ -180,7 +180,7 @@ export function IssuesPageView({
         <table className="min-w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="w-56 px-4 py-3 font-medium">
+              <th className="w-[28rem] px-4 py-3 font-medium">
                 <FormattedMessage {...issuesPageViewMessages.columnIssue} />
               </th>
               <th className="px-4 py-3 font-medium">
@@ -223,38 +223,36 @@ export function IssuesPageView({
                 <tr
                   key={`${issue.projectId}:${issue.id}`}
                   tabIndex={0}
-                  className="align-top cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="align-middle cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   onClick={() => onIssueRowClick(issue)}
                   onKeyDown={(event) => onIssueRowKeyDown(event, issue)}
                 >
-                  <td className="max-w-80 px-4 py-3">
+                  <td className="max-w-[40rem] px-4 py-3">
                     <Link
                       href={buildIssueDetailHref({
                         organizationSlug,
                         projectId: issue.projectId,
                         issueId: issue.id,
                       })}
-                      className="font-medium text-foreground hover:underline"
+                      className="line-clamp-1 font-medium text-foreground hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {issue.title}
                     </Link>
-                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {issue.description ||
-                        issue.sourcePath ||
-                        intl.formatMessage(issuesPageViewMessages.noDetailsYet)}
-                    </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge
-                      variant={issueStatusVariant(issue.status)}
-                      className="rounded-full capitalize"
+                    <span
+                      className="inline-flex"
+                      title={issueStatusLabel(intl, issue.status)}
+                      aria-label={issueStatusLabel(intl, issue.status)}
                     >
-                      {formatLabel(issue.status)}
-                    </Badge>
+                      <IssueStatusIcon status={issue.status} />
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatLabel(issue.issueType)}
+                  <td className="px-4 py-3">
+                    <Badge variant="outline" className="rounded-full capitalize">
+                      {formatLabel(issue.issueType)}
+                    </Badge>
                   </td>
                   <td
                     className="px-4 py-3"

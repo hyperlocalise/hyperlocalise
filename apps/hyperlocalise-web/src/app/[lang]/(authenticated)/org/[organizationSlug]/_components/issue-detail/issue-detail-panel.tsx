@@ -61,15 +61,15 @@ import {
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
   issuePriorityValues,
-  issuePriorityVariant,
   issueStatusLabel,
   issueStatusValues,
-  issueStatusVariant,
   issueTypeLabel,
   issueTypeValues,
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
+import { IssuePriorityIcon } from "./issue-priority-icon";
+import { IssueStatusIcon } from "./issue-status-icon";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
@@ -571,14 +571,23 @@ export const IssueDetailPanel = forwardRef<
               disabled={isSaving}
             >
               <SelectTrigger className={ghostSelectTriggerClassName}>
-                <Badge variant={issueStatusVariant(issue.status)}>
+                <span className="flex items-center gap-2">
+                  <IssueStatusIcon status={issue.status} className="size-3.5" />
                   {issueStatusLabel(intl, issue.status)}
-                </Badge>
+                </span>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-44 p-1.5">
                 {statusItems.map((status) => (
-                  <SelectItem key={status.value} value={status.value} label={status.label}>
-                    <Badge variant={issueStatusVariant(status.value)}>{status.label}</Badge>
+                  <SelectItem
+                    key={status.value}
+                    value={status.value}
+                    label={status.label}
+                    className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
+                  >
+                    <span className="flex items-center gap-2">
+                      <IssueStatusIcon status={status.value} className="size-3.5" />
+                      {status.label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -597,7 +606,9 @@ export const IssueDetailPanel = forwardRef<
               disabled={isSaving}
             >
               <SelectTrigger className={ghostSelectTriggerClassName}>
-                <SelectValue />
+                <Badge variant="outline" className="rounded-full">
+                  {issueTypeLabel(intl, issue.issueType)}
+                </Badge>
               </SelectTrigger>
               <SelectContent>
                 {issueTypeItems.map((type) => (
@@ -622,7 +633,7 @@ export const IssueDetailPanel = forwardRef<
             >
               <SelectTrigger className={ghostSelectTriggerClassName}>
                 {priority ? (
-                  <Badge variant={issuePriorityVariant(priority)}>{priority}</Badge>
+                  <IssuePriorityIcon priority={priority} size="sm" />
                 ) : (
                   <SelectValue placeholder={emptyValue} />
                 )}
@@ -630,7 +641,10 @@ export const IssueDetailPanel = forwardRef<
               <SelectContent>
                 {priorityItems.map((item) => (
                   <SelectItem key={item.value} value={item.value} label={item.label}>
-                    <Badge variant={issuePriorityVariant(item.value)}>{item.label}</Badge>
+                    <span className="flex items-center gap-2">
+                      <IssuePriorityIcon priority={item.value} size="sm" />
+                      {item.label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -15,13 +15,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
-import { CheckmarkCircle02Icon, Clock01Icon, CircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
+import { IssueStatusIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-status-icon";
 
 import type { MarkdownMentionSuggestion } from "./markdown-editor-mention-types";
 
@@ -47,26 +46,6 @@ function initials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function IssueStatusIcon({ status }: { status: string }) {
-  if (status === "in_progress") {
-    return (
-      <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3.5 text-amber-500" />
-    );
-  }
-  if (status === "resolved" || status === "wont_fix") {
-    return (
-      <HugeiconsIcon
-        icon={CheckmarkCircle02Icon}
-        strokeWidth={1.8}
-        className="size-3.5 text-violet-500"
-      />
-    );
-  }
-  return (
-    <HugeiconsIcon icon={CircleIcon} strokeWidth={1.8} className="size-3.5 text-muted-foreground" />
-  );
 }
 
 function MentionListSkeleton() {
@@ -173,7 +152,7 @@ export const MarkdownMentionList = forwardRef<MarkdownMentionListHandle, Markdow
           ) : (
             <>
               <span className="flex size-6 shrink-0 items-center justify-center">
-                <IssueStatusIcon status={item.status} />
+                <IssueStatusIcon status={item.status} className="size-3.5" />
               </span>
               <span className="shrink-0 font-mono text-xs text-muted-foreground">
                 {item.displayKey}
