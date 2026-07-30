@@ -183,3 +183,7 @@
 ## 2026-10-18 - [Unicode Locale Normalization and Casing Fallback]
 **Learning:** Checking or optimizing ASCII lowercase with custom fast paths (e.g. `isAlreadyLower`) must carefully handle non-ASCII characters by falling back to standard Unicode methods (`strings.ToLower`) to avoid corrupted normalization or incomplete deduplication across international scripts (e.g. Cyrillic, Greek, Arabic, Hebrew, and CJK).
 **Action:** When working on locale-processing libraries, always add tests representing multiple non-ASCII language and script codes to guarantee Unicode safety and deterministic deduplication.
+
+## 2026-10-25 - [Forbidden Term Score Edge Cases]
+**Learning:** In the translation scoring evaluator, the `forbidden:term` tag-based filtering uses case-insensitive comparison, substring matching, and auto-trims whitespace. Empty tags like "forbidden:" or whitespace-only tags are safely ignored to avoid corrupting aggregate scores with false-positive penalties.
+**Action:** When testing or extending evaluator filters, explicitly verify whitespace padding, case variations, substring/overlap matches, and malformed tags to protect translation safety constraints.
