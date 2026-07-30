@@ -455,6 +455,9 @@
   "0Ne4Lpi9ew": {
     "defaultMessage": "AI 时代的本地化操作系统。<muted>为现代团队打造，将翻译、审校、同步和质量控制整合到一个工作流程中。</muted>"
   },
+  "0OYYyD2LOl": {
+    "defaultMessage": "Send"
+  },
   "0Om1h6JDho": {
     "defaultMessage": "Failed to load workspace resource usage"
   },
@@ -970,6 +973,9 @@
   },
   "2rqS6tRROV": {
     "defaultMessage": "{remaining} words left of {total}"
+  },
+  "2tdCS1JobP": {
+    "defaultMessage": "Unknown"
   },
   "2uwHtwT4Tc": {
     "defaultMessage": "评价"
@@ -1510,6 +1516,9 @@
   },
   "5mXIwOpOHZ": {
     "defaultMessage": "Placeholders & ICU"
+  },
+  "5mb6txBSWX": {
+    "defaultMessage": "This cannot be undone. Any replies to this comment will also be deleted."
   },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub 拒绝了安装 ID。请确认该应用已安装在预期的账户上。"
@@ -2156,6 +2165,9 @@
   "8xFCdSWcA4": {
     "defaultMessage": "语音选择器"
   },
+  "8xIDpcJg4F": {
+    "defaultMessage": "Leave a comment…"
+  },
   "8yJ9TkhoZy": {
     "defaultMessage": "为此字符串生成翻译建议。"
   },
@@ -2594,6 +2606,9 @@
   "BNfqWKjFzB": {
     "defaultMessage": "博客"
   },
+  "BOD7YPsYm8": {
+    "defaultMessage": "Issues"
+  },
   "BOP4Yb+urd": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
   },
@@ -2708,6 +2723,9 @@
   "BxEHMhUBpO": {
     "defaultMessage": "Team updated"
   },
+  "BxrsOsytU2": {
+    "defaultMessage": "Edit"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName}已保存。连接您的 Crowdin 账户以继续。"
   },
@@ -2776,6 +2794,9 @@
   },
   "CIdkhlQIV6": {
     "defaultMessage": "切换到托管"
+  },
+  "CJ1Pudssld": {
+    "defaultMessage": "Comment posted"
   },
   "CKYDTAvT+Q": {
     "defaultMessage": "在一个地方跟踪区域设置健康状况、查看覆盖范围和评估历史，以便本地化 PM 和工程团队能够了解哪些内容可以安全发布。"
@@ -2923,6 +2944,9 @@
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers"
+  },
+  "D31YyOoRzS": {
+    "defaultMessage": "Leave a reply…"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "分配 AI 代理来翻译、审校和同步内容，同时保持人工审校处于首要地位。"
@@ -3614,6 +3638,9 @@
   "Gq3EWF71If": {
     "defaultMessage": "让支持文章在各个语言环境中保持翻译最新且内容鲜活。将 CMS 更新连接到审核工作流和新鲜度监控，避免支持内容滞后。"
   },
+  "GqfMhL6Yw/": {
+    "defaultMessage": "Users"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "停止重复相同的本地化反馈"
   },
@@ -4292,6 +4319,9 @@
   "Kua+B+Kq3s": {
     "defaultMessage": "—"
   },
+  "Kw73KEGJmb": {
+    "defaultMessage": "No matching people or issues"
+  },
   "Kx/HoZ+1yJ": {
     "defaultMessage": "Enter a job title."
   },
@@ -4733,6 +4763,9 @@
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
   },
+  "NfaH4ei+PF": {
+    "defaultMessage": "Reply to {name}…"
+  },
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue."
   },
@@ -5029,6 +5062,9 @@
   },
   "PEy6fPw+25": {
     "defaultMessage": "Open"
+  },
+  "PFZxqLi3PC": {
+    "defaultMessage": "Delete"
   },
   "PFnRx7mFmC": {
     "defaultMessage": "Cancel"
@@ -5768,6 +5804,9 @@
   "TC3oIavSPO": {
     "defaultMessage": "增长不应带来额外的琐事需求"
   },
+  "TDO0IYa70X": {
+    "defaultMessage": "Comment deleted"
+  },
   "TDQxQUihFM": {
     "defaultMessage": "No supported files were selected."
   },
@@ -5800,6 +5839,9 @@
   },
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# job} other {# jobs}}"
+  },
+  "TMJ+v5h6o1": {
+    "defaultMessage": "Comment updated"
   },
   "TOuqvBUuy6": {
     "defaultMessage": "OAuth 应用（推荐）"
@@ -6346,6 +6388,9 @@
   },
   "WG+4Tv5Q93": {
     "defaultMessage": "Pending"
+  },
+  "WGdyHUxjsB": {
+    "defaultMessage": "Save"
   },
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence"
@@ -6941,6 +6986,9 @@
   "ZSpIiSP+sp": {
     "defaultMessage": "再试一次"
   },
+  "ZSs7hAN64v": {
+    "defaultMessage": "Delete comment"
+  },
   "ZV3TeuXtMA": {
     "defaultMessage": "上下文"
   },
@@ -7081,6 +7129,9 @@
   },
   "a6hpjYmFM1": {
     "defaultMessage": "column_key"
+  },
+  "a6vexhfCS6": {
+    "defaultMessage": "Reply"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
@@ -7300,6 +7351,9 @@
   },
   "bM4e1lioLc": {
     "defaultMessage": "Unable to load memory"
+  },
+  "bMFBHYX/jE": {
+    "defaultMessage": "Leave a comment… Use @ to mention"
   },
   "bMFWHebC1v": {
     "defaultMessage": "当阈值不满足时阻止同步"
@@ -7969,6 +8023,9 @@
   },
   "f697pDeGl6": {
     "defaultMessage": "Crowdin task deleted"
+  },
+  "f8cyzFEbV0": {
+    "defaultMessage": "Could not load comments."
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Source upload · project required"
@@ -9104,6 +9161,9 @@
   "kZCWXTCLbW": {
     "defaultMessage": "代理人"
   },
+  "kbpV8xkMoq": {
+    "defaultMessage": "Comments"
+  },
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
@@ -9124,6 +9184,9 @@
   },
   "kjARwbM4Nd": {
     "defaultMessage": "This path is not in the project file list. It may have been removed or the link is outdated."
+  },
+  "kjHMR6KKp4": {
+    "defaultMessage": "Cancel"
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "创始人寄语"
@@ -9214,6 +9277,9 @@
   },
   "l2pq2plLde": {
     "defaultMessage": "Issue details"
+  },
+  "l4Dmkd+jWE": {
+    "defaultMessage": "No comments yet. Start the discussion."
   },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees"
@@ -9625,6 +9691,9 @@
   },
   "nQYD0Q7LLi": {
     "defaultMessage": "贯穿整个技术栈的质量监控——而不是一次性的 QA 工具"
+  },
+  "nRQFI6PW+w": {
+    "defaultMessage": "Edit comment…"
   },
   "nRa4VGuM7T": {
     "defaultMessage": "GitHub repository"
@@ -10096,6 +10165,9 @@
   },
   "q8jItOdlQf": {
     "defaultMessage": "Select agent run"
+  },
+  "q94QnHzO33": {
+    "defaultMessage": "Delete comment?"
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Hyperlocalise 如何处理账户、使用情况和与提供商相关的数据。"
@@ -11531,6 +11603,9 @@
   "xbAzhdR+Tu": {
     "defaultMessage": "{percent}%"
   },
+  "xdQ4upYwW8": {
+    "defaultMessage": "Loading…"
+  },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale"
   },
@@ -11755,6 +11830,9 @@
   },
   "yn7Eufu4t+": {
     "defaultMessage": "评论"
+  },
+  "ynWaUdVn9j": {
+    "defaultMessage": "Load more comments"
   },
   "yoOShm3Zjk": {
     "defaultMessage": "所有免费功能，以及："

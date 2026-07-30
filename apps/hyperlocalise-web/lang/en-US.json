@@ -555,6 +555,10 @@
     "defaultMessage": "A localisation operating system for the AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>",
     "description": "Marketing homepage principles section headline; muted wraps the supporting sentence"
   },
+  "0OYYyD2LOl": {
+    "defaultMessage": "Send",
+    "description": "Button to submit a new issue comment"
+  },
   "0Om1h6JDho": {
     "defaultMessage": "Failed to load workspace resource usage",
     "description": "Error when the workspace resource usage request fails"
@@ -1202,6 +1206,10 @@
   "2rqS6tRROV": {
     "defaultMessage": "{remaining} words left of {total}",
     "description": "Crowdin words remaining versus total words for a task"
+  },
+  "2tdCS1JobP": {
+    "defaultMessage": "Unknown",
+    "description": "Fallback author label when comment author is missing"
   },
   "2uwHtwT4Tc": {
     "defaultMessage": "Reviews",
@@ -1874,6 +1882,10 @@
   "5mXIwOpOHZ": {
     "defaultMessage": "Placeholders & ICU",
     "description": "CAT format check label when the source has placeholders or ICU structure"
+  },
+  "5mb6txBSWX": {
+    "defaultMessage": "This cannot be undone. Any replies to this comment will also be deleted.",
+    "description": "Description for the delete issue comment confirmation dialog"
   },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
@@ -2683,6 +2695,10 @@
     "defaultMessage": "Voice Selector",
     "description": "Accessible dialog title for the voice selector"
   },
+  "8xIDpcJg4F": {
+    "defaultMessage": "Leave a comment…",
+    "description": "Placeholder for the top-level issue comment composer"
+  },
   "8yJ9TkhoZy": {
     "defaultMessage": "Generate a translation suggestion for this string.",
     "description": "Empty state when no AI recommendation has been generated yet"
@@ -3247,6 +3263,10 @@
     "defaultMessage": "Blog",
     "description": "Title for the marketing blog index page"
   },
+  "BOD7YPsYm8": {
+    "defaultMessage": "Issues",
+    "description": "Section header for issues in the @ mention popover"
+  },
   "BOP4Yb+urd": {
     "defaultMessage": "{sourceLocale} → {targetLocale}",
     "description": "Locale pair badge on the glossary detail page"
@@ -3399,6 +3419,10 @@
     "defaultMessage": "Team updated",
     "description": "Toast after a team is updated successfully"
   },
+  "BxrsOsytU2": {
+    "defaultMessage": "Edit",
+    "description": "Button to edit an issue comment"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} saved. Connect your Crowdin account to continue.",
     "description": "Toast after saving Crowdin OAuth app when user OAuth is still required"
@@ -3486,6 +3510,10 @@
   "CIdkhlQIV6": {
     "defaultMessage": "Switch to managed",
     "description": "Footer label on managed model provider card when BYOK is active"
+  },
+  "CJ1Pudssld": {
+    "defaultMessage": "Comment posted",
+    "description": "Toast after posting an issue comment"
   },
   "CKjsX01Ql/": {
     "defaultMessage": "Remove Ahrefs tool",
@@ -3674,6 +3702,10 @@
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers",
     "description": "Category label for MCP server connections on the Integrations page"
+  },
+  "D31YyOoRzS": {
+    "defaultMessage": "Leave a reply…",
+    "description": "Placeholder for the inline reply row on a root comment card"
   },
   "D6N0QoCpN1": {
     "defaultMessage": "Reasoning failed to render",
@@ -4535,6 +4567,10 @@
     "defaultMessage": "Keep support articles translated and fresh across locales. Connect CMS updates to review workflows and freshness monitoring without support content lag.",
     "description": "Meta description for the help-center-localisation use case"
   },
+  "GqfMhL6Yw/": {
+    "defaultMessage": "Users",
+    "description": "Section header for people in the @ mention popover"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Stop repeating the same localisation feedback",
     "description": "Hero headline for the self-evolving knowledge product page"
@@ -5179,10 +5215,6 @@
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
   },
-  "JqELr8GP9s": {
-    "defaultMessage": "Project",
-    "description": "Label for the project select in Contentful settings"
-  },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
     "description": "Label above the sample native project i18n.yml config"
@@ -5398,6 +5430,10 @@
   "Kua+B+Kq3s": {
     "defaultMessage": "—",
     "description": "Placeholder shown when a source string has no context"
+  },
+  "Kw73KEGJmb": {
+    "defaultMessage": "No matching people or issues",
+    "description": "Empty state when @ mention filter matches nothing"
   },
   "Kx/HoZ+1yJ": {
     "defaultMessage": "Enter a job title.",
@@ -5951,6 +5987,10 @@
     "defaultMessage": "All locales",
     "description": "Workspace files locale filter option to show every locale"
   },
+  "NfaH4ei+PF": {
+    "defaultMessage": "Reply to {name}…",
+    "description": "Placeholder when replying to a specific comment author"
+  },
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue.",
     "description": "Error state when single issue fetch fails"
@@ -6334,6 +6374,10 @@
   "PEy6fPw+25": {
     "defaultMessage": "Open",
     "description": "Button to open a settings section from the settings hub"
+  },
+  "PFZxqLi3PC": {
+    "defaultMessage": "Delete",
+    "description": "Button to delete an issue comment"
   },
   "PFnRx7mFmC": {
     "defaultMessage": "Cancel",
@@ -7263,6 +7307,10 @@
     "defaultMessage": "Growth should not create busywork",
     "description": "Story beat title: scaling should not add coordination overhead"
   },
+  "TDO0IYa70X": {
+    "defaultMessage": "Comment deleted",
+    "description": "Toast after deleting an issue comment"
+  },
   "TDQxQUihFM": {
     "defaultMessage": "No supported files were selected.",
     "description": "Validation error when selected files are not supported for translation"
@@ -7306,6 +7354,10 @@
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# job} other {# jobs}}",
     "description": "Count of open jobs on a project card"
+  },
+  "TMJ+v5h6o1": {
+    "defaultMessage": "Comment updated",
+    "description": "Toast after updating an issue comment"
   },
   "TOuqvBUuy6": {
     "defaultMessage": "OAuth app (recommended)",
@@ -7986,6 +8038,10 @@
   "WG+4Tv5Q93": {
     "defaultMessage": "Pending",
     "description": "Filter option for pending proposals"
+  },
+  "WGdyHUxjsB": {
+    "defaultMessage": "Save",
+    "description": "Button to save an edited issue comment"
   },
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence",
@@ -8727,6 +8783,10 @@
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed AI element"
   },
+  "ZSs7hAN64v": {
+    "defaultMessage": "Delete comment",
+    "description": "Confirm button to permanently delete an issue comment"
+  },
   "ZV3TeuXtMA": {
     "defaultMessage": "Context",
     "description": "Section heading for locale and source path in the create issue dialog"
@@ -8898,6 +8958,10 @@
   "a6hpjYmFM1": {
     "defaultMessage": "column_key",
     "description": "Placeholder for the custom column key input"
+  },
+  "a6vexhfCS6": {
+    "defaultMessage": "Reply",
+    "description": "Button to reply to an issue comment"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name",
@@ -9178,6 +9242,10 @@
   "bM4e1lioLc": {
     "defaultMessage": "Unable to load memory",
     "description": "Fallback error when a translation memory fails to load"
+  },
+  "bMFBHYX/jE": {
+    "defaultMessage": "Leave a comment… Use @ to mention",
+    "description": "Placeholder for the issue comment markdown composer"
   },
   "bMFWHebC1v": {
     "defaultMessage": "Block sync when thresholds fail",
@@ -10030,6 +10098,10 @@
   "f697pDeGl6": {
     "defaultMessage": "Crowdin task deleted",
     "description": "Success toast after deleting a Crowdin task"
+  },
+  "f8cyzFEbV0": {
+    "defaultMessage": "Could not load comments.",
+    "description": "Error when issue comments fail to load"
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Source upload · project required",
@@ -11431,6 +11503,10 @@
     "defaultMessage": "Agents",
     "description": "Knowledge product visual memory node label"
   },
+  "kbpV8xkMoq": {
+    "defaultMessage": "Comments",
+    "description": "Section title for issue discussion comments"
+  },
   "ke25Z8UYMw": {
     "defaultMessage": "Members",
     "description": "Heading above the team members list"
@@ -11458,6 +11534,10 @@
   "kjARwbM4Nd": {
     "defaultMessage": "This path is not in the project file list. It may have been removed or the link is outdated.",
     "description": "Explanation when a requested project file path cannot be found"
+  },
+  "kjHMR6KKp4": {
+    "defaultMessage": "Cancel",
+    "description": "Button to cancel editing or replying to a comment"
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "A note from the founders",
@@ -11570,6 +11650,10 @@
   "l2pq2plLde": {
     "defaultMessage": "Issue details",
     "description": "Title for the issue detail drawer"
+  },
+  "l4Dmkd+jWE": {
+    "defaultMessage": "No comments yet. Start the discussion.",
+    "description": "Empty state when an issue has no comments"
   },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees",
@@ -12082,6 +12166,10 @@
   "nQYD0Q7LLi": {
     "defaultMessage": "Quality monitoring across your stack — not a point-in-time QA tool",
     "description": "Differentiator section title for the localisation-quality-monitoring use case"
+  },
+  "nRQFI6PW+w": {
+    "defaultMessage": "Edit comment…",
+    "description": "Placeholder while editing an existing issue comment"
   },
   "nRa4VGuM7T": {
     "defaultMessage": "GitHub repository",
@@ -12682,6 +12770,10 @@
   "q8jItOdlQf": {
     "defaultMessage": "Select agent run",
     "description": "Placeholder for choosing which agent run to review"
+  },
+  "q94QnHzO33": {
+    "defaultMessage": "Delete comment?",
+    "description": "Title for the delete issue comment confirmation dialog"
   },
   "q9M+h9o1YI": {
     "defaultMessage": "How Hyperlocalise handles account, usage, and provider-related data.",
@@ -14495,6 +14587,10 @@
     "defaultMessage": "{percent}%",
     "description": "Current zoom percentage shown in the image lightbox toolbar"
   },
+  "xdQ4upYwW8": {
+    "defaultMessage": "Loading…",
+    "description": "Button label while more issue comments are loading"
+  },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale",
     "description": "Accessible label for the button that reveals the custom locale input"
@@ -14774,6 +14870,10 @@
   "yn7Eufu4t+": {
     "defaultMessage": "Comment",
     "description": "Toggle option to post a plain comment to Crowdin"
+  },
+  "ynWaUdVn9j": {
+    "defaultMessage": "Load more comments",
+    "description": "Button to load the next page of issue discussion comments"
   },
   "yoOShm3Zjk": {
     "defaultMessage": "All Free features, plus:",

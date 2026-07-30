@@ -455,6 +455,9 @@
   "0Ne4Lpi9ew": {
     "defaultMessage": "Hệ điều hành bản địa hóa cho kỷ nguyên AI. <muted>Được xây dựng cho các nhóm hiện đại với bản dịch, xét duyệt, đồng bộ hóa và kiểm soát chất lượng trong một quy trình duy nhất.</muted>"
   },
+  "0OYYyD2LOl": {
+    "defaultMessage": "Send"
+  },
   "0Om1h6JDho": {
     "defaultMessage": "Failed to load workspace resource usage"
   },
@@ -970,6 +973,9 @@
   },
   "2rqS6tRROV": {
     "defaultMessage": "{remaining} words left of {total}"
+  },
+  "2tdCS1JobP": {
+    "defaultMessage": "Unknown"
   },
   "2uwHtwT4Tc": {
     "defaultMessage": "Đánh giá"
@@ -1510,6 +1516,9 @@
   },
   "5mXIwOpOHZ": {
     "defaultMessage": "Placeholders & ICU"
+  },
+  "5mb6txBSWX": {
+    "defaultMessage": "This cannot be undone. Any replies to this comment will also be deleted."
   },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub đã từ chối ID cài đặt. Xác nhận ứng dụng được cài đặt trên tài khoản dự kiến."
@@ -2156,6 +2165,9 @@
   "8xFCdSWcA4": {
     "defaultMessage": "Bộ chọn giọng nói"
   },
+  "8xIDpcJg4F": {
+    "defaultMessage": "Leave a comment…"
+  },
   "8yJ9TkhoZy": {
     "defaultMessage": "Tạo một đề xuất bản dịch cho chuỗi này."
   },
@@ -2594,6 +2606,9 @@
   "BNfqWKjFzB": {
     "defaultMessage": "Blog"
   },
+  "BOD7YPsYm8": {
+    "defaultMessage": "Issues"
+  },
   "BOP4Yb+urd": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
   },
@@ -2708,6 +2723,9 @@
   "BxEHMhUBpO": {
     "defaultMessage": "Team updated"
   },
+  "BxrsOsytU2": {
+    "defaultMessage": "Edit"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Crowdin của bạn để tiếp tục."
   },
@@ -2776,6 +2794,9 @@
   },
   "CIdkhlQIV6": {
     "defaultMessage": "Chuyển sang được quản lý"
+  },
+  "CJ1Pudssld": {
+    "defaultMessage": "Comment posted"
   },
   "CKYDTAvT+Q": {
     "defaultMessage": "Theo dõi tình trạng locale, xem xét độ phủ, và lịch sử đánh giá ở một nơi để các PM bản địa hóa và đội ngũ kỹ thuật có thể thấy những gì an toàn để phát hành."
@@ -2923,6 +2944,9 @@
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers"
+  },
+  "D31YyOoRzS": {
+    "defaultMessage": "Leave a reply…"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Phân công các tác nhân AI để dịch, rà soát và đ��ng bộ nội dung, đồng thời vẫn đặt việc duyệt của con người lên hàng đầu."
@@ -3614,6 +3638,9 @@
   "Gq3EWF71If": {
     "defaultMessage": "Giữ cho các bài viết hỗ trợ được dịch và luôn cập nhật trên mọi ngôn ngữ. Kết nối các bản cập nhật CMS với quy trình rà soát và giám sát độ mới của nội dung mà không để nội dung hỗ trợ bị chậm trễ."
   },
+  "GqfMhL6Yw/": {
+    "defaultMessage": "Users"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Đừng lặp lại cùng một phản hồi bản địa hóa nữa"
   },
@@ -4292,6 +4319,9 @@
   "Kua+B+Kq3s": {
     "defaultMessage": "—"
   },
+  "Kw73KEGJmb": {
+    "defaultMessage": "No matching people or issues"
+  },
   "Kx/HoZ+1yJ": {
     "defaultMessage": "Enter a job title."
   },
@@ -4733,6 +4763,9 @@
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
   },
+  "NfaH4ei+PF": {
+    "defaultMessage": "Reply to {name}…"
+  },
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue."
   },
@@ -5029,6 +5062,9 @@
   },
   "PEy6fPw+25": {
     "defaultMessage": "Open"
+  },
+  "PFZxqLi3PC": {
+    "defaultMessage": "Delete"
   },
   "PFnRx7mFmC": {
     "defaultMessage": "Cancel"
@@ -5768,6 +5804,9 @@
   "TC3oIavSPO": {
     "defaultMessage": "Tăng trưởng không nên tạo thêm việc vụn vặt"
   },
+  "TDO0IYa70X": {
+    "defaultMessage": "Comment deleted"
+  },
   "TDQxQUihFM": {
     "defaultMessage": "No supported files were selected."
   },
@@ -5800,6 +5839,9 @@
   },
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# job} other {# jobs}}"
+  },
+  "TMJ+v5h6o1": {
+    "defaultMessage": "Comment updated"
   },
   "TOuqvBUuy6": {
     "defaultMessage": "Ứng dụng OAuth (được khuyến nghị)"
@@ -6346,6 +6388,9 @@
   },
   "WG+4Tv5Q93": {
     "defaultMessage": "Pending"
+  },
+  "WGdyHUxjsB": {
+    "defaultMessage": "Save"
   },
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence"
@@ -6941,6 +6986,9 @@
   "ZSpIiSP+sp": {
     "defaultMessage": "Thử lại"
   },
+  "ZSs7hAN64v": {
+    "defaultMessage": "Delete comment"
+  },
   "ZV3TeuXtMA": {
     "defaultMessage": "Bối cảnh"
   },
@@ -7081,6 +7129,9 @@
   },
   "a6hpjYmFM1": {
     "defaultMessage": "column_key"
+  },
+  "a6vexhfCS6": {
+    "defaultMessage": "Reply"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
@@ -7300,6 +7351,9 @@
   },
   "bM4e1lioLc": {
     "defaultMessage": "Unable to load memory"
+  },
+  "bMFBHYX/jE": {
+    "defaultMessage": "Leave a comment… Use @ to mention"
   },
   "bMFWHebC1v": {
     "defaultMessage": "Chặn đồng bộ khi ngưỡng không đạt"
@@ -7969,6 +8023,9 @@
   },
   "f697pDeGl6": {
     "defaultMessage": "Crowdin task deleted"
+  },
+  "f8cyzFEbV0": {
+    "defaultMessage": "Could not load comments."
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Source upload · project required"
@@ -9104,6 +9161,9 @@
   "kZCWXTCLbW": {
     "defaultMessage": "Các tác nhân"
   },
+  "kbpV8xkMoq": {
+    "defaultMessage": "Comments"
+  },
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
@@ -9124,6 +9184,9 @@
   },
   "kjARwbM4Nd": {
     "defaultMessage": "This path is not in the project file list. It may have been removed or the link is outdated."
+  },
+  "kjHMR6KKp4": {
+    "defaultMessage": "Cancel"
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "Lời nhắn từ những người sáng lập"
@@ -9214,6 +9277,9 @@
   },
   "l2pq2plLde": {
     "defaultMessage": "Issue details"
+  },
+  "l4Dmkd+jWE": {
+    "defaultMessage": "No comments yet. Start the discussion."
   },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees"
@@ -9625,6 +9691,9 @@
   },
   "nQYD0Q7LLi": {
     "defaultMessage": "Giám sát chất lượng trên toàn bộ hệ thống của bạn — không phải là công cụ QA tại một thời điểm cụ thể"
+  },
+  "nRQFI6PW+w": {
+    "defaultMessage": "Edit comment…"
   },
   "nRa4VGuM7T": {
     "defaultMessage": "GitHub repository"
@@ -10096,6 +10165,9 @@
   },
   "q8jItOdlQf": {
     "defaultMessage": "Select agent run"
+  },
+  "q94QnHzO33": {
+    "defaultMessage": "Delete comment?"
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Hyperlocalise xử lý dữ liệu về tài khoản, việc sử dụng và liên quan đến nhà cung cấp như thế nào."
@@ -11531,6 +11603,9 @@
   "xbAzhdR+Tu": {
     "defaultMessage": "{percent}%"
   },
+  "xdQ4upYwW8": {
+    "defaultMessage": "Loading…"
+  },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale"
   },
@@ -11755,6 +11830,9 @@
   },
   "yn7Eufu4t+": {
     "defaultMessage": "Bình luận"
+  },
+  "ynWaUdVn9j": {
+    "defaultMessage": "Load more comments"
   },
   "yoOShm3Zjk": {
     "defaultMessage": "Tất cả các tính năng miễn phí, cùng với:"

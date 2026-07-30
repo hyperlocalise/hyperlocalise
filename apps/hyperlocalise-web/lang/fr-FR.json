@@ -455,6 +455,9 @@
   "0Ne4Lpi9ew": {
     "defaultMessage": "Un système d’exploitation de localisation pour l’ère de l’IA. <muted>Conçu pour les équipes modernes, avec la traduction, la révision, la synchronisation et le contrôle qualité réunis dans un seul flux de travail.</muted>"
   },
+  "0OYYyD2LOl": {
+    "defaultMessage": "Send"
+  },
   "0Om1h6JDho": {
     "defaultMessage": "Échec du chargement de l’utilisation des ressources de l’espace de travail"
   },
@@ -970,6 +973,9 @@
   },
   "2rqS6tRROV": {
     "defaultMessage": "{remaining} mots restants sur {total}"
+  },
+  "2tdCS1JobP": {
+    "defaultMessage": "Unknown"
   },
   "2uwHtwT4Tc": {
     "defaultMessage": "Avis"
@@ -1510,6 +1516,9 @@
   },
   "5mXIwOpOHZ": {
     "defaultMessage": "Espaces réservés et ICU"
+  },
+  "5mb6txBSWX": {
+    "defaultMessage": "This cannot be undone. Any replies to this comment will also be deleted."
   },
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub a rejeté l’ID d’installation. Confirmez que l’application est installée sur le compte attendu."
@@ -2156,6 +2165,9 @@
   "8xFCdSWcA4": {
     "defaultMessage": "Sélecteur de voix"
   },
+  "8xIDpcJg4F": {
+    "defaultMessage": "Leave a comment…"
+  },
   "8yJ9TkhoZy": {
     "defaultMessage": "Générez une suggestion de traduction pour cette chaîne."
   },
@@ -2594,6 +2606,9 @@
   "BNfqWKjFzB": {
     "defaultMessage": "Blog"
   },
+  "BOD7YPsYm8": {
+    "defaultMessage": "Issues"
+  },
   "BOP4Yb+urd": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
   },
@@ -2708,6 +2723,9 @@
   "BxEHMhUBpO": {
     "defaultMessage": "Team updated"
   },
+  "BxrsOsytU2": {
+    "defaultMessage": "Edit"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} enregistré. Connectez votre compte Crowdin pour continuer."
   },
@@ -2776,6 +2794,9 @@
   },
   "CIdkhlQIV6": {
     "defaultMessage": "Passer à géré"
+  },
+  "CJ1Pudssld": {
+    "defaultMessage": "Comment posted"
   },
   "CKYDTAvT+Q": {
     "defaultMessage": "Suivez l’état de santé des paramètres régionaux, passez en revue la couverture et l’historique des évaluations en un seul endroit afin que les chefs de projet de localisation et les équipes d’ingénierie puissent voir ce qui est prêt à être livré."
@@ -2923,6 +2944,9 @@
   },
   "D2ZrcxejKr": {
     "defaultMessage": "Serveurs MCP"
+  },
+  "D31YyOoRzS": {
+    "defaultMessage": "Leave a reply…"
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Attribuez des agents IA pour traduire, réviser et synchroniser le contenu tout en plaçant la relecture humaine au premier plan."
@@ -3614,6 +3638,9 @@
   "Gq3EWF71If": {
     "defaultMessage": "Gardez les articles d’assistance traduits et à jour dans toutes les langues. Connectez les mises à jour du CMS aux flux de validation et au suivi de la fraîcheur du contenu, sans décalage du contenu d’assistance."
   },
+  "GqfMhL6Yw/": {
+    "defaultMessage": "Users"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Arrêtez de répéter le même retour de localisation"
   },
@@ -4292,6 +4319,9 @@
   "Kua+B+Kq3s": {
     "defaultMessage": "—"
   },
+  "Kw73KEGJmb": {
+    "defaultMessage": "No matching people or issues"
+  },
   "Kx/HoZ+1yJ": {
     "defaultMessage": "Enter a job title."
   },
@@ -4733,6 +4763,9 @@
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
   },
+  "NfaH4ei+PF": {
+    "defaultMessage": "Reply to {name}…"
+  },
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue."
   },
@@ -5029,6 +5062,9 @@
   },
   "PEy6fPw+25": {
     "defaultMessage": "Open"
+  },
+  "PFZxqLi3PC": {
+    "defaultMessage": "Delete"
   },
   "PFnRx7mFmC": {
     "defaultMessage": "Cancel"
@@ -5768,6 +5804,9 @@
   "TC3oIavSPO": {
     "defaultMessage": "La croissance ne devrait pas créer de tâches superflues"
   },
+  "TDO0IYa70X": {
+    "defaultMessage": "Comment deleted"
+  },
   "TDQxQUihFM": {
     "defaultMessage": "Aucun fichier pris en charge n’a été sélectionné."
   },
@@ -5800,6 +5839,9 @@
   },
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# tâche} other {# tâches}}"
+  },
+  "TMJ+v5h6o1": {
+    "defaultMessage": "Comment updated"
   },
   "TOuqvBUuy6": {
     "defaultMessage": "Application OAuth (recommandée)"
@@ -6346,6 +6388,9 @@
   },
   "WG+4Tv5Q93": {
     "defaultMessage": "Pending"
+  },
+  "WGdyHUxjsB": {
+    "defaultMessage": "Save"
   },
   "WKx3yZHQjo": {
     "defaultMessage": "Chargement de l’intelligence"
@@ -6941,6 +6986,9 @@
   "ZSpIiSP+sp": {
     "defaultMessage": "Réessayer"
   },
+  "ZSs7hAN64v": {
+    "defaultMessage": "Delete comment"
+  },
   "ZV3TeuXtMA": {
     "defaultMessage": "Contexte"
   },
@@ -7081,6 +7129,9 @@
   },
   "a6hpjYmFM1": {
     "defaultMessage": "clé_de_colonne"
+  },
+  "a6vexhfCS6": {
+    "defaultMessage": "Reply"
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
@@ -7300,6 +7351,9 @@
   },
   "bM4e1lioLc": {
     "defaultMessage": "Unable to load memory"
+  },
+  "bMFBHYX/jE": {
+    "defaultMessage": "Leave a comment… Use @ to mention"
   },
   "bMFWHebC1v": {
     "defaultMessage": "Bloquer la synchronisation lorsque les seuils ne sont pas respectés"
@@ -7969,6 +8023,9 @@
   },
   "f697pDeGl6": {
     "defaultMessage": "Crowdin task deleted"
+  },
+  "f8cyzFEbV0": {
+    "defaultMessage": "Could not load comments."
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Source upload · project required"
@@ -9104,6 +9161,9 @@
   "kZCWXTCLbW": {
     "defaultMessage": "Agents"
   },
+  "kbpV8xkMoq": {
+    "defaultMessage": "Comments"
+  },
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
@@ -9124,6 +9184,9 @@
   },
   "kjARwbM4Nd": {
     "defaultMessage": "Ce chemin ne figure pas dans la liste des fichiers du projet. Il a peut-être été supprimé ou le lien n’est plus à jour."
+  },
+  "kjHMR6KKp4": {
+    "defaultMessage": "Cancel"
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "Un message des fondateurs"
@@ -9214,6 +9277,9 @@
   },
   "l2pq2plLde": {
     "defaultMessage": "Issue details"
+  },
+  "l4Dmkd+jWE": {
+    "defaultMessage": "No comments yet. Start the discussion."
   },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees"
@@ -9625,6 +9691,9 @@
   },
   "nQYD0Q7LLi": {
     "defaultMessage": "Surveillance de la qualité sur l’ensemble de votre stack — pas un outil d’assurance qualité ponctuel"
+  },
+  "nRQFI6PW+w": {
+    "defaultMessage": "Edit comment…"
   },
   "nRa4VGuM7T": {
     "defaultMessage": "GitHub repository"
@@ -10096,6 +10165,9 @@
   },
   "q8jItOdlQf": {
     "defaultMessage": "Select agent run"
+  },
+  "q94QnHzO33": {
+    "defaultMessage": "Delete comment?"
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Comment Hyperlocalise traite les données relatives au compte, à l’utilisation et aux fournisseurs."
@@ -11531,6 +11603,9 @@
   "xbAzhdR+Tu": {
     "defaultMessage": "{percent}%"
   },
+  "xdQ4upYwW8": {
+    "defaultMessage": "Loading…"
+  },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale"
   },
@@ -11755,6 +11830,9 @@
   },
   "yn7Eufu4t+": {
     "defaultMessage": "Commentaire"
+  },
+  "ynWaUdVn9j": {
+    "defaultMessage": "Load more comments"
   },
   "yoOShm3Zjk": {
     "defaultMessage": "Toutes les fonctionnalités gratuites, plus :"
