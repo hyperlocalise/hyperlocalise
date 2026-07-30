@@ -111,6 +111,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a provider detail value is empty"
   },
+  "+MYLJhmlev": {
+    "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
+    "description": "Sample agent instructions in the marketing automation editor mock"
+  },
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush",
     "description": "Menu item and tool title for Semrush SEO data"
@@ -995,10 +999,6 @@
     "defaultMessage": "View strings",
     "description": "Button or link to open the job CAT workspace"
   },
-  "21wXbXIpMt": {
-    "defaultMessage": "Help Center",
-    "description": "Contentful space label in the marketing automation editor mock"
-  },
   "22cLivfsp0": {
     "defaultMessage": "Workspace",
     "description": "Automations page header eyebrow label"
@@ -1431,10 +1431,6 @@
     "defaultMessage": "Registration: {status}",
     "description": "Webhook registration status line with localized status value"
   },
-  "3nHm7zuXbR": {
-    "defaultMessage": "Translate Contentful article",
-    "description": "Automation name shown in the marketing automation editor mock"
-  },
   "3r10YA/kX+": {
     "defaultMessage": "Config version: <version>{configVersion}</version>",
     "description": "Metadata label showing saved automation config version"
@@ -1831,6 +1827,10 @@
     "defaultMessage": "Unknown repository",
     "description": "Label when a selected repository id is not in the loaded list"
   },
+  "5YseOmwLin": {
+    "defaultMessage": "Scheduled",
+    "description": "Scheduled trigger title in the marketing automation editor mock"
+  },
   "5YusqFJjvU": {
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error guidance when loading members fails"
@@ -1910,6 +1910,10 @@
   "5yXqdk0MWc": {
     "defaultMessage": "From new article to monitored locale coverage",
     "description": "Workflow section title for the help-center-localisation use case"
+  },
+  "6/+JsEuq89": {
+    "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
+    "description": "Knowledge memories tool description in the marketing automation editor mock"
   },
   "6/4F992ZiW": {
     "defaultMessage": "Unable to remove project",
@@ -2362,10 +2366,6 @@
   "7nMUUnudcv": {
     "defaultMessage": "Smartling",
     "description": "Smartling TMS integration name on the integrations page"
-  },
-  "7pTwJNAe0D": {
-    "defaultMessage": "Notify #localization when drafts are ready.",
-    "description": "Slack tool description in the marketing automation editor mock"
   },
   "7qHTh1/iSP": {
     "defaultMessage": "Failed to create translation job",
@@ -4623,6 +4623,10 @@
     "defaultMessage": "Copied!",
     "description": "Aria label after copying the inbound email address"
   },
+  "H8bNcbLNen": {
+    "defaultMessage": "Medical device compliance check",
+    "description": "Automation name shown in the marketing automation editor mock"
+  },
   "HA9fSDFTe4": {
     "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly.",
     "description": "Success body after the agent commits the PR fix, wrapping code examples"
@@ -5491,6 +5495,10 @@
     "defaultMessage": "Inbox",
     "description": "Eyebrow label above the marketing chat dock mock section"
   },
+  "LLQAT26N2S": {
+    "defaultMessage": "08:00 UTC",
+    "description": "Schedule time pill in the marketing automation editor mock"
+  },
   "LMGo1sN8VQ": {
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
@@ -5650,10 +5658,6 @@
   "M7pTNyMB/G": {
     "defaultMessage": "{count, plural, one {# proposal} other {# proposals}}",
     "description": "Count of reviewable proposals on an agent run"
-  },
-  "M8WTB2rTQG": {
-    "defaultMessage": "Translate fields, run QA, and write drafts for review.",
-    "description": "Contentful tool description in the marketing automation editor mock"
   },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
@@ -7899,10 +7903,6 @@
     "defaultMessage": "Choose a target locale to open this file in the CAT workspace.",
     "description": "Empty state when no target locale is available for the CAT file"
   },
-  "W+LYiFgyzf": {
-    "defaultMessage": "Use organization knowledge as guidance for this automation.",
-    "description": "Knowledge memories tool description in the marketing automation editor mock"
-  },
   "W/3juG8Ln3": {
     "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
     "description": "Workflow section description for the localisation-quality-monitoring use case"
@@ -8667,6 +8667,10 @@
     "defaultMessage": "Unavailable",
     "description": "Shown in project snapshot when open job count fails to load"
   },
+  "ZAAVT7ICJL": {
+    "defaultMessage": "Notify #compliance when findings need review.",
+    "description": "Slack tool description in the marketing automation editor mock"
+  },
   "ZAEjcUnwS/": {
     "defaultMessage": "{count} total",
     "description": "Badge showing total issue count on the Issue Sheet page"
@@ -9015,10 +9019,6 @@
     "defaultMessage": "Latest posts",
     "description": "Marketing homepage recent blog posts section title"
   },
-  "agJVrVF8yQ": {
-    "defaultMessage": "Translate help center article updates into the configured target locales. Read the updated entry, localize title, body, SEO, and CTAs, run QA, then write drafts back for review. Do not publish.",
-    "description": "Sample agent instructions in the marketing automation editor mock"
-  },
   "ah1fHcY0dZ": {
     "defaultMessage": "View jobs",
     "description": "Button linking to the project jobs page from the empty jobs card"
@@ -9314,10 +9314,6 @@
   "c7ggsCcxGl": {
     "defaultMessage": "AI translation draft",
     "description": "Workflow step 3 label for the product-localisation use case"
-  },
-  "c8Cee1xOoy": {
-    "defaultMessage": "Contentful webhook",
-    "description": "Contentful webhook trigger title in the marketing automation editor mock"
   },
   "c8ULJQ9Qs8": {
     "defaultMessage": "{matchPercent}% match",
@@ -10734,6 +10730,10 @@
   "hpZLGfM1av": {
     "defaultMessage": "Clear filters",
     "description": "Button to reset glossary list filters"
+  },
+  "hr7MzZuStw": {
+    "defaultMessage": "Check locale coverage, terminology, and compliance gates.",
+    "description": "Validation tool description in the marketing automation editor mock"
   },
   "hsNMISsI79": {
     "defaultMessage": "80% off Growth to launch globally in days.",
@@ -13103,6 +13103,10 @@
     "defaultMessage": "Locales",
     "description": "App shell breadcrumb title for the locales page"
   },
+  "s/3fnj/Eu/": {
+    "defaultMessage": "Daily",
+    "description": "Schedule cadence pill in the marketing automation editor mock"
+  },
   "s0zzQZDyx9": {
     "defaultMessage": "Source connection",
     "description": "Heading for the external TMS source connection section"
@@ -14427,10 +14431,6 @@
     "defaultMessage": "Cannot save translation because the provider file identifier is missing.",
     "description": "Error when a CAT save cannot resolve the TMS provider file identifier"
   },
-  "xNGsvx/Hks": {
-    "defaultMessage": "Contentful translate",
-    "description": "Contentful tool title in the marketing automation editor mock"
-  },
   "xOFZqYtkn0": {
     "defaultMessage": "A few things need your attention",
     "description": "Dashboard hero title when pending actions need review"
@@ -14807,10 +14807,6 @@
     "defaultMessage": "Comment on selected ({count})",
     "description": "Button to leave provider comments on selected findings"
   },
-  "yxdCe3Hn5q": {
-    "defaultMessage": "Article",
-    "description": "Content type label in the marketing automation editor mock"
-  },
   "z+yNDK6TMM": {
     "defaultMessage": "Comfortable",
     "description": "CAT workspace view mode with queue, editor, and intelligence panels"
@@ -14898,6 +14894,10 @@
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",
     "description": "Translation memories page heading"
+  },
+  "zIGAcrN6+O": {
+    "defaultMessage": "Validation",
+    "description": "Validation tool title in the marketing automation editor mock"
   },
   "zIinCypcXs": {
     "defaultMessage": "View settings",

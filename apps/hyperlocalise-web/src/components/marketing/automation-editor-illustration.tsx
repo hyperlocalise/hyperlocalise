@@ -14,7 +14,12 @@
  */
 import type { ReactNode } from "react";
 
-import { BrainCircuitIcon, File01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import {
+  BrainCircuitIcon,
+  Clock01Icon,
+  PlusSignIcon,
+  SecurityCheckIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
@@ -74,17 +79,6 @@ function Pill({ children }: { children: ReactNode }) {
   );
 }
 
-function ContentfulMark() {
-  return (
-    <span
-      className="flex size-4 items-center justify-center rounded-[0.2rem] bg-[#FC6176] text-[0.55rem] font-bold text-white"
-      aria-hidden
-    >
-      C
-    </span>
-  );
-}
-
 export function AutomationEditorIllustration({ className }: { className?: string }) {
   return (
     <div
@@ -111,17 +105,17 @@ export function AutomationEditorIllustration({ className }: { className?: string
         >
           <MockPanel>
             <MockRow
-              icon={<HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-4" />}
+              icon={<HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-4" />}
               title={
-                <FormattedMessage {...automationEditorIllustrationMessages.contentfulWebhook} />
+                <FormattedMessage {...automationEditorIllustrationMessages.scheduledTrigger} />
               }
               trailing={
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Pill>
-                    <FormattedMessage {...automationEditorIllustrationMessages.space} />
+                    <FormattedMessage {...automationEditorIllustrationMessages.scheduleCadence} />
                   </Pill>
                   <Pill>
-                    <FormattedMessage {...automationEditorIllustrationMessages.contentType} />
+                    <FormattedMessage {...automationEditorIllustrationMessages.scheduleTime} />
                   </Pill>
                 </div>
               }
@@ -153,11 +147,13 @@ export function AutomationEditorIllustration({ className }: { className?: string
               }
             />
             <MockRow
-              icon={<ContentfulMark />}
-              title={<FormattedMessage {...automationEditorIllustrationMessages.toolContentful} />}
+              icon={
+                <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />
+              }
+              title={<FormattedMessage {...automationEditorIllustrationMessages.toolValidation} />}
               description={
                 <FormattedMessage
-                  {...automationEditorIllustrationMessages.toolContentfulDescription}
+                  {...automationEditorIllustrationMessages.toolValidationDescription}
                 />
               }
             />
