@@ -312,10 +312,7 @@ export function IssueSheetPageContent({
     () =>
       (data?.columns ?? []).filter(
         (column) =>
-          column.layer !== "system" &&
-          column.key !== "owner_note" &&
-          column.key !== "context" &&
-          column.key !== "priority",
+          column.layer !== "system" && column.key !== "owner_note" && column.key !== "priority",
       ),
     [data?.columns],
   );

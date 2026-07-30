@@ -21,6 +21,10 @@ import { readApiResponseError } from "@/lib/api-error";
 import { IssueAssigneePicker } from "./issue-assignee-picker";
 import { issueDetailPanelMessages } from "./issue-detail-panel.messages";
 import { issueSheetApiPath } from "./issue-detail-utils";
+import {
+  patchIssueSheetListCacheForAssignee,
+  patchOrganizationIssueListCaches,
+} from "./patch-organization-issue-list-caches";
 import { issueFeedQueryKey } from "./use-issue-feed";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 
@@ -43,6 +47,7 @@ export function IssueAssigneeTableCell({
     organizationSlug,
     projectId,
   });
+  const actorUserId = membersQuery.data?.members.find((member) => member.isCurrentUser)?.userId;
 
   const updateAssignee = useMutation({
     mutationFn: async (nextAssigneeUserId: string | null) => {
@@ -65,58 +70,24 @@ export function IssueAssigneeTableCell({
       };
     },
     onSuccess: async (result) => {
-      queryClient.setQueriesData(
-        { queryKey: ["organization-issues", organizationSlug] },
-        (current: unknown) => {
-          if (!current || typeof current !== "object") {
-            return current;
-          }
-          const pages = (current as { pages?: Array<{ issues?: Array<Record<string, unknown>> }> })
-            .pages;
-          if (!Array.isArray(pages)) {
-            return current;
-          }
-          return {
-            ...current,
-            pages: pages.map((page) => ({
-              ...page,
-              issues: (page.issues ?? []).map((row) =>
-                row.id === issueId
-                  ? {
-                      ...row,
-                      assigneeUserId: result.issue.assigneeUserId,
-                      assignee: result.issue.assignee,
-                    }
-                  : row,
-              ),
-            })),
-          };
-        },
-      );
-      queryClient.setQueriesData(
-        { queryKey: ["issue-sheet", organizationSlug, projectId] },
-        (current: unknown) => {
-          if (!current || typeof current !== "object") {
-            return current;
-          }
-          const data = current as { issues?: Array<Record<string, unknown>> };
-          if (!Array.isArray(data.issues)) {
-            return current;
-          }
-          return {
-            ...current,
-            issues: data.issues.map((row) =>
-              row.id === issueId
-                ? {
-                    ...row,
-                    assigneeUserId: result.issue.assigneeUserId,
-                    assignee: result.issue.assignee,
-                  }
-                : row,
-            ),
-          };
-        },
-      );
+      if (actorUserId) {
+        patchOrganizationIssueListCaches(queryClient, {
+          organizationSlug,
+          issueId,
+          assigneeUserId: result.issue.assigneeUserId,
+          assignee: result.issue.assignee,
+          actorUserId,
+        });
+      }
+
+      patchIssueSheetListCacheForAssignee(queryClient, {
+        organizationSlug,
+        projectId,
+        issueId,
+        assigneeUserId: result.issue.assigneeUserId,
+        assignee: result.issue.assignee,
+      });
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] }),
         queryClient.invalidateQueries({ queryKey: ["organization-issues", organizationSlug] }),

@@ -190,16 +190,20 @@ export const IssueDetailPanel = forwardRef<
     projectId,
     issueId,
   });
+  const assignableMembersQuery = useAssignableIssueMembersQuery({
+    organizationSlug,
+    projectId,
+  });
+  const actorUserId = assignableMembersQuery.data?.members.find(
+    (member) => member.isCurrentUser,
+  )?.userId;
+
   const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
+    actorUserId,
     onSaved: () => toast.success(intl.formatMessage(messages.saved)),
-  });
-
-  const assignableMembersQuery = useAssignableIssueMembersQuery({
-    organizationSlug,
-    projectId,
   });
 
   const issue = issueQuery.data;

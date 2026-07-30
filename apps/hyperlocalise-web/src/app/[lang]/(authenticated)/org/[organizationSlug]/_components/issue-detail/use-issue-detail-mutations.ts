@@ -21,6 +21,10 @@ import { readApiResponseError } from "@/lib/api-error";
 
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
+import {
+  patchIssueSheetListCacheForAssignee,
+  patchOrganizationIssueListCaches,
+} from "./patch-organization-issue-list-caches";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { issueFeedQueryKey } from "./use-issue-feed";
 
@@ -73,11 +77,13 @@ export function useIssueDetailMutations({
   organizationSlug,
   projectId,
   issueId,
+  actorUserId,
   onSaved,
 }: {
   organizationSlug: string;
   projectId: string;
   issueId: string;
+  actorUserId?: string;
   onSaved?: () => void;
 }) {
   const intl = useIntl();
@@ -106,59 +112,23 @@ export function useIssueDetailMutations({
   };
 
   const patchListCachesForAssignee = (issue: IssueDetailIssue) => {
-    queryClient.setQueriesData(
-      { queryKey: ["organization-issues", organizationSlug] },
-      (current: unknown) => {
-        if (!current || typeof current !== "object") {
-          return current;
-        }
-        const pages = (current as { pages?: Array<{ issues?: Array<Record<string, unknown>> }> })
-          .pages;
-        if (!Array.isArray(pages)) {
-          return current;
-        }
-        return {
-          ...current,
-          pages: pages.map((page) => ({
-            ...page,
-            issues: (page.issues ?? []).map((row) =>
-              row.id === issue.id
-                ? {
-                    ...row,
-                    assigneeUserId: issue.assigneeUserId,
-                    assignee: issue.assignee,
-                  }
-                : row,
-            ),
-          })),
-        };
-      },
-    );
+    if (actorUserId) {
+      patchOrganizationIssueListCaches(queryClient, {
+        organizationSlug,
+        issueId: issue.id,
+        assigneeUserId: issue.assigneeUserId,
+        assignee: issue.assignee,
+        actorUserId,
+      });
+    }
 
-    queryClient.setQueriesData(
-      { queryKey: ["issue-sheet", organizationSlug, projectId] },
-      (current: unknown) => {
-        if (!current || typeof current !== "object") {
-          return current;
-        }
-        const data = current as { issues?: Array<Record<string, unknown>> };
-        if (!Array.isArray(data.issues)) {
-          return current;
-        }
-        return {
-          ...current,
-          issues: data.issues.map((row) =>
-            row.id === issue.id
-              ? {
-                  ...row,
-                  assigneeUserId: issue.assigneeUserId,
-                  assignee: issue.assignee,
-                }
-              : row,
-          ),
-        };
-      },
-    );
+    patchIssueSheetListCacheForAssignee(queryClient, {
+      organizationSlug,
+      projectId,
+      issueId: issue.id,
+      assigneeUserId: issue.assigneeUserId,
+      assignee: issue.assignee,
+    });
   };
 
   const updateIssue = useMutation({
