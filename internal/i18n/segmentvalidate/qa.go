@@ -22,30 +22,38 @@ func qaChecks(req Request) []Check {
 		return nil
 	}
 
-	modeSet := make(map[string]struct{}, len(req.Modes))
+	// BOLT OPTIMIZATION: Parse/check active modes using a simple loop and local boolean flags,
+	// avoiding allocating a map[string]struct{}. Since there are only 3 known QA modes,
+	// this is a clean, 100% equivalent, and completely allocation-free solution.
+	var hasNotLocalized, hasWhitespaceOnly, hasSameAsSource bool
 	for _, mode := range req.Modes {
 		mode = strings.TrimSpace(mode)
-		if mode == "" {
-			continue
+		switch mode {
+		case QAModeNotLocalized:
+			hasNotLocalized = true
+		case QAModeWhitespaceOnly:
+			hasWhitespaceOnly = true
+		case QAModeSameAsSource:
+			hasSameAsSource = true
 		}
-		modeSet[mode] = struct{}{}
 	}
-	if len(modeSet) == 0 {
+
+	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource {
 		return nil
 	}
 
-	checks := make([]Check, 0, len(modeSet))
-	if _, ok := modeSet[QAModeNotLocalized]; ok {
+	checks := make([]Check, 0, 3)
+	if hasNotLocalized {
 		if check, include := notLocalizedCheck(req.SourceText, req.TargetText); include {
 			checks = append(checks, check)
 		}
 	}
-	if _, ok := modeSet[QAModeWhitespaceOnly]; ok {
+	if hasWhitespaceOnly {
 		if check, include := whitespaceOnlyCheck(req.TargetText); include {
 			checks = append(checks, check)
 		}
 	}
-	if _, ok := modeSet[QAModeSameAsSource]; ok {
+	if hasSameAsSource {
 		if check, include := sameAsSourceCheck(req.SourceText, req.TargetText); include {
 			checks = append(checks, check)
 		}

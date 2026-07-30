@@ -8,6 +8,17 @@ import (
 )
 
 func validateProfileParityWithTokens(source, translated string) (bool, error) {
+	// BOLT OPTIMIZATION: If source and translated are identical, we only extract and verify on the source.
+	// This avoids duplicate placeholder extraction, duplicate special characters scanning, and
+	// duplicate whitespace profiling of the translated string entirely.
+	if source == translated {
+		hasExtra := len(extractExtraPlaceholders(source)) > 0
+		sourceNorm := normalizeProfileText(source)
+		hasWS := hasProfileWhitespaceSignals(sourceNorm)
+		hasSpecial := len(extractSpecialCharLiterals(source)) > 0
+		return hasExtra || hasWS || hasSpecial, nil
+	}
+
 	hasExtra, err := validateExtraPlaceholderParityWithTokens(source, translated)
 	if err != nil {
 		return false, err

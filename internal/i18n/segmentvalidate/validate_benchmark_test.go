@@ -34,6 +34,24 @@ func BenchmarkValidateSegment(b *testing.B) {
 			targetText: "Bonjour, le monde!",
 			sourcePath: "messages.json",
 		},
+		{
+			name:       "PlainHTMLIdentical",
+			sourceText: "<p>Hello, world!</p>",
+			targetText: "<p>Hello, world!</p>",
+			sourcePath: "index.html",
+		},
+		{
+			name:       "ICUComplexIdentical",
+			sourceText: "Click <link>{action}</link> to see {count, plural, one {one message} other {# messages}} in your <b>{folder}</b>.",
+			targetText: "Click <link>{action}</link> to see {count, plural, one {one message} other {# messages}} in your <b>{folder}</b>.",
+			sourcePath: "messages.json",
+		},
+		{
+			name:       "PlainNoTokensIdentical",
+			sourceText: "Hello, world!",
+			targetText: "Hello, world!",
+			sourcePath: "messages.json",
+		},
 	}
 
 	for _, bm := range benchmarks {
@@ -50,6 +68,19 @@ func BenchmarkValidateSegment(b *testing.B) {
 			}
 		})
 	}
+
+	b.Run("QA_AllModes_NonEmpty", func(b *testing.B) {
+		req := Request{
+			SourceText: "Hello, world!",
+			TargetText: "Bonjour, le monde!",
+			SourcePath: "messages.json",
+			Modes:      []string{QAModeSameAsSource, QAModeWhitespaceOnly, QAModeNotLocalized},
+		}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = ValidateSegment(req)
+		}
+	})
 }
 
 func BenchmarkProfileEdgeWhitespace(b *testing.B) {

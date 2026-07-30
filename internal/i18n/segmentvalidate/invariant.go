@@ -16,6 +16,28 @@ func validateICUInvariantWithTokens(source, translated string) (bool, error) {
 		return false, nil
 	}
 
+	// BOLT OPTIMIZATION: If source and translated are identical, we only parse the source itself.
+	// This avoids duplicate AST construction and verification of the translated string entirely.
+	if source == translated {
+		trimmed := trimSpace(source)
+		srcInv, srcErr := icuparser.ParseInvariant(trimmed)
+		if srcErr != nil {
+			return false, nil
+		}
+		hasTokens := len(srcInv.Placeholders) > 0 || len(srcInv.ICUBlocks) > 0
+		if !hasTokens {
+			return false, nil
+		}
+		if icuparser.HasDuplicatePounds(srcInv.ICUBlocks) {
+			return hasTokens, fmt.Errorf(
+				"translation invariant violation: duplicate # tokens in ICU plural/selectordinal branch (got %s) | %s",
+				icuparser.FormatICUBlocks(srcInv.ICUBlocks),
+				formatInvariantDebugContext(source, translated),
+			)
+		}
+		return hasTokens, nil
+	}
+
 	source = trimSpace(source)
 	translated = trimSpace(translated)
 
