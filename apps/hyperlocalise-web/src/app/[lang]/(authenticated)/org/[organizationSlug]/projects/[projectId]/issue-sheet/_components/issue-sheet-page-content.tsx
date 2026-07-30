@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
+import { IssueAssigneeTableCell } from "../../../../_components/issue-detail/issue-assignee-table-cell";
 import {
   buildIssueDetailHref,
   isExternalHttpUrl,
@@ -262,7 +263,16 @@ export function IssueSheetPageContent({
       });
       return readJsonOrThrow<{ issue: IssueSheetIssue }>(response, requestFailed);
     },
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["issue-sheet", organizationSlug, projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["organization-issues", organizationSlug],
+        }),
+      ]);
+    },
     onError: (error) =>
       toast.error(
         error instanceof Error ? error.message : intl.formatMessage(messages.updateFailed),
@@ -389,6 +399,9 @@ export function IssueSheetPageContent({
                   <FormattedMessage {...messages.columnType} />
                 </th>
                 <th className="px-4 py-3 font-medium">
+                  <FormattedMessage {...messages.columnAssignee} />
+                </th>
+                <th className="px-4 py-3 font-medium">
                   <FormattedMessage {...messages.columnLocale} />
                 </th>
                 <th className="px-4 py-3 font-medium">
@@ -405,7 +418,7 @@ export function IssueSheetPageContent({
               {issueSheetQuery.isLoading ? (
                 <tr>
                   <td
-                    colSpan={5 + editableColumns.length}
+                    colSpan={6 + editableColumns.length}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     <FormattedMessage {...messages.loadingIssues} />
@@ -414,7 +427,7 @@ export function IssueSheetPageContent({
               ) : issueSheetQuery.isError ? (
                 <tr>
                   <td
-                    colSpan={5 + editableColumns.length}
+                    colSpan={6 + editableColumns.length}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     <FormattedMessage {...messages.loadIssuesError} />
@@ -515,6 +528,19 @@ export function IssueSheetPageContent({
                         </SelectContent>
                       </Select>
                     </td>
+                    <td
+                      className="px-4 py-3"
+                      onClick={stopRowActivation}
+                      onKeyDown={stopRowActivation}
+                    >
+                      <IssueAssigneeTableCell
+                        organizationSlug={organizationSlug}
+                        projectId={projectId}
+                        issueId={issue.id}
+                        assigneeUserId={issue.assigneeUserId}
+                        assigneeLabel={issue.assignee}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {issue.targetLocale ?? emptyValue}
                     </td>
@@ -555,7 +581,7 @@ export function IssueSheetPageContent({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5 + editableColumns.length} className="px-4 py-12 text-center">
+                  <td colSpan={6 + editableColumns.length} className="px-4 py-12 text-center">
                     <TypographyP className="text-sm font-medium">
                       <FormattedMessage {...messages.emptyTitle} />
                     </TypographyP>

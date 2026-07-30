@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
@@ -40,17 +40,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
 
 import { formatRelativeTimestamp } from "../workspace-files-shared";
 import { IssueCommentComposer } from "./issue-comment-composer";
 import { issueCommentMessages as messages } from "./issue-comment.messages";
 import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
-import { buildIssueDetailHref } from "./issue-detail-utils";
+import { buildIssueDetailHref, issueStatusLabel } from "./issue-detail-utils";
 import {
   useIssueCommentMutations,
   useIssueCommentsQuery,
   type IssueComment,
 } from "./use-issue-comments";
+import { useIssueActivitiesQuery, type IssueActivity } from "./use-issue-activities";
 
 function initials(name: string) {
   return name
@@ -60,6 +62,16 @@ function initials(name: string) {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+type FeedItem =
+  | {
+      kind: "comment_thread";
+      id: string;
+      createdAt: string;
+      root: IssueComment;
+      replies: IssueComment[];
+    }
+  | { kind: "activity"; id: string; createdAt: string; activity: IssueActivity };
 
 function groupCommentThreads(comments: IssueComment[]) {
   const roots = comments
@@ -323,6 +335,107 @@ function IssueCommentThreadCard({
   );
 }
 
+function activityName(name: string) {
+  return <span className="font-medium text-foreground">{name}</span>;
+}
+
+function IssueFeedActivityRow({
+  actorName,
+  actorAvatar,
+  createdAt,
+  connectAbove = false,
+  connectBelow = false,
+  children,
+}: {
+  actorName: string;
+  actorAvatar: string | null;
+  createdAt: string;
+  connectAbove?: boolean;
+  connectBelow?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative flex items-center gap-3 py-2">
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute left-[7px] w-px bg-border",
+          connectAbove ? "top-0" : "top-1",
+          connectBelow ? "bottom-0" : "bottom-1",
+        )}
+      />
+      <Avatar className="relative z-10 size-4 ring-2 ring-background after:hidden">
+        {actorAvatar ? <AvatarImage src={actorAvatar} alt="" /> : null}
+        <AvatarFallback className="bg-muted text-[8px] leading-none">
+          {initials(actorName)}
+        </AvatarFallback>
+      </Avatar>
+      <p className="min-w-0 flex-1 truncate text-xs leading-4 text-muted-foreground">
+        {children}
+        {" · "}
+        {formatRelativeTimestamp(createdAt)}
+      </p>
+    </div>
+  );
+}
+
+function IssueActivityRow({
+  activity,
+  connectAbove = false,
+  connectBelow = false,
+}: {
+  activity: IssueActivity;
+  connectAbove?: boolean;
+  connectBelow?: boolean;
+}) {
+  const intl = useIntl();
+  const actorName = activity.actor?.displayName ?? intl.formatMessage(messages.unknownActor);
+  const actorAvatar = activity.actor?.avatarUrl ?? null;
+  const actor = activityName(actorName);
+
+  let copy: ReactNode;
+  if (activity.type === "issue_created") {
+    copy = <FormattedMessage {...messages.issueCreated} values={{ actor }} />;
+  } else if (activity.type === "status_changed") {
+    copy = (
+      <FormattedMessage
+        {...messages.statusChanged}
+        values={{
+          actor,
+          previousStatus: activityName(issueStatusLabel(intl, activity.previousStatus)),
+          nextStatus: activityName(issueStatusLabel(intl, activity.nextStatus)),
+        }}
+      />
+    );
+  } else if (!activity.nextAssignee) {
+    copy = <FormattedMessage {...messages.unassigned} values={{ actor }} />;
+  } else if (activity.actor?.userId && activity.nextAssignee.userId === activity.actor.userId) {
+    copy = <FormattedMessage {...messages.assignedToSelf} values={{ actor }} />;
+  } else {
+    copy = (
+      <FormattedMessage
+        {...messages.assignedTo}
+        values={{
+          actor,
+          assignee: activityName(activity.nextAssignee.displayName),
+        }}
+      />
+    );
+  }
+
+  return (
+    <IssueFeedActivityRow
+      actorName={actorName}
+      actorAvatar={actorAvatar}
+      createdAt={activity.createdAt}
+      connectAbove={connectAbove}
+      connectBelow={connectBelow}
+    >
+      {copy}
+    </IssueFeedActivityRow>
+  );
+}
+
 export function IssueCommentThread({
   organizationSlug,
   projectId,
@@ -334,6 +447,7 @@ export function IssueCommentThread({
 }) {
   const intl = useIntl();
   const commentsQuery = useIssueCommentsQuery({ organizationSlug, projectId, issueId });
+  const activitiesQuery = useIssueActivitiesQuery({ organizationSlug, projectId, issueId });
   const { createComment } = useIssueCommentMutations({
     organizationSlug,
     projectId,
@@ -401,7 +515,42 @@ export function IssueCommentThread({
     [commentsQuery.data?.pages],
   );
   const threads = useMemo(() => groupCommentThreads(comments), [comments]);
+  const activities = activitiesQuery.data?.activities ?? [];
+
+  const feedItems = useMemo(() => {
+    const items: FeedItem[] = [
+      ...threads.map(({ root, replies }) => ({
+        kind: "comment_thread" as const,
+        id: `comment:${root.id}`,
+        createdAt: root.createdAt,
+        root,
+        replies,
+      })),
+      ...activities.map((activity) => ({
+        kind: "activity" as const,
+        id: `activity:${activity.id}`,
+        createdAt: activity.createdAt,
+        activity,
+      })),
+    ];
+    return items.toSorted((a, b) => {
+      const byTime = a.createdAt.localeCompare(b.createdAt);
+      if (byTime !== 0) {
+        return byTime;
+      }
+      const aCreated = a.kind === "activity" && a.activity.type === "issue_created" ? 0 : 1;
+      const bCreated = b.kind === "activity" && b.activity.type === "issue_created" ? 0 : 1;
+      if (aCreated !== bCreated) {
+        return aCreated - bCreated;
+      }
+      return a.id.localeCompare(b.id);
+    });
+  }, [threads, activities]);
+
   const hasMore = Boolean(commentsQuery.hasNextPage);
+  const isLoading = commentsQuery.isLoading || activitiesQuery.isLoading;
+  const isError = commentsQuery.isError || activitiesQuery.isError;
+  const isEmpty = !isLoading && !isError && feedItems.length === 0;
 
   const handleCreate = async (input: {
     body: string;
@@ -419,39 +568,55 @@ export function IssueCommentThread({
         <FormattedMessage {...messages.sectionTitle} />
       </TypographyP>
 
-      {commentsQuery.isLoading ? (
+      {isLoading ? (
         <div className="grid gap-2">
           <Skeleton className="h-24 w-full rounded-lg" />
           <Skeleton className="h-24 w-full rounded-lg" />
         </div>
       ) : null}
 
-      {commentsQuery.isError ? (
+      {isError ? (
         <TypographyP className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       ) : null}
 
-      {commentsQuery.data && comments.length === 0 ? (
+      {isEmpty ? (
         <TypographyP className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.empty} />
         </TypographyP>
       ) : null}
 
-      {threads.length > 0 ? (
-        <div className="grid gap-2">
-          {threads.map(({ root, replies }) => (
-            <IssueCommentThreadCard
-              key={root.id}
-              root={root}
-              replies={replies}
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              issueId={issueId}
-              mentionConfig={mentionConfig}
-              onReply={handleCreate}
-            />
-          ))}
+      {feedItems.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {feedItems.map((item, index) => {
+            if (item.kind === "activity") {
+              const connectAbove = feedItems[index - 1]?.kind === "activity";
+              const connectBelow = feedItems[index + 1]?.kind === "activity";
+              return (
+                <div key={item.id} className={cn(connectBelow && "-mb-2")}>
+                  <IssueActivityRow
+                    activity={item.activity}
+                    connectAbove={connectAbove}
+                    connectBelow={connectBelow}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <IssueCommentThreadCard
+                key={item.id}
+                root={item.root}
+                replies={item.replies}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                issueId={issueId}
+                mentionConfig={mentionConfig}
+                onReply={handleCreate}
+              />
+            );
+          })}
         </div>
       ) : null}
 

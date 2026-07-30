@@ -65,6 +65,11 @@ export const issuesPageViewMessages = defineMessages({
     id: "ou63JKkZ6w",
     description: "Table column header for target locale",
   },
+  columnAssignee: {
+    defaultMessage: "Assignee",
+    id: "paJg6jTRIA",
+    description: "Table column header for issue assignee on workspace issues",
+  },
   columnUpdated: {
     defaultMessage: "Updated",
     id: "rWXo8jdqPU",

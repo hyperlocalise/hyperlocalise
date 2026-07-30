@@ -25,6 +25,7 @@ import {
   buildIssueDetailHref,
   issueStatusVariant,
 } from "../../_components/issue-detail/issue-detail-utils";
+import { IssueAssigneeTableCell } from "../../_components/issue-detail/issue-assignee-table-cell";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
 import { issuesPageViewMessages } from "./issues-page-view.messages";
@@ -46,6 +47,7 @@ export type OrganizationIssue = {
   linkUrl: string | null;
   reporter: string | null;
   assignee: string | null;
+  assigneeUserId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -75,6 +77,9 @@ function IssueRowSkeleton() {
       </td>
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-32" />
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="h-4 w-28" />
       </td>
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-20" />
@@ -191,6 +196,9 @@ export function IssuesPageView({
                 <FormattedMessage {...issuesPageViewMessages.columnLocale} />
               </th>
               <th className="px-4 py-3 font-medium">
+                <FormattedMessage {...issuesPageViewMessages.columnAssignee} />
+              </th>
+              <th className="px-4 py-3 font-medium">
                 <FormattedMessage {...issuesPageViewMessages.columnUpdated} />
               </th>
             </tr>
@@ -200,13 +208,13 @@ export function IssuesPageView({
               Array.from({ length: 5 }).map((_, index) => <IssueRowSkeleton key={index} />)
             ) : isError ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   <FormattedMessage {...issuesPageViewMessages.loadError} />
                 </td>
               </tr>
             ) : issues.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   <FormattedMessage {...issuesPageViewMessages.empty} />
                 </td>
               </tr>
@@ -262,6 +270,19 @@ export function IssuesPageView({
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {issue.targetLocale ?? intl.formatMessage(issuesPageViewMessages.emptyValue)}
+                  </td>
+                  <td
+                    className="px-4 py-3"
+                    onClick={onStopRowActivation}
+                    onKeyDown={onStopRowActivation}
+                  >
+                    <IssueAssigneeTableCell
+                      organizationSlug={organizationSlug}
+                      projectId={issue.projectId}
+                      issueId={issue.id}
+                      assigneeUserId={issue.assigneeUserId}
+                      assigneeLabel={issue.assignee}
+                    />
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatRelativeTimestamp(issue.updatedAt)}

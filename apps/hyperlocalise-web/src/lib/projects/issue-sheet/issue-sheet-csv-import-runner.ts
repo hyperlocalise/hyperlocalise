@@ -15,6 +15,7 @@ import { and, eq } from "drizzle-orm";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema } from "@/lib/database";
 
+import { filterAssignableAssigneeUserIds } from "./issue-sheet-assignee";
 import {
   countIssueSheetImportCreateMappings,
   ISSUE_SHEET_IMPORT_MAX_NEW_COLUMNS,
@@ -25,7 +26,12 @@ import {
   type IssueSheetImportColumnMapping,
   type IssueSheetSystemField,
 } from "./issue-sheet-csv-import";
-import type { IssueSheetColumn, IssueSheetService } from "./issue-sheet-service";
+import {
+  ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED,
+  ISSUE_SHEET_ACTIVITY_ISSUE_CREATED,
+  type IssueSheetColumn,
+  type IssueSheetService,
+} from "./issue-sheet-service";
 
 export type IssueSheetImportResult = {
   dryRun: boolean;
@@ -215,6 +221,11 @@ export async function runIssueSheetCsvImport(
   const memberByEmail = new Map(
     memberRows.map((row) => [row.email.toLowerCase(), row.userId] as const),
   );
+  const assignableUserIds = await filterAssignableAssigneeUserIds({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    userIds: memberRows.map((row) => row.userId),
+  });
 
   const headerMappings = buildHeaderMappings(parsed.headers, input.body.mapping);
 
@@ -308,12 +319,19 @@ export async function runIssueSheetCsvImport(
     const assigneeRaw = row.system.assignee?.trim();
     if (assigneeRaw) {
       const email = assigneeRaw.toLowerCase();
-      assigneeUserId = memberByEmail.get(email) ?? null;
-      if (!assigneeUserId) {
+      const candidateUserId = memberByEmail.get(email) ?? null;
+      if (!candidateUserId) {
         result.warnings.push({
           row: row.rowNumber,
           message: `Assignee "${assigneeRaw}" was not found in the organization`,
         });
+      } else if (!assignableUserIds.has(candidateUserId)) {
+        result.warnings.push({
+          row: row.rowNumber,
+          message: `Assignee "${assigneeRaw}" cannot be assigned to this project`,
+        });
+      } else {
+        assigneeUserId = candidateUserId;
       }
     }
 
@@ -424,6 +442,33 @@ export async function runIssueSheetCsvImport(
 
       if (!issue) {
         throw new Error("issue_sheet_import_insert_failed");
+      }
+
+      const activityCreatedAt = new Date();
+
+      await tx.insert(schema.issueSheetActivities).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: issue.id,
+        actorUserId: input.actorUserId,
+        type: ISSUE_SHEET_ACTIVITY_ISSUE_CREATED,
+        payload: {},
+        createdAt: activityCreatedAt,
+      });
+
+      if (row.assigneeUserId) {
+        await tx.insert(schema.issueSheetActivities).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: issue.id,
+          actorUserId: input.actorUserId,
+          type: ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED,
+          payload: {
+            previousAssigneeUserId: null,
+            nextAssigneeUserId: row.assigneeUserId,
+          },
+          createdAt: new Date(activityCreatedAt.getTime() + 1),
+        });
       }
 
       for (const value of row.customValues) {

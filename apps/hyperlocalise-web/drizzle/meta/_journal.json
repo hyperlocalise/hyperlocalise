@@ -498,6 +498,13 @@
       "when": 1785329725960,
       "tag": "0070_slimy_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1785388586767,
+      "tag": "0071_wakeful_skin",
+      "breakpoints": true
     }
   ]
 }

@@ -21,9 +21,39 @@ export const issueCommentMessages = defineMessages({
     description: "Section title for issue discussion comments",
   },
   empty: {
-    defaultMessage: "No comments yet. Start the discussion.",
-    id: "l4Dmkd+jWE",
-    description: "Empty state when an issue has no comments",
+    defaultMessage: "No comments or activity yet. Start the discussion.",
+    id: "hMCKrgEEKW",
+    description: "Empty state when an issue has no comments or activity",
+  },
+  assignedTo: {
+    defaultMessage: "{actor} assigned to {assignee}",
+    id: "DtRFjTA7Kk",
+    description: "Activity line when an issue is assigned to another user",
+  },
+  assignedToSelf: {
+    defaultMessage: "{actor} assigned to themselves",
+    id: "x5jXClnMbS",
+    description: "Activity line when an actor assigns an issue to themselves",
+  },
+  unassigned: {
+    defaultMessage: "{actor} unassigned",
+    id: "KFoEqCEp2d",
+    description: "Activity line when an issue assignee is cleared",
+  },
+  issueCreated: {
+    defaultMessage: "{actor} created the issue",
+    id: "Y2hMRmZ+Nf",
+    description: "Activity line when an issue is created",
+  },
+  statusChanged: {
+    defaultMessage: "{actor} moved from {previousStatus} to {nextStatus}",
+    id: "mWmRyMvedC",
+    description: "Activity line when an issue status changes",
+  },
+  unknownActor: {
+    defaultMessage: "Someone",
+    id: "hFzuwtEzyB",
+    description: "Fallback actor name for issue activity when author is missing",
   },
   loadError: {
     defaultMessage: "Could not load comments.",

@@ -36,7 +36,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -51,11 +50,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
 import { IssueMarkdownField } from "./issue-markdown-field";
 import { issueMarkdownFieldMessages as markdownFieldMessages } from "./issue-markdown-field.messages";
+import { IssueAssigneePicker } from "./issue-assignee-picker";
 import { IssueCommentThread } from "./issue-comment-thread";
 import {
   buildIssueCatHref,
@@ -71,17 +70,12 @@ import {
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
+import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
-
-type WorkspaceMember = {
-  userId: string;
-  displayName: string;
-  status: "active" | "invited";
-};
 
 type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
 
@@ -203,20 +197,9 @@ export const IssueDetailPanel = forwardRef<
     onSaved: () => toast.success(intl.formatMessage(messages.saved)),
   });
 
-  const membersQuery = useQuery({
-    // Must match members-page-content: same key, same envelope shape.
-    queryKey: ["workspace-members", organizationSlug],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to load members");
-      }
-      return (await response.json()) as {
-        members: WorkspaceMember[];
-      };
-    },
+  const assignableMembersQuery = useAssignableIssueMembersQuery({
+    organizationSlug,
+    projectId,
   });
 
   const issue = issueQuery.data;
@@ -362,22 +345,6 @@ export const IssueDetailPanel = forwardRef<
     () => issuePriorityValues.map((value) => ({ value, label: value })),
     [],
   );
-
-  const assigneeItems = useMemo(() => {
-    const members = (membersQuery.data?.members ?? []).filter(
-      (member) => member.status === "active",
-    );
-    return [
-      {
-        value: "unassigned",
-        label: intl.formatMessage(messages.assigneeUnassigned),
-      },
-      ...members.map((member) => ({
-        value: member.userId,
-        label: member.displayName,
-      })),
-    ];
-  }, [intl, membersQuery.data]);
 
   if (issueQuery.isLoading) {
     return (
@@ -575,30 +542,18 @@ export const IssueDetailPanel = forwardRef<
 
         <dl className="flex flex-col">
           <PropertyRow icon={User02Icon} label={<FormattedMessage {...messages.fieldAssignee} />}>
-            <Select
-              value={issue.assigneeUserId ?? "unassigned"}
-              items={assigneeItems}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-                updateIssue.mutate({
-                  assigneeUserId: value === "unassigned" ? null : value,
-                });
+            <IssueAssigneePicker
+              value={issue.assigneeUserId}
+              currentLabel={issue.assignee}
+              members={assignableMembersQuery.data?.members ?? []}
+              isLoading={assignableMembersQuery.isLoading}
+              disabled={isSaving}
+              size="ghost"
+              triggerClassName={ghostSelectTriggerClassName}
+              onChange={(assigneeUserId) => {
+                updateIssue.mutate({ assigneeUserId });
               }}
-              disabled={isSaving || membersQuery.isLoading}
-            >
-              <SelectTrigger className={ghostSelectTriggerClassName}>
-                <SelectValue placeholder={emptyValue} />
-              </SelectTrigger>
-              <SelectContent>
-                {assigneeItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value} label={item.label}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </PropertyRow>
 
           <PropertyRow

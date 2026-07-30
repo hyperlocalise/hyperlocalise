@@ -22,6 +22,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
+import { issueActivitiesQueryKey } from "./use-issue-activities";
 
 async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -85,15 +86,79 @@ export function useIssueDetailMutations({
   const updateAbortControllersRef = useRef<Set<AbortController>>(new Set());
   const setValueAbortControllersRef = useRef<Set<AbortController>>(new Set());
 
-  const invalidate = async () => {
-    await Promise.all([
+  const invalidate = async (body?: Record<string, unknown>) => {
+    const tasks = [
       queryClient.invalidateQueries({
         queryKey: issueDetailQueryKey(organizationSlug, projectId, issueId),
       }),
       queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] }),
       queryClient.invalidateQueries({ queryKey: ["organization-issues", organizationSlug] }),
-    ]);
+    ];
+    if (body && (Object.hasOwn(body, "assigneeUserId") || Object.hasOwn(body, "status"))) {
+      tasks.push(
+        queryClient.invalidateQueries({
+          queryKey: issueActivitiesQueryKey(organizationSlug, projectId, issueId),
+        }),
+      );
+    }
+    await Promise.all(tasks);
     onSaved?.();
+  };
+
+  const patchListCachesForAssignee = (issue: IssueDetailIssue) => {
+    queryClient.setQueriesData(
+      { queryKey: ["organization-issues", organizationSlug] },
+      (current: unknown) => {
+        if (!current || typeof current !== "object") {
+          return current;
+        }
+        const pages = (current as { pages?: Array<{ issues?: Array<Record<string, unknown>> }> })
+          .pages;
+        if (!Array.isArray(pages)) {
+          return current;
+        }
+        return {
+          ...current,
+          pages: pages.map((page) => ({
+            ...page,
+            issues: (page.issues ?? []).map((row) =>
+              row.id === issue.id
+                ? {
+                    ...row,
+                    assigneeUserId: issue.assigneeUserId,
+                    assignee: issue.assignee,
+                  }
+                : row,
+            ),
+          })),
+        };
+      },
+    );
+
+    queryClient.setQueriesData(
+      { queryKey: ["issue-sheet", organizationSlug, projectId] },
+      (current: unknown) => {
+        if (!current || typeof current !== "object") {
+          return current;
+        }
+        const data = current as { issues?: Array<Record<string, unknown>> };
+        if (!Array.isArray(data.issues)) {
+          return current;
+        }
+        return {
+          ...current,
+          issues: data.issues.map((row) =>
+            row.id === issue.id
+              ? {
+                  ...row,
+                  assigneeUserId: issue.assigneeUserId,
+                  assignee: issue.assignee,
+                }
+              : row,
+          ),
+        };
+      },
+    );
   };
 
   const updateIssue = useMutation({
@@ -120,7 +185,10 @@ export function useIssueDetailMutations({
         issueDetailQueryKey(organizationSlug, projectId, issueId),
         (current: IssueDetailIssue | undefined) => mergeIssuePatch(current, body, result.issue),
       );
-      await invalidate();
+      if (Object.hasOwn(body, "assigneeUserId")) {
+        patchListCachesForAssignee(result.issue);
+      }
+      await invalidate(body);
     },
     onError: (error) => {
       if (isAbortError(error)) {
@@ -149,7 +217,7 @@ export function useIssueDetailMutations({
         releaseAbortController(setValueAbortControllersRef.current, controller);
       }
     },
-    onSuccess: invalidate,
+    onSuccess: () => invalidate(),
     onError: (error) => {
       if (isAbortError(error)) {
         return;

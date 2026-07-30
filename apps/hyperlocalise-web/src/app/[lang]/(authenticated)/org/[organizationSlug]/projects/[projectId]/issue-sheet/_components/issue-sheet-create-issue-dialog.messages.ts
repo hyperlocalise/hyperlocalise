@@ -91,6 +91,11 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "3y5ogrzNWd",
     description: "Placeholder for the priority select",
   },
+  assigneeLabel: {
+    defaultMessage: "Assignee",
+    id: "sE8e8Vuut1",
+    description: "Label for assignee on create issue dialog",
+  },
   contextSection: {
     defaultMessage: "Context",
     id: "ZV3TeuXtMA",

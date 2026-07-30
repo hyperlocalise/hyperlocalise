@@ -91,6 +91,11 @@ export const issueSheetPageContentMessages = defineMessages({
     id: "4No/FCwLf4",
     description: "Table column header for the issue link",
   },
+  columnAssignee: {
+    defaultMessage: "Assignee",
+    id: "hVUJVF+t4e",
+    description: "Table column header for issue assignee",
+  },
   loadingIssues: {
     defaultMessage: "Loading issues…",
     id: "NpTAZ+fM1z",

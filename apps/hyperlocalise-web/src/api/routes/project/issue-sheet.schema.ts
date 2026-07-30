@@ -139,6 +139,55 @@ export const issueSheetSetValueBodySchema = z.object({
   value: z.unknown(),
 });
 
+export const issueSheetActivitiesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const issueSheetAssignableMemberSchema = z.object({
+  userId: z.string().uuid(),
+  email: z.string(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+  isCurrentUser: z.boolean(),
+});
+
+export const issueSheetActivityUserSchema = z.object({
+  userId: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+const issueSheetActivityBaseSchema = {
+  id: z.string().uuid(),
+  actor: issueSheetActivityUserSchema.nullable(),
+  createdAt: z.string(),
+};
+
+export const issueSheetActivitySchema = z.discriminatedUnion("type", [
+  z.object({
+    ...issueSheetActivityBaseSchema,
+    type: z.literal("assignee_changed"),
+    previousAssignee: issueSheetActivityUserSchema.nullable(),
+    nextAssignee: issueSheetActivityUserSchema.nullable(),
+  }),
+  z.object({
+    ...issueSheetActivityBaseSchema,
+    type: z.literal("issue_created"),
+  }),
+  z.object({
+    ...issueSheetActivityBaseSchema,
+    type: z.literal("status_changed"),
+    previousStatus: z.string(),
+    nextStatus: z.string(),
+  }),
+]);
+
+export type IssueSheetActivitiesQuery = z.infer<typeof issueSheetActivitiesQuerySchema>;
+
 export const issueSheetSystemFieldSchema = z.enum([
   "title",
   "description",

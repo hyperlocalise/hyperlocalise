@@ -220,3 +220,57 @@ export const issueSheetComments = pgTable(
     index("idx_issue_sheet_comments_parent").on(table.parentId),
   ],
 );
+
+export type IssueSheetActivityAssigneeChangedPayload = {
+  previousAssigneeUserId: string | null;
+  nextAssigneeUserId: string | null;
+};
+
+export type IssueSheetActivityIssueCreatedPayload = Record<string, never>;
+
+export type IssueSheetActivityStatusChangedPayload = {
+  previousStatus: string;
+  nextStatus: string;
+};
+
+export type IssueSheetActivityPayload =
+  | IssueSheetActivityAssigneeChangedPayload
+  | IssueSheetActivityIssueCreatedPayload
+  | IssueSheetActivityStatusChangedPayload;
+
+/**
+ * Stores non-comment issue events (assignee changes, and later status/link events)
+ * for a unified discussion feed alongside comments.
+ */
+export const issueSheetActivities = pgTable(
+  "issue_sheet_activities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    type: text("type").notNull(),
+    payload: jsonb("payload")
+      .$type<IssueSheetActivityPayload>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_issue_sheet_activities_issue_created").on(table.issueId, table.createdAt, table.id),
+    index("idx_issue_sheet_activities_org_project_issue").on(
+      table.organizationId,
+      table.projectId,
+      table.issueId,
+    ),
+  ],
+);

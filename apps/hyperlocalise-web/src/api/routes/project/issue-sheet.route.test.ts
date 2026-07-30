@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
@@ -597,5 +598,209 @@ Second import issue,Done,EXT-2,P2`;
       { headers: outsiderHeaders },
     );
     expect(response.status).toBe(404);
+  });
+
+  it("assigns members, rejects invalid assignees, and records activity", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const teammateIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(teammateIdentity);
+    const teammateLocalId = await projectFixture.getLocalUserId(teammateIdentity.user.workosUserId);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: teammateLocalId,
+      role: "member",
+    });
+
+    const outsiderIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(outsiderIdentity);
+    const outsiderLocalId = await projectFixture.getLocalUserId(outsiderIdentity.user.workosUserId);
+
+    const [invitedUser] = await db
+      .insert(schema.users)
+      .values({
+        workosUserId: `invited_user_${crypto.randomUUID()}`,
+        email: `invited-${crypto.randomUUID()}@example.com`,
+        firstName: "Invited",
+        lastName: "User",
+      })
+      .returning();
+    await db.insert(schema.organizationMemberships).values({
+      organizationId: organization.id,
+      userId: invitedUser.id,
+      role: "translator",
+      workosMembershipId: null,
+    });
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Assigned on create",
+        issueType: "general_question",
+        assigneeUserId: teammateLocalId,
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse & {
+      issue: { assigneeUserId: string | null };
+    };
+    expect(created.issue.assigneeUserId).toBe(teammateLocalId);
+
+    const activitiesResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      { headers },
+    );
+    expect(activitiesResponse.status).toBe(200);
+    const activitiesBody = (await activitiesResponse.json()) as {
+      activities: Array<{
+        type: string;
+        nextAssignee: { userId: string } | null;
+        previousAssignee: { userId: string } | null;
+      }>;
+      total: number;
+    };
+    expect(activitiesBody.total).toBe(2);
+    expect(activitiesBody.activities.map((activity) => activity.type)).toEqual([
+      "issue_created",
+      "assignee_changed",
+    ]);
+    expect(activitiesBody.activities[1]?.nextAssignee?.userId).toBe(teammateLocalId);
+    expect(activitiesBody.activities[1]?.previousAssignee).toBeNull();
+
+    const assignableResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/assignable-members"),
+      { headers },
+    );
+    expect(assignableResponse.status).toBe(200);
+    const assignableBody = (await assignableResponse.json()) as {
+      members: Array<{ userId: string }>;
+    };
+    const assignableIds = new Set(assignableBody.members.map((member) => member.userId));
+    expect(assignableIds.has(user.id)).toBe(true);
+    expect(assignableIds.has(teammateLocalId)).toBe(true);
+    expect(assignableIds.has(outsiderLocalId)).toBe(false);
+    expect(assignableIds.has(invitedUser.id)).toBe(false);
+
+    const rejectInvited = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { assigneeUserId: invitedUser.id },
+      },
+    );
+    expect(rejectInvited.status).toBe(400);
+    expect(((await rejectInvited.json()) as { error: string }).error).toBe(
+      "assignee_not_assignable",
+    );
+
+    const rejectOutsider = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { assigneeUserId: outsiderLocalId },
+      },
+    );
+    expect(rejectOutsider.status).toBe(400);
+    expect(((await rejectOutsider.json()) as { error: string }).error).toBe(
+      "assignee_not_assignable",
+    );
+
+    const unassign = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { assigneeUserId: null },
+      },
+    );
+    expect(unassign.status).toBe(200);
+
+    const activitiesAfter = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      { headers },
+    );
+    const activitiesAfterBody = (await activitiesAfter.json()) as {
+      activities: Array<{ type: string; nextAssignee: { userId: string } | null }>;
+      total: number;
+    };
+    expect(activitiesAfterBody.total).toBe(3);
+    expect(activitiesAfterBody.activities.at(-1)?.type).toBe("assignee_changed");
+    expect(activitiesAfterBody.activities.at(-1)?.nextAssignee).toBeNull();
+
+    const statusChange = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { status: "in_progress" },
+      },
+    );
+    expect(statusChange.status).toBe(200);
+
+    const activitiesAfterStatus = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/activities`),
+      { headers },
+    );
+    const activitiesAfterStatusBody = (await activitiesAfterStatus.json()) as {
+      activities: Array<{
+        type: string;
+        previousStatus?: string;
+        nextStatus?: string;
+      }>;
+      total: number;
+    };
+    expect(activitiesAfterStatusBody.total).toBe(4);
+    expect(activitiesAfterStatusBody.activities.at(-1)).toMatchObject({
+      type: "status_changed",
+      previousStatus: "open",
+      nextStatus: "in_progress",
+    });
+
+    const reassign = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { assigneeUserId: teammateLocalId },
+      },
+    );
+    expect(reassign.status).toBe(200);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.userId, teammateLocalId));
+
+    const getAfterRemoval = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      { headers },
+    );
+    expect(getAfterRemoval.status).toBe(200);
+    const afterRemoval = (await getAfterRemoval.json()) as {
+      issue: { assigneeUserId: string | null; assignee: string | null };
+    };
+    expect(afterRemoval.issue.assigneeUserId).toBe(teammateLocalId);
+    expect(afterRemoval.issue.assignee).toBeTruthy();
+
+    const rejectRemoved = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { assigneeUserId: teammateLocalId },
+      },
+    );
+    expect(rejectRemoved.status).toBe(400);
   });
 });

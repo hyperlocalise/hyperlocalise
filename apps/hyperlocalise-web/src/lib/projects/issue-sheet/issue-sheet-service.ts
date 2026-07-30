@@ -21,8 +21,15 @@ import {
   type IssueSheetUpdateIssueBody,
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 
+import { isErr } from "@/lib/primitives/result/results";
+
+import {
+  assertAssignableIssueAssignee,
+  listAssignableIssueMembers,
+  type AssignableIssueMember,
+} from "./issue-sheet-assignee";
 import {
   runIssueSheetCsvImport,
   type IssueSheetImportResult,
@@ -37,6 +44,38 @@ import {
   priorityValueJoin,
   priorityValues,
 } from "./issue-list-query";
+
+export const ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED = "assignee_changed" as const;
+export const ISSUE_SHEET_ACTIVITY_ISSUE_CREATED = "issue_created" as const;
+export const ISSUE_SHEET_ACTIVITY_STATUS_CHANGED = "status_changed" as const;
+
+export type IssueSheetActivityUserSummary = {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+};
+
+type IssueSheetActivityBase = {
+  id: string;
+  actor: IssueSheetActivityUserSummary | null;
+  createdAt: string;
+};
+
+export type IssueSheetActivity =
+  | (IssueSheetActivityBase & {
+      type: typeof ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED;
+      previousAssignee: IssueSheetActivityUserSummary | null;
+      nextAssignee: IssueSheetActivityUserSummary | null;
+    })
+  | (IssueSheetActivityBase & {
+      type: typeof ISSUE_SHEET_ACTIVITY_ISSUE_CREATED;
+    })
+  | (IssueSheetActivityBase & {
+      type: typeof ISSUE_SHEET_ACTIVITY_STATUS_CHANGED;
+      previousStatus: string;
+      nextStatus: string;
+    });
 
 export type IssueSheetColumn = {
   id: string;
@@ -344,6 +383,200 @@ export class IssueSheetService {
     };
   }
 
+  async listAssignableMembers(input: {
+    organizationId: string;
+    projectId: string;
+    actorUserId: string;
+  }): Promise<AssignableIssueMember[]> {
+    return listAssignableIssueMembers({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      database: this.database,
+    });
+  }
+
+  async listActivities(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ activities: IssueSheetActivity[]; total: number }> {
+    const [issue] = await this.database
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, input.organizationId),
+          eq(schema.issueSheetIssues.projectId, input.projectId),
+          eq(schema.issueSheetIssues.id, input.issueId),
+        ),
+      )
+      .limit(1);
+
+    if (!issue) {
+      throw new Error("issue_sheet_issue_not_found");
+    }
+
+    const limit = input.limit ?? 100;
+    const offset = input.offset ?? 0;
+
+    const [totalRow] = await this.database
+      .select({ total: count() })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.organizationId, input.organizationId),
+          eq(schema.issueSheetActivities.projectId, input.projectId),
+          eq(schema.issueSheetActivities.issueId, input.issueId),
+        ),
+      );
+
+    const rows = await this.database
+      .select({
+        id: schema.issueSheetActivities.id,
+        type: schema.issueSheetActivities.type,
+        payload: schema.issueSheetActivities.payload,
+        createdAt: schema.issueSheetActivities.createdAt,
+        actorUserId: schema.issueSheetActivities.actorUserId,
+      })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.organizationId, input.organizationId),
+          eq(schema.issueSheetActivities.projectId, input.projectId),
+          eq(schema.issueSheetActivities.issueId, input.issueId),
+        ),
+      )
+      .orderBy(
+        asc(schema.issueSheetActivities.createdAt),
+        sql`case when ${schema.issueSheetActivities.type} = ${ISSUE_SHEET_ACTIVITY_ISSUE_CREATED} then 0 else 1 end`,
+        asc(schema.issueSheetActivities.id),
+      )
+      .limit(limit)
+      .offset(offset);
+
+    const userIds = new Set<string>();
+    for (const row of rows) {
+      if (row.actorUserId) {
+        userIds.add(row.actorUserId);
+      }
+      if (
+        row.type === ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED &&
+        "previousAssigneeUserId" in row.payload
+      ) {
+        if (typeof row.payload.previousAssigneeUserId === "string") {
+          userIds.add(row.payload.previousAssigneeUserId);
+        }
+        if (typeof row.payload.nextAssigneeUserId === "string") {
+          userIds.add(row.payload.nextAssigneeUserId);
+        }
+      }
+    }
+
+    const userRows =
+      userIds.size === 0
+        ? []
+        : await this.database
+            .select({
+              id: schema.users.id,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              avatarUrl: schema.users.avatarUrl,
+            })
+            .from(schema.users)
+            .where(inArray(schema.users.id, [...userIds]));
+
+    const usersById = new Map(userRows.map((row) => [row.id, row] as const));
+
+    const activities: IssueSheetActivity[] = [];
+    for (const row of rows) {
+      const actorRow = row.actorUserId ? usersById.get(row.actorUserId) : undefined;
+      const actor = this.mapActivityUser({
+        userId: row.actorUserId,
+        firstName: actorRow?.firstName ?? null,
+        lastName: actorRow?.lastName ?? null,
+        email: actorRow?.email ?? null,
+        avatarUrl: actorRow?.avatarUrl ?? null,
+      });
+      const createdAt = row.createdAt.toISOString();
+
+      if (row.type === ISSUE_SHEET_ACTIVITY_ISSUE_CREATED) {
+        activities.push({
+          id: row.id,
+          type: ISSUE_SHEET_ACTIVITY_ISSUE_CREATED,
+          actor,
+          createdAt,
+        });
+        continue;
+      }
+
+      if (row.type === ISSUE_SHEET_ACTIVITY_STATUS_CHANGED) {
+        const previousStatus =
+          "previousStatus" in row.payload && typeof row.payload.previousStatus === "string"
+            ? row.payload.previousStatus
+            : null;
+        const nextStatus =
+          "nextStatus" in row.payload && typeof row.payload.nextStatus === "string"
+            ? row.payload.nextStatus
+            : null;
+        if (!previousStatus || !nextStatus) {
+          continue;
+        }
+        activities.push({
+          id: row.id,
+          type: ISSUE_SHEET_ACTIVITY_STATUS_CHANGED,
+          actor,
+          previousStatus,
+          nextStatus,
+          createdAt,
+        });
+        continue;
+      }
+
+      if (row.type !== ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED) {
+        continue;
+      }
+
+      const previousId =
+        "previousAssigneeUserId" in row.payload &&
+        typeof row.payload.previousAssigneeUserId === "string"
+          ? row.payload.previousAssigneeUserId
+          : null;
+      const nextId =
+        "nextAssigneeUserId" in row.payload && typeof row.payload.nextAssigneeUserId === "string"
+          ? row.payload.nextAssigneeUserId
+          : null;
+      const previous = previousId ? usersById.get(previousId) : undefined;
+      const next = nextId ? usersById.get(nextId) : undefined;
+
+      activities.push({
+        id: row.id,
+        type: ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED,
+        actor,
+        previousAssignee: this.mapActivityUser({
+          userId: previousId,
+          firstName: previous?.firstName ?? null,
+          lastName: previous?.lastName ?? null,
+          email: previous?.email ?? null,
+          avatarUrl: previous?.avatarUrl ?? null,
+        }),
+        nextAssignee: this.mapActivityUser({
+          userId: nextId,
+          firstName: next?.firstName ?? null,
+          lastName: next?.lastName ?? null,
+          email: next?.email ?? null,
+          avatarUrl: next?.avatarUrl ?? null,
+        }),
+        createdAt,
+      });
+    }
+
+    return { activities, total: totalRow?.total ?? 0 };
+  }
+
   async createIssue(input: {
     organizationId: string;
     projectId: string;
@@ -356,34 +589,81 @@ export class IssueSheetService {
       return existing;
     }
 
-    const [issue] = await this.database
-      .insert(schema.issueSheetIssues)
-      .values({
+    const assigneeUserId = input.body.assigneeUserId ?? null;
+    if (assigneeUserId) {
+      const assignable = await assertAssignableIssueAssignee({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        title: input.body.title,
-        description: input.body.description ?? "",
-        issueType: input.body.issueType ?? "general_question",
-        status: input.body.status ?? "open",
-        targetLocale: input.body.targetLocale ?? null,
-        sourcePath: input.body.sourcePath ?? null,
-        segmentId: input.body.segmentId ?? null,
-        translationKeyId: input.body.translationKeyId ?? null,
-        linkedCommentId: input.body.linkedCommentId ?? null,
-        linkedAgentRunId: input.body.linkedAgentRunId ?? null,
-        linkKind: input.body.linkKind ?? null,
-        linkLabel: input.body.linkLabel ?? null,
-        linkUrl: input.body.linkUrl ?? null,
-        externalRef: input.body.externalRef ?? null,
-        reporterUserId: input.actorUserId,
-        assigneeUserId: input.body.assigneeUserId ?? null,
-        resolvedAt:
-          input.body.status === "resolved" || input.body.status === "wont_fix" ? new Date() : null,
-      })
-      .onConflictDoNothing()
-      .returning({ id: schema.issueSheetIssues.id });
+        assigneeUserId,
+        database: this.database,
+      });
+      if (isErr(assignable)) {
+        throw new Error(assignable.error.code);
+      }
+    }
 
-    if (!issue) {
+    const issueId = await this.database.transaction(async (tx) => {
+      const [issue] = await tx
+        .insert(schema.issueSheetIssues)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          title: input.body.title,
+          description: input.body.description ?? "",
+          issueType: input.body.issueType ?? "general_question",
+          status: input.body.status ?? "open",
+          targetLocale: input.body.targetLocale ?? null,
+          sourcePath: input.body.sourcePath ?? null,
+          segmentId: input.body.segmentId ?? null,
+          translationKeyId: input.body.translationKeyId ?? null,
+          linkedCommentId: input.body.linkedCommentId ?? null,
+          linkedAgentRunId: input.body.linkedAgentRunId ?? null,
+          linkKind: input.body.linkKind ?? null,
+          linkLabel: input.body.linkLabel ?? null,
+          linkUrl: input.body.linkUrl ?? null,
+          externalRef: input.body.externalRef ?? null,
+          reporterUserId: input.actorUserId,
+          assigneeUserId,
+          resolvedAt:
+            input.body.status === "resolved" || input.body.status === "wont_fix"
+              ? new Date()
+              : null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.issueSheetIssues.id });
+
+      if (!issue) {
+        return null;
+      }
+
+      const activityCreatedAt = new Date();
+
+      await this.insertIssueCreatedActivity({
+        database: tx,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: issue.id,
+        actorUserId: input.actorUserId,
+        createdAt: activityCreatedAt,
+      });
+
+      if (assigneeUserId) {
+        await this.insertAssigneeChangedActivity({
+          database: tx,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: issue.id,
+          actorUserId: input.actorUserId,
+          previousAssigneeUserId: null,
+          nextAssigneeUserId: assigneeUserId,
+          createdAt: new Date(activityCreatedAt.getTime() + 1),
+        });
+      }
+
+      return issue.id;
+    });
+
+    if (!issueId) {
       const conflicted = await this.findExistingLinkedIssue(input);
       if (conflicted) {
         return conflicted;
@@ -395,7 +675,7 @@ export class IssueSheetService {
       await this.setValue({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: issue.id,
+        issueId,
         body: { columnKey: "priority", value: input.body.priority },
       });
     }
@@ -403,7 +683,7 @@ export class IssueSheetService {
     const created = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: issue.id,
+      issueId,
       actorUserId: input.actorUserId,
     });
     if (!created) {
@@ -427,22 +707,13 @@ export class IssueSheetService {
           ? null
           : undefined;
 
-    const [updated] = await this.database
-      .update(schema.issueSheetIssues)
-      .set({
-        title: input.body.title,
-        description: input.body.description,
-        issueType: input.body.issueType,
-        status: input.body.status,
-        targetLocale: input.body.targetLocale,
-        sourcePath: input.body.sourcePath,
-        segmentId: input.body.segmentId,
-        linkKind: input.body.linkKind,
-        linkLabel: input.body.linkLabel,
-        linkUrl: input.body.linkUrl,
-        assigneeUserId: input.body.assigneeUserId,
-        ...(resolvedAt !== undefined ? { resolvedAt } : {}),
+    const [current] = await this.database
+      .select({
+        id: schema.issueSheetIssues.id,
+        status: schema.issueSheetIssues.status,
+        assigneeUserId: schema.issueSheetIssues.assigneeUserId,
       })
+      .from(schema.issueSheetIssues)
       .where(
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
@@ -450,11 +721,83 @@ export class IssueSheetService {
           eq(schema.issueSheetIssues.id, input.issueId),
         ),
       )
-      .returning({ id: schema.issueSheetIssues.id });
+      .limit(1);
 
-    if (!updated) {
+    if (!current) {
       return null;
     }
+
+    const assigneeChanging = Object.hasOwn(input.body, "assigneeUserId");
+    const nextAssigneeUserId = assigneeChanging
+      ? (input.body.assigneeUserId ?? null)
+      : current.assigneeUserId;
+    const statusChanging =
+      Object.hasOwn(input.body, "status") &&
+      input.body.status != null &&
+      input.body.status !== current.status;
+    const nextStatusValue = statusChanging ? input.body.status! : current.status;
+
+    if (assigneeChanging && nextAssigneeUserId) {
+      const assignable = await assertAssignableIssueAssignee({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        assigneeUserId: nextAssigneeUserId,
+        database: this.database,
+      });
+      if (isErr(assignable)) {
+        throw new Error(assignable.error.code);
+      }
+    }
+
+    await this.database.transaction(async (tx) => {
+      await tx
+        .update(schema.issueSheetIssues)
+        .set({
+          title: input.body.title,
+          description: input.body.description,
+          issueType: input.body.issueType,
+          status: input.body.status,
+          targetLocale: input.body.targetLocale,
+          sourcePath: input.body.sourcePath,
+          segmentId: input.body.segmentId,
+          linkKind: input.body.linkKind,
+          linkLabel: input.body.linkLabel,
+          linkUrl: input.body.linkUrl,
+          ...(assigneeChanging ? { assigneeUserId: nextAssigneeUserId } : {}),
+          ...(resolvedAt !== undefined ? { resolvedAt } : {}),
+        })
+        .where(
+          and(
+            eq(schema.issueSheetIssues.organizationId, input.organizationId),
+            eq(schema.issueSheetIssues.projectId, input.projectId),
+            eq(schema.issueSheetIssues.id, input.issueId),
+          ),
+        );
+
+      if (statusChanging) {
+        await this.insertStatusChangedActivity({
+          database: tx,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: input.issueId,
+          actorUserId: input.actorUserId,
+          previousStatus: current.status,
+          nextStatus: nextStatusValue,
+        });
+      }
+
+      if (assigneeChanging && current.assigneeUserId !== nextAssigneeUserId) {
+        await this.insertAssigneeChangedActivity({
+          database: tx,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: input.issueId,
+          actorUserId: input.actorUserId,
+          previousAssigneeUserId: current.assigneeUserId,
+          nextAssigneeUserId,
+        });
+      }
+    });
 
     return this.getIssueById(input);
   }
@@ -536,6 +879,95 @@ export class IssueSheetService {
       columnKey: column.key,
       value,
     };
+  }
+
+  private mapActivityUser(input: {
+    userId: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  }): IssueSheetActivityUserSummary | null {
+    if (!input.userId) {
+      return null;
+    }
+    const displayName =
+      formatUser({
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+      }) ?? input.userId;
+    return {
+      userId: input.userId,
+      displayName,
+      email: input.email,
+      avatarUrl: input.avatarUrl,
+    };
+  }
+
+  private async insertAssigneeChangedActivity(input: {
+    database: DatabaseClient;
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    previousAssigneeUserId: string | null;
+    nextAssigneeUserId: string | null;
+    createdAt?: Date;
+  }) {
+    await input.database.insert(schema.issueSheetActivities).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      actorUserId: input.actorUserId,
+      type: ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED,
+      payload: {
+        previousAssigneeUserId: input.previousAssigneeUserId,
+        nextAssigneeUserId: input.nextAssigneeUserId,
+      },
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+    });
+  }
+
+  private async insertIssueCreatedActivity(input: {
+    database: DatabaseClient;
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    createdAt?: Date;
+  }) {
+    await input.database.insert(schema.issueSheetActivities).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      actorUserId: input.actorUserId,
+      type: ISSUE_SHEET_ACTIVITY_ISSUE_CREATED,
+      payload: {},
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+    });
+  }
+
+  private async insertStatusChangedActivity(input: {
+    database: DatabaseClient;
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    previousStatus: string;
+    nextStatus: string;
+  }) {
+    await input.database.insert(schema.issueSheetActivities).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      actorUserId: input.actorUserId,
+      type: ISSUE_SHEET_ACTIVITY_STATUS_CHANGED,
+      payload: {
+        previousStatus: input.previousStatus,
+        nextStatus: input.nextStatus,
+      },
+    });
   }
 
   private async findExistingLinkedIssue(input: {

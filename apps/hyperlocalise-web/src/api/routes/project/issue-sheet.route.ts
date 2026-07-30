@@ -32,6 +32,7 @@ import {
   issueSheetIssueParamsSchema,
   issueSheetParamsSchema,
   issueSheetQuerySchema,
+  issueSheetActivitiesQuerySchema,
   issueSheetSetValueBodySchema,
   issueSheetUpdateIssueBodySchema,
 } from "./issue-sheet.schema";
@@ -88,6 +89,11 @@ const validateImportBody = createZodValidator(
   issueSheetImportBodySchema,
   "invalid_issue_sheet_import_payload",
 );
+const validateActivitiesQuery = createZodValidator(
+  "query",
+  issueSheetActivitiesQuerySchema,
+  "invalid_issue_sheet_activities_query",
+);
 
 const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
   workspaceIssuesFlag,
@@ -121,26 +127,36 @@ export function createIssueSheetRoutes() {
       });
       return c.json(result, 200);
     })
-    .get("/:issueId", validateIssueSheetIssueParams, async (c) => {
+    .get("/assignable-members", validateIssueSheetParams, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);
       if (!project) {
         return projectNotFoundResponse(c);
       }
 
-      const issue = await service.getIssue({
+      const members = await service.listAssignableMembers({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectId: project.id,
-        issueId: params.issueId,
         actorUserId: c.var.auth.user.localUserId,
       });
-      if (!issue) {
-        return notFoundResponse(c, "issue_not_found", "Issue not found");
-      }
-      return c.json({ issue }, 200);
+      return c.json({ members }, 200);
     })
-    .post("/", validateIssueSheetParams, validateCreateIssueBody, async (c) => {
-      if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+    .get("/columns", validateIssueSheetParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const columns = await service.listColumns({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      return c.json({ columns }, 200);
+    })
+    .post("/columns", validateIssueSheetParams, validateCreateColumnBody, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
       const params = c.req.valid("param");
@@ -150,19 +166,16 @@ export function createIssueSheetRoutes() {
       }
 
       try {
-        const issue = await service.createIssue({
+        const column = await service.createColumn({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
           actorUserId: c.var.auth.user.localUserId,
           body: c.req.valid("json"),
         });
-        return c.json({ issue }, 201);
+        return c.json({ column }, 201);
       } catch (error) {
-        if (error instanceof Error && error.message === "invalid_issue_sheet_select_value") {
-          return badRequestResponse(c, "invalid_issue_sheet_select_value", "Invalid select value");
-        }
         if (error instanceof Error && error.message.includes("duplicate")) {
-          return conflictResponse(c, "issue_sheet_issue_exists", "Issue already exists");
+          return conflictResponse(c, "issue_sheet_column_exists", "Column already exists");
         }
         throw error;
       }
@@ -214,6 +227,88 @@ export function createIssueSheetRoutes() {
         throw error;
       }
     })
+    .get(
+      "/:issueId/activities",
+      validateIssueSheetIssueParams,
+      validateActivitiesQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const project = await requireProject(c, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        try {
+          const query = c.req.valid("query");
+          const result = await service.listActivities({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: project.id,
+            issueId: params.issueId,
+            limit: query.limit,
+            offset: query.offset,
+          });
+          return c.json(result, 200);
+        } catch (error) {
+          if (error instanceof Error && error.message === "issue_sheet_issue_not_found") {
+            return notFoundResponse(c, "issue_not_found", "Issue not found");
+          }
+          throw error;
+        }
+      },
+    )
+    .get("/:issueId", validateIssueSheetIssueParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const issue = await service.getIssue({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId: params.issueId,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      if (!issue) {
+        return notFoundResponse(c, "issue_not_found", "Issue not found");
+      }
+      return c.json({ issue }, 200);
+    })
+    .post("/", validateIssueSheetParams, validateCreateIssueBody, async (c) => {
+      if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      try {
+        const issue = await service.createIssue({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          actorUserId: c.var.auth.user.localUserId,
+          body: c.req.valid("json"),
+        });
+        return c.json({ issue }, 201);
+      } catch (error) {
+        if (error instanceof Error && error.message === "assignee_not_assignable") {
+          return badRequestResponse(
+            c,
+            "assignee_not_assignable",
+            "Assignee must be an active workspace member with project access",
+          );
+        }
+        if (error instanceof Error && error.message === "invalid_issue_sheet_select_value") {
+          return badRequestResponse(c, "invalid_issue_sheet_select_value", "Invalid select value");
+        }
+        if (error instanceof Error && error.message.includes("duplicate")) {
+          return conflictResponse(c, "issue_sheet_issue_exists", "Issue already exists");
+        }
+        throw error;
+      }
+    })
     .patch("/:issueId", validateIssueSheetIssueParams, validateUpdateIssueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
@@ -224,53 +319,25 @@ export function createIssueSheetRoutes() {
         return projectNotFoundResponse(c);
       }
 
-      const issue = await service.updateIssue({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        issueId: projectParams.issueId,
-        actorUserId: c.var.auth.user.localUserId,
-        body: c.req.valid("json"),
-      });
-      if (!issue) {
-        return badRequestResponse(c, "issue_sheet_issue_not_found", "Issue not found");
-      }
-      return c.json({ issue }, 200);
-    })
-    .get("/columns", validateIssueSheetParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await requireProject(c, params.projectId);
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const columns = await service.listColumns({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        actorUserId: c.var.auth.user.localUserId,
-      });
-      return c.json({ columns }, 200);
-    })
-    .post("/columns", validateIssueSheetParams, validateCreateColumnBody, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-      const params = c.req.valid("param");
-      const project = await requireProject(c, params.projectId);
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
       try {
-        const column = await service.createColumn({
+        const issue = await service.updateIssue({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
+          issueId: projectParams.issueId,
           actorUserId: c.var.auth.user.localUserId,
           body: c.req.valid("json"),
         });
-        return c.json({ column }, 201);
+        if (!issue) {
+          return badRequestResponse(c, "issue_sheet_issue_not_found", "Issue not found");
+        }
+        return c.json({ issue }, 200);
       } catch (error) {
-        if (error instanceof Error && error.message.includes("duplicate")) {
-          return conflictResponse(c, "issue_sheet_column_exists", "Column already exists");
+        if (error instanceof Error && error.message === "assignee_not_assignable") {
+          return badRequestResponse(
+            c,
+            "assignee_not_assignable",
+            "Assignee must be an active workspace member with project access",
+          );
         }
         throw error;
       }
