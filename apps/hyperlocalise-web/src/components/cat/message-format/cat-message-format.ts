@@ -290,9 +290,40 @@ function tokenDisplayName(token: CatMessageToken) {
   return `{${token.name}}`;
 }
 
-function findMissingTokens(sourceTokens: CatMessageToken[], targetTokens: CatMessageToken[]) {
-  const targetSignatures = new Set(targetTokens.map(tokenSignature));
-  return sourceTokens.filter((token) => !targetSignatures.has(tokenSignature(token)));
+function signatureCounts(tokens: CatMessageToken[]) {
+  const counts = new Map<string, { count: number; sample: CatMessageToken }>();
+  for (const token of tokens) {
+    const signature = tokenSignature(token);
+    const entry = counts.get(signature);
+    if (entry) {
+      entry.count += 1;
+      continue;
+    }
+    counts.set(signature, { count: 1, sample: token });
+  }
+  return counts;
+}
+
+/** Tokens present more often on the left than the right (multiset difference). */
+function findMissingTokens(leftTokens: CatMessageToken[], rightTokens: CatMessageToken[]) {
+  const rightCounts = new Map<string, number>();
+  for (const token of rightTokens) {
+    const signature = tokenSignature(token);
+    rightCounts.set(signature, (rightCounts.get(signature) ?? 0) + 1);
+  }
+
+  const missing: CatMessageToken[] = [];
+  for (const [signature, { count, sample }] of signatureCounts(leftTokens)) {
+    const deficit = count - (rightCounts.get(signature) ?? 0);
+    for (let index = 0; index < deficit; index += 1) {
+      missing.push(sample);
+    }
+  }
+  return missing;
+}
+
+function analysisHasMarkup(analysis: CatMessageAnalysis) {
+  return analysis.tokens.some((token) => token.kind === "markup");
 }
 
 export function compareCatMessageFormats(
@@ -300,34 +331,25 @@ export function compareCatMessageFormats(
   target: CatMessageAnalysis,
 ): CatMessageParityIssue[] {
   const issues: CatMessageParityIssue[] = [];
-  const sourceHasMarkup = source.tokens.some((token) => token.kind === "markup");
-  const targetHasMarkup = target.tokens.some((token) => token.kind === "markup");
-  const hasMarkup = sourceHasMarkup || targetHasMarkup;
+  const hasMarkup = analysisHasMarkup(source) || analysisHasMarkup(target);
 
-  // Internal HL*PH sentinels are compared as markup tokens. Pure ICU parse failures
-  // without markup still short-circuit like before.
-  if (source.parseError && !hasMarkup) {
+  if (source.parseError) {
     issues.push({
       kind: "parse-error",
       parseTarget: "source",
       parseErrorMessage: source.parseError.message || undefined,
     });
-    if (target.parseError) {
-      issues.push({
-        kind: "parse-error",
-        parseTarget: "target",
-        parseErrorMessage: target.parseError.message || undefined,
-      });
-    }
-    return issues;
   }
-
-  if (target.parseError && !hasMarkup) {
+  if (target.parseError) {
     issues.push({
       kind: "parse-error",
       parseTarget: "target",
       parseErrorMessage: target.parseError.message || undefined,
     });
+  }
+
+  // Pure ICU parse failures without markup have nothing else useful to compare.
+  if ((source.parseError || target.parseError) && !hasMarkup) {
     return issues;
   }
 
@@ -369,9 +391,19 @@ export function compareCatMessageFormats(
 export function missingCatMessageTokens(sourceMessage: string, targetMessage: string) {
   const source = analyzeCatMessageFormat(sourceMessage);
   const target = analyzeCatMessageFormat(targetMessage);
-  if (source.parseError || target.parseError) {
+  const hasMarkup = analysisHasMarkup(source) || analysisHasMarkup(target);
+  if ((source.parseError || target.parseError) && !hasMarkup) {
     return [];
   }
 
-  return findMissingTokens(source.tokens, target.tokens).filter((token) => token.kind !== "pound");
+  const sourceTokens =
+    source.parseError || target.parseError
+      ? source.tokens.filter((token) => token.kind === "markup")
+      : source.tokens;
+  const targetTokens =
+    source.parseError || target.parseError
+      ? target.tokens.filter((token) => token.kind === "markup")
+      : target.tokens;
+
+  return findMissingTokens(sourceTokens, targetTokens).filter((token) => token.kind !== "pound");
 }

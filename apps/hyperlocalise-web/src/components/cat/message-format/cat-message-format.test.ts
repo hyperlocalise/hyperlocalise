@@ -169,4 +169,65 @@ describe("cat message format utilities", () => {
     expect(analysis.tokens.map((token) => token.kind).toSorted()).toEqual(["argument", "markup"]);
     expect(analysis.placeholders).toHaveLength(2);
   });
+
+  it("reports duplicated markup sentinels as extra tokens", () => {
+    const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
+    const ht1 = "\u001eHLHTPH_112233445566_1\u001f";
+    const issues = compare(`Click ${ht0}here${ht1}`, `Cliquez ${ht0}${ht0}ici${ht1}`);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "extra-token",
+        tokens: ["HT#0"],
+      }),
+    );
+    expect(issues.filter((issue) => issue.kind === "missing-token")).toHaveLength(0);
+  });
+
+  it("reports missing duplicate markup sentinel occurrences", () => {
+    const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
+    const ht1 = "\u001eHLHTPH_112233445566_1\u001f";
+    const issues = compare(`Click ${ht0}${ht0}here${ht1}`, `Cliquez ${ht0}ici${ht1}`);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "missing-token",
+        tokens: ["HT#0"],
+      }),
+    );
+  });
+
+  it("still reports ICU parse errors when markup tokens are present", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(
+      `${md0}{count, plural, one {# file} other {# files}}${md1}`,
+      `${md0}{count, plural, one {# fichier}}${md1}`,
+    );
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "parse-error",
+        parseTarget: "target",
+      }),
+    );
+    expect(issues.filter((issue) => issue.kind === "missing-token")).toHaveLength(0);
+    expect(issues.filter((issue) => issue.kind === "extra-token")).toHaveLength(0);
+  });
+
+  it("reports markup mismatches alongside ICU parse errors", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(
+      `${md0}{count, plural, one {# file} other {# files}}${md1}`,
+      `{count, plural, one {# fichier}}${md1}`,
+    );
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "parse-error", parseTarget: "target" }),
+        expect.objectContaining({ kind: "missing-token", tokens: ["MD#0"] }),
+      ]),
+    );
+  });
 });
