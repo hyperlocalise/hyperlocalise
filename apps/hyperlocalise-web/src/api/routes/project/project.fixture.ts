@@ -86,5 +86,6 @@ export function createProjectTestFixture(client?: Client) {
     createWorkosIdentityForOrganization: authFixture.createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole: authFixture.createWorkosIdentityWithRole,
     getLocalUserId: authFixture.getLocalUserId,
+    trackWorkosUserId: authFixture.trackWorkosUserId,
   };
 }

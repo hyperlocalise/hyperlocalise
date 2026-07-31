@@ -17,9 +17,9 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database";
 import { isOk } from "@/lib/primitives/result/results";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 
 import {
   assertAssignableIssueAssignee,
@@ -115,10 +115,15 @@ describe("issue-sheet-assignee", () => {
   it("rejects pending invites and replacing memberships", async () => {
     const { organization, project } = await projectFixture.createStoredProjectFixture();
 
+    const pendingWorkosUserId = `invited_user_${randomUUID()}`;
+    const replacingWorkosUserId = `user_${randomUUID()}`;
+    projectFixture.trackWorkosUserId(pendingWorkosUserId);
+    projectFixture.trackWorkosUserId(replacingWorkosUserId);
+
     const [pendingUser] = await db
       .insert(schema.users)
       .values({
-        workosUserId: `invited_user_${randomUUID()}`,
+        workosUserId: pendingWorkosUserId,
         email: `pending-${randomUUID()}@example.com`,
         firstName: "Pending",
         lastName: "Invite",
@@ -134,7 +139,7 @@ describe("issue-sheet-assignee", () => {
     const [replacingUser] = await db
       .insert(schema.users)
       .values({
-        workosUserId: `user_${randomUUID()}`,
+        workosUserId: replacingWorkosUserId,
         email: `replacing-${randomUUID()}@example.com`,
         firstName: "Replacing",
         lastName: "Member",
@@ -144,7 +149,11 @@ describe("issue-sheet-assignee", () => {
       organizationId: organization.id,
       userId: replacingUser.id,
       role: "translator",
-      workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID,
+      workosMembershipId: `membership_${randomUUID()}`,
+    });
+    await setMembershipReplacingSentinelForTest(db, {
+      organizationId: organization.id,
+      userId: replacingUser.id,
     });
     await db.insert(schema.teamMemberships).values({
       teamId: project.teamId!,
