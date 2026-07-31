@@ -187,6 +187,10 @@ describe("Agent Tools RBAC", () => {
     return tool.execute(input, toolCallInfo);
   }
 
+  function dbSpy(ctx: ToolContext, method: "insert" | "select" | "update" | "delete") {
+    return ctx.db[method] as ReturnType<typeof vi.fn>;
+  }
+
   describe("Translation Job Tools", () => {
     it("denies access to members", async () => {
       const tool = createTranslationJobTool(mockCtx("member"));
@@ -317,7 +321,7 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_DENIED_ROLES)("denies glossary term update for %s", async (role) => {
@@ -329,8 +333,8 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.select).not.toHaveBeenCalled();
-      expect(ctx.db.update).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_DENIED_ROLES)("denies glossary term delete for %s", async (role) => {
@@ -341,8 +345,8 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.select).not.toHaveBeenCalled();
-      expect(ctx.db.delete).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_ALLOWED_ROLES)(
@@ -401,7 +405,7 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_DENIED_ROLES)("denies memory entry update for %s", async (role) => {
@@ -413,8 +417,8 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.select).not.toHaveBeenCalled();
-      expect(ctx.db.update).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_DENIED_ROLES)("denies memory entry delete for %s", async (role) => {
@@ -425,8 +429,8 @@ describe("Agent Tools RBAC", () => {
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
-      expect(ctx.db.select).not.toHaveBeenCalled();
-      expect(ctx.db.delete).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
     });
 
     it.each(WRITE_ALLOWED_ROLES)(
