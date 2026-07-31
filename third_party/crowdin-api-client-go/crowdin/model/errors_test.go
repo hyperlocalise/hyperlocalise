@@ -127,6 +127,17 @@ func TestParseErrorResponse(t *testing.T) {
 			err:  "404 Resource Not Found",
 		},
 		{
+			resp: &http.Response{StatusCode: http.StatusBadRequest},
+			body: []byte(`{
+				"error": {
+					"message": "Invalid parameter given",
+					"code": 400
+				}
+			}`),
+			code: 400,
+			err:  "400 Invalid parameter given",
+		},
+		{
 			resp: &http.Response{StatusCode: http.StatusForbidden},
 			body: []byte(`{
 				"error": {
@@ -436,6 +447,9 @@ func determineErrorType(resp *http.Response, body []byte, graph bool) error {
 				}
 			}
 			return &ValidationErrorResponse{Response: resp, Status: resp.StatusCode}
+		}
+		if _, ok := b["error"].(map[string]any); ok {
+			return &ErrorResponse{Response: resp}
 		}
 		return nil
 	default:

@@ -1,5 +1,17 @@
 # Crowdin Steward's Journal
 
+## 2026-12-22 - Fix standard 400 Bad Request error decoding
+
+**Learning:** When Crowdin API v2 returns a `400 Bad Request` status code, the response body might contain a standard error schema (`{"error": {"code": 400, "message": "..."}}`) instead of list-based validation errors (`"errors"`). Previously, `determineErrorType` incorrectly assumed all 400 errors were validation/batch-validation errors, resulting in a generic string-format error from `determineErrorType` that failed JSON unmarshaling. This hid the original Crowdin error behind a vague `client: server returned 400 status code`.
+
+**Action:** Updated `determineErrorType` in both `crowdin/crowdin.go` and `crowdin/model/errors_test.go` to explicitly check if `b["error"]` is present as a map and, if so, return `&model.ErrorResponse{Response: resp}` to allow correct unmarshaling of the detailed error payload. Added test cases validating standard 400 Bad Request error unmarshaling end-to-end.
+
+## 2026-12-22 - Align Notification validation with Project Notify roles
+
+**Learning:** The Crowdin Go SDK's `Notification` struct is shared between organization-level and project-level notification endpoints. However, its client-side validation logic restricted the `role` parameter to `"owner"` and `"manager"` only. This blocked valid project notification requests targeting roles like `"translator"`, `"proofreader"`, `"developer"`, or `"language_coordinator"`.
+
+**Action:** Updated `model.Notification.Validate()` in `crowdin/model/notifications.go` to accept all valid project-level and organization-level notification roles (`owner`, `manager`, `language_coordinator`, `developer`, `translator`, `proofreader`). Added comprehensive unit tests asserting validation of these newly allowed roles and updated the old invalid role error message test expectation.
+
 ## 2026-12-21 - Fix GetManagers endpoint path and signature parity
 
 **Learning:** In Crowdin Enterprise API v2, retrieving a single manager requires specifying both the `groupId` and the `userId` in the path `/api/v2/groups/{groupId}/managers/{userId}`. The SDK previously only accepted `groupID` and requested the listing endpoint `/api/v2/groups/{groupId}/managers` while trying to unmarshal it as a single `ManagerGetResponse` struct. Under real workloads, this led to immediate JSON unmarshaling errors due to array-to-object type mismatch.

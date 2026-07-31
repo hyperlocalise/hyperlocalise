@@ -30,8 +30,14 @@ func (r *Notification) Validate() error {
 	if len(r.UserIDs) > 0 && r.Role != "" {
 		return errors.New("can't specify both user IDs and role")
 	}
-	if r.Role != "" && r.Role != "owner" && r.Role != "manager" {
-		return errors.New("role must be either owner or manager")
+	if r.Role != "" &&
+		r.Role != "owner" &&
+		r.Role != "manager" &&
+		r.Role != "language_coordinator" &&
+		r.Role != "developer" &&
+		r.Role != "translator" &&
+		r.Role != "proofreader" {
+		return errors.New("role must be one of: owner, manager, language_coordinator, developer, translator, proofreader")
 	}
 
 	return nil

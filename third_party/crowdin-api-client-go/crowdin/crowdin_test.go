@@ -289,6 +289,18 @@ func TestRequestWithVariousErrorHandling(t *testing.T) {
 			err:  "404 Resource Not Found",
 		},
 		{
+			name: "standard bad request error",
+			path: "/path",
+			body: []byte(`{
+				"error": {
+					"message": "Invalid parameter given",
+					"code": 400
+				}
+			}`),
+			code: http.StatusBadRequest,
+			err:  "400 Invalid parameter given",
+		},
+		{
 			name: "wrong error schema",
 			path: "/path",
 			body: []byte(`{
