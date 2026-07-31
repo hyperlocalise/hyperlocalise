@@ -2535,10 +2535,6 @@
     "defaultMessage": "Translation intelligence",
     "description": "Heading for the bottom intelligence panel in side-by-side CAT view"
   },
-  "8TtvvjSylP": {
-    "defaultMessage": "Search key or text…",
-    "description": "Placeholder for CAT queue search input"
-  },
   "8UnBVLcjgq": {
     "defaultMessage": "{position} / {total}",
     "description": "Current segment index and total count in the compact CAT workspace header"
@@ -3839,10 +3835,6 @@
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo in the hero trusted-by strip"
   },
-  "DSKOYVYVQJ": {
-    "defaultMessage": "Key: {key}",
-    "description": "Shows the string key associated with an Issue Sheet row"
-  },
   "DSm/l7fomX": {
     "defaultMessage": "Revoke API key",
     "description": "Title of the revoke API key confirmation dialog"
@@ -3910,6 +3902,10 @@
   "DqaqeEsPck": {
     "defaultMessage": "Catch translation drift before your customers do",
     "description": "Hero headline for the localisation-quality-monitoring use case"
+  },
+  "DtRFjTA7Kk": {
+    "defaultMessage": "{actor} assigned to {assignee}",
+    "description": "Activity line when an issue is assigned to another user"
   },
   "DwOm/o1t0O": {
     "defaultMessage": "Coming soon",
@@ -4374,6 +4370,10 @@
   "Fqhf+2LVu/": {
     "defaultMessage": "No projects assigned yet.",
     "description": "Empty state when no projects are assigned to a translation memory"
+  },
+  "FrF4P2cRG5": {
+    "defaultMessage": "Loading members…",
+    "description": "Loading state for assignee picker members"
   },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% translated",
@@ -5299,6 +5299,10 @@
     "defaultMessage": "Built for localisation teams. Available soon.",
     "description": "Marketing homepage final call-to-action section headline"
   },
+  "KFoEqCEp2d": {
+    "defaultMessage": "{actor} unassigned",
+    "description": "Activity line when an issue assignee is cleared"
+  },
   "KG5OUSGbKU": {
     "defaultMessage": "Board",
     "description": "Button label to show jobs as a kanban board"
@@ -5390,6 +5394,10 @@
   "KjJZbmRFki": {
     "defaultMessage": "Unable to load project details. Refresh the page or try again in a moment.",
     "description": "Error message when project overview details fail to load"
+  },
+  "Kjim0yzISM": {
+    "defaultMessage": "Search segments by key, source text, or translation",
+    "description": "Accessible label for CAT queue search input"
   },
   "KkmE6ygIj4": {
     "defaultMessage": "Task type",
@@ -7131,6 +7139,10 @@
     "defaultMessage": "Collaboration",
     "description": "Integrations page section heading for collaboration tools"
   },
+  "SSB8f+XN3w": {
+    "defaultMessage": "Assign to me",
+    "description": "Assignee picker shortcut to assign the current user"
+  },
   "SSDdQ9eeIj": {
     "defaultMessage": "All sync states",
     "description": "Sync filter option for all sync states"
@@ -7230,6 +7242,10 @@
   "SyMDAHRe17": {
     "defaultMessage": "{count, plural, one {# open job} other {# open jobs}}",
     "description": "Fragment listing open job count in the project overview hero"
+  },
+  "SynhGNu72Q": {
+    "defaultMessage": "Search by name or email…",
+    "description": "Placeholder for assignee picker search input"
   },
   "Sz9XRZR4Jy": {
     "defaultMessage": "Open review tasks in your TMS",
@@ -8131,10 +8147,6 @@
     "defaultMessage": "Job marked as failed",
     "description": "Success toast after marking a job as failed"
   },
-  "Wk16E7zAqa": {
-    "defaultMessage": "Search segments by key or source text",
-    "description": "Accessible label for CAT queue search input"
-  },
   "WkiVAJgo82": {
     "defaultMessage": "Proofread by own proofreaders",
     "description": "Crowdin task type label for in-house proofreading"
@@ -8431,6 +8443,10 @@
     "defaultMessage": "Weekly",
     "description": "Scheduled cadence option for weekly runs"
   },
+  "Y2hMRmZ+Nf": {
+    "defaultMessage": "{actor} created the issue",
+    "description": "Activity line when an issue is created"
+  },
   "Y3BPUJdmMR": {
     "defaultMessage": "Could not save automation settings",
     "description": "Toast when repository automation settings save fails"
@@ -8462,6 +8478,10 @@
   "YDQwelYneJ": {
     "defaultMessage": "Contentful entry ID",
     "description": "Placeholder for the Contentful entry ID input"
+  },
+  "YDpITGOpDT": {
+    "defaultMessage": "Unassigned",
+    "description": "Assignee picker option to clear the assignee"
   },
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise logo",
@@ -8630,6 +8650,10 @@
   "YsUGw6nQKk": {
     "defaultMessage": "Resolved",
     "description": "Issue status filter option when an issue is resolved"
+  },
+  "YspwpitZs7": {
+    "defaultMessage": "Select assignee",
+    "description": "Accessible label for the assignee picker trigger"
   },
   "YsqTULzKIY": {
     "defaultMessage": "Usage unavailable",
@@ -10051,6 +10075,10 @@
     "defaultMessage": "Description",
     "description": "Label for the optional job description field"
   },
+  "extNy23p4p": {
+    "defaultMessage": "Search key, source, or translation…",
+    "description": "Placeholder for CAT queue search input"
+  },
   "ey4FPcP+AI": {
     "defaultMessage": "API key ending in {suffix}",
     "description": "Hint that a Semrush API key is already stored"
@@ -10194,10 +10222,6 @@
   "fbw3y8puRl": {
     "defaultMessage": "Unknown",
     "description": "Fallback citation trigger label when no source URL is available"
-  },
-  "fd5kFNowDQ": {
-    "defaultMessage": "No details yet",
-    "description": "Fallback detail line when an issue has no description or source context"
   },
   "fdNYFpldO1": {
     "defaultMessage": "All status",
@@ -10659,6 +10683,10 @@
     "defaultMessage": "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).",
     "description": "Validation error for an invalid custom target locale"
   },
+  "hFzuwtEzyB": {
+    "defaultMessage": "Someone",
+    "description": "Fallback actor name for issue activity when author is missing"
+  },
   "hHvGLkVSzz": {
     "defaultMessage": "From pull request to release-ready locales",
     "description": "Workflow section title for the product-localisation use case"
@@ -10670,6 +10698,10 @@
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# memory} other {# memories}}",
     "description": "Status label showing how many translation memories exist"
+  },
+  "hMCKrgEEKW": {
+    "defaultMessage": "No comments or activity yet. Start the discussion.",
+    "description": "Empty state when an issue has no comments or activity"
   },
   "hMQhlW9yb7": {
     "defaultMessage": "Messages failed to load",
@@ -10722,6 +10754,10 @@
   "hVHfLY3WV9": {
     "defaultMessage": "Lokalise",
     "description": "Alt text for the Lokalise logo in the chapter TMS marquee"
+  },
+  "hVUJVF+t4e": {
+    "defaultMessage": "Assignee",
+    "description": "Table column header for issue assignee"
   },
   "hWOWX4SSYH": {
     "defaultMessage": "Your workspace holds projects, team access, and settings. Choose a name to get started.",
@@ -11651,10 +11687,6 @@
     "defaultMessage": "Issue details",
     "description": "Title for the issue detail drawer"
   },
-  "l4Dmkd+jWE": {
-    "defaultMessage": "No comments yet. Start the discussion.",
-    "description": "Empty state when an issue has no comments"
-  },
   "l4izKn2eyP": {
     "defaultMessage": "Assignees",
     "description": "Job property row label for assigned users"
@@ -11839,10 +11871,6 @@
     "defaultMessage": "Edit project",
     "description": "Title of the edit project dialog"
   },
-  "m/76XCOVDx": {
-    "defaultMessage": "No details yet",
-    "description": "Fallback detail line when an issue has no description or source path"
-  },
   "m1KcvYGLt0": {
     "defaultMessage": "Entry deleted",
     "description": "Toast after a translation memory entry is deleted successfully"
@@ -11946,6 +11974,14 @@
   "mV0v+ofKFK": {
     "defaultMessage": "New request",
     "description": "Button to open a new chat dock tab"
+  },
+  "mWEB+wjuUJ": {
+    "defaultMessage": "No members found.",
+    "description": "Empty state when assignee search has no matches"
+  },
+  "mWmRyMvedC": {
+    "defaultMessage": "{actor} moved from {previousStatus} to {nextStatus}",
+    "description": "Activity line when an issue status changes"
   },
   "mX/u4fe+7s": {
     "defaultMessage": "Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries",
@@ -12555,6 +12591,10 @@
     "defaultMessage": "That file type is not supported. Use a supported format.",
     "description": "Toast when the selected knowledge upload file uses an unsupported format"
   },
+  "pKzlTiRlHt": {
+    "defaultMessage": "Members",
+    "description": "Group label for assignable workspace members"
+  },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
     "description": "Description for the external TMS disconnect confirmation dialog"
@@ -12614,6 +12654,10 @@
   "pYr1Qzb1sO": {
     "defaultMessage": "Agent Automation",
     "description": "Hero eyebrow for the agents automation product page"
+  },
+  "paJg6jTRIA": {
+    "defaultMessage": "Assignee",
+    "description": "Table column header for issue assignee on workspace issues"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone...",
@@ -13250,6 +13294,10 @@
   "sCwvAHmqAI": {
     "defaultMessage": "Failed to load API keys",
     "description": "Error when the API keys list request fails"
+  },
+  "sE8e8Vuut1": {
+    "defaultMessage": "Assignee",
+    "description": "Label for assignee on create issue dialog"
   },
   "sFAU+pXxlM": {
     "defaultMessage": "{count} {label}",
@@ -14446,6 +14494,10 @@
   "x3xLP2YerQ": {
     "defaultMessage": "Daily",
     "description": "Schedule cadence pill in the marketing automation editor mock"
+  },
+  "x5jXClnMbS": {
+    "defaultMessage": "{actor} assigned to themselves",
+    "description": "Activity line when an actor assigns an issue to themselves"
   },
   "x6H592pqcv": {
     "defaultMessage": "Select connection",

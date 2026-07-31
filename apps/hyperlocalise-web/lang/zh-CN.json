@@ -767,6 +767,9 @@
   "1wUO7p+IGh": {
     "defaultMessage": "AI 令牌 / 月"
   },
+  "1xBioz9EDW": {
+    "defaultMessage": "Validation"
+  },
   "1xnSvhvUmv": {
     "defaultMessage": "使用你的 LLM 生成区域设置草稿"
   },
@@ -1111,6 +1114,9 @@
   },
   "3cr478PtNy": {
     "defaultMessage": "Remove {label}"
+  },
+  "3cyl65gUFm": {
+    "defaultMessage": "Medical device compliance check"
   },
   "3dfZO0kB4v": {
     "defaultMessage": "Seats"
@@ -2612,6 +2618,9 @@
   "BOP4Yb+urd": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
   },
+  "BQ2Um1RaCK": {
+    "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance."
+  },
   "BUP/2Zum32": {
     "defaultMessage": "人工介入升级"
   },
@@ -3113,6 +3122,9 @@
   "DqaqeEsPck": {
     "defaultMessage": "在您的客户发现之前，先发现翻译偏差"
   },
+  "DtRFjTA7Kk": {
+    "defaultMessage": "{actor} assigned to {assignee}"
+  },
   "DwOm/o1t0O": {
     "defaultMessage": "即将推出"
   },
@@ -3482,6 +3494,9 @@
   "Fqhf+2LVu/": {
     "defaultMessage": "No projects assigned yet."
   },
+  "FrF4P2cRG5": {
+    "defaultMessage": "Loading members…"
+  },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% translated"
   },
@@ -3526,6 +3541,9 @@
   },
   "GAAFtsnydJ": {
     "defaultMessage": "Upload a source file before creating a translation job."
+  },
+  "GC8iH4BPwj": {
+    "defaultMessage": "Scheduled"
   },
   "GDDaNVOG9m": {
     "defaultMessage": "Update one article. Ship it in every language."
@@ -4217,6 +4235,9 @@
   "KCoITTErMU": {
     "defaultMessage": "为本地化团队打造。即将推出。"
   },
+  "KFoEqCEp2d": {
+    "defaultMessage": "{actor} unassigned"
+  },
   "KG5OUSGbKU": {
     "defaultMessage": "Board"
   },
@@ -4288,6 +4309,9 @@
   },
   "KjJZbmRFki": {
     "defaultMessage": "Unable to load project details. Refresh the page or try again in a moment."
+  },
+  "Kjim0yzISM": {
+    "defaultMessage": "Search segments by key, source text, or translation"
   },
   "KkmE6ygIj4": {
     "defaultMessage": "Task type"
@@ -4528,6 +4552,9 @@
   },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} 个字符"
+  },
+  "MCViSbp0Sq": {
+    "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish."
   },
   "MDFHda6r2V": {
     "defaultMessage": "Description saved"
@@ -5666,6 +5693,9 @@
   "SRrmrnZCsA": {
     "defaultMessage": "协作"
   },
+  "SSB8f+XN3w": {
+    "defaultMessage": "Assign to me"
+  },
   "SSDdQ9eeIj": {
     "defaultMessage": "All sync states"
   },
@@ -5746,6 +5776,9 @@
   },
   "SyMDAHRe17": {
     "defaultMessage": "{count, plural, one {# open job} other {# open jobs}}"
+  },
+  "SynhGNu72Q": {
+    "defaultMessage": "Search by name or email…"
   },
   "Sz9XRZR4Jy": {
     "defaultMessage": "在你的 TMS 中打开审核任务"
@@ -6533,6 +6566,9 @@
   "X69pKW667o": {
     "defaultMessage": "No issues found"
   },
+  "X6g1omP0I1": {
+    "defaultMessage": "Notify #compliance when findings need review."
+  },
   "X7qkN/IoEW": {
     "defaultMessage": "How can I help you today?"
   },
@@ -6704,6 +6740,9 @@
   "Y19LAzxjpx": {
     "defaultMessage": "每周"
   },
+  "Y2hMRmZ+Nf": {
+    "defaultMessage": "{actor} created the issue"
+  },
   "Y3BPUJdmMR": {
     "defaultMessage": "无法保存自动化设置"
   },
@@ -6727,6 +6766,9 @@
   },
   "YDQwelYneJ": {
     "defaultMessage": "Contentful entry ID"
+  },
+  "YDpITGOpDT": {
+    "defaultMessage": "Unassigned"
   },
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise 徽标"
@@ -6859,6 +6901,9 @@
   },
   "YsUGw6nQKk": {
     "defaultMessage": "Resolved"
+  },
+  "YspwpitZs7": {
+    "defaultMessage": "Select assignee"
   },
   "YsqTULzKIY": {
     "defaultMessage": "Usage unavailable"
@@ -7664,6 +7709,9 @@
   "dRBR6Rd4hs": {
     "defaultMessage": "为工程和本地化运营而构建"
   },
+  "dStMwhojOw": {
+    "defaultMessage": "08:00 UTC"
+  },
   "dTKdfkqH71": {
     "defaultMessage": "Create job"
   },
@@ -7984,6 +8032,9 @@
   },
   "evmQYH9X0j": {
     "defaultMessage": "Description"
+  },
+  "extNy23p4p": {
+    "defaultMessage": "Search key, source, or translation…"
   },
   "ey4FPcP+AI": {
     "defaultMessage": "API key ending in {suffix}"
@@ -8456,6 +8507,9 @@
   "hElFzW5+gy": {
     "defaultMessage": "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW)."
   },
+  "hFzuwtEzyB": {
+    "defaultMessage": "Someone"
+  },
   "hHvGLkVSzz": {
     "defaultMessage": "从拉取请求到可发布的本地化内容"
   },
@@ -8467,6 +8521,9 @@
   },
   "hKQGjL6KUM": {
     "defaultMessage": "已成功"
+  },
+  "hMCKrgEEKW": {
+    "defaultMessage": "No comments or activity yet. Start the discussion."
   },
   "hMQhlW9yb7": {
     "defaultMessage": "Messages failed to load"
@@ -8509,6 +8566,9 @@
   },
   "hVHfLY3WV9": {
     "defaultMessage": "Lokalise"
+  },
+  "hVUJVF+t4e": {
+    "defaultMessage": "Assignee"
   },
   "hWOWX4SSYH": {
     "defaultMessage": "您的工作区包含项目、团队访问权限和设置。请选择一个名称以开始。"
@@ -8920,6 +8980,9 @@
   },
   "jPddLz1mvi": {
     "defaultMessage": "No source files linked to this job."
+  },
+  "jQ5TgyeZII": {
+    "defaultMessage": "Check locale coverage, terminology, and compliance gates."
   },
   "jRn12WvzpR": {
     "defaultMessage": "Format"
@@ -9521,6 +9584,12 @@
   "mV0v+ofKFK": {
     "defaultMessage": "新请求"
   },
+  "mWEB+wjuUJ": {
+    "defaultMessage": "No members found."
+  },
+  "mWmRyMvedC": {
+    "defaultMessage": "{actor} moved from {previousStatus} to {nextStatus}"
+  },
   "mX/u4fe+7s": {
     "defaultMessage": "Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries"
   },
@@ -9998,6 +10067,9 @@
   "pJSZRmHIFC": {
     "defaultMessage": "不支持该文件类型。请使用受支持的格式。"
   },
+  "pKzlTiRlHt": {
+    "defaultMessage": "Members"
+  },
   "pM8pgX4u47": {
     "defaultMessage": "这将移除已保存的加密提供方凭据。重新连接此提供方将需要再次输入密钥。"
   },
@@ -10042,6 +10114,9 @@
   },
   "pYr1Qzb1sO": {
     "defaultMessage": "智能体自动化"
+  },
+  "paJg6jTRIA": {
+    "defaultMessage": "Assignee"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone..."
@@ -10555,6 +10630,9 @@
   },
   "sCwvAHmqAI": {
     "defaultMessage": "加载 API 密钥失败"
+  },
+  "sE8e8Vuut1": {
+    "defaultMessage": "Assignee"
   },
   "sFAU+pXxlM": {
     "defaultMessage": "{count} {label}"
@@ -11494,6 +11572,12 @@
   },
   "x3PUnnOYom": {
     "defaultMessage": "Already in TMS"
+  },
+  "x3xLP2YerQ": {
+    "defaultMessage": "Daily"
+  },
+  "x5jXClnMbS": {
+    "defaultMessage": "{actor} assigned to themselves"
   },
   "x6H592pqcv": {
     "defaultMessage": "Select connection"
